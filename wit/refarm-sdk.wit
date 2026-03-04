@@ -1,0 +1,162 @@
+/// refarm-sdk.wit
+///
+/// WebAssembly Interface Type (WIT) definition for the Refarm Plugin SDK.
+///
+/// This file defines the **entire communication surface** between a plugin
+/// (WASM component) and the Refarm Kernel.  Plugins are fully sandboxed:
+/// they cannot access the DOM, the network, or SQLite directly.  All
+/// interactions MUST go through the imports listed in `refarm:plugin/kernel-bridge`.
+///
+/// Standard: WebAssembly Component Model (WASI Preview 2)
+/// Spec:     https://component-model.bytecodealliance.org/
+///
+/// ┌──────────────────────────────────────┐
+/// │            Plugin (WASM)             │
+/// │  implements  refarm:plugin/integration│
+/// │  uses        refarm:plugin/kernel-bridge│
+/// └──────────────────────────────────────┘
+///         ↕ WIT boundary (sandbox)
+/// ┌──────────────────────────────────────┐
+/// │          Refarm Kernel (host)        │
+/// └──────────────────────────────────────┘
+
+package refarm:plugin@0.1.0;
+
+// ─── Shared Types ─────────────────────────────────────────────────────────────
+
+/// A JSON-LD node serialised as a UTF-8 string.
+/// Must be valid JSON-LD; the kernel validates this before persistence.
+type json-ld-node = string;
+
+/// A stable, URL-safe identifier for a data node.
+/// Convention: urn:<plugin-id>:<local-id>   (e.g. "urn:whatsapp-bridge:msg-42")
+type node-id = string;
+
+/// HTTP method enum for allowed fetch operations.
+enum http-method {
+    get,
+    post,
+    put,
+    patch,
+    delete,
+}
+
+/// A minimal HTTP request (network access is capability-gated).
+record http-request {
+    method: http-method,
+    url: string,
+    headers: list<tuple<string, string>>,
+    body: option<list<u8>>,
+}
+
+/// A minimal HTTP response.
+record http-response {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+}
+
+/// Error type for all kernel-bridge operations.
+variant plugin-error {
+    /// The operation is not permitted by the current capability grant.
+    not-permitted(string),
+    /// The requested node was not found in the local graph.
+    not-found(node-id),
+    /// The provided JSON-LD payload is malformed.
+    invalid-schema(string),
+    /// A network fetch failed.
+    network-error(string),
+    /// An unspecified internal kernel error.
+    internal(string),
+}
+
+// ─── World: Kernel → Plugin Imports (what the plugin can call) ────────────────
+
+/// Capability interface exposed by the Kernel to the plugin.
+///
+/// This is the ONLY way a plugin can interact with the outside world.
+/// The kernel host implementation enforces all permissions.
+interface kernel-bridge {
+    /// Store (upsert) a JSON-LD node into the user's sovereign graph.
+    /// The kernel validates the schema and may reject malformed payloads.
+    store-node: func(node: json-ld-node) -> result<node-id, plugin-error>;
+
+    /// Retrieve a previously stored node by its ID.
+    get-node: func(id: node-id) -> result<json-ld-node, plugin-error>;
+
+    /// Query nodes by @type.  Returns up to `limit` nodes.
+    query-nodes: func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
+
+    /// Perform a capability-gated HTTP request.
+    /// The kernel checks the allowed-origins list configured by the user
+    /// before forwarding the request; plugins cannot fetch arbitrary URLs.
+    fetch: func(req: http-request) -> result<http-response, plugin-error>;
+
+    /// Emit a structured log message visible in Studio's terminal.
+    log: func(level: log-level, message: string);
+
+    /// Request a user-facing permission prompt (e.g. "Allow WhatsApp Bridge
+    /// to read your contacts?").  Returns true if the user accepts.
+    request-permission: func(capability: string, reason: string) -> bool;
+}
+
+/// Log severity levels.
+enum log-level {
+    debug,
+    info,
+    warn,
+    error,
+}
+
+// ─── World: Plugin → Kernel Exports (what the kernel can call) ────────────────
+
+/// Interface the plugin MUST implement.
+/// The kernel calls these lifecycle hooks.
+interface integration {
+    /// Called once after the plugin is instantiated.
+    /// Use this to perform one-time setup (e.g. OAuth handshake).
+    setup: func() -> result<_, plugin-error>;
+
+    /// Called periodically (or on demand) to pull fresh data from the source.
+    /// The plugin fetches data through `kernel-bridge.fetch` and stores
+    /// normalised JSON-LD nodes via `kernel-bridge.store-node`.
+    ingest: func() -> result<u32, plugin-error>;
+
+    /// Called when the user triggers a push (e.g. replying to a message).
+    /// `payload` is a JSON-LD node describing the outbound action.
+    push: func(payload: json-ld-node) -> result<_, plugin-error>;
+
+    /// Called before the plugin is unloaded; clean up resources.
+    teardown: func();
+
+    /// Return a human-readable name and version for display in Studio.
+    metadata: func() -> plugin-metadata;
+}
+
+/// Static metadata returned by the plugin.
+record plugin-metadata {
+    name: string,
+    version: string,
+    description: string,
+    /// Data @types this plugin produces (e.g. ["Message", "Person"]).
+    supported-types: list<string>,
+    /// Required capability strings (shown in permission prompts).
+    required-capabilities: list<string>,
+}
+
+// ─── World Definition ─────────────────────────────────────────────────────────
+
+/// The complete WASM component world for a Refarm integration plugin.
+///
+/// Build your plugin as a WASM component that satisfies this world:
+///
+///   cargo component build --target wasm32-wasi
+///
+/// Then distribute it via Nostr NIP-94 and announce it with NIP-89.
+world refarm-plugin {
+    /// Imports provided by the Kernel host.
+    import kernel-bridge;
+
+    /// Exports that the plugin must implement.
+    export integration;
+}

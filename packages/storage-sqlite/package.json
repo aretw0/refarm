@@ -1,0 +1,26 @@
+{
+  "name": "@refarm/storage-sqlite",
+  "version": "0.1.0",
+  "description": "Sovereign SQLite/OPFS storage primitive — usable independently of Refarm",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "tsc --project tsconfig.json --watch",
+    "lint": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["sqlite", "opfs", "offline-first", "local-first", "wasm"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
