@@ -1,0 +1,90 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: "0 9 * * 1" # Todas as segundas às 9:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Check Outdated Dependencies
+        id: check
+        run: |
+          npm run deps:check
+          if grep -q "Nenhuma dependência desatualizada" deps-report.md; then
+            echo "has_updates=false" >> $GITHUB_OUTPUT
+            echo "✅ No updates needed."
+          else
+            echo "has_updates=true" >> $GITHUB_OUTPUT
+            echo "📦 Updates discovered, preparing issue and PR."
+          fi
+
+      - name: Manage Issue
+        id: manage_issue
+        if: steps.check.outputs.has_updates == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_URL=$(gh issue list --state open --search "in:title Automated Dependency Updates Report" --json url --jq '.[0].url')
+          if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
+            echo "Found open issue: $ISSUE_URL"
+            OLD_BODY=$(gh issue view "$ISSUE_URL" --json body --jq '.body')
+            NEW_BODY=$(cat deps-report.md)
+            if [ "$OLD_BODY" = "$NEW_BODY" ]; then
+              echo "Dependencies are exactly the same as the open issue. No update needed."
+              echo "proceed=false" >> $GITHUB_OUTPUT
+            else
+              echo "Dependencies have changed. Updating existing issue."
+              gh issue edit "$ISSUE_URL" --body-file deps-report.md
+              echo "proceed=true" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No open issue found. Creating a new one."
+            ISSUE_URL=$(gh issue create --title "Automated Dependency Updates Report" --body-file deps-report.md)
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          fi
+          echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+
+      - name: Update Dependencies
+        if: steps.manage_issue.outputs.proceed == 'true'
+        run: |
+          npm run deps:update
+          npm install
+
+      - name: Create Pull Request
+        if: steps.manage_issue.outputs.proceed == 'true'
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(deps): autoupdate dependencies across workspaces"
+          title: "chore(deps): automated update for dependencies"
+          body: |
+            ## 🔄 Atualização Automática de Dependências
+
+            Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `npm run deps:check`**.
+
+            O relatório detalhado pode ser discutido na Issue: ${{ steps.manage_issue.outputs.issue_url }}
+
+            O PR está criado e mantido nesta branch única para testes e validação contínua ao longo do mês.
+          branch: "bot/dependency-updates"
+          delete-branch: true
+          labels: "dependencies"
