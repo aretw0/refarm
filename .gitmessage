@@ -1,0 +1,35 @@
+# <type>(<scope>): <short description>
+# |<---- Use max 50 chars ---->|
+
+# Detailed description, if necessary:
+# |<---- Try to limit each line to 72 chars ---->|
+#
+# * List main changes
+# * One per line
+# * Start with a marker
+
+# --- COMMIT TYPES ---
+# feat     ✨ (new feature)
+# fix      🐛 (bug fix)
+# docs     📚 (documentation)
+# style    💎 (formatting, missing semi colons, etc)
+# refactor ♻️  (refactoring)
+# test     🧪 (adding or updating tests)
+# chore    🔧 (maintenance tasks)
+# perf     ⚡ (performance improvements)
+# ci       👷 (CI configuration)
+
+# --- TIPS ---
+# - Use the imperative mood: "add" not "added" or "adding"
+# - First line is the title, must be clear and concise
+# - Add "!" after type/scope to indicate breaking changes
+# - Reference related issues in the footer: "Fixes #123"
+
+# --- EXAMPLE ---
+# feat(notes): add support for custom tags
+#
+# * Implement customizable tag system
+# * Add interface for tag management
+# * Integrate with existing search system
+#
+# Fixes #123
