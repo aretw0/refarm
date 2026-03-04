@@ -48,7 +48,7 @@ npm run build    # Build everything
 npm test         # Run all tests
 ```
 
-See [`docs/architecture.md`](docs/architecture.md) for the full architecture overview, data flow diagrams, and plugin development guide.
+See [`docs/architecture.md`](docs/ARCHITECURE.md) for the full architecture overview, data flow diagrams, and plugin development guide.
 
 ---
 
