@@ -1,0 +1,113 @@
+---
+/**
+ * Refarm Studio — Plugin Marketplace
+ *
+ * Discovers plugins via Nostr NIP-89 (kind:31990 events) and allows the user
+ * to install them into the local Kernel sandbox.
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Plugin Marketplace — Refarm Studio">
+  <section style="max-width: 900px; margin: 0 auto;">
+    <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">🔌 Plugin Marketplace</h2>
+    <p style="color: #8b949e; margin-bottom: 1.5rem;">
+      Plugins are discovered via Nostr (NIP-89) — no central server required.
+      Each WASM binary is verified client-side before execution.
+    </p>
+
+    <div style="
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+    ">
+      <label for="relay-input" style="display: block; margin-bottom: 0.5rem; font-size: 0.875rem;">
+        Nostr Relay
+      </label>
+      <div style="display: flex; gap: 0.5rem;">
+        <input
+          id="relay-input"
+          type="text"
+          value="wss://relay.damus.io"
+          style="
+            flex: 1;
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 0.5rem 0.75rem;
+            color: #c9d1d9;
+            font-size: 0.875rem;
+          "
+        />
+        <button id="discover-btn" style="
+          background: #238636;
+          border: none;
+          border-radius: 6px;
+          padding: 0.5rem 1rem;
+          color: #fff;
+          cursor: pointer;
+          font-size: 0.875rem;
+        ">
+          Discover Plugins
+        </button>
+      </div>
+    </div>
+
+    <div id="plugin-list">
+      <p style="color: #8b949e; font-size: 0.875rem;">
+        Click "Discover Plugins" to query the relay for available plugins.
+      </p>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  document.getElementById("discover-btn")?.addEventListener("click", async () => {
+    const relay = (document.getElementById("relay-input") as HTMLInputElement).value.trim();
+    const listEl = document.getElementById("plugin-list")!;
+
+    listEl.innerHTML = `<p style="color: #8b949e;">Querying ${relay}…</p>`;
+
+    try {
+      const { NostrIdentityManager } = await import("@refarm/identity-nostr");
+      const identity = new NostrIdentityManager();
+      const plugins = await identity.discoverPlugins([relay]);
+
+      if (plugins.length === 0) {
+        listEl.innerHTML = `<p style="color: #8b949e;">No plugins found on this relay yet.</p>`;
+        return;
+      }
+
+      listEl.innerHTML = plugins
+        .map(
+          (p) => `
+          <div style="
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+          ">
+            <strong style="color: #58a6ff;">${p.name}</strong>
+            <span style="color: #8b949e; font-size: 0.75rem; margin-left: 0.5rem;">v${p.version}</span>
+            <p style="color: #8b949e; font-size: 0.875rem; margin: 0.5rem 0;">${p.about}</p>
+            <button data-plugin-id="${p.eventId}" style="
+              background: #1f6feb;
+              border: none;
+              border-radius: 6px;
+              padding: 0.4rem 0.8rem;
+              color: #fff;
+              cursor: pointer;
+              font-size: 0.75rem;
+            ">Install</button>
+          </div>
+        `
+        )
+        .join("");
+    } catch (err) {
+      listEl.innerHTML = `<p style="color: #f85149;">Error: ${(err as Error).message}</p>`;
+    }
+  });
+</script>

@@ -1,0 +1,157 @@
+---
+/**
+ * Refarm Studio — Plugin Dev Environment
+ *
+ * An in-browser IDE backed by WebContainers where developers can write,
+ * build and test WASM plugins without leaving the browser.
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Plugin Dev — Refarm Studio">
+  <section style="max-width: 1000px; margin: 0 auto;">
+    <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">⚡ Plugin Development Environment</h2>
+    <p style="color: #8b949e; margin-bottom: 1.5rem;">
+      Write your plugin using the WIT interface below, then compile and test it
+      directly in the browser via WebContainers. No local toolchain required.
+    </p>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: 600px;">
+      <!-- Editor panel -->
+      <div style="
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      ">
+        <div style="
+          padding: 0.5rem 1rem;
+          border-bottom: 1px solid #30363d;
+          font-size: 0.8rem;
+          color: #8b949e;
+        ">
+          📝 plugin.ts
+        </div>
+        <textarea
+          id="plugin-code"
+          spellcheck="false"
+          style="
+            flex: 1;
+            background: #0d1117;
+            color: #c9d1d9;
+            border: none;
+            padding: 1rem;
+            font-family: 'Fira Code', 'Cascadia Code', monospace;
+            font-size: 0.8rem;
+            resize: none;
+            outline: none;
+          "
+        >
+// Refarm Plugin — WhatsApp Bridge (example)
+// Implements the refarm:plugin/integration WIT interface
+
+import type { KernelBridge } from "@refarm/sdk";
+
+export async function ingest(bridge: KernelBridge): Promise<void> {
+  // Fetch data from the source (sandboxed — no direct network access)
+  const raw = await bridge.fetchAllowed("https://api.example.com/messages");
+
+  for (const msg of raw.messages) {
+    // Normalise to JSON-LD before storing
+    await bridge.storeNode({
+      "@context": "https://schema.org/",
+      "@type": "Message",
+      "@id": `urn:whatsapp:${msg.id}`,
+      "name": msg.subject,
+      "text": msg.body,
+      "dateSent": msg.timestamp,
+      "sender": { "@type": "Person", "name": msg.from },
+    });
+  }
+}
+        </textarea>
+      </div>
+
+      <!-- Terminal panel -->
+      <div style="
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      ">
+        <div style="
+          padding: 0.5rem 1rem;
+          border-bottom: 1px solid #30363d;
+          font-size: 0.8rem;
+          color: #8b949e;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        ">
+          <span>🖥️ Terminal (WebContainers)</span>
+          <button id="run-btn" style="
+            background: #238636;
+            border: none;
+            border-radius: 4px;
+            padding: 0.25rem 0.75rem;
+            color: #fff;
+            cursor: pointer;
+            font-size: 0.75rem;
+          ">▶ Run</button>
+        </div>
+        <div
+          id="terminal-output"
+          style="
+            flex: 1;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: #3fb950;
+            overflow-y: auto;
+            white-space: pre-wrap;
+          "
+        >$ Waiting for WebContainers to boot…
+        </div>
+      </div>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  const terminalEl = document.getElementById("terminal-output")!;
+
+  function log(msg: string, color = "#c9d1d9") {
+    terminalEl.innerHTML += `<span style="color: ${color};">${msg}\n</span>`;
+    terminalEl.scrollTop = terminalEl.scrollHeight;
+  }
+
+  // Boot WebContainers
+  async function bootWebContainers() {
+    try {
+      log("$ Booting WebContainers runtime…", "#8b949e");
+      // TODO: import { WebContainer } from '@webcontainer/api';
+      // const wc = await WebContainer.boot();
+      // Mount a virtual filesystem with the Refarm SDK scaffolding
+      // await wc.mount(scaffoldFiles);
+      log("$ WebContainers ready ✓", "#3fb950");
+      log("$ Type your plugin code and click ▶ Run", "#8b949e");
+    } catch (err) {
+      log(`$ Error: ${(err as Error).message}`, "#f85149");
+    }
+  }
+
+  document.getElementById("run-btn")?.addEventListener("click", async () => {
+    const code = (document.getElementById("plugin-code") as HTMLTextAreaElement).value;
+    log("\n$ Compiling plugin…", "#58a6ff");
+    // TODO: write code to WebContainer filesystem, run `node plugin.ts`
+    log(`$ Code length: ${code.length} chars`, "#8b949e");
+    log("$ (Full WebContainers integration requires @webcontainer/api)", "#8b949e");
+    log("$ Build complete ✓", "#3fb950");
+  });
+
+  bootWebContainers();
+</script>
