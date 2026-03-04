@@ -1,0 +1,97 @@
+# =============================================================================
+# Refarm Monorepo — .gitignore
+# Covers: Node.js, Turborepo, Astro, Rust/WASM, SQLite, OS artifacts
+# =============================================================================
+
+# ─── Turborepo ───────────────────────────────────────────────────────────────
+.turbo/
+
+# ─── Node / Package Managers ─────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.npm/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ─── Build Outputs ────────────────────────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+.output/
+
+# Astro
+.astro/
+
+# ─── Rust / WebAssembly ───────────────────────────────────────────────────────
+target/
+pkg/
+wasm-pack.log
+Cargo.lock          # Only for libraries (apps should keep their own)
+
+# Compiled WASM outputs (keep .wat source, ignore compiled binary)
+*.wasm
+# Exception: checked-in WASM fixtures used in tests
+!**/__fixtures__/**/*.wasm
+
+# ─── WIT / Component Model ───────────────────────────────────────────────────
+# Compiled component binaries (re-generated from .wit sources)
+*.wasm.component
+
+# ─── SQLite / OPFS ───────────────────────────────────────────────────────────
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+*.db
+*.db-shm
+*.db-wal
+
+# ─── Environment & Secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.pem
+*.key
+*.p12
+
+# ─── Test Coverage & Reports ─────────────────────────────────────────────────
+coverage/
+.nyc_output/
+*.lcov
+test-results/
+playwright-report/
+playwright/.cache/
+
+# ─── TypeScript ───────────────────────────────────────────────────────────────
+*.tsbuildinfo
+
+# ─── Editor & IDE ─────────────────────────────────────────────────────────────
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ─── Miscellaneous ────────────────────────────────────────────────────────────
+.cache/
+tmp/
+temp/

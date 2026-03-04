@@ -1,0 +1,23 @@
+{
+  "name": "@refarm/kernel",
+  "version": "0.1.0",
+  "description": "Refarm Kernel — the 'Solo Fértil' core that orchestrates storage, identity and plugins",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "tsc --project tsconfig.json --watch",
+    "lint": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@refarm/storage-sqlite": "*",
+    "@refarm/identity-nostr": "*",
+    "@refarm/sync-crdt": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  },
+  "license": "MIT"
+}

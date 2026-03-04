@@ -1,0 +1,26 @@
+{
+  "name": "@refarm/sync-crdt",
+  "version": "0.1.0",
+  "description": "CRDT-based sync primitive — conflict-free replicated data types for local-first applications",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "dev": "tsc --project tsconfig.json --watch",
+    "lint": "tsc --noEmit",
+    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["crdt", "sync", "local-first", "offline-first", "conflict-free"],
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
