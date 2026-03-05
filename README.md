@@ -52,6 +52,18 @@ See [`docs/architecture.md`](docs/ARCHITECURE.md) for the full architecture over
 
 ---
 
-## License
+## Contributing
 
-MIT
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to Refarm, including our workflow with Changesets.
+
+---
+
+## Security
+
+For information about known vulnerabilities in dependencies and how to report security issues, see [`SECURITY.md`](SECURITY.md).
+
+---
+
+## Licença
+
+[AGPL-3.0](LICENSE)
