@@ -1,0 +1,14 @@
+{
+  "pt-BR": {
+    "app.title": "Refarm",
+    "app.description": "Sistema Operacional Pessoal para Dados Soberanos"
+  },
+  "en": {
+    "app.title": "Refarm",
+    "app.description": "Personal Operating System for Sovereign Data"
+  },
+  "es": {
+    "app.title": "Refarm",
+    "app.description": "Sistema Operativo Personal para Datos Soberanos"
+  }
+}

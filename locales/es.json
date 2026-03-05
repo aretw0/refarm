@@ -1,0 +1,9 @@
+{
+  "app.title": "Refarm",
+  "app.description": "Sistema Operativo Personal para Datos Soberanos",
+  "app.tagline": "Centralizar y reformar datos de múltiples fuentes fragmentadas en un gráfico único, portátil y sin conexión.",
+  "nav.home": "Inicio",
+  "nav.plugins": "Plugins",
+  "nav.docs": "Documentación",
+  "nav.about": "Acerca de"
+}
