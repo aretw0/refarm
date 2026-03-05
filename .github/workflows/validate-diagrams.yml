@@ -1,0 +1,35 @@
+name: Validate Diagrams
+
+on:
+  pull_request:
+    paths:
+      - "docs/**/*.mermaid"
+      - ".github/workflows/validate-diagrams.yml"
+      - "scripts/check-diagrams.mjs"
+  push:
+    branches:
+      - main
+    paths:
+      - "docs/**/*.mermaid"
+
+permissions:
+  contents: read
+
+jobs:
+  validate-diagrams:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Validate Diagrams
+        run: npm run diagrams:check -- --ci

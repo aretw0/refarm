@@ -15,7 +15,9 @@
     "changeset": "changeset",
     "changeset:version": "changeset version",
     "changeset:publish": "changeset publish",
-    "i18n:check": "node scripts/check-locales.mjs"
+    "i18n:check": "node scripts/check-locales.mjs",
+    "diagrams:check": "node scripts/check-diagrams.mjs",
+    "diagrams:fix": "node scripts/check-diagrams.mjs --fix"
   },
   "workspaces": [
     "apps/*",

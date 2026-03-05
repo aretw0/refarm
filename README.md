@@ -1,5 +1,7 @@
 # 🌱 Refarm
 
+[![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE.txt)
+
 > **Personal Operating System for Sovereign Data**
 
 Refarm centralises and "reforms" data from multiple fragmented sources into a single, portable, offline-first graph that belongs entirely to you.

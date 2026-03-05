@@ -14,7 +14,7 @@
 └─────────────────────────────────────────────────────────────┘
 
     ┌─────────┐        ┌─────────┐        ┌─────────┐        ┌─────────┐
-    │   SDD   │───────▶│   BDD   │───────▶│   TDD   │───────▶│   DDD   │
+    │   SDD   │──────▶│   BDD   │───────▶│   TDD   │───────▶│   DDD   │
     │  Specs  │        │ Int.Test│        │Unit Test│        │  Code   │
     └─────────┘        └─────────┘        └─────────┘        └─────────┘
         │                   │                   │                   │
@@ -32,70 +32,17 @@
 
 **Detailed Flow**:
 
-```mermaid
-flowchart TD
-    Start([New Milestone]) --> SDD
+![SDD to DDD Workflow](./workflow-diagram.svg)
 
-    subgraph SDD[SDD - Specification Driven Development]
-        S1[Write ADRs]
-        S2[Write Feature Specs]
-        S3[Create Diagrams]
-        S4[Peer Review]
-        S1 --> S2 --> S3 --> S4
-    end
+**Diagram Source of Truth**: [`docs/workflow-diagram.mermaid`](./workflow-diagram.mermaid)
 
-    SDD --> SDD_Gate{Gate 1:<br/>Complete?<br/>No TODOs?}
-    SDD_Gate -->|No| SDD
-    SDD_Gate -->|Yes| BDD
+To regenerate this diagram after editing the source:
 
-    subgraph BDD[BDD - Behavior Driven Development]
-        B1[Write Integration Tests]
-        B2[Define Acceptance Criteria]
-        B3[Tests FAIL 🔴]
-        B4[Peer Review]
-        B1 --> B2 --> B3 --> B4
-    end
-
-    BDD --> BDD_Gate{Gate 2:<br/>Tests RED?<br/>Behavior clear?}
-    BDD_Gate -->|No| BDD
-    BDD_Gate -->|Yes| TDD
-
-    subgraph TDD[TDD - Test Driven Development]
-        T1[Write Unit Tests]
-        T2[Define Contracts]
-        T3[Tests FAIL 🔴]
-        T4[Check Coverage ≥80%]
-        T5[Peer Review]
-        T1 --> T2 --> T3 --> T4 --> T5
-    end
-
-    TDD --> TDD_Gate{Gate 3:<br/>Tests RED?<br/>Coverage OK?}
-    TDD_Gate -->|No| TDD
-    TDD_Gate -->|Yes| DDD
-
-    subgraph DDD[DDD - Domain Driven Implementation]
-        D1[Implement Domain Logic]
-        D2[Create Infrastructure]
-        D3[Tests PASS 🟢]
-        D4[Check Coverage]
-        D5[Create Changeset]
-        D6[Peer Review]
-        D1 --> D2 --> D3 --> D4 --> D5 --> D6
-    end
-
-    DDD --> DDD_Gate{Gate 4:<br/>All tests GREEN?<br/>Coverage met?}
-    DDD_Gate -->|No| DDD
-    DDD_Gate -->|Yes| Done
-
-    Done([✅ Milestone Complete])
-
-    style SDD fill:#e1f5ff
-    style BDD fill:#fff3e0
-    style TDD fill:#fff3e0
-    style DDD fill:#e8f5e9
-    style Done fill:#c8e6c9
-    style Start fill:#f5f5f5
+```bash
+npm run diagrams:fix
 ```
+
+This will regenerate all `.svg` files from their corresponding `.mermaid` sources. See [CONTRIBUTING.md#diagrams](../CONTRIBUTING.md#diagrams) for details.
 
 ---
 
