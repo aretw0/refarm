@@ -1,0 +1,9 @@
+{
+  "app.title": "Refarm",
+  "app.description": "Personal Operating System for Sovereign Data",
+  "app.tagline": "Centralize and reform data from multiple fragmented sources into a single, portable, offline-first graph.",
+  "nav.home": "Home",
+  "nav.plugins": "Plugins",
+  "nav.docs": "Documentation",
+  "nav.about": "About"
+}
