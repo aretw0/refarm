@@ -52,7 +52,7 @@ We're exploring this through:
 - [Architecture Guide](docs/ARCHITECTURE.md) — System design
 - [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
 - [Research & Validation](docs/research/INDEX.md) — Technical feasibility studies
-- [ADRs](docs/specs/ADRs/) — Architecture decisions
+- [ADRs](specs/ADRs/README.md) — Architecture decisions
 - [Roadmap](roadmaps/MAIN.md) — v0.1.0 through v1.0.0 milestones
 
 ---
