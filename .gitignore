@@ -77,6 +77,7 @@ playwright/.cache/
 *.tsbuildinfo
 
 # ─── Editor & IDE ─────────────────────────────────────────────────────────────
+.claude/agents/
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
