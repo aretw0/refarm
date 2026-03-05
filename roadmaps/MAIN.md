@@ -330,6 +330,8 @@ TBD - to be generated from completed work
 **Status**: Awaiting v0.5.0  
 **Target**: Sprint 11-12
 
+**Reference**: [ADR-007 Observability & Introspection Primitives](../specs/ADRs/ADR-007-observability-primitives.md)
+
 ### Pre-SDD: Research & Validation (ADR-007 covers this)
 
 - [ ] Benchmark telemetry overhead (sampling strategies)
@@ -413,42 +415,6 @@ TBD - to be generated from completed work
 - **Storage Evolution**: SQL.js → SQLite WASM official build
 
 **Note**: These are NOT commitments. Post-v1.0 roadmap will be community-driven based on user feedback and adoption.
-
----
-
-## Backlog: Cross-Cutting Concerns
-
-**Status**: ADRs to be addressed during appropriate milestones
-
-### Observability & Introspection (ADR-007)
-
-**Status**: 📝 DRAFT (In Research)
-**Priority**: v0.2.0 ou v0.3.0
-**Complexity**: 🔴 Alta
-
-**Problema**:
-
-Como estabelecer primitivas de observabilidade coesas quando:
-
-- Kernel, plugins, e primitivas têm estados independentes
-- Cada componente pode ter suas próprias formas de trace/telemetria
-- Sistema é meta (composto emergentemente)
-- Debugging precisa ser profundo mas não-invasivo
-
-**Requisitos**:
-
-- [ ] SDK expõe primitives de telemetria (events, metrics, traces, logs)
-- [ ] Plugins podem observar estado sem comprometer segurança
-- [ ] Monitoramento em tempo real viável
-- [ ] Dashboards podem ser compostos emergentemente
-- [ ] "Events sobre events" (meta-observabilidade)
-- [ ] Self-healing: sistema se recupera de erros automaticamente
-- [ ] Telemetria opt-in (default: OFF), anonimizada, transparente
-- [ ] Pluggability: usuários conectam seus próprios providers
-
-**Decisão Proposta**: Hybrid Approach (Core Primitives + Pluggable Observers)
-
-**Ver Detalhes Completos**: [specs/ADRs/ADR-007-observability-primitives.md](../specs/ADRs/ADR-007-observability-primitives.md)
 
 ---
 
