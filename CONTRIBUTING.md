@@ -95,6 +95,33 @@ Use descriptive commit messages:
 - ✅ Good: "Add CRDT vector clock implementation"
 - ❌ Avoid: "Fix stuff", "WIP", "asdf"
 
+### Diagrams
+
+Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG renderings.
+
+**When you edit a `.mermaid` file:**
+
+1. Regenerate the SVG:
+
+   ```bash
+   npm run diagrams:fix
+   ```
+
+2. Commit both the `.mermaid` source AND the `.svg` rendering:
+
+   ```bash
+   git add docs/**/*.mermaid docs/**/*.svg
+   git commit -m "docs: update diagram"
+   ```
+
+3. The CI will verify that SVG files match their source on PRs.
+
+**Why?**
+
+- `.mermaid` is the source of truth (easy to edit, version control-friendly)
+- `.svg` is the rendered output (displays correctly on GitHub without extra dependencies)
+- Keeping them in sync prevents stale diagrams in documentation
+
 ---
 
 ## Accessibility (a11y)
