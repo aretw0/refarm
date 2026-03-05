@@ -1,71 +1,91 @@
-# 🌱 Refarm
+# Refarm
 
 [![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE)
 
 > **Personal Operating System for Sovereign Data**
 
-Refarm centralises and "reforms" data from multiple fragmented sources into a single, portable, offline-first graph that belongs entirely to you.
+A experimental system to claim ownership of your data. Centralises data from multiple fragmented sources into a single, offline-first, portable graph that belongs entirely to you.
 
 ---
 
-## Key Features
+## Why This Matters
 
-- **Offline-First** — All data lives in your browser via SQLite/OPFS. No cloud required.
-- **Plugin Architecture** — Integrations run as WASM components in a sandboxed kernel. Client-side only; no server bots.
-- **Decentralised Marketplace** — Plugins are discovered and distributed via [Nostr](https://nostr.com) (NIP-89/94). No central registry.
-- **Sovereign Data Graph** — All data is normalised to JSON-LD before persistence, making it semantically portable across any platform.
-- **Radical Ejection Right** — Every primitive (`storage-sqlite`, `identity-nostr`, `sync-crdt`) works independently of Refarm.
+Most digital life scatters across dozens of platforms. Your data lives inside corporate servers, bound by terms-of-service, inaccessible when you need it, gone when you don't.
 
----
+**Refarm's hypothesis**: What if you could own, control, and transport your data like you own your files?
 
-## Monorepo Structure
+We're exploring this through:
 
-```
-refarm/
-├── apps/
-│   ├── kernel/          # 🌱 Core Kernel — SQLite, plugin host, graph normaliser
-│   └── studio/          # 🎨 In-browser IDE (Astro) — develop and manage plugins
-├── packages/
-│   ├── storage-sqlite/  # SQLite/OPFS storage primitive (independent library)
-│   ├── identity-nostr/  # Nostr keypair + NIP-89/94 plugin discovery
-│   └── sync-crdt/       # CRDT sync: vector clocks, LWW register, OR-Set
-├── wit/
-│   └── refarm-sdk.wit   # WIT interface for plugin ↔ kernel communication
-├── schemas/
-│   └── sovereign-graph.jsonld  # JSON-LD schema with worked examples
-├── examples/
-│   └── whatsapp-bridge/ # Example plugin implementing the WIT interface
-└── docs/
-    └── architecture.md  # Full architecture documentation
-```
+- **Offline-first storage** — data lives in your browser, not corporate servers
+- **Plugin architecture** — extend via client-side WASM, not cloud APIs
+- **Open formats** — everything is JSON-LD, portable to any platform
+- **Pragmatic decentralisation** — Nostr for identity, not email for verification
 
 ---
 
-## Quick Start
+## Status
+
+🚧 **In active research & development**
+
+- Architecture defined via [ADRs](docs/specs/ADRs/)
+- Core flow: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
+- v0.1.0 roadmap in progress (see [roadmaps/MAIN.md](roadmaps/MAIN.md))
+- Feedback welcome; production use not recommended yet
+
+---
+
+## Project Structure
+
+**Apps:**
+
+- `apps/kernel` — Core orchestration and plugin host
+- `apps/studio` — Web IDE for managing data and plugins
+
+**Packages** (reusable libraries):
+
+- `packages/storage-sqlite` — Offline storage with SQLite + OPFS
+- `packages/identity-nostr` — Sovereign identity via Nostr
+- `packages/sync-crdt` — Real-time sync with CRDT
+
+**Documentation:**
+
+- [Architecture Guide](docs/ARCHITECTURE.md) — System design
+- [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
+- [Research & Validation](docs/research/INDEX.md) — Technical feasibility studies
+- [ADRs](docs/specs/ADRs/) — Architecture decisions
+- [Roadmap](roadmaps/MAIN.md) — v0.1.0 through v1.0.0 milestones
+
+---
+
+## Getting Started
 
 ```bash
 npm install
-npm run dev      # Start all apps in watch mode
-npm run build    # Build everything
-npm test         # Run all tests
+
+# Development
+npm run dev       # Watch mode for all apps
+npm run build     # Build all packages
+npm test          # Run tests
+
+# Contribution workflow
+npm run changeset # Create version changelog entry
 ```
 
-See [`docs/architecture.md`](docs/ARCHITECURE.md) for the full architecture overview, data flow diagrams, and plugin development guide.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 ---
 
-## Contributing
+## Contributing & Security
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to contribute to Refarm, including our workflow with Changesets.
-
----
-
-## Security
-
-For information about known vulnerabilities in dependencies and how to report security issues, see [`SECURITY.md`](SECURITY.md).
+- **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **Security issues:** [SECURITY.md](SECURITY.md)
+- **License:** [AGPL-3.0](LICENSE)
 
 ---
 
-## Licença
+## Further Reading
 
-[AGPL-3.0](LICENSE)
+- [Full Architecture Document](docs/ARCHITECTURE.md)
+- [Development Workflow](docs/WORKFLOW.md)
+- [Main Roadmap](roadmaps/MAIN.md)
+- [Research Validations](docs/research/)
