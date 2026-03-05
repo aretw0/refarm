@@ -10,13 +10,19 @@
     "test": "turbo test",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "deps:check": "node scripts/check-deps.mjs",
-    "deps:update": "node scripts/check-deps.mjs --update"
+    "deps:update": "node scripts/check-deps.mjs --update",
+    "security:audit": "npm audit",
+    "changeset": "changeset",
+    "changeset:version": "changeset version",
+    "changeset:publish": "changeset publish",
+    "i18n:check": "node scripts/check-locales.mjs"
   },
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "devDependencies": {
+    "@changesets/cli": "^2.30.0",
     "npm-check-updates": "^19.6.3",
     "turbo": "^2.3.3",
     "typescript": "^5.7.3"
