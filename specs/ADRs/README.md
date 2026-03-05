@@ -12,6 +12,7 @@ Architecture Decision Records for Refarm.
 | [002](ADR-002-offline-first-strategy.md) | Offline-First Strategy | Proposed | 2026-03-04 |
 | [003](ADR-003-crdt-choice.md) | CRDT Choice (Yjs) | Proposed | 2026-03-04 |
 | [007](ADR-007-observability-primitives.md) | Observability & Introspection Primitives | Draft | 2026-03-05 |
+| [008](ADR-008-ecosystem-technology-boundary.md) | Ecosystem Technology Boundary (Go vs TypeScript) | Accepted | 2026-03-05 |
 
 ---
 
