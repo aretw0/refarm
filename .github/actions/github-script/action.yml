@@ -1,0 +1,15 @@
+name: "GitHub Script Wrapper"
+description: "Centralized wrapper for actions/github-script"
+
+inputs:
+  script:
+    description: "JavaScript source executed by actions/github-script"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run GitHub script
+      uses: actions/github-script@v7
+      with:
+        script: ${{ inputs.script }}
