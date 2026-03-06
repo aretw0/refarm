@@ -3,6 +3,16 @@ set -euo pipefail
 
 echo "[refarm-devcontainer] Starting post-create setup..."
 
+# Fix npm cache permissions if needed
+if [ -d "/home/vscode/.npm" ]; then
+  echo "[refarm-devcontainer] Fixing npm cache permissions..."
+  sudo chown -R 1001:1001 /home/vscode/.npm
+fi
+
+# Update npm to latest stable version
+echo "[refarm-devcontainer] Updating npm to latest..."
+npm install -g npm@latest
+
 # Rust/WASM targets
 rustup target add wasm32-unknown-unknown
 rustup target add wasm32-wasip1 || true
@@ -29,6 +39,10 @@ if [ -f package-lock.json ]; then
 else
   echo "[refarm-devcontainer] package-lock.json not found, skipping npm ci"
 fi
+
+# Security: Fix known vulnerabilities
+echo "[refarm-devcontainer] Running security audit fix..."
+npm audit fix --force 2>/dev/null || true
 
 echo "[refarm-devcontainer] Tool versions:"
 node --version
