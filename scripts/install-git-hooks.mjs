@@ -25,8 +25,11 @@ const hookContent = `#!/bin/sh
 # Installed by: npm run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
 
-# Suppress Vite CJS deprecation warning (informational only, not a functional issue)
-export VITE_CJS_IGNORE_WARNING=true
+# Helper function to filter Vite CJS deprecation warnings
+# (informational only, not a functional issue)
+filter_vite_warning() {
+  grep -v "The CJS build of Vite's Node API is deprecated" | grep -v "vite.dev/guide/troubleshooting"
+}
 
 echo "🔍 Running pre-push validation..."
 echo ""
@@ -55,7 +58,7 @@ WARNINGS=0
 
 # 1. Lint
 echo "📝 Checking lint..."
-if npm run lint --silent 2>/dev/null; then
+if npm run lint --silent 2>&1 | filter_vite_warning >/dev/null; then
   echo "   ✅ Lint passed"
 else
   if [ \$IS_PROTECTED_BRANCH -eq 1 ]; then
@@ -70,7 +73,7 @@ echo ""
 
 # 2. Type-check
 echo "🔤 Checking types..."
-TYPECHECK_OUTPUT=$(npm run type-check --silent 2>&1)
+TYPECHECK_OUTPUT=$(npm run type-check --silent 2>&1 | filter_vite_warning)
 TYPECHECK_STATUS=$?
 if [ \$TYPECHECK_STATUS -eq 0 ]; then
   echo "   ✅ Type-check passed"
@@ -92,7 +95,7 @@ echo ""
 
 # 3. Unit tests
 echo "🧪 Running unit tests (advisory local check)..."
-if npm run test:unit --silent 2>/dev/null; then
+if npm run test:unit --silent 2>&1 | filter_vite_warning >/dev/null; then
   echo "   ✅ Unit tests passed"
 else
   echo "   ⚠️  Unit tests failed (non-blocking local warning)"
