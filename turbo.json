@@ -22,8 +22,8 @@
     "clean": {
       "cache": false
     },
-    "typecheck": {
-      "dependsOn": ["^typecheck"]
+    "type-check": {
+      "dependsOn": ["^type-check"]
     }
   }
 }
