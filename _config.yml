@@ -1,0 +1,14 @@
+# Minimal Jekyll config for GitHub Pages CI.
+# Exclude app/source trees that are not Jekyll content.
+exclude:
+  - apps/
+  - packages/
+  - examples/
+  - locales/
+  - schemas/
+  - scripts/
+  - specs/
+  - validations/
+  - wit/
+  - node_modules/
+  - "**/*.astro"

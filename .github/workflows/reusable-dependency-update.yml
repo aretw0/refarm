@@ -44,12 +44,12 @@ on:
         description: Commit message used by create pull request action
         required: false
         type: string
-        default: chore(deps): autoupdate dependencies across workspaces
+        default: "chore(deps): autoupdate dependencies across workspaces"
       pr-title:
         description: Pull request title
         required: false
         type: string
-        default: chore(deps): automated update for dependencies
+        default: "chore(deps): automated update for dependencies"
       pr-body-template:
         description: PR body template; use {{ISSUE_URL}} token when needed
         required: false
@@ -127,10 +127,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          BODY_TEMPLATE=$(cat <<'EOF'
-${{ inputs.pr-body-template }}
-EOF
-)
+          BODY_TEMPLATE="${{ inputs.pr-body-template }}"
           BODY_RENDERED="${BODY_TEMPLATE//\{\{ISSUE_URL\}\}/${{ steps.manage_issue.outputs.issue_url }}}"
 
           {
@@ -144,7 +141,6 @@ EOF
         uses: ./.github/actions/create-pr
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          create-pr-version: ${{ steps.setup.outputs.create-pr-version }}
           commit-message: ${{ inputs.pr-commit-message }}
           title: ${{ inputs.pr-title }}
           body: ${{ steps.pr_body.outputs.body }}
