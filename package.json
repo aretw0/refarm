@@ -32,14 +32,14 @@
   ],
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
-    "@vitest/coverage-v8": "^2.1.9",
-    "@vitest/ui": "^2.1.1",
+    "@vitest/coverage-v8": "^4.0.18",
+    "@vitest/ui": "^4.0.18",
     "jest": "^30.2.0",
     "jsdom": "^28.1.0",
     "npm-check-updates": "^19.6.3",
     "turbo": "^2.3.3",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.9"
+    "vitest": "^4.0.18"
   },
   "packageManager": "npm@10.9.2",
   "engines": {
