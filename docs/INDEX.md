@@ -10,6 +10,7 @@
 - **[Main Roadmap](../roadmaps/MAIN.md)** - Semantic versioning & milestones (SDD→BDD→TDD→DDD)
 - **[Development Workflow](WORKFLOW.md)** - Process guide: SDD→BDD→TDD→DDD with quality gates
 - **[Architecture](ARCHITECTURE.md)** - System overview & design decisions
+- **[DevOps & Setup](DEVOPS.md)** - Dev container, security, environment validation
 - **[Decision Log](decision-log.md)** - Current high-impact decisions (owner, status, evidence)
 - **[Accessibility & i18n](A11Y_I18N_GUIDE.md)** - WCAG 2.2 + internationalization guide
 - **[Specs & ADRs](../specs/)** - Specifications & Architecture Decision Records
