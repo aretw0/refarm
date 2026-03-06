@@ -56,7 +56,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [ ] **SQLite Engine Decision**: wa-sqlite vs sql.js (1 day)
   - [ ] Benchmark 100k inserts (OPFS)
   - [ ] Compare bundle size, memory, load time
-  - [ ] Document in ADR-008
+  - [ ] Document in ADR-015
 
 **Recommended** (non-blocking):
 
@@ -208,9 +208,9 @@ TBD - to be generated from completed work
 
 ### SDD (Spec Driven Development)
 
-- [ ] ADR-006: LLM execution strategy (WebLLM in Workers)
-- [ ] ADR-008: Model selection criteria (size, performance, licensing)
-- [ ] ADR-009: Embedding generation (Transformers.js vs WebLLM)
+- [ ] ADR-012: LLM execution strategy (WebLLM in Workers)
+- [ ] ADR-014: Model selection criteria (size, performance, licensing)
+- [ ] ADR-016: Embedding generation (Transformers.js vs WebLLM)
 - [ ] Spec: AI inference interface
   - [ ] Model loading/unloading lifecycle
   - [ ] Streaming chat completion

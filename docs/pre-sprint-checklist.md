@@ -126,7 +126,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### 2. SQLite Engine Decision (BLOCKER)
 
-**Status**: ADR-008 drafted but decision pending
+**Status**: ADR-015 planned, decision pending
 
 **Tasks**:
 
@@ -143,7 +143,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - [ ] **Document results**:
   - [ ] Create `docs/research/sqlite-benchmark.md`
-  - [ ] Update ADR-008 with decision
+  - [ ] Update ADR-015 with decision
   - [ ] Add rationale to storage-sqlite ROADMAP
 
 **Timeline**: 1 day  
