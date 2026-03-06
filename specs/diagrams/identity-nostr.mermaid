@@ -1,0 +1,23 @@
+sequenceDiagram
+  autonumber
+  participant U as User
+  participant I as identity-nostr package
+  participant K as Kernel
+  participant R as Nostr Relay
+  participant M as Plugin Marketplace
+
+  U->>I: createIdentity()
+  I->>I: generate keypair
+  I-->>U: npub + secret management metadata
+
+  U->>I: publishProfile(event)
+  I->>I: sign event (NIP-01)
+  I->>R: publish signed event
+  R-->>I: ack event id
+
+  U->>K: discover plugins
+  K->>M: fetch NIP-89 metadata refs
+  M-->>K: plugin descriptors + artifact links
+  K->>R: verify publisher key and latest event
+  R-->>K: signed metadata events
+  K-->>U: trusted plugin candidates

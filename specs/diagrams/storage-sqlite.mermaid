@@ -1,0 +1,31 @@
+flowchart TB
+  subgraph Browser Runtime
+    App[Kernel / Studio]
+    OPFS[Origin Private File System]
+    WASM[SQLite WASM runtime]
+  end
+
+  subgraph Storage Adapter Layer
+    A[OPFSSQLiteAdapter]
+    MIG[runMigrations]
+    CRUD[execute/query/transaction]
+  end
+
+  subgraph Data Model
+    G[JSON-LD node]
+    N[(nodes table)]
+    MG[(migrations table)]
+  end
+
+  App --> A
+  A --> MIG
+  A --> CRUD
+
+  MIG --> MG
+  CRUD --> N
+
+  A --> WASM
+  WASM --> OPFS
+
+  G --> CRUD
+  CRUD --> G
