@@ -26,8 +26,46 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 ---
 
 ## v0.1.0 - MVP Core (Em planejamento)
+
 **Milestone**: Offline-first storage + Guest mode foundation  
 **Target**: Sprint 1-2
+
+### ⚠️ Pre-Sprint 0: Preparatory Work (Semana 0 - IN PROGRESS)
+
+**Status**: 60% complete (ADRs done, validations pending)  
+**Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)
+
+**Completed** ✅:
+
+- [x] ADR-001: Monorepo structure (Turborepo + npm workspaces)
+- [x] ADR-002: Offline-first architecture (Storage → Sync → Network)
+- [x] ADR-003: CRDT choice (Yjs benchmarks + rationale)
+- [x] ADR-009: OPFS persistence (directory structure, quota)
+- [x] WIT contract verified (refarm-sdk.wit complete)
+- [x] JSON-LD schema expanded (9 practical examples)
+- [x] Sub-roadmaps detailed (kernel, storage, sync technical decisions)
+
+**Pending** ⚠️ (BLOCKERS):
+
+- [ ] **Validação 3**: WASM + WIT capability enforcement (2 days)
+  - [ ] Compile hello-world plugin (Rust → WASM)
+  - [ ] Load in browser, verify capability boundary
+  - [ ] Benchmark performance (< 0.1ms per call)
+  - **Checklist**: [wasm-validation.md](../docs/research/wasm-validation.md)
+
+- [ ] **SQLite Engine Decision**: wa-sqlite vs sql.js (1 day)
+  - [ ] Benchmark 100k inserts (OPFS)
+  - [ ] Compare bundle size, memory, load time
+  - [ ] Document in ADR-008
+
+**Recommended** (non-blocking):
+
+- [ ] ADR-010: JSON-LD schema evolution (Lenses or migrations)
+- [ ] ADR-013: Testing strategy (Vitest vs Jest, Playwright)
+
+**Decision Gate**: ✅ WASM validation + SQLite decision complete → proceed to Pre-SDD
+
+---
 
 ### Pre-SDD: Research & Validation (Semana 1-2)
 *(Verificações técnicas antes de especificar)*
@@ -41,7 +79,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [ ] Testar migração guest→permanent (rewrite de ownership, 100k nodes)
 - [ ] Benchmark OPFS init para guest vaults (tempo de criação de vault)
 
-**Decision Gate**: ✅ Validações 3-4 confirmadas + guest mode viável → proceed to SDD
+**Decision Gate**: ✅ PoC funcional + performance aceitável → proceed to SDD
 
 ### SDD (Spec Driven Development)
 
