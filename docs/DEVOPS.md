@@ -131,6 +131,19 @@ npm run test:unit
 - **Additional correction:** Removed stale `create-pr-version` propagation from workflows and deleted unused version outputs from `./.github/actions/setup`.
 - **Prevention rule:** Never interpolate `${{ }}` in `uses:`. For centralization, pin external versions inside local wrapper actions.
 
+**Issue: Local action not found (`Can't find 'action.yml' ... .github/actions/...`)**
+
+- **Symptom:** Jobs fail with messages like:
+
+  ```text
+  Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under '/home/runner/work/<repo>/<repo>/.github/actions/<action-name>'
+  ```
+
+- **Root cause:** Local actions (`./.github/actions/...`) are resolved from the checked-out workspace. If `actions/checkout` has not run in that job, the local action path does not exist yet.
+- **Fix applied (Mar 6, 2026):** Added `actions/checkout@v6.0.2` as the first step in all jobs that invoke local actions.
+- **Additional correction:** Simplified `./.github/actions/setup` to only configure Node + `npm ci` (checkout moved to workflows/jobs).
+- **Prevention rule:** In every job that uses `./.github/actions/*`, run checkout first.
+
 **Issue: Jekyll tries to parse Astro files during Pages build**
 
 - **Symptom:** `Invalid YAML front matter` in `*.astro` files during GitHub Pages/Jekyll build.
