@@ -101,7 +101,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 **Implementation**: [validations/wasm-plugin/](../validations/wasm-plugin/)  
 **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
-**Status**: ✅ **Environment configured, ready for execution**
+**Status**: ⚠️ **Execution in progress (compile complete, browser runtime pending)**
 
 **Tasks**:
 
@@ -109,7 +109,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
   - ✅ Install toolchain (cargo-component, wasm-tools) — see `setup-rust-toolchain.ps1`
   - ✅ Create plugin project — see `validations/wasm-plugin/hello-world/`
   - ✅ Implement minimal WIT interface — see `hello-world/src/lib.rs`
-  - [ ] Build and verify component: `cargo component build --release`
+  - [x] Build and verify component: `cargo component build --release`
 
 - [ ] **Phase 2**: Browser runtime (load WASM in browser)
   - ✅ Create PluginHost class (TypeScript) — see `validations/wasm-plugin/host/`
@@ -139,23 +139,23 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 **Implementation**: [validations/sqlite-benchmark/](../validations/sqlite-benchmark/)  
 **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
-**Status**: ✅ **Benchmarks ready, just run and analyze**
+**Status**: ⚠️ **Benchmarks executed; OPFS browser validation still pending**
 
 **Tasks**:
 
 - [ ] **Benchmark wa-sqlite**:
   - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/wa-sqlite.bench.ts`
-  - [ ] Run: `npm run bench:wa-sqlite`
-  - [ ] Document results in `validations/sqlite-benchmark/results.md`
+  - [x] Run: `npm run bench:wa-sqlite`
+  - [x] Document results in `validations/sqlite-benchmark/results.md`
 
 - [ ] **Benchmark sql.js**:
   - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/sql-js.bench.ts`
-  - [ ] Run: `npm run bench:sql-js`
-  - [ ] Document results in `validations/sqlite-benchmark/results.md`
+  - [x] Run: `npm run bench:sql-js`
+  - [x] Document results in `validations/sqlite-benchmark/results.md`
 
 - [ ] **Document decision**:
-  - [ ] Compare results side-by-side in `validations/sqlite-benchmark/results.md`
-  - [ ] Update ADR-015 with decision + rationale
+  - [x] Compare results side-by-side in `validations/sqlite-benchmark/results.md`
+  - [x] Update ADR-015 with decision + rationale
   - [ ] Add rationale to storage-sqlite ROADMAP
 
 **Priority**: **HIGH** (needed before storage implementation)
@@ -336,7 +336,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - Commit frequently (atomic commits per ADR/validation)
 - Push to `feat/pre-sprint-setup` branch
-- PR to `main` when Gate 1 + Gate 2 complete
+- PR to `main` only when Gate 1 + Gate 2 + Gate 3 are green
 
 ---
 
