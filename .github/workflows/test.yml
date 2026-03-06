@@ -113,30 +113,30 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Audit moderate report (non-blocking)
+        id: audit_report
+        uses: ./.github/actions/npm-audit-report
+        with:
+          json-output: audit-moderate.json
+          markdown-output: audit-moderate.md
+
+      - name: Audit moderate notice
+        if: steps.audit_report.outputs.total != '0'
         run: |
-          npm audit --json > audit-moderate.json || true
-          MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' audit-moderate.json)
-          HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' audit-moderate.json)
-          CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' audit-moderate.json)
-          TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' audit-moderate.json)
+          echo "::warning::Security audit report: total=${{ steps.audit_report.outputs.total }} moderate=${{ steps.audit_report.outputs.moderate }} high=${{ steps.audit_report.outputs.high }} critical=${{ steps.audit_report.outputs.critical }}"
 
-          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
-          echo "high=$HIGH" >> $GITHUB_OUTPUT
-          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
-          echo "total=$TOTAL" >> $GITHUB_OUTPUT
-
-          if [ "$TOTAL" -gt 0 ]; then
-            echo "::warning::Security audit report: total=$TOTAL moderate=$MODERATE high=$HIGH critical=$CRITICAL"
-          else
-            echo "::notice::Security audit report: no vulnerabilities found"
-          fi
+      - name: Audit moderate clean notice
+        if: steps.audit_report.outputs.total == '0'
+        run: |
+          echo "::notice::Security audit report: no vulnerabilities found"
 
       - name: Upload audit report artifact
         if: always()
         uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
         with:
           name: npm-audit-moderate-report
-          path: audit-moderate.json
+          path: |
+            audit-moderate.json
+            audit-moderate.md
           retention-days: 30
 
   summary:
