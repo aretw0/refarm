@@ -19,6 +19,233 @@ The **Kernel** is the core orchestration layer of Refarm responsible for:
 
 ---
 
+## Technical Decisions
+
+### Architecture Pattern: Service Registry + Event Bus
+
+**Service Registry** (Dependency Injection):
+
+```typescript
+export class ServiceRegistry {
+  private services = new Map<string, any>();
+  private lifecycle = new Map<string, 'init' | 'started' | 'stopped'>();
+
+  register<T>(name: string, service: T): void {
+    this.services.set(name, service);
+    this.lifecycle.set(name, 'init');
+  }
+
+  get<T>(name: string): T {
+    if (!this.services.has(name)) {
+      throw new Error(`Service not found: ${name}`);
+    }
+    return this.services.get(name) as T;
+  }
+
+  async start(name: string): Promise<void> {
+    const service = this.get(name);
+    if (typeof service.start === 'function') {
+      await service.start();
+    }
+    this.lifecycle.set(name, 'started');
+  }
+}
+```
+
+**Event Bus** (Pub/Sub):
+
+```typescript
+export class EventBus {
+  private listeners = new Map<string, Set<Function>>();
+
+  on(event: string, callback: Function): void {
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, new Set());
+    }
+    this.listeners.get(event)!.add(callback);
+  }
+
+  emit(event: string, data?: any): void {
+    const callbacks = this.listeners.get(event);
+    if (callbacks) {
+      for (const callback of callbacks) {
+        // Error isolation: one listener crash doesn't break others
+        try {
+          callback(data);
+        } catch (err) {
+          console.error(`Event handler error (${event}):`, err);
+        }
+      }
+    }
+  }
+}
+```
+
+### Bootstrap Sequence
+
+**Initialization order** (v0.1.0):
+
+```typescript
+export class Kernel {
+  private registry = new ServiceRegistry();
+  private eventBus = new EventBus();
+
+  async boot(): Promise<void> {
+    // 1. Load config (localStorage + defaults)
+    const config = await this.loadConfig();
+    
+    // 2. Initialize storage (OPFS + SQLite)
+    const storage = new StorageService(config.vaultId);
+    await storage.init();
+    this.registry.register('storage', storage);
+    
+    // 3. Initialize sync (CRDT + IndexedDB)
+    const sync = new SyncService(config.vaultId);
+    await sync.init(storage);
+    this.registry.register('sync', sync);
+    
+    // 4. Wire event bus
+    sync.on('update', (update) => {
+      this.eventBus.emit('sync:update', update);
+    });
+    
+    storage.on('change', (change) => {
+      this.eventBus.emit('storage:change', change);
+    });
+    
+    // 5. Emit ready
+    this.eventBus.emit('kernel:ready');
+  }
+}
+```
+
+### Guest vs Permanent User Session
+
+**Session detection**:
+
+```typescript
+interface VaultMetadata {
+  vaultId: string;
+  type: 'guest' | 'permanent';
+  storageTier: 'ephemeral' | 'persistent' | 'synced';
+  pubkey?: string; // Only for permanent
+  createdAt: number;
+}
+
+async loadConfig(): Promise<VaultMetadata> {
+  const stored = localStorage.getItem('refarm:vault');
+  
+  if (stored) {
+    return JSON.parse(stored);
+  }
+  
+  // First boot: Create guest vault
+  const metadata: VaultMetadata = {
+    vaultId: crypto.randomUUID(),
+    type: 'guest',
+    storageTier: 'persistent', // Default (user can change)
+    createdAt: Date.now(),
+  };
+  
+  localStorage.setItem('refarm:vault', JSON.stringify(metadata));
+  return metadata;
+}
+```
+
+**Guest → Permanent upgrade**:
+
+```typescript
+async upgradeToPermament(mnemonic: string): Promise<void> {
+  const identity = await IdentityService.fromMnemonic(mnemonic);
+  
+  // 1. Rewrite ownership in SQLite
+  const storage = this.registry.get<StorageService>('storage');
+  await storage.exec(`
+    UPDATE nodes 
+    SET vault_id = ? 
+    WHERE vault_id = ?
+  `, [identity.pubkey, this.config.vaultId]);
+  
+  // 2. Update metadata
+  this.config.vaultId = identity.pubkey;
+  this.config.type = 'permanent';
+  this.config.pubkey = identity.pubkey;
+  localStorage.setItem('refarm:vault', JSON.stringify(this.config));
+  
+  // 3. Register identity service
+  this.registry.register('identity', identity);
+  
+  // 4. Restart kernel (reload storage with new vaultId)
+  await this.restart();
+}
+```
+
+### Error Handling Strategy
+
+**Error boundaries** (isolate component failures):
+
+```typescript
+async safeStart(serviceName: string): Promise<void> {
+  try {
+    await this.registry.start(serviceName);
+    console.log(`✓ ${serviceName} started`);
+  } catch (err) {
+    console.error(`✗ ${serviceName} failed:`, err);
+    this.eventBus.emit('kernel:error', {
+      service: serviceName,
+      error: err,
+    });
+    
+    // Attempt recovery (retry 3 times)
+    await this.retryStart(serviceName, 3);
+  }
+}
+```
+
+**Self-healing** (restart failed services):
+
+```typescript
+async retryStart(serviceName: string, retries: number): Promise<void> {
+  for (let i = 0; i < retries; i++) {
+    await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    try {
+      await this.registry.start(serviceName);
+      console.log(`✓ ${serviceName} recovered after ${i + 1} retries`);
+      return;
+    } catch (err) {
+      console.warn(`Retry ${i + 1}/${retries} failed`);
+    }
+  }
+  
+  // Give up, disable service
+  this.registry.disable(serviceName);
+  this.eventBus.emit('kernel:service-disabled', serviceName);
+}
+```
+
+### Configuration Management
+
+**Layered config** (defaults → localStorage → runtime):
+
+```typescript
+const defaultConfig = {
+  storageTier: 'persistent',
+  syncEnabled: true,
+  logLevel: 'info',
+  pluginsEnabled: true,
+};
+
+const userConfig = JSON.parse(localStorage.getItem('refarm:config') || '{}');
+
+const config = {
+  ...defaultConfig,
+  ...userConfig,
+  ...runtimeOverrides, // From URL params or dev tools
+};
+```
+
+---
+
 ## v0.1.0 - Core Orchestration (Storage + Sync)
 **Scope**: Bootstrap kernel with storage and sync orchestration  
 **Depends on**: `storage-sqlite`, `sync-crdt`

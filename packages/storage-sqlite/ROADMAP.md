@@ -25,6 +25,141 @@
 
 ---
 
+## Technical Decisions
+
+### SQLite Engine Choice (Pending ADR-008)
+
+**Options**:
+
+1. **wa-sqlite** (Recommended)
+   - Native OPFS support via `FileSystemSyncAccessHandle`
+   - Smaller bundle (~80KB)
+   - Better performance (direct file I/O)
+   - Active maintenance
+
+2. **sql.js** (Fallback)
+   - Mature, battle-tested
+   - Larger bundle (~700KB)
+   - Memory-based (serialize to OPFS manually)
+   - Works in older browsers
+
+**Decision criteria**: Benchmark both with 100k inserts in OPFS, measure:
+
+- Initial load time
+- Write throughput
+- Memory usage
+- Browser compatibility
+
+### Schema Design
+
+**Primary table** (`nodes`):
+
+```sql
+CREATE TABLE nodes (
+  id TEXT PRIMARY KEY,           -- @id (IRI, e.g., "urn:whatsapp:contact-123")
+  type TEXT NOT NULL,            -- @type (e.g., "Person", "Message")
+  data TEXT NOT NULL,            -- Full JSON-LD node (validated)
+  vault_id TEXT NOT NULL,        -- Owner vault (guest UUID or nostr pubkey)
+  created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  updated_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  deleted_at INTEGER,            -- Soft delete (CRDT tombstone)
+  CHECK (json_valid(data))       -- SQLite JSON validation
+);
+
+CREATE INDEX idx_nodes_type ON nodes(type);
+CREATE INDEX idx_nodes_vault ON nodes(vault_id);
+CREATE INDEX idx_nodes_updated ON nodes(updated_at);
+CREATE INDEX idx_nodes_deleted ON nodes(deleted_at) WHERE deleted_at IS NULL;
+```
+
+**Full-text search** (FTS5):
+
+```sql
+CREATE VIRTUAL TABLE nodes_fts USING fts5(
+  id UNINDEXED,
+  type UNINDEXED,
+  content,                       -- Extracted from JSON-LD (name, description, text)
+  content=nodes,
+  content_rowid=rowid
+);
+```
+
+**Migrations table**:
+
+```sql
+CREATE TABLE migrations (
+  version TEXT PRIMARY KEY,      -- e.g., "0.1.0-to-0.2.0"
+  applied_at INTEGER NOT NULL DEFAULT (unixepoch()),
+  description TEXT
+);
+```
+
+### JSON-LD Storage Strategy
+
+**Store as TEXT, not JSONB** (SQLite doesn't have JSONB):
+
+- Use `json_*` functions for queries: `json_extract(data, '$.name')`
+- Index common fields: `CREATE INDEX idx_name ON nodes((json_extract(data, '$.name')));`
+- Trade-off: Slower than native JSONB (Postgres), but acceptable for client-side workload
+
+**Example query**:
+
+```sql
+-- Find all Tasks with status "pending"
+SELECT id, data FROM nodes
+WHERE type = 'Action'
+  AND json_extract(data, '$.actionStatus') = 'PotentialActionStatus';
+```
+
+### Transaction Strategy
+
+**WAL mode enabled** (Write-Ahead Logging):
+
+- Better concurrency (reads don't block writes)
+- Crash recovery (atomic commits)
+- Required for OPFS sync access
+
+```sql
+PRAGMA journal_mode = WAL;
+PRAGMA synchronous = NORMAL;  -- Balance durability vs performance
+```
+
+**API wrapper**:
+
+```typescript
+async transaction<T>(callback: (tx: Transaction) => Promise<T>): Promise<T> {
+  await this.exec('BEGIN IMMEDIATE');
+  try {
+    const result = await callback(this);
+    await this.exec('COMMIT');
+    return result;
+  } catch (err) {
+    await this.exec('ROLLBACK');
+    throw err;
+  }
+}
+```
+
+### Migration System
+
+**Version-based migrations** (not timestamp):
+
+- Migrations named: `001_initial_schema.sql`, `002_add_vault_id.sql`
+- Each migration is idempotent (can run twice safely)
+- Migrations tracked in `migrations` table
+
+**Example migration**:
+
+```typescript
+// migrations/002_add_vault_id.sql
+ALTER TABLE nodes ADD COLUMN vault_id TEXT NOT NULL DEFAULT 'default';
+CREATE INDEX idx_nodes_vault ON nodes(vault_id);
+INSERT INTO migrations (version, description) 
+VALUES ('0.2.0', 'Add vault_id for multi-vault support');
+```
+
+---
+
 ## v0.1.0 - Core Storage
 **Scope**: SQLite WASM wrapper with OPFS persistence  
 **Depends on**: kernel v0.1.0 (service registry)

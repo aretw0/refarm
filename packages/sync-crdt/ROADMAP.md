@@ -26,6 +26,226 @@
 
 ---
 
+## Technical Decisions
+
+### CRDT Library: Yjs (Accepted per ADR-003)
+
+**Rationale**: 13x faster than Automerge, native Web Worker support
+
+**Key features used**:
+
+- `Y.Doc`: Root CRDT document
+- `Y.Map`: Store JSON-LD nodes (key-value with LWW)
+- `Y.Array`: For ordered lists (tasks, messages)
+- `Y.Text`: For collaborative text editing (descriptions)
+
+### Data Model Mapping
+
+**JSON-LD nodes → Yjs Map**:
+
+```typescript
+import * as Y from 'yjs';
+
+const ydoc = new Y.Doc();
+const nodesMap = ydoc.getMap('nodes');
+
+// Store JSON-LD node
+nodesMap.set('task-123', {
+  '@id': 'task-123',
+  '@type': 'Action',
+  'name': 'Buy groceries',
+  'actionStatus': 'PotentialActionStatus'
+});
+
+// Concurrent edits (2 devices)
+// Device A: Change name
+nodesMap.set('task-123', { ...task, name: 'Buy milk' });
+
+// Device B: Change status
+nodesMap.set('task-123', { ...task, actionStatus: 'CompletedActionStatus' });
+
+// After sync: Both changes merge
+// Result: { name: 'Buy milk', actionStatus: 'CompletedActionStatus' }
+```
+
+### Persistence Strategy
+
+**IndexedDB for CRDT state** (not OPFS):
+
+- CRDT updates are append-only logs (IndexedDB optimized for this)
+- SQLite (OPFS) stores application data (JSON-LD nodes)
+- Separation of concerns: sync state ≠ user data
+
+**Implementation**:
+
+```typescript
+import { IndexeddbPersistence } from 'y-indexeddb';
+
+const ydoc = new Y.Doc();
+const persistence = new IndexeddbPersistence(
+  `refarm-crdt-${vaultId}`,
+  ydoc
+);
+
+// Auto-saves to IndexedDB on every update
+ydoc.on('update', (update: Uint8Array) => {
+  // Update already persisted by y-indexeddb
+  // Forward to network layer (if online)
+  network.broadcast(update);
+});
+```
+
+### Sync Protocol
+
+**State-based sync** (for reconnection):
+
+```typescript
+// Device A: What do you have?
+const stateVector = Y.encodeStateVector(ydoc);
+// → 29 bytes (device UUIDs + clocks)
+
+// Device B: Here's what you're missing
+const diff = Y.encodeStateAsUpdate(ydoc, stateVector);
+// → Only new operations (incremental)
+
+// Device A: Apply diff
+Y.applyUpdate(ydoc, diff);
+// → Converged (both devices have same state)
+```
+
+**Update-based sync** (real-time):
+
+```typescript
+// Subscribe to local changes
+ydoc.on('update', (update: Uint8Array, origin: any) => {
+  if (origin !== 'remote') {
+    // Send to peers (WebRTC or relay)
+    network.broadcast(update);
+  }
+});
+
+// Receive remote changes
+network.on('message', (update: Uint8Array) => {
+  Y.applyUpdate(ydoc, update, 'remote'); // origin prevents echo
+});
+```
+
+### Conflict Resolution Rules
+
+**Last-Write-Wins (LWW)** for primitives:
+
+- Scalar fields: `name`, `status`, `count`
+- Winner: Operation with higher timestamp
+- Implemented by Yjs automatically (Lamport timestamps)
+
+**OR-Set** for collections:
+
+- Arrays: `tasks`, `tags`, `collaborators`
+- Both additions preserved (no lost writes)
+- Deletions tombstoned
+
+**Example**:
+
+```typescript
+// Device A: Add tag "urgent"
+task.tags.push('urgent');
+
+// Device B: Add tag "home" (concurrent)
+task.tags.push('home');
+
+// After sync: Both tags present
+// Result: ['urgent', 'home']
+```
+
+### Integration with Storage
+
+**Two-way sync**:
+
+1. **CRDT → SQLite** (apply remote changes):
+
+```typescript
+nodesMap.observe((event) => {
+  for (const [key, change] of event.changes.keys) {
+    if (change.action === 'add' || change.action === 'update') {
+      const node = nodesMap.get(key);
+      await storage.upsert(key, node);
+    } else if (change.action === 'delete') {
+      await storage.softDelete(key);
+    }
+  }
+});
+```
+
+1. **SQLite → CRDT** (apply local changes):
+
+```typescript
+async function updateNode(id: string, updates: Partial<Node>) {
+  // Update SQLite
+  await storage.update(id, updates);
+  
+  // Update CRDT
+  const node = nodesMap.get(id);
+  nodesMap.set(id, { ...node, ...updates });
+}
+```
+
+### Network Providers (v0.2.0)
+
+**WebRTC Provider** (local P2P):
+
+```typescript
+import { WebrtcProvider } from 'y-webrtc';
+
+const provider = new WebrtcProvider(
+  `refarm-room-${vaultId}`,
+  ydoc,
+  {
+    signaling: ['wss://signaling.yjs.dev'], // Public STUN/TURN
+  }
+);
+```
+
+**WebSocket Provider** (Nostr relay):
+
+```typescript
+import { WebsocketProvider } from 'y-websocket';
+
+const provider = new WebsocketProvider(
+  'wss://relay.damus.io',
+  `refarm:sync:${vaultId}`,
+  ydoc
+);
+```
+
+### Performance Optimization
+
+**Compaction** (reduce CRDT state size):
+
+```typescript
+// After 1000 updates, compact document
+if (updateCount % 1000 === 0) {
+  const snapshot = Y.encodeStateAsUpdate(ydoc);
+  // Clear old updates, store snapshot
+  await persistence.clearUpdates();
+  await persistence.storeUpdate(snapshot);
+}
+```
+
+**Selective sync** (sync subgraphs):
+
+```typescript
+// Only sync specific node types
+const tasksMap = ydoc.getMap('nodes-tasks');
+const messagesMap = ydoc.getMap('nodes-messages');
+
+// User can choose which to sync
+if (syncConfig.tasks) {
+  syncTasks(tasksMap);
+}
+```
+
+---
+
 ## v0.1.0 - Core CRDT
 **Scope**: Yjs integration with local-first sync  
 **Depends on**: storage v0.1.0 (persistence), kernel v0.1.0
