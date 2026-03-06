@@ -14,17 +14,9 @@ jobs:
   check-and-update:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "20"
-          cache: "npm"
-
-      - name: Install Dependencies
-        run: npm ci
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
 
       - name: Check Outdated Dependencies
         id: check
@@ -72,7 +64,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.manage_issue.outputs.proceed == 'true'
-        uses: peter-evans/create-pull-request@v8
+        uses: peter-evans/create-pull-request@${{ steps.setup.outputs.create-pr-version }}
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(deps): autoupdate dependencies across workspaces"
