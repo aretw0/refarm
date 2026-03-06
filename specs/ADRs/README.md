@@ -8,11 +8,14 @@ Architecture Decision Records for Refarm.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| [001](ADR-001-monorepo-structure.md) | Monorepo Structure | Proposed | 2026-03-04 |
-| [002](ADR-002-offline-first-strategy.md) | Offline-First Strategy | Proposed | 2026-03-04 |
-| [003](ADR-003-crdt-choice.md) | CRDT Choice (Yjs) | Proposed | 2026-03-04 |
+| [001](ADR-001-monorepo-structure.md) | Monorepo Structure and Workspace Boundaries | Accepted | 2026-03-06 |
+| [002](ADR-002-offline-first-architecture.md) | Offline-First Architecture | Accepted | 2026-03-06 |
+| [003](ADR-003-crdt-synchronization.md) | CRDT Choice (Yjs) | Accepted | 2026-03-06 |
+| [005](ADR-005-network-abstraction-layer.md) | Network Abstraction Layer | Proposed | 2026-03-05 |
+| [006](ADR-006-guest-mode-collaborative-sessions.md) | Guest Mode and Collaborative Sessions | Proposed | 2026-03-05 |
 | [007](ADR-007-observability-primitives.md) | Observability & Introspection Primitives | Draft | 2026-03-05 |
 | [008](ADR-008-ecosystem-technology-boundary.md) | Ecosystem Technology Boundary (Go vs TypeScript) | Accepted | 2026-03-05 |
+| [009](ADR-009-opfs-persistence-strategy.md) | OPFS Persistence Strategy | Accepted | 2026-03-06 |
 
 ---
 
@@ -21,10 +24,13 @@ Architecture Decision Records for Refarm.
 | ADR | Title | Target | Status |
 |-----|-------|--------|--------|
 | 004 | Identity Provider Choice (Nostr) | v0.2.0 | Planned |
-| 005 | Network Abstraction Layer | v0.2.0 | Planned |
-| 006 | LLM Execution Strategy (WebLLM) | v0.3.0 | Planned |
+| 010 | JSON-LD Schema Evolution (Lenses) | v0.1.0 | Planned |
+| 011 | Plugin Marketplace (NIP-89/94) | v0.2.0 | Planned |
+| 012 | LLM Execution Strategy (WebLLM) | v0.3.0 | Planned |
+| 013 | Testing Strategy (Vitest + Playwright) | v0.1.0 | Planned |
 
-**Note**: Planned ADRs are reserved numbers for upcoming decisions. They will be created when their milestone begins.
+**Note**: Planned ADRs are reserved numbers for upcoming decisions. They will be created when their milestone begins.  
+**Priority**: ADRs 010 and 013 are needed before v0.1.0 SDD phase can complete.
 
 ---
 
