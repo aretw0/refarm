@@ -114,6 +114,29 @@ npm run test:unit
   3. Re-run `npm run diagrams:fix`
   4. Document dependency update in this DevOps guide
 
+**Issue: GitHub Actions fails with `Unrecognized named-value: 'steps'` in `uses:`**
+
+- **Symptom:** Workflow validation fails on lines like:
+
+  ```yaml
+  uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+  ```
+
+- **Root cause:** `uses:` does not support runtime expressions for action version refs in workflow syntax. The ref must be static at parse time.
+- **Fix applied (Mar 6, 2026):** Replaced expression-based refs with local wrapper actions:
+  - `./.github/actions/upload-artifact` (internally pinned to `actions/upload-artifact@v7.0.0`)
+  - `./.github/actions/codecov-upload` (internally pinned to `codecov/codecov-action@v5.5.2`)
+  - `./.github/actions/github-script` (internally pinned to `actions/github-script@v7`)
+  - `./.github/actions/create-pr` (internally pinned to `peter-evans/create-pull-request@v8.1.0`)
+- **Additional correction:** Removed stale `create-pr-version` propagation from workflows and deleted unused version outputs from `./.github/actions/setup`.
+- **Prevention rule:** Never interpolate `${{ }}` in `uses:`. For centralization, pin external versions inside local wrapper actions.
+
+**Issue: Jekyll tries to parse Astro files during Pages build**
+
+- **Symptom:** `Invalid YAML front matter` in `*.astro` files during GitHub Pages/Jekyll build.
+- **Root cause:** No Jekyll config existed, so non-Jekyll source files were scanned.
+- **Fix applied (Mar 6, 2026):** Added root `_config.yml` with `exclude` rules for app/source trees and `**/*.astro`.
+
 ---
 
 ## Security & Vulnerability Management
