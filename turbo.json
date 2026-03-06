@@ -19,6 +19,11 @@
       "inputs": ["src/**", "test/**", "*.config.*"],
       "outputs": ["coverage/**"]
     },
+    "test:unit": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "test/**", "*.config.*"],
+      "outputs": ["coverage/**"]
+    },
     "clean": {
       "cache": false
     },

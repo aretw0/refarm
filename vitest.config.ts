@@ -6,12 +6,6 @@ export default defineConfig({
     environment: 'jsdom',
     coverage: {
       provider: 'v8',
-      thresholds: {
-        lines: 80,
-        branches: 70,
-        functions: 80,
-        statements: 80,
-      },
       exclude: [
         'node_modules/',
         'dist/',

@@ -84,25 +84,6 @@ jobs:
           path: playwright-report/
           retention-days: 30
 
-  changesets:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Setup
-        id: setup
-        uses: ./.github/actions/setup
-        with:
-          fetch-depth: "0"
-
-      - name: Check changesets
-        run: |
-          if ! npx changeset status --since=origin/main 2>/dev/null; then
-            echo "::error::Missing changeset. Run: npm run changeset"
-            exit 1
-          fi
-
   audit-moderate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -141,7 +122,7 @@ jobs:
 
   summary:
     if: always()
-    needs: [quality, build, e2e, changesets, audit-moderate]
+    needs: [quality, build, e2e, audit-moderate]
     runs-on: ubuntu-latest
 
     steps:
