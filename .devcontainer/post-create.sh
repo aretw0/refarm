@@ -44,6 +44,10 @@ fi
 echo "[refarm-devcontainer] Running security audit fix..."
 npm audit fix --force 2>/dev/null || true
 
+# Install git hooks for pre-push validation
+echo "[refarm-devcontainer] Installing git hooks..."
+npm run hooks:install || true
+
 echo "[refarm-devcontainer] Tool versions:"
 node --version
 npm --version

@@ -1,0 +1,148 @@
+name: Validate Changeset
+
+on:
+  pull_request:
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  check-changeset:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          fetch-depth: "0"
+
+      - name: Check for skip label
+        id: skip-check
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const labels = context.payload.pull_request.labels.map(l => l.name);
+            const skipChangeset = labels.includes('skip-changeset');
+            console.log('PR labels:', labels);
+            console.log('Skip changeset:', skipChangeset);
+            return skipChangeset;
+
+      - name: Check for code changes
+        id: code-check
+        if: steps.skip-check.outputs.result == 'false'
+        run: |
+          # Get changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+          
+          # Skip if only docs, CI, or test files
+          if echo "$CHANGED_FILES" | grep -qvE '\.(md|txt|yml|yaml)$|^\.github/|^scripts/|^validations/|^docs/|\.test\.|\.spec\.'; then
+            echo "code-changed=true" >> $GITHUB_OUTPUT
+            echo "✅ Code changes detected, changeset required"
+          else
+            echo "code-changed=false" >> $GITHUB_OUTPUT
+            echo "ℹ️  Only documentation/CI/test files changed, skipping changeset check"
+          fi
+
+      - name: Verify changeset exists
+        id: changeset-check
+        if: steps.skip-check.outputs.result == 'false' && steps.code-check.outputs.code-changed == 'true'
+        run: |
+          # Check if any changeset files exist (excluding README.md)
+          CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" 2>/dev/null | wc -l)
+          
+          if [ "$CHANGESET_COUNT" -eq 0 ]; then
+            echo "changeset-exists=false" >> $GITHUB_OUTPUT
+            echo "❌ No changeset found!"
+            exit 1
+          else
+            echo "changeset-exists=true" >> $GITHUB_OUTPUT
+            echo "✅ Changeset found ($CHANGESET_COUNT file(s))"
+          fi
+
+      - name: Comment on PR (changeset missing)
+        if: failure() && steps.changeset-check.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('⚠️ Changeset Required')
+            );
+
+            const body = `## ⚠️ Changeset Required
+
+            This PR modifies code but does not include a changeset for version tracking.
+
+            ### 📋 To add a changeset:
+
+            \`\`\`bash
+            npm run changeset
+            # Follow the prompts:
+            # - Select packages changed
+            # - Choose version bump (patch/minor/major)
+            # - Describe the changes
+
+            git add .changeset/*.md
+            git commit -m "docs: add changeset"
+            git push
+            \`\`\`
+
+            ### 🏷️ To skip this check:
+
+            If this PR intentionally shouldn't trigger a release (e.g., internal tooling):
+            - Add the \`skip-changeset\` label to this PR
+
+            ### 📚 Learn more:
+            - [Changeset Documentation](https://github.com/changesets/changesets)
+            - [PR Quality Governance](../docs/PR_QUALITY_GOVERNANCE.md)`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body,
+              });
+            }
+
+      - name: Comment on PR (changeset exists)
+        if: success() && steps.changeset-check.outcome == 'success'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+            });
+
+            const botComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('Changeset Required')
+            );
+
+            if (botComment) {
+              await github.rest.issues.deleteComment({
+                comment_id: botComment.id,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+            }
