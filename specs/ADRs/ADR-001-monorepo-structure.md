@@ -13,7 +13,7 @@ Refarm is composed of multiple packages with different responsibilities:
 
 - **Apps**: `kernel` (orchestration), `studio` (UI/IDE)
 - **Packages**: `storage-sqlite`, `sync-crdt`, `identity-nostr` (independent primitives)
-- **Examples**: `matrix-bridge`, `whatsapp-bridge` (plugin demonstrations)
+- **Examples**: `matrix-bridge` (plugin demonstration)
 - **Shared**: `wit/refarm-sdk.wit`, `schemas/`, `docs/`, `specs/`
 
 **Key requirements**:
@@ -60,8 +60,7 @@ refarm/
 │       └── src/index.ts
 │
 ├── examples/                 # Plugin demonstrations (NOT published to npm)
-│   ├── matrix-bridge/        # Example WIT plugin
-│   └── whatsapp-bridge/
+│   └── matrix-bridge/        # Example WIT plugin
 │
 ├── wit/
 │   └── refarm-sdk.wit        # Shared WIT interface (versioned)

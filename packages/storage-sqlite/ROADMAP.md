@@ -56,7 +56,7 @@
 
 ```sql
 CREATE TABLE nodes (
-  id TEXT PRIMARY KEY,           -- @id (IRI, e.g., "urn:whatsapp:contact-123")
+  id TEXT PRIMARY KEY,           -- @id (IRI, e.g., "urn:matrix:contact-123")
   type TEXT NOT NULL,            -- @type (e.g., "Person", "Message")
   data TEXT NOT NULL,            -- Full JSON-LD node (validated)
   vault_id TEXT NOT NULL,        -- Owner vault (guest UUID or nostr pubkey)

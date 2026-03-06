@@ -29,7 +29,7 @@ package refarm:plugin@0.1.0;
 type json-ld-node = string;
 
 /// A stable, URL-safe identifier for a data node.
-/// Convention: urn:<plugin-id>:<local-id>   (e.g. "urn:whatsapp-bridge:msg-42")
+/// Convention: urn:<plugin-id>:<local-id>   (e.g. "urn:matrix-bridge:msg-42")
 type node-id = string;
 
 /// HTTP method enum for allowed fetch operations.
@@ -95,7 +95,7 @@ interface kernel-bridge {
     /// Emit a structured log message visible in Studio's terminal.
     log: func(level: log-level, message: string);
 
-    /// Request a user-facing permission prompt (e.g. "Allow WhatsApp Bridge
+    /// Request a user-facing permission prompt (e.g. "Allow Matrix Bridge
     /// to read your contacts?").  Returns true if the user accepts.
     request-permission: func(capability: string, reason: string) -> bool;
 }

@@ -17,22 +17,22 @@
       "refarm:syncProtocol": "CRDT + Nostr"
     },
     {
-      "@comment": "Example 1 — A contact ingested via a 'WhatsApp Bridge' plugin",
+      "@comment": "Example 1 — A contact ingested via a 'Matrix Bridge' plugin",
       "@type": "Person",
-      "@id": "urn:whatsapp-bridge:contact-alice-42",
+      "@id": "urn:matrix-bridge:contact-alice-42",
       "name": "Alice Souza",
       "telephone": "+55 11 99999-0000",
       "email": "alice@example.com",
       "image": "https://cdn.example.com/avatar/alice.jpg",
-      "refarm:sourcePlugin": "whatsapp-bridge",
+      "refarm:sourcePlugin": "matrix-bridge",
       "refarm:ingestedAt": "2026-03-04T04:00:00Z",
       "refarm:confidence": 0.95,
       "refarm:rawReference": {
         "@type": "refarm:RawCapture",
         "refarm:pluginPayload": {
-          "wa_id": "5511999990000",
-          "name": "Alice Souza",
-          "status": "Oi, tudo bem?"
+          "matrix_id": "@alice:example.org",
+          "displayname": "Alice Souza",
+          "avatar_url": "mxc://example.org/abc123"
         },
         "refarm:capturedAt": "2026-03-04T03:58:12Z"
       },
@@ -44,7 +44,7 @@
     {
       "@comment": "Example 2 — A message ingested via the same plugin",
       "@type": "Message",
-      "@id": "urn:whatsapp-bridge:msg-1001",
+      "@id": "urn:matrix-bridge:msg-1001",
       "name": "Olá!",
       "text": "Oi Alice, tudo bem por aí?",
       "dateSent": "2026-03-04T03:55:00Z",
@@ -55,9 +55,9 @@
       },
       "recipient": {
         "@type": "Person",
-        "@id": "urn:whatsapp-bridge:contact-alice-42"
+        "@id": "urn:matrix-bridge:contact-alice-42"
       },
-      "refarm:sourcePlugin": "whatsapp-bridge",
+      "refarm:sourcePlugin": "matrix-bridge",
       "refarm:ingestedAt": "2026-03-04T04:00:00Z",
       "crdt:vectorClock": {
         "device-A": 8
@@ -80,11 +80,11 @@
       "@comment": "Example 4 — An installed plugin manifest node",
       "@type": "SoftwareApplication",
       "@id": "urn:nostr:event:abc123def456",
-      "name": "WhatsApp Bridge",
+      "name": "Matrix Bridge",
       "softwareVersion": "1.0.0",
-      "description": "Ingests WhatsApp messages and contacts into the sovereign graph",
+      "description": "Ingests Matrix messages and contacts into the sovereign graph",
       "applicationCategory": "Refarm Plugin",
-      "downloadUrl": "https://cdn.example.com/plugins/whatsapp-bridge.wasm",
+      "downloadUrl": "https://cdn.example.com/plugins/matrix-bridge.wasm",
       "refarm:wasmHash": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "refarm:pluginAuthor": {
         "@type": "Person",

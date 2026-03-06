@@ -49,25 +49,25 @@ import Layout from "../layouts/Layout.astro";
             outline: none;
           "
         >
-// Refarm Plugin — WhatsApp Bridge (example)
+// Refarm Plugin — Matrix Bridge (example)
 // Implements the refarm:plugin/integration WIT interface
 
 import type { KernelBridge } from "@refarm/sdk";
 
 export async function ingest(bridge: KernelBridge): Promise<void> {
-  // Fetch data from the source (sandboxed — no direct network access)
-  const raw = await bridge.fetchAllowed("https://api.example.com/messages");
+  // Fetch data from Matrix homeserver (sandboxed — no direct network access)
+  const raw = await bridge.fetchAllowed("https://matrix.example.org/_matrix/client/r0/sync");
 
-  for (const msg of raw.messages) {
+  for (const msg of raw.rooms.join) {
     // Normalise to JSON-LD before storing
     await bridge.storeNode({
       "@context": "https://schema.org/",
       "@type": "Message",
-      "@id": `urn:whatsapp:${msg.id}`,
-      "name": msg.subject,
-      "text": msg.body,
-      "dateSent": msg.timestamp,
-      "sender": { "@type": "Person", "name": msg.from },
+      "@id": `urn:matrix:${msg.event_id}`,
+      "name": msg.content.body,
+      "text": msg.content.body,
+      "dateSent": new Date(msg.origin_server_ts).toISOString(),
+      "sender": { "@type": "Person", "name": msg.sender },
     });
   }
 }
