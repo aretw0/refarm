@@ -1,6 +1,6 @@
 # ADR-006: Guest Mode and Collaborative Sessions
 
-**Status**: Proposed  
+**Status**: Accepted  
 **Date**: March 2026  
 **Context**: Reducing friction for first-time users and enabling collaborative experiences  
 **Decision**: Guest = no keypair (identity-orthogonal). Storage is a user choice, not an identity restriction.
@@ -39,6 +39,15 @@ A guest who wants to persist data locally (OPFS/SQLite) should be able to. A gue
 ---
 
 ## Decision: Identity-Orthogonal Guest Sessions with Storage Choice
+
+## MVP Decision Lock (Normative Rules)
+
+For v0.1.0-v0.2.x, the following rules are mandatory:
+
+1. `guest -> permanent` rewrites ownership (`vaultId -> pubkey`) without changing storage backend.
+2. Sync code is short-lived and one-time-use (expires in 5 minutes or first successful connection).
+3. Only cryptographic-signature operations require permanent identity (for example, Nostr publish and plugin publication).
+4. Storage tier is orthogonal to identity for both guest and permanent sessions.
 
 ### Architecture
 
@@ -510,13 +519,13 @@ syncEngine.on("localUpdate", (update) => {
 
 ---
 
-### Why sessionStorage (Not localStorage)?
+### Why sessionStorage for Ephemeral Guest Mode?
 
-**sessionStorage** clears when tab closes → **intentionally ephemeral**
+**sessionStorage** clears when tab closes -> intentionally ephemeral.
 
-**localStorage** persists forever → Could confuse user ("I was guest, now I have data?")
+For persistent/synced guest sessions, metadata in `localStorage` is intentional and documented.
 
-**Decision**: sessionStorage for guest, localStorage only after upgrade.
+**Decision**: use `sessionStorage` only for ephemeral guests; use `localStorage` metadata for persistent/synced guests.
 
 ---
 

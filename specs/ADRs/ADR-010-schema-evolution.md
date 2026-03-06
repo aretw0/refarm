@@ -1,6 +1,6 @@
 # ADR-010: JSON-LD Schema Evolution (Lenses & Upcasting)
 
-**Status**: Proposed  
+**Status**: Accepted  
 **Date**: 2026-03-06  
 **Decision Drivers**:
 
@@ -48,6 +48,17 @@ Imagine the situation in v0.2.0:
 ---
 
 ## Solution: Upcasting via Lenses
+
+## MVP Strategy (v0.1.0-v0.2.x)
+
+To reduce complexity in early milestones, schema evolution starts with sequential migrations and explicit upcasting rules.
+
+**Operational rules**:
+
+1. Read path always upcasts old documents to the current schema.
+2. Write path always persists using the current schema version.
+3. Migrations are version-to-version (`v0 -> v1 -> v2`), without requiring a generalized optics framework on day one.
+4. Lens composition remains a compatible future refinement, not a blocker for MVP.
 
 We define **schema migration rules** as composable **Lenses** (functional optics) that:
 

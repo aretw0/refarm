@@ -75,7 +75,7 @@ refarm/
 ├── vitest.config.ts (shared root config)
 │   ├── browser: "jsdom" (for unit/integration)
 │   ├── globals: true
-│   └── coverage: { lines: 80, branches: 70 }
+│   └── coverage: { thresholds: { lines: 80, branches: 70 } }
 │
 ├── playwright.config.ts
 │   ├── webServer: { command: "npm run dev", port: 3000 }
@@ -338,6 +338,65 @@ git push
 | E2E pass rate | 100% | `npm run test:e2e` |
 | CI latency | <5min | GitHub Actions logs |
 | Release cycle | 1-2 weeks | Changelog frequency |
+
+---
+
+## Implementation Status
+
+**Status**: ✅ Setup Complete  
+**Date**: 2026-03-06
+
+### What's Done
+
+- [x] **Root config**: `vitest.config.ts` (shared JSDOM, coverage gates, workspace-aware)
+- [x] **Dependencies**: Vitest + @vitest/ui added to root `package.json`
+- [x] **Root scripts**: Updated to call `vitest` directly for unit/integration, `turbo run test:e2e` for E2E
+- [x] **Workspace scripts**: All packages + apps using `test:unit: "vitest run"` instead of Jest
+- [x] **Turbo tasks**: `turbo run test:unit` orchestrates parallel test execution across packages
+
+### How to Run
+
+```bash
+# Unit + integration (Vitest)
+npm run test:unit
+npm run test:integration
+
+# E2E (Playwright - runs via turbo)
+npm run test:e2e
+
+# With UI
+npm run test:watch
+npm run test:e2e:ui
+
+# Coverage report
+npm run coverage
+```
+
+### Next Steps
+
+When implementing tests for each package:
+1. Create `src/**/*.test.ts` files alongside source code
+2. Vitest will auto-discover and run them
+3. Ensure JSDOM env is appropriate (override in `vitest.config.ts` per workspace if needed for Node-heavy tests)
+
+### Known Gotcha (Vitest v2)
+
+- Coverage thresholds must be nested under `coverage.thresholds`.
+- Using `coverage.lines`, `coverage.branches`, etc. directly triggers TypeScript error in `vitest/config` typings.
+
+Example:
+
+```ts
+coverage: {
+  provider: 'v8',
+  thresholds: {
+    lines: 80,
+    branches: 70,
+    functions: 80,
+    statements: 80,
+  },
+}
+```
 
 ---
 

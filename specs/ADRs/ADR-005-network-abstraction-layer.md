@@ -1,9 +1,9 @@
 # ADR-005: Network Abstraction Layer Architecture
 
-**Status**: Proposed  
+**Status**: Accepted  
 **Date**: March 2026  
 **Context**: Choosing how Refarm will handle multi-protocol networking (relays, P2P, federation)  
-**Decision**: Hybrid network abstraction with Nostr as primary discovery + WebRTC P2P + fallback to Matrix federation  
+**Decision**: Network abstraction with Nostr as primary discovery + WebRTC P2P for sync. Matrix adapter is explicitly deferred post-MVP.  
 
 ---
 
@@ -27,6 +27,25 @@ A **single network choice** fails here because:
 ---
 
 ## Decision: Nostr-First with Abstraction
+
+## MVP Scope Freeze (v0.1.0-v0.2.x)
+
+To keep implementation focused, this ADR defines a strict in/out scope for near-term delivery.
+
+**In scope now**:
+
+- Nostr relay adapter for identity-related publish/subscribe flows
+- Nostr-based plugin discovery metadata (NIP-89/94)
+- WebRTC adapter for peer-to-peer sync sessions
+- Offline queueing when network is unavailable
+
+**Out of scope now**:
+
+- Matrix federation adapter and homeserver integration
+- Multi-transport auto-failover beyond Nostr + WebRTC
+- Cross-protocol bridge plugins (Matrix<->Nostr, IPFS<->Nostr)
+
+**Re-entry rule**: Matrix only returns to scope after v0.1.0 core storage/sync gates are green and v0.2.x network telemetry shows clear need.
 
 ### Network Stack Architecture
 
@@ -167,7 +186,7 @@ When **devices are on the same local network**:
 
 **Adapter**: WebRTC RTCDataChannel for binary protocol negotiation.
 
-### Phase 3 (v0.3.0): Matrix Federation [Optional]
+### Phase 3 (Post-MVP): Matrix Federation [Optional]
 
 For teams/organizations wanting their own sync infrastructure:
 
@@ -177,7 +196,7 @@ For teams/organizations wanting their own sync infrastructure:
 
 **Adapter**: Matrix Client-Server API (HTTP, room events).
 
-### Phase 4 (v0.4.0+): Intelligent Failover
+### Phase 4 (Post-MVP): Intelligent Failover
 
 Kernel detects availability and chooses transport:
 
