@@ -15,11 +15,14 @@ jobs:
     timeout-minutes: 30
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: "0"
+
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
-        with:
-          fetch-depth: "0"
 
       - name: Security audit
         run: npm audit --audit-level=high
@@ -50,6 +53,9 @@ jobs:
     needs: quality
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
@@ -63,6 +69,9 @@ jobs:
     needs: build
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
@@ -89,6 +98,9 @@ jobs:
     timeout-minutes: 10
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Setup
         id: setup
         uses: ./.github/actions/setup

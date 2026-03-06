@@ -83,6 +83,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
