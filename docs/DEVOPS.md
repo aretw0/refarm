@@ -143,6 +143,8 @@ Review cadence:
 - ✅ **Regular Updates** — npm is auto-updated in post-create hook
 - 🔍 **Monitor PRs** — GitHub dependabot can alert us to new vulnerabilities
 
+For responsible disclosure and reporting policy, see `SECURITY.md`.
+
 ### Security Checks in CI/CD
 
 Current strategy uses two layers:
