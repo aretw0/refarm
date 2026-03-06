@@ -155,7 +155,7 @@ async loadConfig(): Promise<VaultMetadata> {
 **Guest → Permanent upgrade**:
 
 ```typescript
-async upgradeToPermament(mnemonic: string): Promise<void> {
+async upgradeToPermanent(mnemonic: string): Promise<void> {
   const identity = await IdentityService.fromMnemonic(mnemonic);
   
   // 1. Rewrite ownership in SQLite
