@@ -1,17 +1,10 @@
 // Hello World Plugin - Validação WASM + WIT
 // Implementa a interface refarm-sdk.wit
 
-use exports::refarm::sdk::integration::{
-    Guest, GuestMetadata, PluginError, PluginMetadata,
-};
-use refarm::sdk::kernel_bridge::{log, store_node, LogLevel};
+mod bindings;
 
-wit_bindgen::generate!({
-    world: "refarm-plugin",
-    exports: {
-        "refarm:sdk/integration": HelloWorldPlugin,
-    },
-});
+use bindings::exports::refarm::sdk::integration::{Guest, PluginError, PluginMetadata};
+use bindings::refarm::sdk::kernel_bridge::{log, store_node, LogLevel};
 
 struct HelloWorldPlugin;
 
@@ -61,9 +54,7 @@ impl Guest for HelloWorldPlugin {
     fn teardown() {
         log(LogLevel::Info, "👋 Goodbye from Rust WASM!");
     }
-}
 
-impl GuestMetadata for HelloWorldPlugin {
     fn metadata() -> PluginMetadata {
         PluginMetadata {
             name: "Hello World Plugin".to_string(),
@@ -74,3 +65,5 @@ impl GuestMetadata for HelloWorldPlugin {
         }
     }
 }
+
+bindings::export!(HelloWorldPlugin with_types_in bindings);
