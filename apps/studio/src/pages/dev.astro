@@ -6,32 +6,64 @@
  * build and test WASM plugins without leaving the browser.
  */
 import Layout from "../layouts/Layout.astro";
+
+const defaultPluginCode = String.raw`// Refarm Plugin — Matrix Bridge (example)
+// Implements the refarm:plugin/integration WIT interface
+
+import type { KernelBridge } from "@refarm/sdk";
+
+export async function ingest(bridge: KernelBridge): Promise<void> {
+  // Fetch data from Matrix homeserver (sandboxed — no direct network access)
+  const raw = await bridge.fetchAllowed("https://matrix.example.org/_matrix/client/r0/sync");
+
+  for (const msg of raw.rooms.join) {
+    // Normalise to JSON-LD before storing
+    await bridge.storeNode({
+      "@context": "https://schema.org/",
+      "@type": "Message",
+      "@id": \`urn:matrix:\${msg.event_id}\`,
+      "name": msg.content.body,
+      "text": msg.content.body,
+      "dateSent": new Date(msg.origin_server_ts).toISOString(),
+      "sender": { "@type": "Person", "name": msg.sender },
+    });
+  }
+}
+`;
 ---
 
 <Layout title="Plugin Dev — Refarm Studio">
   <section style="max-width: 1000px; margin: 0 auto;">
-    <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">⚡ Plugin Development Environment</h2>
+    <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">
+      ⚡ Plugin Development Environment
+    </h2>
     <p style="color: #8b949e; margin-bottom: 1.5rem;">
       Write your plugin using the WIT interface below, then compile and test it
       directly in the browser via WebContainers. No local toolchain required.
     </p>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: 600px;">
+    <div
+      style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; height: 600px;"
+    >
       <!-- Editor panel -->
-      <div style="
+      <div
+        style="
         background: #161b22;
         border: 1px solid #30363d;
         border-radius: 8px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-      ">
-        <div style="
+      "
+      >
+        <div
+          style="
           padding: 0.5rem 1rem;
           border-bottom: 1px solid #30363d;
           font-size: 0.8rem;
           color: #8b949e;
-        ">
+        "
+        >
           📝 plugin.ts
         </div>
         <textarea
@@ -48,42 +80,23 @@ import Layout from "../layouts/Layout.astro";
             resize: none;
             outline: none;
           "
+          >{defaultPluginCode}</textarea
         >
-// Refarm Plugin — Matrix Bridge (example)
-// Implements the refarm:plugin/integration WIT interface
-
-import type { KernelBridge } from "@refarm/sdk";
-
-export async function ingest(bridge: KernelBridge): Promise<void> {
-  // Fetch data from Matrix homeserver (sandboxed — no direct network access)
-  const raw = await bridge.fetchAllowed("https://matrix.example.org/_matrix/client/r0/sync");
-
-  for (const msg of raw.rooms.join) {
-    // Normalise to JSON-LD before storing
-    await bridge.storeNode({
-      "@context": "https://schema.org/",
-      "@type": "Message",
-      "@id": `urn:matrix:${msg.event_id}`,
-      "name": msg.content.body,
-      "text": msg.content.body,
-      "dateSent": new Date(msg.origin_server_ts).toISOString(),
-      "sender": { "@type": "Person", "name": msg.sender },
-    });
-  }
-}
-        </textarea>
       </div>
 
       <!-- Terminal panel -->
-      <div style="
+      <div
+        style="
         background: #0d1117;
         border: 1px solid #30363d;
         border-radius: 8px;
         display: flex;
         flex-direction: column;
         overflow: hidden;
-      ">
-        <div style="
+      "
+      >
+        <div
+          style="
           padding: 0.5rem 1rem;
           border-bottom: 1px solid #30363d;
           font-size: 0.8rem;
@@ -91,9 +104,12 @@ export async function ingest(bridge: KernelBridge): Promise<void> {
           display: flex;
           justify-content: space-between;
           align-items: center;
-        ">
+        "
+        >
           <span>🖥️ Terminal (WebContainers)</span>
-          <button id="run-btn" style="
+          <button
+            id="run-btn"
+            style="
             background: #238636;
             border: none;
             border-radius: 4px;
@@ -101,7 +117,9 @@ export async function ingest(bridge: KernelBridge): Promise<void> {
             color: #fff;
             cursor: pointer;
             font-size: 0.75rem;
-          ">▶ Run</button>
+          "
+            >▶ Run</button
+          >
         </div>
         <div
           id="terminal-output"
@@ -114,7 +132,8 @@ export async function ingest(bridge: KernelBridge): Promise<void> {
             overflow-y: auto;
             white-space: pre-wrap;
           "
-        >$ Waiting for WebContainers to boot…
+        >
+          $ Waiting for WebContainers to boot…
         </div>
       </div>
     </div>
@@ -122,9 +141,10 @@ export async function ingest(bridge: KernelBridge): Promise<void> {
 </Layout>
 
 <script>
-  const terminalEl = document.getElementById("terminal-output")!;
+  const terminalEl = document.getElementById("terminal-output");
 
-  function log(msg: string, color = "#c9d1d9") {
+  function log(msg: string, color: string = "#c9d1d9") {
+    if (!terminalEl) return;
     terminalEl.innerHTML += `<span style="color: ${color};">${msg}\n</span>`;
     terminalEl.scrollTop = terminalEl.scrollHeight;
   }
@@ -140,16 +160,21 @@ export async function ingest(bridge: KernelBridge): Promise<void> {
       log("$ WebContainers ready ✓", "#3fb950");
       log("$ Type your plugin code and click ▶ Run", "#8b949e");
     } catch (err) {
-      log(`$ Error: ${(err as Error).message}`, "#f85149");
+      const message = err instanceof Error ? err.message : String(err);
+      log(`$ Error: ${message}`, "#f85149");
     }
   }
 
   document.getElementById("run-btn")?.addEventListener("click", async () => {
-    const code = (document.getElementById("plugin-code") as HTMLTextAreaElement).value;
+    const codeEl = document.getElementById("plugin-code");
+    const code = codeEl instanceof HTMLTextAreaElement ? codeEl.value : "";
     log("\n$ Compiling plugin…", "#58a6ff");
     // TODO: write code to WebContainer filesystem, run `node plugin.ts`
     log(`$ Code length: ${code.length} chars`, "#8b949e");
-    log("$ (Full WebContainers integration requires @webcontainer/api)", "#8b949e");
+    log(
+      "$ (Full WebContainers integration requires @webcontainer/api)",
+      "#8b949e",
+    );
     log("$ Build complete ✓", "#3fb950");
   });
 
