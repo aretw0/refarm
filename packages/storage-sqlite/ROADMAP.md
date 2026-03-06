@@ -27,7 +27,7 @@
 
 ## Technical Decisions
 
-### SQLite Engine Choice (Pending ADR-008)
+### SQLite Engine Choice (Pending ADR-015)
 
 **Options**:
 
@@ -178,16 +178,16 @@ VALUES ('0.2.0', 'Add vault_id for multi-vault support');
 **Goal**: Define storage API and SQLite integration  
 **Gate**: Specs complete, peer reviewed, no TODOs
 
-- [ ] ADR-008: SQLite engine choice (wa-sqlite vs sql.js)
+- [ ] ADR-015: SQLite engine choice (wa-sqlite vs sql.js)
 - [ ] ADR-009: OPFS persistence strategy
-- [ ] ADR-010: JSON-LD schema design
+- [ ] ADR-010: JSON-LD schema evolution
 - [ ] Spec: Storage service interface
   - [ ] CRUD methods (insert, select, update, delete)
   - [ ] Transaction API
   - [ ] Query builder (optional)
   - [ ] Migration system
 - [ ] Spec: JSON-LD storage schema
-  - [ ] Entity table (id, type, data JSONB)
+  - [ ] Entity table (id, type, data TEXT + JSON1)
   - [ ] Relationship table (subject, predicate, object)
   - [ ] Indexes (by type, by property)
   - [ ] Full-text search (FTS5)

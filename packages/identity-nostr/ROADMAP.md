@@ -50,7 +50,7 @@ Identity development begins in v0.2.0.
 **Goal**: Define identity service and Nostr integration  
 **Gate**: Specs complete, peer reviewed, no TODOs
 
-- [ ] ADR-013: Nostr as identity layer (rationale)
+- [ ] ADR-004: Nostr as identity layer (rationale)
 - [ ] Spec: IdentityService interface
   - [ ] Generate keypair (nsec/npub)
   - [ ] Import keypair (nsec string)
