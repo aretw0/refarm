@@ -1,0 +1,39 @@
+name: Security Audit
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Security gate (high and critical)
+        run: npm audit --audit-level=high
+
+      - name: Full audit report (non-blocking)
+        if: always()
+        run: |
+          npm audit --json > audit-full.json || true
+          MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' audit-full.json)
+          HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' audit-full.json)
+          CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' audit-full.json)
+          TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' audit-full.json)
+
+          echo "::notice::Security audit snapshot: total=$TOTAL moderate=$MODERATE high=$HIGH critical=$CRITICAL"
+
+      - name: Upload audit artifact
+        if: always()
+        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        with:
+          name: npm-audit-full-report
+          path: audit-full.json
+          retention-days: 30
