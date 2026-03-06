@@ -128,6 +128,7 @@ Current strategy uses two layers:
   - Blocks PRs only for `high` and `critical`
 - **Visibility workflow (`.github/workflows/security-audit.yml`)**
   - Manual run via `workflow_dispatch`
+  - Weekly run via `schedule` (Monday, 09:00 UTC)
   - Generates full JSON audit artifact for tracking moderate issues
 
 To run the dedicated workflow manually:
