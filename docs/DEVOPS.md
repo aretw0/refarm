@@ -149,6 +149,9 @@ To avoid duplicated scripting across workflows, the repository now provides reus
   - Outputs `issue_url` and `proceed`
 - **`.github/actions/create-pr`**
   - Standardized wrapper for PR creation in automation flows
+- **`.github/workflows/reusable-security-audit.yml`**
+  - Reusable workflow (`workflow_call`) for security gate + report + issue tracking
+  - Called by `.github/workflows/security-audit.yml` and available for future workflows
 
 Recommended reuse pattern for new workflows:
 
