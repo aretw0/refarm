@@ -8,8 +8,8 @@
  * Usage: npm run hooks:install
  */
 
-import { writeFileSync, chmodSync, existsSync, mkdirSync } from 'fs';
-import { join, dirname } from 'path';
+import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'fs';
+import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
