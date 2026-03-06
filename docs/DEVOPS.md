@@ -137,6 +137,25 @@ To run the dedicated workflow manually:
 2. Select **Security Audit**
 3. Click **Run workflow**
 
+### Reusable Workflow Building Blocks
+
+To avoid duplicated scripting across workflows, the repository now provides reusable composite actions:
+
+- **`.github/actions/npm-audit-report`**
+  - Generates JSON + Markdown audit reports
+  - Exposes vulnerability counters as outputs (`total`, `moderate`, `high`, `critical`)
+- **`.github/actions/manage-issue`**
+  - Creates or updates a tracked issue from a markdown file
+  - Outputs `issue_url` and `proceed`
+- **`.github/actions/create-pr`**
+  - Standardized wrapper for PR creation in automation flows
+
+Recommended reuse pattern for new workflows:
+
+1. Generate a machine/human report file
+2. Call `manage-issue` to create/update the tracking issue
+3. If changes are needed, call `create-pr` to open/update PR automation
+
 ---
 
 ## Environment Validation

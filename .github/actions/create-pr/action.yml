@@ -1,0 +1,41 @@
+name: "Create Pull Request"
+description: "Create or update a pull request with standardized parameters"
+
+inputs:
+  token:
+    description: "GitHub token"
+    required: true
+  commit-message:
+    description: "Commit message"
+    required: true
+  title:
+    description: "Pull request title"
+    required: true
+  body:
+    description: "Pull request body"
+    required: true
+  branch:
+    description: "Branch name for the pull request"
+    required: true
+  labels:
+    description: "Comma-separated labels"
+    required: false
+    default: ""
+  delete-branch:
+    description: "Delete branch on merge"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create pull request
+      uses: peter-evans/create-pull-request@v8.1.0
+      with:
+        token: ${{ inputs.token }}
+        commit-message: ${{ inputs.commit-message }}
+        title: ${{ inputs.title }}
+        body: ${{ inputs.body }}
+        branch: ${{ inputs.branch }}
+        delete-branch: ${{ inputs.delete-branch }}
+        labels: ${{ inputs.labels }}
