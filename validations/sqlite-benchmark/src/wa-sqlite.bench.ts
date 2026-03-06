@@ -25,10 +25,7 @@ async function benchmarkWaSqlite(): Promise<BenchmarkResult> {
   console.log('⏱️  Loading wa-sqlite...');
   const startLoad = performance.now();
   
-  const sqlite3 = await sqlite3InitModule({
-    print: console.log,
-    printErr: console.error
-  });
+  const sqlite3 = await sqlite3InitModule();
   
   const loadTime = performance.now() - startLoad;
   console.log(`✅ Loaded in ${loadTime.toFixed(2)}ms\n`);
