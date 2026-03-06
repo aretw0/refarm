@@ -11,7 +11,7 @@
 
 This document tracks the **Semana 0** (Week 0) preparatory work required before beginning v0.1.0 Sprint 1. The roadmap assumes these foundational items are complete before SDD phase can start.
 
-**Timeline**: 5-7 days (1 week)  
+**Execution Model**: Parallel tracks with granular, checkable steps  
 **Blocker Status**: Sprint 1 cannot start until all ✅ items complete
 
 ---
@@ -110,28 +110,23 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
   - ✅ Create plugin project — see `validations/wasm-plugin/hello-world/`
   - ✅ Implement minimal WIT interface — see `hello-world/src/lib.rs`
   - [ ] Build and verify component: `cargo component build --release`
-  - **Effort**: 30 min (setup done, just run build)
 
 - [ ] **Phase 2**: Browser runtime (load WASM in browser)
   - ✅ Create PluginHost class (TypeScript) — see `validations/wasm-plugin/host/`
   - ✅ Implement kernel-bridge (host imports) — see `host/src/main.ts`
   - ✅ Create test page in Studio — see `host/index.html`
   - [ ] Verify plugin loads and executes: `npm run dev` in host/
-  - **Effort**: 30 min (just test in browser)
 
 - [ ] **Phase 3**: Capability enforcement
   - [ ] Add gated operation (fetch)
   - [ ] Host blocks unauthorized calls
   - [ ] Test denial and approval flows
-  - **Effort**: 4 hours (future work, not blocking)
 
 - [ ] **Phase 4**: Performance baseline
   - [ ] Benchmark 1000 store-node calls
   - [ ] Verify < 0.1ms per call
   - [ ] Check for memory leaks
-  - **Effort**: 2 hours (future work, mock gives baseline)
 
-**Timeline**: 1 day (down from 2 days - setup complete!)  
 **Priority**: **HIGHEST** (blocks v0.1.0 if fails)
 
 **Quick Start**: Run `cd validations && .\setup-rust-toolchain.ps1`, then follow [QUICK_START.md](../validations/QUICK_START.md)
@@ -142,7 +137,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 **File**: [ADR-015: SQLite Engine Decision](../specs/ADRs/ADR-015-sqlite-engine-decision.md)  
 **Implementation**: [validations/sqlite-benchmark/](../validations/sqlite-benchmark/)  
-**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md#-fase-2-sqlite-benchmark-1-dia)
+**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 **Status**: ✅ **Benchmarks ready, just run and analyze**
 
@@ -152,21 +147,17 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
   - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/wa-sqlite.bench.ts`
   - [ ] Run: `npm run bench:wa-sqlite`
   - [ ] Document results in `validations/sqlite-benchmark/results.md`
-  - **Effort**: 15 min
 
 - [ ] **Benchmark sql.js**:
   - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/sql-js.bench.ts`
   - [ ] Run: `npm run bench:sql-js`
   - [ ] Document results in `validations/sqlite-benchmark/results.md`
-  - **Effort**: 15 min
 
 - [ ] **Document decision**:
   - [ ] Compare results side-by-side in `validations/sqlite-benchmark/results.md`
   - [ ] Update ADR-015 with decision + rationale
   - [ ] Add rationale to storage-sqlite ROADMAP
-  - **Effort**: 30 min
 
-**Timeline**: 1 day (just execution + analysis)  
 **Priority**: **HIGH** (needed before storage implementation)
 
 **Quick Start**: Run `cd validations/sqlite-benchmark && npm install && npm run bench:all`
@@ -196,7 +187,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - ✅ Testing strategy (bulk migration <100ms for 1000 docs)
 - ✅ Example implementation (TypeScript)
 
-**Timeline**: Ready for review  
+**Execution**: Ready for review  
 **Priority**: **MEDIUM** (can be implemented in v0.2.0 + beyond)
 
 ---
@@ -216,7 +207,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - ✅ **npm scripts**: Ready to use
 - ✅ **Example test file**: Session lifecycle test
 
-**Timeline**: Ready for npm scripts setup  
+**Execution**: Ready for npm scripts setup  
 **Priority**: **MEDIUM** (implement during TDD phase)
 
 ---
@@ -234,7 +225,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - [ ] Test `turbo build` (should skip empty packages gracefully)
 - [ ] Test `turbo lint` (configure ESLint if missing)
 
-**Timeline**: 1 hour  
+**Execution**: Short setup task  
 **Priority**: **LOW** (setup task, non-blocking for research)
 
 ---
@@ -242,47 +233,52 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 #### CI/CD Pipeline
 
 **File**: [.github/workflows/test.yml](../../.github/workflows/test.yml)  
-**Status**: ✅ Created (GitHub Actions template)
+**Status**: ⚠️ Created, but requires alignment before being a reliable gate
 
-**Included**:
+**Current gaps to close**:
 
-- ✅ **Quality job**: Lint + type-check + unit tests + coverage upload
-- ✅ **Build job**: Builds all workspaces with dependency tracking
-- ✅ **E2E job**: Playwright tests with report artifacts
-- ✅ **Changesets job**: Enforces changeset presence on PRs
-- ✅ **Summary job**: Aggregates all status checks
-- ✅ Runs on: push (main/develop) + pull_request
+- [ ] `npm run test:unit` maps to `turbo test:unit`, but no workspace task exists
+- [ ] `npm run test:integration` maps to `turbo test:integration`, but no workspace task exists
+- [ ] `npm run test:e2e` is called by CI, but script is missing in root `package.json`
+- [ ] Workspace `test` scripts call local `node_modules/.bin/jest`, but Jest binary is not installed per workspace
 
-**Timeline**: Ready to use  
-**Priority**: **LOW** (operational, not blocking feature work)
+**Priority**: **HIGH** (blocks trustworthy quality enforcement)
 
 ---
 
-## Timeline Summary
+## Work Distribution (No Calendar)
 
-| Task | Priority | Effort | Days | Can Defer? |
-|------|----------|--------|------|------------|
-| WASM Validation | 🔴 HIGHEST | 18h | 2-3 | ❌ BLOCKER |
-| SQLite Benchmark | 🟠 HIGH | 6h | 1 | ❌ BLOCKER |
-| ADR-010 (Schema Evolution) | 🟡 MEDIUM | 4h | 0.5 | ⚠️ Recommended |
-| ADR-013 (Testing) | 🟡 MEDIUM | 4h | 0.5 | ⚠️ Recommended |
-| Repo Setup | 🟢 LOW | 1h | 0.5 | ✅ Can defer |
-| CI/CD | 🟢 LOW | 2h | 0.5 | ✅ Can defer |
-| **TOTAL** | | **35h** | **5 days** | |
+### Track A: Technical Blockers
 
-**Recommended Schedule** (conservative):
+- [ ] Run WASM Phase 1 build and capture binary output path
+- [ ] Run WASM Phase 2 browser host and validate full interaction flow
+- [ ] Record metrics (load/setup/ingest + wasm size) in validation notes
+- [ ] Execute both SQLite benchmarks (`wa-sqlite`, `sql.js`)
+- [ ] Fill `validations/sqlite-benchmark/results.md` with raw numbers + side-by-side comparison
+- [ ] Update `specs/ADRs/ADR-015-sqlite-engine-decision.md` with final decision
 
-- **Day 1-2**: WASM Validation (Phases 1-4)
-- **Day 3**: SQLite Benchmark + Decision
-- **Day 4**: ADR-010 + ADR-013
-- **Day 5**: Buffer (review, cleanup, repo setup)
+### Track B: Quality Gate Alignment
 
-**Aggressive Schedule** (parallel work):
+- [ ] Decide and lock test runner strategy (Vitest-first or Jest-first)
+- [ ] Make root commands executable: `test:unit`, `test:integration`, `test:e2e`
+- [ ] Align Turbo tasks with real workspace scripts
+- [ ] Ensure workspace test scripts run without local binary path assumptions
+- [ ] Re-run local checks end-to-end (`lint`, `type-check`, tests)
+- [ ] Confirm `.github/workflows/test.yml` matches available scripts and artifacts
 
-- **Day 1**: WASM Phase 1 + SQLite setup
-- **Day 2**: WASM Phase 2 + SQLite benchmarks
-- **Day 3**: WASM Phase 3-4 + ADR-010 + ADR-013
-- Buffer already built in
+### Track C: Documentation and Readiness
+
+- [ ] Mark completed validation steps in this checklist and in `roadmaps/MAIN.md`
+- [ ] Keep ADR-010 and ADR-013 as reference-ready (no new blockers introduced)
+- [ ] Keep branch protection required checks aligned with real CI jobs
+- [ ] Open PR only when Gate 1 + Gate 2 + Gate 3 are green
+
+### Recommended Execution Order
+
+- 1. Start Track A and Track B in parallel
+- 2. Finish decision artifacts (ADR-015 + benchmark results)
+- 3. Confirm CI/test gate integrity
+- 4. Close readiness updates in docs and move to SDD
 
 ---
 
@@ -307,7 +303,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Gate 2: SQLite Engine Chosen
 
-**Condition**: Benchmark complete, ADR-008 accepted
+**Condition**: Benchmark complete, ADR-015 accepted
 
 **On Success**: storage-sqlite implementation can start
 
@@ -320,7 +316,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Gate 3: Testing Strategy Defined
 
-**Condition**: ADR-013 accepted, test infra scaffolded
+**Condition**: ADR-013 accepted, test infra scaffolded, CI commands executable
 
 **On Success**: TDD phase can proceed smoothly
 
@@ -332,7 +328,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 **Status Updates**:
 
-- Daily standup (async): Post to project channel
+- Async status update per completed step batch: Post to project channel
 - Blockers: Escalate immediately (don't wait)
 - Completed gates: Announce in main channel
 
@@ -374,7 +370,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - WASM doesn't work → Pivot to alternative (see Gate 1)
 - SQLite too slow → Consider DuckDB WASM
-- Time runs over → Defer non-blockers (ADR-010/013, CI/CD)
+- Scope pressure → Defer non-blockers (ADR-010/013), keep blocker tracks first
 
 **Pragmatism**:
 
