@@ -1,0 +1,33 @@
+flowchart TD
+  TR[push / pull_request] --> Q[quality job]
+
+  subgraph Quality
+    Q1[npm audit --audit-level=high]
+    Q2[npm run lint]
+    Q3[npm run type-check]
+    Q4[npm run test:unit -- --coverage]
+    Q5[npm run test:integration]
+    Q6[upload coverage]
+  end
+
+  Q --> Q1 --> Q2 --> Q3 --> Q4 --> Q5 --> Q6
+
+  Q --> B[build job]
+  B --> B1[npm run build]
+
+  B --> E[e2e job]
+  E --> E1[playwright install]
+  E --> E2[npm run build]
+  E --> E3[npm run test:e2e]
+  E --> E4[upload playwright report]
+
+  TR --> A[audit-moderate job]
+  A --> A1[generate audit report artifact]
+
+  classDef gate fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+  classDef q fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef e fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+
+  class TR,Q,B,E,A gate;
+  class Q1,Q2,Q3,Q4,Q5,Q6,B1 q;
+  class E1,E2,E3,E4,A1 e;

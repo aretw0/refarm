@@ -1,0 +1,25 @@
+sequenceDiagram
+  autonumber
+  participant A as Peer A
+  participant EA as SyncEngine A
+  participant T as Transport
+  participant EB as SyncEngine B
+  participant B as Peer B
+
+  A->>EA: dispatch(set key=name value=alice)
+  EA->>EA: tickClock(local)
+  EA->>EA: build CRDTOperation(id, peerId, clock)
+  EA->>T: send(operation)
+  EA->>A: emit operation (local observers)
+
+  T->>EB: onReceive(operation)
+  EB->>EB: mergeClocks(local, remote)
+  EB->>EB: LWW/OR-Set conflict resolution
+  EB->>B: emit operation (remote observers)
+
+  B->>EB: dispatch(set key=status value=ok)
+  EB->>EB: tickClock(remote)
+  EB->>T: send(operation)
+  T->>EA: onReceive(operation)
+  EA->>EA: mergeClocks(local, remote)
+  EA->>A: emit operation (converged state)

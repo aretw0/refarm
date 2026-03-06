@@ -1,0 +1,24 @@
+flowchart LR
+  U[External Source API] --> P[Bridge Plugin]
+  P -->|WIT call: store-node| K[Kernel Host]
+  P -->|WIT call: fetch| F[Capability Filter]
+  F --> U
+
+  K --> N[normaliseToSovereignGraph]
+  N --> V[JSON-LD schema validation]
+
+  V -->|valid| M[runMigrations + upsert]
+  V -->|invalid| E[plugin-error: invalid-schema]
+
+  M --> DB[(SQLite / OPFS)]
+  DB --> Q[query-nodes]
+  Q --> K
+  K --> S[Studio UI]
+
+  classDef ext fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+  classDef core fill:#ecfccb,stroke:#3f6212,stroke-width:1px;
+  classDef err fill:#fee2e2,stroke:#b91c1c,stroke-width:1px;
+
+  class U,P,S ext;
+  class K,N,V,M,DB,Q,F core;
+  class E err;

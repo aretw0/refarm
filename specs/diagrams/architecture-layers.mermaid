@@ -1,0 +1,49 @@
+flowchart TB
+  subgraph A[Applications]
+    K[apps/kernel]
+    S[apps/studio]
+  end
+
+  subgraph P[Independent Packages]
+    ST[packages/storage-sqlite]
+    SY[packages/sync-crdt]
+    ID[packages/identity-nostr]
+  end
+
+  subgraph C[Contracts and Schemas]
+    W[wit/refarm-sdk.wit]
+    J[schemas/sovereign-graph.jsonld]
+  end
+
+  subgraph R[Runtime and Infrastructure]
+    O[OPFS]
+    Q[SQLite engine]
+    N[Nostr relays]
+    H[HTTP capability-gated fetch]
+  end
+
+  S --> K
+  K --> ST
+  K --> SY
+  K --> ID
+
+  K -. implements host for .-> W
+  ST -. persists JSON-LD nodes .-> J
+
+  ST --> O
+  ST --> Q
+  ID --> N
+  K --> H
+
+  SY --> K
+  ID --> K
+
+  classDef app fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+  classDef pkg fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef contract fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef infra fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+
+  class K,S app;
+  class ST,SY,ID pkg;
+  class W,J contract;
+  class O,Q,N,H infra;

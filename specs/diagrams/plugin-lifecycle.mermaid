@@ -1,0 +1,23 @@
+stateDiagram-v2
+  [*] --> Discovered: manifest indexed
+  Discovered --> Downloaded: user installs plugin
+  Downloaded --> Verified: hash/signature check
+  Verified --> Loaded: instantiate WASM component
+  Loaded --> Setup: setup() called
+  Setup --> Running: permissions granted
+  Setup --> Blocked: permission denied
+  Blocked --> Uninstalled: user removes plugin
+
+  Running --> Ingesting: ingest() scheduled
+  Ingesting --> Normalizing: plugin emits raw payload
+  Normalizing --> Persisting: kernel normalises to JSON-LD
+  Persisting --> Running: node stored via storage adapter
+
+  Running --> Metadata: metadata() requested
+  Metadata --> Running
+
+  Running --> Teardown: disable or shutdown
+  Teardown --> Loaded
+
+  Loaded --> Uninstalled: uninstall command
+  Uninstalled --> [*]
