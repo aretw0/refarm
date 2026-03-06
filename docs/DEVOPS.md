@@ -119,14 +119,22 @@ lodash (vulnerable)
 - ✅ **Regular Updates** — npm is auto-updated in post-create hook
 - 🔍 **Monitor PRs** — GitHub dependabot can alert us to new vulnerabilities
 
-### Adding Security Checks to CI/CD
+### Security Checks in CI/CD
 
-Add to your GitHub Actions workflow:
+Current strategy uses two layers:
 
-```yaml
-- name: Security Audit
-  run: npm audit --audit-level=moderate
-```
+- **Pipeline gate (`.github/workflows/test.yml`)**
+  - `npm audit --audit-level=high`
+  - Blocks PRs only for `high` and `critical`
+- **Visibility workflow (`.github/workflows/security-audit.yml`)**
+  - Manual run via `workflow_dispatch`
+  - Generates full JSON audit artifact for tracking moderate issues
+
+To run the dedicated workflow manually:
+
+1. Open GitHub Actions
+2. Select **Security Audit**
+3. Click **Run workflow**
 
 ---
 
