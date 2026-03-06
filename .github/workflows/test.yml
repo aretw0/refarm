@@ -103,9 +103,45 @@ jobs:
             exit 1
           fi
 
+  audit-moderate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Audit moderate report (non-blocking)
+        run: |
+          npm audit --json > audit-moderate.json || true
+          MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' audit-moderate.json)
+          HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' audit-moderate.json)
+          CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' audit-moderate.json)
+          TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' audit-moderate.json)
+
+          echo "moderate=$MODERATE" >> $GITHUB_OUTPUT
+          echo "high=$HIGH" >> $GITHUB_OUTPUT
+          echo "critical=$CRITICAL" >> $GITHUB_OUTPUT
+          echo "total=$TOTAL" >> $GITHUB_OUTPUT
+
+          if [ "$TOTAL" -gt 0 ]; then
+            echo "::warning::Security audit report: total=$TOTAL moderate=$MODERATE high=$HIGH critical=$CRITICAL"
+          else
+            echo "::notice::Security audit report: no vulnerabilities found"
+          fi
+
+      - name: Upload audit report artifact
+        if: always()
+        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        with:
+          name: npm-audit-moderate-report
+          path: audit-moderate.json
+          retention-days: 30
+
   summary:
     if: always()
-    needs: [quality, build, e2e, changesets]
+    needs: [quality, build, e2e, changesets, audit-moderate]
     runs-on: ubuntu-latest
 
     steps:
