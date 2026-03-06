@@ -9,6 +9,7 @@
 - [Dev Container Setup](#dev-container-setup)
 - [Security & Vulnerability Management](#security--vulnerability-management)
 - [Environment Validation](#environment-validation)
+- [CI Caching Strategy](#ci-caching-strategy)
 - [Docker & Container Notes](#docker--container-notes)
 
 ---
@@ -164,6 +165,34 @@ npm run test:unit
 - **Fix applied (Mar 6, 2026):** Moved sample editor content to a frontmatter string (`defaultPluginCode`) and rendered it via `{defaultPluginCode}` in the textarea.
 - **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).
 - **Verification:** `npm run build -w @refarm/studio` succeeds locally.
+
+---
+
+## CI Caching Strategy
+
+### Current Baseline (March 6, 2026)
+
+- **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
+- **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it instead of rebuilding.
+- **Playwright browser cache:** `e2e` caches `~/.cache/ms-playwright` using key `${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}`.
+- **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
+
+### Invalidation Rules
+
+- **npm cache invalidates when:** Node version or lockfile changes.
+- **Playwright cache invalidates when:** `package-lock.json` hash changes or runner OS changes.
+- **Build artifact invalidates when:** a new workflow run executes (artifact is per-run, retention 7 days).
+
+### Why This Avoids Waste
+
+- Prevents duplicate `npm run build` in both `build` and `e2e` jobs.
+- Avoids repeated Playwright browser downloads when lockfile/OS are unchanged.
+- Avoids running E2E setup and report upload while suite is not yet implemented.
+
+### Residual Cost (Expected)
+
+- `npm ci` still runs once per job due job isolation on hosted runners.
+- Further reduction would require remote cache for task outputs (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
 ---
 
