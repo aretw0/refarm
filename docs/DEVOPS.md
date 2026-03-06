@@ -166,6 +166,61 @@ npm run test:unit
 - **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).
 - **Verification:** `npm run build -w @refarm/studio` succeeds locally.
 
+**Warning: "The CJS build of Vite's Node API is deprecated" in Git Hooks**
+
+- **Symptom:** Git pre-push hook logs show repeated deprecation warning:
+
+  ```
+  The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+  ```
+
+- **Root cause:** Vitest internally uses Vite's CommonJS API instead of ESM API. This occurs specifically during `npm run test:unit` when Vitest initializes, not during lint or type-check commands.
+
+- **Impact:** Purely cosmetic; does not affect test functionality or results. Clutters git hook output making it harder to spot actual issues.
+
+- **Investigation process (Mar 6, 2026):**
+  1. **Initial attempt:** Added `export VITE_CJS_IGNORE_WARNING=true` environment variable to hook.
+     - **Result:** Failed. Vite doesn't respect this env var consistently across all contexts.
+  
+  2. **Discovery:** Ran hook commands individually:
+     - `npm run lint` → ✅ No warning
+     - `npm run type-check` → ✅ No warning  
+     - `npm run test:unit` → ❌ Warning appears (Vitest loads Vite)
+  
+  3. **Root identification:** Warning originates from Vitest's internal Vite usage during test initialization, written to stderr.
+
+- **Fix applied (Mar 6, 2026):**
+  - Created `filter_vite_warning()` shell function in pre-push hook using `grep -v` to filter stderr:
+
+    ```bash
+    filter_vite_warning() {
+      grep -v "The CJS build of Vite's Node API is deprecated" | \
+      grep -v "vite.dev/guide/troubleshooting"
+    }
+    ```
+
+  - Applied filter to all npm commands in hook that might invoke Vitest:
+    - `npm run lint 2>&1 | filter_vite_warning`
+    - `npm run type-check 2>&1 | filter_vite_warning`
+    - `npm run test:unit 2>&1 | filter_vite_warning`
+
+- **Why grep filter instead of env var:**
+  - More reliable: works regardless of how Vite is configured internally
+  - Surgical: only removes this specific message, preserves all other warnings/errors
+  - Maintainable: easy to update pattern if message changes
+
+- **Long-term resolution:** Will be resolved when Vitest ecosystem fully migrates to Vite's ESM API (upstream dependency work).
+
+- **Verification:**
+
+  ```bash
+  npm run hooks:install  # Reinstall hook with filter
+  .git/hooks/pre-push 2>&1 | grep -c "CJS build"  # Should return 0
+  ```
+
+- **Files modified:**
+  - `scripts/install-git-hooks.mjs` - Added filter function and applied to all npm commands
+
 ---
 
 ## CI Caching Strategy
@@ -226,22 +281,24 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 =======
 
 >>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
+
    ```yaml
    env:
      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
    ```
+
 <<<<<<< HEAD
 =======
 
 >>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
    Add to `.github/workflows/test.yml` at job or workflow level.
 
-3. **Verify turbo.json cache configuration:**
+1. **Verify turbo.json cache configuration:**
    - Ensure `turbo.json` has proper `outputs` declared for each task.
    - Current config already specifies outputs for `build`, `test`, and `lint` tasks.
 
-4. **Test remote cache:**
+2. **Test remote cache:**
    - Run workflow twice with identical code.
    - Second run should show `>>> FULL TURBO` with cache hits from remote.
    - Check Turbo dashboard for cache hit statistics.
@@ -255,11 +312,13 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 **Documentation:**
 
 <<<<<<< HEAD
-- Official guide: https://turbo.build/repo/docs/core-concepts/remote-caching
-- Self-hosted setup: https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting
+
+- Official guide: <https://turbo.build/repo/docs/core-concepts/remote-caching>
+- Self-hosted setup: <https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting>
 =======
 - Official guide: <https://turbo.build/repo/docs/core-concepts/remote-caching>
 - Self-hosted setup: <https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting>
+
 >>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
 
 ---
