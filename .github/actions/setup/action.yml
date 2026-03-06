@@ -1,0 +1,47 @@
+name: "Refarm Setup"
+description: "Centralized setup: checkout, Node.js, npm ci. Single source of truth for all versions and dependencies."
+
+inputs:
+  node-version:
+    description: "Node.js version"
+    required: false
+    default: "22"
+  fetch-depth:
+    description: "Git fetch depth (0 for full history)"
+    required: false
+    default: "1"
+
+outputs:
+  checkout-version:
+    description: "actions/checkout version"
+    value: v6.0.2
+  setup-node-version:
+    description: "actions/setup-node version"
+    value: v6.3.0
+  codecov-version:
+    description: "codecov/codecov-action version"
+    value: v5.5.2
+  upload-artifact-version:
+    description: "actions/upload-artifact version"
+    value: v7.0.0
+  create-pr-version:
+    description: "peter-evans/create-pull-request version"
+    value: v8.1.0
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v6.0.2
+      with:
+        fetch-depth: ${{ inputs.fetch-depth }}
+
+    - name: Setup Node.js ${{ inputs.node-version }}
+      uses: actions/setup-node@v6.3.0
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: "npm"
+
+    - name: Install dependencies
+      shell: bash
+      run: npm ci
