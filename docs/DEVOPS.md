@@ -222,11 +222,19 @@ Turbo remote cache allows task output reuse across different CI runs and machine
    - Add `TURBO_TEAM` (team identifier, e.g., `refarm-team`)
 
 2. **Update workflow environment variables:**
+<<<<<<< HEAD
+=======
+
+>>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
    ```yaml
    env:
      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
    ```
+<<<<<<< HEAD
+=======
+
+>>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
    Add to `.github/workflows/test.yml` at job or workflow level.
 
 3. **Verify turbo.json cache configuration:**
@@ -246,8 +254,13 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 **Documentation:**
 
+<<<<<<< HEAD
 - Official guide: https://turbo.build/repo/docs/core-concepts/remote-caching
 - Self-hosted setup: https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting
+=======
+- Official guide: <https://turbo.build/repo/docs/core-concepts/remote-caching>
+- Self-hosted setup: <https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting>
+>>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
 
 ---
 

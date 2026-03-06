@@ -25,6 +25,9 @@ const hookContent = `#!/bin/sh
 # Installed by: npm run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
 
+# Suppress Vite CJS deprecation warning (informational only, not a functional issue)
+export VITE_CJS_IGNORE_WARNING=true
+
 echo "🔍 Running pre-push validation..."
 echo ""
 
