@@ -1,0 +1,30 @@
+name: "Codecov Upload Wrapper"
+description: "Centralized wrapper for codecov/codecov-action"
+
+inputs:
+  files:
+    description: "Coverage file path(s)"
+    required: true
+  flags:
+    description: "Codecov flags"
+    required: false
+    default: ""
+  name:
+    description: "Upload name"
+    required: false
+    default: ""
+  token:
+    description: "Codecov token, if required"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v5.5.2
+      with:
+        files: ${{ inputs.files }}
+        flags: ${{ inputs.flags }}
+        name: ${{ inputs.name }}
+        token: ${{ inputs.token }}
