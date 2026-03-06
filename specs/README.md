@@ -11,6 +11,7 @@
 specs/
 ├── ADRs/          Architecture Decision Records
 ├── features/      Feature specifications
+├── diagrams/      Mermaid architecture and systems diagrams
 └── README.md      This file
 ```
 
