@@ -11,20 +11,23 @@
  *   node scripts/check-diagrams.mjs --ci     // Regenerate and verify no changes needed
  */
 
+import { execSync } from "child_process";
 import fs from "fs";
 import path from "path";
-import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 const docsDir = path.join(projectRoot, "docs");
+const specsDiagramsDir = path.join(projectRoot, "specs", "diagrams");
+const mermaidConfigFile = path.join(specsDiagramsDir, "mermaid.config.json");
 
 const CI_MODE = process.argv.includes("--ci");
 
 // Find all .mermaid files
 function findMermaidFiles() {
   const mermaidFiles = [];
+  const searchRoots = [docsDir, specsDiagramsDir];
 
   function walkDir(dir) {
     const files = fs.readdirSync(dir);
@@ -40,7 +43,11 @@ function findMermaidFiles() {
     }
   }
 
-  walkDir(docsDir);
+  for (const root of searchRoots) {
+    if (fs.existsSync(root)) {
+      walkDir(root);
+    }
+  }
   return mermaidFiles;
 }
 
@@ -50,7 +57,7 @@ function generateSvg(mermaidFile) {
 
   try {
     execSync(
-      `npx -y @mermaid-js/mermaid-cli -i "${mermaidFile}" -o "${svgFile}"`,
+      `npx -y @mermaid-js/mermaid-cli -i "${mermaidFile}" -o "${svgFile}" -c "${mermaidConfigFile}"`,
       { stdio: "pipe" }
     );
     return svgFile;
