@@ -11,7 +11,10 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "composite": true
+    "baseUrl": ".",
+    "paths": {
+      "@refarm/*": ["./packages/*/src"]
+    }
   },
   "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]
 }
