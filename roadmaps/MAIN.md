@@ -32,8 +32,9 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 ### ⚠️ Pre-Sprint 0: Preparatory Work (Semana 0 - IN PROGRESS)
 
-**Status**: 60% complete (ADRs done, validations pending)  
-**Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)
+**Status**: 75% complete (environment setup done, validation execution pending)  
+**Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)  
+**Quick Start**: See [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 **Completed** ✅:
 
@@ -44,26 +45,36 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [x] WIT contract verified (refarm-sdk.wit complete)
 - [x] JSON-LD schema expanded (9 practical examples)
 - [x] Sub-roadmaps detailed (kernel, storage, sync technical decisions)
+- [x] ✨ **NEW**: Validation environment configured ([validations/](../validations/))
+  - [x] Rust + WASM toolchain setup script
+  - [x] Hello-world plugin project (Rust)
+  - [x] Browser host for WASM testing
+  - [x] SQLite benchmark scripts (wa-sqlite vs sql.js)
 
-**Pending** ⚠️ (BLOCKERS):
+**Pending** ⚠️ (BLOCKERS - 2 days):
 
-- [ ] **Validação 3**: WASM + WIT capability enforcement (2 days)
-  - [ ] Compile hello-world plugin (Rust → WASM)
-  - [ ] Load in browser, verify capability boundary
-  - [ ] Benchmark performance (< 0.1ms per call)
-  - **Checklist**: [wasm-validation.md](../docs/research/wasm-validation.md)
+- [ ] **Validação WASM + WIT** (1 day)
+  - ✅ Environment ready (just run `setup-rust-toolchain.ps1`)
+  - [ ] Compile hello-world plugin: `cargo component build --release`
+  - [ ] Test in browser: `npm run dev` in `validations/wasm-plugin/host/`
+  - [ ] Verify metrics: load < 100ms, size < 500KB
+  - **Quick Start**: [validations/QUICK_START.md#fase-1](../validations/QUICK_START.md#-fase-1-wasm--wit-2-dias)
 
-- [ ] **SQLite Engine Decision**: wa-sqlite vs sql.js (1 day)
-  - [ ] Benchmark 100k inserts (OPFS)
-  - [ ] Compare bundle size, memory, load time
-  - [ ] Document in ADR-015
+- [ ] **SQLite Engine Decision** (1 day)
+  - ✅ Benchmarks ready (just run `npm run bench:all`)
+  - [ ] Execute benchmarks: `cd validations/sqlite-benchmark && npm run bench:all`
+  - [ ] Analyze results and fill `validations/sqlite-benchmark/results.md`
+  - [ ] Update ADR-015 with decision
+  - **Quick Start**: [validations/QUICK_START.md#fase-2](../validations/QUICK_START.md#-fase-2-sqlite-benchmark-1-dia)
 
 **Recommended** (non-blocking):
 
-- [ ] ADR-010: JSON-LD schema evolution (Lenses or migrations)
-- [ ] ADR-013: Testing strategy (Vitest vs Jest, Playwright)
+- [ ] ADR-010: JSON-LD schema evolution (Lenses or migrations) — ✅ Already written
+- [ ] ADR-013: Testing strategy (Vitest vs Jest, Playwright) — ✅ Already written
 
 **Decision Gate**: ✅ WASM validation + SQLite decision complete → proceed to Pre-SDD
+
+**How to Execute**: See [validations/QUICK_START.md](../validations/QUICK_START.md) for step-by-step guide.
 
 ---
 
