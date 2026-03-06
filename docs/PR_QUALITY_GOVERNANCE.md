@@ -128,41 +128,61 @@ Bloquear problemas **antes do push** economiza:
 
 **Arquivo: `.git/hooks/pre-push`** (criado automaticamente via script)
 
+**Política local atual (branch-aware):**
+
+- `main` / `develop`: bloqueia push somente se `lint` ou `type-check` falharem
+- Feature branches: não bloqueia push (gera warnings)
+- `test:unit` e segurança (`npm audit --audit-level=high`): warnings locais, gate obrigatório no CI
+
+**Observação:** o CI continua sendo a autoridade final para merge (required status checks).
+
 ```bash
 #!/bin/sh
 # Pre-push hook: valida qualidade antes de push
 
 echo "🔍 Running pre-push validation..."
 
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+
+# Strict only on protected branches
+case "$CURRENT_BRANCH" in
+  main|develop) IS_STRICT=1 ;;
+  *) IS_STRICT=0 ;;
+esac
+
 # 1. Lint
 echo "📝 Checking lint..."
 npm run lint || {
-  echo "❌ Lint failed! Fix issues before pushing."
-  exit 1
+  if [ "$IS_STRICT" -eq 1 ]; then
+    echo "❌ Lint failed (blocking in strict mode)."
+    exit 1
+  fi
+  echo "⚠️ Lint failed (warning in permissive mode)."
 }
 
 # 2. Type-check
 echo "🔤 Checking types..."
 npm run type-check || {
-  echo "❌ Type check failed! Fix type errors before pushing."
-  exit 1
+  if [ "$IS_STRICT" -eq 1 ]; then
+    echo "❌ Type-check failed (blocking in strict mode)."
+    exit 1
+  fi
+  echo "⚠️ Type-check failed (warning in permissive mode)."
 }
 
 # 3. Unit tests
 echo "🧪 Running unit tests..."
 npm run test:unit || {
-  echo "❌ Tests failed! Fix failing tests before pushing."
-  exit 1
+  echo "⚠️ Tests failed (non-blocking local warning)."
 }
 
 # 4. Security audit (high/critical only)
 echo "🔒 Checking security..."
 npm audit --audit-level=high || {
-  echo "⚠️ Security vulnerabilities detected! Run 'npm audit fix' or document in DEVOPS.md."
-  exit 1
+  echo "⚠️ Security audit warning locally. CI remains the enforcement gate."
 }
 
-echo "✅ All pre-push checks passed!"
+echo "✅ Local pre-push execution complete."
 ```
 
 ### Instalação do Hook

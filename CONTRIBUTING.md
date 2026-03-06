@@ -36,7 +36,8 @@ npm run dev      # Start all apps in watch mode
 Refarm enforces quality with a two-mode pre-push hook and CI checks:
 
 - **Feature branches**: permissive mode (warns, can continue)
-- **`main` and `develop`**: strict mode (blocks push on failing checks)
+- **`main` and `develop`**: strict mode (blocks push on `lint` and `type-check` failures)
+- **`test:unit` and security audit**: advisory locally, enforced in CI
 - **CI always validates again** on PRs and pushes
 
 Install/update hooks locally:
