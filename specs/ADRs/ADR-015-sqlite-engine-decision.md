@@ -1,6 +1,6 @@
 # ADR-015: SQLite Engine Decision (wa-sqlite vs sql.js)
 
-**Status**: Pending Validation  
+**Status**: Accepted (Provisional)  
 **Date**: 2026-03-06  
 **Decision Drivers**:
 
@@ -210,15 +210,21 @@ npm run build:analyze            # Webpack/Rollup analysis
 
 ## Decision
 
-**Adopt wa-sqlite as the SQL engine for `@refarm/storage-sqlite`**
+**Adopt wa-sqlite as the SQL engine for `@refarm/storage-sqlite` (provisional)**
 
 ### Rationale
 
-1. **Performance**: 10-100x faster for bulk sync operations (CRDT reconciliation)
-2. **Features**: Full SQL compatibility ensures no rework when adding JSON1, FTS5 later
-3. **Reliability**: WAL mode + triggers support better consistency with Yjs sync
-4. **Production-proven**: Used in Apple Notes, Figma, and other high-volume apps
-5. **Bundle acceptable**: 400KB gzipped fits within web performance budgets
+1. **Architecture fit**: OPFS-first browser persistence and advanced SQLite features remain core drivers.
+2. **Feature depth**: Full SQLite compatibility reduces future migration risk (JSON1/FTS/WAL).
+3. **Validation evidence**: Node in-memory benchmark was executed and documented in `validations/sqlite-benchmark/results.md`.
+4. **Risk handling**: Because the benchmark did not include browser OPFS VFS, the decision is provisional until that final validation step.
+
+### Executed Benchmark Snapshot (2026-03-06)
+
+- `wa-sqlite`: load `29.38ms`, insert `87,501 ops/sec`, query `9.42ms`
+- `sql.js`: load `10.18ms`, insert `196,332 ops/sec`, query `13.88ms`
+
+Observation: in this Node/in-memory run, `sql.js` outperformed `wa-sqlite` on inserts and load, while `wa-sqlite` performed better on indexed query time.
 
 ### Implementation Approach
 
@@ -296,9 +302,9 @@ export class WaSqliteAdapter {
 
 Before committing to wa-sqlite:
 
-- [ ] Run benchmark suite (100k inserts, OPFS persistence)
-  - [ ] wa-sqlite >10k ops/sec
-  - [ ] Persistent to OPFS in <5s
+- [x] Run benchmark suite (100k inserts, OPFS persistence)
+  - [x] wa-sqlite >10k ops/sec
+  - [ ] Persistent to OPFS in <5s (pending browser OPFS validation)
 
 - [ ] Test with Yjs bulk sync
   - [ ] 10k nodes merge in <1s

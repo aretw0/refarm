@@ -32,7 +32,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 ### ⚠️ Pre-Sprint 0: Preparatory Work (Semana 0 - IN PROGRESS)
 
-**Status**: 75% complete (environment setup done, validation execution pending)  
+**Status**: 90% complete (validation execution in progress, browser checks pending)  
 **Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)  
 **Quick Start**: See [validations/QUICK_START.md](../validations/QUICK_START.md)
 
@@ -55,16 +55,16 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 - [ ] **Validação WASM + WIT**
   - ✅ Environment ready (just run `setup-rust-toolchain.ps1`)
-  - [ ] Compile hello-world plugin: `cargo component build --release`
+  - [x] Compile hello-world plugin: `cargo component build --release`
   - [ ] Test in browser: `npm run dev` in `validations/wasm-plugin/host/`
   - [ ] Verify metrics: load < 100ms, size < 500KB
   - **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 - [ ] **SQLite Engine Decision**
   - ✅ Benchmarks ready (just run `npm run bench:all`)
-  - [ ] Execute benchmarks: `cd validations/sqlite-benchmark && npm run bench:all`
-  - [ ] Analyze results and fill `validations/sqlite-benchmark/results.md`
-  - [ ] Update ADR-015 with decision
+  - [x] Execute benchmarks: `cd validations/sqlite-benchmark && npm run bench:all`
+  - [x] Analyze results and fill `validations/sqlite-benchmark/results.md`
+  - [x] Update ADR-015 with decision
   - **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 **Recommended** (non-blocking):
