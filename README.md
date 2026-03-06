@@ -27,9 +27,11 @@ We're exploring this through:
 
 🚧 **In active research & development**
 
+- **Current phase**: Semana 0 - Pre-Sprint readiness (2 validations pending)
+- **Next milestone**: v0.1.0 Sprint 1 SDD (Spec Driven Development)
 - Architecture defined via [ADRs](specs/ADRs/)
 - Core flow: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
-- v0.1.0 roadmap in progress (see [roadmaps/MAIN.md](roadmaps/MAIN.md))
+- Readiness tracking: [Estado Atual](docs/ESTADO_ATUAL.md)
 - Feedback welcome; production use not recommended yet
 
 ---
@@ -49,6 +51,7 @@ We're exploring this through:
 
 **Documentation:**
 
+- [Estado Atual](docs/ESTADO_ATUAL.md) — Current status and next steps (PT-BR)
 - [Architecture Guide](docs/ARCHITECTURE.md) — System design
 - [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
 - [DevOps & Setup](docs/DEVOPS.md) — Environment, CI, and reusable workflow operations
