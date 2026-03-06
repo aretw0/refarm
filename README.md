@@ -27,7 +27,7 @@ We're exploring this through:
 
 🚧 **In active research & development**
 
-- Architecture defined via [ADRs](docs/specs/ADRs/)
+- Architecture defined via [ADRs](specs/ADRs/)
 - Core flow: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
 - v0.1.0 roadmap in progress (see [roadmaps/MAIN.md](roadmaps/MAIN.md))
 - Feedback welcome; production use not recommended yet

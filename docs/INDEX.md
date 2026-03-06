@@ -10,6 +10,7 @@
 - **[Main Roadmap](../roadmaps/MAIN.md)** - Semantic versioning & milestones (SDD→BDD→TDD→DDD)
 - **[Development Workflow](WORKFLOW.md)** - Process guide: SDD→BDD→TDD→DDD with quality gates
 - **[Architecture](ARCHITECTURE.md)** - System overview & design decisions
+- **[Decision Log](decision-log.md)** - Current high-impact decisions (owner, status, evidence)
 - **[Accessibility & i18n](A11Y_I18N_GUIDE.md)** - WCAG 2.2 + internationalization guide
 - **[Specs & ADRs](../specs/)** - Specifications & Architecture Decision Records
 
@@ -36,7 +37,8 @@ Wiki de fundamentação técnica - consultar quando necessário:
 
 ### Onde documentar decisões?
 
-- Decisões arquiteturais → [specs/ADRs/](../specs/ADRs/) (durante SDD)
+- Decisões em andamento/pending → [decision-log.md](decision-log.md)
+- Decisões arquiteturais → [specs/ADRs/README.md](../specs/ADRs/README.md) (durante SDD)
 - Especificações de features → [specs/features/](../specs/features/) (durante SDD)
 - Comportamento esperado → Integration tests (durante BDD)
 - Contratos de código → Unit tests (durante TDD)
