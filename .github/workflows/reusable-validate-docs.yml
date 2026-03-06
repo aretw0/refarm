@@ -1,0 +1,75 @@
+name: Reusable Validate Docs
+
+on:
+  workflow_call:
+    inputs:
+      validation-command:
+        description: "Command to validate documentation"
+        required: true
+        type: string
+      validation-name:
+        description: "Name of the validation (e.g., 'Diagrams', 'Locales')"
+        required: true
+        type: string
+      create-issue-on-failure:
+        description: "Whether to create an issue when validation fails"
+        required: false
+        type: boolean
+        default: false
+      issue-title:
+        description: "Title for the failure tracking issue"
+        required: false
+        type: string
+        default: "Documentation validation failed"
+      issue-labels:
+        description: "Comma-separated labels for the issue"
+        required: false
+        type: string
+        default: "documentation,validation"
+    outputs:
+      validation-status:
+        description: "Status of validation: success or failure"
+        value: ${{ jobs.validate.outputs.status }}
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    outputs:
+      status: ${{ steps.validation.outcome }}
+    steps:
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Run validation
+        id: validation
+        run: ${{ inputs.validation-command }}
+        continue-on-error: ${{ inputs.create-issue-on-failure }}
+
+      - name: Create or update issue on failure
+        if: ${{ failure() && inputs.create-issue-on-failure }}
+        uses: ./.github/actions/manage-issue
+        with:
+          title: ${{ inputs.issue-title }}
+          labels: ${{ inputs.issue-labels }}
+          body: |
+            # ${{ inputs.validation-name }} Validation Failed
+            
+            The automated validation for **${{ inputs.validation-name }}** has failed.
+            
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Triggered by:** ${{ github.actor }}
+            **Branch:** ${{ github.ref_name }}
+            **Commit:** ${{ github.sha }}
+            
+            ## Next Steps
+            
+            1. Review the workflow logs above to identify the specific validation errors
+            2. Fix the affected documentation files
+            3. Verify locally by running: `${{ inputs.validation-command }}`
+            4. This issue will be automatically closed when validation passes
+          state: ${{ steps.validation.outcome == 'success' && 'closed' || 'open' }}
+          token: ${{ secrets.GITHUB_TOKEN }}

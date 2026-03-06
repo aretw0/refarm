@@ -158,8 +158,13 @@ To avoid duplicated scripting across workflows, the repository now provides reus
 - **`.github/workflows/reusable-release-health.yml`**
   - Reusable workflow (`workflow_call`) for release smoke checks (quality, build, security)
   - Opens/updates tracking issue on failure and publishes health report artifact
+- **`.github/workflows/reusable-validate-docs.yml`**
+  - Reusable workflow (`workflow_call`) for validating documentation (diagrams, locales, schemas)
+  - Creates/updates tracking issue on scheduled/manual validation failures
 - **`.github/workflows/release-health.yml`**
   - Wrapper workflow (manual + weekly schedule) that calls `reusable-release-health.yml`
+- **`.github/workflows/validate-diagrams.yml`**
+  - Wrapper workflow (PR/push/manual/weekly schedule) that calls `reusable-validate-docs.yml` for Mermaid diagram validation
 
 Recommended reuse pattern for new workflows:
 
