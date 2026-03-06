@@ -14,6 +14,13 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 **Execution Model**: Parallel tracks with granular, checkable steps  
 **Blocker Status**: Sprint 1 cannot start until all ✅ items complete
 
+### Source of Truth (Readiness)
+
+- This file is the canonical pre-start readiness document for Semana 0.
+- `roadmaps/MAIN.md` should mirror only high-level status and link back here.
+- `docs/decision-log.md` tracks decision state transitions and evidence links.
+- **Current status summary**: See [ESTADO_ATUAL.md](ESTADO_ATUAL.md) for executive summary and next steps.
+
 ---
 
 ## Completed ✅
@@ -233,14 +240,15 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 #### CI/CD Pipeline
 
 **File**: [.github/workflows/test.yml](../../.github/workflows/test.yml)  
-**Status**: ⚠️ Created, but requires alignment before being a reliable gate
+**Status**: ✅ Baseline aligned (scripts/jobs exist); reliability now depends on project-owned tests and browser validations
 
-**Current gaps to close**:
+**Current priorities**:
 
-- [ ] `npm run test:unit` maps to `turbo test:unit`, but no workspace task exists
-- [ ] `npm run test:integration` maps to `turbo test:integration`, but no workspace task exists
-- [ ] `npm run test:e2e` is called by CI, but script is missing in root `package.json`
-- [ ] Workspace `test` scripts call local `node_modules/.bin/jest`, but Jest binary is not installed per workspace
+- [x] Root commands available: `test:unit`, `test:integration`, `test:e2e`
+- [x] Turbo tasks aligned with workspace scripts (`test:unit` configured)
+- [x] Changeset validation exists as dedicated workflow (`check-changeset`)
+- [x] Seed smoke tests in critical workspaces to avoid "green with no signal"
+- [ ] Validate browser-dependent checks (WASM host + OPFS) with evidence attached
 
 **Priority**: **HIGH** (blocks trustworthy quality enforcement)
 
@@ -259,10 +267,11 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Track B: Quality Gate Alignment
 
-- [ ] Decide and lock test runner strategy (Vitest-first or Jest-first)
-- [ ] Make root commands executable: `test:unit`, `test:integration`, `test:e2e`
-- [ ] Align Turbo tasks with real workspace scripts
-- [ ] Ensure workspace test scripts run without local binary path assumptions
+- [x] Decide and lock test runner strategy (Vitest-first + Jest transitive for tooling)
+- [x] Make root commands executable: `test:unit`, `test:integration`, `test:e2e`
+- [x] Align Turbo tasks with real workspace scripts
+- [x] Ensure workspace test scripts run without local binary path assumptions
+- [x] Keep smoke tests in critical workspaces (`kernel`, `storage-sqlite`, `sync-crdt`)
 - [ ] Re-run local checks end-to-end (`lint`, `type-check`, tests)
 - [ ] Confirm `.github/workflows/test.yml` matches available scripts and artifacts
 
@@ -316,7 +325,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Gate 3: Testing Strategy Defined
 
-**Condition**: ADR-013 accepted, test infra scaffolded, CI commands executable
+**Condition**: ADR-013 accepted, test infra scaffolded, CI commands executable, and smoke tests present in critical workspaces
 
 **On Success**: TDD phase can proceed smoothly
 
@@ -350,8 +359,10 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - [x] ADR-015: SQLite Engine Decision written (pending validation)
 - [x] Kernel README with quick start guide created
 - [x] GitHub Actions CI/CD pipeline configured
+- [x] Root quality scripts executable (`test:unit`, `test:integration`, `test:e2e`)
 - [ ] WASM Validation complete (all phases ✅)
 - [ ] SQLite engine decided (ADR-015 validated + accepted)
+- [x] Smoke tests available in critical workspaces
 - [ ] WIT contract verified (plugin compiles and runs)
 - [ ] JSON-LD schema examples complete
 - [ ] Sub-roadmaps have technical decisions

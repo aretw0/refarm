@@ -23,6 +23,7 @@ Central register for high-impact technical decisions that are pending or recentl
 | JSON-LD schema evolution strategy | ADR-010 | 2026-03-06 | Lens-based upcasting and compatibility guarantees documented |
 | Testing strategy (unit/integration/e2e) | ADR-013 | 2026-03-06 | Vitest + Playwright + Changesets strategy documented |
 | SQLite engine choice (wa-sqlite vs sql.js) | ADR-015 | 2026-03-06 | Accepted provisionally; Node benchmark completed, browser OPFS validation pending |
+| Quality gate baseline alignment | ADR-013 | 2026-03-06 | Root scripts and CI jobs aligned; smoke-test baseline seeded in critical workspaces |
 
 ---
 

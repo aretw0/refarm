@@ -1,6 +1,6 @@
 # WASM + WIT Validation Checklist
 
-**Status**: Checklist (Pending Execution)  
+**Status**: In progress (compile complete, browser runtime + capability/perf checks pending)  
 **Date**: 2026-03-06  
 **Goal**: Prove WASM Component Model + WIT capability enforcement works in browser  
 **Related**: [ADR-001](../specs/ADRs/ADR-001-monorepo-structure.md), [Validation 3](critical-validations.md#validação-3-wasi-capability-enforcement--em-progresso)
