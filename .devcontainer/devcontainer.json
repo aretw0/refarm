@@ -1,6 +1,9 @@
 {
   "name": "refarm-dev",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "."
+  },
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {
       "version": "stable",
