@@ -1,0 +1,21 @@
+{
+  "name": "sqlite-benchmark",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench:wa-sqlite": "npm run build && node dist/wa-sqlite.bench.js",
+    "bench:sql-js": "npm run build && node dist/sql-js.bench.js",
+    "bench:all": "npm run bench:wa-sqlite && npm run bench:sql-js",
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@sqlite.org/sqlite-wasm": "^3.47.4",
+    "sql.js": "^1.12.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "typescript": "^5.7.3"
+  }
+}
