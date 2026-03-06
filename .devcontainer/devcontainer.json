@@ -1,0 +1,39 @@
+{
+  "name": "refarm-dev",
+  "image": "mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "stable",
+      "profile": "minimal"
+    },
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": false,
+      "username": "vscode"
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "CARGO_TERM_COLOR": "always"
+  },
+  "mounts": [
+    "source=refarm-npm-cache,target=/home/vscode/.npm,type=volume",
+    "source=refarm-cargo-registry,target=/home/vscode/.cargo/registry,type=volume",
+    "source=refarm-cargo-git,target=/home/vscode/.cargo/git,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "astro-build.astro-vscode",
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint"
+      ],
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "rust-analyzer.checkOnSave.command": "clippy"
+      }
+    }
+  }
+}
