@@ -16,7 +16,7 @@
     "dev": "tsc --project tsconfig.json --watch",
     "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
-    "test": "node --experimental-vm-modules node_modules/.bin/jest",
+    "test:unit": "vitest run",
     "clean": "rm -rf dist"
   },
   "keywords": ["crdt", "sync", "local-first", "offline-first", "conflict-free"],
