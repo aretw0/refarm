@@ -68,7 +68,7 @@ jobs:
 
       - name: Upload audit artifact
         if: always()
-        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        uses: ./.github/actions/upload-artifact
         with:
           name: ${{ inputs.artifact-name }}
           path: |

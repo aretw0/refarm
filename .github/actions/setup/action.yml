@@ -11,20 +11,6 @@ inputs:
     required: false
     default: "1"
 
-outputs:
-  checkout-version:
-    description: "actions/checkout version"
-    value: v6.0.2
-  setup-node-version:
-    description: "actions/setup-node version"
-    value: v6.3.0
-  codecov-version:
-    description: "codecov/codecov-action version"
-    value: v5.5.2
-  upload-artifact-version:
-    description: "actions/upload-artifact version"
-    value: v7.0.0
-
 runs:
   using: "composite"
   steps:

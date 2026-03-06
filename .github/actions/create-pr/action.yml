@@ -5,10 +5,6 @@ inputs:
   token:
     description: "GitHub token"
     required: true
-  create-pr-version:
-    description: "peter-evans/create-pull-request version"
-    required: false
-    default: "v8.1.0"
   commit-message:
     description: "Commit message"
     required: true
@@ -34,7 +30,7 @@ runs:
   using: "composite"
   steps:
     - name: Create pull request
-      uses: peter-evans/create-pull-request@${{ inputs.create-pr-version }}
+      uses: peter-evans/create-pull-request@v8.1.0
       with:
         token: ${{ inputs.token }}
         commit-message: ${{ inputs.commit-message }}
