@@ -179,6 +179,19 @@ Wrapper and reusable interface conventions:
 - Schedule comments should always be in UTC and in English (for cross-team readability).
 - Issue body templates should use token placeholders (for example `{{ISSUE_URL}}`) and be rendered in the reusable workflow.
 
+### Governance References
+
+For contributor-facing governance rules and repository-level protection setup, see:
+
+- `docs/PR_QUALITY_GOVERNANCE.md` (policy: issue creation control, changeset requirements, quality gates)
+- `docs/BRANCH_PROTECTION_SETUP.md` (how to configure required checks/approvals in GitHub)
+- `CONTRIBUTING.md` (day-to-day contributor workflow)
+
+Branch behavior summary:
+
+- `main` / `develop`: strict push policy (failing checks block push)
+- Feature branches: permissive push policy (warnings allowed, CI remains authoritative)
+
 ---
 
 ## Environment Validation

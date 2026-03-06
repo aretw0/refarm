@@ -31,6 +31,25 @@ npm run dev      # Start all apps in watch mode
 - Make your changes across one or more packages
 - Test your changes locally
 
+### Quality Gates (Local + CI)
+
+Refarm enforces quality with a two-mode pre-push hook and CI checks:
+
+- **Feature branches**: permissive mode (warns, can continue)
+- **`main` and `develop`**: strict mode (blocks push on failing checks)
+- **CI always validates again** on PRs and pushes
+
+Install/update hooks locally:
+
+```bash
+npm run hooks:install
+```
+
+Useful references:
+
+- Governance policy: `docs/PR_QUALITY_GOVERNANCE.md`
+- Branch protection setup: `docs/BRANCH_PROTECTION_SETUP.md`
+
 ### 3. Version Management with Changesets
 
 We use [Changesets](https://github.com/changesets/changesets) to manage versioning and publishing. This ensures:

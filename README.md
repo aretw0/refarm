@@ -51,6 +51,9 @@ We're exploring this through:
 
 - [Architecture Guide](docs/ARCHITECTURE.md) — System design
 - [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
+- [DevOps & Setup](docs/DEVOPS.md) — Environment, CI, and reusable workflow operations
+- [PR Quality Governance](docs/PR_QUALITY_GOVERNANCE.md) — Quality gates, issue control, and changeset policy
+- [Branch Protection Setup](docs/BRANCH_PROTECTION_SETUP.md) — Practical GitHub branch rule configuration
 - [Research & Validation](docs/research/INDEX.md) — Technical feasibility studies
 - [ADRs](specs/ADRs/README.md) — Architecture decisions
 - [Roadmap](roadmaps/MAIN.md) — v0.1.0 through v1.0.0 milestones
@@ -78,6 +81,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 ## Contributing & Security
 
 - **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
+- **PR quality policy:** [docs/PR_QUALITY_GOVERNANCE.md](docs/PR_QUALITY_GOVERNANCE.md)
 - **Security issues:** [SECURITY.md](SECURITY.md)
 - **License:** [AGPL-3.0](LICENSE)
 
