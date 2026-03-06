@@ -1,0 +1,31 @@
+name: "Playwright Cache Wrapper"
+description: "Cache Playwright browser binaries"
+
+inputs:
+  path:
+    description: "Playwright browser cache directory"
+    required: false
+    default: ~/.cache/ms-playwright
+  key:
+    description: "Primary cache key"
+    required: true
+  restore-keys:
+    description: "Restore key prefixes"
+    required: false
+    default: ""
+
+outputs:
+  cache-hit:
+    description: "Whether cache hit occurred"
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache Playwright browsers
+      id: cache
+      uses: actions/cache@v4.2.2
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
