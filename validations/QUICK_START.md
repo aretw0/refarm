@@ -1,7 +1,7 @@
 # 🚀 Quick Start - Validações Pre-Sprint 1
 
 **Objetivo**: Executar validações WASM + SQLite antes de iniciar o Sprint 1  
-**Tempo estimado**: 3-4 dias (16-20 horas)  
+**Formato de execução**: passos delimitados por trilha (sem calendário)  
 
 **Status**: Pronto para execução  
 **Docs de Troubleshooting**: [RUST_WINDOWS_TROUBLESHOOTING.md](./RUST_WINDOWS_TROUBLESHOOTING.md)
@@ -79,7 +79,7 @@ Detalhes: [RUST_SETUP_NOTES.md](./RUST_SETUP_NOTES.md).
 
 ---
 
-## 🎯 Fase 1: WASM + WIT (2 dias)
+## 🎯 Fase 1: WASM + WIT
 
 ### Passo 1: Setup Toolchain
 
@@ -229,7 +229,7 @@ const { instance } = await instantiate(wasmBytes, {
 
 ---
 
-## 🏎️ Fase 2: SQLite Benchmark (1 dia)
+## 🏎️ Fase 2: SQLite Benchmark
 
 ### Passo 1: Rodar Benchmarks
 
@@ -311,7 +311,7 @@ Copiar decisão para [specs/ADRs/ADR-015-sqlite-engine-decision.md](../specs/ADR
 - ⚠️ **Visual Studio Build Tools com C++** (obrigatório para linker MSVC)
   - Download: <https://visualstudio.microsoft.com/visual-cpp-build-tools/>
   - Escolha workload: "Desktop development with C++"
-  - Tempo: ~30 min instalar + restart PowerShell
+  - Observação: requer reiniciar o PowerShell após instalação
 
 **Se compilação falhar**:
 
@@ -341,16 +341,13 @@ Copiar decisão para [specs/ADRs/ADR-015-sqlite-engine-decision.md](../specs/ADR
 ## 📊 Próximos Passos Após Validação
 
 1. ✅ Marcar validações como completas no [pre-sprint-checklist.md](../docs/pre-sprint-checklist.md)
-2. ✅ Atualizar roadmap com data de início do Sprint 1
+2. ✅ Atualizar roadmap com status dos gates (sem data obrigatória)
 3. ✅ Começar SDD phase (especificações)
 
 ---
 
-## 💡 Dica
+## 💡 Execução Paralela Recomendada
 
-Execute as validações em paralelo se tiver tempo:
-
-- **Dia 1-2**: WASM + WIT (mais crítico)
-- **Dia 2-3**: SQLite Benchmark (pode sobrepor)
-
-Isso economiza ~1 dia no cronograma.
+- **Trilha A (WASM + WIT)**: executar Passos 1-4 e registrar métricas
+- **Trilha B (SQLite)**: executar Passos 1-4 e fechar ADR-015
+- **Ponto de sincronização**: só avançar para SDD quando ambas trilhas estiverem completas

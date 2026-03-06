@@ -51,21 +51,21 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
   - [x] Browser host for WASM testing
   - [x] SQLite benchmark scripts (wa-sqlite vs sql.js)
 
-**Pending** ⚠️ (BLOCKERS - 2 days):
+**Pending** ⚠️ (BLOCKERS):
 
-- [ ] **Validação WASM + WIT** (1 day)
+- [ ] **Validação WASM + WIT**
   - ✅ Environment ready (just run `setup-rust-toolchain.ps1`)
   - [ ] Compile hello-world plugin: `cargo component build --release`
   - [ ] Test in browser: `npm run dev` in `validations/wasm-plugin/host/`
   - [ ] Verify metrics: load < 100ms, size < 500KB
-  - **Quick Start**: [validations/QUICK_START.md#fase-1](../validations/QUICK_START.md#-fase-1-wasm--wit-2-dias)
+  - **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
-- [ ] **SQLite Engine Decision** (1 day)
+- [ ] **SQLite Engine Decision**
   - ✅ Benchmarks ready (just run `npm run bench:all`)
   - [ ] Execute benchmarks: `cd validations/sqlite-benchmark && npm run bench:all`
   - [ ] Analyze results and fill `validations/sqlite-benchmark/results.md`
   - [ ] Update ADR-015 with decision
-  - **Quick Start**: [validations/QUICK_START.md#fase-2](../validations/QUICK_START.md#-fase-2-sqlite-benchmark-1-dia)
+  - **Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 **Recommended** (non-blocking):
 
