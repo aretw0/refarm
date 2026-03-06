@@ -82,7 +82,8 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
 
 - **How to contribute:** [CONTRIBUTING.md](CONTRIBUTING.md)
 - **PR quality policy:** [docs/PR_QUALITY_GOVERNANCE.md](docs/PR_QUALITY_GOVERNANCE.md)
-- **Security issues:** [SECURITY.md](SECURITY.md)
+- **Security policy & disclosure:** [SECURITY.md](SECURITY.md)
+- **Security operational status (audit/dependencies):** [docs/DEVOPS.md](docs/DEVOPS.md)
 - **License:** [AGPL-3.0](LICENSE)
 
 ---
