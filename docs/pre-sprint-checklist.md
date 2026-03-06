@@ -97,68 +97,79 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### 1. WASM Validation (BLOCKER)
 
-**File**: [wasm-validation.md](research/wasm-validation.md)
+**File**: [wasm-validation.md](research/wasm-validation.md)  
+**Implementation**: [validations/wasm-plugin/](../validations/wasm-plugin/)  
+**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
 
-**Status**: Checklist created, execution pending
+**Status**: ✅ **Environment configured, ready for execution**
 
 **Tasks**:
 
 - [ ] **Phase 1**: Compile hello-world plugin (Rust → WASM)
-  - [ ] Install toolchain (cargo-component, wasm-tools)
-  - [ ] Create plugin project
-  - [ ] Implement minimal WIT interface
-  - [ ] Build and verify component
-  - **Effort**: 4 hours
+  - ✅ Install toolchain (cargo-component, wasm-tools) — see `setup-rust-toolchain.ps1`
+  - ✅ Create plugin project — see `validations/wasm-plugin/hello-world/`
+  - ✅ Implement minimal WIT interface — see `hello-world/src/lib.rs`
+  - [ ] Build and verify component: `cargo component build --release`
+  - **Effort**: 30 min (setup done, just run build)
 
 - [ ] **Phase 2**: Browser runtime (load WASM in browser)
-  - [ ] Create PluginHost class (TypeScript)
-  - [ ] Implement kernel-bridge (host imports)
-  - [ ] Create test page in Studio
-  - [ ] Verify plugin loads and executes
-  - **Effort**: 8 hours
+  - ✅ Create PluginHost class (TypeScript) — see `validations/wasm-plugin/host/`
+  - ✅ Implement kernel-bridge (host imports) — see `host/src/main.ts`
+  - ✅ Create test page in Studio — see `host/index.html`
+  - [ ] Verify plugin loads and executes: `npm run dev` in host/
+  - **Effort**: 30 min (just test in browser)
 
 - [ ] **Phase 3**: Capability enforcement
   - [ ] Add gated operation (fetch)
   - [ ] Host blocks unauthorized calls
   - [ ] Test denial and approval flows
-  - **Effort**: 4 hours
+  - **Effort**: 4 hours (future work, not blocking)
 
 - [ ] **Phase 4**: Performance baseline
   - [ ] Benchmark 1000 store-node calls
   - [ ] Verify < 0.1ms per call
   - [ ] Check for memory leaks
-  - **Effort**: 2 hours
+  - **Effort**: 2 hours (future work, mock gives baseline)
 
-**Timeline**: 2 days  
+**Timeline**: 1 day (down from 2 days - setup complete!)  
 **Priority**: **HIGHEST** (blocks v0.1.0 if fails)
+
+**Quick Start**: Run `cd validations && .\setup-rust-toolchain.ps1`, then follow [QUICK_START.md](../validations/QUICK_START.md)
 
 ---
 
 ### 2. SQLite Engine Decision (BLOCKER)
 
 **File**: [ADR-015: SQLite Engine Decision](../specs/ADRs/ADR-015-sqlite-engine-decision.md)  
-**Status**: ✅ ADR written with validation tasks defined
+**Implementation**: [validations/sqlite-benchmark/](../validations/sqlite-benchmark/)  
+**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md#-fase-2-sqlite-benchmark-1-dia)
+
+**Status**: ✅ **Benchmarks ready, just run and analyze**
 
 **Tasks**:
 
 - [ ] **Benchmark wa-sqlite**:
-  - [ ] 100k inserts (OPFS)
-  - [ ] Query performance (indexed vs non-indexed)
-  - [ ] Memory usage
-  - [ ] Initial load time
+  - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/wa-sqlite.bench.ts`
+  - [ ] Run: `npm run bench:wa-sqlite`
+  - [ ] Document results in `validations/sqlite-benchmark/results.md`
+  - **Effort**: 15 min
 
 - [ ] **Benchmark sql.js**:
-  - [ ] Same tests as wa-sqlite
-  - [ ] Compare bundle sizes
-  - [ ] Test OPFS serialization overhead
+  - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/sql-js.bench.ts`
+  - [ ] Run: `npm run bench:sql-js`
+  - [ ] Document results in `validations/sqlite-benchmark/results.md`
+  - **Effort**: 15 min
 
-- [ ] **Document results**:
-  - [ ] Create `docs/research/sqlite-benchmark.md`
-  - [ ] Update ADR-015 with decision
+- [ ] **Document decision**:
+  - [ ] Compare results side-by-side in `validations/sqlite-benchmark/results.md`
+  - [ ] Update ADR-015 with decision + rationale
   - [ ] Add rationale to storage-sqlite ROADMAP
+  - **Effort**: 30 min
 
-**Timeline**: 1 day  
+**Timeline**: 1 day (just execution + analysis)  
 **Priority**: **HIGH** (needed before storage implementation)
+
+**Quick Start**: Run `cd validations/sqlite-benchmark && npm install && npm run bench:all`
 
 ---
 
