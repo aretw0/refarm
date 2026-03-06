@@ -124,6 +124,123 @@ All communication is **typed by the WIT contract** (`wit/refarm-sdk.wit`). The k
 
 ---
 
+## Guest Mode & Collaborative Sessions
+
+### Identity-Orthogonal Guest Architecture
+
+Refarm supports **guest sessions** for zero-friction onboarding. The key design principle: **Guest = no keypair, NOT no storage.** Storage tier is a user choice, orthogonal to identity status.
+
+```
+┌─────────────────────────────────────────────────────────┐
+│       IDENTITY AXIS          ×        STORAGE AXIS      │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  🔓 GUEST (no keypair)         [Ephemeral]              │
+│  ├─ Identity: vaultId (UUID)   │ sessionStorage         │
+│  ├─ Signing: ❌                │ Tab closes = gone      │
+│  ├─ Nostr relay: ❌            ├─────────────────────── │
+│  └─ Upgrade: opt-in           [Persistent]              │
+│                                │ OPFS/SQLite             │
+│         ↓ [Create Identity] ↓  │ Survives restart        │
+│                                ├─────────────────────── │
+│  🔐 PERMANENT (Nostr keypair) [Synced]                  │
+│  ├─ Identity: pubkey (BIP-39)  │ OPFS + WebRTC P2P      │
+│  ├─ Signing: ✅                │ Multi-device            │
+│  ├─ Nostr relay: ✅            │ (sync code for guests,  │
+│  └─ Recovery: mnemonic        │  keypair for permanent)  │
+│                                                         │
+│  Any identity × Any storage = valid combination         │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Use Cases
+
+1. **Discovery**: User clicks shared board link → instant access, no signup
+2. **Collaboration**: Host shares "public" whiteboard, guests can view/edit in real-time
+3. **File channels**: Some data is inherently public (docs, diagrams) and doesn't need identity
+4. **Education**: Teachers present, students join as guests to participate
+
+### How It Works
+
+**Guest joins a board** (choosing persistent storage):
+
+```typescript
+// 1. User opens link: refarm.dev/board/abc123
+// 2. Kernel detects no identity → creates guest session with storage choice
+const vaultId = crypto.randomUUID(); // "vault-a7c3f2"
+
+// 3. Guest picks storage tier (ephemeral / persistent / synced)
+// If persistent or synced → OPFS/SQLite (same as permanent users)
+localStorage.setItem("refarm:vaultId", vaultId);
+await storageSqlite.initVault(vaultId);
+
+// 4. Join via WebRTC (no Nostr relay needed)
+const connection = await webrtc.connect(boardUrl);
+
+// 5. Guest creates nodes — same API as permanent users
+kernel.storeNode({
+  "@type": "StickyNote",
+  "@id": `urn:${vaultId}:note-1`,
+  text: "Draft idea",
+  "refarm:owner": vaultId  // vaultId instead of pubkey
+});
+```
+
+**Migration to permanent identity** (storage stays the same):
+
+```typescript
+// User clicks "Create Identity" → generates Nostr keypair
+const keypair = await identityNostr.generateKeypair();
+
+// Rewrite ownership across all nodes (vaultId → pubkey)
+const allNodes = await storageSqlite.queryAll(vaultId);
+for (const node of allNodes) {
+  node["@id"] = node["@id"].replace(vaultId, keypair.pubkey);
+  node["refarm:owner"] = keypair.pubkey;
+  await storageSqlite.update(node);
+}
+
+// NOTE: Storage backend stays the same — no data migration needed
+localStorage.setItem("refarm:identity", keypair.pubkey);
+```
+
+### What Guests CAN'T Do (Only Signing-Dependent Operations)
+
+| Restriction | Reason |
+|-------------|--------|
+| Publish to Nostr relays | Requires keypair signing |
+| Publish plugins (NIP-89/94) | Requires keypair signing |
+| Own governance boards | Requires signature for authority |
+| Recover via mnemonic on new device | No mnemonic exists |
+
+Everything else — storage, AI, plugins, collaboration, export, P2P sync — is available to guests.
+
+### Security: Vault-Based Isolation
+
+Each user (guest or permanent) has their own vault, scoped by vaultId or pubkey:
+
+```typescript
+// Guest queries are scoped to their vault
+const myNodes = await kernel.queryNodes({ owner: activeVaultId });
+// Returns only data belonging to the current user
+
+// Host configures board permissions
+{
+  "@type": "CollaborativeBoard",
+  "@id": "urn:alice:board-123",
+  "refarm:guestPolicy": {
+    "allow": true,
+    "permissions": ["read", "write"],
+    "maxGuests": 10,
+    "allowPersistentStorage": true  // Host can restrict guests to ephemeral
+  }
+}
+```
+
+See [ADR-006: Guest Mode](../specs/ADRs/ADR-006-guest-mode-collaborative-sessions.md) for detailed design.
+
+---
+
 ## Data Flow: Plugin → Sovereign Graph
 
 ```
@@ -131,12 +248,12 @@ Raw data from plugin         Normaliser            SQLite/OPFS
 (arbitrary JSON)      →→→   (JSON-LD)      →→→   nodes table
                                                    (payload column)
 
-{ "wa_id": "5511...",        {                     INSERT OR REPLACE
+{ "user_id": "@alice:...",   {                     INSERT OR REPLACE
   "name": "Alice",            "@context": "...",   INTO nodes ...
-  "status": "Oi" }            "@type": "Person",
+  "status": "Online" }        "@type": "Person",
                               "@id": "urn:...",
                               "name": "Alice",
-                              "refarm:sourcePlugin": "whatsapp-bridge"
+                              "refarm:sourcePlugin": "matrix-bridge"
                              }
 ```
 
