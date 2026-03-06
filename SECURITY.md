@@ -1,70 +1,56 @@
 # Segurança
 
-## Status das Dependências
+## Escopo Deste Documento
 
-### Vulnerabilidades Conhecidas (npm audit)
+Este arquivo define a política de segurança e o processo de divulgação responsável.
 
-Atualizado em: 4 de março de 2026
+Para evitar duplicação e desatualização:
 
-#### Estado Atual: ✅ Seguro para Produção
-
-As vulnerabilidades reportadas pelo `npm audit` afetam **apenas dependências de desenvolvimento** e não impactam o código em produção.
+- **Fonte de verdade para status de dependências (`npm audit`)**: `docs/DEVOPS.md`
+- **Fonte de verdade para reporte de vulnerabilidades**: este arquivo (`SECURITY.md`)
 
 ---
 
-### 🟡 Vulnerabilidades Documentadas
+## Dependências e Vulnerabilidades
 
-#### 1. **svgo** - DoS (Alta Severidade)
+Não mantenha inventário de CVEs aqui.
 
-- **Status:** Monitorando
-- **Contexto:** Ferramenta de otimização de SVG usada no build
-- **Impacto:** Build process apenas, não afeta runtime
-- **Ação:** Aguardando atualização upstream ou correção via `npm audit fix`
+Consulte sempre:
 
-#### 2. **lodash** - Prototype Pollution (Moderada Severidade)
+- `docs/DEVOPS.md` (seção de Security & Vulnerability Management)
 
-- **Status:** Aguardando atualização upstream
-- **Contexto:** Dependência transitiva do `@astrojs/check`
+Esse é o documento que contém:
 
-  ```
-  @astrojs/check → @astrojs/language-server → 
-  volar-service-yaml → yaml-language-server → lodash (v4.17.21)
-  ```
-
-- **Impacto:** Tooling de desenvolvimento (type checking), não afeta produção
-- **Ação:** Aguardar atualização do Astro. Correção via `npm audit fix --force` causaria breaking changes
+- status atual de severidade
+- critérios de aceitação temporária de risco
+- gatilhos de escalonamento
+- cadência de revisão
 
 ---
 
 ## Para Desenvolvedores
 
-### Ao ver vulnerabilidades no npm install
+### Verificação Local
 
 ```bash
 npm audit
 ```
 
-**Não se assuste!** As vulnerabilidades listadas acima são conhecidas e documentadas. Elas:
+### Como interpretar
 
-- ✅ Não afetam o código em produção
-- ✅ Estão limitadas a dev dependencies
-- ✅ Estão sendo monitoradas para correção
-
-### Workflow de Segurança
-
-1. **Verificação periódica:** CI/CD roda `npm audit` automaticamente
-2. **Atualizações:** Script `npm run deps:update` verifica atualizações disponíveis
-3. **Revisão:** Vulnerabilidades são revisadas a cada atualização de dependências
+- Vulnerabilidades em tooling/dev dependency podem ser aceitas temporariamente se documentadas em `docs/DEVOPS.md`
+- Vulnerabilidades `high`/`critical` devem ser tratadas como bloqueadoras
+- O CI é a validação final de merge
 
 ---
 
-## Reportar Vulnerabilidades
+## Reportar Vulnerabilidades (Responsible Disclosure)
 
-Se você descobrir uma vulnerabilidade de segurança no código do Refarm (não em dependências), por favor:
+Se você descobrir uma vulnerabilidade no código do Refarm (não apenas em dependências transitivas de tooling):
 
-1. **NÃO** abra uma issue pública
-2. Entre em contato diretamente com os mantenedores
-3. Forneça o máximo de detalhes possível sobre a vulnerabilidade
+1. **Não** abra issue pública
+2. Contate os mantenedores em canal privado
+3. Inclua passos de reprodução, impacto e possível mitigação
 
 ---
 
