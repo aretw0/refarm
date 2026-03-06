@@ -1,0 +1,123 @@
+name: Test & Quality
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          fetch-depth: "0"
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Unit tests
+        run: npm run test:unit -- --coverage
+
+      - name: Integration tests
+        run: npm run test:integration
+
+      - name: Upload coverage
+        if: always()
+        uses: codecov/codecov-action@${{ steps.setup.outputs.codecov-version }}
+        with:
+          files: ./coverage/coverage-final.json
+          flags: unittests
+          name: codecov-refarm
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: quality
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Build
+        run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: build
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Build
+        run: npm run build
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
+
+  changesets:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          fetch-depth: "0"
+
+      - name: Check changesets
+        run: |
+          if ! npx changeset status --since=origin/main 2>/dev/null; then
+            echo "::error::Missing changeset. Run: npm run changeset"
+            exit 1
+          fi
+
+  summary:
+    if: always()
+    needs: [quality, build, e2e, changesets]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check all checks
+        run: |
+          if [ "${{ needs.quality.result }}" != "success" ]; then
+            echo "::error::Quality checks failed"
+            exit 1
+          fi
+          if [ "${{ needs.build.result }}" != "success" ]; then
+            echo "::error::Build failed"
+            exit 1
+          fi
+          if [ "${{ needs.e2e.result }}" != "success" ]; then
+            echo "::error::E2E tests failed"
+            exit 1
+          fi
+          echo "::notice::All checks passed!"
