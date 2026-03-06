@@ -6,12 +6,8 @@ echo "[refarm-devcontainer] Starting post-create setup..."
 # Fix npm cache permissions if needed
 if [ -d "/home/vscode/.npm" ]; then
   echo "[refarm-devcontainer] Fixing npm cache permissions..."
-  sudo chown -R 1001:1001 /home/vscode/.npm
+  sudo chown -R vscode:vscode /home/vscode/.npm
 fi
-
-# Update npm to latest stable version
-echo "[refarm-devcontainer] Updating npm to latest..."
-npm install -g npm@latest
 
 # Rust/WASM targets
 rustup target add wasm32-unknown-unknown
