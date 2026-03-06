@@ -5,22 +5,28 @@ on:
     paths:
       - "docs/**/*.mermaid"
       - ".github/workflows/validate-diagrams.yml"
+      - ".github/workflows/reusable-validate-docs.yml"
       - "scripts/check-diagrams.mjs"
   push:
     branches:
       - main
     paths:
       - "docs/**/*.mermaid"
+  # Manually triggered or scheduled validation
+  workflow_dispatch:
+  schedule:
+    - cron: "0 14 * * 3" # Every Wednesday at 14:00 UTC
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
-  validate-diagrams:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Validate Diagrams
-        run: npm run diagrams:check -- --ci
+  validate:
+    uses: ./.github/workflows/reusable-validate-docs.yml
+    with:
+      validation-command: npm run diagrams:check -- --ci
+      validation-name: Diagrams
+      create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+      issue-title: "Mermaid diagram validation failed"
+      issue-labels: "documentation,diagrams,validation"
