@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WASM Plugin Host - Validação Refarm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      padding: 2rem;
+      background: #0d1117;
+      color: #c9d1d9;
+      line-height: 1.6;
+    }
+    h1 { margin-bottom: 1rem; color: #58a6ff; }
+    .container { max-width: 900px; margin: 0 auto; }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .status { 
+      font-weight: bold;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 1rem;
+    }
+    .status.pending { background: #1f6feb; }
+    .status.success { background: #238636; }
+    .status.error { background: #da3633; }
+    button {
+      background: #238636;
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      margin-right: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    button:hover { background: #2ea043; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #logs {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 1rem;
+      max-height: 300px;
+      overflow-y: auto;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9rem;
+    }
+    .log-entry {
+      margin-bottom: 0.25rem;
+      padding: 0.25rem;
+    }
+    .log-debug { color: #8b949e; }
+    .log-info { color: #58a6ff; }
+    .log-warn { color: #d29922; }
+    .log-error { color: #f85149; }
+    code {
+      background: #161b22;
+      padding: 0.2rem 0.4rem;
+      border-radius: 3px;
+      font-family: 'Consolas', monospace;
+    }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .metric {
+      background: #0d1117;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 1rem;
+    }
+    .metric-label { 
+      font-size: 0.85rem;
+      color: #8b949e;
+      margin-bottom: 0.25rem;
+    }
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: bold;
+      color: #58a6ff;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🦀 WASM Plugin Host - Validação Refarm</h1>
+    
+    <div class="card">
+      <div class="status pending" id="status">⏳ Aguardando...</div>
+      <p>Este host carrega o plugin <code>hello-world-plugin.wasm</code> e valida a comunicação via WIT.</p>
+      
+      <div style="margin-top: 1rem;">
+        <button id="load-btn">1. Carregar Plugin (.wasm)</button>
+        <button id="setup-btn" disabled>2. Setup (init)</button>
+        <button id="ingest-btn" disabled>3. Ingest (fetch data)</button>
+        <button id="metadata-btn" disabled>4. Metadata</button>
+        <button id="teardown-btn" disabled>5. Teardown</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📊 Métricas</h2>
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-label">Load Time</div>
+          <div class="metric-value" id="load-time">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Setup Time</div>
+          <div class="metric-value" id="setup-time">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">Ingest Time</div>
+          <div class="metric-value" id="ingest-time">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">WASM Size</div>
+          <div class="metric-value" id="wasm-size">-</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📝 Logs</h2>
+      <div id="logs"></div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
