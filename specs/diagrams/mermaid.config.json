@@ -1,0 +1,45 @@
+{
+  "theme": "base",
+  "fontFamily": "'IBM Plex Sans', 'Segoe UI', sans-serif",
+  "themeVariables": {
+    "primaryColor": "#e0f2fe",
+    "primaryTextColor": "#0f172a",
+    "primaryBorderColor": "#0369a1",
+    "lineColor": "#334155",
+    "secondaryColor": "#dcfce7",
+    "secondaryTextColor": "#052e16",
+    "secondaryBorderColor": "#166534",
+    "tertiaryColor": "#fef3c7",
+    "tertiaryTextColor": "#451a03",
+    "tertiaryBorderColor": "#a16207",
+    "background": "#ffffff",
+    "mainBkg": "#f8fafc",
+    "clusterBkg": "#f1f5f9",
+    "clusterBorder": "#94a3b8",
+    "edgeLabelBackground": "#ffffff",
+    "errorBkgColor": "#fee2e2",
+    "errorTextColor": "#7f1d1d",
+    "actorBkg": "#e0f2fe",
+    "actorBorder": "#0369a1",
+    "actorTextColor": "#0f172a",
+    "actorLineColor": "#334155",
+    "signalColor": "#334155",
+    "signalTextColor": "#0f172a",
+    "labelBoxBkgColor": "#f8fafc",
+    "labelBoxBorderColor": "#94a3b8",
+    "activationBkgColor": "#e2e8f0",
+    "activationBorderColor": "#64748b",
+    "noteBkgColor": "#fffbeb",
+    "noteTextColor": "#78350f",
+    "noteBorderColor": "#d97706",
+    "stateBkg": "#f8fafc",
+    "stateBorder": "#64748b",
+    "stateTextColor": "#0f172a"
+  },
+  "flowchart": {
+    "curve": "basis"
+  },
+  "sequence": {
+    "showSequenceNumbers": true
+  }
+}
