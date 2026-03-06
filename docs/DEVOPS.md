@@ -112,6 +112,30 @@ lodash (vulnerable)
    npm audit --audit-level=moderate
    ```
 
+### Risk Acceptance (Temporary)
+
+Current decision: accept this lodash finding as a temporary, documented risk while it remains an indirect tooling dependency.
+
+Acceptance criteria (all must remain true):
+
+- Severity stays at `moderate` (no `high`/`critical` for this chain)
+- Dependency remains indirect (`isDirect: false`)
+- Affected path stays in developer tooling, not runtime-critical production paths
+- CI gate for `high`/`critical` continues to pass
+
+Escalate immediately if any of the following happens:
+
+- Advisory severity increases (`high` or `critical`)
+- Exploitability changes with credible active exploitation reports
+- Vulnerability moves into direct/runtime dependency paths
+- Upstream fix is available and can be adopted safely
+
+Review cadence:
+
+- Re-check weekly via scheduled security workflow
+- Re-check on every Astro/tooling dependency update
+- Next explicit review target: `2026-03-20`
+
 ### Security Best Practices
 
 - ✅ **Automatic Audits** — `npm audit fix --force` runs in post-create
