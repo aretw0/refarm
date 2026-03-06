@@ -277,10 +277,6 @@ Turbo remote cache allows task output reuse across different CI runs and machine
    - Add `TURBO_TEAM` (team identifier, e.g., `refarm-team`)
 
 2. **Update workflow environment variables:**
-<<<<<<< HEAD
-=======
-
->>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
 
    ```yaml
    env:
@@ -290,11 +286,11 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
    Add to `.github/workflows/test.yml` at job or workflow level.
 
-1. **Verify turbo.json cache configuration:**
+3. **Verify turbo.json cache configuration:**
    - Ensure `turbo.json` has proper `outputs` declared for each task.
    - Current config already specifies outputs for `build`, `test`, and `lint` tasks.
 
-2. **Test remote cache:**
+4. **Test remote cache:**
    - Run workflow twice with identical code.
    - Second run should show `>>> FULL TURBO` with cache hits from remote.
    - Check Turbo dashboard for cache hit statistics.
