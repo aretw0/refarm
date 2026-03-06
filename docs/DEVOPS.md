@@ -194,6 +194,61 @@ npm run test:unit
 - `npm ci` still runs once per job due job isolation on hosted runners.
 - Further reduction would require remote cache for task outputs (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
+### Future: Turbo Remote Cache
+
+**Status:** Not yet configured (awaiting credentials/team setup)
+
+**What It Provides:**
+
+Turbo remote cache allows task output reuse across different CI runs and machines. Instead of rebuilding/retesting on every workflow run, Turbo checks if inputs (source files, dependencies) match a previous run and restores outputs (build artifacts, test results) from remote storage.
+
+**Expected Benefits:**
+
+- **Cross-run cache hits:** If code/dependencies haven't changed, `turbo run build test lint` skips actual execution and restores cached outputs.
+- **Parallel developer cache sharing:** Local dev builds can reuse CI outputs and vice-versa.
+- **Reduced CI minutes:** Jobs skip redundant tasks when commit doesn't affect relevant workspaces.
+
+**Prerequisites:**
+
+- Turbo account with remote cache enabled (Vercel platform or self-hosted remote cache server).
+- `TURBO_TOKEN` secret added to repository settings (GitHub Actions secrets).
+- `TURBO_TEAM` configured (organization/team slug).
+
+**Configuration Steps (When Available):**
+
+1. **Add secrets to GitHub repository:**
+   - Navigate to repository Settings → Secrets and variables → Actions
+   - Add `TURBO_TOKEN` (from Vercel dashboard or remote cache provider)
+   - Add `TURBO_TEAM` (team identifier, e.g., `refarm-team`)
+
+2. **Update workflow environment variables:**
+   ```yaml
+   env:
+     TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+     TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+   ```
+   Add to `.github/workflows/test.yml` at job or workflow level.
+
+3. **Verify turbo.json cache configuration:**
+   - Ensure `turbo.json` has proper `outputs` declared for each task.
+   - Current config already specifies outputs for `build`, `test`, and `lint` tasks.
+
+4. **Test remote cache:**
+   - Run workflow twice with identical code.
+   - Second run should show `>>> FULL TURBO` with cache hits from remote.
+   - Check Turbo dashboard for cache hit statistics.
+
+**Cost Consideration:**
+
+- Vercel remote cache has free tier (limited cache storage/bandwidth).
+- Exceeding limits requires paid plan or self-hosted cache server.
+- Monitor usage via Vercel dashboard or remote cache provider metrics.
+
+**Documentation:**
+
+- Official guide: https://turbo.build/repo/docs/core-concepts/remote-caching
+- Self-hosted setup: https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting
+
 ---
 
 ## Security & Vulnerability Management
