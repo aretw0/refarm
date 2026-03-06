@@ -1,0 +1,21 @@
+[package]
+name = "hello-world-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.29.0"
+
+[package.metadata.component]
+package = "refarm:hello-world"
+
+[package.metadata.component.target]
+path = "wit"
+
+# Build targets: see docs/RUST_WINDOWS_TROUBLESHOOTING.md
+# Opções:
+# - wasm32-unknown-unknown (simples, genérico)
+# - wasm32-wasip1 (com WASI Preview 1, usado por cargo-component)

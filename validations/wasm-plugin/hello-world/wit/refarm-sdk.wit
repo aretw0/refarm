@@ -1,0 +1,61 @@
+// Simplified WIT contract for validation
+package refarm:sdk@0.1.0;
+
+/// Kernel-side interface (host provides these to plugins)
+interface kernel-bridge {
+  /// Log levels
+  enum log-level {
+    debug,
+    info,
+    warn,
+    error,
+  }
+
+  /// Log a message
+  log: func(level: log-level, message: string);
+
+  /// Store a JSON-LD node
+  store-node: func(json-ld: string) -> result<string, string>;
+
+  /// Get a node by ID
+  get-node: func(id: string) -> result<string, string>;
+}
+
+/// Plugin-side interface (plugins implement this)
+interface integration {
+  /// Plugin error type
+  record plugin-error {
+    code: string,
+    message: string,
+  }
+
+  /// Plugin metadata
+  record plugin-metadata {
+    name: string,
+    version: string,
+    description: string,
+    supported-types: list<string>,
+    required-capabilities: list<string>,
+  }
+
+  /// Initialize plugin
+  setup: func() -> result<_, plugin-error>;
+
+  /// Fetch and ingest data
+  ingest: func() -> result<u32, plugin-error>;
+
+  /// Push data to external service
+  push: func(payload: string) -> result<_, plugin-error>;
+
+  /// Cleanup before unload
+  teardown: func();
+
+  /// Get plugin metadata
+  metadata: func() -> plugin-metadata;
+}
+
+/// Complete plugin world
+world refarm-plugin {
+  import kernel-bridge;
+  export integration;
+}
