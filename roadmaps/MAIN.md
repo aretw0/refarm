@@ -32,7 +32,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 ### ⚠️ Pre-Sprint 0: Preparatory Work (Semana 0 - IN PROGRESS)
 
-**Status**: 90% complete (validation execution in progress, browser checks pending)  
+**Status**: Final readiness phase (technical blockers narrowed to browser validations + baseline smoke tests)  
 **Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)  
 **Quick Start**: See [validations/QUICK_START.md](../validations/QUICK_START.md)
 
@@ -69,8 +69,8 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 **Recommended** (non-blocking):
 
-- [ ] ADR-010: JSON-LD schema evolution (Lenses or migrations) — ✅ Already written
-- [ ] ADR-013: Testing strategy (Vitest vs Jest, Playwright) — ✅ Already written
+- [x] ADR-010: JSON-LD schema evolution (Lenses or migrations) — already written
+- [x] ADR-013: Testing strategy (Vitest vs Jest, Playwright) — already written
 
 **Decision Gate**: ✅ WASM validation + SQLite decision complete → proceed to Pre-SDD
 
