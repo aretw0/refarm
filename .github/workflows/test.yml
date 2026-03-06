@@ -63,6 +63,17 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Upload build artifacts
+        if: success()
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: workspace-build
+          path: |
+            apps/**/dist
+            packages/**/dist
+          retention-days: 7
+          if-no-files-found: warn
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -76,22 +87,51 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
+      - name: Check E2E script status
+        id: e2e_check
+        shell: bash
+        run: |
+          set -euo pipefail
+          SCRIPT=$(node -p "(require('./package.json').scripts || {})['test:e2e'] || ''")
+          if echo "$SCRIPT" | grep -qi "No E2E tests configured yet"; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::E2E job skipped because test:e2e is still a placeholder."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Cache Playwright browsers
+        id: playwright_cache
+        if: steps.e2e_check.outputs.enabled == 'true'
+        uses: ./.github/actions/cache-playwright
+        with:
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
       - name: Install Playwright browsers
+        if: steps.e2e_check.outputs.enabled == 'true' && steps.playwright_cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
 
-      - name: Build
-        run: npm run build
+      - name: Download build artifacts
+        if: steps.e2e_check.outputs.enabled == 'true'
+        uses: ./.github/actions/download-artifact
+        with:
+          name: workspace-build
+          path: .
 
       - name: Run E2E tests
+        if: steps.e2e_check.outputs.enabled == 'true'
         run: npm run test:e2e
 
       - name: Upload Playwright report
-        if: always()
+        if: always() && steps.e2e_check.outputs.enabled == 'true'
         uses: ./.github/actions/upload-artifact
         with:
           name: playwright-report
           path: playwright-report/
           retention-days: 30
+          if-no-files-found: ignore
 
   audit-moderate:
     runs-on: ubuntu-latest
