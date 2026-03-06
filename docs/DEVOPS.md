@@ -69,20 +69,49 @@ If you need to rebuild the container:
 
 ### Current Status
 
-**Last Audit:** March 6, 2026
-**Total Issues Found:** 6 vulnerabilities (1 HIGH, 5 MODERATE)
-**Current Status After Fixes:** 4 MODERATE remaining (lodash dependency chain)
+**Last Audit:** March 6, 2026 (Updated)
+**Total Issues Found:** 11 MODERATE vulnerabilities
+**Breakdown:**
+- ✅ HIGH: 0 (all fixed)
+- ⚠️ MODERATE: 11 (mostly from Vitest + Lodash chains, non-runtime)
+- 🟢 CRITICAL: 0
 
 ### Vulnerability Inventory
 
-| Package | Severity | Issue | Status | Details |
-|---------|----------|-------|--------|---------|
-| **SVGO** | HIGH | DoS via entity expansion (Billion Laughs) | ✅ FIXED | `npm audit fix` resolved this; used in Astro |
-| **Lodash** | MODERATE | Prototype Pollution in `_.unset()` & `_.omit()` | ⚠️ BLOCKED | Requires upstream Astro/yaml-language-server update |
+| Package | Severity | Issue | Status | Introduced By | Notes |
+|---------|----------|-------|--------|---------------|-------|
+| **esbuild** | MODERATE | Arbitrary code execution in dev server | ⚠️ TOOLING-ONLY | vitest + @vitest/coverage-v8 | Dev-only dependency; no runtime impact; fix requires Vitest@4.0+ (major upgrade) |
+| **vite** | MODERATE | Depends on vulnerable esbuild | ⚠️ TOOLING-ONLY | vitest → vite-node → vite | Transitive; blocked on esbuild fix |
+| **@vitest/mocker** | MODERATE | Depends on vulnerable vite | ⚠️ TOOLING-ONLY | vitest | Transitive; blocked on vite fix |
+| **Lodash** | MODERATE | Prototype Pollution in `_.unset()` & `_.omit()` | ⚠️ BLOCKED | @astrojs/language-server → yaml-language-server | Indirect; dev tooling only; awaiting upstream Astro team fix |
+| **inflight** | MODERATE | Memory leak (deprecated package) | ⚠️ DEPRECATION | glob (transitive) | No longer maintained; impacts glob v10.5.0; consider upgrades to glob v11+ |
+| **glob** | MODERATE | Uses deprecated inflight | ⚠️ DEPRECATION | node dependencies | Old glob version; npm warns on update |
 
-### Why Lodash Remains
+### Why These Remain (Rationale & Acceptance)
 
-The lodash vulnerability is **deep in the Astro dependency chain**:
+#### esbuild + Vitest Chain
+
+**Chain:**
+```
+esbuild (vulnerable: arbitrary code in dev server)
+  ← vite
+    ← vitest + @vitest/coverage-v8 (NEWLY INSTALLED March 6, 2026)
+```
+
+**Decision:** Accept temporarily.
+
+**Reasoning:**
+1. esbuild vulnerability is **development-only** — no impact on production code or built artifacts
+2. Vitest was installed as part of test infrastructure unification (replacing Jest)
+3. Fix requires upgrading Vitest to v4.0+, which is a breaking change and needs testing
+4. Current version (v2.1.9) is stable and used in production projects
+
+**Timeline:**
+- Monitor for Vitest v4 LTS release
+- Plan upgrade alongside other major version bumps
+- Target: Q2 2026 (after v0.1.0 MVP ships)
+
+#### Lodash (Existing)
 
 ```
 lodash (vulnerable)
@@ -112,29 +141,64 @@ lodash (vulnerable)
    npm audit --audit-level=moderate
    ```
 
-### Risk Acceptance (Temporary)
+### Risk Acceptance Policy (All Moderate Issues)
 
-Current decision: accept this lodash finding as a temporary, documented risk while it remains an indirect tooling dependency.
+**Core Principle:** Accept MODERATE tooling-dev dependencies if:
 
-Acceptance criteria (all must remain true):
+1. ✅ Severity ≤ MODERATE (no HIGH/CRITICAL)
+2. ✅ Runtime isolation: dev-only or indirect (no direct code path to production)
+3. ✅ Alternatives exist but have trade-offs (major version bumps, breaking changes, unmaintained upstream)
+4. ✅ CI gate for HIGH/CRITICAL remains enforced
 
-- Severity stays at `moderate` (no `high`/`critical` for this chain)
-- Dependency remains indirect (`isDirect: false`)
-- Affected path stays in developer tooling, not runtime-critical production paths
-- CI gate for `high`/`critical` continues to pass
+**Tracking & Reviews:**
 
-Escalate immediately if any of the following happens:
+- **Weekly:** `npm audit` check in security workflow (automated)
+- **Per PR:** CI gate blocks HIGH/CRITICAL (automated)
+- **Manual:** Full audit report generated monthly (`.github/workflows/security-audit.yml`)
+- **Escalation:** If any issue moves to HIGH/CRITICAL, open urgent issue
 
-- Advisory severity increases (`high` or `critical`)
-- Exploitability changes with credible active exploitation reports
-- Vulnerability moves into direct/runtime dependency paths
-- Upstream fix is available and can be adopted safely
+**Monitoring Dashboard:**
 
-Review cadence:
+Current snapshot (March 6, 2026):
 
-- Re-check weekly via scheduled security workflow
-- Re-check on every Astro/tooling dependency update
-- Next explicit review target: `2026-03-20`
+```
+┌─────────────────────────────────────────┐
+│  Vulnerability Trend                    │
+├─────────────────────────────────────────┤
+│ HIGH/CRITICAL:     0  (target: always 0) │
+│ MODERATE:         11  (from 4 on 3/6)    │
+│ - Vitest (new):    6  (introduced 3/6)  │
+│ - Lodash (old):    1  (since before)     │
+│ - Deprecation:     4  (glob/inflight)    │
+├─────────────────────────────────────────┤
+│ Threshold: Accept if all conditions met  │
+│ Last review: 2026-03-06T16:45:00Z        │
+│ Next target: 2026-03-13 (weekly check)   │
+└─────────────────────────────────────────┘
+```
+
+**Acceptance Criteria (All must remain true):**
+
+For **esbuild + Vitest chain**:
+
+- [ ] Severity stays at MODERATE (no escalation to HIGH)
+- [ ] No active exploits reported against Vitest versions we use
+- [ ] Vitest v4 LTS becomes available (planned mid-2026)
+- [ ] Commit esbuild fix to upgrade cycle roadmap
+
+For **Lodash (existing)**:
+
+- [ ] Severity stays at MODERATE
+- [ ] Dependency stays indirect (yaml-language-server → Astro)
+- [ ] No production code uses lodash directly
+- [ ] Monitor Astro/TypeScript tooling updates monthly
+
+If **any** acceptance criteria fails:
+- Immediately escalate in #security channel
+- Create blocking issue
+- Plan emergency upgrade or mitigation
+
+---
 
 ### Security Best Practices
 
