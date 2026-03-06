@@ -85,7 +85,7 @@ const session = {
 #### Tier 2: Persistent (`OPFS/SQLite`)
 
 - Data stored in OPFS via SQLite — survives browser restart
-- Guest gets a `vaultId` (UUID stored in `localStorage`)
+- Guest gets a `vaultId` (stored as session metadata in `localStorage`)
 - No cross-device sync, but data is durable
 
 ```javascript
@@ -96,8 +96,13 @@ const session = {
   backend: storageSqlite,       // Same SQLite as permanent users
 };
 
-// vaultId stored in localStorage (survives restart)
-localStorage.setItem("refarm:vaultId", session.vaultId);
+// Session metadata stored in localStorage (survives restart)
+localStorage.setItem("refarm:vault", JSON.stringify({
+  vaultId: session.vaultId,
+  type: "guest",
+  storageTier: session.storageMode,
+  createdAt: Date.now(),
+}));
 ```
 
 #### Tier 3: Synced (`OPFS + WebRTC P2P`)
@@ -141,10 +146,20 @@ const session = {
 
    ```javascript
    if (storageChoice === "ephemeral") {
-     sessionStorage.setItem("refarm:vaultId", vaultId);
+     sessionStorage.setItem("refarm:vault", JSON.stringify({
+       vaultId,
+       type: "guest",
+       storageTier: "ephemeral",
+       createdAt: Date.now(),
+     }));
    } else {
      // Persistent or Synced → use OPFS/SQLite
-     localStorage.setItem("refarm:vaultId", vaultId);
+     localStorage.setItem("refarm:vault", JSON.stringify({
+       vaultId,
+       type: "guest",
+       storageTier: storageChoice,
+       createdAt: Date.now(),
+     }));
      await storageSqlite.initVault(vaultId);
    }
    ```
@@ -385,14 +400,15 @@ export class SessionManager {
       };
     }
     
-    // Check if returning guest (has vaultId in localStorage)
-    const savedVaultId = localStorage.getItem("refarm:vaultId");
-    if (savedVaultId) {
+    // Check if returning guest (has vault metadata in localStorage)
+    const savedVault = localStorage.getItem("refarm:vault");
+    if (savedVault) {
+      const parsed = JSON.parse(savedVault) as GuestSession;
       return {
         type: "guest",
-        vaultId: savedVaultId,
-        storageTier: "persistent", // returning guest = persistent by definition
-        createdAt: parseInt(localStorage.getItem("refarm:guestCreatedAt") || "0"),
+        vaultId: parsed.vaultId,
+        storageTier: parsed.storageTier,
+        createdAt: parsed.createdAt,
       };
     }
     
@@ -403,11 +419,17 @@ export class SessionManager {
   async createNewGuestSession(tier: StorageTier = "ephemeral"): Promise<GuestSession> {
     const vaultId = crypto.randomUUID();
     
+    const payload = JSON.stringify({
+      vaultId,
+      type: "guest",
+      storageTier: tier,
+      createdAt: Date.now(),
+    });
+
     if (tier === "ephemeral") {
-      sessionStorage.setItem("refarm:vaultId", vaultId);
+      sessionStorage.setItem("refarm:vault", payload);
     } else {
-      localStorage.setItem("refarm:vaultId", vaultId);
-      localStorage.setItem("refarm:guestCreatedAt", String(Date.now()));
+      localStorage.setItem("refarm:vault", payload);
       await storageSqlite.initVault(vaultId);
     }
     
@@ -425,7 +447,7 @@ export class SessionManager {
     
     // Persist identity (storage backend stays the same)
     localStorage.setItem("refarm:identity", keypair.pubkey);
-    localStorage.removeItem("refarm:vaultId");
+    localStorage.removeItem("refarm:vault");
     
     return {
       type: "permanent",

@@ -44,7 +44,7 @@ refarm/
 │   └── sovereign-graph.jsonld  # JSON-LD schema + worked examples
 │
 ├── docs/
-│   └── architecture.md  # This file
+│   └── ARCHITECTURE.md  # This file
 │
 ├── turbo.json           # Turborepo task pipeline
 ├── package.json         # Workspace root
@@ -171,7 +171,12 @@ const vaultId = crypto.randomUUID(); // "vault-a7c3f2"
 
 // 3. Guest picks storage tier (ephemeral / persistent / synced)
 // If persistent or synced → OPFS/SQLite (same as permanent users)
-localStorage.setItem("refarm:vaultId", vaultId);
+localStorage.setItem("refarm:vault", JSON.stringify({
+  vaultId,
+  type: "guest",
+  storageTier: "persistent",
+  createdAt: Date.now()
+}));
 await storageSqlite.initVault(vaultId);
 
 // 4. Join via WebRTC (no Nostr relay needed)
