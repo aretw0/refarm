@@ -94,6 +94,93 @@
       "refarm:installedAt": "2026-03-04T01:00:00Z",
       "refarm:enabled": true,
       "refarm:sourcePlugin": "kernel"
+        },
+        {
+          "@comment": "Example 5 — A user-created task (offline)",
+          "@type": "Action",
+          "@id": "urn:refarm:task-001",
+          "name": "Buy groceries",
+          "description": "Milk, eggs, bread",
+          "actionStatus": "PotentialActionStatus",
+          "startTime": "2026-03-05T10:00:00Z",
+          "agent": {
+            "@type": "Person",
+            "@id": "urn:refarm:identity:self"
+          },
+          "refarm:sourcePlugin": "kernel",
+          "refarm:createdAt": "2026-03-05T09:30:00Z",
+          "refarm:updatedAt": "2026-03-05T09:30:00Z",
+          "crdt:vectorClock": {
+            "device-laptop": 15
+          }
+        },
+        {
+          "@comment": "Example 6 — Guest vault metadata (ephemeral identity)",
+          "@type": "CreativeWork",
+          "@id": "urn:refarm:vault:guest-a7c3f2e1",
+          "name": "Guest Vault",
+          "identifier": "guest-a7c3f2e1",
+          "refarm:vaultType": "guest",
+          "refarm:storageTier": "persistent",
+          "refarm:createdAt": "2026-03-05T14:00:00Z",
+          "refarm:canUpgrade": true,
+          "refarm:dataRetentionDays": null,
+          "refarm:sourcePlugin": "kernel"
+        },
+        {
+          "@comment": "Example 7 — Permanent user vault metadata (Nostr keypair)",
+          "@type": "CreativeWork",
+          "@id": "urn:refarm:vault:npub1xxx",
+          "name": "Alice's Vault",
+          "identifier": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "refarm:vaultType": "permanent",
+          "refarm:storageTier": "synced",
+          "refarm:nostrPublicKey": "npub1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "refarm:createdAt": "2026-03-04T00:00:00Z",
+          "refarm:migratedFrom": "urn:refarm:vault:guest-a7c3f2e1",
+          "refarm:sourcePlugin": "kernel"
+        },
+        {
+          "@comment": "Example 8 — A collaborative board (guest-accessible)",
+          "@type": "CreativeWork",
+          "@id": "urn:refarm:board-collab-001",
+          "name": "Project Planning Board",
+          "description": "Shared Kanban board for team project",
+          "creator": {
+            "@type": "Person",
+            "@id": "urn:refarm:identity:self"
+          },
+          "refarm:guestAccessEnabled": true,
+          "refarm:accessCode": "6d8f3a",
+          "refarm:accessCodeExpiry": "2026-03-05T15:00:00Z",
+          "refarm:collaborators": [
+            {
+              "@type": "Person",
+              "@id": "urn:refarm:vault:guest-xyz123",
+              "name": "Guest User (device-phone)"
+            }
+          ],
+          "refarm:sourcePlugin": "kernel",
+          "refarm:createdAt": "2026-03-05T14:30:00Z",
+          "crdt:vectorClock": {
+            "device-laptop": 20,
+            "device-phone": 5
+          }
+        },
+        {
+          "@comment": "Example 9 — Schema migration record (JSON-LD evolution)",
+          "@type": "Action",
+          "@id": "urn:refarm:migration:v0.1.0-to-v0.2.0",
+          "name": "Schema Migration: Task status field added",
+          "actionStatus": "CompletedActionStatus",
+          "startTime": "2026-03-05T12:00:00Z",
+          "endTime": "2026-03-05T12:00:05Z",
+          "refarm:migrationType": "addField",
+          "refarm:affectedType": "Action",
+          "refarm:changeDescription": "Added 'actionStatus' field to all Action nodes, defaulting to 'PotentialActionStatus'",
+          "refarm:nodesUpdated": 47,
+          "refarm:lensFunction": "addField('actionStatus', 'PotentialActionStatus')",
+          "refarm:sourcePlugin": "kernel"
     }
   ]
 }
