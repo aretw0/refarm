@@ -24,9 +24,6 @@ outputs:
   upload-artifact-version:
     description: "actions/upload-artifact version"
     value: v7.0.0
-  create-pr-version:
-    description: "peter-evans/create-pull-request version"
-    value: v8.1.0
 
 runs:
   using: "composite"

@@ -33,28 +33,14 @@ jobs:
       - name: Manage Issue
         id: manage_issue
         if: steps.check.outputs.has_updates == 'true'
+        uses: ./.github/actions/manage-issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          ISSUE_URL=$(gh issue list --state open --search "in:title Automated Dependency Updates Report" --json url --jq '.[0].url')
-          if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
-            echo "Found open issue: $ISSUE_URL"
-            OLD_BODY=$(gh issue view "$ISSUE_URL" --json body --jq '.body')
-            NEW_BODY=$(cat deps-report.md)
-            if [ "$OLD_BODY" = "$NEW_BODY" ]; then
-              echo "Dependencies are exactly the same as the open issue. No update needed."
-              echo "proceed=false" >> $GITHUB_OUTPUT
-            else
-              echo "Dependencies have changed. Updating existing issue."
-              gh issue edit "$ISSUE_URL" --body-file deps-report.md
-              echo "proceed=true" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "No open issue found. Creating a new one."
-            ISSUE_URL=$(gh issue create --title "Automated Dependency Updates Report" --body-file deps-report.md)
-            echo "proceed=true" >> $GITHUB_OUTPUT
-          fi
-          echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+        with:
+          title: "Automated Dependency Updates Report"
+          body-file: deps-report.md
+          search-query: "in:title Automated Dependency Updates Report"
+          labels: "dependencies"
 
       - name: Update Dependencies
         if: steps.manage_issue.outputs.proceed == 'true'
@@ -64,7 +50,7 @@ jobs:
 
       - name: Create Pull Request
         if: steps.manage_issue.outputs.proceed == 'true'
-        uses: peter-evans/create-pull-request@${{ steps.setup.outputs.create-pr-version }}
+        uses: ./.github/actions/create-pr
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(deps): autoupdate dependencies across workspaces"

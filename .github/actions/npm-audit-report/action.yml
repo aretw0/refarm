@@ -1,0 +1,57 @@
+name: "NPM Audit Report"
+description: "Generate npm audit JSON and Markdown reports, plus vulnerability counters"
+
+inputs:
+  json-output:
+    description: "Path to the JSON report file"
+    required: false
+    default: "audit-report.json"
+  markdown-output:
+    description: "Path to the Markdown report file"
+    required: false
+    default: "audit-report.md"
+
+outputs:
+  total:
+    description: "Total vulnerabilities"
+    value: ${{ steps.generate.outputs.total }}
+  moderate:
+    description: "Moderate vulnerabilities"
+    value: ${{ steps.generate.outputs.moderate }}
+  high:
+    description: "High vulnerabilities"
+    value: ${{ steps.generate.outputs.high }}
+  critical:
+    description: "Critical vulnerabilities"
+    value: ${{ steps.generate.outputs.critical }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Generate audit reports
+      id: generate
+      shell: bash
+      run: |
+        JSON_OUT="${{ inputs.json-output }}"
+        MD_OUT="${{ inputs.markdown-output }}"
+
+        npm audit --json > "$JSON_OUT" || true
+
+        MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$JSON_OUT")
+        HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' "$JSON_OUT")
+        CRITICAL=$(jq -r '.metadata.vulnerabilities.critical // 0' "$JSON_OUT")
+        TOTAL=$(jq -r '.metadata.vulnerabilities.total // 0' "$JSON_OUT")
+
+        {
+          echo "# Security Audit Report"
+          echo
+          echo "- Total: $TOTAL"
+          echo "- Moderate: $MODERATE"
+          echo "- High: $HIGH"
+          echo "- Critical: $CRITICAL"
+        } > "$MD_OUT"
+
+        echo "moderate=$MODERATE" >> "$GITHUB_OUTPUT"
+        echo "high=$HIGH" >> "$GITHUB_OUTPUT"
+        echo "critical=$CRITICAL" >> "$GITHUB_OUTPUT"
+        echo "total=$TOTAL" >> "$GITHUB_OUTPUT"

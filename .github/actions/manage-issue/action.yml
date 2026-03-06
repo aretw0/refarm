@@ -1,0 +1,68 @@
+name: "Manage Issue"
+description: "Create or update an issue based on a body file"
+
+inputs:
+  title:
+    description: "Issue title"
+    required: true
+  body-file:
+    description: "Path to issue body markdown file"
+    required: true
+  search-query:
+    description: "GitHub issue search query"
+    required: true
+  labels:
+    description: "Comma-separated labels"
+    required: false
+    default: ""
+
+outputs:
+  issue_url:
+    description: "URL of created/updated issue"
+    value: ${{ steps.manage.outputs.issue_url }}
+  proceed:
+    description: "Whether downstream steps should proceed"
+    value: ${{ steps.manage.outputs.proceed }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Create or update issue
+      id: manage
+      shell: bash
+      env:
+        TITLE: ${{ inputs.title }}
+        BODY_FILE: ${{ inputs.body-file }}
+        SEARCH_QUERY: ${{ inputs.search-query }}
+        LABELS: ${{ inputs.labels }}
+      run: |
+        ISSUE_URL=$(gh issue list --state open --search "$SEARCH_QUERY" --json url --jq '.[0].url')
+
+        if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
+          echo "Found open issue: $ISSUE_URL"
+          OLD_BODY=$(gh issue view "$ISSUE_URL" --json body --jq '.body')
+          NEW_BODY=$(cat "$BODY_FILE")
+
+          if [ "$OLD_BODY" = "$NEW_BODY" ]; then
+            echo "Issue body unchanged."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Updating issue body."
+            if [ -n "$LABELS" ]; then
+              gh issue edit "$ISSUE_URL" --body-file "$BODY_FILE" --add-label "$LABELS"
+            else
+              gh issue edit "$ISSUE_URL" --body-file "$BODY_FILE"
+            fi
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+          fi
+        else
+          echo "Creating a new issue."
+          if [ -n "$LABELS" ]; then
+            ISSUE_URL=$(gh issue create --title "$TITLE" --body-file "$BODY_FILE" --label "$LABELS")
+          else
+            ISSUE_URL=$(gh issue create --title "$TITLE" --body-file "$BODY_FILE")
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+        fi
+
+        echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
