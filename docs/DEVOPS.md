@@ -288,10 +288,6 @@ Turbo remote cache allows task output reuse across different CI runs and machine
      TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
    ```
 
-<<<<<<< HEAD
-=======
-
->>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
    Add to `.github/workflows/test.yml` at job or workflow level.
 
 1. **Verify turbo.json cache configuration:**
@@ -311,15 +307,8 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 **Documentation:**
 
-<<<<<<< HEAD
-
 - Official guide: <https://turbo.build/repo/docs/core-concepts/remote-caching>
 - Self-hosted setup: <https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting>
-=======
-- Official guide: <https://turbo.build/repo/docs/core-concepts/remote-caching>
-- Self-hosted setup: <https://turbo.build/repo/docs/core-concepts/remote-caching#self-hosting>
-
->>>>>>> 95da43e (docs(devops): add Turbo remote cache future configuration guide)
 
 ---
 
