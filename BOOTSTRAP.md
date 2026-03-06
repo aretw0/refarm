@@ -26,7 +26,7 @@
 * **3. IA Estrutural: A Chegada do WebLLM (Cognição Local)**
   * *Pragmatismo IA:* Introduzir o **WebLLM** como um *Local Mill* (Moinho Local).
   * Usaremos a funcionalidade nativa do WebLLM de **Web Workers/Service Workers** para que a IA rode em WebGPU numa thread separada, não afetando a performance da interface do usuário.
-  * Focaremos no recurso de **Structured JSON Generation** do WebLLM. Quando uma ponte como o `whatsapp-bridge` injetar mensagens brutas no sistema, o WebLLM lerá esse texto e o converterá em nós `JSON-LD` perfeitos, estruturando dados caóticos diretamente no seu *Solo*.
+  * Focaremos no recurso de **Structured JSON Generation** do WebLLM. Quando uma ponte de comunicação (ex: Matrix, Signal) injetar mensagens brutas no sistema, o WebLLM lerá esse texto e o converterá em nós `JSON-LD` perfeitos, estruturando dados caóticos diretamente no seu *Solo*.
 
 ## Fase 3: v1.0 - Sistema Operacional Descentralizado & Autônomo (Meses 7 a 9)
 
