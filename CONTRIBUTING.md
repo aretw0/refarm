@@ -119,6 +119,8 @@ Use descriptive commit messages:
 
 Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG renderings.
 
+Global styling is centralized in `specs/diagrams/mermaid.config.json`.
+
 **When you edit a `.mermaid` file:**
 
 1. Regenerate the SVG:
@@ -127,11 +129,15 @@ Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG
    npm run diagrams:fix
    ```
 
-2. Commit both the `.mermaid` source AND the `.svg` rendering:
+  This command applies the global Mermaid design system automatically.
+
+1. Commit both the `.mermaid` source AND the `.svg` rendering:
 
    ```bash
-   git add docs/**/*.mermaid docs/**/*.svg
+
+  git add docs/**/*.mermaid docs/**/*.svg specs/diagrams/**/*.mermaid specs/diagrams/**/*.svg
    git commit -m "docs: update diagram"
+
    ```
 
 3. The CI will verify that SVG files match their source on PRs.
@@ -141,6 +147,10 @@ Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG
 - `.mermaid` is the source of truth (easy to edit, version control-friendly)
 - `.svg` is the rendered output (displays correctly on GitHub without extra dependencies)
 - Keeping them in sync prevents stale diagrams in documentation
+
+If `npm run diagrams:fix` fails due missing Chromium shared libraries in the devcontainer, do not install ad-hoc only in the running container. Update:
+- `.devcontainer/Dockerfile` (image baseline)
+- `docs/DEVOPS.md` (dependency tracking section)
 
 ---
 

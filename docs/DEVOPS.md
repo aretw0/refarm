@@ -20,6 +20,7 @@
 Refarm uses **VS Code Dev Containers** to provide a consistent, reproducible development environment across all contributors.
 
 **Environment Details:**
+
 - **Base:** Debian GNU/Linux 12 (bookworm)
 - **Node.js:** v22.16.0
 - **npm:** 10.9.2 (auto-updated to latest during post-create)
@@ -39,6 +40,36 @@ When opening the workspace in VS Code with the Remote Containers extension:
    - Runs `npm ci` to install workspace dependencies
    - Runs `npm audit fix --force` to remediate known vulnerabilities
 
+### Devcontainer Image Baseline (Tracked)
+
+Refarm now uses a repo-local build file: `.devcontainer/Dockerfile`.
+
+Purpose:
+
+- Keep system-level dependencies versioned in Git
+- Ensure fresh container builds already support diagram generation (`npm run diagrams:fix`)
+- Avoid one-off manual apt installs that are lost on rebuild
+
+Current image-level dependencies explicitly tracked in Dockerfile:
+
+- Mermaid CLI/headless Chromium runtime libraries:
+  - `libdbus-1-3`, `libatk1.0-0`, `libatk-bridge2.0-0`, `libcups2`, `libnss3`
+  - `libx11-xcb1`, `libxcomposite1`, `libxdamage1`, `libxfixes3`, `libxrandr2`
+  - `libgbm1`, `libpango-1.0-0`, `libcairo2`, `libasound2`, `libatspi2.0-0`, `libgtk-3-0`
+
+Mermaid design system baseline:
+
+- Global style configuration file: `specs/diagrams/mermaid.config.json`
+- Diagram generation script (`scripts/check-diagrams.mjs`) always passes this config to Mermaid CLI
+- Any style changes must be applied in this file, then regenerated via `npm run diagrams:fix`
+
+Tracking rule:
+
+- If any development command fails due missing shared libraries in container (for example `error while loading shared libraries`), update both:
+  - `.devcontainer/Dockerfile` (authoritative package list)
+  - `docs/DEVOPS.md` (this section)
+- Then run a full container rebuild to validate the baseline.
+
 ### Manual Rebuild
 
 If you need to rebuild the container:
@@ -48,20 +79,40 @@ If you need to rebuild the container:
 > Dev Containers: Rebuild Container
 ```
 
+After rebuild, run baseline validation:
+
+```bash
+npm run diagrams:fix
+npm run test:unit
+```
+
 ### Troubleshooting
 
 **Issue: `npm error EACCES` in post-create**
+
 - **Cause:** npm cache contains root-owned files
 - **Fix:** Already handled in `post-create.sh` (runs `sudo chown -R 1001:1001 /home/vscode/.npm`)
 - **Manual workaround:** `rm -rf ~/.npm && npm cache clean --force`
 
 **Issue: Package installation failures**
+
 - **Cause:** Stale node_modules or package-lock.json mismatch
 - **Fix:** Delete both and reinstall:
+
   ```bash
   rm -rf node_modules package-lock.json
   npm install
   ```
+
+**Issue: Mermaid/Chromium fails with missing shared library**
+
+- **Symptom:** `npm run diagrams:fix` fails with `error while loading shared libraries: <libname>.so`
+- **Root cause:** devcontainer image missing required runtime library for headless Chromium
+- **Fix process:**
+  1. Add missing package to `.devcontainer/Dockerfile`
+  2. Rebuild container
+  3. Re-run `npm run diagrams:fix`
+  4. Document dependency update in this DevOps guide
 
 ---
 
@@ -72,6 +123,7 @@ If you need to rebuild the container:
 **Last Audit:** March 6, 2026 (Updated)
 **Total Issues Found:** 11 MODERATE vulnerabilities
 **Breakdown:**
+
 - ✅ HIGH: 0 (all fixed)
 - ⚠️ MODERATE: 11 (mostly from Vitest + Lodash chains, non-runtime)
 - 🟢 CRITICAL: 0
@@ -92,6 +144,7 @@ If you need to rebuild the container:
 #### esbuild + Vitest Chain
 
 **Chain:**
+
 ```
 esbuild (vulnerable: arbitrary code in dev server)
   ← vite
@@ -101,12 +154,14 @@ esbuild (vulnerable: arbitrary code in dev server)
 **Decision:** Accept temporarily.
 
 **Reasoning:**
+
 1. esbuild vulnerability is **development-only** — no impact on production code or built artifacts
 2. Vitest was installed as part of test infrastructure unification (replacing Jest)
 3. Fix requires upgrading Vitest to v4.0+, which is a breaking change and needs testing
 4. Current version (v2.1.9) is stable and used in production projects
 
 **Timeline:**
+
 - Monitor for Vitest v4 LTS release
 - Plan upgrade alongside other major version bumps
 - Target: Q2 2026 (after v0.1.0 MVP ships)
@@ -125,9 +180,10 @@ lodash (vulnerable)
 
 1. **Wait for Upstream** — Astro team will update dependencies
    - Lowest risk, no action needed from us
-   - Monitor https://github.com/withastro/language-tools/issues
+   - Monitor <https://github.com/withastro/language-tools/issues>
 
 2. **Pin Safe Version Override** (If needed)
+
    ```json
    {
      "overrides": {
@@ -137,6 +193,7 @@ lodash (vulnerable)
    ```
 
 3. **Monitor Actively**
+
    ```bash
    npm audit --audit-level=moderate
    ```
@@ -194,6 +251,7 @@ For **Lodash (existing)**:
 - [ ] Monitor Astro/TypeScript tooling updates monthly
 
 If **any** acceptance criteria fails:
+
 - Immediately escalate in #security channel
 - Create blocking issue
 - Plan emergency upgrade or mitigation
@@ -302,6 +360,7 @@ echo "✅ All tools ready!"
 ```
 
 **Expected Output:**
+
 ```
 === Environment Validation ===
 v22.16.0
@@ -340,10 +399,12 @@ Try Docker Debug for seamless, persistent debugging tools in any container or im
 ```
 
 **What it means:**
+
 - Docker suggests the `docker debug` command for inspecting live containers
 - **You don't need to enable or configure this** — it's just a notification
 
 **When to use it (optional):**
+
 ```bash
 # If you ever need to debug the running container:
 docker debug <container-id>

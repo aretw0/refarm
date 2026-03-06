@@ -17,6 +17,7 @@
 - **[Decision Log](decision-log.md)** - Current high-impact decisions (owner, status, evidence)
 - **[Accessibility & i18n](A11Y_I18N_GUIDE.md)** - WCAG 2.2 + internationalization guide
 - **[Specs & ADRs](../specs/)** - Specifications & Architecture Decision Records
+- **[Mermaid Diagram Catalog](../specs/diagrams/INDEX.md)** - Dense architecture and systems showcase (source + SVG)
 
 ---
 
