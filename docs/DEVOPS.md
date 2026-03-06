@@ -144,11 +144,26 @@ npm run test:unit
 - **Additional correction:** Simplified `./.github/actions/setup` to only configure Node + `npm ci` (checkout moved to workflows/jobs).
 - **Prevention rule:** In every job that uses `./.github/actions/*`, run checkout first.
 
+**Note: `refarm/refarm` path in runner logs is expected**
+
+- **Observed pattern:** Paths like `/home/runner/work/refarm/refarm/...` appear in Actions logs.
+- **Why this happens:** GitHub-hosted runners use `/home/runner/work/<repository>/<repository>` by default. The first segment is the workspace root folder, and the second is the checked-out repository directory.
+- **Interpretation:** This is not path duplication bug by itself.
+- **When to worry:** Only if errors indicate missing files inside that path (for example, local actions before checkout), wrong working directory assumptions, or unexpected nested checkouts.
+
 **Issue: Jekyll tries to parse Astro files during Pages build**
 
 - **Symptom:** `Invalid YAML front matter` in `*.astro` files during GitHub Pages/Jekyll build.
 - **Root cause:** No Jekyll config existed, so non-Jekyll source files were scanned.
 - **Fix applied (Mar 6, 2026):** Added root `_config.yml` with `exclude` rules for app/source trees and `**/*.astro`.
+
+**Issue: Astro build fails with `Unexpected "const"` in `dev.astro`**
+
+- **Symptom:** `astro build` fails pointing to `apps/studio/src/pages/dev.astro` with `Unexpected "const"`.
+- **Root cause:** TypeScript sample code was embedded directly inside `<textarea>...</textarea>` in an Astro template. Curly braces and template interpolation tokens (`{}`, `${}`) inside that inline block were interpreted by the Astro parser.
+- **Fix applied (Mar 6, 2026):** Moved sample editor content to a frontmatter string (`defaultPluginCode`) and rendered it via `{defaultPluginCode}` in the textarea.
+- **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).
+- **Verification:** `npm run build -w @refarm/studio` succeeds locally.
 
 ---
 
