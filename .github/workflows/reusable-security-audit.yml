@@ -1,0 +1,77 @@
+name: Reusable Security Audit
+
+on:
+  workflow_call:
+    inputs:
+      artifact-name:
+        description: Name of uploaded audit artifact
+        required: false
+        type: string
+        default: npm-audit-full-report
+      issue-title:
+        description: Title used to create or update tracking issue
+        required: false
+        type: string
+        default: Automated Security Audit Report
+      issue-search-query:
+        description: GitHub search query to find existing tracking issue
+        required: false
+        type: string
+        default: in:title Automated Security Audit Report
+      issue-labels:
+        description: Comma-separated labels applied to issue
+        required: false
+        type: string
+        default: security
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Security gate (high and critical)
+        run: npm audit --audit-level=high
+
+      - name: Generate full audit report
+        id: audit_report
+        if: always()
+        uses: ./.github/actions/npm-audit-report
+        with:
+          json-output: audit-full.json
+          markdown-output: audit-full.md
+
+      - name: Security audit notice
+        if: always()
+        run: |
+          echo "::notice::Security audit snapshot: total=${{ steps.audit_report.outputs.total }} moderate=${{ steps.audit_report.outputs.moderate }} high=${{ steps.audit_report.outputs.high }} critical=${{ steps.audit_report.outputs.critical }}"
+
+      - name: Manage security issue
+        id: manage_issue
+        if: always() && steps.audit_report.outcome == 'success'
+        uses: ./.github/actions/manage-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          title: ${{ inputs.issue-title }}
+          body-file: audit-full.md
+          search-query: ${{ inputs.issue-search-query }}
+          labels: ${{ inputs.issue-labels }}
+
+      - name: Upload audit artifact
+        if: always()
+        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: |
+            audit-full.json
+            audit-full.md
+          retention-days: 30

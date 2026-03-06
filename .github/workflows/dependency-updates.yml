@@ -53,6 +53,7 @@ jobs:
         uses: ./.github/actions/create-pr
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          create-pr-version: ${{ steps.setup.outputs.create-pr-version }}
           commit-message: "chore(deps): autoupdate dependencies across workspaces"
           title: "chore(deps): automated update for dependencies"
           body: |
