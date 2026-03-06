@@ -38,7 +38,7 @@ jobs:
           echo "Changed files:"
           echo "$CHANGED_FILES"
           echo ""
-          
+
           # Skip if only docs, CI, or test files
           if echo "$CHANGED_FILES" | grep -qvE '\.(md|txt|yml|yaml)$|^\.github/|^scripts/|^validations/|^docs/|\.test\.|\.spec\.'; then
             echo "code-changed=true" >> $GITHUB_OUTPUT
@@ -54,7 +54,7 @@ jobs:
         run: |
           # Check if any changeset files exist (excluding README.md)
           CHANGESET_COUNT=$(find .changeset -name "*.md" -not -name "README.md" 2>/dev/null | wc -l)
-          
+
           if [ "$CHANGESET_COUNT" -eq 0 ]; then
             echo "changeset-exists=false" >> $GITHUB_OUTPUT
             echo "❌ No changeset found!"
