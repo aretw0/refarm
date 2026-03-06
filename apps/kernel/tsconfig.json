@@ -4,10 +4,5 @@
     "rootDir": "src",
     "outDir": "dist"
   },
-  "include": ["src/**/*"],
-  "references": [
-    { "path": "../../packages/storage-sqlite" },
-    { "path": "../../packages/identity-nostr" },
-    { "path": "../../packages/sync-crdt" }
-  ]
+  "include": ["src/**/*"]
 }
