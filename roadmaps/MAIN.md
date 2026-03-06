@@ -26,7 +26,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 ---
 
 ## v0.1.0 - MVP Core (Em planejamento)
-**Milestone**: Offline-first storage + sync foundation  
+**Milestone**: Offline-first storage + Guest mode foundation  
 **Target**: Sprint 1-2
 
 ### Pre-SDD: Research & Validation (Semana 1-2)
@@ -37,37 +37,52 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [ ] Criar PoC mínimo validando interop (Storage + CRDT em Web Worker)
 - [ ] Benchmark SQLite Wasm vs sql.js (operações alta frequência)
 - [ ] Benchmark CRDT bulk operations (OPFS persistence)
+- [ ] Validar storage tiers para guest sessions (ephemeral/persistent/synced)
+- [ ] Testar migração guest→permanent (rewrite de ownership, 100k nodes)
+- [ ] Benchmark OPFS init para guest vaults (tempo de criação de vault)
 
-**Decision Gate**: ✅ Validações 3-4 confirmadas → proceed to SDD
+**Decision Gate**: ✅ Validações 3-4 confirmadas + guest mode viável → proceed to SDD
 
 ### SDD (Spec Driven Development)
 
 - [ ] ADR-001: Monorepo structure & workspace boundaries
 - [ ] ADR-002: Offline-first strategy (Storage → Sync → Network)
 - [ ] ADR-003: CRDT choice (Yjs) + conflict resolution
+- [ ] ADR-006: Guest mode and collaborative sessions (identity-orthogonal storage)
 - [ ] Spec: Storage interface (`storage-sqlite` package)
 - [ ] Spec: Sync interface (`sync-crdt` package)
+- [ ] Spec: Session management (guest vs. permanent identity, storage tiers)
 
 ### BDD (Behaviour Driven Development)
 
-- [ ] Integration: App persists data offline
-- [ ] Integration: Data syncs between 2 clients
+- [ ] Integration: Guest joins shared board without identity
+- [ ] Integration: Guest chooses storage tier (ephemeral/persistent/synced)
+- [ ] Integration: Guest edits data (stored in chosen backend)
+- [ ] Integration: Guest upgrades to permanent (ownership rewrite, storage unchanged)
+- [ ] Integration: Permanent user persists data offline
+- [ ] Integration: Data syncs between 2 clients (CRDT)
 - [ ] Integration: Conflicts merge automatically
 - [ ] Acceptance: User works offline, syncs when online
+- [ ] Acceptance: Guest can participate in collaborative boards
 
 ### TDD (Test Driven Development)
 
-- [ ] Unit: Storage CRUD contracts
+- [ ] Unit: Guest session creation (vaultId generation + storage tier selection)
+- [ ] Unit: Guest→Permanent migration (ownership rewrite, no storage migration)
+- [ ] Unit: Storage CRUD contracts (unified API across all tiers)
 - [ ] Unit: CRDT merge operations
 - [ ] Unit: Conflict resolution rules
 - [ ] Coverage: >80% core logic
 
 ### DDD (Domain Driven Implementation)
 
-- [ ] Domain: `storage-sqlite` (persistence boundary)
-- [ ] Domain: `sync-crdt` (sync boundary)
-- [ ] Domain: `kernel` (orchestration)
+- [ ] Domain: `session-manager` (guest vs. permanent lifecycle)
+- [ ] Domain: `storage-sqlite` (persistence boundary, OPFS adapters)
+- [ ] Domain: `sync-crdt` (sync boundary, vector clocks)
+- [ ] Domain: `kernel` (orchestration, session handling)
 - [ ] Infra: OPFS adapters, Yjs providers
+- [ ] Infra: Storage tier abstraction (ephemeral/persistent/synced)
+- [ ] Infra: Sync code mechanism for guest multi-device (WebRTC handshake)
 
 ### CHANGELOG (when done)
 TBD - to be generated from completed work
@@ -255,7 +270,8 @@ TBD - to be generated from completed work
 - [ ] Domain: `kernel` orchestration (plugin lifecycle)
 - [ ] Infra: wasm-tools integration
 - [ ] Infra: wasmtime/wasmer runtime
-- [ ] Example: `whatsapp-bridge` plugin (reference implementation)
+- [ ] Example: `matrix-bridge` plugin (reference Go implementation)
+- [ ] Example: `signal-bridge` plugin (reference Rust implementation)
 
 ### CHANGELOG
 TBD - to be generated from completed work
