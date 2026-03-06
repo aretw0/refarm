@@ -152,6 +152,9 @@ To avoid duplicated scripting across workflows, the repository now provides reus
 - **`.github/workflows/reusable-security-audit.yml`**
   - Reusable workflow (`workflow_call`) for security gate + report + issue tracking
   - Called by `.github/workflows/security-audit.yml` and available for future workflows
+- **`.github/workflows/reusable-dependency-update.yml`**
+  - Reusable workflow (`workflow_call`) for check + issue management + update + PR creation
+  - Called by `.github/workflows/dependency-updates.yml` and reusable for future bot-like update flows
 
 Recommended reuse pattern for new workflows:
 
