@@ -155,6 +155,11 @@ To avoid duplicated scripting across workflows, the repository now provides reus
 - **`.github/workflows/reusable-dependency-update.yml`**
   - Reusable workflow (`workflow_call`) for check + issue management + update + PR creation
   - Called by `.github/workflows/dependency-updates.yml` and reusable for future bot-like update flows
+- **`.github/workflows/reusable-release-health.yml`**
+  - Reusable workflow (`workflow_call`) for release smoke checks (quality, build, security)
+  - Opens/updates tracking issue on failure and publishes health report artifact
+- **`.github/workflows/release-health.yml`**
+  - Wrapper workflow (manual + weekly schedule) that calls `reusable-release-health.yml`
 
 Recommended reuse pattern for new workflows:
 

@@ -1,0 +1,134 @@
+name: Reusable Release Health
+
+on:
+  workflow_call:
+    inputs:
+      quality-command:
+        description: Command used for quality smoke checks
+        required: false
+        type: string
+        default: npm run lint && npm run type-check
+      build-command:
+        description: Command used for build smoke check
+        required: false
+        type: string
+        default: npm run build
+      security-audit-level:
+        description: npm audit threshold level
+        required: false
+        type: string
+        default: high
+      report-file:
+        description: Markdown summary file
+        required: false
+        type: string
+        default: release-health.md
+      artifact-name:
+        description: Artifact name for the report
+        required: false
+        type: string
+        default: release-health-report
+      open-issue-on-failure:
+        description: Open or update tracking issue when a check fails
+        required: false
+        type: boolean
+        default: true
+      issue-title:
+        description: Tracking issue title
+        required: false
+        type: string
+        default: Automated Release Health Report
+      issue-search-query:
+        description: Search query used to find open tracking issue
+        required: false
+        type: string
+        default: in:title Automated Release Health Report
+      issue-labels:
+        description: Comma-separated labels for tracking issue
+        required: false
+        type: string
+        default: quality,security
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Run release health checks
+        id: health
+        shell: bash
+        run: |
+          set +e
+
+          QUALITY_STATUS="success"
+          BUILD_STATUS="success"
+          AUDIT_STATUS="success"
+          HAS_FAILURE="false"
+
+          bash -lc '${{ inputs.quality-command }}'
+          if [ $? -ne 0 ]; then
+            QUALITY_STATUS="failure"
+            HAS_FAILURE="true"
+          fi
+
+          bash -lc '${{ inputs.build-command }}'
+          if [ $? -ne 0 ]; then
+            BUILD_STATUS="failure"
+            HAS_FAILURE="true"
+          fi
+
+          npm audit --audit-level=${{ inputs.security-audit-level }}
+          if [ $? -ne 0 ]; then
+            AUDIT_STATUS="failure"
+            HAS_FAILURE="true"
+          fi
+
+          {
+            echo "# Release Health Report"
+            echo
+            echo "- Quality: $QUALITY_STATUS"
+            echo "- Build: $BUILD_STATUS"
+            echo "- Security audit (${{ inputs.security-audit-level }}): $AUDIT_STATUS"
+            echo
+            echo "Workflow: $GITHUB_WORKFLOW"
+            echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          } > '${{ inputs.report-file }}'
+
+          echo "quality_status=$QUALITY_STATUS" >> "$GITHUB_OUTPUT"
+          echo "build_status=$BUILD_STATUS" >> "$GITHUB_OUTPUT"
+          echo "audit_status=$AUDIT_STATUS" >> "$GITHUB_OUTPUT"
+          echo "has_failure=$HAS_FAILURE" >> "$GITHUB_OUTPUT"
+
+      - name: Manage release health issue
+        if: steps.health.outputs.has_failure == 'true' && inputs.open-issue-on-failure
+        uses: ./.github/actions/manage-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          title: ${{ inputs.issue-title }}
+          body-file: ${{ inputs.report-file }}
+          search-query: ${{ inputs.issue-search-query }}
+          labels: ${{ inputs.issue-labels }}
+
+      - name: Upload release health artifact
+        if: always()
+        uses: actions/upload-artifact@${{ steps.setup.outputs.upload-artifact-version }}
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.report-file }}
+          retention-days: 30
+
+      - name: Enforce release health gate
+        if: steps.health.outputs.has_failure == 'true'
+        run: |
+          echo "::error::Release health checks failed. See report artifact for details."
+          exit 1

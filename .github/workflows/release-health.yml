@@ -1,0 +1,24 @@
+name: Release Health
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * 3" # Every Wednesday at 12:00 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  health:
+    uses: ./.github/workflows/reusable-release-health.yml
+    with:
+      quality-command: "npm run lint && npm run type-check"
+      build-command: npm run build
+      security-audit-level: high
+      report-file: release-health.md
+      artifact-name: release-health-report
+      open-issue-on-failure: true
+      issue-title: Automated Release Health Report
+      issue-search-query: in:title Automated Release Health Report
+      issue-labels: quality,security
