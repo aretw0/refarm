@@ -1,24 +1,15 @@
 name: "Refarm Setup"
-description: "Centralized setup: checkout, Node.js, npm ci. Single source of truth for all versions and dependencies."
+description: "Centralized setup: Node.js and npm ci."
 
 inputs:
   node-version:
     description: "Node.js version"
     required: false
     default: "22"
-  fetch-depth:
-    description: "Git fetch depth (0 for full history)"
-    required: false
-    default: "1"
 
 runs:
   using: "composite"
   steps:
-    - name: Checkout
-      uses: actions/checkout@v6.0.2
-      with:
-        fetch-depth: ${{ inputs.fetch-depth }}
-
     - name: Setup Node.js ${{ inputs.node-version }}
       uses: actions/setup-node@v6.3.0
       with:
