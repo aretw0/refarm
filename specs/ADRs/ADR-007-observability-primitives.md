@@ -478,7 +478,7 @@ const state = await plugin.introspect();
 // Meta: Create dashboard from events
 const dashboard = createDashboard({
   sources: [
-    { plugin: "whatsapp", metric: "messages_processed" },
+    { plugin: "matrix", metric: "messages_processed" },
     { kernel: "storage", metric: "operations_per_sec" },
     { system: "memory", metric: "heap_used_mb" }
   ]
