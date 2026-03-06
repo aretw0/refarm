@@ -23,8 +23,8 @@ jobs:
       issue-title: Automated Dependency Updates Report
       issue-search-query: in:title Automated Dependency Updates Report
       issue-labels: dependencies
-      pr-commit-message: chore(deps): autoupdate dependencies across workspaces
-      pr-title: chore(deps): automated update for dependencies
+      pr-commit-message: "chore(deps): autoupdate dependencies across workspaces"
+      pr-title: "chore(deps): automated update for dependencies"
       pr-body-template: |
         ## 🔄 Atualização Automática de Dependências
 
