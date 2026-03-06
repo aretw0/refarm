@@ -131,6 +131,12 @@ Bloquear problemas **antes do push** economiza:
 **Política local atual (branch-aware):**
 
 - `main` / `develop`: bloqueia push somente se `lint` ou `type-check` falharem
+- Feature branches: não bloqueia push (warnings)
+- `test:unit` e `npm audit --audit-level=high`: warnings locais, enforcement no CI
+
+**Política local atual (branch-aware):**
+
+- `main` / `develop`: bloqueia push somente se `lint` ou `type-check` falharem
 - Feature branches: não bloqueia push (gera warnings)
 - `test:unit` e segurança (`npm audit --audit-level=high`): warnings locais, gate obrigatório no CI
 
@@ -222,21 +228,15 @@ npm run type-check || {
   exit 1
 }
 
-# 3. Unit tests
+# 3. Unit tests (advisory)
 echo "🧪 Running unit tests..."
-npm run test:unit || {
-  echo "❌ Tests failed! Fix failing tests before pushing."
-  exit 1
-}
+npm run test:unit || echo "⚠️ Unit tests failed (warning local, gate in CI)."
 
-# 4. Security audit (high/critical only)
+# 4. Security audit (advisory)
 echo "🔒 Checking security..."
-npm audit --audit-level=high || {
-  echo "⚠️ Security vulnerabilities detected! Run 'npm audit fix' or document in DEVOPS.md."
-  exit 1
-}
+npm audit --audit-level=high || echo "⚠️ Security warning local, gate in CI."
 
-echo "✅ All pre-push checks passed!"
+echo "✅ Local pre-push execution complete"
 `;
 
 const hookPath = join('.git', 'hooks', 'pre-push');

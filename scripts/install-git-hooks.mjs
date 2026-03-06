@@ -2,10 +2,12 @@
 /**
  * Install Git Hooks
  *
- * This script installs a pre-push hook that validates code quality before allowing pushes.
- * The hook is context-aware:
- *   - STRICT mode: on main/develop (blocks push on any failure)
- *   - PERMISSIVE mode: on all other branches (warns but allows push)
+ * This script installs a pre-push hook with branch-aware strictness.
+ *
+ * Local policy:
+ *   - main/develop: blocking checks for lint + type-check
+ *   - feature branches: warning-only mode
+ *   - test:unit and security are advisory locally (enforced in CI)
  *
  * Usage: npm run hooks:install
  */
@@ -44,73 +46,82 @@ case "\$CURRENT_BRANCH" in
 esac
 echo ""
 
-# Track failures (only matters in strict mode)
-FAILED=0
+# Track outcomes
+BLOCKING_FAILED=0
+WARNINGS=0
 
 # 1. Lint
 echo "📝 Checking lint..."
 if npm run lint --silent 2>/dev/null; then
   echo "   ✅ Lint passed"
 else
-  echo "   ❌ Lint failed"
-  FAILED=1
+  if [ \$IS_PROTECTED_BRANCH -eq 1 ]; then
+    echo "   ❌ Lint failed (blocking in strict mode)"
+    BLOCKING_FAILED=1
+  else
+    echo "   ⚠️  Lint failed (warning in permissive mode)"
+    WARNINGS=1
+  fi
 fi
 echo ""
 
 # 2. Type-check
 echo "🔤 Checking types..."
-if npm run type-check --silent 2>/dev/null; then
-  echo "   ✅ Type check passed"
+TYPECHECK_OUTPUT=$(npm run type-check --silent 2>&1)
+TYPECHECK_STATUS=$?
+if [ \$TYPECHECK_STATUS -eq 0 ]; then
+  echo "   ✅ Type-check passed"
 else
-  echo "   ❌ Type check failed"
-  FAILED=1
+  if echo "\$TYPECHECK_OUTPUT" | grep -q "Could not find task"; then
+    echo "   ⚠️  Type-check task missing in some workspaces (warning)"
+    WARNINGS=1
+  else
+    if [ \$IS_PROTECTED_BRANCH -eq 1 ]; then
+      echo "   ❌ Type-check failed (blocking in strict mode)"
+      BLOCKING_FAILED=1
+    else
+      echo "   ⚠️  Type-check failed (warning in permissive mode)"
+      WARNINGS=1
+    fi
+  fi
 fi
 echo ""
 
 # 3. Unit tests
-echo "🧪 Running unit tests..."
+echo "🧪 Running unit tests (advisory local check)..."
 if npm run test:unit --silent 2>/dev/null; then
   echo "   ✅ Unit tests passed"
 else
-  echo "   ❌ Tests failed"
-  FAILED=1
+  echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+  WARNINGS=1
 fi
 echo ""
 
 # 4. Security audit (high/critical only)
-echo "🔒 Checking security..."
+echo "🔒 Checking security (advisory local check)..."
 if npm audit --audit-level=high --silent 2>/dev/null; then
   echo "   ✅ No high/critical vulnerabilities"
 else
-  echo "   ⚠️  Security vulnerabilities detected"
-  FAILED=1
+  echo "   ⚠️  Security check returned issues (non-blocking local warning)"
+  WARNINGS=1
 fi
 echo ""
 
 # Summary and decision
-if [ \$FAILED -eq 1 ]; then
-  if [ \$IS_PROTECTED_BRANCH -eq 1 ]; then
-    echo "❌ Pre-push validation failed (STRICT mode)!"
-    echo "   Protected branch (\$CURRENT_BRANCH) requires all checks to pass."
-    echo "   Fix the issues above before pushing."
-    exit 1
-  else
-    echo "⚠️  Pre-push validation issued warnings (PERMISSIVE mode)"
-    echo "   Feature branch (\$CURRENT_BRANCH) will allow push with warnings."
-    echo "   To fix: address issues and run checks before opening PR."
-    echo ""
-    read -p "   Continue pushing anyway? [y/N] " -r
-    echo ""
-    if [[ ! \$REPLY =~ ^[Yy]$ ]]; then
-      echo "   Push cancelled by user."
-      exit 1
-    fi
-    echo "   Proceeding with push (CI/CD will validate on server)..."
-  fi
+if [ \$IS_PROTECTED_BRANCH -eq 1 ] && [ \$BLOCKING_FAILED -eq 1 ]; then
+  echo "❌ Pre-push validation failed (STRICT mode)!"
+  echo "   Protected branch (\$CURRENT_BRANCH) blocks on lint/type-check failures."
+  exit 1
 fi
 
-echo "✅ Pre-push validation passed!"
-echo "   Safe to push."
+if [ \$WARNINGS -eq 1 ]; then
+  echo "⚠️  Push allowed with warnings"
+  echo "   CI remains the final gate for tests/security/build"
+else
+  echo "✅ Local checks passed"
+fi
+
+echo "🚀 Push allowed"
 exit 0
 `;
 
@@ -134,14 +145,13 @@ try {
   console.log('The hook runs automatically before every push with context-aware behavior:');
   console.log('');
   console.log('📌 STRICT mode (on main/develop):');
-  console.log('  - Validates: lint → type-check → unit tests → security');
-  console.log('  - Blocks push if any check fails');
-  console.log('  - Ensures code quality in protected branches');
+  console.log('  - Blocks push on lint + type-check failures');
+  console.log('  - Unit/security are advisory locally');
+  console.log('  - CI remains the final enforcement gate');
   console.log('');
   console.log('⚠️  PERMISSIVE mode (on feature branches):');
-  console.log('  - Same validation checks, but non-blocking');
-  console.log('  - Warns but allows push (CI/CD validates on server)');
-  console.log('  - Prompt enables aborting if issues found');
+  console.log('  - Non-blocking local warnings only');
+  console.log('  - CI/CD validates full gates on server');
   console.log('');
   console.log('To bypass the hook (not recommended):');
   console.log('  git push --no-verify');
