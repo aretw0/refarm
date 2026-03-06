@@ -167,6 +167,13 @@ Recommended reuse pattern for new workflows:
 2. Call `manage-issue` to create/update the tracking issue
 3. If changes are needed, call `create-pr` to open/update PR automation
 
+Wrapper and reusable interface conventions:
+
+- Reusable workflows should expose stable, descriptive inputs (`artifact-name`, `report-file`, `issue-title`, `issue-search-query`, `issue-labels`).
+- Wrapper workflows should call reusable workflows with explicit `with:` values, even when matching defaults, to keep intent visible.
+- Schedule comments should always be in UTC and in English (for cross-team readability).
+- Issue body templates should use token placeholders (for example `{{ISSUE_URL}}`) and be rendered in the reusable workflow.
+
 ---
 
 ## Environment Validation

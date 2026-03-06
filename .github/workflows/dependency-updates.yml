@@ -2,7 +2,7 @@ name: Dependency Updates
 
 on:
   schedule:
-    - cron: "0 9 * * 1" # Todas as segundas às 9:00 UTC
+    - cron: "0 9 * * 1" # Every Monday at 09:00 UTC
   workflow_dispatch:
 
 permissions:
@@ -13,3 +13,25 @@ permissions:
 jobs:
   check-and-update:
     uses: ./.github/workflows/reusable-dependency-update.yml
+    with:
+      report-file: deps-report.md
+      check-command: npm run deps:check
+      no-updates-pattern: Nenhuma dependência desatualizada
+      update-command: |
+        npm run deps:update
+        npm install
+      issue-title: Automated Dependency Updates Report
+      issue-search-query: in:title Automated Dependency Updates Report
+      issue-labels: dependencies
+      pr-commit-message: chore(deps): autoupdate dependencies across workspaces
+      pr-title: chore(deps): automated update for dependencies
+      pr-body-template: |
+        ## 🔄 Atualização Automática de Dependências
+
+        Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `npm run deps:check`**.
+
+        O relatório detalhado pode ser discutido na Issue: {{ISSUE_URL}}
+
+        O PR está criado e mantido nesta branch única para testes e validação contínua ao longo do mês.
+      pr-branch: bot/dependency-updates
+      pr-labels: dependencies
