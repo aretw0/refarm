@@ -8,6 +8,9 @@
     "dev": "turbo dev",
     "lint": "turbo lint",
     "test": "turbo test",
+    "test:unit": "turbo test:unit",
+    "test:integration": "turbo test:integration",
+    "type-check": "turbo type-check",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "deps:check": "node scripts/check-deps.mjs",
     "deps:update": "node scripts/check-deps.mjs --update",
@@ -17,7 +20,8 @@
     "changeset:publish": "changeset publish",
     "i18n:check": "node scripts/check-locales.mjs",
     "diagrams:check": "node scripts/check-diagrams.mjs",
-    "diagrams:fix": "node scripts/check-diagrams.mjs --fix"
+    "diagrams:fix": "node scripts/check-diagrams.mjs --fix",
+    "hooks:install": "node scripts/install-git-hooks.mjs"
   },
   "workspaces": [
     "apps/*",
