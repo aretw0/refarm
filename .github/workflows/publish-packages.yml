@@ -1,0 +1,140 @@
+name: Publish Packages
+
+# Triggered by pushing tags like:
+# @refarm-dev/storage-contract-v1@0.1.0
+# @refarm-dev/sync-contract-v1@0.1.0
+# etc.
+
+on:
+  push:
+    tags:
+      - "@refarm-dev/storage-contract-v1@*"
+      - "@refarm-dev/sync-contract-v1@*"
+      - "@refarm-dev/identity-contract-v1@*"
+      - "@refarm-dev/plugin-manifest@*"
+
+jobs:
+  publish:
+    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    name: Publish to npm
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # For creating releases
+      id-token: write # For npm provenance
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          node-version: "22"
+
+      - name: Build all packages
+        run: npm run build --workspaces
+
+      - name: Extract package info from tag
+        id: pkg
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          # Extract package name and version
+          # Example: @refarm-dev/storage-contract-v1@0.1.0
+          # → name=@refarm-dev/storage-contract-v1, version=0.1.0
+          PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
+          VERSION=$(echo "$TAG" | sed 's/.*@//')
+
+          # Determine workspace directory
+          # @refarm-dev/storage-contract-v1 → packages/storage-contract-v1
+          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm-dev\///')
+
+          echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "workspace=$WORKSPACE" >> $GITHUB_OUTPUT
+
+          echo "📦 Publishing: $PKG_NAME@$VERSION"
+          echo "📁 Workspace: packages/$WORKSPACE"
+
+      - name: Verify package version matches tag
+        working-directory: packages/${{ steps.pkg.outputs.workspace }}
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          TAG_VERSION="${{ steps.pkg.outputs.version }}"
+
+          if [ "$PKG_VERSION" != "$TAG_VERSION" ]; then
+            echo "❌ Version mismatch!"
+            echo "   Tag version: $TAG_VERSION"
+            echo "   package.json: $PKG_VERSION"
+            echo ""
+            echo "Fix by running:"
+            echo "  cd packages/${{ steps.pkg.outputs.workspace }}"
+            echo "  npm version $TAG_VERSION --no-git-tag-version"
+            echo "  git add package.json"
+            echo "  git commit --amend --no-edit"
+            exit 1
+          fi
+
+          echo "✅ Version $PKG_VERSION matches tag"
+
+      - name: Run type checks
+        run: npm run lint --workspaces
+
+      - name: Run conformance tests
+        run: npm run test:capabilities
+
+      - name: Dry-run publish (validation)
+        working-directory: packages/${{ steps.pkg.outputs.workspace }}
+        run: |
+          echo "🔍 Validating package contents..."
+          npm publish --dry-run
+
+      - name: Configure npm authentication
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+
+      - name: Publish to npm
+        working-directory: packages/${{ steps.pkg.outputs.workspace }}
+        run: |
+          echo "🚀 Publishing ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}"
+          npm publish --provenance --access public
+
+      - name: Create GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRERELEASE="false"
+          if echo "${{ steps.pkg.outputs.version }}" | grep -Eq -- '-(alpha|beta|rc)'; then
+            PRERELEASE="true"
+          fi
+
+          gh release create "${{ github.ref_name }}" \
+            --title "Release ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}" \
+            --notes "## ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}
+
+Published to npm: https://www.npmjs.com/package/${{ steps.pkg.outputs.name }}/v/${{ steps.pkg.outputs.version }}
+
+### Installation
+
+\`\`\`bash
+npm install ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
+\`\`\`
+
+### Changes
+
+See [CHANGELOG.md](https://github.com/refarm-dev/refarm/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details." \
+            $( [ "$PRERELEASE" = "true" ] && echo "--prerelease" )
+
+      - name: Post-publish verification
+        run: |
+          echo "⏳ Waiting for npm registry propagation (30s)..."
+          sleep 30
+
+          echo "🔍 Verifying package is available..."
+          npm view ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }} --json
+
+          echo "✅ Package published successfully!"
