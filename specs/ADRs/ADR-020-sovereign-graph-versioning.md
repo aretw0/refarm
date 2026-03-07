@@ -1,7 +1,9 @@
 # ADR-020: Sovereign Graph Versioning
 
-**Status**: Proposed  
+**Status**: ✏️ PROPOSED (Design Complete, Implementation Pending)  
 **Date**: 2026-03-07  
+**Target Version**: v0.2.0-0.3.0  
+**Blocking Implementation**: Requires Sprint 2 commitment + 30+ invariant tests before acceptance
 **Deciders**: Core Team  
 **Related**: ADR-002 (Offline-first), ADR-003 (CRDT), ADR-010 (Schema Evolution), ADR-017 (Micro-kernel)
 
@@ -29,7 +31,7 @@ Without explicit versioning, users face:
 
 **Implement Sovereign Graph Versioning with 4 invariant-testable primitives: `commit`, `branch`, `checkout`, `revert`.**
 
-This is **foundational, not post-MVP**. Before `1.0.0`, all 4 primitives must satisfy invariants below.
+**IMPORTANT**: This ADR is DIRECTION-SETTING (not yet executable). Actual implementation + test suite must happen in Sprint 2-3 before this becomes an "Accepted" contract. No user-facing features should depend on this in v0.1.x.
 
 ### Primitive 1: Commit (Immutable Snapshot)
 
