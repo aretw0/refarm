@@ -41,9 +41,12 @@ class InMemoryIdentityProvider implements IdentityProvider {
   async verify(signature: string, data: string): Promise<VerificationResult> {
     const stored = this.signatures.get(signature);
     const valid = stored !== undefined && stored.data === data;
-    const identity = stored
-      ? this.identities.get(stored.identityId)!
-      : this.identities.values().next().value;
+    const identity = stored ? this.identities.get(stored.identityId) : undefined;
+
+    if (!identity) {
+      throw new Error("identity not found for signature");
+    }
+
     return {
       valid,
       identity,
