@@ -19,6 +19,8 @@ Architecture Decision Records for Refarm.
 | [010](ADR-010-schema-evolution.md) | JSON-LD Schema Evolution (Lenses & Upcasting) | Accepted | 2026-03-06 |
 | [013](ADR-013-testing-strategy.md) | Testing Strategy (Vitest + Playwright) | Accepted | 2026-03-06 |
 | [016](ADR-016-headless-ui-contract.md) | Headless UI Contract and Token Strategy | Proposed | 2026-03-07 |
+| [017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) | Studio Micro-Kernel and Plugin Boundary | Accepted | 2026-03-07 |
+| [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates | Accepted | 2026-03-07 |
 
 ---
 
@@ -30,10 +32,9 @@ Architecture Decision Records for Refarm.
 | 011 | Plugin Marketplace (NIP-89/94) | v0.4.0 | Planned |
 | 012 | LLM Execution Strategy (WebLLM) | v0.3.0 | Planned |
 | 014 | Model Selection Criteria (size, performance, licensing) | v0.3.0 | Planned |
-| 015 | SQLite Engine Choice (wa-sqlite vs sql.js) | v0.1.0 | Planned |
 
 **Note**: Planned ADRs are reserved numbers for upcoming decisions. They will be created when their milestone begins.  
-**Priority**: ADR 015 is needed before v0.1.0 SDD phase can complete.
+**Priority**: Keep planned ADRs aligned with milestones and avoid duplicating accepted ADR numbers.
 
 ---
 
