@@ -61,6 +61,56 @@ Each section includes:
 
 ---
 
+### Market & Strategy Analysis
+
+**[competitive-analysis.md](./competitive-analysis.md)**  
+*Status*: ✅ Complete (March 2026)  
+*Purpose*: Strategic positioning and competitive differentiation
+
+Deep-dive comparison with major competitors:
+
+- **SilverBullet** — Direct competitor (PWA, Markdown, programmable, offline-first)
+- **Obsidian** — Market leader (1M+ users, plugins, graph)
+- **Logseq** — Open-source outliner (linked references, queries)
+- **Anytype** — Privacy-first P2P (encrypted, block-based)
+
+Includes:
+
+- 📊 Feature comparison matrix
+- 🎯 SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
+- 💡 Strategic differentiation (WASM sandbox, JSON-LD, Nostr identity)
+- 🚀 Competitive advantages and positioning
+- 📈 Recommendations by phase (v0.1.0 through v1.0.0)
+
+**→ Use this when**: Strategic planning; explaining market position; prioritizing features vs competitors; investor/community communication.
+
+---
+
+**[browser-extension-discussion.md](./browser-extension-discussion.md)**  
+*Status*: ✅ Complete (March 2026)  
+*Decision*: Defer to v0.7.0+ (PWA is sufficient for MVP)
+
+Analyzes necessity of browser extension vs PWA-only approach:
+
+**Key Findings:**
+
+- PWA covers 90% of functionality natively (offline, storage, notifications)
+- Extension adds marginal value for: web clipping, context menus, side panel
+- Bookmarklet + Web Share Target sufficient for v0.1.0-v0.6.0
+- Build extension only when ≥100 users + explicit demand
+
+Includes:
+
+- 🔍 Use case analysis (clipping, context menus, background sync, sidebar)
+- 🏗️ Architecture options (light forwarding vs embedded kernel)
+- ⚖️ PWA vs Extension comparison table
+- 📅 Phased recommendations (when to build, what features)
+- 🔧 Alternative solutions (bookmarklet, Web Share Target, File System Access)
+
+**→ Use this when**: Planning v0.4.0+ roadmap; evaluating extension requests; explaining why PWA-first strategy.
+
+---
+
 ### Phases 2-4: Future Research
 
 **[phases2-4-technical-research.md](./phases2-4-technical-research.md)**  
@@ -155,11 +205,16 @@ Implementation (src/**)
 
 | Research | Status | Phase | Result |
 |----------|--------|-------|--------|
+| **Technical Validations** | | | |
 | WebLLM + Web Workers | ✅ Complete | 1 | **Viable** - Worker pattern supported, non-blocking UI confirmed |
 | CRDT + OPFS Quota | ✅ Complete | 1 | **Viable** - 100GB practical limit, Yjs 13x faster than alternatives |
 | SQLite WASM | ✅ Complete | 1 | **Viable** - Sub-100ms parse time, sync access handle for WASM |
 | WASM Sandboxing | ✅ Complete | 1 | **Viable** - Capability-based WASI Preview 2 supports enforcement |
 | Nostr Integration | ✅ Complete | 1 | **Viable** - NIP-01, NIP-05, NIP-65 proven in production |
+| **Strategic Analysis** | | | |
+| Competitive Analysis | ✅ Complete | All | **Complete** - Positioning vs SilverBullet, Obsidian, Logseq, Anytype |
+| Browser Extension Need | ✅ Complete | All | **Decision: Defer to v0.7.0+** - PWA sufficient, bookmarklet + Web Share Target cover MVP |
+| **Future Research** | | | |
 | Live Queries (GraphQL) | ✅ Complete | 2 | **Researched** - Ready for Phase 2+ planning |
 | Vector Search (HNSW) | ✅ Complete | 2 | **Researched** - Ready for semantic search phase |
 | Fine-tuning (LoRA) | ✅ Complete | 2 | **Pending** - Validate WebLLM adapter support |
