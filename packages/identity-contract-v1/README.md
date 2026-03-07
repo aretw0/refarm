@@ -1,11 +1,11 @@
-# @refarm/identity-contract-v1
+# @refarm.dev/identity-contract-v1
 
 Versioned identity capability contract for Refarm plugin ecosystem.
 
 ## Installation
 
 ```bash
-npm install @refarm/identity-contract-v1
+npm install @refarm.dev/identity-contract-v1
 ```
 
 ## Usage
@@ -22,7 +22,7 @@ import {
   type SignatureResult,
   type VerificationResult,
   IDENTITY_CAPABILITY
-} from "@refarm/identity-contract-v1";
+} from "@refarm.dev/identity-contract-v1";
 
 export class MyIdentityProvider implements IdentityProvider {
   readonly pluginId = "@mycompany/identity-passkeys";
@@ -64,7 +64,7 @@ describe("MyIdentityProvider conformance", () => {
 Use any `identity:v1` compatible provider:
 
 ```typescript
-import type { IdentityProvider } from "@refarm/identity-contract-v1";
+import type { IdentityProvider } from "@refarm.dev/identity-contract-v1";
 import { createMyIdentityProvider } from "@mycompany/identity-passkeys";
 
 const identity: IdentityProvider = createMyIdentityProvider();

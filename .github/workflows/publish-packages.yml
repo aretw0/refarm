@@ -8,10 +8,10 @@ name: Publish Packages
 on:
   push:
     tags:
-      - "@refarm-dev/storage-contract-v1@*"
-      - "@refarm-dev/sync-contract-v1@*"
-      - "@refarm-dev/identity-contract-v1@*"
-      - "@refarm-dev/plugin-manifest@*"
+      - "@refarm.dev/storage-contract-v1@*"
+      - "@refarm.dev/sync-contract-v1@*"
+      - "@refarm.dev/identity-contract-v1@*"
+      - "@refarm.dev/plugin-manifest@*"
 
 jobs:
   publish:
@@ -44,14 +44,14 @@ jobs:
           TAG="${{ github.ref_name }}"
 
           # Extract package name and version
-          # Example: @refarm-dev/storage-contract-v1@0.1.0
-          # → name=@refarm-dev/storage-contract-v1, version=0.1.0
+          # Example: @refarm.dev/storage-contract-v1@0.1.0
+          # → name=@refarm.dev/storage-contract-v1, version=0.1.0
           PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
           VERSION=$(echo "$TAG" | sed 's/.*@//')
 
           # Determine workspace directory
-          # @refarm-dev/storage-contract-v1 → packages/storage-contract-v1
-          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm-dev\///')
+          # @refarm.dev/storage-contract-v1 → packages/storage-contract-v1
+          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm\.dev\///')
 
           echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT

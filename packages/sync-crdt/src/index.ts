@@ -1,5 +1,5 @@
 /**
- * @refarm/sync-crdt
+ * @refarm.dev/sync-crdt
  *
  * CRDT-based sync primitive.
  *

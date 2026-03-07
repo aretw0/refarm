@@ -1,5 +1,5 @@
 {
-  "name": "@refarm/sync-contract-v1",
+  "name": "@refarm.dev/sync-contract-v1",
   "version": "0.1.0",
   "description": "Versioned sync capability contract (sync:v1) and conformance suite",
   "type": "module",

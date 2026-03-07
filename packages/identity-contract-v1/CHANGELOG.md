@@ -1,4 +1,4 @@
-# @refarm/identity-contract-v1
+# @refarm.dev/identity-contract-v1
 
 ## 0.1.0
 

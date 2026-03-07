@@ -9,7 +9,7 @@ import {
 } from "./index.js";
 
 class InMemoryStorageProvider implements StorageProvider {
-  readonly pluginId = "@refarm/storage-memory-test";
+  readonly pluginId = "@refarm.dev/storage-memory-test";
   readonly capability = STORAGE_CAPABILITY;
 
   private readonly rows = new Map<string, StorageRecord>();

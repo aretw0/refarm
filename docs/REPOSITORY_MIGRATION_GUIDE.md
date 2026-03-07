@@ -67,14 +67,14 @@
 
 **Verificar disponibilidade:**
 ```bash
-npm view @refarm/storage-contract-v1  # Should be 404 if available
+npm view @refarm.dev/storage-contract-v1  # Should be 404 if available
 ```
 
 Se disponível E quiser investir:
 1. https://www.npmjs.com/org/create
 2. Organization name: `refarm`
 3. Invite members da org GitHub
-4. Atualizar todos os package.json: `@refarm-dev/*` → `@refarm/*`
+4. Atualizar todos os package.json: `@refarm-dev/*` → `@refarm.dev/*`
 
 **Recomendação:** Começar com `@refarm-dev`, migrar para `@refarm` quando tiver tração.
 
@@ -88,10 +88,10 @@ name: Publish Packages
 on:
   push:
     tags:
-      - '@refarm-dev/storage-contract-v1@*'
-      - '@refarm-dev/sync-contract-v1@*'
-      - '@refarm-dev/identity-contract-v1@*'
-      - '@refarm-dev/plugin-manifest@*'
+      - '@refarm.dev/storage-contract-v1@*'
+      - '@refarm.dev/sync-contract-v1@*'
+      - '@refarm.dev/identity-contract-v1@*'
+      - '@refarm.dev/plugin-manifest@*'
 
 jobs:
   publish:
@@ -176,10 +176,10 @@ cd ../..
 # 3. Commit + tag
 git add packages/storage-contract-v1/package.json
 git commit -m "chore(storage-contract-v1): release v0.1.1"
-git tag @refarm-dev/storage-contract-v1@0.1.1
+git tag @refarm.dev/storage-contract-v1@0.1.1
 
 # 4. Push tag (dispara CI)
-git push origin @refarm-dev/storage-contract-v1@0.1.1
+git push origin @refarm.dev/storage-contract-v1@0.1.1
 
 # 5. Acompanhar
 # GitHub Actions → Publish Packages workflow
@@ -189,7 +189,7 @@ git push origin @refarm-dev/storage-contract-v1@0.1.1
 **Rollback se necessário:**
 ```bash
 # Deprecate version no npm
-npm deprecate @refarm-dev/storage-contract-v1@0.1.1 "Yanked - use 0.1.2+"
+npm deprecate @refarm.dev/storage-contract-v1@0.1.1 "Yanked - use 0.1.2+"
 
 # Publish hotfix
 npm version patch
@@ -208,12 +208,12 @@ npm publish
 
 Após primeira publicação:
 
-1. **npm package page:** https://www.npmjs.com/package/@refarm-dev/storage-contract-v1
+1. **npm package page:** https://www.npmjs.com/package/@refarm.dev/storage-contract-v1
 2. **Download stats:** npm trends
 3. **Security:** Snyk/Dependabot para vulnerabilidades
 4. **Badge no README:**
    ```markdown
-   [![npm version](https://img.shields.io/npm/v/@refarm-dev/storage-contract-v1)](https://www.npmjs.com/package/@refarm-dev/storage-contract-v1)
+   [![npm version](https://img.shields.io/npm/v/@refarm.dev/storage-contract-v1)](https://www.npmjs.com/package/@refarm.dev/storage-contract-v1)
    ```
 
 ## ⚠️ Rollout Seguro
