@@ -1,0 +1,14 @@
+{
+  "id": "@refarm/hello-world-plugin",
+  "name": "Hello World Plugin",
+  "version": "0.1.0",
+  "entry": "./src/generated/hello-world.js",
+  "capabilities": {
+    "provides": ["integration:hello-world"],
+    "requires": ["kernel:storage"]
+  },
+  "permissions": ["storage:read", "storage:write"],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+  }
+}
