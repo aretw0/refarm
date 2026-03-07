@@ -9,7 +9,8 @@
 - Ecosystem growth depends on consistent component behavior across core and plugins
 - Guest mode onboarding demands zero-friction UI with sane defaults
 
-**Related**: 
+**Related**:
+
 - [Design System Bootstrap Discussion](../../docs/research/design-system-bootstrap-discussion.md)
 - [A11Y & i18n Guide](../../docs/A11Y_I18N_GUIDE.md)
 - ADR-008: Ecosystem Technology Boundary

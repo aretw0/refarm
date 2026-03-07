@@ -53,7 +53,7 @@ Session Management provides the lifecycle handling for user sessions in Refarm, 
 
 ### AC2: Storage Tier Selection
 
-2. **Given** a guest session is being created  
+1. **Given** a guest session is being created  
    **When** user selects a storage tier (ephemeral/persistent/synced)  
    **Then** session is configured with chosen tier
    - Ephemeral: data in memory only
@@ -62,7 +62,7 @@ Session Management provides the lifecycle handling for user sessions in Refarm, 
 
 ### AC3: Session Persistence
 
-3. **Given** a guest session with persistent tier  
+1. **Given** a guest session with persistent tier  
    **When** user closes browser and returns  
    **Then** session is restored from localStorage
    - VaultId matches previous session
@@ -71,7 +71,7 @@ Session Management provides the lifecycle handling for user sessions in Refarm, 
 
 ### AC4: Upgrade to Permanent
 
-4. **Given** an active guest session  
+1. **Given** an active guest session  
    **When** user clicks "Upgrade to Permanent" and provides Nostr key  
    **Then** session upgrades to permanent
    - VaultId changes from UUID → Nostr pubkey
@@ -81,7 +81,7 @@ Session Management provides the lifecycle handling for user sessions in Refarm, 
 
 ### AC5: Session Destruction
 
-5. **Given** a guest or permanent session  
+1. **Given** a guest or permanent session  
    **When** user clicks "Delete All Data"  
    **Then** session is destroyed
    - localStorage cleared

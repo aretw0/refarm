@@ -9,6 +9,7 @@
 > "You don't build a game engine on Day 1. But you should build a foundation that COULD become a game engine without rewriting everything."
 
 **This document is NOT a roadmap.** These are **thought experiments** to validate that:
+
 1. Offline-first + CRDT + Plugin architecture can handle these
 2. We're not painting ourselves into a corner
 3. When someone builds these, they won't fight the system
@@ -17,7 +18,7 @@
 
 ## Scenario 1: Collaborative Diagram Editor (Miro/Figma-like)
 
-**User Story**: 
+**User Story**:
 > "I want 50 people editing a flowchart in real-time, some logged in, some as guests, some offline. Changes should sync instantly when online. Offline users should see what they can edit, and merge cleanly when back online."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -72,6 +73,7 @@
 ```
 
 **Performance Test Target:**
+
 - 10,000 nodes
 - 50 concurrent users
 - 60fps rendering (canvas plugin)
@@ -87,7 +89,7 @@
 
 ## Scenario 2: Game Engine (Unity/Godot-like)
 
-**User Story**: 
+**User Story**:
 > "I want to build a 2D game where entities (player, enemies, items) are nodes in the graph. Plugins handle rendering, physics, input. Game state syncs across devices for multiplayer."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -141,6 +143,7 @@
 ```
 
 **Performance Test Target:**
+
 - 1,000 entities
 - 60fps rendering
 - < 16ms physics tick
@@ -156,7 +159,7 @@
 
 ## Scenario 3: Nostr Social App (Decentralized Twitter)
 
-**User Story**: 
+**User Story**:
 > "I want to post notes, follow people, see feed. Works offline. Syncs with Nostr relays when online. I control my data."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -210,6 +213,7 @@
 ```
 
 **Performance Test Target:**
+
 - 10,000 posts in local graph
 - < 1 second to render feed
 - < 5 seconds to sync with relays
@@ -224,7 +228,7 @@
 
 ## Scenario 4: Personal Knowledge Management (Obsidian/Notion-like)
 
-**User Story**: 
+**User Story**:
 > "I want to write notes, link them (backlinks), tag them, search them. Works offline. Syncs to my phone. I can export to Markdown anytime."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -279,6 +283,7 @@
 ```
 
 **Performance Test Target:**
+
 - 100,000 notes
 - < 100ms full-text search
 - < 1 second to render note + backlinks
@@ -293,7 +298,7 @@
 
 ## Scenario 5: Data Analysis Dashboard (Observable/Jupyter-like)
 
-**User Story**: 
+**User Story**:
 > "I want to load CSV data, run SQL queries, visualize results (charts, tables). Queries run client-side (DuckDB WASM). Dashboards shareable."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -351,6 +356,7 @@
 ```
 
 **Performance Test Target:**
+
 - 1M rows in SQLite
 - < 100ms SQL query
 - < 1 second to render chart
@@ -365,7 +371,7 @@
 
 ## Scenario 6: Email Client (Proton Mail-like)
 
-**User Story**: 
+**User Story**:
 > "I want to read/send email offline. Emails stored locally (encrypted). Syncs with IMAP when online. I control my data."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -416,6 +422,7 @@
 ```
 
 **Performance Test Target:**
+
 - 100,000 emails
 - < 100ms search
 - < 1 second to render email
@@ -430,7 +437,7 @@
 
 ## Scenario 7: Project Management (Linear/Asana-like)
 
-**User Story**: 
+**User Story**:
 > "I want to create tasks, assign them, track progress. Works offline. Syncs across team. I can customize workflows."
 
 ### What Refarm Provides Today (v0.1.0)
@@ -480,6 +487,7 @@
 ```
 
 **Performance Test Target:**
+
 - 10,000 tasks
 - < 100ms to render Kanban board
 - < 1 second to render Gantt chart
@@ -497,6 +505,7 @@
 ### 1. **Sovereign Graph** (Universal Data Model)
 
 All scenarios use graph as data model:
+
 - Diagram editor: Boxes/arrows = nodes/edges
 - Game: Entities = nodes, components = fields
 - Social: Users/posts = nodes
@@ -510,6 +519,7 @@ All scenarios use graph as data model:
 ### 2. **Offline-First + CRDT** (Works Anywhere)
 
 All scenarios work offline:
+
 - Create/edit content offline
 - Sync when online (CRDT merges conflicts)
 - No "waiting for server" UX
@@ -519,6 +529,7 @@ All scenarios work offline:
 ### 3. **Plugin System** (Infinite Extensibility)
 
 All scenarios need custom plugins:
+
 - Rendering (canvas, WebGL, SVG)
 - Input (keyboard, mouse, gamepad)
 - Sync (relays, IMAP, APIs)
@@ -529,6 +540,7 @@ All scenarios need custom plugins:
 ### 4. **Schema Evolution** (Future-Proof)
 
 All scenarios evolve over time:
+
 - Add "priority" field to tasks (backward compatible)
 - Add "style" field to diagram boxes
 - Add "tags" field to notes
@@ -538,6 +550,7 @@ All scenarios evolve over time:
 ### 5. **Identity + Permissions** (User Control)
 
 All scenarios need identity:
+
 - Who created this task?
 - Who can edit this diagram?
 - Who owns this note?
@@ -572,23 +585,27 @@ If **YES to all 5**, the scenario is achievable.
 ## What This Means for v0.1.0 → v1.0.0
 
 **v0.1.0**: Prove the foundation works
+
 - ✅ Contracts tested (12 tests)
 - ✅ CRDT sync works
 - ✅ Offline-first works
 - ✅ Plugin system works
 
 **v0.2.0**: Prove it scales
+
 - Graph versioning (ADR-020)
 - Observability (ADR-007)
 - License metadata
 - First reference plugins (Resource Observatory, License Selector)
 
 **v0.3.0**: Prove it's resilient
+
 - Self-healing (ADR-021)
 - Plugin citizenship (quota enforcement)
 - Policy declarations (ADR-022)
 
 **v1.0.0**: Prove it's production-ready
+
 - All invariants tested (100+ tests)
 - Multi-device validated
 - Third-party plugin ecosystem
@@ -607,6 +624,7 @@ You're building **a foundation that COULD become Miro** with the right plugins.
 **That's the difference between a good architecture and wishful thinking.**
 
 And that's why you're spending so much time on:
+
 - Offline-first (works anywhere)
 - CRDT (handles conflicts)
 - Plugins (infinite extensibility)

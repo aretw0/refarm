@@ -26,6 +26,7 @@
 ### 1. Google Docs: Soft Visual Lock (Not Enforced)
 
 **How it works**:
+
 ```
 User A is typing in paragraph 3 → cursor visible to others
 User B sees "User A is editing" → visual indicator
@@ -34,18 +35,21 @@ Result: Operational Transform (OT) merges changes
 ```
 
 **Architecture**:
+
 - Central server holds canonical state
 - Client sends operations (insert char at position X)
 - Server orders operations, broadcasts to all clients
 - **Lock is UX only** (visual feedback, not enforced)
 
 **Trade-offs**:
+
 - ✅ Low conflict rate (visual deterrent)
 - ✅ No one blocked
 - ❌ Doesn't work offline (needs server)
 - ❌ Can still have conflicts (if two users type simultaneously)
 
 **Why Refarm is different**:
+
 - Refarm private branch = **enforced lock** (other users truly blocked)
 - But also supports soft lock (Pattern 1) if wanted
 - Works offline (branch is local until merged)
@@ -55,6 +59,7 @@ Result: Operational Transform (OT) merges changes
 ### 2. Notion: Hard Page Lock
 
 **How it works**:
+
 ```
 User A opens page for editing → page locked
 User B tries to open → "User A is editing" (read-only)
@@ -63,12 +68,14 @@ User B can now edit
 ```
 
 **Architecture**:
+
 - Server maintains lock table (pageId → userId + timestamp)
 - Client sends `lock_acquire` request
 - Server grants or denies (only one user can hold lock)
 - Lock released on disconnect or timeout
 
 **Trade-offs**:
+
 - ✅ No conflicts (only one writer at a time)
 - ✅ Clear ownership (user knows they have exclusive access)
 - ❌ Blocks collaboration (only one person can edit)
@@ -76,6 +83,7 @@ User B can now edit
 - ❌ Lock can expire unexpectedly (user lose work if not saved)
 
 **Why Refarm is different**:
+
 - Refarm private branch = **offline lock** (no server needed)
 - Lock expiry → auto-merge (user's work preserved)
 - Supports hard lock (Pattern 2) but **offline-first compatible**
@@ -85,6 +93,7 @@ User B can now edit
 ### 3. Figma: Optimistic + Conflict Warning
 
 **How it works**:
+
 ```
 User A moves object → broadcasts to server
 User B moves same object → broadcasts to server
@@ -94,18 +103,21 @@ Optional: Warning "User B also edited this" (soft alert)
 ```
 
 **Architecture**:
+
 - CRDT-inspired (though not pure CRDT, proprietary "Figma merge")
 - No locks, all edits succeed
 - Server detects conflicts post-hoc
 - Optional conflict warnings in UI
 
 **Trade-offs**:
+
 - ✅ Highly collaborative (50+ users can edit simultaneously)
 - ✅ No blocking
 - ⚠️ Conflicts still happen (but rare due to spatial nature)
 - ❌ Offline support limited (local changes queue, merge on reconnect)
 
 **Why Refarm is different**:
+
 - Refarm CRDT is **true offline-first** (Yjs, proven algorithm)
 - Supports optimistic (default) AND pessimistic (opt-in)
 - Conflict preview (Pattern 3) shows conflicts **before merge** (Git-style)
@@ -115,6 +127,7 @@ Optional: Warning "User B also edited this" (soft alert)
 ### 4. Git: Explicit Branch (Manual Workflow)
 
 **How it works**:
+
 ```
 Developer: git checkout -b feature-x (create branch)
 → All work on feature-x branch (isolated)
@@ -124,12 +137,14 @@ Developer: git checkout -b feature-x (create branch)
 ```
 
 **Architecture**:
+
 - Distributed (no central lock server)
 - Branch = isolated workspace (full copy of state)
 - Merge = explicit operation (user decides when)
 - Conflicts = manual resolution (diff editor)
 
 **Trade-offs**:
+
 - ✅ Full offline support (Git is distributed)
 - ✅ Complete isolation (branch = safe experimentation)
 - ✅ Powerful merge strategies (rebase, squash, 3-way merge)
@@ -137,6 +152,7 @@ Developer: git checkout -b feature-x (create branch)
 - ❌ Manual resolution required (no auto-merge)
 
 **Why Refarm is different**:
+
 - Refarm private branch = **automatic Git workflow** (UX abstraction)
 - "Edit Task" → creates branch → user edits → "Save" → auto-merge
 - Conflict resolution UI (not command-line)
@@ -147,6 +163,7 @@ Developer: git checkout -b feature-x (create branch)
 ### 5. Linear: Pure Optimistic (No Locks)
 
 **How it works**:
+
 ```
 User A edits issue priority → writes to CRDT
 User B edits issue priority → writes to CRDT
@@ -155,12 +172,14 @@ No locks, no warnings, just works
 ```
 
 **Architecture**:
+
 - Sync engine (similar to Replicache/CRDT)
 - Client sends mutations → server applies → broadcasts
 - Conflicts resolved automatically (last-write-wins)
 - **No lock concept at all**
 
 **Trade-offs**:
+
 - ✅ Simple mental model (just edit, it syncs)
 - ✅ Offline works (local mutations queue)
 - ✅ Fast (no lock acquisition overhead)
@@ -168,6 +187,7 @@ No locks, no warnings, just works
 - ❌ No way to "claim" exclusive editing
 
 **Why Refarm is different**:
+
 - Refarm **default** is same as Linear (pure optimistic)
 - But ADR-024 adds **optional pessimistic mode** (when needed)
 - User/plugin chooses per workflow
@@ -177,6 +197,7 @@ No locks, no warnings, just works
 ### 6. Confluence: Page Lock on Edit
 
 **How it works**:
+
 ```
 User A clicks "Edit" → page locked (30 minutes)
 User B tries to edit → "Page is locked" (can view only)
@@ -185,17 +206,20 @@ User A must save → or changes lost
 ```
 
 **Architecture**:
+
 - Server-side lock (pageId → userId + timestamp)
 - Lock expires after 30 minutes (hard limit)
 - No auto-save → user loses work if lock expires
 
 **Trade-offs**:
+
 - ✅ No conflicts (only one editor)
 - ❌ Terrible UX (lock expires mid-edit)
 - ❌ No offline support
 - ❌ Users lose work frequently
 
 **Why Refarm is different**:
+
 - Refarm lock expiry → **auto-merge** (never lose work)
 - Private branch preserves changes even if lock expires
 - Offline edits always saved
@@ -205,6 +229,7 @@ User A must save → or changes lost
 ### 7. Dropbox Paper: Soft Lock (Visual, Block-Level)
 
 **How it works**:
+
 ```
 User A types in block 5 → cursor visible
 User B sees "User A is editing this block"
@@ -213,17 +238,20 @@ Visual lock (not enforced) → rare conflicts
 ```
 
 **Architecture**:
+
 - Similar to Google Docs (OT-based)
 - Block-level visual locks (paragraph, image, etc.)
 - Presence-based (disconnected → lock released)
 
 **Trade-offs**:
+
 - ✅ Fine-grained (block-level, not page-level)
 - ✅ Collaborative (multiple users in different blocks)
 - ❌ No offline support
 - ❌ Visual lock can be ignored (not enforced)
 
 **Why Refarm is different**:
+
 - Refarm supports **field-level locks** (even finer than blocks)
 - Enforced (not just visual)
 - Works offline
@@ -233,6 +261,7 @@ Visual lock (not enforced) → rare conflicts
 ### 8. Roam Research: Pure Optimistic
 
 **How it works**:
+
 ```
 User A edits block → CRDT merge
 User B edits same block → CRDT merge
@@ -240,17 +269,20 @@ Result: Both edits preserved (character-level merge)
 ```
 
 **Architecture**:
+
 - CRDT-based (likely Automerge or similar)
 - No locks, all edits merge
 - Offline-first (local-first)
 
 **Trade-offs**:
+
 - ✅ Highly collaborative
 - ✅ Offline works perfectly
 - ❌ Merge artifacts (rare but confusing when happens)
 - ❌ No way to prevent conflicts
 
 **Why Refarm is different**:
+
 - Refarm **same default** (CRDT, offline-first)
 - But adds **optional locks** (when CRDT merge isn't desired)
 
@@ -259,6 +291,7 @@ Result: Both edits preserved (character-level merge)
 ### 9. Obsidian: File-System Locks
 
 **How it works**:
+
 ```
 User opens note.md → OS file lock (read-write)
 Another app tries to edit → blocked (or read-only)
@@ -266,17 +299,20 @@ User closes → file unlocked
 ```
 
 **Architecture**:
+
 - OS-level file locks (not collaborative)
 - Single-user (local files)
 - Git can be used for multi-user sync (manual)
 
 **Trade-offs**:
+
 - ✅ Simple (OS handles it)
 - ✅ Offline (local files)
 - ❌ No real-time collaboration
 - ❌ Conflicts on Git merge (manual resolution)
 
 **Why Refarm is different**:
+
 - Refarm is **multi-user by design** (CRDT sync)
 - But can emulate single-user experience (private branch = locked file)
 
@@ -378,6 +414,7 @@ Git: Branches are amazing, but high learning curve.
 - ✅ Solves limited granularity (node/field/subgraph)
 
 **Refarm's approach**:
+
 - **Default**: Optimistic (Linear, Roam model)
 - **Opt-in**: Pessimistic (Git model, but automatic)
 - **Graceful**: Lock expires → CRDT fallback (unique)

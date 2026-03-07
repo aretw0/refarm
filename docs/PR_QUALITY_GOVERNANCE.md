@@ -15,10 +15,12 @@ Este documento define as políticas e mecanismos de controle de qualidade para P
 ### ✅ Comportamento Seguro (Já Implementado)
 
 **Issues são criadas APENAS em:**
+
 - 🕐 Workflows agendados (`schedule`) — execuções semanais programadas
 - 🖱️ Workflows manuais (`workflow_dispatch`) — execuções via UI do GitHub Actions
 
 **Issues NÃO são criadas em:**
+
 - ❌ Pull Requests — workflows apenas **falham checks**, não criam issues
 - ❌ Pushes para branches — workflows apenas reportam falhas nos logs
 - ❌ Merge commits — nenhuma criação automática
@@ -32,6 +34,7 @@ create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_nam
 ```
 
 **Exemplo (validate-diagrams.yml):**
+
 ```yaml
 jobs:
   validate:
@@ -43,6 +46,7 @@ jobs:
 ```
 
 **Resultado:**
+
 - ✅ Se rodar no schedule (segunda-feira 09:00 UTC) → cria issue se falhar
 - ✅ Se rodar manualmente via Actions UI → cria issue se falhar
 - ❌ Se rodar em PR → apenas falha o check, **sem criar issue**
@@ -50,6 +54,7 @@ jobs:
 ### Por que issues em agendamentos?
 
 Issues em workflows agendados são **desejáveis** porque:
+
 - 📊 Rastreiam problemas que surgem ao longo do tempo (dependências desatualizadas, vulnerabilidades novas)
 - 🔔 Alertam a equipe sobre degradação gradual
 - 📝 Centralizam discussão sobre como resolver o problema
@@ -120,6 +125,7 @@ resource "github_branch_protection" "main" {
 ### Por que hooks locais?
 
 Bloquear problemas **antes do push** economiza:
+
 - ⏱️ Tempo de CI/CD (não precisa rodar pipeline para descobrir erro óbvio)
 - 💰 Recursos de runner GitHub Actions
 - 🧠 Contexto mental (não precisa esperar CI falhar para corrigir)
@@ -268,6 +274,7 @@ npm run hooks:install
 ### Por que exigir changeset?
 
 Changesets garantem:
+
 - 📝 Versionamento semântico correto
 - 📋 Changelog automático
 - 🔢 Releases consistentes
@@ -275,12 +282,14 @@ Changesets garantem:
 ### Quando changeset é necessário?
 
 **Necessário:**
+
 - ✅ Novos features (minor bump)
 - ✅ Bug fixes (patch bump)
 - ✅ Breaking changes (major bump)
 - ✅ Mudanças em packages públicos
 
 **Não necessário:**
+
 - ❌ Documentação apenas (`.md`, `.txt`)
 - ❌ Configuração de CI/CD (`.github/workflows`)
 - ❌ Tooling interno (`scripts/`, `validations/`)
@@ -402,10 +411,12 @@ No GitHub UI, adicione o check `check-changeset` aos required status checks.
 Se receber muitas notificações de checks falhando:
 
 **GitHub UI:**
+
 - Settings → Notifications → Actions
 - Uncheck: "Actions workflows: Send notifications for failed workflows only you have triggered"
 
 **CODEOWNERS:**
+
 ```
 # Apenas notificar donos de área específica
 /apps/kernel/**            @username-kernel

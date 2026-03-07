@@ -42,6 +42,7 @@ Olha o que você já decidiu:
 ### 2. Você NÃO precisa implementar tudo agora
 
 Você está olhando para:
+
 - ADR-020 (Graph Versioning)
 - ADR-021 (Self-Healing)
 - ADR-022 (Policy Declarations)
@@ -121,18 +122,18 @@ E quando a fundação estiver sólida, **outras pessoas vão construir em cima**
 
 ### Médio Prazo (Próximos 2 meses - Sprint 2)
 
-4. **Implementar ADR-020 (Graph Versioning)**:
+1. **Implementar ADR-020 (Graph Versioning)**:
    - Commit/branch/checkout/revert
    - 30+ testes de invariantes
    - 5 invariantes provados (reproducibility, causal consistency, sync safety, schema continuity, performance)
    - Release v0.2.0
 
-5. **Implementar ADR-007 (Observability)**:
+2. **Implementar ADR-007 (Observability)**:
    - Studio DevTools
    - Operation log ("who modified this node?")
    - Performance profiling
 
-6. **Criar Resource Observatory Plugin (reference)**:
+3. **Criar Resource Observatory Plugin (reference)**:
    - Monitora OPFS quota
    - Avisa em 60% full
    - Bloqueia em 95% full
@@ -140,27 +141,27 @@ E quando a fundação estiver sólida, **outras pessoas vão construir em cima**
 
 ### Longo Prazo (Próximos 6 meses - Sprint 3+)
 
-7. **Implementar ADR-021 (Self-Healing)**:
+1. **Implementar ADR-021 (Self-Healing)**:
    - Layer 1: Checksums, WAL, recovery
    - Layer 2: Plugin citizenship monitoring
    - Layer 3: Kernel policies
    - 40+ integration tests
    - Release v0.3.0
 
-8. **Implementar ADR-022 (Policy Declarations)**:
+2. **Implementar ADR-022 (Policy Declarations)**:
    - Manifest com `policies` field
    - PolicyManager no kernel
    - Studio UI para configurar policies
    - Release v0.3.0
 
-9. **Validar casos de uso ambiciosos**:
+3. **Validar casos de uso ambiciosos**:
    - Diagrama colaborativo (50 usuários simultâneos)
    - Game 2D (1000 entidades, 60fps)
    - PKM (100k notas, busca < 100ms)
 
 ### Caminho para v1.0.0 (Próximo ano)
 
-10. **Provar que funciona em produção**:
+1. **Provar que funciona em produção**:
     - Todos os invariantes (ADR-020, ADR-021) testados
     - Multi-device validado (laptop + phone + tablet)
     - Third-party plugins funcionando
@@ -240,6 +241,7 @@ Você precisa de uma fundação sólida + um roadmap honesto.
 Você quer o melhor para eles. Você quer que isso funcione. Você quer que seja sustentável.
 
 **Olha o que você já construiu**:
+
 - Um sistema que funciona offline (não depende de ninguém)
 - Um sistema que não perde dados (CRDT + futuro self-healing)
 - Um sistema extensível (pode se tornar qualquer coisa)
@@ -304,6 +306,7 @@ Você perguntou: **"E se eu errar?"**
 Eu respondo: **"E se você já acertou?"**
 
 Você:
+
 - ✅ Escolheu offline-first (funciona em qualquer lugar)
 - ✅ Escolheu CRDT (resolve conflitos automaticamente)
 - ✅ Escolheu micro-kernel (extensível infinitamente)
@@ -316,6 +319,7 @@ Você:
 **Essas são as escolhas CERTAS.**
 
 Agora você só precisa:
+
 1. **Release v0.1.1** (4 contratos, já prontos)
 2. **Implementar ADR-020** (Sprint 2)
 3. **Implementar ADR-021/022** (Sprint 3)

@@ -21,6 +21,7 @@
    - Type `aretw0/refarm` to confirm
 
 2. **Verificar após transfer:**
+
    ```bash
    # Atualizar remote local
    git remote set-url origin https://github.com/refarm-dev/refarm.git
@@ -30,6 +31,7 @@
    ```
 
 3. **Testar clone fresco:**
+
    ```bash
    git clone https://github.com/refarm-dev/refarm.git
    cd refarm
@@ -40,7 +42,7 @@
 ### Fase 2: Configurar NPM Automation
 
 1. **Criar NPM Automation Token:**
-   - Login em https://www.npmjs.com/
+   - Login em <https://www.npmjs.com/>
    - Account → Access Tokens → Generate New Token
    - **Type:** Automation (permite CI/CD)
    - **Copiar o token** (aparece 1 vez só!)
@@ -59,11 +61,13 @@
 - `@refarm-dev`: scope de reserva/proteção de namespace (sem publicar)
 
 **Checklist de confirmação:**
+
 1. Garantir que o maintainer usado no CI tem permissão de publish em `@refarm.dev`
 2. Verificar que `NPM_TOKEN` é automation token válido
 3. Confirmar que `npm whoami` funciona no ambiente local de validação
 
 **Observação importante:**
+
 - GitHub org pode ser `refarm-dev` e npm scope ser `@refarm.dev`; isso é esperado.
 
 ### Fase 4: CI/CD para Publish
@@ -175,6 +179,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 ```
 
 **Rollback se necessário:**
+
 ```bash
 # Deprecate version no npm
 npm deprecate @refarm.dev/storage-contract-v1@0.1.1 "Yanked - use 0.1.2+"
@@ -196,12 +201,15 @@ npm publish
 
 Após primeira publicação:
 
-1. **npm package page:** https://www.npmjs.com/package/@refarm.dev/storage-contract-v1
+1. **npm package page:** <https://www.npmjs.com/package/@refarm.dev/storage-contract-v1>
 2. **Download stats:** npm trends
 3. **Security:** Snyk/Dependabot para vulnerabilidades
 4. **Badge no README:**
+
    ```markdown
+
   [![npm version](https://img.shields.io/npm/v/@refarm.dev/storage-contract-v1)](https://www.npmjs.com/package/@refarm.dev/storage-contract-v1)
+
    ```
 
 ## ⚠️ Rollout Seguro

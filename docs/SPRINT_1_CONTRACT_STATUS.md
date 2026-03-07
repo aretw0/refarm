@@ -16,6 +16,7 @@
 | `@refarm.dev/plugin-manifest@0.1.0` | ✅ 2 validation tests | Ready | ✅ YES |
 
 **Process**:
+
 ```bash
 # This works TODAY
 git tag @refarm.dev/storage-contract-v1@0.1.0
@@ -40,12 +41,14 @@ git push origin @refarm.dev/storage-contract-v1@0.1.0
 | `packages/sync-crdt` | ✅ 2 smoke tests | Partial (CRDT merge + operations) | YES |
 
 **What these test**:
+
 - Kernel can normalize a JSON payload into a sovereign node
 - Plugin loader can track lifecycle (load, execute, error)
 - CRDT can merge and dispatch operations
 - Storage can run migrations idempotently
 
 **What they DON'T test**:
+
 - Multi-device sync convergence
 - Full graph versioning (commit/branch/revert)
 - Plugin citizenship monitoring
@@ -66,12 +69,14 @@ git push origin @refarm.dev/storage-contract-v1@0.1.0
 | [ADR-021](../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing | 🔴 PROPOSED (pseudocode) | ❌ 0 tests | v0.3.0+ |
 
 **What exists**:
+
 - Detailed design specs
 - Code examples (pseudocode)
 - Testing protocols (how to validate)
 - Integration diagrams
 
 **What does NOT exist**:
+
 - Actual implementation
 - Running tests
 - Ability to `npm publish` or `--dry-run`
@@ -126,6 +131,7 @@ npm publish                          # ✅ Available on npm
 ### Option A: Release Only What's Tested (Recommended)
 
 **Sprint 1 Release (v0.1.1)**:
+
 - 4 capability contracts + 12 conformance tests
 - Kernel smoke tests (foundation layer)
 - Documentation of contracts
@@ -134,26 +140,31 @@ npm publish                          # ✅ Available on npm
 **Marketing**: *"Public release of Refarm capability contracts. Stable type definitions and conformance tests for plugin developers."*
 
 **Then**:
+
 - Sprint 2: Implement ADR-007 (Observability) with tests
 - Sprint 2-3: Implement ADR-020 (Graph Versioning) with tests
 - Sprint 3+: Implement ADR-021 (Self-Healing) with tests
 
-**Pros**: 
+**Pros**:
+
 - ✅ Everything that ships has tests
 - ✅ Zero broken promises
 - ✅ Clear roadmap
 
-**Cons**: 
+**Cons**:
+
 - First release is "building blocks only" (contracts, not full app)
 
 ### Option B: Release with Features + Aspirational Roadmap (Risky)
 
 **Sprint 1 Release (v0.1.1 + v0.2.0 Road)**:
+
 - 4 capability contracts + tests ✅
 - Kernel smoke tests ✅
 - Roadmap document showing ADR-020, ADR-021 coming in v0.2/0.3
 
-**Problem**: 
+**Problem**:
+
 - ❌ Nothing new to show beyond contracts
 - ❌ Roadmap is just words without proof
 - ❌ User tries to use Graph Versioning in v0.1.1 → not there → disappointment
@@ -263,11 +274,13 @@ Each of these **must** have before shipping:
 ## Bottom Line for You
 
 **What you're releasing** (v0.1.1):
+
 - Contracts ✅ (tested, documented, publishable)
 - Kernel foundation ✅ (smoke tests passing)
 - Architecture vision 📋 (ADRs clear, detailed)
 
 **What you're NOT releasing** (but have roadmap for):
+
 - Graph versioning ❌ (design done, code next)
 - Self-healing ❌ (design done, code later)
 - Observability SDK ❌ (draft ADR, implementation next)

@@ -361,6 +361,7 @@ Post a comment in this ADR if validation uncovers blockers.
 **Target**: Sprint 1 Pre-BDD Quality Gate (before writing integration tests)
 
 **Execution Plan**:
+
 ```bash
 # Create browser test harness
 cd validations/sqlite-benchmark
@@ -373,6 +374,7 @@ npm run bench:browser  # To be implemented
 ```
 
 **Decision Points**:
+
 - ✅ **If validation passes**: Proceed with wa-sqlite as planned
 - ⚠️ **If validation fails**: Activate fallback strategy (sql.js for v0.1.0 MVP)
 - 🔄 **If partial success**: Document browser limitations, create compatibility matrix

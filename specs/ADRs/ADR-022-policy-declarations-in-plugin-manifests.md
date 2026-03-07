@@ -11,6 +11,7 @@
 ## Context
 
 Plugins need to declare **resource policies** upfront so the kernel can:
+
 1. **Prevent quota exhaustion** (e.g., "I'll never use more than 64MB")
 2. **Allow user configuration** (e.g., "Warn me when storage grows exponentially")
 3. **Enable dynamic enforcement** (e.g., "Auto-compress my data if > 50MB")
@@ -18,7 +19,8 @@ Plugins need to declare **resource policies** upfront so the kernel can:
 
 **Current State**: Plugin manifests declare capabilities they *need* (e.g., `storage:write`) but not policies they *enforce*.
 
-**Problem**: 
+**Problem**:
+
 - User doesn't know which plugins are resource-heavy
 - Kernel can't enforce quotas declared by plugins
 - No way to configure plugin behavior (e.g., "be more aggressive with compression")
@@ -28,6 +30,7 @@ Plugins need to declare **resource policies** upfront so the kernel can:
 ## Decision
 
 **Extend plugin manifests to support policy declarations. Policies are:**
+
 1. **Declarative** (JSON schema in manifest)
 2. **User-configurable** (Studio UI exposes knobs)
 3. **Kernel-enforced** (if plugin violates, isolation kicks in)
@@ -282,6 +285,7 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 ```
 
 **What it does**:
+
 1. Monitors OPFS quota usage (via `navigator.storage.estimate()`)
 2. Warns user when approaching 60% full
 3. Blocks new writes at 95% (preserves system integrity)
@@ -289,11 +293,13 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 5. Shows per-plugin breakdown (which plugin using most space)
 
 **Why it's a plugin, not kernel**:
+
 - User can replace with custom monitoring solution
 - Different users have different needs (some want Grafana, some want simple UI)
 - Proves extensibility model works
 
 **Why it's "practically core"**:
+
 - 99% of users want this
 - Ships with Studio by default (opt-out, not opt-in)
 - Documentation treats it as essential
@@ -345,6 +351,7 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 ```
 
 **What it does**:
+
 1. User right-clicks a node → "Set License"
 2. Dialog shows license options (Creative Commons, MIT, proprietary, etc.)
 3. Plugin writes license metadata to node
@@ -356,20 +363,24 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 ## Benefits of This Approach
 
 ### 1. Decoupled from Kernel
+
 - Kernel doesn't need to know about licenses, compression, archiving
 - Policies are data-driven (manifest), not code
 
 ### 2. User Control
+
 - User configures policies in Studio UI
 - User can disable/enable policies per plugin
 - User can install alternative implementations
 
 ### 3. Transparency
+
 - Policies visible in manifest (before install)
 - User knows what plugin will do before trusting it
 - Resource Observatory shows violations
 
 ### 4. Ecosystem-Friendly
+
 - Third-party plugins can declare policies
 - Marketplace can filter by policies (e.g., "only show lightweight plugins")
 - Kernel enforces policies consistently
@@ -381,6 +392,7 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 **Problem learned from ecosystems** (VSCode, Electron, Jupyter):
 
 Plugins can be arbitrarily slow, causing:
+
 - **UI freezes**: Plugin runs expensive operation on main thread → 5 second freeze
 - **Startup delays**: 20 plugins each take 500ms → 10 second startup
 - **Janky interactions**: Plugin runs on every keystroke, takes 200ms → typing feels slow

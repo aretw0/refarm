@@ -400,6 +400,7 @@ test('using tainted data in capability requires approval', async () => {
 **Concern**: Tracking provenance for every graph modification has overhead.
 
 **Mitigation**:
+
 1. **Lazy tracking**: Only track when plugins installed (if no plugins, no overhead)
 2. **In-memory cache**: Recent writes cached (LRU 10k entries)
 3. **Bloom filters**: Fast "likely tainted" check before full lookup
