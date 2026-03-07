@@ -32,8 +32,8 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 ### ⚠️ Pre-Sprint 0: Preparatory Work (Semana 0 - IN PROGRESS)
 
-**Status**: Final readiness phase (technical blockers narrowed to browser validations + baseline smoke tests)  
-**Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md)  
+**Status**: Complete - Ready for Sprint 1 SDD  
+**Tracking**: See [Pre-Sprint Checklist](../docs/pre-sprint-checklist.md) and [Sprint 1](../docs/sprints/sprint-1.md)  
 **Quick Start**: See [validations/QUICK_START.md](../validations/QUICK_START.md)
 
 **Completed** ✅:
