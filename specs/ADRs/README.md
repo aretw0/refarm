@@ -38,6 +38,7 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 | [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | ✏️ Proposed | v0.3.0+ | 40+ integration tests + kernel implementation |
 | [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+ | Manifest schema + PolicyManager + PerformanceMonitor implementation |
 | [023](ADR-023-plugin-conflict-detection.md) | Plugin Conflict Detection and Resolution | ✏️ Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation |
+| [024](ADR-024-pessimistic-editing-modes.md) | Pessimistic Editing Modes (Locks via Private Branches) | ✏️ Proposed | v0.3.0+ | LockManager + UI patterns + merge strategies implementation |
 
 ---
 
