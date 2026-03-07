@@ -62,7 +62,7 @@ Our commitment: **None of these scenarios happen.**
 
 ```
 ┌────────────────────────────────────────────┐
-│  Kernel: Storage Integrity Checks          │
+│  Tractor: Storage Integrity Checks          │
 │                                            │
 │  On every read:                            │
 │  ┌────────────────────────────────────┐   │
@@ -88,6 +88,7 @@ Our commitment: **None of these scenarios happen.**
 ```
 
 **Key guarantees**:
+
 - ✅ Corruption detected immediately
 - ✅ Recovery automatic (no user intervention)
 - ✅ Fallback graceful (salvage what's possible)
@@ -98,7 +99,7 @@ Our commitment: **None of these scenarios happen.**
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  Kernel: Schema Evolution Management                 │
+│  Tractor: Schema Evolution Management                 │
 │                                                      │
 │  Old data v0 → Current version vN                   │
 │                                                      │
@@ -122,6 +123,7 @@ Our commitment: **None of these scenarios happen.**
 ```
 
 **Key guarantees**:
+
 - ✅ Old data always readable (even if app version leaps)
 - ✅ Gradual migration (not required upfront)
 - ✅ Rollback safe (old schema version accessible)
@@ -132,12 +134,12 @@ Our commitment: **None of these scenarios happen.**
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  Kernel: Sovereign Graph Versioning                     │
+│  Tractor: Sovereign Graph Versioning                     │
 │                                                         │
 │  4 User-Facing Primitives:                              │
 │                                                         │
 │  1. COMMIT                                              │
-│     └─ kernel.graph.commit({ message: "..." })         │
+│     └─ tractor.graph.commit({ message: "..." })         │
 │        Creates immutable snapshot + point-in-time audit │
 │        ↓                                                 │
 │        Merkle DAG:                                      │
@@ -145,19 +147,19 @@ Our commitment: **None of these scenarios happen.**
 │        draft: B ← D ← E (alternative history)          │
 │                                                         │
 │  2. BRANCH                                              │
-│     └─ kernel.graph.branch("main" | "draft/exp")       │
+│     └─ tractor.graph.branch("main" | "draft/exp")       │
 │        Create parallel work streams                     │
 │        Both are local (offline-first)                  │
 │        Each has own commit history                     │
 │                                                         │
 │  3. CHECKOUT                                            │
-│     └─ kernel.graph.checkout("draft/exp")              │
+│     └─ tractor.graph.checkout("draft/exp")              │
 │        Restore CRDT state from commit                   │
 │        Working graph = exactly that snapshot            │
 │        Reproducible (same commit → same state)         │
 │                                                         │
 │  4. REVERT                                              │
-│     └─ kernel.graph.revert("commitHash")               │
+│     └─ tractor.graph.revert("commitHash")               │
 │        Creates inverse operations (no deletion!)        │
 │        Preserves auditability                           │
 │        Safe for multi-device sync                       │
@@ -168,6 +170,7 @@ Our commitment: **None of these scenarios happen.**
 ```
 
 **Key guarantees**:
+
 - ✅ User can experiment (branch), then revert safely
 - ✅ History immutable (audit trail)
 - ✅ Revertable across offline edits + multi-device sync
@@ -179,7 +182,7 @@ Our commitment: **None of these scenarios happen.**
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│  Kernel: Plugin Health & Isolation                      │
+│  Tractor: Plugin Health & Isolation                      │
 │                                                          │
 │  Each plugin gets a "Citizenship Score":                │
 │                                                          │
@@ -196,13 +199,13 @@ Our commitment: **None of these scenarios happen.**
 │                                                          │
 │  Every plugin operation measured:                       │
 │  ┌────────────────────────────────────────────────────┐  │
-│  │  kernel.executeCapability(                         │  │
+│  │  tractor.executeCapability(                         │  │
 │  │    pluginId: "storage:v1",                        │  │
 │  │    method: "store",                               │  │
 │  │    args: [...]                                     │  │
 │  │  )                                                  │  │
 │  │                                                    │  │
-│  │  ↓ (kernel wraps execution)                        │  │
+│  │  ↓ (tractor wraps execution)                        │  │
 │  │                                                    │  │
 │  │  1. Record start time + memory                    │  │
 │  │  2. Execute plugin code                           │  │
@@ -230,11 +233,12 @@ Our commitment: **None of these scenarios happen.**
 │  └────────────────────────────────────────────────────┘  │
 │                                                          │
 │  Result: Bad plugin cannot crash entire system.         │
-│  Kernel detects + isolates before damage spreads.       │
+│  Tractor detects + isolates before damage spreads.       │
 └──────────────────────────────────────────────────────────┘
 ```
 
 **Key guarantees**:
+
 - ✅ Plugin misbehavior detected in real-time
 - ✅ Automatic isolation before system-wide failure
 - ✅ User sees via Dashboard what's happening
@@ -248,7 +252,7 @@ Our commitment: **None of these scenarios happen.**
 ┌────────────────────────────────────────────────────────┐
 │  User Experience: What You Own, You Control            │
 │                                                        │
-│  Studio UI shows:                                      │
+│  Homestead UI shows:                                      │
 │  ┌──────────────────────────────────────────────────┐  │
 │  │ [Graph Versioning]          [Plugin Health]      │  │
 │  │ • main (HEAD: Commit C)      ✅ storage:v1 (95)  │  │
@@ -292,6 +296,7 @@ Our commitment: **None of these scenarios happen.**
 ### Scenario: User Upgrades App While Offline
 
 **State Before**:
+
 - Device has v0.1.0 app + notes in schema v0
 - Device goes offline
 - App gets automatically upgraded to v0.2.0 (new schema v1)
@@ -301,7 +306,7 @@ Our commitment: **None of these scenarios happen.**
 ```
 1. User opens app (v0.2.0)
    ↓
-2. Kernel boots:
+2. Tractor boots:
    Layer 1: Checks WAL + CRDT snapshot
             ✅ No corruption, checksums pass
    ↓
@@ -343,13 +348,13 @@ Our commitment: **None of these scenarios happen.**
 
 | Principle | Implementation |
 |-----------|-----------------|
-| **Offline Sovereignty** | No central authority; all logic client-side (kernel) |
+| **Offline Sovereignty** | No central authority; all logic client-side (tractor) |
 | **Reversibility** | Every operation logged; revert creates compensating ops (never deletes) |
 | **Transparency** | Full history queryable; causality preserved; commit authors tracked |
 | **Self-Healing** | Corruption detected + auto-repaired; schema mismatches handled gracefully |
 | **Isolation** | Plugins monitored per-operation; bad actors throttled before system breaks |
 | **Compatibility** | Schema evolution via lenses; old data always readable; gradual migration |
-| **Composability** | Plugins pluggable via micro-kernel; standard capability contracts |
+| **Composability** | Plugins pluggable via micro-tractor; standard capability contracts |
 
 ---
 
@@ -360,7 +365,7 @@ Our commitment: **None of these scenarios happen.**
 | [ADR-002](../specs/ADRs/ADR-002-offline-first-architecture.md) | Offline foundation (no central authority) |
 | [ADR-003](../specs/ADRs/ADR-003-crdt-synchronization.md) | CRDT engine for automatic conflict resolution |
 | [ADR-010](../specs/ADRs/ADR-010-schema-evolution.md) | Schema compatibility (old data always works) |
-| [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md) | Micro-kernel for plugin isolation |
+| [ADR-017](../specs/ADRs/ADR-017-studio-micro-tractor-and-plugin-boundary.md) | Micro-tractor for plugin isolation |
 | [ADR-020](../specs/ADRs/ADR-020-sovereign-graph-versioning.md) | **NEW**: User-facing versioning (commit/branch/revert) |
 | [ADR-021](../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md) | **NEW**: Self-healing + plugin monitoring |
 

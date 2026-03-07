@@ -404,7 +404,7 @@ class MyElement extends LitElement {
 **Resumo**:
 
 - Sistema precisa de primitivas coesas para observabilidade cross-cutting
-- Arquitetura: Core primitives (kernel) + pluggable observers
+- Arquitetura: Core primitives (tractor) + pluggable observers
 - Self-healing: Erros não crasham, sistema se recupera automaticamente
 - Telemetria: Opt-in (default: OFF), anonimizado, transparente
 - Meta-linguagem: Dashboards e monitoring por composição emergente

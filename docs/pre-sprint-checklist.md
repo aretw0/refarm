@@ -55,7 +55,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - [x] **WIT Contract**: [refarm-sdk.wit](../wit/refarm-sdk.wit)
   - Already well-defined (v0.1.0 ready)
-  - Interfaces: `kernel-bridge`, `integration`
+  - Interfaces: `tractor-bridge`, `integration`
   - World: `refarm-plugin`
 
 - [x] **JSON-LD Schema**: [sovereign-graph.jsonld](../schemas/sovereign-graph.jsonld)
@@ -67,13 +67,13 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Sub-Roadmaps Técnicos
 
-- [x] **Kernel**: Added Technical Decisions section
+- [x] **Tractor**: Added Technical Decisions section
   - Service registry pattern
   - Event bus architecture
   - Bootstrap sequence
   - Guest/permanent session handling
   - Error handling + self-healing
-  - 📖 **README**: [Local Dev Setup Guide](../../apps/kernel/README.md)
+  - 📖 **README**: [Local Dev Setup Guide](../../apps/tractor/README.md)
 
 - [x] **Storage**: Added Technical Decisions section
   - SQLite engine choice (wa-sqlite vs sql.js)
@@ -91,7 +91,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ### Documentation & Developer Experience
 
-- [x] **Kernel README**: [5-min local dev setup](../../apps/kernel/README.md)
+- [x] **Tractor README**: [5-min local dev setup](../../apps/tractor/README.md)
   - Quick start (npm install → npm run dev)
   - Project structure
   - Core API preview
@@ -120,7 +120,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - [ ] **Phase 2**: Browser runtime (load WASM in browser)
   - ✅ Create PluginHost class (TypeScript) — see `validations/wasm-plugin/host/`
-  - ✅ Implement kernel-bridge (host imports) — see `host/src/main.ts`
+  - ✅ Implement tractor-bridge (host imports) — see `host/src/main.ts`
   - ✅ Create test page in Studio — see `host/index.html`
   - [ ] Verify plugin loads and executes: `npm run dev` in host/
 
@@ -271,7 +271,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - [x] Make root commands executable: `test:unit`, `test:integration`, `test:e2e`
 - [x] Align Turbo tasks with real workspace scripts
 - [x] Ensure workspace test scripts run without local binary path assumptions
-- [x] Keep smoke tests in critical workspaces (`kernel`, `storage-sqlite`, `sync-crdt`)
+- [x] Keep smoke tests in critical workspaces (`tractor`, `storage-sqlite`, `sync-crdt`)
 - [ ] Re-run local checks end-to-end (`lint`, `type-check`, tests)
 - [ ] Confirm `.github/workflows/test.yml` matches available scripts and artifacts
 
@@ -357,7 +357,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - [x] ADR-010: Schema Evolution written and reviewed
 - [x] ADR-013: Testing Strategy written and reviewed
 - [x] ADR-015: SQLite Engine Decision written (pending validation)
-- [x] Kernel README with quick start guide created
+- [x] Tractor README with quick start guide created
 - [x] GitHub Actions CI/CD pipeline configured
 - [x] Root quality scripts executable (`test:unit`, `test:integration`, `test:e2e`)
 - [ ] WASM Validation complete (all phases ✅)
@@ -371,7 +371,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 - Update [MAIN.md](../roadmaps/MAIN.md) Pre-SDD checklist
 - Move to Sprint 1: SDD phase begins
-- Start writing specs (Kernel, Storage, Sync interfaces)
+- Start writing specs (Tractor, Storage, Sync interfaces)
 
 ---
 

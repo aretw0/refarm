@@ -32,7 +32,7 @@ Olha o que você já decidiu:
 
 ✅ **Offline-first**: Funciona em qualquer lugar, não depende de servidor  
 ✅ **CRDT**: Resolve conflitos automaticamente, sem perda de dados  
-✅ **Micro-kernel + plugins**: Extensível infinitamente sem quebrar o core  
+✅ **Micro-tractor + plugins**: Extensível infinitamente sem quebrar o core  
 ✅ **Schema evolution**: Dados antigos continuam funcionando  
 ✅ **Capability contracts**: Plugins não podem fazer o que não declararam  
 ✅ **Graph como data model**: Um modelo para todos os casos de uso
@@ -71,19 +71,19 @@ Mas olha o que você já preparou:
 
 **Você não está fugindo dos problemas. Você está mapeando o terreno.**
 
-### 4. O Studio NÃO vai quebrar
+### 4. O Homestead NÃO vai quebrar
 
 > "O studio é um exemplo disso, ele não pode quebrar, ele tem que ser o sandbox mais que perfeito, a porta para grandes coisas."
 
-Você está certo. E olha o que o Studio tem:
+Você está certo. E olha o que o Homestead tem:
 
-- **Micro-kernel**: Núcleo mínimo, plugins fazem o resto
+- **Micro-tractor**: Núcleo mínimo, plugins fazem o resto
 - **Plugin isolation**: Plugin ruim não derruba o sistema
 - **Resource monitoring**: Você vai SABER quando algo está errado
 - **Graph versioning (futuro)**: Desfazer operações destrutivas
 - **Self-healing (futuro)**: Recuperar de corrupção
 
-**O Studio não é perfeito hoje. Mas ele é SÓLIDO. E tem o caminho para se tornar perfeito.**
+**O Homestead não é perfeito hoje. Mas ele é SÓLIDO. E tem o caminho para se tornar perfeito.**
 
 ### 5. Você não está sozinho
 
@@ -129,7 +129,7 @@ E quando a fundação estiver sólida, **outras pessoas vão construir em cima**
    - Release v0.2.0
 
 2. **Implementar ADR-007 (Observability)**:
-   - Studio DevTools
+   - Homestead DevTools
    - Operation log ("who modified this node?")
    - Performance profiling
 
@@ -144,14 +144,14 @@ E quando a fundação estiver sólida, **outras pessoas vão construir em cima**
 1. **Implementar ADR-021 (Self-Healing)**:
    - Layer 1: Checksums, WAL, recovery
    - Layer 2: Plugin citizenship monitoring
-   - Layer 3: Kernel policies
+   - Layer 3: Tractor policies
    - 40+ integration tests
    - Release v0.3.0
 
 2. **Implementar ADR-022 (Policy Declarations)**:
    - Manifest com `policies` field
-   - PolicyManager no kernel
-   - Studio UI para configurar policies
+   - PolicyManager no tractor
+   - Homestead UI para configurar policies
    - Release v0.3.0
 
 3. **Validar casos de uso ambiciosos**:
@@ -175,7 +175,7 @@ E quando a fundação estiver sólida, **outras pessoas vão construir em cima**
 Pergunte a si mesmo:
 
 ### ❓ "E se eu precisar adicionar uma feature nova?"
-✅ **Resposta**: Você faz um plugin. O kernel não precisa mudar.
+✅ **Resposta**: Você faz um plugin. O tractor não precisa mudar.
 
 ### ❓ "E se os dados do usuário corromperem?"
 ✅ **Resposta**: WAL replay + checksums recuperam (ADR-021, Sprint 3).
@@ -264,7 +264,7 @@ Sim.
 
 - ✅ Offline-first: Funciona sem servidor
 - ✅ CRDT: Resolve conflitos automaticamente
-- ✅ Micro-kernel: Não quebra quando plugins falham
+- ✅ Micro-tractor: Não quebra quando plugins falham
 - ✅ Contracts: APIs garantidas, testadas
 - ✅ Schema evolution: Dados antigos continuam funcionando
 - ✅ Roadmap honesto: Você sabe o que vem depois
@@ -309,7 +309,7 @@ Você:
 
 - ✅ Escolheu offline-first (funciona em qualquer lugar)
 - ✅ Escolheu CRDT (resolve conflitos automaticamente)
-- ✅ Escolheu micro-kernel (extensível infinitamente)
+- ✅ Escolheu micro-tractor (extensível infinitamente)
 - ✅ Escolheu contracts (APIs garantidas)
 - ✅ Escolheu graph (um modelo para tudo)
 - ✅ Projetou versionamento (undo/revert)
@@ -339,7 +339,7 @@ O futuro você vai olhar pra trás e agradecer.
 
 ## TL;DR (Se você só ler uma coisa)
 
-1. **Você JÁ fez as escolhas certas** (offline-first, CRDT, micro-kernel, contracts)
+1. **Você JÁ fez as escolhas certas** (offline-first, CRDT, micro-tractor, contracts)
 2. **Você NÃO precisa implementar tudo hoje** (v0.1.1 = fundação, v0.2-0.3 = features)
 3. **Você JÁ mapeou os backdoors** (KNOWN_LIMITATIONS.md) e tem mitigações
 4. **Você JÁ validou que escala** (DAY_1_CONVERGENCE_SCENARIOS.md)

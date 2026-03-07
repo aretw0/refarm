@@ -14,10 +14,10 @@
 4. [Minecraft/Bukkit](#minecraft-the-internal-coupling-nightmare)
 5. [Jenkins](#jenkins-the-plugin-dependency-hell)
 6. [Obsidian](#obsidian-the-unmonitored-filesystem)
-7. [Unity Asset Store](#unity-the-trust-everything-model)
-8. [npm/Node.js](#npm-the-install-script-backdoor)
-9. [Electron Apps](#electron-the-unlimited-resource-monster)
-10. [Jupyter Notebooks](#jupyter-the-hidden-side-effects)
+7. [Unity Asset Store](#unity-asset-store-the-trust-everything-model)
+8. [npm/Node.js](#npmnodejs-the-install-script-backdoor)
+9. [Electron Apps](#electron-apps-the-unlimited-resource-monster)
+10. [Jupyter Notebooks](#jupyter-notebooks-the-hidden-side-effects)
 11. [Synthesis: What Refarm MUST Do](#synthesis-what-refarm-must-do)
 
 ---
@@ -35,6 +35,7 @@ $wpdb->query("DROP TABLE wp_users"); // Delete all users
 ```
 
 **Consequences**:
+
 - ❌ **Security nightmare**: One bad plugin = entire site compromised
 - ❌ **Performance unpredictable**: Plugin can run infinite loop in request
 - ❌ **No rollback**: Plugin breaks site → manual debugging required
@@ -42,6 +43,7 @@ $wpdb->query("DROP TABLE wp_users"); // Delete all users
 - ❌ **Plugin conflicts**: Two plugins modify same global state → breaks
 
 **Why They Can't Fix It**:
+
 - 60,000+ existing plugins assume unrestricted access
 - Breaking change would kill ecosystem
 - WordPress core team knows this is wrong but **trapped forever**
@@ -49,6 +51,7 @@ $wpdb->query("DROP TABLE wp_users"); // Delete all users
 ### What Refarm Does Differently
 
 ✅ **Capability contracts from Day 1**:
+
 ```jsonc
 {
   "capabilities": ["storage:read"],  // NOT "storage:write"
@@ -60,7 +63,7 @@ $wpdb->query("DROP TABLE wp_users"); // Delete all users
 ```
 
 ✅ **Sandboxing via WASM**: Plugin literally cannot access what it doesn't declare  
-✅ **Kernel-enforced quotas**: Plugin cannot consume unlimited resources  
+✅ **Tractor-enforced quotas**: Plugin cannot consume unlimited resources  
 ✅ **Rollback via graph versioning** (ADR-020): Undo destructive changes
 
 **Key Lesson**: **Start with isolation, not trust.**
@@ -81,12 +84,14 @@ while(true) {
 ```
 
 **Consequences**:
+
 - ❌ **One bad extension = editor hangs**: No isolation between extensions
 - ❌ **Extension startup time accumulates**: 20 extensions = 5 second startup
 - ❌ **Memory leaks compound**: Extension leaks → editor leaks forever
 - ❌ **No way to kill misbehaving extension**: Must restart entire editor
 
 **Why They Can't Fix It**:
+
 - 30,000+ extensions assume sync APIs (can't move to workers)
 - Extension API tightly coupled to main thread
 - Microsoft tried "Extension Host" (separate process) but still shares state
@@ -94,6 +99,7 @@ while(true) {
 ### Recent Attempts to Fix
 
 **VSCode now has**:
+
 - "Extension Host" (separate process, but still shares memory model)
 - "Remote Extensions" (run on server, but breaks local-only extensions)
 - **Still can't isolate extensions from each other**
@@ -103,7 +109,7 @@ while(true) {
 ✅ **Web Workers from Day 1**: Each plugin runs in isolated worker  
 ✅ **Message passing only**: Plugins cannot access each other's memory  
 ✅ **Watchdog timers**: Plugin takes > 5s → auto-killed  
-✅ **Startup budget**: Plugin declares startup time, kernel enforces limit
+✅ **Startup budget**: Plugin declares startup time, tractor enforces limit
 
 ```typescript
 // Refarm plugin manifest
@@ -139,12 +145,14 @@ while(true) {
 ```
 
 **Consequences**:
+
 - ❌ **Privacy nightmare**: Extensions spy on everything (passwords, banking, etc)
 - ❌ **No granularity**: Can't say "only access *.github.com"
 - ❌ **Trust all or nothing**: User must trust extension with EVERYTHING
 - ❌ **Post-install changes**: Extension updates with new permissions silently
 
 **Why It Took 10 Years to Fix**:
+
 - Google resisted breaking changes (ecosystem pressure)
 - Finally forced Manifest V3 in 2023 (caused massive backlash)
 - **Many extensions still don't work in V3**
@@ -159,6 +167,7 @@ while(true) {
 ### What Refarm Does Differently
 
 ✅ **Fine-grained capabilities**:
+
 ```jsonc
 {
   "capabilities": [
@@ -173,7 +182,7 @@ while(true) {
 }
 ```
 
-✅ **User approves before install**: Studio shows exact capabilities  
+✅ **User approves before install**: Homestead shows exact capabilities  
 ✅ **No silent updates**: Capability changes require user re-approval  
 ✅ **Revocable at runtime**: User can revoke `network:fetch` while plugin running
 
@@ -194,12 +203,14 @@ player.getBukkitEntity().setHealth(20.0); // Hardcoded version-specific path
 ```
 
 **Consequences**:
+
 - ❌ **Every Minecraft update breaks all mods**: Class names change (obfuscation)
 - ❌ **Mods depend on specific version**: "Requires Minecraft 1.19.2 exactly"
 - ❌ **Load order hell**: Mod A must load before Mod B (no dependency solver)
 - ❌ **No API stability**: Mojang doesn't commit to stable API
 
 **Why They Can't Fix It**:
+
 - 15+ years of mods assuming direct bytecode manipulation
 - Mojang tried "official modding API" (failed 3 times)
 - Forge/Fabric maintain compatibility layers (fragile)
@@ -214,16 +225,17 @@ Minecraft now has "Data Packs" (JSON-based, no code):
 ### What Refarm Does Differently
 
 ✅ **Stable API via contracts** (storage:v1, sync:v1):
+
 ```typescript
 // Plugin uses contract, not internals
 import { StorageContract } from '@refarm.dev/storage-contract-v1';
 
-// Works across kernel versions (contract is stable)
-const storage = await kernel.getCapability('storage:v1');
+// Works across tractor versions (contract is stable)
+const storage = await tractor.getCapability('storage:v1');
 ```
 
-✅ **Kernel internals are private**: Plugins cannot import kernel code  
-✅ **Version negotiation**: Plugin declares "I need storage:v1+", kernel provides compatible version  
+✅ **Tractor internals are private**: Plugins cannot import tractor code  
+✅ **Version negotiation**: Plugin declares "I need storage:v1+", tractor provides compatible version  
 ✅ **No load order**: Plugins are independent (unless explicit dependency)
 
 **Key Lesson**: **Never expose internals. Only expose contracts.**
@@ -248,23 +260,26 @@ const storage = await kernel.getCapability('storage:v1');
 ```
 
 **Consequences**:
+
 - ❌ **Diamond dependency problem**: Plugin A needs Lib v1, Plugin B needs Lib v2 → conflict
 - ❌ **Update paralysis**: Can't update Plugin A because Plugin B depends on old version
 - ❌ **Cascade failures**: Update one plugin → 10 others break
 - ❌ **Manual dependency resolution**: User must figure out compatible versions
 
 **Why They Can't Fix It**:
+
 - 1,800+ plugins with complex dependency graphs
 - No way to break cycle without breaking all plugins
 - Jenkins team maintains compatibility lists manually
 
 ### What Refarm Does Differently
 
-✅ **Plugins don't depend on each other, only on kernel contracts**:
+✅ **Plugins don't depend on each other, only on tractor contracts**:
+
 ```jsonc
 {
   "dependencies": {
-    "kernel": "^0.1.0",           // Depends on kernel version
+    "tractor": "^0.1.0",           // Depends on tractor version
     "contracts": {
       "storage": "^1.0.0",        // Depends on contract version
       "sync": "^1.0.0"
@@ -275,6 +290,7 @@ const storage = await kernel.getCapability('storage:v1');
 ```
 
 ✅ **Plugins communicate via graph** (data, not code):
+
 ```typescript
 // Plugin A writes to graph
 await graph.upsertNode({ type: 'task', status: 'done' });
@@ -304,12 +320,14 @@ const secrets = readFileSync('/home/user/.ssh/id_rsa', 'utf8');
 ```
 
 **Consequences**:
+
 - ❌ **Privacy leak**: Plugin can exfiltrate SSH keys, browser passwords, etc.
 - ❌ **No quota enforcement**: Plugin can fill disk (write 100GB)
 - ❌ **No monitoring**: User doesn't know plugin is accessing filesystem
 - ❌ **Trust all or nothing**: Install plugin = trust with entire filesystem
 
 **Why They Can't Fix It**:
+
 - Obsidian built on Electron (full Node.js access)
 - Plugins assume unrestricted `fs` module
 - Mobile apps (iOS/Android) don't have this problem (stricter sandbox)
@@ -317,6 +335,7 @@ const secrets = readFileSync('/home/user/.ssh/id_rsa', 'utf8');
 ### What Refarm Does Differently
 
 ✅ **OPFS only** (no arbitrary filesystem access):
+
 ```typescript
 // Refarm plugin
 const handle = await navigator.storage.getDirectory();
@@ -324,6 +343,7 @@ const handle = await navigator.storage.getDirectory();
 ```
 
 ✅ **Quota enforcement** (ADR-022):
+
 ```jsonc
 {
   "policies": {
@@ -338,6 +358,7 @@ const handle = await navigator.storage.getDirectory();
 ```
 
 ✅ **Storage monitoring** (Resource Observatory Plugin):
+
 - User sees which plugin uses how much storage
 - User can revoke storage permission at runtime
 
@@ -364,12 +385,14 @@ public class MaliciousAsset : MonoBehaviour {
 ```
 
 **Consequences**:
+
 - ❌ **No code review**: Assets are binary blobs (can't inspect)
 - ❌ **No permissions**: Asset can access filesystem, network, everything
 - ❌ **No runtime monitoring**: User doesn't know asset is stealing data
 - ❌ **No rollback**: Asset corrupts project → restore from backup or lose work
 
 **Why They Can't Fix It**:
+
 - Unity Asset Store has 100,000+ assets (all assume full access)
 - Unity's architecture (C# + Mono) doesn't support sandboxing
 - Unity tried "Verified Solutions" (manual review) but can't scale
@@ -377,6 +400,7 @@ public class MaliciousAsset : MonoBehaviour {
 ### What Refarm Does Differently
 
 ✅ **Source code in manifest** (or WASM bundle):
+
 ```jsonc
 {
   "source": {
@@ -411,16 +435,19 @@ public class MaliciousAsset : MonoBehaviour {
 ```
 
 **Real incidents**:
+
 - **event-stream** (2018): 2M downloads/week, injected Bitcoin wallet stealer
 - **coa/rc** (2021): Trojan in popular packages, stole from 1000s of developers
 - **ua-parser-js** (2021): Cryptominer injected via compromised maintainer account
 
 **Consequences**:
+
 - ❌ **Silent execution**: User doesn't see script running
 - ❌ **Transitive dependencies**: Install A → installs B (with malware) → compromised
 - ❌ **Post-install persistence**: Malware can modify disk, add backdoors
 
 **Why They Can't Fix It**:
+
 - npm ecosystem depends on install scripts (compile native modules, etc)
 - Deno tried to fix (explicit permissions) but breaks compatibility
 - npm tried `--ignore-scripts` but breaks legitimate packages
@@ -429,6 +456,7 @@ public class MaliciousAsset : MonoBehaviour {
 
 ✅ **No install scripts**: Plugins are WASM (pre-compiled) or pure JS (sandboxed)  
 ✅ **Cryptographic verification**:
+
 ```jsonc
 {
   "integrity": "sha256-abc123...",  // Must match exactly
@@ -456,12 +484,14 @@ while(true) { /* Infinite loop */ }
 ```
 
 **Consequences**:
+
 - ❌ **RAM bloat**: Slack uses 1GB+ (more than Chrome with 50 tabs)
 - ❌ **CPU waste**: Background apps consume 20% CPU doing nothing
 - ❌ **Battery drain**: Electron apps kill laptop battery in 2 hours
 - ❌ **No user visibility**: Task Manager shows generic "Electron" (not which app/plugin)
 
 **Why They Can't Fix It**:
+
 - Electron is "just a browser" (inherits Chromium's model)
 - Apps assume unlimited resources (Node.js mindset)
 - No OS-level quotas (would break existing apps)
@@ -469,6 +499,7 @@ while(true) { /* Infinite loop */ }
 ### What Refarm Does Differently
 
 ✅ **Quota declarations in manifest** (ADR-022):
+
 ```jsonc
 {
   "policies": {
@@ -480,7 +511,7 @@ while(true) { /* Infinite loop */ }
 }
 ```
 
-✅ **Kernel enforces quotas**: Plugin exceeds limit → throttled/killed  
+✅ **Tractor enforces quotas**: Plugin exceeds limit → throttled/killed  
 ✅ **Resource Observatory shows breakdown**: User sees which plugin uses most resources  
 ✅ **User can adjust limits**: Power users can give more quota, mobile users can restrict
 
@@ -506,19 +537,22 @@ data = data * 2  # NameError: data not defined (but why?)
 ```
 
 **Consequences**:
+
 - ❌ **Non-reproducible**: Run cells in order A-B-C works, C-B-A breaks
-- ❌ **Hidden state**: Can't tell what's in memory without inspecting kernel
+- ❌ **Hidden state**: Can't tell what's in memory without inspecting tractor
 - ❌ **Debugging nightmare**: "It worked yesterday" (because you ran cells in different order)
-- ❌ **No rollback**: Accidentally deleted variable → restart kernel, lose all work
+- ❌ **No rollback**: Accidentally deleted variable → restart tractor, lose all work
 
 **Why They Can't Fix It**:
+
 - Jupyter's entire model is "mutable global state"
-- IPython kernel shares namespace across cells
+- IPython tractor shares namespace across cells
 - Users expect this behavior (changing it breaks all notebooks)
 
 ### What Refarm Does Differently
 
 ✅ **Graph is immutable log** (CRDT + commit history):
+
 ```typescript
 // Plugin operation
 await graph.upsertNode({ id: 'node-1', value: 42 });
@@ -529,10 +563,12 @@ await graph.checkout('previous-commit');
 ```
 
 ✅ **Observability shows all mutations** (ADR-007):
+
 - User sees "Plugin X modified node Y at timestamp Z"
 - Audit trail: Who changed what, when
 
 ✅ **Graph versioning enables undo** (ADR-020):
+
 - Accidentally deleted 100 nodes? Revert to last commit
 
 **Key Lesson**: **Mutable global state is invisible chaos. Make mutations explicit and reversible.**
@@ -563,6 +599,7 @@ await graph.checkout('previous-commit');
 **Problem**: Two plugins modify same graph field → silent corruption
 
 **Example**:
+
 ```typescript
 // Plugin A
 await graph.upsertNode({ id: 'task-1', priority: 'high' });
@@ -574,8 +611,9 @@ await graph.upsertNode({ id: 'task-1', priority: 'low' });
 ```
 
 **Solution Needed**:
+
 - Manifest declares "write paths" (which fields plugin modifies)
-- Kernel detects conflicts during install
+- Tractor detects conflicts during install
 - User chooses which plugin wins (or disables conflicting plugin)
 
 **Urgency**: 🔴 **Critical** (without this, plugin ecosystem will have hidden conflicts)
@@ -587,16 +625,19 @@ await graph.upsertNode({ id: 'task-1', priority: 'low' });
 **Problem**: Plugin can be arbitrarily slow → UI freezes
 
 **Example**:
+
 ```typescript
 // Plugin runs on every keystroke
-kernel.on('graph:modified', async () => {
+tractor.on('graph:modified', async () => {
   // 5 second operation on every change
   await expensiveOperation();
 });
 ```
 
 **Solution Needed**:
+
 - Manifest declares performance budget:
+
   ```jsonc
   {
     "performance": {
@@ -606,7 +647,8 @@ kernel.on('graph:modified', async () => {
     }
   }
   ```
-- Kernel measures actual performance
+
+- Tractor measures actual performance
 - Plugin violates budget → warning + throttle + eventual quarantine
 
 **Urgency**: 🟡 **High** (without this, slow plugins will frustrate users)
@@ -618,6 +660,7 @@ kernel.on('graph:modified', async () => {
 **Problem**: Plugin A (trusted) loads data from Plugin B (untrusted) → B hijacks A's capabilities
 
 **Example**:
+
 ```typescript
 // Plugin A (has network:fetch capability)
 const config = await graph.query({ type: 'plugin-b-config' });
@@ -625,7 +668,8 @@ await fetch(config.url); // Plugin B controls URL → can exfiltrate data
 ```
 
 **Solution Needed**:
-- Kernel tracks **data provenance** (which plugin created which data)
+
+- Tractor tracks **data provenance** (which plugin created which data)
 - Plugin A reads data from Plugin B → **tainted**
 - Using tainted data in capability operation → **user must approve**
 
@@ -635,20 +679,22 @@ await fetch(config.url); // Plugin B controls URL → can exfiltrate data
 
 #### Gap 4: **No Plugin Hot-Reload During Development**
 
-**Problem**: Developer changes plugin → must restart Studio → slow iteration
+**Problem**: Developer changes plugin → must restart Homestead → slow iteration
 
 **Example**:
+
 ```bash
 # Current workflow (broken)
 $ edit plugin.ts
 $ npm run build
-$ restart Studio  # Loses all state
+$ restart Homestead  # Loses all state
 $ reinstall plugin
 $ test change
 ```
 
 **Solution Needed**:
-- Studio Dev Mode: Watches plugin directory
+
+- Homestead Dev Mode: Watches plugin directory
 - Detects changes → hot-reloads plugin (preserves graph state)
 - Shows diff: "Plugin updated, changes: added `capability:network:fetch`"
 
@@ -661,12 +707,15 @@ $ test change
 **Problem**: Plugin author wants to sunset old plugin → users stuck on old version
 
 **Example**:
+
 - Plugin "todo-v1" → deprecated
 - Plugin "todo-v2" → new version (different manifest ID)
 - Users on "todo-v1" don't know about v2 → stuck
 
 **Solution Needed**:
+
 - Manifest declares deprecation:
+
   ```jsonc
   {
     "deprecated": {
@@ -676,7 +725,8 @@ $ test change
     }
   }
   ```
-- Studio shows banner: "Plugin deprecated, migrate to v2"
+
+- Homestead shows banner: "Plugin deprecated, migrate to v2"
 - Marketplace de-lists deprecated plugins (but still installable for compatibility)
 
 **Urgency**: 🟢 **Medium** (can wait until ecosystem is larger)
@@ -725,12 +775,12 @@ That's the difference between **learning from history** and **being doomed to re
 
 1. **Create ADR-023** (Plugin Conflict Detection):
    - Manifest declares write paths
-   - Kernel detects conflicts
+   - Tractor detects conflicts
    - User resolves conflicts before install
 
 2. **Extend ADR-022** (Performance Budgets):
    - Add performance declarations to manifest
-   - Kernel measures actual performance
+   - Tractor measures actual performance
    - Violations trigger throttle/quarantine
 
 3. **Extend ADR-018** (Capability Escalation):
@@ -749,6 +799,7 @@ That's the difference between **learning from history** and **being doomed to re
    - Test capability escalation prevention works
 
 **Timeline**:
+
 - ADR-023 draft: Sprint 2 (v0.2.0)
 - ADR-022 extensions: Sprint 3 (v0.3.0)
 - ADR-018 extensions: Sprint 3 (v0.3.0)
@@ -759,15 +810,18 @@ That's the difference between **learning from history** and **being doomed to re
 ## References
 
 ### Real-World Incidents
+
 - [event-stream incident (2018)](https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident)
 - [Chrome Manifest V3 migration](https://developer.chrome.com/docs/extensions/mv3/intro/)
 - [Unity Asset Store malware (2019)](https://blog.malwarebytes.com/reports/2019/03/unity3d-asset-store-malware/)
 
 ### Academic Papers
+
 - [Analyzing Security of Chrome Extensions](https://www.cs.berkeley.edu/~dawnsong/papers/2012%20shakeel%20csf.pdf)
 - [The Node.js Supply Chain Attack](https://arxiv.org/pdf/2112.10165.pdf)
 
 ### Ecosystem Documentation
+
 - [WordPress Plugin Security](https://developer.wordpress.org/plugins/security/)
 - [VSCode Extension API](https://code.visualstudio.com/api)
 - [Obsidian Plugin API](https://docs.obsidian.md/Plugins/Getting+started/Build+a+plugin)

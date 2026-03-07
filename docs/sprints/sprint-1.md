@@ -136,7 +136,7 @@ type StorageTier = 'ephemeral' | 'persistent' | 'synced'
 - Plugin sandbox initialization
 - WIT interface binding
 - Plugin unload/reload
-- Error isolation (plugin crash não quebra kernel)
+- Error isolation (plugin crash não quebra tractor)
 
 **State Machine**:
 ```
@@ -333,7 +333,7 @@ NOT_LOADED → LOADING → LOADED → RUNNING → STOPPED → ERROR
 
 ### Implementation Tasks
 
-#### Domain Layer (apps/kernel)
+#### Domain Layer (apps/tractor)
 
 - [ ] Implement `SessionManager` class
 - [ ] Implement `StorageManager` orchestration
@@ -358,7 +358,7 @@ NOT_LOADED → LOADING → LOADED → RUNNING → STOPPED → ERROR
   - [ ] Yjs document initialization
   - [ ] Ownership metadata
 
-#### UI Updates (apps/studio)
+#### UI Updates (apps/homestead)
 
 - [ ] Guest session creation flow
 - [ ] Storage tier selection

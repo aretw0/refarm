@@ -125,7 +125,7 @@ locales/
   "nav.home": "Início",
   "nav.plugins": "Plugins",
   "nav.docs": "Documentação",
-  "studio.welcome": "Bem-vindo ao Refarm Studio",
+  "studio.welcome": "Bem-vindo ao Refarm Homestead",
   "studio.plugins": {
     "title": "Meus Plugins",
     "empty": "Nenhum plugin instalado",
@@ -144,7 +144,7 @@ locales/
   "nav.home": "Home",
   "nav.plugins": "Plugins",
   "nav.docs": "Documentation",
-  "studio.welcome": "Welcome to Refarm Studio",
+  "studio.welcome": "Welcome to Refarm Homestead",
   "studio.plugins": {
     "title": "My Plugins",
     "empty": "No plugins installed",
@@ -182,10 +182,10 @@ import { msg, localized, str } from "@lit/localize";
 
 @localized()
 @customElement("studio-header")
-export class StudioHeader extends LitElement {
+export class HomesteadHeader extends LitElement {
   render() {
     return html`
-      <h1>${msg("Welcome to Refarm Studio")}</h1>
+      <h1>${msg("Welcome to Refarm Homestead")}</h1>
       <p>${msg(str`You have ${this.pluginCount} plugins configured`)}</p>
     `;
   }

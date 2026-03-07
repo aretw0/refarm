@@ -34,8 +34,8 @@ Every Refarm plugin implements a **WIT (WebAssembly Interface Type)** contract d
 This contract defines:
 
 - **What the plugin exports** (`integration` interface): `setup`, `ingest`, `push`, `teardown`, `metadata`
-- **What the kernel offers** (`kernel-bridge` interface): `storeNode`, `fetch`, `log`, `requestPermission`
-- **Security model**: Plugins are sandboxed and can only call kernel functions they have capabilities for
+- **What the tractor offers** (`tractor-bridge` interface): `storeNode`, `fetch`, `log`, `requestPermission`
+- **Security model**: Plugins are sandboxed and can only call tractor functions they have capabilities for
 
 ### Plugin Lifecycle
 
@@ -43,7 +43,7 @@ This contract defines:
 ┌─────────────┐
 │   setup()   │  Request capabilities (e.g., network access)
 ├─────────────┤
-│  ingest()   │  Fetch data, normalise to JSON-LD, store via kernel
+│  ingest()   │  Fetch data, normalise to JSON-LD, store via tractor
 ├─────────────┤
 │   push()    │  [Optional] Send data back out to external service
 ├─────────────┤
@@ -87,7 +87,7 @@ metadata(): PluginMetadata {
 
 ```typescript
 async setup(): Promise<void> {
-  // Query kernel for user identity
+  // Query tractor for user identity
   const identity = await this.bridge.getIdentity();
   
   if (identity.type === "guest") {
@@ -140,7 +140,7 @@ async push(payload: string): Promise<void> {
     node["@id"] = `urn:${identity.pubkey}:note-${Date.now()}`;
   }
   
-  // Same storeNode API for both — storage tier is handled by kernel
+  // Same storeNode API for both — storage tier is handled by tractor
   await this.bridge.storeNode(JSON.stringify(node));
 }
 ```
@@ -216,7 +216,7 @@ type PluginMetadata struct {
  RequiredCapabilities   []string `json:"requiredCapabilities"`
 }
 
-// Export setup function (called by kernel)
+// Export setup function (called by tractor)
 //export setup
 func setup() {
  log("info", "[my-go-bridge] setup() called")
@@ -226,13 +226,13 @@ func setup() {
 //export ingest
 func ingest() int32 {
  log("info", "[my-go-bridge] ingest() called")
- // TODO: Fetch data, normalise, store via kernel bridge
+ // TODO: Fetch data, normalise, store via tractor bridge
  return 0
 }
 
-// Helper: log to kernel
+// Helper: log to tractor
 func log(level, msg string) {
- // In a real implementation, this would call a kernel-provided function
+ // In a real implementation, this would call a tractor-provided function
  fmt.Printf("[%s] %s\n", level, msg)
 }
 
@@ -298,7 +298,7 @@ pub struct PluginMetadata {
     pub required_capabilities: Vec<String>,
 }
 
-// Export setup function (called by kernel via WIT)
+// Export setup function (called by tractor via WIT)
 #[no_mangle]
 pub extern "C" fn setup() -> i32 {
     log_info("[my-rust-bridge] setup() called");
@@ -309,12 +309,12 @@ pub extern "C" fn setup() -> i32 {
 #[no_mangle]
 pub extern "C" fn ingest() -> i32 {
     log_info("[my-rust-bridge] ingest() called");
-    // TODO: Fetch data, normalise, store via kernel bridge
+    // TODO: Fetch data, normalise, store via tractor bridge
     0
 }
 
 fn log_info(msg: &str) {
-    // In a real implementation, this would call a kernel-provided function
+    // In a real implementation, this would call a tractor-provided function
     eprintln!("[info] {}", msg);
 }
 EOF
@@ -364,7 +364,7 @@ async setup(): Promise<void> {
 
 ```typescript
 async ingest(): Promise<number> {
-  // 1. Fetch via kernel bridge (capability-gated)
+  // 1. Fetch via tractor bridge (capability-gated)
   const response = await this.bridge.fetch({
     method: "get",
     url: "https://api.example.com/messages",
@@ -385,7 +385,7 @@ async ingest(): Promise<number> {
     "refarm:sourcePlugin": "my-bridge",
   };
 
-  // 4. Store via kernel bridge
+  // 4. Store via tractor bridge
   const result = await this.bridge.storeNode(JSON.stringify(jsonLdNode));
   if (result.tag === "ok") return 1;
   else throw new Error(`Store failed: ${result.val}`);
@@ -430,7 +430,7 @@ import { describe, it, expect } from "vitest";
 import MatrixBridgePlugin from "../src/index";
 
 describe("MatrixBridgePlugin", () => {
-  // Mock kernel bridge
+  // Mock tractor bridge
   const mockBridge = {
     storeNode: async (json: string) => ({ tag: "ok", val: "node-id-1" }),
     fetch: async (req) => ({
@@ -595,7 +595,7 @@ Before publishing, ensure:
 ## Troubleshooting
 
 ### "Plugin can't access network"
-**Cause**: Capability not granted in `setup()` or kernel denies it.
+**Cause**: Capability not granted in `setup()` or tractor denies it.
 **Fix**: Check `requestPermission()` return value. Verify user granted access in UI.
 
 ### "JSON-LD validation failed"
