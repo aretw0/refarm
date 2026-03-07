@@ -39,11 +39,11 @@ cd wasm-plugin\hello-world
 rustup target add wasm32-wasip1
 cargo component build --release
 
-# 3. Testar no browser
+# 3. Rodar teste E2E automatizado (Playwright)
 cd ..\host
 npm install
 copy ..\hello-world\target\wasm32-wasip1\release\hello_world_plugin.wasm public\hello-world-plugin.wasm
-npm run dev
+npm run test:e2e
 
 # 4. Rodar benchmarks SQLite
 cd ..\..\sqlite-benchmark
@@ -62,11 +62,11 @@ cd validations/wasm-plugin/hello-world
 rustup target add wasm32-wasip1
 cargo component build --release
 
-# 3. Testar no browser
+# 3. Rodar teste E2E automatizado (Playwright)
 cd ../host
 npm install
 cp ../hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm public/hello-world-plugin.wasm
-npm run dev
+npm run test:e2e
 
 # 4. Rodar benchmarks SQLite
 cd ../../sqlite-benchmark
@@ -76,6 +76,19 @@ npm run bench:all
 
 Verificar: sem erros (warnings sobre "yanked" são normais).  
 Detalhes: [RUST_SETUP_NOTES.md](./RUST_SETUP_NOTES.md).
+
+Execucao end-to-end reprodutivel a partir da raiz:
+
+```bash
+npm run test:e2e:setup
+npm run test:repro
+```
+
+Benchmark SQLite reproduzivel a partir da raiz:
+
+```bash
+npm run bench:sqlite
+```
 
 ---
 

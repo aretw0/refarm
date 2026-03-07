@@ -41,10 +41,38 @@
 - **WASM Size**: 69.8 KB ✅ (within target)
 
 ### Test Method
-- **Tool**: Playwright (automated via MCP browser tools)
+- **Tool (manual objective run)**: Playwright via MCP browser tools
+- **Tool (permanent regression)**: `@playwright/test` spec (`host/tests/e2e/plugin-lifecycle.spec.ts`)
 - **Environment**: Dev container (Debian 12)
-- **Server**: Python HTTP server (static build from Vite)
+- **Server (regression path)**: `vite preview` via `npm run preview:test` (Node-only)
 - **Build**: Production build (`npm run build`)
+
+### Processo em Background (Auditoria)
+
+- Processo visto pelo VS Code em `http://localhost:5173`:
+  - `node validations/wasm-plugin/host/node_modules/.bin/vite`
+- Significado:
+  - e o servidor de desenvolvimento Vite (com HMR)
+  - e esperado quando `npm run dev` esta ativo
+  - nao e malware nem processo desconhecido
+
+Comandos de verificacao objetiva:
+
+```bash
+ps -eo pid,ppid,cmd --sort=start_time | grep -E "vite|playwright|http.server" | grep -v grep
+lsof -iTCP -sTCP:LISTEN -P -n | grep -E "4173|5173|8080|node|python"
+```
+
+### Opcoes de Servidor para Teste
+
+1. `npm run dev` (Vite + HMR, porta 5173)
+	- Bom para desenvolvimento manual
+	- Pode ser instavel em automacao no devcontainer
+2. `npm run build && npm run preview:test` (Node-only, porta 4173)
+	- Recomendado para Playwright deterministico
+	- Sem dependencia de Python
+3. `npm run build && python3 -m http.server 8080`
+	- Alternativa simples para diagnostico rapido
 
 ### Logs (Complete Cycle)
 ```
@@ -71,6 +99,7 @@
 **Notes**:
 - Initial timeout with Vite dev server (port 5173) due to HMR websockets in devcontainer
 - **Solution**: Use production build + static server for deterministic tests
+- **Preferred path**: `vite preview` (Node-only), Python only as fallback
 - Console error for missing `favicon.ico` is cosmetic (not blocking)
 
 ---
@@ -94,6 +123,6 @@
 **Blockers**: NONE
 
 **Next Steps**:
-1. ✅ WASM validation complete → Proceed to Sprint 1
+1. Keep running `npm run test:e2e` as regression gate for WASM host
 2. Integrate real `@bytecodealliance/jco` during Sprint 1 BDD phase
 3. Implement production plugins (RSS, Matrix, Nostr) in Sprint 2+

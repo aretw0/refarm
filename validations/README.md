@@ -33,7 +33,8 @@ validations/
 - [ ] Criar PluginHost (TypeScript) no browser
 - [ ] Testar capability enforcement
 - [ ] Benchmark performance (< 0.1ms per call)
-- [ ] Documentar resultados em `wasm-plugin/results.md`
+- [ ] Rodar `npm --prefix wasm-plugin/host run test:e2e`
+- [ ] Documentar resultados em `wasm-plugin/VALIDATION_RESULTS.md`
 
 ### Fase 2: SQLite Benchmark (1 dia)
 
@@ -66,3 +67,11 @@ validations/
 6. Revisar `results.md` em cada pasta
 
 **Tempo estimado**: 3-4 dias (16-20 horas)
+
+## Comandos Reproduziveis (da raiz do repo)
+
+```bash
+npm run test:e2e       # Playwright E2E (wasm-plugin/host)
+npm run bench:sqlite   # Benchmark wa-sqlite vs sql.js
+npm run test:repro     # Lint + type-check + unit + integration + e2e
+```
