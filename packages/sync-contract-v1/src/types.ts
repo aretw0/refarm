@@ -42,6 +42,11 @@ export interface SyncProvider {
   disconnect(sessionId: string): Promise<void>;
 }
 
+export interface SyncAdapter {
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
+
 export interface SyncConformanceResult {
   pass: boolean;
   total: number;

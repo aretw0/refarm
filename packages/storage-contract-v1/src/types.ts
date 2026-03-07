@@ -41,6 +41,22 @@ export interface StorageProvider {
   query(query: StorageQuery): Promise<StorageRecord[]>;
 }
 
+export interface StorageAdapter {
+  ensureSchema(): Promise<void>;
+  storeNode(
+    id: string,
+    type: string,
+    context: string,
+    payload: string,
+    sourcePlugin: string | null,
+  ): Promise<void>;
+  queryNodes(type: string): Promise<any[]>;
+  execute(sql: string, args?: any): Promise<any>;
+  query<T = any>(sql: string, args?: any): Promise<T[]>;
+  transaction<T>(fn: () => Promise<T>): Promise<T>;
+  close(): Promise<void>;
+}
+
 export interface StorageConformanceResult {
   pass: boolean;
   total: number;

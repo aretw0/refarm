@@ -44,6 +44,10 @@ export interface IdentityProvider {
   get(identityId: string): Promise<Identity | null>;
 }
 
+export interface IdentityAdapter {
+  publicKey?: string;
+}
+
 export interface IdentityConformanceResult {
   pass: boolean;
   total: number;
