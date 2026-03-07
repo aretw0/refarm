@@ -100,18 +100,26 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Get Playwright version
+        id: playwright_version
+        if: steps.e2e_check.outputs.enabled == 'true'
+        run: |
+          PW_VERSION=$(node -p "require('./validations/wasm-plugin/host/package-lock.json').packages['node_modules/@playwright/test'].version")
+          echo "version=${PW_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: Cache Playwright browsers
         id: playwright_cache
         if: steps.e2e_check.outputs.enabled == 'true'
         uses: ./.github/actions/cache-playwright
         with:
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}-chromium-firefox-webkit
           restore-keys: |
+            ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}-
             ${{ runner.os }}-playwright-
 
       - name: Install Playwright browsers
         if: steps.e2e_check.outputs.enabled == 'true' && steps.playwright_cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps
+        run: npm --prefix validations/wasm-plugin/host exec playwright install --with-deps
 
       - name: Download build artifacts
         if: steps.e2e_check.outputs.enabled == 'true'
