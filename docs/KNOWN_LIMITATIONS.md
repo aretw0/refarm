@@ -1,0 +1,330 @@
+# Refarm Known Limitations & Mitigation Strategy
+
+**Purpose**: Honest inventory of architectural "backdoors" and how we'll handle them. No surprises.
+
+---
+
+## Philosophy: Know Your Enemies
+
+> "A system that doesn't know its limits will discover them at the worst possible time — in production, when users are angry."
+
+We explicitly document:
+1. **What can go wrong** (worst-case scenarios)
+2. **When we'll know** (early warning signals)
+3. **What we'll do** (mitigation plan)
+4. **When we'll fix** (prioritization)
+
+---
+
+## Category 1: Resource Exhaustion
+
+### Limitation 1.1: OPFS Quota Can Fill Up
+
+**Worst Case**:
+- User creates 100k nodes
+- Each node has 10KB of data
+- Total: 1GB used
+- Browser quota: depends on device (Chrome ~60% of disk)
+- **User hits quota → writes fail → data loss**
+
+**Early Warning Signals**:
+```typescript
+// Detect when approaching quota
+navigator.storage.estimate().then(({ usage, quota }) => {
+  const percentUsed = (usage / quota) * 100;
+  
+  if (percentUsed > 80) {
+    // RED ALERT: user needs to take action
+  } else if (percentUsed > 60) {
+    // YELLOW: warn user proactively
+  }
+});
+```
+
+**Mitigation (v0.2.0)**:
+1. **Resource Observatory Plugin** (see below)
+2. Warn user when 60% full
+3. Offer export/archive options
+4. Block new writes at 95% (preserve integrity)
+
+**Status**: ⚠️ Not implemented yet, but design ready
+
+---
+
+### Limitation 1.2: IndexedDB Can Corrupt
+
+**Worst Case**:
+- Browser crash mid-write
+- CRDT state in IndexedDB becomes inconsistent
+- User opens app → sees corrupted data
+
+**Early Warning**: 
+- Checksum failures on read (ADR-021 Layer 1)
+- WAL replay detects gaps
+
+**Mitigation (v0.3.0)**:
+- Write-ahead log (WAL) for recovery (ADR-021)
+- Checksum validation on every read
+- Auto-repair from last good commit
+
+**Status**: ⚠️ Design complete (ADR-021), implementation pending
+
+---
+
+### Limitation 1.3: Memory Can Blow Up from Bad Plugin
+
+**Worst Case**:
+- Third-party plugin leaks memory (allocates but never frees)
+- After 10 minutes: 500MB consumed
+- Browser tab crashes → user loses work
+
+**Early Warning**:
+```typescript
+// Plugin Citizenship Monitor tracks per-plugin memory
+if (plugin.memoryUsage > plugin.quota) {
+  // Throttle immediately
+  citizenshipMonitor.throttle(plugin.id, 0.1); // 10% quota
+}
+```
+
+**Mitigation (v0.3.0)**:
+- Plugin citizenship monitoring (ADR-021)
+- Per-plugin memory quotas (declared in manifest)
+- Automatic throttling → isolation → quarantine
+
+**Status**: ⚠️ Design complete (ADR-021), implementation pending
+
+---
+
+## Category 2: Multi-Device Sync
+
+### Limitation 2.1: Conflict Avalanche (Cascading Edits)
+
+**Worst Case**:
+- Device A: 1000 edits offline
+- Device B: 1000 edits offline (same nodes)
+- Both sync → CRDT merges 2000 operations
+- Result: Slow (can take 10+ seconds), UI freezes
+
+**Early Warning**:
+- Sync operation counter (operations pending > 1000)
+- Detect when two devices have been offline for days
+
+**Mitigation (v0.2.0)**:
+- Background sync (don't block UI)
+- Progress indicator ("Merging 2000 changes...")
+- CRDT compaction (merge operations into snapshots)
+
+**Status**: ⚠️ Needs implementation + UX design
+
+---
+
+### Limitation 2.2: Schema Version Mismatch
+
+**Worst Case**:
+- Device A: v0.1.0 (schema v0)
+- Device B: v0.3.0 (schema v2)
+- B syncs data in v2 → A can't parse it → silent data loss
+
+**Early Warning**:
+- Version negotiation on sync handshake
+- Detect when peer has incompatible schema
+
+**Mitigation (Already Designed)**:
+- Schema upcasting (ADR-010) handles v0 → v1 → v2
+- Graceful downgrade (salvage readable fields)
+- Reject sync if gap too large (e.g., v0 ↔ v5)
+
+**Status**: ✅ Design complete (ADR-010), ready for implementation
+
+---
+
+## Category 3: Plugin Ecosystem Chaos
+
+### Limitation 3.1: Malicious Plugin Can Steal Data
+
+**Worst Case**:
+- User installs "helpful plugin"
+- Plugin has `network:write` capability
+- Plugin exfiltrates graph to attacker server
+
+**Early Warning**:
+- Capability审查 in manifest
+- Network operations logged by observability
+
+**Mitigation (v0.4.0)**:
+- Capability permissions (user approves before install)
+- Network operations require explicit user consent
+- Sandbox isolation (WASM can't access DOM directly)
+
+**Status**: ⚠️ Basic capability system exists, advanced isolation pending
+
+---
+
+### Limitation 3.2: Plugin Conflict (Two Plugins Compete for Same Resource)
+
+**Worst Case**:
+- Plugin A: Manages task priority
+- Plugin B: Also manages task priority
+- Both write to same field → endless conflict loop
+
+**Early Warning**:
+- Capability collision detection
+- Multiple plugins declaring same write paths
+
+**Mitigation (v0.3.0)**:
+- Manifest declares "write paths" (which fields plugin modifies)
+- Kernel warns user if two plugins conflict
+- User chooses which plugin wins (policy)
+
+**Status**: ⚠️ Design needed (ADR-022, see below)
+
+---
+
+## Category 4: Studio UI Freezes
+
+### Limitation 4.1: Too Many Nodes Rendered at Once
+
+**Worst Case**:
+- User opens view with 10,000 nodes
+- React tries to render all at once
+- UI freezes for 10 seconds
+
+**Early Warning**:
+- Flame graph shows render time > 100ms
+- User reports "Studio is slow"
+
+**Mitigation (v0.2.0)**:
+- Virtual scrolling (only render visible nodes)
+- Pagination (show 100 at a time)
+- Progressive rendering (render critical first)
+
+**Status**: ⚠️ React optimization needed
+
+---
+
+### Limitation 4.2: Infinite Loop in Plugin
+
+**Worst Case**:
+- Plugin has bug: `while(true) {}`
+- Blocks event loop
+- UI becomes unresponsive
+
+**Early Warning**:
+- Plugin execution time > 5 seconds
+- Watchdog timer fires
+
+**Mitigation (v0.3.0)**:
+- Watchdog timer kills long-running operations
+- Plugin isolated in Web Worker (doesn't block main thread)
+- User notified + plugin auto-disabled
+
+**Status**: ⚠️ Web Worker isolation needed
+
+---
+
+## Category 5: User Experience Disasters
+
+### Limitation 5.1: User Doesn't Know What Broke
+
+**Worst Case**:
+- Data mysteriously disappears
+- User doesn't know which plugin caused it
+- No way to debug
+
+**Early Warning**:
+- Missing observability (can't trace operations)
+
+**Mitigation (v0.2.0)**:
+- Observability primitives (ADR-007)
+- Studio DevTools showing operation log
+- "Who modified this node?" audit trail
+
+**Status**: ⚠️ ADR-007 draft, implementation needed
+
+---
+
+### Limitation 5.2: User Loses Work (No Undo)
+
+**Worst Case**:
+- User deletes 100 nodes by accident
+- No undo button
+- Data gone forever
+
+**Early Warning**:
+- No version history
+
+**Mitigation (v0.2.0-0.3.0)**:
+- Graph versioning (ADR-020) enables undo/redo
+- Commit before destructive operations
+- Revert to last good state
+
+**Status**: ⚠️ ADR-020 design complete, implementation pending
+
+---
+
+## Category 6: Licensing & Legal
+
+### Limitation 6.1: User Doesn't Know License of Their Data
+
+**Worst Case**:
+- User creates content in Refarm
+- Shares with someone
+- Recipient claims "no license = public domain"
+- Legal dispute
+
+**Early Warning**:
+- No license metadata on nodes
+
+**Mitigation (v0.2.0)**:
+- License selector in graph metadata
+- Support Creative Commons, proprietary, etc.
+- Display license badge in Studio UI
+
+**Status**: ⚠️ Not designed yet (new requirement)
+
+---
+
+## Summary: What You Can Rely On Today
+
+| Mitigation | Status | When |
+|------------|--------|------|
+| Schema evolution (upcasting) | ✅ Design ready (ADR-010) | v0.2.0 |
+| CRDT conflict resolution | ✅ Working (Yjs) | v0.1.0 |
+| Conformance tests (contracts) | ✅ Working (12 tests) | v0.1.0 |
+| Capability contracts | ✅ Working (4 packages) | v0.1.0 |
+| **Graph versioning** | ⚠️ Design only (ADR-020) | v0.2.0-0.3.0 |
+| **Self-healing** | ⚠️ Design only (ADR-021) | v0.3.0+ |
+| **Plugin citizenship** | ⚠️ Design only (ADR-021) | v0.3.0+ |
+| **Resource quota enforcement** | ❌ Not designed | v0.3.0+ |
+| **License metadata** | ❌ Not designed | v0.2.0+ |
+
+---
+
+## How to Sleep Better Tonight
+
+1. **You're asking the right questions** (quota exhaustion, plugin chaos, sync conflicts)
+2. **You've designed solutions** (ADR-020, ADR-021 address most of these)
+3. **You can't implement everything now** (that's OK, roadmap is explicit)
+4. **You WILL find more problems** (that's expected, not failure)
+5. **Foundation is solid** (offline-first, CRDT, contracts tested)
+
+**Next Steps**:
+- v0.1.1: Release contracts (proven foundation)
+- v0.2.0: Implement 2-3 critical mitigations (graph versioning, observability)
+- v0.3.0: Implement 2-3 more (self-healing, plugin citizenship)
+- v1.0.0: All major limitations mitigated
+
+**You don't need to solve everything before launching.**  
+You need a **foundation that allows you to evolve** when you discover new problems.
+
+You have that foundation.
+
+---
+
+## References
+
+- [ADR-010: Schema Evolution](../specs/ADRs/ADR-010-schema-evolution.md)
+- [ADR-020: Graph Versioning](../specs/ADRs/ADR-020-sovereign-graph-versioning.md)
+- [ADR-021: Self-Healing](../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md)
+- [ADR-022: Policy Declarations](../specs/ADRs/ADR-022-policy-declarations-in-plugin-manifests.md) ← NEW

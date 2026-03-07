@@ -36,6 +36,7 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 |-----|-------|--------|--------|----------|
 | [020](ADR-020-sovereign-graph-versioning.md) | Sovereign Graph Versioning (commit/branch/checkout/revert) | ✏️ Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation |
 | [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | ✏️ Proposed | v0.3.0+ | 40+ integration tests + kernel implementation |
+| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests | ✏️ Proposed | v0.3.0+ | Manifest schema extension + PolicyManager implementation |
 
 ---
 
