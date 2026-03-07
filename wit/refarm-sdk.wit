@@ -3,9 +3,9 @@
 /// WebAssembly Interface Type (WIT) definition for the Refarm Plugin SDK.
 ///
 /// This file defines the **entire communication surface** between a plugin
-/// (WASM component) and the Refarm Kernel.  Plugins are fully sandboxed:
+/// (WASM component) and the Refarm Tractor.  Plugins are fully sandboxed:
 /// they cannot access the DOM, the network, or SQLite directly.  All
-/// interactions MUST go through the imports listed in `refarm:plugin/kernel-bridge`.
+/// interactions MUST go through the imports listed in `refarm:plugin/tractor-bridge`.
 ///
 /// Standard: WebAssembly Component Model (WASI Preview 2)
 /// Spec:     https://component-model.bytecodealliance.org/
@@ -13,11 +13,11 @@
 /// ┌──────────────────────────────────────┐
 /// │            Plugin (WASM)             │
 /// │  implements  refarm:plugin/integration│
-/// │  uses        refarm:plugin/kernel-bridge│
+/// │  uses        refarm:plugin/tractor-bridge│
 /// └──────────────────────────────────────┘
 ///         ↕ WIT boundary (sandbox)
 /// ┌──────────────────────────────────────┐
-/// │          Refarm Kernel (host)        │
+/// │          Refarm Tractor (host)        │
 /// └──────────────────────────────────────┘
 
 package refarm:plugin@0.1.0;
@@ -25,7 +25,7 @@ package refarm:plugin@0.1.0;
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
 /// A JSON-LD node serialised as a UTF-8 string.
-/// Must be valid JSON-LD; the kernel validates this before persistence.
+/// Must be valid JSON-LD; the tractor validates this before persistence.
 type json-ld-node = string;
 
 /// A stable, URL-safe identifier for a data node.
@@ -56,7 +56,7 @@ record http-response {
     body: list<u8>,
 }
 
-/// Error type for all kernel-bridge operations.
+/// Error type for all tractor-bridge operations.
 variant plugin-error {
     /// The operation is not permitted by the current capability grant.
     not-permitted(string),
@@ -66,19 +66,19 @@ variant plugin-error {
     invalid-schema(string),
     /// A network fetch failed.
     network-error(string),
-    /// An unspecified internal kernel error.
+    /// An unspecified internal tractor error.
     internal(string),
 }
 
-// ─── World: Kernel → Plugin Imports (what the plugin can call) ────────────────
+// ─── World: Tractor → Plugin Imports (what the plugin can call) ────────────────
 
-/// Capability interface exposed by the Kernel to the plugin.
+/// Capability interface exposed by the Tractor to the plugin.
 ///
 /// This is the ONLY way a plugin can interact with the outside world.
-/// The kernel host implementation enforces all permissions.
-interface kernel-bridge {
+/// The tractor host implementation enforces all permissions.
+interface tractor-bridge {
     /// Store (upsert) a JSON-LD node into the user's sovereign graph.
-    /// The kernel validates the schema and may reject malformed payloads.
+    /// The tractor validates the schema and may reject malformed payloads.
     store-node: func(node: json-ld-node) -> result<node-id, plugin-error>;
 
     /// Retrieve a previously stored node by its ID.
@@ -88,7 +88,7 @@ interface kernel-bridge {
     query-nodes: func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
 
     /// Perform a capability-gated HTTP request.
-    /// The kernel checks the allowed-origins list configured by the user
+    /// The tractor checks the allowed-origins list configured by the user
     /// before forwarding the request; plugins cannot fetch arbitrary URLs.
     fetch: func(req: http-request) -> result<http-response, plugin-error>;
 
@@ -98,6 +98,20 @@ interface kernel-bridge {
     /// Request a user-facing permission prompt (e.g. "Allow Matrix Bridge
     /// to read your contacts?").  Returns true if the user accepts.
     request-permission: func(capability: string, reason: string) -> bool;
+
+    /// Retrieve the current user's identity information.
+    /// This is used to determine if the user is a guest and what storage tier they are using.
+    get-identity: func() -> result<identity-info, plugin-error>;
+}
+
+/// Information about the current user's identity and storage tier.
+record identity-info {
+    /// "guest" or "permanent"
+    identity-type: string,
+    /// "ephemeral", "persistent", or "synced"
+    storage-tier: string,
+    /// The user's public key (if permanent) or vault ID (if guest)
+    identifier: string,
 }
 
 /// Log severity levels.
@@ -108,18 +122,18 @@ enum log-level {
     error,
 }
 
-// ─── World: Plugin → Kernel Exports (what the kernel can call) ────────────────
+// ─── World: Plugin → Tractor Exports (what the tractor can call) ────────────────
 
 /// Interface the plugin MUST implement.
-/// The kernel calls these lifecycle hooks.
+/// The tractor calls these lifecycle hooks.
 interface integration {
     /// Called once after the plugin is instantiated.
     /// Use this to perform one-time setup (e.g. OAuth handshake).
     setup: func() -> result<_, plugin-error>;
 
     /// Called periodically (or on demand) to pull fresh data from the source.
-    /// The plugin fetches data through `kernel-bridge.fetch` and stores
-    /// normalised JSON-LD nodes via `kernel-bridge.store-node`.
+    /// The plugin fetches data through `tractor-bridge.fetch` and stores
+    /// normalised JSON-LD nodes via `tractor-bridge.store-node`.
     ingest: func() -> result<u32, plugin-error>;
 
     /// Called when the user triggers a push (e.g. replying to a message).
@@ -154,8 +168,8 @@ record plugin-metadata {
 ///
 /// Then distribute it via Nostr NIP-94 and announce it with NIP-89.
 world refarm-plugin {
-    /// Imports provided by the Kernel host.
-    import kernel-bridge;
+    /// Imports provided by the Tractor host.
+    import tractor-bridge;
 
     /// Exports that the plugin must implement.
     export integration;

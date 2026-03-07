@@ -21,9 +21,8 @@
     "clean": "rm -rf dist"
   },
   "keywords": ["sqlite", "opfs", "offline-first", "local-first", "wasm"],
-  "license": "MIT",
   "dependencies": {
-    "@refarm/storage-contract-v1": "workspace:*"
+    "@refarm.dev/storage-contract-v1": "*"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

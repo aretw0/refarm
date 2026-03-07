@@ -11,42 +11,26 @@
  */
 
 import {
-  STORAGE_CAPABILITY,
-  type StorageProvider,
-  type StorageQuery,
-  type StorageRecord,
+    PHYSICAL_SCHEMA_V1,
+    STORAGE_CAPABILITY,
+    type StorageAdapter,
+    type StorageProvider,
+    type StorageQuery,
+    type StorageRecord
 } from "@refarm.dev/storage-contract-v1";
+
+// Wait, I put schema.ts in /packages/storage-contract-v1/src/schema.ts
+// Let me fix the import after I verify the path.
 
 // ─── Public Types ────────────────────────────────────────────────────────────
 
 /** A single row returned from a query, typed as a plain object. */
-export type Row = Record<string, unknown>;
+export type Row = Record<string, any>;
 
 /** Options accepted by StorageAdapter.query() */
 export interface QueryOptions {
   /** Bound parameters (positional or named). */
-  params?: unknown[];
-}
-
-/** The minimal contract every storage back-end must satisfy. */
-export interface StorageAdapter {
-  /**
-   * Open (or create) the database at the given logical name.
-   * Returns the same adapter instance for chaining.
-   */
-  open(name: string): Promise<StorageAdapter>;
-
-  /** Execute a write statement; returns the number of affected rows. */
-  execute(sql: string, options?: QueryOptions): Promise<number>;
-
-  /** Execute a read statement; returns all matching rows. */
-  query<T extends Row = Row>(sql: string, options?: QueryOptions): Promise<T[]>;
-
-  /** Wrap multiple operations in a single ACID transaction. */
-  transaction<T>(fn: () => Promise<T>): Promise<T>;
-
-  /** Gracefully close the database connection. */
-  close(): Promise<void>;
+  params?: any;
 }
 
 // ─── SQLite / OPFS Adapter ───────────────────────────────────────────────────
@@ -63,18 +47,37 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   /** @internal */
   private _db: unknown = null;
 
-  async open(name: string): Promise<StorageAdapter> {
-    // TODO: initialise sqlite-wasm with OPFS VFS:
-    //
-    //   const { default: sqlite3InitModule } = await import('@sqlite.org/sqlite-wasm');
-    //   const sqlite3 = await sqlite3InitModule({ print: console.log });
-    //   this._db = new sqlite3.oo1.OpfsDb(`/${name}.sqlite3`);
-    //
+  async open(name: string): Promise<OPFSSQLiteAdapter> {
     console.info(`[storage-sqlite] Opening database: ${name}`);
     return this;
   }
 
-  async execute(sql: string, options: QueryOptions = {}): Promise<number> {
+  async ensureSchema(): Promise<void> {
+    await runMigrations(this, PHYSICAL_SCHEMA_V1);
+  }
+
+  async storeNode(
+    id: string,
+    type: string,
+    context: string,
+    payload: string,
+    sourcePlugin: string | null,
+  ): Promise<void> {
+    await this.execute(
+      `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin)
+       VALUES (?, ?, ?, ?, ?)`,
+      { params: [id, type, context, payload, sourcePlugin] },
+    );
+  }
+
+  async queryNodes(type: string): Promise<any[]> {
+    return this.query(
+      "SELECT payload FROM nodes WHERE type = ? ORDER BY created_at DESC",
+      { params: [type] },
+    );
+  }
+
+  async execute(sql: string, options: QueryOptions = {}): Promise<any> {
     this._assertOpen();
     // TODO: delegate to this._db.exec(sql, { bind: options.params })
     void sql;
@@ -82,7 +85,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     return 0;
   }
 
-  async query<T extends Row = Row>(sql: string, options: QueryOptions = {}): Promise<T[]> {
+  async query<T = any>(sql: string, options: QueryOptions = {}): Promise<T[]> {
     this._assertOpen();
     // TODO: delegate to this._db.exec(sql, { bind: options.params, returnValue: 'resultRows', rowMode: 'object' })
     void sql;
@@ -176,7 +179,7 @@ export async function runMigrations(
   const applied = await adapter.query<{ id: number }>(
     "SELECT id FROM _migrations ORDER BY id"
   );
-  const appliedIds = new Set(applied.map((r) => r.id));
+  const appliedIds = new Set(applied.map((r: { id: number }) => r.id));
 
   for (let i = 0; i < migrations.length; i++) {
     if (!appliedIds.has(i)) {

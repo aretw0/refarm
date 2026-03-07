@@ -15,6 +15,7 @@ This is the first distributable release of Refarm's contract stack:
 - **@refarm.dev/plugin-manifest**: Plugin manifest schema and validation helpers
 
 All packages include:
+
 - Full TypeScript typings
 - Comprehensive conformance test suites for implementation validation
 - Detailed README with usage examples

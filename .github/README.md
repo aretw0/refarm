@@ -12,6 +12,7 @@ Este diretório contém workflows automatizados para CI/CD do projeto Refarm.
 **Objetivo:** Validar qualidade do código
 
 **Steps:**
+
 - Type checking (TypeScript)
 - Lint (ESLint)
 - Unit tests + conformance tests
@@ -24,18 +25,21 @@ Este diretório contém workflows automatizados para CI/CD do projeto Refarm.
 **Objetivo:** Publicar pacotes no npm de forma segura e automatizada
 
 **Examples:**
+
 ```bash
 git tag @refarm.dev/storage-contract-v1@0.1.0
 git push origin @refarm.dev/storage-contract-v1@0.1.0
 ```
 
 **Steps:**
+
 1. Validações (type-check, tests, dry-run)
 2. Publish para npm com provenance
 3. Criação de GitHub Release
 4. Verificação pós-publicação
 
 **Requirements:**
+
 - `NPM_TOKEN` configurado em Secrets (automation token)
 - Version no `package.json` deve corresponder ao tag
 - Todos os testes devem passar
@@ -56,6 +60,7 @@ npm run release identity-contract-v1 0.3.0
 ```
 
 O script automaticamente:
+
 - ✅ Valida git status clean
 - ✅ Bumps version no package.json
 - ✅ Roda type-check + tests + conformance
@@ -87,9 +92,9 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 
 ## Monitoring Releases
 
-1. **GitHub Actions:** https://github.com/refarm-dev/refarm/actions
-2. **npm Package:** https://www.npmjs.com/package/@refarm.dev/storage-contract-v1
-3. **GitHub Releases:** https://github.com/refarm-dev/refarm/releases
+1. **GitHub Actions:** <https://github.com/refarm-dev/refarm/actions>
+2. **npm Package:** <https://www.npmjs.com/package/@refarm.dev/storage-contract-v1>
+3. **GitHub Releases:** <https://github.com/refarm-dev/refarm/releases>
 
 ## Rollback a Release
 
@@ -108,11 +113,11 @@ git push origin @refarm.dev/storage-contract-v1@0.1.2
 
 ## Secrets Required
 
-Configurar em: https://github.com/refarm-dev/refarm/settings/secrets/actions
+Configurar em: <https://github.com/refarm-dev/refarm/settings/secrets/actions>
 
 | Secret | Description | How to Get |
 |--------|-------------|------------|
-| `NPM_TOKEN` | npm automation token | https://www.npmjs.com/settings/[user]/tokens → Generate (Automation) |
+| `NPM_TOKEN` | npm automation token | <https://www.npmjs.com/settings/[user]/tokens> → Generate (Automation) |
 | `GITHUB_TOKEN` | Provided automatically | - |
 
 ## Security Best Practices
@@ -132,6 +137,7 @@ Configurar em: https://github.com/refarm-dev/refarm/settings/secrets/actions
 ```
 
 **Fix:**
+
 ```bash
 cd packages/storage-contract-v1
 npm version 0.1.1 --no-git-tag-version
@@ -153,6 +159,7 @@ git push -f origin <branch>
 Você tentou publicar uma versão que já existe no npm.
 
 **Fix:** Bump para próxima versão:
+
 ```bash
 npm run release <package> patch
 ```
