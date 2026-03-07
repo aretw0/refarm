@@ -376,6 +376,217 @@ This plugin would be **practically core** (everyone wants it) but implemented as
 
 ---
 
+## Extension: Performance Budgets
+
+**Problem learned from ecosystems** (VSCode, Electron, Jupyter):
+
+Plugins can be arbitrarily slow, causing:
+- **UI freezes**: Plugin runs expensive operation on main thread → 5 second freeze
+- **Startup delays**: 20 plugins each take 500ms → 10 second startup
+- **Janky interactions**: Plugin runs on every keystroke, takes 200ms → typing feels slow
+
+**Solution**: Plugins declare **performance budgets** in manifest.
+
+### Manifest Extension: `performance` Field
+
+```jsonc
+{
+  "id": "io.refarm.canvas-renderer",
+  "name": "Canvas Renderer",
+  "version": "1.0.0",
+  
+  "policies": {
+    "performance": {
+      "startup": {
+        "maxTime": "100ms",              // Must initialize in < 100ms
+        "critical": false                 // Not required for app boot
+      },
+      "operations": {
+        "render": {
+          "maxTime": "16ms",             // 60fps guarantee
+          "frequency": "on-every-frame", // How often called
+          "priority": "high"             // high|medium|low
+        },
+        "save": {
+          "maxTime": "500ms",
+          "frequency": "user-initiated",
+          "priority": "medium"
+        },
+        "search": {
+          "maxTime": "100ms",
+          "frequency": "on-typing",      // Called on every keystroke
+          "priority": "high"
+        }
+      },
+      "monitoring": {
+        "enabled": true,                 // Kernel tracks actual performance
+        "reportViolations": true,        // Report to user if exceeds budget
+        "enforcementStrategy": "throttle" // throttle|warn|disable
+      }
+    }
+  }
+}
+```
+
+### Performance Monitoring
+
+Kernel tracks actual performance vs. declared budget:
+
+```typescript
+// apps/kernel/src/performance-monitor.ts
+
+class PerformanceMonitor {
+  private budgets: Map<string, PerformanceBudget> = new Map();
+  private violations: Map<string, Violation[]> = new Map();
+  
+  /**
+   * Track plugin operation performance
+   */
+  async trackOperation(
+    pluginId: string,
+    operationName: string,
+    actualTime: number
+  ) {
+    const budget = this.budgets.get(pluginId)?.operations[operationName];
+    
+    if (!budget) return; // No budget declared
+    
+    const maxTime = this.parseTime(budget.maxTime);
+    
+    if (actualTime > maxTime) {
+      // Budget exceeded
+      const violation = {
+        pluginId,
+        operation: operationName,
+        budgeted: maxTime,
+        actual: actualTime,
+        timestamp: Date.now(),
+        severity: this.calculateSeverity(actualTime, maxTime)
+      };
+      
+      this.recordViolation(pluginId, violation);
+      
+      // Enforce strategy
+      const strategy = budget.enforcementStrategy ?? 'warn';
+      
+      switch (strategy) {
+        case 'throttle':
+          // Reduce plugin execution frequency
+          this.citizenshipMonitor.throttle(pluginId, 0.5);
+          break;
+          
+        case 'warn':
+          // Notify user
+          this.studio.notify({
+            type: 'performance-warning',
+            message: `Plugin "${pluginId}" exceeded performance budget`,
+            details: `Operation "${operationName}" took ${actualTime}ms (budget: ${maxTime}ms)`
+          });
+          break;
+          
+        case 'disable':
+          // Disable plugin if repeatedly violates
+          const recentViolations = this.getRecentViolations(pluginId, { within: '5 minutes' });
+          
+          if (recentViolations.length > 10) {
+            await this.kernel.disablePlugin(pluginId, {
+              reason: 'repeated-performance-violations',
+              canReenable: true
+            });
+          }
+          break;
+      }
+    }
+  }
+  
+  /**
+   * Calculate violation severity
+   */
+  private calculateSeverity(
+    actual: number,
+    budgeted: number
+  ): 'low' | 'medium' | 'high' | 'critical' {
+    const ratio = actual / budgeted;
+    
+    if (ratio > 10) return 'critical';  // 10x over budget
+    if (ratio > 5) return 'high';       // 5x over budget
+    if (ratio > 2) return 'medium';     // 2x over budget
+    return 'low';                       // < 2x over budget
+  }
+}
+```
+
+### User Experience: Performance Dashboard
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Studio → DevTools → Performance                              │
+│                                                              │
+│ Plugin Performance (Last Hour):                             │
+│                                                              │
+│ ✅ Canvas Renderer                                           │
+│    render: avg 12ms (budget: 16ms)  [✓ Within budget]      │
+│    save:   avg 450ms (budget: 500ms) [✓ Within budget]     │
+│                                                              │
+│ ⚠️  Search Plugin                                            │
+│    search: avg 150ms (budget: 100ms) [⚠️  50% over budget]  │
+│    Violations: 23 in last hour                              │
+│    [Show Details] [Adjust Budget] [Disable Plugin]          │
+│                                                              │
+│ 🔴 Heavy Analyzer                                            │
+│    analyze: avg 2000ms (budget: 500ms) [🔴 4x over budget]  │
+│    Violations: 102 in last hour                             │
+│    Status: Auto-throttled (50% frequency)                   │
+│    [Show Details] [Disable Plugin]                          │
+│                                                              │
+│ Aggregate Stats:                                             │
+│   Total time in plugins: 12.3s                              │
+│   Violations: 125 (23 medium, 102 high)                     │
+│   Throttled plugins: 1                                       │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Testing Performance Budgets
+
+```typescript
+test('plugin exceeding performance budget is throttled', async () => {
+  const plugin = await kernel.loadPlugin({
+    id: 'slow-plugin',
+    policies: {
+      performance: {
+        operations: {
+          process: {
+            maxTime: '100ms',
+            enforcementStrategy: 'throttle'
+          }
+        }
+      }
+    }
+  });
+  
+  // Simulate slow operation (500ms, 5x over budget)
+  await plugin.execute('process', async () => {
+    await sleep(500);
+  });
+  
+  // Should be throttled
+  const citizenship = kernel.getCitizenshipStatus(plugin.id);
+  expect(citizenship.throttled).toBe(true);
+  expect(citizenship.throttleRatio).toBe(0.5); // 50% frequency
+});
+```
+
+### Benefits
+
+1. **Prevents UI freezes**: Plugins that violate budgets are throttled
+2. **Fast startup**: Critical plugins have strict budgets, non-critical can defer
+3. **User visibility**: Performance dashboard shows slow plugins
+4. **Developer feedback**: Plugin authors see violations during testing
+5. **Ecosystem quality**: Marketplace can badge "⚡ Fast" plugins
+
+---
+
 ## Implementation Plan
 
 ### Phase 1: Manifest Schema (v0.2.0)
