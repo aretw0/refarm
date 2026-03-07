@@ -105,6 +105,61 @@ jobs:
             echo "📦 Updates discovered, preparing issue and PR."
           fi
 
+      - name: Apply updates
+        if: steps.check.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ${{ inputs.update-command }}
+
+      - name: Validation Gate (Standard Tests)
+        id: validation_gate
+        if: steps.check.outputs.has_updates == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run lint
+          npm run type-check
+          npm run test:unit
+          npm run test:integration
+
+      - name: Benchmark Quality Gate (Tractor)
+        id: bench_gate
+        if: steps.check.outputs.has_updates == 'true'
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -d "packages/tractor" ]; then
+            cd packages/tractor
+            npm run bench:check
+          fi
+
+      - name: Compose Final Report
+        id: compose_report
+        if: steps.check.outputs.has_updates == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          REPORT_FILE="${{ inputs.report-file }}"
+          FINAL_REPORT="final-report.md"
+          
+          cp "$REPORT_FILE" "$FINAL_REPORT"
+          echo -e "\n---\n" >> "$FINAL_REPORT"
+          
+          if [ "${{ steps.validation_gate.outcome }}" != "success" ]; then
+            echo -e "> [!CAUTION]\n> **Testes Falharam!** Esta atualização de dependências quebrou funcionalidades existentes. Verifique os logs do CI.\n" >> "$FINAL_REPORT"
+          else
+            echo -e "✅ **Testes Passaram!** Nenhuma regressão funcional detectada.\n" >> "$FINAL_REPORT"
+          fi
+
+          if [ -f "packages/tractor/benchmarks/report.md" ]; then
+            cat packages/tractor/benchmarks/report.md >> "$FINAL_REPORT"
+          fi
+          
+          echo "report_path=$FINAL_REPORT" >> "$GITHUB_OUTPUT"
+
       - name: Manage issue
         id: manage_issue
         if: steps.check.outputs.has_updates == 'true'
@@ -113,16 +168,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           title: ${{ inputs.issue-title }}
-          body-file: ${{ inputs.report-file }}
+          body-file: ${{ steps.compose_report.outputs.report_path }}
           search-query: ${{ inputs.issue-search-query }}
           labels: ${{ inputs.issue-labels }}
-
-      - name: Apply updates
-        if: steps.manage_issue.outputs.proceed == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          ${{ inputs.update-command }}
 
       - name: Render PR body
         id: pr_body
@@ -132,6 +180,10 @@ jobs:
           set -euo pipefail
           BODY_TEMPLATE="${{ inputs.pr-body-template }}"
           BODY_RENDERED="${BODY_TEMPLATE//\{\{ISSUE_URL\}\}/${{ steps.manage_issue.outputs.issue_url }}}"
+
+          # Use the already composed report content
+          REPORT_CONTENT=$(cat ${{ steps.compose_report.outputs.report_path }})
+          BODY_RENDERED="${BODY_RENDERED}"$'\n\n'"${REPORT_CONTENT}"
 
           {
             echo 'body<<EOF'
