@@ -403,6 +403,20 @@ O Refarm opera no espaço de **Personal Knowledge Management (PKM)** com forte f
 3. **ActivityPub Bridge**: Publicar notas como posts ActivityPub (Mastodon, etc.)
 4. **Browser Extension**: Discussão detalhada no próximo documento
 
+### Estruturação do Design System Headless (Prioridade Transversal)
+
+Para sustentar diferenciais como plugin sandbox, onboarding sem fricção e expansão de ecossistema, o bootstrap do design system headless deve ser tratado como investimento de plataforma.
+
+Diretriz estratégica:
+
+1. Iniciar bootstrap fundacional assim que houver sinais de uso compartilhado entre core e plugins.
+2. Tornar a11y + i18n parte do contrato de componente (quality gate), evitando retrofit caro.
+3. Externalizar API de UI somente depois de estabilização interna dos contratos.
+
+Critérios, fases e métricas detalhadas:
+
+- Ver [design-system-bootstrap-discussion.md](./design-system-bootstrap-discussion.md).
+
 ---
 
 ## Conclusão
