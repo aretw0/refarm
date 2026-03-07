@@ -167,11 +167,61 @@ Se o teste passar: **🎉 RELEASE BEM-SUCEDIDA!**
 
 ---
 
+## � Limpeza de Documentação (Dia 1-2)
+
+Este é um momento perfeito para remover documentação que não será mais necessária.
+
+### Removed: Migration Guide (File Cleanup)
+
+```bash
+# Após verificar que a migração foi bem-sucedida:
+rm docs/REPOSITORY_MIGRATION_GUIDE.md
+git add docs/
+git commit -m "docs: remove migration guide (executed successfully)"
+git push origin main
+```
+
+**Por quê?** Esse guide foi escrito especificamente para o processo de transfer. Uma vez executado, não tem propósito operacional. A decisão fica documentada em `decision-log.md`.
+
+### Reduce: Research Archive Consolidation (Optional, Parallel)
+
+Se quiser reduzir a "gordura" de documentação agora:
+
+```bash
+# 1. Criar novo índice consolidado:
+# docs/research/INDEX.md → com referências a ADRs ao invés de repetir conteúdo
+
+# 2. Remover arquivos de research redundantes:
+rm docs/research/phase1-technical-foundations.md
+rm docs/research/phases2-4-technical-research.md
+
+# 3. Manter como referência histórica:
+# - docs/research/browser-extension-discussion.md
+# - docs/research/critical-validations.md
+# - docs/research/wasm-validation.md
+# - docs/research/competitive-analysis.md
+
+# 4. Consolidar status em decision-log:
+# Mover conteúdo de docs/ESTADO_ATUAL.md para decision-log.md
+rm docs/ESTADO_ATUAL.md
+
+git add docs/
+git commit -m "docs: consolidate research into ADR references + move status to decision-log"
+git push origin main
+```
+
+**Impacto**: Reduz ~2600 linhas de documentação desnecessária (33% menos docs)
+
+**Referência completa**: [docs/DOCUMENTATION_CLEANUP_PLAN.md](DOCUMENTATION_CLEANUP_PLAN.md)
+
+---
+
 ## 📋 Checklist de Confirmação
 
 Marcar conforme completar:
 
-- [ ] Organização npm `@refarm` criada
+### Essencial (Bloqueia Release)
+- [ ] Organização npm `@refarm.dev` criada (não @refarm-dev!)
 - [ ] Token NPM_TOKEN gerado e configurado no GitHub
 - [ ] Variable RELEASE_AUTOMATION=true configurada
 - [ ] Workflows de teste passando (CI verde)
@@ -179,6 +229,12 @@ Marcar conforme completar:
 - [ ] 4 pacotes publicados no npm (validado via `npm info`)
 - [ ] 4 GitHub Releases criadas
 - [ ] Teste de instalação externa passou
+
+### Nice-to-Have (Documentação)
+- [ ] REPOSITORY_MIGRATION_GUIDE.md deletado
+- [ ] Research consolidado em INDEX.md (opcional)
+- [ ] ESTADO_ATUAL.md consolidado em decision-log.md (opcional)
+- [ ] Encontrados e atualizados todas referências `aretw0` → `refarm-dev`
 
 ---
 
