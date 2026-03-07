@@ -40,6 +40,8 @@ describe("plugin-manifest validation", () => {
     });
 
     expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes("onRequest"))).toBe(true);
+    expect(result.errors.some((error) => error.includes("onRequest"))).toBe(
+      true,
+    );
   });
 });
