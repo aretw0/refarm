@@ -33,6 +33,12 @@ jobs:
       - name: Type check
         run: npm run type-check
 
+      - name: Build storage contract declarations
+        run: npm --prefix packages/storage-contract-v1 run build
+
+      - name: Storage capability conformance
+        run: npm --prefix packages/storage-sqlite run test:conformance
+
       - name: Unit tests
         run: npm run test:unit -- --coverage
 
