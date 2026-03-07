@@ -21,6 +21,9 @@ Architecture Decision Records for Refarm.
 | [016](ADR-016-headless-ui-contract.md) | Headless UI Contract and Token Strategy | Proposed | 2026-03-07 |
 | [017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) | Studio Micro-Kernel and Plugin Boundary | Accepted | 2026-03-07 |
 | [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates | Accepted | 2026-03-07 |
+| [019](ADR-019-npm-scope-and-namespace-strategy.md) | npm Scope and Namespace Strategy (@refarm.dev) | Accepted | 2026-03-07 |
+| [020](ADR-020-sovereign-graph-versioning.md) | Sovereign Graph Versioning (commit/branch/checkout/revert) | Proposed | 2026-03-07 |
+| [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | Proposed | 2026-03-07 |
 
 ---
 
