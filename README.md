@@ -40,8 +40,8 @@ We're exploring this through:
 
 **Apps:**
 
-- `apps/kernel` — Core orchestration and plugin host
-- `apps/studio` — Web IDE for managing data and plugins
+- `apps/tractor` — Core orchestration and plugin host
+- `apps/homestead` — Web IDE for managing data and plugins
 
 **Packages** (reusable libraries):
 
