@@ -20,3 +20,18 @@ O `PluginHost` agora usa o contrato `@refarm.dev/plugin-manifest` para garantir 
 
 ## Conclusão
 Essa sinergia foi validada arquiteturalmente nesta refatoração. O Tractor agora é 100% puro e agnóstico, fornecendo a base necessária para habilitar o **Astro Hybrid** com confiança técnica.
+
+---
+
+## 🦾 Evolução: O Futuro dos Plugins Isomórficos
+
+### Single Binary, Dual Context (A Visão Astro)
+Não queremos que o desenvolvedor tenha que nos dar dois plugins. O objetivo é a **Simetria de Lógica**:
+
+1.  **O Mesmo .wasm**: O desenvolvedor compila um único binário WASM.
+2.  **Primitivas de Ambiente**: O Tractor expõe no contrato WIT funções como `is-server() -> bool`.
+3.  **Execução Simétrica**:
+    *   **No Servidor**: O plugin roda para `ingest()` (webhooks) ou "pre-render" (SSR).
+    *   **No Cliente**: O mesmo plugin roda para interações em tempo real e persistência local (OPFS).
+
+Isso segue a filosofia do Astro: o desenvolvedor escreve a lógica uma vez, e o "compilador" (no nosso caso, o Linker do Tractor) garante que as peças certas se encaixem no runtime correto.
