@@ -20,13 +20,13 @@ Este diretório contém workflows automatizados para CI/CD do projeto Refarm.
 
 ### 2. `publish-packages.yml` — Package Publishing
 
-**Trigger:** Push de git tags no formato `@refarm-dev/<package>@<version>`
+**Trigger:** Push de git tags no formato `@refarm.dev/<package>@<version>`
 **Objetivo:** Publicar pacotes no npm de forma segura e automatizada
 
 **Examples:**
 ```bash
-git tag @refarm-dev/storage-contract-v1@0.1.0
-git push origin @refarm-dev/storage-contract-v1@0.1.0
+git tag @refarm.dev/storage-contract-v1@0.1.0
+git push origin @refarm.dev/storage-contract-v1@0.1.0
 ```
 
 **Steps:**
@@ -79,16 +79,16 @@ npm run test:unit
 cd ../..
 git add packages/storage-contract-v1/package.json
 git commit -m "chore(storage-contract-v1): release v0.1.1"
-git tag @refarm-dev/storage-contract-v1@0.1.1
+git tag @refarm.dev/storage-contract-v1@0.1.1
 
 # 5. Push tag (triggers CI)
-git push origin @refarm-dev/storage-contract-v1@0.1.1
+git push origin @refarm.dev/storage-contract-v1@0.1.1
 ```
 
 ## Monitoring Releases
 
 1. **GitHub Actions:** https://github.com/refarm-dev/refarm/actions
-2. **npm Package:** https://www.npmjs.com/package/@refarm-dev/storage-contract-v1
+2. **npm Package:** https://www.npmjs.com/package/@refarm.dev/storage-contract-v1
 3. **GitHub Releases:** https://github.com/refarm-dev/refarm/releases
 
 ## Rollback a Release
@@ -97,11 +97,11 @@ Se uma versão foi publicada com problemas:
 
 ```bash
 # 1. Deprecate no npm (não remove, apenas avisa)
-npm deprecate @refarm-dev/storage-contract-v1@0.1.1 "Broken release - use 0.1.2+"
+npm deprecate @refarm.dev/storage-contract-v1@0.1.1 "Broken release - use 0.1.2+"
 
 # 2. Publish hotfix
 npm run release storage-contract-v1 patch  # → 0.1.2
-git push origin @refarm-dev/storage-contract-v1@0.1.2
+git push origin @refarm.dev/storage-contract-v1@0.1.2
 ```
 
 ⚠️ **NUNCA use `npm unpublish`** — quebra dependências de consumidores.
