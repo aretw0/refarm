@@ -13,6 +13,10 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
+      "@refarm/storage-contract-v1": ["./packages/storage-contract-v1/dist/index.d.ts"],
+      "@refarm/sync-contract-v1": ["./packages/sync-contract-v1/dist/index.d.ts"],
+      "@refarm/identity-contract-v1": ["./packages/identity-contract-v1/dist/index.d.ts"],
+      "@refarm/plugin-manifest": ["./packages/plugin-manifest/dist/index.d.ts"],
       "@refarm/*": ["./packages/*/src"]
     }
   },
