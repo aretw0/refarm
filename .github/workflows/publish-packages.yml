@@ -1,8 +1,8 @@
 name: Publish Packages
 
 # Triggered by pushing tags like:
-# @refarm-dev/storage-contract-v1@0.1.0
-# @refarm-dev/sync-contract-v1@0.1.0
+# @refarm.dev/storage-contract-v1@0.1.0
+# @refarm.dev/sync-contract-v1@0.1.0
 # etc.
 
 on:

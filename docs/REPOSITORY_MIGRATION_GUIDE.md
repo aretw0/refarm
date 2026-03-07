@@ -53,30 +53,18 @@
 
 ### Fase 3: Namespace no npm
 
-**Decisão:** Usar scoped package `@refarm-dev/*` (já configurado) OU criar org `@refarm`?
+**Decisão final:** Usar `@refarm.dev/*` como scope oficial de publicação.
 
-**Opção A: Manter `@refarm-dev` (atual)**
-- ✅ Já funciona
-- ✅ Namespace disponível
-- ❌ Nome menos clean
+- `@refarm.dev`: scope oficial para todos os pacotes públicos
+- `@refarm-dev`: scope de reserva/proteção de namespace (sem publicar)
 
-**Opção B: Criar `@refarm` org no npm**
-- ✅ Nome clean e profissional
-- ❌ Requer pagar plano org ($7/mês)
-- ❌ Namespace pode estar ocupado
+**Checklist de confirmação:**
+1. Garantir que o maintainer usado no CI tem permissão de publish em `@refarm.dev`
+2. Verificar que `NPM_TOKEN` é automation token válido
+3. Confirmar que `npm whoami` funciona no ambiente local de validação
 
-**Verificar disponibilidade:**
-```bash
-npm view @refarm.dev/storage-contract-v1  # Should be 404 if available
-```
-
-Se disponível E quiser investir:
-1. https://www.npmjs.com/org/create
-2. Organization name: `refarm`
-3. Invite members da org GitHub
-4. Atualizar todos os package.json: `@refarm-dev/*` → `@refarm.dev/*`
-
-**Recomendação:** Começar com `@refarm-dev`, migrar para `@refarm` quando tiver tração.
+**Observação importante:**
+- GitHub org pode ser `refarm-dev` e npm scope ser `@refarm.dev`; isso é esperado.
 
 ### Fase 4: CI/CD para Publish
 
@@ -120,7 +108,7 @@ jobs:
           TAG="${{ github.ref_name }}"
           PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
           VERSION=$(echo "$TAG" | sed 's/.*@//')
-          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm-dev\//packages\//' | sed 's/-contract-v/-contract-v/')
+          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm\.dev\///')
           
           echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -213,7 +201,7 @@ Após primeira publicação:
 3. **Security:** Snyk/Dependabot para vulnerabilidades
 4. **Badge no README:**
    ```markdown
-   [![npm version](https://img.shields.io/npm/v/@refarm.dev/storage-contract-v1)](https://www.npmjs.com/package/@refarm.dev/storage-contract-v1)
+  [![npm version](https://img.shields.io/npm/v/@refarm.dev/storage-contract-v1)](https://www.npmjs.com/package/@refarm.dev/storage-contract-v1)
    ```
 
 ## ⚠️ Rollout Seguro
