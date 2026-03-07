@@ -19,8 +19,26 @@
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["plugin", "manifest", "capability", "validation"],
+  "keywords": [
+    "plugin",
+    "manifest",
+    "capability",
+    "validation"
+  ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/plugin-manifest"
+  },
+  "homepage": "https://github.com/refarm-dev/refarm/tree/main/packages/plugin-manifest#readme",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "typescript": "^5.7.3",
     "vitest": "^4.0.18"
