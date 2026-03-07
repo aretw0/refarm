@@ -21,6 +21,17 @@
 
 ---
 
+## Distribution & Publishing
+
+Guias para transferência organizacional e distribuição pública de pacotes:
+
+- **[Repository Migration Guide](REPOSITORY_MIGRATION_GUIDE.md)** - Complete transfer playbook (aretw0 → refarm-dev)
+- **[Post-Transfer Checklist](POST_TRANSFER_CHECKLIST.md)** - Immediate actions after org transfer (npm setup, CI/CD)
+- **[ADR-019: npm Scope Strategy](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md)** - Decision rationale for `@refarm.dev` (includes caveats)
+- **[Distribution Status](../packages/DISTRIBUTION_STATUS.md)** - Current state of publishable packages
+
+---
+
 ## Technical Research (Reference)
 
 Wiki de fundamentação técnica - consultar quando necessário:

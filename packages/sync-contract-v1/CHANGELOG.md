@@ -1,4 +1,4 @@
-# @refarm/sync-contract-v1
+# @refarm.dev/sync-contract-v1
 
 ## 0.1.0
 

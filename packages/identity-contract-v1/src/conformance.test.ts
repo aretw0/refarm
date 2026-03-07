@@ -10,7 +10,7 @@ import {
 } from "./index.js";
 
 class InMemoryIdentityProvider implements IdentityProvider {
-  readonly pluginId = "@refarm/identity-memory-test";
+  readonly pluginId = "@refarm.dev/identity-memory-test";
   readonly capability = IDENTITY_CAPABILITY;
 
   private readonly identities = new Map<string, Identity>();

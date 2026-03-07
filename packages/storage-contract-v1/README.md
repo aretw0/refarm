@@ -1,11 +1,11 @@
-# @refarm/storage-contract-v1
+# @refarm.dev/storage-contract-v1
 
 Versioned storage capability contract for Refarm plugin ecosystem.
 
 ## Installation
 
 ```bash
-npm install @refarm/storage-contract-v1
+npm install @refarm.dev/storage-contract-v1
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ import {
   type StorageRecord,
   type StorageQuery,
   STORAGE_CAPABILITY
-} from "@refarm/storage-contract-v1";
+} from "@refarm.dev/storage-contract-v1";
 
 export class MyStorageProvider implements StorageProvider {
   readonly pluginId = "@mycompany/storage-custom";
@@ -63,7 +63,7 @@ describe("MyStorageProvider conformance", () => {
 Use any `storage:v1` compatible provider:
 
 ```typescript
-import type { StorageProvider } from "@refarm/storage-contract-v1";
+import type { StorageProvider } from "@refarm.dev/storage-contract-v1";
 import { createMyStorageProvider } from "@mycompany/storage-custom";
 
 const storage: StorageProvider = createMyStorageProvider();

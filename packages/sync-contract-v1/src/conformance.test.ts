@@ -9,7 +9,7 @@ import {
 } from "./index.js";
 
 class InMemorySyncProvider implements SyncProvider {
-  readonly pluginId = "@refarm/sync-memory-test";
+  readonly pluginId = "@refarm.dev/sync-memory-test";
   readonly capability = SYNC_CAPABILITY;
 
   private readonly changes: SyncChange[] = [];

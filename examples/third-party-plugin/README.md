@@ -8,7 +8,7 @@ Demonstrates how external developers can use Refarm capability contracts to buil
 mkdir my-storage-plugin
 cd my-storage-plugin
 npm init -y
-npm install @refarm/storage-contract-v1 --save
+npm install @refarm.dev/storage-contract-v1 --save
 npm install typescript vitest --save-dev
 ```
 
@@ -22,7 +22,7 @@ import {
   type StorageRecord,
   type StorageQuery,
   STORAGE_CAPABILITY,
-} from "@refarm/storage-contract-v1";
+} from "@refarm.dev/storage-contract-v1";
 
 export class MyStorageProvider implements StorageProvider {
   readonly pluginId = "@mycompany/storage-redis";
@@ -67,7 +67,7 @@ export function createMyStorageProvider(): StorageProvider {
 
 ```typescript
 import { describe, it, expect } from "vitest";
-import { runStorageV1Conformance } from "@refarm/storage-contract-v1";
+import { runStorageV1Conformance } from "@refarm.dev/storage-contract-v1";
 import { MyStorageProvider } from "../src/index.js";
 
 describe("MyStorageProvider conformance", () => {
@@ -146,7 +146,7 @@ export default defineConfig({
     "access": "public"
   },
   "dependencies": {
-    "@refarm/storage-contract-v1": "^0.1.0"
+    "@refarm.dev/storage-contract-v1": "^0.1.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",
@@ -179,11 +179,11 @@ export default defineConfig({
 Validate manifest:
 
 ```bash
-npm install @refarm/plugin-manifest --save-dev
+npm install @refarm.dev/plugin-manifest --save-dev
 ```
 
 ```typescript
-import { assertValidPluginManifest } from "@refarm/plugin-manifest";
+import { assertValidPluginManifest } from "@refarm.dev/plugin-manifest";
 import manifest from "../plugin-manifest.json";
 
 describe("Plugin manifest", () => {

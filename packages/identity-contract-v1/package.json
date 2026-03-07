@@ -1,5 +1,5 @@
 {
-  "name": "@refarm/identity-contract-v1",
+  "name": "@refarm.dev/identity-contract-v1",
   "version": "0.1.0",
   "description": "Versioned identity capability contract (identity:v1) and conformance suite",
   "type": "module",

@@ -1,5 +1,5 @@
 /**
- * @refarm/identity-nostr
+ * @refarm.dev/identity-nostr
  *
  * Nostr identity primitive — key management and decentralised plugin discovery.
  *
