@@ -44,6 +44,11 @@ jobs:
 
       - name: Integration tests
         run: npm run test:integration
+        
+      - name: Benchmark Quality Gate (Tractor)
+        run: |
+          cd packages/tractor
+          npm run bench:check
 
       - name: Upload coverage
         if: always()
