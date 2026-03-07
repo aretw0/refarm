@@ -38,7 +38,7 @@ class FakeAdapter implements StorageAdapter {
   }
 }
 
-describe("@refarm/storage-sqlite smoke", () => {
+describe("@refarm.dev/storage-sqlite smoke", () => {
   it("applies each migration once", async () => {
     const adapter = new FakeAdapter();
     const migrations = ["CREATE TABLE a(id INTEGER)", "CREATE TABLE b(id INTEGER)"];

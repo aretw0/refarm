@@ -13,22 +13,22 @@ Ver [docs/REPOSITORY_MIGRATION_GUIDE.md](../docs/REPOSITORY_MIGRATION_GUIDE.md) 
 
 ### 4 Contract Packages
 
-1. **@refarm/storage-contract-v1** (0.1.0)
+1. **@refarm.dev/storage-contract-v1** (0.1.0)
    - Conformance suite: 6 validations
    - README with examples
    - npm publish configuration
 
-2. **@refarm/sync-contract-v1** (0.1.0)
+2. **@refarm.dev/sync-contract-v1** (0.1.0)
    - Conformance suite: 4 validations
    - README with examples
    - npm publish configuration
 
-3. **@refarm/identity-contract-v1** (0.1.0)
+3. **@refarm.dev/identity-contract-v1** (0.1.0)
    - Conformance suite: 4 validations
    - README with examples
    - npm publish configuration
 
-4. **@refarm/plugin-manifest** (0.1.0)
+4. **@refarm.dev/plugin-manifest** (0.1.0)
    - Validation helpers
    - README with schema docs
    - npm publish configuration
@@ -56,10 +56,10 @@ Ver [docs/REPOSITORY_MIGRATION_GUIDE.md](../docs/REPOSITORY_MIGRATION_GUIDE.md) 
 ### 1. Installation
 
 ```bash
-npm install @refarm/storage-contract-v1
-npm install @refarm/sync-contract-v1
-npm install @refarm/identity-contract-v1
-npm install @refarm/plugin-manifest
+npm install @refarm.dev/storage-contract-v1
+npm install @refarm.dev/sync-contract-v1
+npm install @refarm.dev/identity-contract-v1
+npm install @refarm.dev/plugin-manifest
 ```
 
 ### 2. Implementation
@@ -67,7 +67,7 @@ npm install @refarm/plugin-manifest
 Implement interface + export factory:
 
 ```typescript
-import { type StorageProvider, STORAGE_CAPABILITY } from "@refarm/storage-contract-v1";
+import { type StorageProvider, STORAGE_CAPABILITY } from "@refarm.dev/storage-contract-v1";
 
 export class MyProvider implements StorageProvider {
   readonly pluginId = "@mycompany/my-plugin";
@@ -86,7 +86,7 @@ export function createMyProvider(): StorageProvider {
 Add conformance test:
 
 ```typescript
-import { runStorageV1Conformance } from "@refarm/storage-contract-v1";
+import { runStorageV1Conformance } from "@refarm.dev/storage-contract-v1";
 
 it("passes storage:v1", async () => {
   const provider = new MyProvider();
@@ -154,7 +154,7 @@ npm publish --dry-run -w packages/storage-contract-v1
 ## Third-Party Developer Journey
 
 1. **Discovery**: Find contracts via npm search ("refarm plugin contract")
-2. **Installation**: `npm install @refarm/storage-contract-v1`
+2. **Installation**: `npm install @refarm.dev/storage-contract-v1`
 3. **Implementation**: Copy example from README, adapt to their needs
 4. **Validation**: Add conformance test (`runStorageV1Conformance()`)
 5. **Testing**: Run conformance in CI (examples provided)

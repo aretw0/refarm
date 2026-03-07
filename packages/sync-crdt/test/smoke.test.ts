@@ -23,7 +23,7 @@ class InMemoryTransport implements SyncTransport {
   }
 }
 
-describe("@refarm/sync-crdt smoke", () => {
+describe("@refarm.dev/sync-crdt smoke", () => {
   it("merges and increments vector clocks deterministically", () => {
     expect(mergeClocks({ a: 1 }, { a: 2, b: 1 })).toEqual({ a: 2, b: 1 });
     expect(tickClock({ peer: 3 }, "peer")).toEqual({ peer: 4 });

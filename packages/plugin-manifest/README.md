@@ -1,11 +1,11 @@
-# @refarm/plugin-manifest
+# @refarm.dev/plugin-manifest
 
 Plugin manifest schema and validation for Refarm plugin ecosystem.
 
 ## Installation
 
 ```bash
-npm install @refarm/plugin-manifest
+npm install @refarm.dev/plugin-manifest
 ```
 
 ## Usage
@@ -34,7 +34,7 @@ Create `plugin-manifest.json` in your plugin root:
 ### Validate Manifest
 
 ```typescript
-import { validatePluginManifest, assertValidPluginManifest } from "@refarm/plugin-manifest";
+import { validatePluginManifest, assertValidPluginManifest } from "@refarm.dev/plugin-manifest";
 import manifestJson from "./plugin-manifest.json";
 
 // Option 1: Get validation result
@@ -55,7 +55,7 @@ try {
 ### In Your Plugin Tests
 
 ```typescript
-import { validatePluginManifest } from "@refarm/plugin-manifest";
+import { validatePluginManifest } from "@refarm.dev/plugin-manifest";
 import manifest from "../plugin-manifest.json";
 
 describe("Plugin manifest", () => {

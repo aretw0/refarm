@@ -103,20 +103,20 @@ git push origin main
 cd /workspaces/refarm
 
 # Storage contract
-git tag @refarm/storage-contract-v1@0.1.0
-git push origin @refarm/storage-contract-v1@0.1.0
+git tag @refarm.dev/storage-contract-v1@0.1.0
+git push origin @refarm.dev/storage-contract-v1@0.1.0
 
 # Sync contract
-git tag @refarm/sync-contract-v1@0.1.0
-git push origin @refarm/sync-contract-v1@0.1.0
+git tag @refarm.dev/sync-contract-v1@0.1.0
+git push origin @refarm.dev/sync-contract-v1@0.1.0
 
 # Identity contract
-git tag @refarm/identity-contract-v1@0.1.0
-git push origin @refarm/identity-contract-v1@0.1.0
+git tag @refarm.dev/identity-contract-v1@0.1.0
+git push origin @refarm.dev/identity-contract-v1@0.1.0
 
 # Plugin manifest
-git tag @refarm/plugin-manifest@0.1.0
-git push origin @refarm/plugin-manifest@0.1.0
+git tag @refarm.dev/plugin-manifest@0.1.0
+git push origin @refarm.dev/plugin-manifest@0.1.0
 ```
 
 **Desvantagem**: Menos elegante, requer criação manual de tags para cada pacote.
@@ -131,10 +131,10 @@ Após merge do PR (Estratégia A) ou push das tags (Estratégia B):
 
 ```bash
 # Verificar cada pacote foi publicado
-npm info @refarm/storage-contract-v1
-npm info @refarm/sync-contract-v1
-npm info @refarm/identity-contract-v1
-npm info @refarm/plugin-manifest
+npm info @refarm.dev/storage-contract-v1
+npm info @refarm.dev/sync-contract-v1
+npm info @refarm.dev/identity-contract-v1
+npm info @refarm.dev/plugin-manifest
 
 # Todos devem retornar versão 0.1.0
 ```
@@ -152,11 +152,11 @@ npm info @refarm/plugin-manifest
 # Em outro diretório (fora do monorepo)
 mkdir test-refarm-install && cd test-refarm-install
 npm init -y
-npm install @refarm/storage-contract-v1 @refarm/plugin-manifest
+npm install @refarm.dev/storage-contract-v1 @refarm.dev/plugin-manifest
 
 # Criar teste rápido
 cat > test.js << 'EOF'
-import { runStorageV1Conformance } from '@refarm/storage-contract-v1';
+import { runStorageV1Conformance } from '@refarm.dev/storage-contract-v1';
 console.log('✅ Imports funcionando!');
 EOF
 
@@ -188,15 +188,15 @@ Marcar conforme completar:
 
 ```bash
 # Se publicou versão errada, deprecar (NÃO deletar)
-npm deprecate @refarm/storage-contract-v1@0.1.0 "Released by mistake, use X.X.X"
+npm deprecate @refarm.dev/storage-contract-v1@0.1.0 "Released by mistake, use X.X.X"
 
 # Publicar correção
 # Edite package.json com versão correta
 npm version patch --no-git-tag-version
 git add package.json
 git commit -m "fix(storage-contract-v1): correct version"
-git tag @refarm/storage-contract-v1@0.1.1
-git push origin @refarm/storage-contract-v1@0.1.1
+git tag @refarm.dev/storage-contract-v1@0.1.1
+git push origin @refarm.dev/storage-contract-v1@0.1.1
 ```
 
 ### Workflow não está rodando

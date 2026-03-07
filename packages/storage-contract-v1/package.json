@@ -1,5 +1,5 @@
 {
-  "name": "@refarm/storage-contract-v1",
+  "name": "@refarm.dev/storage-contract-v1",
   "version": "0.1.0",
   "description": "Versioned storage capability contract (storage:v1) and conformance suite",
   "type": "module",

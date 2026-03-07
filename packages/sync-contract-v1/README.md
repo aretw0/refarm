@@ -1,11 +1,11 @@
-# @refarm/sync-contract-v1
+# @refarm.dev/sync-contract-v1
 
 Versioned sync capability contract for Refarm plugin ecosystem.
 
 ## Installation
 
 ```bash
-npm install @refarm/sync-contract-v1
+npm install @refarm.dev/sync-contract-v1
 ```
 
 ## Usage
@@ -21,7 +21,7 @@ import {
   type SyncChange,
   type SyncSession,
   SYNC_CAPABILITY
-} from "@refarm/sync-contract-v1";
+} from "@refarm.dev/sync-contract-v1";
 
 export class MySyncProvider implements SyncProvider {
   readonly pluginId = "@mycompany/sync-websocket";
@@ -63,7 +63,7 @@ describe("MySyncProvider conformance", () => {
 Use any `sync:v1` compatible provider:
 
 ```typescript
-import type { SyncProvider, SyncChange } from "@refarm/sync-contract-v1";
+import type { SyncProvider, SyncChange } from "@refarm.dev/sync-contract-v1";
 import { createMySyncProvider } from "@mycompany/sync-websocket";
 
 const sync: SyncProvider = createMySyncProvider();

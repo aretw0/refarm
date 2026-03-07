@@ -1,5 +1,5 @@
 /**
- * @refarm/storage-sqlite
+ * @refarm.dev/storage-sqlite
  *
  * Sovereign SQLite/OPFS storage primitive.
  *
@@ -15,7 +15,7 @@ import {
   type StorageProvider,
   type StorageQuery,
   type StorageRecord,
-} from "@refarm/storage-contract-v1";
+} from "@refarm.dev/storage-contract-v1";
 
 // ─── Public Types ────────────────────────────────────────────────────────────
 
@@ -121,7 +121,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
  * conformance checks and third-party integrations.
  */
 export class StorageSqliteV1Provider implements StorageProvider {
-  readonly pluginId = "@refarm/storage-sqlite";
+  readonly pluginId = "@refarm.dev/storage-sqlite";
   readonly capability = STORAGE_CAPABILITY;
 
   private readonly rows = new Map<string, StorageRecord>();
