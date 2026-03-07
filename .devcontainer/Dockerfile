@@ -4,6 +4,7 @@ FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 # so `npm run diagrams:fix` works out-of-the-box in fresh containers.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+    ripgrep \
     libdbus-1-3 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
