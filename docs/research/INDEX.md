@@ -14,7 +14,7 @@ This folder contains **completed research** that informed architectural decision
 |-------|-----------|----------|-----|--------|
 | Interface | PWA + Web Components | Zero-JS default, Astro v5+ | [ADR-008](../../specs/ADRs/ADR-008-ecosystem-technology-boundary.md) | ✅ v0.1.0 |
 | Storage | SQLite + OPFS | Relational DB, ~100GB offline | [ADR-015](../../specs/ADRs/ADR-015-sqlite-engine-decision.md) | ✅ v0.1.0 |
-| Runtime | WASM + WASI | Sandboxed plugins | [ADR-017](../../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md) | ✅ v0.2.0 |
+| Runtime | WASM + WASI | Sandboxed plugins | [ADR-017](../../specs/ADRs/ADR-017-studio-micro-tractor-and-plugin-boundary.md) | ✅ v0.2.0 |
 | Sync | CRDT (Yjs) | Conflict-free merge | [ADR-003](../../specs/ADRs/ADR-003-crdt-synchronization.md) | ✅ v0.3.0 |
 | Identity | Nostr | Self-sovereign (deferred) | [ADR-008](../../specs/ADRs/ADR-008-ecosystem-technology-boundary.md) | ⏳ v0.7.0 |
 

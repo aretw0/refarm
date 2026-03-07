@@ -71,7 +71,7 @@ struct HelloWorldPlugin;
 
 impl Guest for HelloWorldPlugin {
     fn setup() -> Result<(), PluginError> {
-        kernel_bridge::log(LogLevel::Info, "Hello from WASM setup!");
+        tractor_bridge::log(LogLevel::Info, "Hello from WASM setup!");
         Ok(())
     }
 
@@ -83,7 +83,7 @@ impl Guest for HelloWorldPlugin {
             "name": "Hello from WASM!"
         }"#;
         
-        kernel_bridge::store_node(node)?;
+        tractor_bridge::store_node(node)?;
         Ok(1)
     }
 
@@ -92,7 +92,7 @@ impl Guest for HelloWorldPlugin {
     }
 
     fn teardown() {
-        kernel_bridge::log(LogLevel::Info, "Goodbye from WASM!");
+        tractor_bridge::log(LogLevel::Info, "Goodbye from WASM!");
     }
 
     fn metadata() -> PluginMetadata {
@@ -138,13 +138,13 @@ wasm-tools component wit target/wasm32-wasi/release/hello_world_plugin.wasm
 
 #### Step 2.1: Create host runner (TypeScript)
 
-**File**: `apps/kernel/src/plugin-host.ts`
+**File**: `apps/tractor/src/plugin-host.ts`
 
 ```typescript
 // Install: npm install @bytecodealliance/jco
 import { instantiate } from '@bytecodealliance/jco';
 
-interface KernelBridge {
+interface TractorBridge {
   storeNode(node: string): string;
   getNode(id: string): string | null;
   queryNodes(type: string, limit: number): string[];
@@ -156,8 +156,8 @@ export class PluginHost {
   private instance: any;
 
   async load(wasmBytes: Uint8Array) {
-    // Implement kernel-bridge (host imports)
-    const kernelBridge: KernelBridge = {
+    // Implement tractor-bridge (host imports)
+    const tractorBridge: TractorBridge = {
       storeNode: (node: string) => {
         console.log('[Host] store-node:', node);
         return 'node-id-123'; // Mock
@@ -177,7 +177,7 @@ export class PluginHost {
 
     // Instantiate WASM component with imports
     this.instance = await instantiate(wasmBytes, {
-      'refarm:plugin/kernel-bridge': kernelBridge,
+      'refarm:plugin/tractor-bridge': tractorBridge,
     });
   }
 
@@ -197,7 +197,7 @@ export class PluginHost {
 
 #### Step 2.2: Test in browser
 
-**File**: `apps/studio/src/pages/plugin-test.astro`
+**File**: `apps/homestead/src/pages/plugin-test.astro`
 
 ```html
 ---
@@ -211,7 +211,7 @@ export class PluginHost {
     <pre id="output"></pre>
 
     <script>
-      import { PluginHost } from '../../kernel/src/plugin-host';
+      import { PluginHost } from '../../tractor/src/plugin-host';
 
       const output = document.getElementById('output');
       let host: PluginHost;
@@ -240,7 +240,7 @@ export class PluginHost {
 #### Step 2.3: Run dev server and test
 
 ```bash
-cd apps/studio
+cd apps/homestead
 npm run dev
 ```
 
@@ -275,7 +275,7 @@ fn ingest() -> Result<u32, PluginError> {
         body: None,
     };
     
-    let response = kernel_bridge::fetch(request)?;
+    let response = tractor_bridge::fetch(request)?;
     
     // Process response...
     Ok(1)
@@ -286,7 +286,7 @@ fn ingest() -> Result<u32, PluginError> {
 
 ```typescript
 // In PluginHost
-const kernelBridge = {
+const tractorBridge = {
   fetch: (req: HttpRequest) => {
     const allowedOrigins = ['https://api.example.com']; // From user config
     const url = new URL(req.url);
@@ -395,7 +395,7 @@ cargo component build --release
 
 ### Error: `fetch is not defined in WASM`
 
-Correct. Plugins must call `kernel-bridge::fetch()`, not native `fetch()`. This is by design (sandbox).
+Correct. Plugins must call `tractor-bridge::fetch()`, not native `fetch()`. This is by design (sandbox).
 
 ---
 

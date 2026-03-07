@@ -243,11 +243,11 @@
 │  │ Service Worker                                    │ │
 │  │ - Escuta mensagens da extensão                   │ │
 │  │ - Valida origem (extension ID whitelist)         │ │
-│  │ - Envia para kernel                              │ │
+│  │ - Envia para tractor                              │ │
 │  └────────────────────┬──────────────────────────────┘ │
 │                       ▼                                 │
 │  ┌───────────────────────────────────────────────────┐ │
-│  │ Kernel                                            │ │
+│  │ Tractor                                            │ │
 │  │ - Normaliza para JSON-LD                         │ │
 │  │ - Persiste em SQLite/OPFS                        │ │
 │  └───────────────────────────────────────────────────┘ │
@@ -263,18 +263,18 @@
 **Desvantagens:**
 
 - Requer PWA aberto em alguma tab (extension acorda via `chrome.tabs.create`)
-- Latência adicional (extension → PWA → kernel)
+- Latência adicional (extension → PWA → tractor)
 
 ---
 
-### Opção 2: Extensão Pesada (Kernel Duplicado)
+### Opção 2: Extensão Pesada (Tractor Duplicado)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │              Browser Extension                          │
 │  ┌──────────────────┐   ┌──────────────────────────┐   │
 │  │ Content Script   │   │ Background Service Worker│   │
-│  │ - Extrai conteúdo│   │ - EMBEDDED Kernel lite   │   │
+│  │ - Extrai conteúdo│   │ - EMBEDDED Tractor lite   │   │
 │  └────────┬─────────┘   │ - SQLite via OPFS        │   │
 │            │             │ - Sync via Nostr         │   │
 │            │             └──────────────────────────┘   │
@@ -284,7 +284,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │            OPFS Storage (shared)                        │
 │  - Extension e PWA acessam mesmo SQLite database        │
-│  - Kernel sincroniza via CRDT (Yjs)                     │
+│  - Tractor sincroniza via CRDT (Yjs)                     │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -296,9 +296,9 @@
 
 **Desvantagens:**
 
-- Duplicação de código (kernel em 2 lugares)
+- Duplicação de código (tractor em 2 lugares)
 - Complexidade de sincronização (CRDT entre extension + PWA)
-- Bundle size maior (extension embute kernel + SQLite WASM)
+- Bundle size maior (extension embute tractor + SQLite WASM)
 - Manifest v3 limita WASM execution (requires `wasm-unsafe-eval`)
 
 ---
@@ -337,7 +337,7 @@
 
 ### v0.1.0 - v0.3.0 (MVP + Core Features)
 
-**Foco:** Kernel, Storage, Sync, Guest Mode
+**Foco:** Tractor, Storage, Sync, Guest Mode
 
 **Extensão?** ❌ NÃO. Priorizar PWA sólido.
 
@@ -487,7 +487,7 @@ Usuário pode configurar Refarm para watch uma pasta, qualquer arquivo adicionad
 
 ### 1. Duplicação de Código
 
-- Kernel precisa rodar em extension background → manter 2 builds
+- Tractor precisa rodar em extension background → manter 2 builds
 - Bugs precisam ser fixados em 2 lugares
 
 **Mitigação:** Opção 1 (extensão leve) evita duplicação.

@@ -277,7 +277,7 @@ O Refarm opera no espaço de **Personal Knowledge Management (PKM)** com forte f
 **Solução do Refarm:**
 
 - WASM Component Model com WIT contracts
-- Plugin só pode chamar funções explicitamente exportadas pelo kernel
+- Plugin só pode chamar funções explicitamente exportadas pelo tractor
 - Capability-based security: plugin pede permissão para `fetch`, `storage`, etc.
 - Impossível escapar sandbox sem explorar bug no browser
 

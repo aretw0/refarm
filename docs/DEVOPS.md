@@ -160,7 +160,7 @@ npm run test:unit
 
 **Issue: Astro build fails with `Unexpected "const"` in `dev.astro`**
 
-- **Symptom:** `astro build` fails pointing to `apps/studio/src/pages/dev.astro` with `Unexpected "const"`.
+- **Symptom:** `astro build` fails pointing to `apps/homestead/src/pages/dev.astro` with `Unexpected "const"`.
 - **Root cause:** TypeScript sample code was embedded directly inside `<textarea>...</textarea>` in an Astro template. Curly braces and template interpolation tokens (`{}`, `${}`) inside that inline block were interpreted by the Astro parser.
 - **Fix applied (Mar 6, 2026):** Moved sample editor content to a frontmatter string (`defaultPluginCode`) and rendered it via `{defaultPluginCode}` in the textarea.
 - **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).

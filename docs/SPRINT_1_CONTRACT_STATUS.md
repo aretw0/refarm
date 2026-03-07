@@ -32,17 +32,17 @@ git push origin @refarm.dev/storage-contract-v1@0.1.0
 
 ---
 
-### ⚠️ Tier 2: Kernel Smoke Tests (PARTIAL)
+### ⚠️ Tier 2: Tractor Smoke Tests (PARTIAL)
 
 | Component | Tests | Implementation Status | In Sprint 1? |
 |-----------|-------|----------------------|--------------|
-| `apps/kernel` | ✅ 2 smoke tests | Partial (node normalization + plugin lifecycle) | YES |
+| `apps/tractor` | ✅ 2 smoke tests | Partial (node normalization + plugin lifecycle) | YES |
 | `packages/storage-sqlite` | ✅ 1 smoke test | Partial (idempotent migration) | YES |
 | `packages/sync-crdt` | ✅ 2 smoke tests | Partial (CRDT merge + operations) | YES |
 
 **What these test**:
 
-- Kernel can normalize a JSON payload into a sovereign node
+- Tractor can normalize a JSON payload into a sovereign node
 - Plugin loader can track lifecycle (load, execute, error)
 - CRDT can merge and dispatch operations
 - Storage can run migrations idempotently
@@ -80,7 +80,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.0
 - Actual implementation
 - Running tests
 - Ability to `npm publish` or `--dry-run`
-- Kernel API contracts
+- Tractor API contracts
 
 **Reality**: These are **direction setting** for future sprints, not Sprint 1 deliverables.
 
@@ -133,7 +133,7 @@ npm publish                          # ✅ Available on npm
 **Sprint 1 Release (v0.1.1)**:
 
 - 4 capability contracts + 12 conformance tests
-- Kernel smoke tests (foundation layer)
+- Tractor smoke tests (foundation layer)
 - Documentation of contracts
 - CI/CD publish workflow
 
@@ -160,7 +160,7 @@ npm publish                          # ✅ Available on npm
 **Sprint 1 Release (v0.1.1 + v0.2.0 Road)**:
 
 - 4 capability contracts + tests ✅
-- Kernel smoke tests ✅
+- Tractor smoke tests ✅
 - Roadmap document showing ADR-020, ADR-021 coming in v0.2/0.3
 
 **Problem**:
@@ -200,7 +200,7 @@ PROPOSED (v0.2.0-0.3.0 roadmap):
   📋 ADR-021: Self-Healing (Sprint 3+)
       - Storage integrity (checksums, WAL, recovery)
       - Plugin citizenship monitoring
-      - Kernel policies (auto-heal, isolation)
+      - Tractor policies (auto-heal, isolation)
       - Status: Design complete, tests TBD, implementation TBD
 ```
 
@@ -221,7 +221,7 @@ Each of these **must** have before shipping:
 ### ADR-007 Implementation Checklist (for v0.2.0)
 
 ```
-[ ] Kernel event emission API implemented + tested
+[ ] Tractor event emission API implemented + tested
 [ ] Plugin observation hooks in contracts + tested
 [ ] At least one observer plugin (StudioDevTools)
 [ ] Integration test: end-to-end event flow
@@ -276,7 +276,7 @@ Each of these **must** have before shipping:
 **What you're releasing** (v0.1.1):
 
 - Contracts ✅ (tested, documented, publishable)
-- Kernel foundation ✅ (smoke tests passing)
+- Tractor foundation ✅ (smoke tests passing)
 - Architecture vision 📋 (ADRs clear, detailed)
 
 **What you're NOT releasing** (but have roadmap for):
