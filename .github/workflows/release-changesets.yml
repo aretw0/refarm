@@ -1,0 +1,54 @@
+name: Release (Changesets)
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release:
+    # Safety gate: only run publish automation in the org repo and when explicitly enabled.
+    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          node-version: "22"
+
+      - name: Validate quality gates
+        run: |
+          npm run lint
+          npm run type-check
+          npm run test:capabilities
+
+      - name: Create Release PR or Publish
+        id: changesets
+        uses: changesets/action@v1
+        with:
+          version: changeset version
+          publish: changeset publish
+          commit: "chore(release): version packages"
+          title: "chore(release): version packages"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish summary
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          echo "Published packages: ${{ steps.changesets.outputs.publishedPackages }}"
