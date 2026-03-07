@@ -25,13 +25,13 @@ cd refarm  # Root of monorepo
 npm install
 ```
 
-### 2. Start Kernel in Dev Mode
+### 2. Start Tractor in Dev Mode
 
 ```bash
 npm run dev       # Starts all apps (kernel + studio)
 ```
 
-Kernel runs on **<http://localhost:3000>** (Node.js + TypeScript via tsx)
+Tractor runs on **<http://localhost:3000>** (Node.js + TypeScript via tsx)
 
 ### 3. Test Tractor Directly
 
@@ -78,7 +78,7 @@ packages/tractor/
 
 ## Core API (Preview)
 
-### Initialize Kernel
+### Initialize Tractor
 
 ```typescript
 import { Tractor } from '@refarm/tractor';
@@ -90,30 +90,28 @@ const tractor = await Tractor.boot({
 });
 ```
 
-### Create Session
+### Create Session (Injected via Identity Adapter)
+
+Tractor handles session logic by delegating to the injected **Identity Adapter**.
 
 ```typescript
-// Guest session (no identity, vaultId only)
-const guest = await kernel.createGuestSession({
-  storageTier: 'persistent'  // or 'ephemeral', 'synced'
-});
-
-// Permanent session (Nostr identity)
-const permanent = await kernel.createPermanentSession();
+// Identity logic is now handled by the adapter implementation
+const identity = new MyIdentityAdapter();
+const session = await identity.getSession();
 ```
 
 ### Store & Query Data
 
 ```typescript
 // Store a node (JSON-LD)
-const nodeId = await kernel.storeNode(guest.vaultId, {
+const nodeId = await tractor.storeNode(guest.vaultId, {
   '@type': 'Note',
   'title': 'My Note',
   'content': 'Hello world'
 });
 
 // Query nodes
-const notes = await kernel.queryNodes(guest.vaultId, 'Note', { limit: 10 });
+const notes = await tractor.queryNodes(guest.vaultId, 'Note', { limit: 10 });
 ```
 
 ### Load Plugin
@@ -159,9 +157,7 @@ npm run test:watch -- apps/kernel
 Once unit + integration tests pass:
 
 ```bash
-npm run test:e2e -- apps/kernel
-
-# Full browser workflows in Playwright
+npm run test:e2e -- packages/tractor
 ```
 
 ---
@@ -170,10 +166,10 @@ npm run test:e2e -- apps/kernel
 
 | Package | Purpose | Version |
 |---------|---------|---------|
-| `@refarm/storage-sqlite` | Persistence layer | workspace:* |
-| `@refarm/sync-crdt` | CRDT sync engine | workspace:* |
-| `@refarm/identity-nostr` | Identity + signing | workspace:* |
-| `typescript` | Type safety | ^5.3 |
+| `@refarm.dev/storage-contract-v1` | Persistence Interface | workspace:* |
+| `@refarm.dev/sync-contract-v1` | Sync Interface | workspace:* |
+| `@refarm.dev/identity-contract-v1` | Identity Interface | workspace:* |
+| `@refarm.dev/plugin-manifest` | Manifest Schema | workspace:* |
 
 ---
 
@@ -196,11 +192,11 @@ npm run test:watch       # Watch mode
 
 ## Storage Layer
 
-The Kernel delegates persistence to `@refarm/storage-sqlite`. See its README for:
+Tractor delegates persistence to any implementation of `@refarm.dev/storage-contract-v1`. While `@refarm/storage-sqlite` is the default reference implementation, any adapter that fulfills the contract (e.g., PostgreSQL, IndexedDB) can be used.
 
-- OPFS quota management
-- SQLite schema design
-- Transaction + WAL mode
+The contract defines:
+- The required **Sovereign Graph** table schema.
+- Conformance tests to ensure consistent behavior across runtimes.
 
 ---
 
@@ -213,17 +209,16 @@ Plugins communicate via **WIT interface** defined in [`wit/refarm-sdk.wit`](../.
 1. Plugin runs in WASM sandbox (no DOM access)
 2. All calls through WIT boundary are capability-gated
 3. User grants permissions (storage read/write, network)
-4. Kernel enforces at runtime
+4. Tractor enforces at runtime
 
 **Example plugin**:
 
 ```typescript
 // Plugin exports "integration" world
 export async function ingest(payload: Uint8Array): Result<u32> {
-  // Plugin can call:
-  //   kernel.storeNode(node)
-  //   kernel.queryNodes(type, limit)
-  //   kernel.requestPermission(capability)
+  // Plugin can call host functions defined in WIT:
+  //   tractor.storeNode(node)
+  //   tractor.queryNodes(type, limit)
   return Ok(1000);  // Returned count
 }
 ```
@@ -242,7 +237,7 @@ export async function ingest(payload: Uint8Array): Result<u32> {
 ### Debug Plugin Execution
 
 ```bash
-# Run Kernel with debug logging
+# Run Tractor with debug logging
 DEBUG=refarm:* npm run dev
 
 # Watch WASM calls
@@ -252,24 +247,18 @@ DEBUG=refarm:plugin-host:* npm run dev
 ### Profile Performance
 
 ```bash
-npm run perf -- apps/kernel
-
-# Outputs:
-# - Kernel startup time
-# - Plugin load time
-# - Query latency (100k nodes)
+npm run bench:check
 ```
 
 ---
 
 ## Troubleshooting
 
-### "Module not found: @refarm/storage-sqlite"
+### "Module not found: @refarm.dev/storage-contract-v1"
 
 ```bash
-# Rebuild workspace
-npm run build -- -F @refarm/storage-sqlite
-npm run dev
+# Rebuild workspace to generate declarations
+npm run build
 ```
 
 ### "WASM instantiation failed"
