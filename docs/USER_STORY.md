@@ -32,7 +32,7 @@ Alice clicks **"Join as Guest"** — no signup, no password, no friction.
 **What happens**:
 
 - Studio loads instantly (PWA cached)
-- Kernel creates **vaultId** (UUID) — no keypair, no mnemonic
+- Tractor creates **vaultId** (UUID) — no keypair, no mnemonic
 - Alice chooses how to store her data:
 
 ```
@@ -92,7 +92,7 @@ Alice clicks **"Create Identity"**.
 **Behind the scenes**:
 
 - `identity-nostr` generates keypair from new BIP-39 mnemonic
-- Kernel **rewrites ownership** on existing data:
+- Tractor **rewrites ownership** on existing data:
   - Node IDs: `urn:vault-a7c3f2:note-1` → `urn:alice_pubkey:note-1`
   - Owner field: `vault-a7c3f2` → `alice_pubkey`
 - **Storage stays the same** — no migration between backends needed
@@ -166,7 +166,7 @@ Launch → Recognizes existing identity from browser
 
 **What happens**:
 
-1. Kernel finds plugin via Nostr relay query
+1. Tractor finds plugin via Nostr relay query
    - Query: `kind:31990, tag:d="signal-bridge"`
 2. Retrieves NIP-89 event → extracts NIP-94 file metadata
 3. Downloads WASM from URL
@@ -239,7 +239,7 @@ Alice enters 12-word phrase.
 **Behind the scenes**:
 
 - Phone derives same keypair from phrase
-- Kernel detects another device is online (via WebRTC or Nostr discovery)
+- Tractor detects another device is online (via WebRTC or Nostr discovery)
 - Initiates CRDT sync:
   - Phone asks: "What nodes do you have?"
   - Laptop responds with vector clocks
@@ -283,7 +283,7 @@ Alice enters 12-word phrase.
 **How it works**:
 
 1. Query is embeddings-based (powered by local Transformers.js)
-2. Kernel generates embedding for the query
+2. Tractor generates embedding for the query
 3. Searches Message nodes with Person relation to "David"
 4. Returns highest-scoring matches
 
@@ -342,7 +342,7 @@ pub extern "C" fn ingest() -> i32 {
     let matrix_url = env::var("MATRIX_HOMESERVER").unwrap();
     // Fetch rooms from Matrix
     // Normalise to JSON-LD
-    // Store via kernel bridge
+    // Store via tractor bridge
 }
 ```
 

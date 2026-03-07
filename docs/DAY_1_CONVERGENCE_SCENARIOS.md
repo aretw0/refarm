@@ -535,7 +535,7 @@ All scenarios need custom plugins:
 - Sync (relays, IMAP, APIs)
 - Export (formats, protocols)
 
-**Kernel doesn't know about diagrams or games — plugins do.**
+**Tractor doesn't know about diagrams or games — plugins do.**
 
 ### 4. **Schema Evolution** (Future-Proof)
 
@@ -641,7 +641,7 @@ And that's why you're spending so much time on:
 - [ADR-002: Offline-First](../specs/ADRs/ADR-002-offline-first-architecture.md)
 - [ADR-003: CRDT Sync](../specs/ADRs/ADR-003-crdt-synchronization.md)
 - [ADR-010: Schema Evolution](../specs/ADRs/ADR-010-schema-evolution.md)
-- [ADR-017: Micro-Kernel](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md)
+- [ADR-017: Micro-Tractor](../specs/ADRs/ADR-017-studio-micro-tractor-and-plugin-boundary.md)
 - [ADR-020: Graph Versioning](../specs/ADRs/ADR-020-sovereign-graph-versioning.md)
 - [ADR-021: Self-Healing](../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md)
 - [ADR-022: Policy Declarations](../specs/ADRs/ADR-022-policy-declarations-in-plugin-manifests.md)

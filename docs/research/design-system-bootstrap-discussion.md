@@ -18,7 +18,7 @@ O Refarm já possui diferenciais técnicos fortes (browser-first, plugins WASM, 
 
 Bootstrap aqui significa estabelecer a fundação mínima de um design system headless para dois públicos:
 
-- **Uso interno**: acelerar entrega do `apps/studio` e reduzir inconsistência de UX.
+- **Uso interno**: acelerar entrega do `apps/homestead` e reduzir inconsistência de UX.
 - **Uso externo**: permitir que plugins e integradores usem contratos de UI previsíveis sem acoplamento visual ao core.
 
 Escopo de bootstrap (mínimo):
@@ -71,7 +71,7 @@ Entregáveis:
 
 Critério de saída:
 
-- Componentes core do `apps/studio` já migrados para primitivas headless.
+- Componentes core do `apps/homestead` já migrados para primitivas headless.
 - Novos componentes só entram se seguirem contrato de a11y/i18n.
 
 ### Fase B (Curto Prazo): Internal Productization

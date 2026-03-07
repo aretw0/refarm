@@ -1,0 +1,112 @@
+---
+/**
+ * Refarm Studio — Home Page
+ *
+ * Entry point for the Studio.  Bootstraps the Kernel client-side and
+ * provides a dashboard overview.
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="Refarm Studio">
+  <section style="max-width: 800px; margin: 0 auto;">
+    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">Welcome to Refarm Studio</h2>
+    <p style="color: #8b949e; margin-bottom: 2rem;">
+      Your sovereign local-first workspace for building and managing Refarm plugins.
+      All data lives in your browser — nothing leaves without your explicit consent.
+    </p>
+
+    <div id="kernel-status" style="
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem 1.5rem;
+      margin-bottom: 1.5rem;
+    ">
+      <strong>Kernel status:</strong> <span id="status-text" style="color: #8b949e;">Initialising…</span>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
+      <a href="/plugins" style="
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.25rem;
+        text-decoration: none;
+        color: inherit;
+        transition: border-color 0.2s;
+      ">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔌</div>
+        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Plugin Marketplace</h3>
+        <p style="color: #8b949e; font-size: 0.875rem;">Discover and install plugins via Nostr NIP-89</p>
+      </a>
+
+      <a href="/graph" style="
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.25rem;
+        text-decoration: none;
+        color: inherit;
+      ">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🗄️</div>
+        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Data Graph</h3>
+        <p style="color: #8b949e; font-size: 0.875rem;">Browse your sovereign JSON-LD data nodes</p>
+      </a>
+
+      <a href="/dev" style="
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1.25rem;
+        text-decoration: none;
+        color: inherit;
+      ">
+        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
+        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Plugin Dev</h3>
+        <p style="color: #8b949e; font-size: 0.875rem;">Build and test plugins in the WebContainers sandbox</p>
+      </a>
+    </div>
+  </section>
+</Layout>
+
+<script>
+  /**
+   * Client-side Kernel bootstrap.
+   * Runs in the browser after the page loads.
+   */
+  async function initKernel() {
+    const statusEl = document.getElementById("status-text")!;
+    try {
+      // Dynamic import keeps the heavy WASM bootstrap off the critical path
+      const { Tractor } = await import("@refarm/tractor");
+      
+      // Injecting primitives (Stubbed for now in Homestead IDE until proper integration)
+      const storageAdapter = { 
+        ensureSchema: async () => {},
+        storeNode: async () => {},
+        queryNodes: async () => [],
+        execute: async () => {}, 
+        query: async () => [], 
+        close: async () => {} 
+      };
+      const pluginHost = {
+        load: async (manifest) => {
+          console.log("Loading plugin from manifest:", manifest);
+          return { id: manifest.id, name: manifest.name, call: async () => {}, terminate: () => {} };
+        }
+      };
+      const identityAdapter = {};
+      
+      await Tractor.boot({ storage: storageAdapter, identity: identityAdapter, pluginHost: pluginHost });
+      statusEl.textContent = "✅ Online — SQLite/OPFS ready";
+      statusEl.style.color = "#3fb950";
+    } catch (err) {
+      statusEl.textContent = `❌ Error: ${(err as Error).message}`;
+      statusEl.style.color = "#f85149";
+      console.error("[studio] Kernel boot failed", err);
+    }
+  }
+
+  initKernel();
+</script>

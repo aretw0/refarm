@@ -419,7 +419,7 @@ Se receber muitas notificações de checks falhando:
 
 ```
 # Apenas notificar donos de área específica
-/apps/kernel/**            @username-kernel
+/apps/tractor/**            @username-tractor
 /packages/identity-nostr/** @username-identity
 ```
 

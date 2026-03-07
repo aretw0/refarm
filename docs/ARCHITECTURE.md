@@ -23,11 +23,11 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 ```
 refarm/
 ├── apps/
-│   ├── kernel/          # 🌱 "Solo Fértil" — Core Kernel
+│   ├── tractor/          # 🌱 "Solo Fértil" — Core Tractor
 │   │   └── src/
-│   │       └── index.ts # Kernel class: boot, storeNode, queryNodes, PluginHost
+│   │       └── index.ts # Tractor class: boot, storeNode, queryNodes, PluginHost
 │   │
-│   └── studio/          # 🎨 Refarm Studio — In-browser IDE (Astro)
+│   └── studio/          # 🎨 Refarm Homestead — In-browser IDE (Astro)
 │       └── src/
 │           ├── pages/   # index, plugins, graph, dev
 │           └── layouts/
@@ -38,7 +38,7 @@ refarm/
 │   └── sync-crdt/       # Vector clocks, LWW register, OR-Set, SyncEngine
 │
 ├── wit/
-│   └── refarm-sdk.wit   # WIT interface — plugin ↔ kernel communication
+│   └── refarm-sdk.wit   # WIT interface — plugin ↔ tractor communication
 │
 ├── schemas/
 │   └── sovereign-graph.jsonld  # JSON-LD schema + worked examples
@@ -57,28 +57,30 @@ refarm/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     Refarm Studio                        │
-│   (Astro SSG + WebContainers — apps/studio)             │
-└───────────────────────┬─────────────────────────────────┘
-                        │ uses
-┌───────────────────────▼─────────────────────────────────┐
-│                    Refarm Kernel                         │
-│   (apps/kernel)                                         │
+│                     Refarm Homestead                    │
+│   (Astro SSG + WebContainers — apps/homestead)          │
+│   ┌──────────────┐   ┌───────────────┐                  │
+│   │storage-sqlite│   │ identity-nostr│  ← Instantiates  │
+│   └──────┬───────┘   └───────┬───────┘      Adapters    │
+└──────────┼───────────────────┼──────────────────────────┘
+           │ Inject            │ Inject
+┌──────────▼───────────────────▼──────────────────────────┐
+│                    Refarm Tractor                       │
+│   (apps/tractor)                                         │
 │   ┌──────────────┐ ┌──────────────┐ ┌───────────────┐  │
 │   │PluginHost    │ │ Normaliser   │ │ SyncEngine    │  │
 │   │(WASM sandbox)│ │(→ JSON-LD)   │ │(CRDT)         │  │
 │   └──────┬───────┘ └──────┬───────┘ └──────┬────────┘  │
 └──────────┼────────────────┼────────────────┼────────────┘
            │                │                │
-    WIT boundary     ┌──────▼───────┐   ┌────▼──────────┐
-           │         │storage-sqlite│   │  sync-crdt    │
-┌──────────▼───┐     │  (OPFS/WAL) │   │(VectorClock,  │
-│Plugin (WASM) │     └──────────────┘   │ LWW, OR-Set)  │
-│ implements   │                        └───────────────┘
-│ integration  │     ┌──────────────────────────────────┐
-│ world        │     │       identity-nostr             │
-└──────────────┘     │  (keypair + NIP-89 discovery)    │
-                     └──────────────────────────────────┘
+     WIT boundary    ┌───────▼──────┐   ┌─────▼─────────┐
+            │        │ Storage Port │   │ Sync Port     │
+ ┌──────────▼───┐    └──────────────┘   └───────────────┘
+ │Plugin (WASM) │
+ │ implements   │    ┌──────────────────────────────────┐
+ │ integration  │    │       Identity Port              │
+ │ world        │    └──────────────────────────────────┘
+ └──────────────┘
 ```
 
 ---
@@ -97,12 +99,12 @@ If Refarm the product disappears, these three primitives continue working indepe
 
 ## Plugin System
 
-### How a Plugin Communicates with the Kernel
+### How a Plugin Communicates with the Tractor
 
 ```
-Plugin (WASM Component)              Kernel (Host)
+Plugin (WASM Component)              Tractor (Host)
 ─────────────────────────            ─────────────────────
-export integration {                 import kernel-bridge {
+export integration {                 import tractor-bridge {
   setup() → result                     store-node(json-ld) → node-id
   ingest() → result<u32>               get-node(id) → json-ld
   push(payload) → result               query-nodes(type, limit) → list
@@ -112,7 +114,7 @@ export integration {                 import kernel-bridge {
                                      }
 ```
 
-All communication is **typed by the WIT contract** (`wit/refarm-sdk.wit`). The kernel host validates every call. Plugins cannot escape the sandbox.
+All communication is **typed by the WIT contract** (`wit/refarm-sdk.wit`). The tractor host validates every call. Plugins cannot escape the sandbox.
 
 ### Plugin Distribution (Nostr)
 
@@ -120,7 +122,7 @@ All communication is **typed by the WIT contract** (`wit/refarm-sdk.wit`). The k
 2. Developer publishes WASM to any URL, creates a **NIP-94 kind:1063** file metadata event with SHA-256 hash
 3. Developer creates a **NIP-89 kind:31990** handler announcement event pointing to the NIP-94 event
 4. Users discover plugins by querying relays for kind:31990 events
-5. Kernel fetches and **verifies the WASM hash** before instantiation
+5. Tractor fetches and **verifies the WASM hash** before instantiation
 
 ---
 
@@ -166,7 +168,7 @@ Refarm supports **guest sessions** for zero-friction onboarding. The key design 
 
 ```typescript
 // 1. User opens link: refarm.dev/board/abc123
-// 2. Kernel detects no identity → creates guest session with storage choice
+// 2. Tractor detects no identity → creates guest session with storage choice
 const vaultId = crypto.randomUUID(); // "vault-a7c3f2"
 
 // 3. Guest picks storage tier (ephemeral / persistent / synced)
@@ -177,13 +179,16 @@ localStorage.setItem("refarm:vault", JSON.stringify({
   storageTier: "persistent",
   createdAt: Date.now()
 }));
-await storageSqlite.initVault(vaultId);
 
-// 4. Join via WebRTC (no Nostr relay needed)
-const connection = await webrtc.connect(boardUrl);
+// Instantiate the adapters in the host (Homestead)
+const storage = await new OPFSSQLiteAdapter().open(vaultId);
+const identity = new EphemeralIdentity(vaultId);
+
+// 4. Boot Tractor with injected adapters
+const tractor = await Tractor.boot({ storage, identity });
 
 // 5. Guest creates nodes — same API as permanent users
-kernel.storeNode({
+tractor.storeNode({
   "@type": "StickyNote",
   "@id": `urn:${vaultId}:note-1`,
   text: "Draft idea",
@@ -226,7 +231,7 @@ Each user (guest or permanent) has their own vault, scoped by vaultId or pubkey:
 
 ```typescript
 // Guest queries are scoped to their vault
-const myNodes = await kernel.queryNodes({ owner: activeVaultId });
+const myNodes = await tractor.queryNodes({ owner: activeVaultId });
 // Returns only data belonging to the current user
 
 // Host configures board permissions
@@ -282,10 +287,10 @@ npm run build
 npm test
 ```
 
-### Start the Studio only
+### Start the Homestead only
 
 ```bash
-cd apps/studio
+cd apps/homestead
 npm run dev
 ```
 

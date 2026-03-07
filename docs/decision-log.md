@@ -14,10 +14,11 @@ Central register for high-impact technical decisions that are pending or recentl
 
 | Blocker | Requirement | Current State | Timeline |
 |---------|-------------|---------------|----------|
-| WASM Browser Runtime | Validate Rust plugin runs in browser + calls kernel-bridge | ✅ Compilation OK, ⚠️ Runtime untested | ~30 min (test now) |
+| WASM Browser Runtime | Validate Rust plugin runs in browser + calls tractor-bridge | ✅ Compilation OK, ⚠️ Runtime untested | ~30 min (test now) |
 | OPFS Persistence | Validate wa-sqlite + OPFS performance in browser | ✅ Node benchmark done, ⚠️ Browser pending | ~1-2h (test now) OR defer to Sprint 1 pre-BDD |
 
 **Pragmatic Decision Matrix**:
+
 - ✅ WASM + ✅ OPFS → **GO**: Start Sprint 1 immediately
 - ✅ WASM + ⚠️ OPFS (defer) → **GO with caveat**: Add OPFS as Sprint 1 pre-BDD gate
 - ✅ WASM + ❌ OPFS → **PAUSE**: Research alternatives (1w)
@@ -28,21 +29,25 @@ Central register for high-impact technical decisions that are pending or recentl
 ### What's Been Completed (2026-03-06)
 
 ✅ **Documentation consolidation**: Single source of truth established
+
 - `docs/pre-sprint-checklist.md` → canonical Semana 0 readiness reference
 - `roadmaps/MAIN.md` → synchronized with current status
-- Smoke tests seeded in critical workspaces (kernel, storage-sqlite, sync-crdt)
+- Smoke tests seeded in critical workspaces (tractor, storage-sqlite, sync-crdt)
 
 ✅ **Quality gates validated**: CI/test pipeline operational
+
 - Root scripts: `test:unit`, `test:integration`, `test:e2e` ✓
 - Turbo tasks aligned ✓
 - Changeset workflow configured ✓
 
 ✅ **Deliverables prepared**:
+
 - Sprint 1 SDD checklist created
 - 5 feature specs ready (Session, Storage Tiers, Migration, Plugin, Schema)
 - ADR-015 (SQLite) documented with provisional status
 
 ### References
+
 - Detailed checklist: [pre-sprint-checklist.md](pre-sprint-checklist.md)
 - Roadmap: [../roadmaps/MAIN.md](../roadmaps/MAIN.md)
 - SQLite decision: [../specs/ADRs/ADR-015-sqlite-engine-decision.md](../specs/ADRs/ADR-015-sqlite-engine-decision.md)
@@ -70,6 +75,7 @@ Central register for high-impact technical decisions that are pending or recentl
 | Testing strategy (unit/integration/e2e) | ADR-013 | 2026-03-06 | Vitest + Playwright + Changesets strategy documented |
 | SQLite engine choice (wa-sqlite vs sql.js) | ADR-015 | 2026-03-06 | Accepted provisionally; Node benchmark completed, browser OPFS validation pending |
 | Quality gate baseline alignment | ADR-013 | 2026-03-06 | Root scripts and CI jobs aligned; smoke-test baseline seeded in critical workspaces |
+| Native browser permissions as proxy capabilities | ADR-024 | 2026-03-07 | Capabilities as superset of browser native permissions |
 
 ---
 

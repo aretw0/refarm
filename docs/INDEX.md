@@ -66,7 +66,7 @@ Wiki de fundamentação técnica - consultar quando necessário:
 
 ```
 refarm/
-├── apps/           Aplicações (kernel, studio)
+├── apps/           Aplicações (tractor, studio)
 ├── packages/       Packages reutilizáveis (storage, sync, identity)
 ├── docs/           Esta pasta - documentação & pesquisa técnica
 ├── roadmaps/       Planejamento versionado (semver)
