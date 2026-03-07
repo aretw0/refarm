@@ -3,7 +3,7 @@
 **Status**: In Progress  
 **Date**: 2026-03-06  
 **Goal**: Complete remaining preparatory work before starting v0.1.0 Sprint 1  
-**Related**: [Main Roadmap](../roadmaps/MAIN.md), [Validation 3](research/critical-validations.md#validação-3-wasi-capability-enforcement--em-progresso)
+**Related**: [Main Roadmap](../roadmaps/MAIN.md), [Sprint 1](sprints/sprint-1.md), [Validation 3](research/critical-validations.md#validação-3-wasi-capability-enforcement--em-progresso)
 
 ---
 

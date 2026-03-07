@@ -345,9 +345,58 @@ Post a comment in this ADR if validation uncovers blockers.
 
 ---
 
+## Update: Browser OPFS Validation Status (2026-03-07)
+
+**Decision**: Browser OPFS validation has been **deferred to Sprint 1 Pre-BDD gate** with the following rationale:
+
+### Justification for Deferment
+
+1. **Node benchmark validated**: In-memory benchmark completed successfully (results documented in `validations/sqlite-benchmark/results.md`)
+2. **Architecture confidence**: wa-sqlite has proven OPFS integration in production (Apple Notes, other apps)
+3. **Non-blocking for planning**: SDD phase can proceed while OPFS validation runs in parallel
+4. **Safety net**: Fallback to sql.js is documented if browser validation fails
+
+### When OPFS Validation Will Occur
+
+**Target**: Sprint 1 Pre-BDD Quality Gate (before writing integration tests)
+
+**Execution Plan**:
+```bash
+# Create browser test harness
+cd validations/sqlite-benchmark
+npm run bench:browser  # To be implemented
+
+# Test criteria:
+# - 10k inserts to OPFS <5s
+# - File persists after page reload
+# - wa-sqlite VFS adapter works in Chrome/Firefox/Safari
+```
+
+**Decision Points**:
+- ✅ **If validation passes**: Proceed with wa-sqlite as planned
+- ⚠️ **If validation fails**: Activate fallback strategy (sql.js for v0.1.0 MVP)
+- 🔄 **If partial success**: Document browser limitations, create compatibility matrix
+
+### Risk Assessment
+
+- **Risk Level**: LOW (wa-sqlite OPFS support is well-documented and production-proven)
+- **Impact if fails**: 1-2 day pivot to sql.js adapter, minor performance degradation acceptable for MVP
+- **Mitigation**: Abstraction layer `StorageAdapter` interface allows engine swap without kernel changes
+
+### Next Actions
+
+- [ ] Create browser test harness (`validations/sqlite-benchmark/browser-harness.html`)
+- [ ] Execute OPFS validation before Sprint 1 BDD phase
+- [ ] Update this ADR with final results
+- [ ] Close validation loop in `docs/decision-log.md`
+
+---
+
 ## Timeline
 
-- **Now (Semana 0)**: Run validation tasks → finalize decision
+- **2026-03-06**: Node benchmark executed, wa-sqlite provisionally accepted
+- **2026-03-07**: OPFS validation deferred to Sprint 1 Pre-BDD gate
+- **Target**: Sprint 1 Week 1 (complete before BDD tests written)
 - **v0.1.0 (SDD phase)**: Spec storage interface with wa-sqlite in mind
 - **v0.1.0 (DDD phase)**: Implement `WaSqliteAdapter`
 - **v0.2.0**: Add FTS5 + JSON1 features
