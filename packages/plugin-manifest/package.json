@@ -1,5 +1,5 @@
 {
-  "name": "@refarm/plugin-manifest",
+  "name": "@refarm.dev/plugin-manifest",
   "version": "0.1.0",
   "description": "Plugin manifest schema and validation helpers for Refarm micro-kernel",
   "type": "module",
