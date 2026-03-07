@@ -3,24 +3,24 @@
 
 | Benchmark | Baseline (ops/s) | Current (ops/s) | Δ % | Status |
 | :--- | :---: | :---: | :---: | :---: |
-| Tractor.boot() — zero-latency adapters | 3167.08 | 3559.30 | +12.38% | 🚀 IMPROVED |
-| Tractor.boot() — 10ms schema latency | 92.91 | 90.96 | -2.10% | ✅ |
-| Tractor.boot() — with sync adapter | 4109.88 | 3419.94 | -16.79% | 🚨 REGRESSION |
-| Load 1 plugin | 9475.50 | 8718.62 | -7.99% | ✅ |
-| Load 10 plugins sequentially | 977.25 | 994.64 | +1.78% | ✅ |
-| Load 50 plugins concurrently | 256.37 | 267.66 | +4.41% | ✅ |
-| Load 100 plugins concurrently | 115.72 | 144.79 | +25.12% | 🚀 IMPROVED |
-| storeNode() x1 | 4079.81 | 5278.35 | +29.38% | 🚀 IMPROVED |
-| storeNode() x100 sequential | 2057.83 | 2875.77 | +39.75% | 🚀 IMPROVED |
-| storeNode() x100 concurrent | 2037.05 | 2661.02 | +30.63% | 🚀 IMPROVED |
-| normaliseToSovereignGraph() x1 | 887240.64 | 997511.97 | +12.43% | 🚀 IMPROVED |
-| normaliseToSovereignGraph() x1000 | 1025.84 | 1004.53 | -2.08% | ✅ |
-| Boot → Load 10 plugins → Store 50 nodes → Query → Shutdown | 793.51 | 835.77 | +5.32% | ✅ |
+| Tractor.boot() — zero-latency adapters | 3320.45 | 4175.86 | +25.76% | 🚀 IMPROVED |
+| Tractor.boot() — 10ms schema latency | 91.65 | 92.26 | +0.67% | ✅ |
+| Tractor.boot() — with sync adapter | 4024.58 | 4243.03 | +5.43% | ✅ |
+| Load 1 plugin | 9081.69 | 10504.31 | +15.66% | 🚀 IMPROVED |
+| Load 10 plugins sequentially | 1067.33 | 1142.68 | +7.06% | ✅ |
+| Load 50 plugins concurrently | 280.61 | 295.35 | +5.25% | ✅ |
+| Load 100 plugins concurrently | 121.44 | 151.15 | +24.46% | 🚀 IMPROVED |
+| storeNode() x1 | 4158.65 | 4867.88 | +17.05% | 🚀 IMPROVED |
+| storeNode() x100 sequential | 2359.75 | 2903.26 | +23.03% | 🚀 IMPROVED |
+| storeNode() x100 concurrent | 2503.35 | 2825.89 | +12.88% | 🚀 IMPROVED |
+| normaliseToSovereignGraph() x1 | 870865.01 | 910129.38 | +4.51% | ✅ |
+| normaliseToSovereignGraph() x1000 | 1021.41 | 1007.96 | -1.32% | ✅ |
+| Boot → Load 10 plugins → Store 50 nodes → Query → Shutdown | 723.37 | 701.07 | -3.08% | ✅ |
 
 **Summary:**
-- 🚨 Regressions: 1
+- 🚨 Regressions: 0
 - 🚀 Improvements: 6
-- ✅ Stable: 6
+- ✅ Stable: 7
 
-> [!CAUTION]
-> Performance degraded beyond the 10% margin. Please investigate the cause.
+> [!TIP]
+> Performance is within acceptable limits.
