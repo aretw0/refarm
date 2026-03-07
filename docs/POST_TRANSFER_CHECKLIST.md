@@ -15,6 +15,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 ```
 
 **Por que @refarm e não @refarm-dev?**
+
 - GitHub org: `refarm-dev` (namespace técnico)
 - npm scope: `@refarm` (namespace de marca)
 - Domain: `refarm.dev` (marketing/docs)
@@ -34,14 +35,16 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 
 **Settings → Secrets and variables → Actions**
 
-#### Secrets (sensíveis):
+#### Secrets (sensíveis)
+
 ```bash
 # Nome: NPM_TOKEN
 # Valor: [token gerado no passo 2]
 # Scope: Repository secrets
 ```
 
-#### Variables (não-sensíveis):
+#### Variables (não-sensíveis)
+
 ```bash
 # Nome: RELEASE_AUTOMATION
 # Valor: true
@@ -49,6 +52,7 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 ```
 
 **⚠️ CRITICAL**: Os workflows só executarão publicações quando:
+
 - `github.repository_owner == 'refarm-dev'` (automático após transfer)
 - `vars.RELEASE_AUTOMATION == 'true'` (configurado manualmente)
 
@@ -84,6 +88,7 @@ git push origin main
 ```
 
 **O que vai acontecer:**
+
 1. Workflow `release-changesets.yml` vai detectar changesets pendentes
 2. Vai criar um PR "Version Packages" na main
 3. PR vai:
@@ -221,6 +226,7 @@ git push origin main
 Marcar conforme completar:
 
 ### Essencial (Bloqueia Release)
+
 - [ ] Organização npm `@refarm.dev` criada (não @refarm-dev!)
 - [ ] Token NPM_TOKEN gerado e configurado no GitHub
 - [ ] Variable RELEASE_AUTOMATION=true configurada
@@ -231,6 +237,7 @@ Marcar conforme completar:
 - [ ] Teste de instalação externa passou
 
 ### Nice-to-Have (Documentação)
+
 - [ ] REPOSITORY_MIGRATION_GUIDE.md deletado
 - [ ] Research consolidado em INDEX.md (opcional)
 - [ ] ESTADO_ATUAL.md consolidado em decision-log.md (opcional)
@@ -258,6 +265,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 ### Workflow não está rodando
 
 Verificar:
+
 1. `github.repository_owner` está correto? (deve ser `refarm-dev`)
 2. `vars.RELEASE_AUTOMATION` está configurado como `true`?
 3. Branch protection está bloqueando? (verificar Settings → Branches)
@@ -265,6 +273,7 @@ Verificar:
 ### npm publish falhou com 403
 
 Verificar:
+
 1. Token NPM_TOKEN tem permissões de Automation + Read/Publish?
 2. Token está associado à org `@refarm`?
 3. Sua conta npm tem permissões de admin na org `@refarm`?

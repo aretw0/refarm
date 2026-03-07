@@ -50,6 +50,7 @@ Research (2754 linhas total):
 **Por que**: Será executado uma única vez, depois não terá propósito operacional.
 
 **O que fazer**:
+
 ```bash
 # 1. Quando a migração for executada, criar um entry no decision-log.md:
 ## Decisão: Repository Transfer (2026-03-07)
@@ -101,6 +102,7 @@ Research (2754 linhas total):
 
 **Quando**: AGORA (antes de migração)  
 **Ações**:
+
 1. Criar novo `docs/research/INDEX.md` com referências consolidadas
 2. Deletar: `phase1-technical-foundations.md`, `phases2-4-technical-research.md` (conteúdo está em ADRs)
 3. Manter como arquivo: `browser-extension-discussion.md`, `critical-validations.md`, `wasm-validation.md`
@@ -118,6 +120,7 @@ Research (2754 linhas total):
 
 **Quando**: AGORA  
 **Ação**:
+
 - Se contém decisões → mover para `decision-log.md`
 - Se contém timeline → arquivar em `docs/sprints/`
 - Deletar o arquivo (será atualizado pós-migração como POST_TRANSFER_STATUS.md)
@@ -130,7 +133,8 @@ Research (2754 linhas total):
 
 **Problema**: Ambos descrevem processo de desenvolvimento. Possível duplicação.
 
-**Análise Necessária**: 
+**Análise Necessária**:
+
 - Ler ambos pra entender se há sobreposição real
 - Se SIM: consolidar em um arquivo core + um auxiliary
 - Se NÃO: deixar como está (Workflow = descrição do processo, QG = gates específicas)
@@ -158,6 +162,7 @@ git commit -m "docs: remove migration guide (executed successfully)"
 ```
 
 ### 2. Archive Research Folders (if Tier 2 completed)
+
 ```bash
 rm docs/research/phase1-technical-foundations.md
 rm docs/research/phases2-4-technical-research.md
@@ -166,19 +171,23 @@ git commit -m "docs: consolidate research into INDEX (see ADRs)"
 ```
 
 ### 3. Update ESTADO_ATUAL.md Content
+
 - Move decision content to decision-log.md
 - Delete ESTADO_ATUAL.md if empty
 - Create POST_TRANSFER_STATUS.md for new phase status
 
 ### 4. Update All Internal URLs
+
 - Find: `aretw0/refarm` → Replace: `refarm-dev/refarm`
 - Find: `github.com/aretw0` → Replace: `github.com/refarm-dev`
 - Run: `grep -r "aretw0" docs/ apps/ packages/` to find remaining refs
 
 ### 5. Update Team Documentation
+
 - Update team wikis pointing to new GitHub org
 - Update CI/CD secret references
 - Update OAuth/SSO if necessary
+
 ```
 
 ---

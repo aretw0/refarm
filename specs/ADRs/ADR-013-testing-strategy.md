@@ -375,6 +375,7 @@ npm run coverage
 ### Next Steps
 
 When implementing tests for each package:
+
 1. Create `src/**/*.test.ts` files alongside source code
 2. Vitest will auto-discover and run them
 3. Ensure JSDOM env is appropriate (override in `vitest.config.ts` per workspace if needed for Node-heavy tests)

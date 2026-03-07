@@ -285,9 +285,9 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 ### Recommended Execution Order
 
 - 1. Start Track A and Track B in parallel
-- 2. Finish decision artifacts (ADR-015 + benchmark results)
-- 3. Confirm CI/test gate integrity
-- 4. Close readiness updates in docs and move to SDD
+- 1. Finish decision artifacts (ADR-015 + benchmark results)
+- 1. Confirm CI/test gate integrity
+- 1. Close readiness updates in docs and move to SDD
 
 ---
 

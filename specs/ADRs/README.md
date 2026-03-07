@@ -23,7 +23,6 @@ Architecture Decision Records for Refarm.
 | [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates (+ Transitive Escalation Prevention) | Accepted | 2026-03-07 |
 | [019](ADR-019-npm-scope-and-namespace-strategy.md) | npm Scope and Namespace Strategy (@refarm.dev) | Accepted | 2026-03-07 |
 
-
 ## Planned (Future ADRs)
 
 ---

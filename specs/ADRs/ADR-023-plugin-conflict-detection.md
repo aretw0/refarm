@@ -13,12 +13,14 @@
 **Problem learned from other ecosystems**:
 
 Multiple plugins can modify the same graph data without coordination, causing:
+
 1. **Silent conflicts**: Two task manager plugins both manage `priority` field → last write wins, user doesn't know
 2. **Data corruption**: Plugin A writes `status: "done"`, Plugin B overwrites with `status: "archived"` immediately
 3. **Debugging nightmare**: User doesn't know which plugin caused unexpected behavior
 4. **Plugin interference**: Plugin A's logic broken because Plugin B changed data it depends on
 
 **Real-world examples**:
+
 - **WordPress**: Two SEO plugins conflict → site breaks, no indication which plugin responsible
 - **VSCode**: Multiple formatters fight over same file → formatting flips on every save
 - **Jenkins**: Build plugins conflict over workspace directory → build artifacts corrupted
@@ -32,6 +34,7 @@ Multiple plugins can modify the same graph data without coordination, causing:
 **Plugins declare "write paths" in manifest: which graph fields they will modify.**
 
 Kernel detects conflicts at:
+
 1. **Install time**: Before plugin installed, check if conflicts with existing plugins
 2. **Runtime**: Detect when two plugins both modify same data (audit trail)
 3. **User resolution**: Let user choose conflict resolution strategy
@@ -349,12 +352,14 @@ User assigns priority to plugins:
 ```
 
 When conflict:
+
 - Plugin A writes → accepted
 - Plugin B writes → rejected (or logged as warning)
 
 ### Strategy 2: **Last-Write-Wins** (CRDT Default)
 
 No special handling, CRDT resolves:
+
 - Both plugins write
 - Last write wins (CRDT timestamp)
 - User sees final result (may be unexpected)

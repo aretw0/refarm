@@ -221,6 +221,7 @@ class SelfHealingSchemaManager {
 ### Concept: Plugins as First-Class Citizens with Health Status
 
 Each plugin is assigned:
+
 - **Resource quota**: Memory, CPU, I/O limits
 - **Behavior trace**: Operations logged for forensics
 - **Health score**: Calculated from health signals
