@@ -150,6 +150,7 @@ Se precisa de análise detalhada de decisões antigas:
 **Ação**: Revisar pós-migração, consolidar se necessário
 
 **Nota**: Deixar para depois porque ambos documentam coisas validas mas com foco diferente:
+
 - WORKFLOW.md = Processo de desenvolvimento (SDD→BDD→TDD→DDD)
 - PR_QUALITY_GOVERNANCE.md = Quality gates específicas (eslint, tests, etc)
 
@@ -218,6 +219,7 @@ git push origin main
 ## 📝 Críterios de Limpeza
 
 ✅ **Keep** (documentação essencial):
+
 - ADRs e decisões arquiteturais
 - ARCHITECTURE.md (visão geral)
 - WORKFLOW.md (processo)
@@ -228,11 +230,13 @@ git push origin main
 - decision-log.md (histórico de decisões)
 
 ❌ **Remove** (documentação descartável):
+
 - REPOSITORY_MIGRATION_GUIDE.md (após execução)
 - ESTADO_ATUAL.md (status histórico → decision-log)
 - Arquivos de research que duplicam ADRs
 
 📌 **Archive** (histórico, referência):
+
 - research/browser-extension-discussion.md
 - research/critical-validations.md
 - research/wasm-validation.md
@@ -263,6 +267,7 @@ git checkout <commit-hash> -- docs/ESTADO_ATUAL.md
 - [ ] Verifi
 
 cado que builds/testes ainda passam
+
 - [ ] git push origin main
 
 **Status**: ✅ Ready for transfer

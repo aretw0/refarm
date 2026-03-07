@@ -19,6 +19,7 @@ Users deserve full ownership and reversibility of their data. With offline-first
 4. **Audit accountability**: Link changes to identity (author, device, intention)
 
 Without explicit versioning, users face:
+
 - *"I made a mistake 3 days ago but can only see today's state"*
 - *"My two devices have different data and I can't merge them back"*
 - *"Did the schema upgrade break my old data silently?"*
@@ -58,6 +59,7 @@ kernel.graph.commit({
 ```
 
 **Properties**:
+
 - Immutable (never modify, only create new)
 - Hash includes content + parent (prevents tampering)
 - Captures CRDT state point-in-time (full snapshot, not delta)
@@ -83,6 +85,7 @@ kernel.graph.branch.current();
 ```
 
 **Properties**:
+
 - Mutable pointer to a Commit
 - Created offline-first (no central registry)
 - Can have local and synced variants
@@ -108,6 +111,7 @@ kernel.graph.status();
 ```
 
 **Properties**:
+
 - Changes working CRDT state
 - Preserves dirty state (uncommitted changes) per branch
 - Reproducible: `checkout(X)` always yields same state
@@ -133,6 +137,7 @@ kernel.graph.log();
 ```
 
 **Properties**:
+
 - Creates inverse operations, doesn't delete
 - Preserves auditability (no hidden history)
 - Safe for multi-device: revert operations sync like any other

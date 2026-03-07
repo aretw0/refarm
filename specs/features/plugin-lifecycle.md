@@ -54,7 +54,7 @@ Plugin Lifecycle manages the complete lifecycle of WASM plugins in Refarm, from 
 
 ### AC2: Plugin Initialization
 
-2. **Given** plugin WASM successfully loaded  
+1. **Given** plugin WASM successfully loaded  
    **When** kernel instantiates the plugin  
    **Then** plugin sandbox is created
    - WASM module compiled
@@ -64,7 +64,7 @@ Plugin Lifecycle manages the complete lifecycle of WASM plugins in Refarm, from 
 
 ### AC3: Plugin Execution
 
-3. **Given** plugin is initialized  
+1. **Given** plugin is initialized  
    **When** plugin method is invoked (e.g., ingest())  
    **Then** method executes in sandbox
    - Isolated from other plugins
@@ -74,7 +74,7 @@ Plugin Lifecycle manages the complete lifecycle of WASM plugins in Refarm, from 
 
 ### AC4: Plugin Error Isolation
 
-4. **Given** plugin throws error during execution  
+1. **Given** plugin throws error during execution  
    **When** error is caught  
    **Then** plugin is isolated, kernel continues
    - Error logged to console
@@ -84,7 +84,7 @@ Plugin Lifecycle manages the complete lifecycle of WASM plugins in Refarm, from 
 
 ### AC5: Plugin Unloading
 
-5. **Given** an active plugin  
+1. **Given** an active plugin  
    **When** user clicks "Uninstall"  
    **Then** plugin is cleanly removed
    - teardown() method called

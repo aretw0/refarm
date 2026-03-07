@@ -54,7 +54,7 @@ Storage Schema defines the SQLite database structure for persisting JSON-LD node
 
 ### AC2: Node Storage
 
-2. **Given** a valid JSON-LD node  
+1. **Given** a valid JSON-LD node  
    **When** storeNode() is called  
    **Then** node is persisted
    - JSON validated before insert
@@ -64,7 +64,7 @@ Storage Schema defines the SQLite database structure for persisting JSON-LD node
 
 ### AC3: Query Optimization
 
-3. **Given** vault with 100k nodes  
+1. **Given** vault with 100k nodes  
    **When** query filters by type  
    **Then** results return in <50ms
    - Index used (idx_nodes_type)
@@ -73,7 +73,7 @@ Storage Schema defines the SQLite database structure for persisting JSON-LD node
 
 ### AC4: Schema Migration
 
-4. **Given** new Refarm version with schema changes  
+1. **Given** new Refarm version with schema changes  
    **When** app opens existing database  
    **Then** migrations run automatically
    - Detect current version
@@ -83,7 +83,7 @@ Storage Schema defines the SQLite database structure for persisting JSON-LD node
 
 ### AC5: Soft Delete
 
-5. **Given** user deletes a node  
+1. **Given** user deletes a node  
    **When** deleteNode() is called  
    **Then** node is soft-deleted
    - deleted_at timestamp set

@@ -13,11 +13,13 @@
 **Philosophical conflict:**
 
 Refarm uses **CRDTs** (optimistic, multi-writer, eventual consistency):
+
 - Multiple users edit simultaneously
 - Conflicts resolved automatically (merge)
 - No one is "blocked" waiting for lock
 
 But users are accustomed to **pessimistic locks** (single-writer, immediate consistency):
+
 - Google Docs: "Fulano is editing this paragraph" (visual lock, not enforced)
 - Notion: "Fulano is editing" (page-level lock)
 - Git: Branch = isolated workspace, merge when ready
@@ -27,6 +29,7 @@ But users are accustomed to **pessimistic locks** (single-writer, immediate cons
 > "If I'm editing a task, I don't want someone else changing the priority while I'm working on it."
 
 **Current Refarm behavior**:
+
 - User A edits `task.priority` → writes to CRDT
 - User B edits `task.priority` at same time → writes to CRDT
 - Both succeed, last-write-wins or CRDT merge
@@ -39,6 +42,7 @@ But users are accustomed to **pessimistic locks** (single-writer, immediate cons
 **Support pessimistic editing modes as an OPTIONAL UX pattern built on top of graph versioning (ADR-020).**
 
 Key insights:
+
 1. **Don't fight CRDT**: Keep eventual consistency as foundation
 2. **Locks are UX, not architecture**: Implement as "private branch" metaphor
 3. **User choice**: Some workflows need locks (task editing), others don't (chat messages)
@@ -177,6 +181,7 @@ async function handleLockExpiry(branchId: string, nodeId: string) {
 ```
 
 **Implementation**:
+
 - Alice creates private branch for `task.description` only (field-level)
 - Other users see real-time cursor position (via sync)
 - Bob can edit `task.priority` on main branch (no conflict)
@@ -206,6 +211,7 @@ async function handleLockExpiry(branchId: string, nodeId: string) {
 ```
 
 **Implementation**:
+
 - Alice creates private branch for entire node
 - Bob's UI shows node as "locked" (read-only)
 - Bob can "request access" → notification to Alice
@@ -241,6 +247,7 @@ async function handleLockExpiry(branchId: string, nodeId: string) {
 ```
 
 **Implementation**:
+
 - Both users edit on private branches
 - On commit, kernel detects conflict (both modified same field)
 - UI shows diff before merging
@@ -269,6 +276,7 @@ async function handleLockExpiry(branchId: string, nodeId: string) {
 ```
 
 **Implementation**:
+
 - User explicitly creates branch ("Start Draft")
 - All edits on private branch
 - User previews diff (`git diff`)
@@ -742,16 +750,19 @@ test('concurrent edits on different fields succeed', async () => {
 ### Why This is Optional, Not Default
 
 **Refarm's core is optimistic (CRDT)**:
+
 - Offline-first requires it (no central lock server)
 - Scalability requires it (no bottleneck)
 - Resilience requires it (no single point of failure)
 
 **But pessimistic locks solve real UX problems**:
+
 - "I don't want my edits overwritten"
 - "I need focus time without interruptions"
 - "I'm making a complex change that needs consistency"
 
 **Solution: Have both**:
+
 - Default: Optimistic (CRDT, always works)
 - Opt-in: Pessimistic (locks, better UX for some workflows)
 - Graceful degradation: Lock expires → falls back to optimistic
@@ -812,6 +823,7 @@ test('concurrent edits on different fields succeed', async () => {
 **Pessimistic locks are UX patterns, not architectural constraints.**
 
 By implementing locks as **private branches** (ADR-020), Refarm gets:
+
 - ✅ Familiar UX (users know how to "lock" documents)
 - ✅ CRDT foundation preserved (offline-first survives)
 - ✅ Graceful degradation (lock expires → optimistic merge)

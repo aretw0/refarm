@@ -33,6 +33,7 @@ Com a preparação para distribuição pública dos capability contracts (`stora
 **Escolhemos `@refarm.dev` como npm scope principal para publicação de pacotes.**
 
 Pacotes públicos serão distribuídos como:
+
 - `@refarm.dev/storage-contract-v1`
 - `@refarm.dev/sync-contract-v1`
 - `@refarm.dev/identity-contract-v1`
@@ -58,11 +59,13 @@ Pacotes públicos serão distribuídos como:
 **Problema**: Embora válidos segundo [npm naming rules](https://docs.npmjs.com/cli/v10/using-npm/scope), scopes com pontos podem causar problemas em ferramentas antigas ou com parsing simplista.
 
 **Ambientes afetados**:
+
 - Sistemas de build pré-2020 (Webpack < 5, Rollup < 2)
 - Scripts de CI/CD com regex simples como `/^@([a-z0-9-]+)\//`
 - Ferramentas proprietárias sem suporte a RFC-compliant package names
 
 **Mitigação**:
+
 1. **Público-alvo moderno**: Refarm targets Node 22+, ecossistema recente já suporta
 2. **Testes de conformidade**: Validar em CI que pacotes instalam corretamente
 3. **Fallback pronto**: `@refarm-dev` já reservado como escape hatch
@@ -95,6 +98,7 @@ Pacotes públicos serão distribuídos como:
 **Problema**: Pacotes que fazem parsing de `package.json` com regex simples podem não extrair corretamente o scope.
 
 **Exemplo de regex problemática**:
+
 ```javascript
 // ❌ Falha com pontos
 const match = packageName.match(/^@([a-z-]+)\/(.+)$/);
@@ -103,7 +107,8 @@ const match = packageName.match(/^@([a-z-]+)\/(.+)$/);
 const match = packageName.match(/^@([a-z0-9.-]+)\/(.+)$/);
 ```
 
-**Mitigação**: 
+**Mitigação**:
+
 - Não controlamos ferramentas de terceiros
 - Ferramentas mainstream (npm, yarn, pnpm, TypeScript) suportam corretamente
 - Se emergir como problema crítico, migração para `@refarm-dev` é viável
@@ -159,12 +164,14 @@ Node.js ESM e CommonJS resolvem corretamente scopes com pontos (testado em Node 
 ```
 
 **Exemplos**:
+
 - `@refarm.dev/storage-contract-v1@0.1.0`
 - `@refarm.dev/plugin-manifest@0.2.0`
 
 ### Git Tag Pattern
 
 Tags para release automation seguem o mesmo padrão:
+
 ```
 @refarm.dev/storage-contract-v1@0.1.0
 ```
@@ -191,12 +198,14 @@ Tags para release automation seguem o mesmo padrão:
 Se `@refarm.dev` provar-se problemático em produção:
 
 1. **Publicar versões idênticas em `@refarm-dev`**:
+
    ```bash
    npm publish @refarm.dev/storage-contract-v1 --tag latest
    npm publish @refarm-dev/storage-contract-v1 --tag latest
    ```
 
 2. **Deprecar versões antigas**:
+
    ```bash
    npm deprecate @refarm.dev/storage-contract-v1 "Migrated to @refarm-dev/storage-contract-v1"
    ```
@@ -214,10 +223,12 @@ Se `@refarm.dev` provar-se problemático em produção:
 ### Option 1: `@refarm-dev` (GitHub-aligned)
 
 **Pros**:
+
 - ✅ Consistente com GitHub org
 - ✅ Sem caveats técnicos (hífen é universalmente suportado)
 
 **Cons**:
+
 - ❌ Desalinhado com domínio principal (`refarm.dev`)
 - ❌ `-dev` suggere "development/unstable", não é intuitivo para pactes stable
 
@@ -226,10 +237,12 @@ Se `@refarm.dev` provar-se problemático em produção:
 ### Option 2: `@refarmdev` (sem separador)
 
 **Pros**:
+
 - ✅ Sem caveats técnicos
 - ✅ Simples e direto
 
 **Cons**:
+
 - ❌ Menos legível (`refarmdev` vs `refarm.dev`)
 - ❌ Não estava disponível no npm
 
@@ -238,10 +251,12 @@ Se `@refarm.dev` provar-se problemático em produção:
 ### Option 3: Dual-publish em ambos os scopes
 
 **Pros**:
+
 - ✅ Flexibilidade máxima
 - ✅ Usuários escolhem preferência
 
 **Cons**:
+
 - ❌ Complexidade operacional dobrada
 - ❌ Fragmentação de estatísticas npm
 - ❌ Confusão sobre qual é "oficial"
@@ -273,4 +288,3 @@ Se `@refarm.dev` provar-se problemático em produção:
 
 - **2026-03-07**: Initial decision (ADR-019 created)
 - **Future**: If rollback needed, add addendum here
-

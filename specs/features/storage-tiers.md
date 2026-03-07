@@ -57,27 +57,27 @@ Storage Tiers provide three distinct persistence strategies for user data: ephem
 
 ### AC2: Persistent Tier Behavior
 
-3. **Given** user selects persistent tier  
+1. **Given** user selects persistent tier  
    **When** they create/edit data  
    **Then** data is written to OPFS immediately
    - SQLite database in OPFS
    - WAL mode for reliability
    - Quota managed proactively
 
-4. **Given** persistent tier active  
+2. **Given** persistent tier active  
    **When** user reloads page  
    **Then** vault is restored from OPFS (data preserved)
 
 ### AC3: Synced Tier Behavior
 
-5. **Given** user selects synced tier  
+1. **Given** user selects synced tier  
    **When** they create/edit data  
    **Then** data written to OPFS + CRDT state
    - SQLite for persistence
    - Yjs for conflict-free sync
    - Sync code displayed for manual device pairing
 
-6. **Given** synced tier active on device A  
+2. **Given** synced tier active on device A  
    **When** same user makes edits on device B (same vault)  
    **Then** changes merge automatically via CRDT
    - No conflicts (LWW for scalars, OR-Set for arrays)
@@ -85,14 +85,14 @@ Storage Tiers provide three distinct persistence strategies for user data: ephem
 
 ### AC4: Tier Migration
 
-7. **Given** user with ephemeral tier  
+1. **Given** user with ephemeral tier  
    **When** they upgrade to persistent  
    **Then** current in-memory data is flushed to OPFS
    - New SQLite database created
    - All nodes persisted
    - Tier updated in session metadata
 
-8. **Given** user with persistent tier  
+2. **Given** user with persistent tier  
    **When** they upgrade to synced  
    **Then** CRDT overlay is initialized
    - Yjs document created
@@ -101,7 +101,7 @@ Storage Tiers provide three distinct persistence strategies for user data: ephem
 
 ### AC5: Quota Management
 
-9. **Given** persistent/synced tier approaching quota  
+1. **Given** persistent/synced tier approaching quota  
    **When** user attempts large write  
    **Then** system checks available quota first
    - If sufficient: proceed

@@ -53,7 +53,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC2: Identity Creation/Import
 
-2. **Given** user chooses "Generate new key"  
+1. **Given** user chooses "Generate new key"  
    **When** they confirm generation  
    **Then** new Nostr keypair is created
    - Private key (nsec) generated securely
@@ -61,7 +61,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
    - Keys stored in packages/identity-nostr
    - Backup prompt shown (download nsec)
 
-3. **Given** user chooses "Import existing key"  
+2. **Given** user chooses "Import existing key"  
    **When** they paste valid nsec or hex key  
    **Then** identity is imported
    - Key validated (Nostr format check)
@@ -70,7 +70,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC3: Data Ownership Rewrite
 
-4. **Given** valid Nostr identity established  
+1. **Given** valid Nostr identity established  
    **When** migration proceeds  
    **Then** all nodes are updated atomically
    - SQLite transaction BEGIN
@@ -79,7 +79,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
    - COMMIT transaction
    - Session updated (type: 'permanent', vaultId: pubkey)
 
-5. **Given** ownership rewrite in progress  
+2. **Given** ownership rewrite in progress  
    **When** 100k nodes need updating  
    **Then** migration completes in <5 seconds
    - Single UPDATE statement (no loops)
@@ -88,7 +88,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC4: Storage Preservation
 
-6. **Given** guest had persistent or synced tier  
+1. **Given** guest had persistent or synced tier  
    **When** migration completes  
    **Then** storage tier remains unchanged
    - No data migration between storage backends
@@ -98,7 +98,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC5: CRDT State Transfer
 
-7. **Given** guest had synced tier  
+1. **Given** guest had synced tier  
    **When** migration completes  
    **Then** CRDT document ownership updates
    - Yjs document metadata updated
@@ -107,7 +107,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC6: Session Continuity
 
-8. **Given** migration successful  
+1. **Given** migration successful  
    **When** user continues working  
    **Then** session context is preserved
    - No reload required
@@ -117,7 +117,7 @@ Guest to Permanent Migration enables users who started as anonymous guests to up
 
 ### AC7: Rollback on Failure
 
-9. **Given** migration fails (e.g., OPFS error, quota exceeded)  
+1. **Given** migration fails (e.g., OPFS error, quota exceeded)  
    **When** error is caught  
    **Then** system rolls back to guest state
    - SQLite transaction ROLLBACK
