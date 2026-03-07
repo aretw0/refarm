@@ -17,7 +17,7 @@
     "test:capabilities": "npm --prefix packages/storage-contract-v1 run test:unit && npm --prefix packages/sync-contract-v1 run test:unit && npm --prefix packages/identity-contract-v1 run test:unit && npm --prefix packages/plugin-manifest run test:unit && npm --prefix packages/storage-sqlite run test:conformance",
     "bench:sqlite": "npm --prefix validations/sqlite-benchmark run bench:all",
     "test:repro": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:e2e",
-    "coverage": "vitest run --coverage",
+    "test:coverage": "vitest run --coverage",
     "type-check": "turbo type-check",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "deps:check": "node scripts/check-deps.mjs",

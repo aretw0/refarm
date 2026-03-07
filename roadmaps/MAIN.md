@@ -44,7 +44,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [x] ADR-009: OPFS persistence (directory structure, quota)
 - [x] WIT contract verified (refarm-sdk.wit complete)
 - [x] JSON-LD schema expanded (9 practical examples)
-- [x] Sub-roadmaps detailed (kernel, storage, sync technical decisions)
+- [x] Sub-roadmaps detailed (tractor, storage, sync technical decisions)
 - [x] ✨ **NEW**: Validation environment configured ([validations/](../validations/))
   - [x] Rust + WASM toolchain setup script
   - [x] Hello-world plugin project (Rust)
@@ -128,7 +128,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 - [ ] Domain: `session-manager` (guest vs. permanent lifecycle)
 - [ ] Domain: `storage-sqlite` (persistence boundary, OPFS adapters)
 - [ ] Domain: `sync-crdt` (sync boundary, vector clocks)
-- [ ] Domain: `kernel` (orchestration, session handling)
+- [ ] Domain: `tractor` (orchestration, session handling)
 - [ ] Infra: OPFS adapters, Yjs providers
 - [ ] Infra: Storage tier abstraction (ephemeral/persistent/synced)
 - [ ] Infra: Sync code mechanism for guest multi-device (WebRTC handshake)
@@ -191,7 +191,7 @@ TBD - to be generated from completed work
 
 - [ ] Domain: `identity-nostr` (keypair, signing, profiles)
 - [ ] Domain: `network` layer (relay, P2P, abstraction)
-- [ ] Domain: `kernel` orchestration (identity + network)
+- [ ] Domain: `tractor` orchestration (identity + network)
 - [ ] Infra: nostr-tools integration
 - [ ] Infra: Matrix SDK integration (optional)
 - [ ] Infra: WebRTC adapter for P2P
@@ -252,7 +252,7 @@ TBD - to be generated from completed work
 
 - [ ] Domain: `ai-inference` package (WebLLM wrapper)
 - [ ] Domain: `embeddings` package (Transformers.js wrapper)
-- [ ] Domain: `kernel` orchestration (AI + workers)
+- [ ] Domain: `tractor` orchestration (AI + workers)
 - [ ] Infra: WebLLM integration (@mlc-ai/web-llm)
 - [ ] Infra: Transformers.js integration (@xenova/transformers)
 - [ ] Infra: SharedWorker for multi-tab model sharing
@@ -296,9 +296,9 @@ TBD - to be generated from completed work
 
 - [ ] Integration: User installs plugin from manifest
 - [ ] Integration: Plugin requests storage capability
-- [ ] Integration: Kernel grants/denies capability
+- [ ] Integration: Tractor grants/denies capability
 - [ ] Integration: Plugin executes in sandbox (no escape)
-- [ ] Integration: Plugin crashes, kernel recovers
+- [ ] Integration: Plugin crashes, tractor recovers
 - [ ] Integration: Multiple plugins coexist without interference
 - [ ] Acceptance: User extends Refarm safely with plugins
 
@@ -316,7 +316,7 @@ TBD - to be generated from completed work
 - [ ] Domain: `plugin-runtime` (WASM execution)
 - [ ] Domain: `capability-system` (permission management)
 - [ ] Domain: `plugin-sdk` (WIT interfaces + tooling)
-- [ ] Domain: `kernel` orchestration (plugin lifecycle)
+- [ ] Domain: `tractor` orchestration (plugin lifecycle)
 - [ ] Infra: wasm-tools integration
 - [ ] Infra: wasmtime/wasmer runtime
 - [ ] Example: `matrix-bridge` plugin (reference Go implementation)
@@ -327,7 +327,7 @@ TBD - to be generated from completed work
 
 ---
 
-## v0.5.0 - Studio Interface
+## v0.5.0 - Homestead Interface
 **Milestone**: Web-based management UI (Astro + Lit)  
 **Status**: Awaiting v0.4.0  
 **Target**: Sprint 9-10
@@ -344,8 +344,8 @@ TBD - to be generated from completed work
 
 ### SDD (Spec Driven Development)
 
-- [ ] ADR-014: Studio architecture (Astro SSG + Lit Web Components)
-- [ ] ADR-015: State management (Lit reactive controllers + kernel bridge)
+- [ ] ADR-014: Homestead architecture (Astro SSG + Lit Web Components)
+- [ ] ADR-015: State management (Lit reactive controllers + tractor bridge)
 - [ ] ADR-016: Headless UI Contract and Token Strategy ✨ **PHASE A START**
 - [ ] ADR-017: Routing strategy (Astro file-based + client-side)
 - [ ] Spec: `packages/ui-headless` interface (6-8 core primitives)
@@ -358,24 +358,24 @@ TBD - to be generated from completed work
   - [ ] Spacing scale (0-16)
   - [ ] Typography scale (xs-2xl) + weights
   - [ ] Motion tokens (duration + easing)
-- [ ] Spec: Studio UI components library
+- [ ] Spec: Homestead UI components library
   - [ ] Graph visualization (d3.js/cytoscape.js)
   - [ ] Plugin management UI
   - [ ] Identity/profile editor
   - [ ] Data inspector (JSON-LD browser)
   - [ ] Dev tools (observability dashboard)
-- [ ] Spec: Studio ↔ Kernel IPC (postMessage protocol)
+- [ ] Spec: Homestead ↔ Tractor IPC (postMessage protocol)
 - [ ] Spec: Accessibility compliance (WCAG 2.2 Level AA)
 
 ### BDD (Behaviour Driven Development)
 
-- [ ] Integration: User navigates Studio UI
-- [ ] Integration: Studio displays sovereign graph visualization
+- [ ] Integration: User navigates Homestead UI
+- [ ] Integration: Homestead displays sovereign graph visualization
 - [ ] Integration: User installs plugin via UI
-- [ ] Integration: Studio shows real-time kernel state
+- [ ] Integration: Homestead shows real-time tractor state
 - [ ] Integration: Dev tools display telemetry events
 - [ ] Integration: All interactions are keyboard-accessible
-- [ ] Acceptance: User manages Refarm entirely via Studio UI
+- [ ] Acceptance: User manages Refarm entirely via Homestead UI
 
 ### TDD (Test Driven Development)
 
@@ -384,7 +384,7 @@ TBD - to be generated from completed work
 - [ ] Unit: IPC message validation
 - [ ] Unit: Graph data transformations
 - [ ] E2E: Full user workflows with Playwright
-- [ ] Coverage: >80% Studio logic
+- [ ] Coverage: >80% Homestead logic
 
 ### DDD (Domain Driven Implementation)
 
@@ -395,11 +395,11 @@ TBD - to be generated from completed work
 - [ ] Domain: `packages/ui-tokens` (design tokens)
   - [ ] CSS Custom Properties for runtime theming
   - [ ] TypeScript type definitions for tokens
-- [ ] Domain: `studio` app (Astro + Lit components)
+- [ ] Domain: `homestead` app (Astro + Lit components)
   - [ ] Migrate all components to use `ui-headless` primitives
-  - [ ] Component catalog with real-world examples
-- [ ] Domain: Component library (Lit Web Components)
-- [ ] Domain: Studio ↔ Kernel bridge
+  - [ ] Storybook integration for Component Catalog with real-world examples
+- [ ] Domain: Component library (Lit Web Components documented in Storybook)
+- [ ] Domain: Homestead ↔ Tractor bridge
 - [ ] Infra: Astro integration
 - [ ] Infra: Lit Element components
 - [ ] Infra: D3.js/Cytoscape.js for graphs
@@ -410,7 +410,7 @@ TBD - to be generated from completed work
 TBD - to be generated from completed work
 
 **Phase A Success Metrics** ✨:
-- [ ] 100% of interactive components in `apps/studio` use `ui-headless` primitives
+- [ ] 100% of interactive components in `apps/homestead` use `ui-headless` primitives
 - [ ] 0 axe-core violations in CI for core UI
 - [ ] 100% of user-facing strings use translation keys
 - [ ] Keyboard navigation covers all critical paths (tested in Playwright)
@@ -455,12 +455,12 @@ TBD - to be generated from completed work
 
 ### BDD (Behaviour Driven Development)
 
-- [ ] Integration: Kernel emits event, observers receive it
-- [ ] Integration: Plugin crashes, kernel isolates and restarts
+- [ ] Integration: Tractor emits event, observers receive it
+- [ ] Integration: Plugin crashes, tractor isolates and restarts
 - [ ] Integration: Dump generated and saved to OPFS
 - [ ] Integration: User consents to telemetry, dumps upload
 - [ ] Integration: Observer plugin installed (Sentry example)
-- [ ] Integration: Studio displays live telemetry dashboard
+- [ ] Integration: Homestead displays live telemetry dashboard
 - [ ] Acceptance: System never fully crashes, always recovers
 
 ### TDD (Test Driven Development)
@@ -476,7 +476,7 @@ TBD - to be generated from completed work
 
 - [ ] Domain: `observability` package (primitives)
 - [ ] Domain: `error-recovery` (self-healing logic)
-- [ ] Domain: `kernel` orchestration (error boundaries)
+- [ ] Domain: `tractor` orchestration (error boundaries)
 - [ ] Domain: Official `telemetry-plugin` (opt-in)
 - [ ] Domain: UI system metrics ✨ **PHASE B**
   - [ ] Track: % components with complete a11y contract
@@ -623,7 +623,7 @@ TBD - to be generated from completed work
 - [ ] Polish: All TODOs resolved
 - [ ] Polish: Error messages user-friendly
 - [ ] Polish: Performance optimizations applied
-- [ ] Polish: Bundle size optimized (<500KB kernel)
+- [ ] Polish: Bundle size optimized (<500KB tractor)
 - [ ] Docs: User guide complete
 - [ ] Docs: API reference generated
 - [ ] Docs: Example applications published
@@ -632,14 +632,14 @@ TBD - to be generated from completed work
 
 | Metric | Target | Validation |
 |--------|--------|------------|
-| Cold Start | <2s (kernel init) | ✅ Benchmark |
+| Cold Start | <2s (tractor init) | ✅ Benchmark |
 | Storage Write | <50ms (single doc) | ✅ Benchmark |
 | Storage Read | <10ms (indexed query) | ✅ Benchmark |
 | CRDT Sync | <200ms (1000 ops) | ✅ Benchmark |
 | AI Inference | <1s/token (WebGPU) | ✅ Benchmark |
 | Plugin Load | <100ms (small WASM) | ✅ Benchmark |
 | Memory Usage | <200MB (idle state) | ✅ Profiling |
-| Bundle Size | <500KB (kernel gzip) | ✅ Build analysis |
+| Bundle Size | <500KB (tractor gzip) | ✅ Build analysis |
 
 ### Quality Criteria (Must Pass)
 
@@ -678,7 +678,7 @@ First production-ready release of Refarm.
 - ✅ Nostr identity
 - ✅ Local AI inference (WebLLM)
 - ✅ Plugin ecosystem (WASM)
-- ✅ Studio UI (Astro + Lit)
+- ✅ Homestead UI (Astro + Lit)
 - ✅ Observability & self-healing
 
 **Breaking Changes**:
@@ -694,8 +694,8 @@ First production-ready release of Refarm.
 
 Ver roadmaps individuais para detalhes de implementação:
 
-- [apps/kernel/ROADMAP.md](../apps/kernel/ROADMAP.md)
-- [apps/studio/ROADMAP.md](../apps/studio/ROADMAP.md)
+- [apps/tractor/ROADMAP.md](../apps/tractor/ROADMAP.md)
+- [apps/homestead/ROADMAP.md](../apps/homestead/ROADMAP.md)
 - [packages/storage-sqlite/ROADMAP.md](../packages/storage-sqlite/ROADMAP.md)
 - [packages/sync-crdt/ROADMAP.md](../packages/sync-crdt/ROADMAP.md)
 - [packages/identity-nostr/ROADMAP.md](../packages/identity-nostr/ROADMAP.md)
