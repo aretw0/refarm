@@ -20,7 +20,7 @@ Architecture Decision Records for Refarm.
 | [013](ADR-013-testing-strategy.md) | Testing Strategy (Vitest + Playwright) | Accepted | 2026-03-06 |
 | [016](ADR-016-headless-ui-contract.md) | Headless UI Contract and Token Strategy | Proposed | 2026-03-07 |
 | [017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) | Studio Micro-Kernel and Plugin Boundary | Accepted | 2026-03-07 |
-| [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates | Accepted | 2026-03-07 |
+| [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates (+ Transitive Escalation Prevention) | Accepted | 2026-03-07 |
 | [019](ADR-019-npm-scope-and-namespace-strategy.md) | npm Scope and Namespace Strategy (@refarm.dev) | Accepted | 2026-03-07 |
 
 
@@ -36,7 +36,8 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 |-----|-------|--------|--------|----------|
 | [020](ADR-020-sovereign-graph-versioning.md) | Sovereign Graph Versioning (commit/branch/checkout/revert) | ✏️ Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation |
 | [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | ✏️ Proposed | v0.3.0+ | 40+ integration tests + kernel implementation |
-| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests | ✏️ Proposed | v0.3.0+ | Manifest schema extension + PolicyManager implementation |
+| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+ | Manifest schema + PolicyManager + PerformanceMonitor implementation |
+| [023](ADR-023-plugin-conflict-detection.md) | Plugin Conflict Detection and Resolution | ✏️ Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation |
 
 ---
 
