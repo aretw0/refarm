@@ -1,0 +1,137 @@
+# @refarm/plugin-manifest
+
+Plugin manifest schema and validation for Refarm plugin ecosystem.
+
+## Installation
+
+```bash
+npm install @refarm/plugin-manifest
+```
+
+## Usage
+
+### Define Your Plugin Manifest
+
+Create `plugin-manifest.json` in your plugin root:
+
+```json
+{
+  "id": "@mycompany/my-plugin",
+  "name": "My Awesome Plugin",
+  "version": "1.0.0",
+  "entry": "./dist/index.js",
+  "capabilities": {
+    "provides": ["storage:v1"],
+    "requires": ["kernel:events"]
+  },
+  "permissions": ["storage:read", "storage:write"],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+  }
+}
+```
+
+### Validate Manifest
+
+```typescript
+import { validatePluginManifest, assertValidPluginManifest } from "@refarm/plugin-manifest";
+import manifestJson from "./plugin-manifest.json";
+
+// Option 1: Get validation result
+const result = validatePluginManifest(manifestJson);
+if (!result.valid) {
+  console.error("Manifest errors:", result.errors);
+}
+
+// Option 2: Assert (throws on invalid)
+try {
+  assertValidPluginManifest(manifestJson);
+  console.log("Manifest is valid!");
+} catch (error) {
+  console.error("Invalid manifest:", error.message);
+}
+```
+
+### In Your Plugin Tests
+
+```typescript
+import { validatePluginManifest } from "@refarm/plugin-manifest";
+import manifest from "../plugin-manifest.json";
+
+describe("Plugin manifest", () => {
+  it("is valid", () => {
+    const result = validatePluginManifest(manifest);
+    expect(result.valid).toBe(true);
+  });
+});
+```
+
+## Manifest Schema
+
+### Required Fields
+
+- **`id`**: Scoped package name (e.g., `@vendor/plugin-name`)
+- **`name`**: Human-readable name (min 3 chars)
+- **`version`**: Semantic version (e.g., `1.2.3`)
+- **`entry`**: Relative path to entry point (e.g., `./dist/index.js`)
+- **`capabilities.provides`**: Array of capabilities this plugin implements
+- **`capabilities.requires`**: Array of capabilities needed from kernel/other plugins
+- **`permissions`**: Array of permission strings
+- **`observability.hooks`**: Array of telemetry hooks
+
+### Observability Hooks (Required)
+
+All plugins MUST implement these hooks:
+
+- `onLoad`: Called when plugin is loaded
+- `onInit`: Called when plugin initializes
+- `onRequest`: Called on each capability request
+- `onError`: Called when errors occur
+- `onTeardown`: Called when plugin unloads
+
+## API
+
+### `validatePluginManifest(manifest: PluginManifest): ManifestValidationResult`
+
+Returns validation result with errors list.
+
+### `assertValidPluginManifest(manifest: PluginManifest): void`
+
+Throws error if manifest is invalid.
+
+### Types
+
+```typescript
+interface PluginManifest {
+  id: string;
+  name: string;
+  version: string;
+  entry: string;
+  capabilities: PluginCapabilities;
+  permissions: string[];
+  observability: {
+    hooks: TelemetryHook[];
+  };
+}
+
+interface PluginCapabilities {
+  provides: string[];
+  requires: string[];
+}
+
+type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown";
+```
+
+## Validation Rules
+
+1. `id` must be scoped (@vendor/name)
+2. `name` must be at least 3 characters
+3. `version` must be valid semver
+4. `entry` must be relative .js path
+5. `capabilities.provides` must have at least one capability
+6. No duplicates in provides/requires/permissions
+7. All required telemetry hooks must be declared
+
+## License
+
+MIT
