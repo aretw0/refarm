@@ -1,13 +1,17 @@
 # ADR-021: Self-Healing & Plugin Citizenship
 
-**Status**: Proposed  
+**Status**: ✏️ PROPOSED (Design Complete, Implementation Pending)  
 **Date**: 2026-03-07  
+**Target Version**: v0.3.0+  
+**Blocking Implementation**: Requires Sprint 3+ commitment + 40+ integration tests before acceptance
 **Deciders**: Core Team  
 **Related**: ADR-017 (Micro-kernel), ADR-002 (Offline-first), ADR-020 (Graph Versioning)
 
 ---
 
 ## Context
+
+**IMPORTANT**: This ADR is DIRECTION-SETTING (not yet executable). Actual implementation + test suite must happen in Sprint 3+ before this becomes an "Accepted" contract. Self-healing primitives should NOT be used by plugins or kernel until integration tests pass.
 
 Refarm grants users **full data sovereignty**: offline-first, multi-device, no central authority. This means **the system must heal itself** or the user loses trust.
 

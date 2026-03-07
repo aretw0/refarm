@@ -22,8 +22,20 @@ Architecture Decision Records for Refarm.
 | [017](ADR-017-studio-micro-kernel-and-plugin-boundary.md) | Studio Micro-Kernel and Plugin Boundary | Accepted | 2026-03-07 |
 | [018](ADR-018-capability-contracts-and-observability-gates.md) | Capability Contracts and Observability Gates | Accepted | 2026-03-07 |
 | [019](ADR-019-npm-scope-and-namespace-strategy.md) | npm Scope and Namespace Strategy (@refarm.dev) | Accepted | 2026-03-07 |
-| [020](ADR-020-sovereign-graph-versioning.md) | Sovereign Graph Versioning (commit/branch/checkout/revert) | Proposed | 2026-03-07 |
-| [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | Proposed | 2026-03-07 |
+
+
+## Planned (Future ADRs)
+
+---
+
+## Under Design (Requires Implementation + Tests Before Acceptance)
+
+These ADRs define architecture direction but are NOT executable contracts yet. Sprint 2+ implementation required.
+
+| ADR | Title | Status | Target | Blockers |
+|-----|-------|--------|--------|----------|
+| [020](ADR-020-sovereign-graph-versioning.md) | Sovereign Graph Versioning (commit/branch/checkout/revert) | ✏️ Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation |
+| [021](ADR-021-self-healing-and-plugin-citizenship.md) | Self-Healing & Plugin Citizenship Monitoring | ✏️ Proposed | v0.3.0+ | 40+ integration tests + kernel implementation |
 
 ---
 
