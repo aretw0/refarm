@@ -31,7 +31,11 @@
         "vadimcn.vscode-lldb",
         "astro-build.astro-vscode",
         "esbenp.prettier-vscode",
-        "dbaeumer.vscode-eslint"
+        "dbaeumer.vscode-eslint",
+        "nhoizey.gremlins",
+        "arr.marksman",
+        "MermaidChart.vscode-mermaid-chart",
+        "DavidAnson.vscode-markdownlint"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
