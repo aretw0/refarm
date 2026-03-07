@@ -86,6 +86,22 @@ Includes:
 
 ---
 
+**[design-system-bootstrap-discussion.md](./design-system-bootstrap-discussion.md)**  
+*Status*: 🟡 Draft for alignment (March 2026)  
+*Purpose*: Decision criteria for bootstrapping a headless design system (internal + external)
+
+Maps when and how to bootstrap UI infrastructure with sane defaults:
+
+- 🎯 Objective trigger model (critical + scale signals)
+- ♿ Accessibility-first component contracts (keyboard, focus, ARIA)
+- 🌍 i18n-first defaults (keys, fallbacks, ICU/pluralization)
+- 🧱 Phase plan: Foundation bootstrap → internal productization → externalization
+- 🧭 Documentation architecture mapping (research, architecture, roadmap, ADR)
+
+**→ Use this when**: deciding timing for UI platform investment; planning plugin-facing UI contracts; preventing a11y/i18n debt before ecosystem growth.
+
+---
+
 **[browser-extension-discussion.md](./browser-extension-discussion.md)**  
 *Status*: ✅ Complete (March 2026)  
 *Decision*: Defer to v0.7.0+ (PWA is sufficient for MVP)
