@@ -346,7 +346,18 @@ TBD - to be generated from completed work
 
 - [ ] ADR-014: Studio architecture (Astro SSG + Lit Web Components)
 - [ ] ADR-015: State management (Lit reactive controllers + kernel bridge)
-- [ ] ADR-016: Routing strategy (Astro file-based + client-side)
+- [ ] ADR-016: Headless UI Contract and Token Strategy ✨ **PHASE A START**
+- [ ] ADR-017: Routing strategy (Astro file-based + client-side)
+- [ ] Spec: `packages/ui-headless` interface (6-8 core primitives)
+  - [ ] Button, Dialog, Menu, Tabs, Toast, FormField, Listbox, Combobox
+  - [ ] Keyboard navigation contracts (Tab, Enter, Escape, Arrow keys)
+  - [ ] Focus management for modals and overlays
+  - [ ] ARIA roles and semantic HTML
+- [ ] Spec: `packages/ui-tokens` (semantic design tokens)
+  - [ ] Color tokens (primary, surface, error, success, etc.)
+  - [ ] Spacing scale (0-16)
+  - [ ] Typography scale (xs-2xl) + weights
+  - [ ] Motion tokens (duration + easing)
 - [ ] Spec: Studio UI components library
   - [ ] Graph visualization (d3.js/cytoscape.js)
   - [ ] Plugin management UI
@@ -377,16 +388,32 @@ TBD - to be generated from completed work
 
 ### DDD (Domain Driven Implementation)
 
+- [ ] Domain: `packages/ui-headless` (headless primitives)
+  - [ ] Implement 6-8 core components with keyboard + ARIA contracts
+  - [ ] All user-facing text via translation keys
+  - [ ] Tests for keyboard interaction (Vitest + Playwright)
+- [ ] Domain: `packages/ui-tokens` (design tokens)
+  - [ ] CSS Custom Properties for runtime theming
+  - [ ] TypeScript type definitions for tokens
 - [ ] Domain: `studio` app (Astro + Lit components)
+  - [ ] Migrate all components to use `ui-headless` primitives
+  - [ ] Component catalog with real-world examples
 - [ ] Domain: Component library (Lit Web Components)
 - [ ] Domain: Studio ↔ Kernel bridge
 - [ ] Infra: Astro integration
 - [ ] Infra: Lit Element components
 - [ ] Infra: D3.js/Cytoscape.js for graphs
 - [ ] Infra: astro-i18next for i18n
+- [ ] Quality Gate: UI Component PR Checklist enforced (.github/PULL_REQUEST_TEMPLATE_UI.md)
 
 ### CHANGELOG
 TBD - to be generated from completed work
+
+**Phase A Success Metrics** ✨:
+- [ ] 100% of interactive components in `apps/studio` use `ui-headless` primitives
+- [ ] 0 axe-core violations in CI for core UI
+- [ ] 100% of user-facing strings use translation keys
+- [ ] Keyboard navigation covers all critical paths (tested in Playwright)
 
 ---
 
@@ -410,8 +437,12 @@ TBD - to be generated from completed work
 ### SDD (Spec Driven Development)
 
 - [ ] ADR-007: Finalize Observability & Introspection Primitives (DRAFT → ACCEPTED)
-- [ ] ADR-017: Error recovery strategies (graceful degradation)
-- [ ] ADR-018: Telemetry data retention (OPFS storage limits)
+- [ ] ADR-018: Error recovery strategies (graceful degradation)
+- [ ] ADR-019: Telemetry data retention (OPFS storage limits)
+- [ ] Spec: UI Headless Phase B ✨ **INTERNAL PRODUCTIZATION**
+  - [ ] Component catalog with composition examples
+  - [ ] Translation guidelines for shared component copy
+  - [ ] Automated a11y testing in CI (axe-core + Playwright)
 - [ ] Spec: Observability SDK
   - [ ] Event emission API (`emit()`, `subscribe()`)
   - [ ] Metrics collection (counters, gauges, histograms)
@@ -447,12 +478,75 @@ TBD - to be generated from completed work
 - [ ] Domain: `error-recovery` (self-healing logic)
 - [ ] Domain: `kernel` orchestration (error boundaries)
 - [ ] Domain: Official `telemetry-plugin` (opt-in)
+- [ ] Domain: UI system metrics ✨ **PHASE B**
+  - [ ] Track: % components with complete a11y contract
+  - [ ] Track: % strings internationalized vs hardcoded
+  - [ ] Track: Average UI PR review time
+  - [ ] Track: Number of a11y regressions per release
+  - [ ] Track: Component duplication rate
 - [ ] Infra: OPFS dump storage
 - [ ] Infra: Observer Worker isolation
 - [ ] Example: Sentry observer plugin
 
 ### CHANGELOG
 TBD - to be generated from completed work
+
+**Phase B Success Metrics** ✨:
+- [ ] Average PR review time for UI reduced by 30%
+- [ ] Zero a11y regressions for 2 consecutive releases
+- [ ] Component duplication rate < 5%
+- [ ] Translation coverage > 95%
+
+---
+
+## v0.7.0+ - Plugin SDK & UI Externalization
+**Milestone**: Stable plugin API + external UI contracts ✨ **PHASE C**  
+**Status**: Awaiting v0.6.0  
+**Target**: Sprint 13-15
+
+### Pre-SDD: Research & Validation
+
+- [ ] Validate `ui-headless` API stability with internal usage patterns
+- [ ] Test external plugin scenarios (UI composition without core coupling)
+- [ ] Benchmark plugin UI rendering performance
+- [ ] Validate versioning policy for UI contract breaking changes
+
+**Decision Gate**: ✅ Internal UI API stable → proceed to externalization
+
+### SDD (Spec Driven Development)
+
+- [ ] ADR-020: Public UI component API and versioning policy ✨ **PHASE C START**
+- [ ] Spec: Plugin-facing UI contracts
+  - [ ] Slots and composition patterns
+  - [ ] State management hooks
+  - [ ] Theme token inheritance
+- [ ] Spec: Plugin developer guide for accessible UI composition
+- [ ] Spec: Breaking change policy and migration paths
+
+### BDD (Behaviour Driven Development)
+
+- [ ] Integration: External plugin uses `ui-headless` Dialog primitive
+- [ ] Integration: Plugin theme inherits from core tokens
+- [ ] Integration: Plugin UI respects keyboard navigation contracts
+- [ ] Integration: Plugin UI maintains a11y compliance
+- [ ] Acceptance: First community plugin successfully uses UI API
+
+### DDD (Domain Driven Implementation)
+
+- [ ] Domain: Public `@refarm/ui-sdk` package (stable API)
+- [ ] Docs: Plugin UI composition guide
+- [ ] Docs: UI contract migration examples
+- [ ] Example: Reference plugin with custom UI components
+- [ ] Quality Gate: External plugin UI checklist
+
+### CHANGELOG
+TBD - to be generated from completed work
+
+**Phase C Success Metrics** ✨:
+- [ ] ≥1 external plugin successfully uses `ui-headless` API
+- [ ] API breaking change rate < 1 per minor version
+- [ ] Plugin UI developer satisfaction > 4/5
+- [ ] Zero plugin-caused a11y regressions
 
 ---
 
@@ -502,9 +596,9 @@ TBD - to be generated from completed work
 
 ### SDD (Spec Driven Development)
 
-- [ ] ADR-019: Versioning and deprecation policy
-- [ ] ADR-020: Breaking change guidelines
-- [ ] ADR-021: Long-term support (LTS) strategy
+- [ ] ADR-021: Versioning and deprecation policy
+- [ ] ADR-022: Breaking change guidelines
+- [ ] ADR-023: Long-term support (LTS) strategy
 - [ ] Spec: Public API stability guarantees
 - [ ] Spec: Upgrade/migration tooling
 
