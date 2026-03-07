@@ -12,16 +12,21 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json",
+    "build": "npm --prefix ../storage-contract-v1 run build && tsc --project tsconfig.json",
     "dev": "tsc --project tsconfig.json --watch",
     "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit",
+    "type-check": "npm --prefix ../storage-contract-v1 run build && tsc --noEmit",
+    "test:conformance": "vitest run src/storage-v1.conformance.test.ts",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
   "keywords": ["sqlite", "opfs", "offline-first", "local-first", "wasm"],
   "license": "MIT",
+  "dependencies": {
+    "@refarm/storage-contract-v1": "workspace:*"
+  },
   "devDependencies": {
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
   }
 }
