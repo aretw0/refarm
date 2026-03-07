@@ -2,7 +2,10 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "paths": {
+      "@refarm/storage-contract-v1": ["packages/storage-contract-v1/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

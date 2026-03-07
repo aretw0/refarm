@@ -10,6 +10,13 @@
  * In Node.js:     uses the `better-sqlite3` binding.
  */
 
+import {
+  STORAGE_CAPABILITY,
+  type StorageProvider,
+  type StorageQuery,
+  type StorageRecord,
+} from "@refarm/storage-contract-v1";
+
 // ─── Public Types ────────────────────────────────────────────────────────────
 
 /** A single row returned from a query, typed as a plain object. */
@@ -104,6 +111,48 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   private _assertOpen(): void {
     // In production, check this._db !== null and throw if not open.
   }
+}
+
+/**
+ * storage:v1 provider facade.
+ *
+ * Until sqlite-wasm integration is wired end-to-end, this provider keeps data
+ * in-memory while preserving the exact capability contract expected by kernel
+ * conformance checks and third-party integrations.
+ */
+export class StorageSqliteV1Provider implements StorageProvider {
+  readonly pluginId = "@refarm/storage-sqlite";
+  readonly capability = STORAGE_CAPABILITY;
+
+  private readonly rows = new Map<string, StorageRecord>();
+
+  async get(id: string): Promise<StorageRecord | null> {
+    return this.rows.get(id) ?? null;
+  }
+
+  async put(record: StorageRecord): Promise<void> {
+    this.rows.set(record.id, record);
+  }
+
+  async delete(id: string): Promise<void> {
+    this.rows.delete(id);
+  }
+
+  async query(query: StorageQuery): Promise<StorageRecord[]> {
+    let values = [...this.rows.values()];
+
+    if (query.type) {
+      values = values.filter((row) => row.type === query.type);
+    }
+
+    const offset = query.offset ?? 0;
+    const limit = query.limit ?? values.length;
+    return values.slice(offset, offset + limit);
+  }
+}
+
+export function createStorageV1Provider(): StorageProvider {
+  return new StorageSqliteV1Provider();
 }
 
 // ─── Schema Migrations ───────────────────────────────────────────────────────
