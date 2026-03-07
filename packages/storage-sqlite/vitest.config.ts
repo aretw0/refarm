@@ -6,7 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@refarm/storage-contract-v1": fileURLToPath(
-        new URL("../storage-contract-v1/src/index.ts", import.meta.url),
+        new URL("../storage-contract-v1/dist/index.js", import.meta.url),
       ),
     },
   },
