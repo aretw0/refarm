@@ -12,9 +12,32 @@
       background: #0d1117;
       color: #c9d1d9;
       line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-    h1 { margin-bottom: 1rem; color: #58a6ff; }
-    .container { max-width: 900px; margin: 0 auto; }
+    h1 { 
+      margin-bottom: 0.5rem; 
+      color: #58a6ff;
+      text-align: center;
+      font-size: 1.75rem;
+    }
+    h2 {
+      color: #c9d1d9;
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .container { 
+      max-width: 900px; 
+      width: 100%;
+      margin: 0 auto;
+    }
+    .intro {
+      text-align: center;
+      margin-bottom: 2rem;
+      color: #8b949e;
+    }
     .card {
       background: #161b22;
       border: 1px solid #30363d;
@@ -24,27 +47,43 @@
     }
     .status { 
       font-weight: bold;
-      padding: 0.25rem 0.5rem;
-      border-radius: 4px;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
       display: inline-block;
       margin-bottom: 1rem;
+      font-size: 1rem;
     }
-    .status.pending { background: #1f6feb; }
-    .status.success { background: #238636; }
-    .status.error { background: #da3633; }
+    .status.ready { background: #1f6feb; color: white; }
+    .status.pending { background: #d29922; color: white; }
+    .status.success { background: #238636; color: white; }
+    .status.error { background: #da3633; color: white; }
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1rem;
+    }
     button {
       background: #238636;
       color: white;
       border: none;
-      padding: 0.75rem 1.5rem;
+      padding: 0.875rem 1.5rem;
       border-radius: 6px;
       font-size: 1rem;
       cursor: pointer;
-      margin-right: 0.5rem;
-      margin-bottom: 0.5rem;
+      transition: all 0.2s;
+      text-align: left;
+      font-weight: 500;
     }
-    button:hover { background: #2ea043; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button:hover:not(:disabled) { 
+      background: #2ea043;
+      transform: translateY(-1px);
+    }
+    button:disabled { 
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
     #logs {
       background: #0d1117;
       border: 1px solid #30363d;
@@ -53,7 +92,7 @@
       max-height: 300px;
       overflow-y: auto;
       font-family: 'Consolas', 'Monaco', monospace;
-      font-size: 0.9rem;
+      font-size: 0.875rem;
     }
     .log-entry {
       margin-bottom: 0.25rem;
@@ -68,6 +107,7 @@
       padding: 0.2rem 0.4rem;
       border-radius: 3px;
       font-family: 'Consolas', monospace;
+      font-size: 0.9em;
     }
     .metrics {
       display: grid;
@@ -80,14 +120,17 @@
       border: 1px solid #30363d;
       border-radius: 6px;
       padding: 1rem;
+      text-align: center;
     }
     .metric-label { 
       font-size: 0.85rem;
       color: #8b949e;
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
     .metric-value {
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       font-weight: bold;
       color: #58a6ff;
     }
@@ -95,23 +138,27 @@
 </head>
 <body>
   <div class="container">
-    <h1>🦀 WASM Plugin Host - Validação Refarm</h1>
+    <h1>🦀 Refarm Plugin Inspector</h1>
+    <p class="intro">Validação WASM Component Model com Rust + WIT + TypeScript</p>
     
     <div class="card">
-      <div class="status pending" id="status">⏳ Aguardando...</div>
-      <p>Este host carrega o plugin <code>hello-world-plugin.wasm</code> e valida a comunicação via WIT.</p>
+      <div class="status ready" id="status">✨ Pronto para testar</div>
+      <p style="margin-bottom: 1rem;">
+        Este host carrega o plugin <code>hello-world-plugin.wasm</code> e valida 
+        a comunicação via interface WIT (<code>refarm:sdk</code>).
+      </p>
       
-      <div style="margin-top: 1rem;">
-        <button id="load-btn">1. Carregar Plugin (.wasm)</button>
-        <button id="setup-btn" disabled>2. Setup (init)</button>
-        <button id="ingest-btn" disabled>3. Ingest (fetch data)</button>
-        <button id="metadata-btn" disabled>4. Metadata</button>
-        <button id="teardown-btn" disabled>5. Teardown</button>
+      <div class="actions">
+        <button id="load-btn">1️⃣ Carregar Plugin (.wasm)</button>
+        <button id="setup-btn" disabled>2️⃣ Setup (init)</button>
+        <button id="ingest-btn" disabled>3️⃣ Ingest (fetch data)</button>
+        <button id="metadata-btn" disabled>4️⃣ Metadata</button>
+        <button id="teardown-btn" disabled>5️⃣ Teardown</button>
       </div>
     </div>
 
     <div class="card">
-      <h2>📊 Métricas</h2>
+      <h2>📊 Métricas de Performance</h2>
       <div class="metrics">
         <div class="metric">
           <div class="metric-label">Load Time</div>
@@ -133,7 +180,7 @@
     </div>
 
     <div class="card">
-      <h2>📝 Logs</h2>
+      <h2>📝 Console Logs</h2>
       <div id="logs"></div>
     </div>
   </div>
