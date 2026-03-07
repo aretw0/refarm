@@ -28,6 +28,7 @@ Wiki de fundamentação técnica - consultar quando necessário:
 - **[Phase 1 Foundations](research/phase1-technical-foundations.md)** - 16 tecnologias core validadas (PWA, OPFS, CRDT, WebLLM, etc)
 - **[Critical Validations](research/critical-validations.md)** - 4 validações críticas (WebLLM Workers, CRDT+OPFS, WASI, Schema)
 - **[Phases 2-4 Research](research/phases2-4-technical-research.md)** - Tecnologias futuras (Matrix, Nostr, MediaPipe, etc)
+- **[Design System Bootstrap Discussion](research/design-system-bootstrap-discussion.md)** - Critérios de timing para bootstrap headless com sane defaults, a11y e i18n
 
 ---
 
