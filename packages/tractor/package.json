@@ -1,0 +1,44 @@
+{
+  "name": "@refarm/tractor",
+  "version": "0.1.0",
+  "description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --project tsconfig.json --noEmit",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "test:unit": "vitest run --passWithNoTests",
+    "bench": "vitest bench test/stress.bench.ts",
+    "bench:save": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/baseline.json && node scripts/sanitize-bench.mjs benchmarks/baseline.json",
+    "bench:compare": "vitest bench test/stress.bench.ts --run --compare benchmarks/baseline.json",
+    "bench:check": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/current.json && node scripts/sanitize-bench.mjs benchmarks/current.json && node scripts/check-benchmarks.mjs",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@refarm.dev/storage-contract-v1": "*",
+    "@refarm.dev/identity-contract-v1": "*",
+    "@refarm.dev/sync-contract-v1": "*",
+    "@refarm.dev/plugin-manifest": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
