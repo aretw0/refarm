@@ -19,4 +19,4 @@ Conforme documentado no [ADR-026](../ADRs/ADR-026-externalized-storage-migration
 O `PluginHost` agora usa o contrato `@refarm.dev/plugin-manifest` para garantir integridade e agnosticismo de descoberta.
 
 ## Conclusão
-Essa sinergia está agora em Produção na `v0.5.0-alpha`. O Tractor é 100% puro e agnóstico, permitindo o "Santo Graal" do Astro Hybrid.
+Essa sinergia foi validada arquiteturalmente nesta refatoração. O Tractor agora é 100% puro e agnóstico, fornecendo a base necessária para habilitar o **Astro Hybrid** com confiança técnica.
