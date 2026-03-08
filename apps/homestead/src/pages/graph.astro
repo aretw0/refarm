@@ -8,58 +8,20 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Data Graph — Refarm Studio">
-  <section style="max-width: 1000px; margin: 0 auto;">
-    <h2 style="font-size: 1.5rem; margin-bottom: 0.25rem;">🗄️ Sovereign Data Graph</h2>
-    <p style="color: #8b949e; margin-bottom: 1.5rem;">
-      All data stored locally in SQLite/OPFS, normalised as JSON-LD nodes.
-    </p>
-
-    <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
-      <input
-        id="type-filter"
-        type="text"
-        placeholder="Filter by @type (e.g. Person)"
-        style="
-          flex: 1;
-          background: #0d1117;
-          border: 1px solid #30363d;
-          border-radius: 6px;
-          padding: 0.5rem 0.75rem;
-          color: #c9d1d9;
-          font-size: 0.875rem;
-        "
-      />
-      <button id="query-btn" style="
-        background: #1f6feb;
-        border: none;
-        border-radius: 6px;
-        padding: 0.5rem 1rem;
-        color: #fff;
-        cursor: pointer;
-        font-size: 0.875rem;
-      ">
-        Query
-      </button>
-    </div>
-
-    <div id="graph-results" style="font-family: monospace; font-size: 0.8rem;">
-      <p style="color: #8b949e;">Enter a type and click Query to browse your data.</p>
-    </div>
-  </section>
+  <div id="loading-overlay" class="loading-state">
+    <div class="spinner"></div>
+    <p>Loading Sovereign Graph...</p>
+  </div>
 </Layout>
 
 <script>
-  document.getElementById("query-btn")?.addEventListener("click", async () => {
-    const type = (document.getElementById("type-filter") as HTMLInputElement).value.trim() || "Person";
-    const resultsEl = document.getElementById("graph-results")!;
+  import { Tractor } from "@refarm.dev/tractor";
+  import { StudioShell } from "../lib/studio-shell";
 
-    resultsEl.innerHTML = `<p style="color: #8b949e;">Loading…</p>`;
-
+  async function boot() {
     try {
-      const { Tractor } = await import("@refarm/tractor");
-
-      // Injecting primitives (Stubbed for now in Homestead IDE until proper integration)
-      const storageAdapter = { 
+      // 1. Initialize Adapters (Stubbed for now)
+      const storage = { 
         ensureSchema: async () => {},
         storeNode: async () => {},
         queryNodes: async () => [],
@@ -67,35 +29,22 @@ import Layout from "../layouts/Layout.astro";
         query: async () => [], 
         close: async () => {} 
       };
-      const identityAdapter = {};
+      const identity = {};
 
-      const tractor = await Tractor.boot({ storage: storageAdapter, identity: identityAdapter });
-      const nodes = await tractor.queryNodes(type);
-      await tractor.shutdown();
+      // 2. Boot Tractor
+      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any });
+      
+      // 3. Handover to Shell Orchestrator
+      const shell = new StudioShell(tractor);
+      await shell.setup();
 
-      if (nodes.length === 0) {
-        resultsEl.innerHTML = `<p style="color: #8b949e;">No nodes of type "${type}" found.</p>`;
-        return;
-      }
-
-      resultsEl.innerHTML = nodes
-        .map(
-          (n) => `
-          <pre style="
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-break: break-word;
-          ">${JSON.stringify(n, null, 2)}</pre>
-        `
-        )
-        .join("");
+      // 4. Hide loading
+      document.getElementById("loading-overlay")?.remove();
+      
     } catch (err) {
-      resultsEl.innerHTML = `<p style="color: #f85149;">Error: ${(err as Error).message}</p>`;
+      console.error("[graph] Boot failed", err);
     }
-  });
+  }
+
+  boot();
 </script>

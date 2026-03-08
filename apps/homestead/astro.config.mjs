@@ -2,6 +2,7 @@ import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
+  site: process.env.SITE || "https://refarm.dev.br" || undefined,
   output: "static",
   // Required for WebContainers: these headers enable SharedArrayBuffer
   // which is needed by the in-browser Node.js runtime.

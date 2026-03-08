@@ -75,6 +75,15 @@ playwright/.cache/
 
 # ─── TypeScript ───────────────────────────────────────────────────────────────
 *.tsbuildinfo
+*.js.map
+*.d.ts.map
+
+# Ignore in-place JS/DTS emissions (source is always .ts)
+# Exceptions are handled by explicitly ignoring 'dist' and 'build' folders above
+packages/**/*.js
+packages/**/*.d.ts
+!packages/**/dist/**/*.js
+!packages/**/dist/**/*.d.ts
 
 # ─── Editor & IDE ─────────────────────────────────────────────────────────────
 .claude/agents/

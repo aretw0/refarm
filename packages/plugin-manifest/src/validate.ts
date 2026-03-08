@@ -27,8 +27,12 @@ export function validatePluginManifest(
     errors.push("version must be valid semver");
   }
 
-  if (!manifest.entry || !manifest.entry.endsWith(".js") || manifest.entry.startsWith("/")) {
-    errors.push("entry must be a relative .js path");
+  if (!manifest.entry || !(manifest.entry.endsWith(".js") || manifest.entry.endsWith(".wasm"))) {
+    errors.push("entry must be a .js or .wasm path");
+  }
+
+  if (manifest.entry && manifest.entry.startsWith("/")) {
+    errors.push("entry must not be an absolute filesystem path");
   }
 
   if (!manifest.capabilities || manifest.capabilities.provides.length === 0) {
@@ -43,14 +47,56 @@ export function validatePluginManifest(
     errors.push("capabilities.requires must not contain duplicates");
   }
 
+  if (manifest.capabilities.providesApi && hasDuplicates(manifest.capabilities.providesApi)) {
+    errors.push("capabilities.providesApi must not contain duplicates");
+  }
+
+  if (manifest.capabilities.requiresApi && hasDuplicates(manifest.capabilities.requiresApi)) {
+    errors.push("capabilities.requiresApi must not contain duplicates");
+  }
+
   if (hasDuplicates(manifest.permissions)) {
     errors.push("permissions must not contain duplicates");
+  }
+
+  // Execution Targets Validation
+  if (!Array.isArray(manifest.targets) || manifest.targets.length === 0) {
+    errors.push("targets must be a non-empty array of execution environments (browser, server, remote)");
+  } else {
+    for (const target of manifest.targets) {
+      if (!["browser", "server", "remote"].includes(target)) {
+        errors.push(`invalid execution target: ${target}`);
+      }
+    }
+  }
+
+  // UI Validation
+  if (manifest.ui) {
+    if (manifest.ui.slots && !Array.isArray(manifest.ui.slots)) {
+      errors.push("ui.slots must be an array");
+    }
+    if (manifest.ui.color && !/^#([A-Fa-f0-9]{3}){1,2}$/.test(manifest.ui.color)) {
+      errors.push("ui.color must be a valid hex color (e.g. #238636)");
+    }
   }
 
   const hooks = new Set(manifest.observability?.hooks ?? []);
   for (const requiredHook of REQUIRED_TELEMETRY_HOOKS) {
     if (!hooks.has(requiredHook)) {
       errors.push(`observability.hooks must include ${requiredHook}`);
+    }
+  }
+
+  // Certification Validation
+  if (!manifest.certification) {
+    errors.push("certification metadata is required");
+  } else {
+    if (!manifest.certification.license) errors.push("certification.license is required");
+    if (typeof manifest.certification.a11yLevel !== 'number' || manifest.certification.a11yLevel < 0 || manifest.certification.a11yLevel > 3) {
+      errors.push("certification.a11yLevel must be a number between 0 and 3");
+    }
+    if (!Array.isArray(manifest.certification.languages) || manifest.certification.languages.length === 0) {
+      errors.push("certification.languages must be a non-empty array");
     }
   }
 
