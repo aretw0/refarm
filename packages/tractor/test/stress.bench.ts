@@ -31,6 +31,8 @@ function createBenchManifest(id: string): PluginManifest {
     capabilities: { provides: [], requires: [] },
     permissions: [],
     observability: { hooks: ["onLoad"] },
+    targets: [],
+    certification: { license: "MIT", a11yLevel: 1, languages: ["en"] }
   };
 }
 
@@ -59,13 +61,13 @@ describe("Plugin Loading", () => {
   stubFetchGlobal();
 
   bench("Load 1 plugin", async () => {
-    const host = new PluginHost();
+    const host = new PluginHost(() => {});
     await host.load(createBenchManifest("p1"), "hash");
     host.terminateAll();
   });
 
   bench("Load 10 plugins sequentially", async () => {
-    const host = new PluginHost();
+    const host = new PluginHost(() => {});
     for (let i = 0; i < 10; i++) {
       await host.load(createBenchManifest(`p${i}`), `h${i}`);
     }
@@ -73,7 +75,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 50 plugins concurrently", async () => {
-    const host = new PluginHost();
+    const host = new PluginHost(() => {});
     await Promise.all(
       Array.from({ length: 50 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
@@ -83,7 +85,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 100 plugins concurrently", async () => {
-    const host = new PluginHost();
+    const host = new PluginHost(() => {});
     await Promise.all(
       Array.from({ length: 100 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
