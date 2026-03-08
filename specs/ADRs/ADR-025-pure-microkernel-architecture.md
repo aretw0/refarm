@@ -3,7 +3,7 @@
 **Date**: 2026-03-07
 **Status**: Proposed
 **Context**:
-O `Tractor` (antigo Kernel) foi concebido para ser o "Solo Fértil" (o núcleo) do Refarm. A filosofia central do projeto é "Tudo é um Plugin" e a independência das primitivas. No entanto, a implementação inicial do `TractorConfig` e o método `Tractor.boot()` violaram esse princípio ao importar e instanciar diretamente implementações específicas de domínio: `OPFSSQLiteAdapter`, `NostrIdentityManager` e `SyncEngine`.
+O `Tractor` (antigo Kernel) foi concebido para ser a **maquinaria pesada** que cultiva o "Solo Fértil" (a camada de dados JSON-LD) do Refarm. A filosofia central do projeto é "Tudo é um Plugin" e a independência das primitivas. No entanto, a implementação inicial do `TractorConfig` e o método `Tractor.boot()` violaram esse princípio ao importar e instanciar diretamente implementações específicas de domínio: `OPFSSQLiteAdapter`, `NostrIdentityManager` e `SyncEngine`.
 
 Isso gerou um acoplamento indesejado: o Tractor passou a "saber" o que é Nostr (exigindo `nostrRelays` no seu config), o que é SQLite e o que é CRDT. Num modelo de microkernel verdadeiro, o núcleo não deve saber nada sobre as implementações de armazenamento, identidade ou sincronização; ele deve apenas definir as "portas" (interfaces) e permitir que os "adaptadores" sejam plugados.
 

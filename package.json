@@ -32,6 +32,11 @@
     "diagrams:fix": "node scripts/check-diagrams.mjs --fix",
     "hooks:install": "node scripts/install-git-hooks.mjs"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/refarm-dev/refarm.git"
+  },
+  "homepage": "https://refarm.dev.br",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -47,6 +52,7 @@
     "typescript": "^5.7.3",
     "vitest": "^4.0.18"
   },
+  "//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
   "packageManager": "npm@10.9.2",
   "engines": {
     "node": ">=22"
