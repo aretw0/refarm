@@ -14,21 +14,21 @@ Cada capability é um pacote independente com:
 ## Capabilities Disponíveis
 
 ### `storage:v1`
-**Pacote**: `@refarm/storage-contract-v1`  
+**Pacote**: `@refarm.dev/storage-contract-v1`  
 **Provider**: `StorageProvider`  
 **Operações**: `get`, `put`, `delete`, `query`
 
 Backend de persistência (OPFS, IndexedDB, SQLite, etc.)
 
 ### `sync:v1`
-**Pacote**: `@refarm/sync-contract-v1`  
+**Pacote**: `@refarm.dev/sync-contract-v1`  
 **Provider**: `SyncProvider`  
 **Operações**: `connect`, `push`, `pull`, `disconnect`
 
 Sincronização distribuída (CRDT, OT, WebSocket, WebRTC, etc.)
 
 ### `identity:v1`
-**Pacote**: `@refarm/identity-contract-v1`  
+**Pacote**: `@refarm.dev/identity-contract-v1`  
 **Provider**: `IdentityProvider`  
 **Operações**: `create`, `sign`, `verify`, `get`
 
@@ -39,8 +39,8 @@ Gerenciamento de identidade (Nostr, DID, OAuth, passkeys, etc.)
 ### Para Consumidores (Kernel/Apps)
 
 ```typescript
-import { createStorageV1Provider } from "@refarm/storage-sqlite";
-import type { StorageProvider } from "@refarm/storage-contract-v1";
+import { createStorageV1Provider } from "@refarm.dev/storage-sqlite";
+import type { StorageProvider } from "@refarm.dev/storage-contract-v1";
 
 const storage: StorageProvider = createStorageV1Provider();
 await storage.put({ id: "1", type: "note", payload: "..." });
@@ -52,7 +52,7 @@ await storage.put({ id: "1", type: "note", payload: "..." });
 import { 
   runStorageV1Conformance,
   type StorageProvider 
-} from "@refarm/storage-contract-v1";
+} from "@refarm.dev/storage-contract-v1";
 
 class MyStorageProvider implements StorageProvider {
   readonly pluginId = "@vendor/my-storage";
