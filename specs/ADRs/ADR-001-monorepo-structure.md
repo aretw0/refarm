@@ -41,21 +41,21 @@ refarm/
 ├── tsconfig.json             # Base TypeScript config
 │
 ├── apps/                     # Applications (depend on packages)
-│   ├── kernel/               # Core orchestration (@refarm/kernel)
+│   ├── kernel/               # Core orchestration (@refarm.dev/kernel)
 │   │   ├── package.json      # deps: storage, sync (v0.1), identity (v0.2+)
 │   │   └── src/index.ts
-│   └── studio/               # Management UI (@refarm/studio)
+│   └── studio/               # Management UI (@refarm.dev/studio)
 │       ├── package.json      # deps: kernel
 │       └── src/
 │
 ├── packages/                 # Independent primitives (NO app dependencies)
-│   ├── storage-sqlite/       # @refarm/storage-sqlite
+│   ├── storage-sqlite/       # @refarm.dev/storage-sqlite
 │   │   ├── package.json      # ZERO refarm dependencies
 │   │   └── src/index.ts
-│   ├── sync-crdt/            # @refarm/sync-crdt
+│   ├── sync-crdt/            # @refarm.dev/sync-crdt
 │   │   ├── package.json      # deps: yjs ONLY
 │   │   └── src/index.ts
-│   └── identity-nostr/       # @refarm/identity-nostr
+│   └── identity-nostr/       # @refarm.dev/identity-nostr
 │       ├── package.json      # deps: nostr-tools ONLY
 │       └── src/index.ts
 │
@@ -165,8 +165,8 @@ refarm/
 
 ### Package Naming Convention
 
-- **Published packages**: `@refarm/storage-sqlite`, `@refarm/sync-crdt`
-- **Apps**: `@refarm/kernel`, `@refarm/studio` (not published directly)
+- **Published packages**: `@refarm.dev/storage-sqlite`, `@refarm.dev/sync-crdt`
+- **Apps**: `@refarm.dev/kernel`, `@refarm.dev/studio` (not published directly)
 - **Examples**: No npm scope (local only)
 
 ### Version Management

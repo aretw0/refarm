@@ -301,7 +301,7 @@ npm run changeset
 Prompts:
 
 ```
-Which packages changed? [select] @refarm/storage-sqlite
+Which packages changed? [select] @refarm.dev/storage-sqlite
 Version bump type? [major/minor/patch] minor
 Describe: "Add OPFS adapter with quota management"
 
@@ -315,7 +315,7 @@ Reviewer sees in PR diff:
 ```markdown
 # .changeset/brave-pandas.md
 
-- @refarm/storage-sqlite@minor: Add OPFS adapter with quota management
+- @refarm.dev/storage-sqlite@minor: Add OPFS adapter with quota management
 ```
 
 ### 3. Release (Maintainer)
