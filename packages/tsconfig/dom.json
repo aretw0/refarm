@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "display": "Refarm DOM & Frontend",
+  "extends": "./base.json",
+  "compilerOptions": {
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  }
+}
