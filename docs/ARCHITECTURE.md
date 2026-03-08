@@ -17,38 +17,36 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 | **Decentralised Discovery** | Plugin marketplace runs over Nostr (NIP-89/94). No central server. |
 
 ---
-
 ## Monorepo Map
 
 ```
 refarm/
 ├── apps/
-│   ├── tractor/          # 🌱 "Solo Fértil" — Core Tractor
-│   │   └── src/
-│   │       └── index.ts # Tractor class: boot, storeNode, queryNodes, PluginHost
-│   │
-│   └── studio/          # 🎨 Refarm Homestead — In-browser IDE (Astro)
+│   └── homestead/          # 🎨 Refarm Homestead — In-browser Admin/IDE (Astro)
 │       └── src/
-│           ├── pages/   # index, plugins, graph, dev
+│           ├── pages/      # Dashboard, plugins, graph, dev
 │           └── layouts/
 │
-├── packages/            # 📦 Independent Primitives (no Refarm dependency)
-│   ├── storage-sqlite/  # SQLite/OPFS adapter + migration runner
-│   ├── identity-nostr/  # Nostr keypair + NIP-89/94 plugin discovery
-│   └── sync-crdt/       # Vector clocks, LWW register, OR-Set, SyncEngine
+├── packages/               # 📦 Independent Primitives (cultivated by Tractor)
+│   ├── tractor/            # 🚜 Refarm Tractor — The machinery/host orchestrator
+│   ├── storage-sqlite/     # Offline-first SQLite/OPFS adapter
+│   ├── identity-nostr/     # Nostr keypair + NIP-89/94 discovery
+│   ├── sync-crdt/          # SyncEngine + Conflict-free replication
+│   ├── plugin-manifest/    # Schema & validation for the WASM sandbox
+│   └── storage-memory/     # Volatile in-memory primitive for testing
 │
 ├── wit/
-│   └── refarm-sdk.wit   # WIT interface — plugin ↔ tractor communication
+│   └── refarm-sdk.wit      # WIT interface — plugin ↔ tractor communication
 │
 ├── schemas/
-│   └── sovereign-graph.jsonld  # JSON-LD schema + worked examples
+│   └── sovereign-graph.jsonld  # JSON-LD schema — the "Solo Fértil" data layer
 │
 ├── docs/
-│   └── ARCHITECTURE.md  # This file
+│   └── ARCHITECTURE.md     # This file
 │
-├── turbo.json           # Turborepo task pipeline
-├── package.json         # Workspace root
-└── .gitignore           # Monorepo-aware ignores
+├── turbo.json              # Turborepo task pipeline
+├── package.json            # Workspace root
+└── .gitignore              # Monorepo-aware ignores
 ```
 
 ---
