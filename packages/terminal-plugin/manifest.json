@@ -1,0 +1,27 @@
+{
+  "id": "@refarm.dev/terminal",
+  "name": "Refarm Terminal",
+  "version": "0.1.0",
+  "entry": "./dist/index.js",
+  "targets": ["browser"],
+  "capabilities": {
+    "provides": ["ui:terminal"],
+    "requires": ["tractor:identity"],
+    "providesApi": ["OutputApi", "@refarm/terminal:ui"],
+    "requiresApi": []
+  },
+  "ui": {
+    "icon": "lucide:terminal",
+    "slots": ["statusbar"],
+    "color": "#238636"
+  },
+  "certification": {
+    "license": "MIT",
+    "a11yLevel": 3,
+    "languages": ["en", "pt"]
+  },
+  "permissions": ["system:log"],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+  }
+}
