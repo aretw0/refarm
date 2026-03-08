@@ -1,5 +1,5 @@
 /**
- * @refarm/tractor
+ * @refarm.dev/tractor
  *
  * Refarm Tractor — the heavy machinery that cultivates your personal "Solo Fértil"
  * by orchestrating plugins and adapters under a sovereign micro-kernel.
@@ -117,7 +117,7 @@ export class PluginHost {
 
     const finalHash = wasmHash ?? (manifest as any).wasmHash ?? "placeholder"; 
 
-    // TODO: Replace with actual verifyWasmIntegrity import once @refarm/identity-nostr is compiled
+    // TODO: Replace with actual verifyWasmIntegrity import once @refarm.dev/identity-nostr is compiled
     const verifyWasmIntegrity = async (_buffer: ArrayBuffer, _hash: string): Promise<boolean> => {
       console.debug("[kernel] WASM integrity check (stub - not validated)");
       return true;

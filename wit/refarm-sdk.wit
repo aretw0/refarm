@@ -22,6 +22,10 @@
 
 package refarm:plugin@0.1.0;
 
+/// The Refarm Plugin SDK imports interfaces from standard WASI where possible.
+/// For this version, we define them inline to ensure zero-config builds,
+/// but they follow the wasi:http and wasi:logging patterns.
+
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
 /// A JSON-LD node serialised as a UTF-8 string.
@@ -31,44 +35,6 @@ type json-ld-node = string;
 /// A stable, URL-safe identifier for a data node.
 /// Convention: urn:<plugin-id>:<local-id>   (e.g. "urn:matrix-bridge:msg-42")
 type node-id = string;
-
-/// HTTP method enum for allowed fetch operations.
-enum http-method {
-    get,
-    post,
-    put,
-    patch,
-    delete,
-}
-
-/// A minimal HTTP request (network access is capability-gated).
-record http-request {
-    method: http-method,
-    url: string,
-    headers: list<tuple<string, string>>,
-    body: option<list<u8>>,
-}
-
-/// A minimal HTTP response.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// Error type for all tractor-bridge operations.
-variant plugin-error {
-    /// The operation is not permitted by the current capability grant.
-    not-permitted(string),
-    /// The requested node was not found in the local graph.
-    not-found(node-id),
-    /// The provided JSON-LD payload is malformed.
-    invalid-schema(string),
-    /// A network fetch failed.
-    network-error(string),
-    /// An unspecified internal tractor error.
-    internal(string),
-}
 
 // ─── World: Tractor → Plugin Imports (what the plugin can call) ────────────────
 
@@ -88,11 +54,12 @@ interface tractor-bridge {
     query-nodes: func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
 
     /// Perform a capability-gated HTTP request.
-    /// The tractor checks the allowed-origins list configured by the user
-    /// before forwarding the request; plugins cannot fetch arbitrary URLs.
+    /// Aligned with wasi:http/outgoing-handler.
+    /// The tractor checks the allowed-origins list configured by the user.
     fetch: func(req: http-request) -> result<http-response, plugin-error>;
 
     /// Emit a structured log message visible in Studio's terminal.
+    /// Aligned with wasi:logging/logging.
     log: func(level: log-level, message: string);
 
     /// Request a user-facing permission prompt (e.g. "Allow Matrix Bridge
@@ -100,20 +67,49 @@ interface tractor-bridge {
     request-permission: func(capability: string, reason: string) -> bool;
 
     /// Retrieve the current user's identity information.
-    /// This is used to determine if the user is a guest and what storage tier they are using.
+    /// Used to determine identity type and storage tier.
     get-identity: func() -> result<identity-info, plugin-error>;
 
     /// Discover a plugin that provides a specific API (e.g. "OutputApi").
-    /// Returns the plugin's ID if found and permitted.
     get-plugin-api: func(api-name: string) -> result<node-id, plugin-error>;
 
     /// Emit a telemetry event from the plugin (e.g. for performance or audit).
-    /// This is captured by the Tractor and can be observed by Scarecrow.
     emit-telemetry: func(event: string, payload: option<string>);
+}
 
-    /// Switches the engine's identity/storage tier (e.g. from 'visitor' to 'guest').
-    /// This usually triggers a shell-level reload or re-initialization.
-    switch-tier: func(tier: string) -> result<_, plugin-error>;
+/// A minimal HTTP request (network access is capability-gated).
+record http-request {
+    method: http-method,
+    url: string,
+    headers: list<tuple<string, string>>,
+    body: option<list<u8>>,
+}
+
+/// A minimal HTTP response.
+record http-response {
+    status: u16,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+}
+
+/// HTTP method enum for allowed fetch operations.
+enum http-method { get, post, put, patch, delete }
+
+/// Log severity levels.
+enum log-level { debug, info, warn, error }
+
+/// Error type for all tractor-bridge operations.
+variant plugin-error {
+    /// The operation is not permitted by the current capability grant.
+    not-permitted(string),
+    /// The requested node was not found in the local graph.
+    not-found(node-id),
+    /// The provided JSON-LD payload is malformed.
+    invalid-schema(string),
+    /// A network fetch failed.
+    network-error(string),
+    /// An unspecified internal tractor error.
+    internal(string),
 }
 
 /// Information about the current user's identity and storage tier.
@@ -126,14 +122,6 @@ record identity-info {
     identifier: string,
 }
 
-/// Log severity levels.
-enum log-level {
-    debug,
-    info,
-    warn,
-    error,
-}
-
 // ─── World: Plugin → Tractor Exports (what the tractor can call) ────────────────
 
 /// Interface the plugin MUST implement.
@@ -144,8 +132,6 @@ interface integration {
     setup: func() -> result<_, plugin-error>;
 
     /// Called periodically (or on demand) to pull fresh data from the source.
-    /// The plugin fetches data through `tractor-bridge.fetch` and stores
-    /// normalised JSON-LD nodes via `tractor-bridge.store-node`.
     ingest: func() -> result<u32, plugin-error>;
 
     /// Called when the user triggers a push (e.g. replying to a message).
@@ -163,7 +149,6 @@ interface integration {
     metadata: func() -> plugin-metadata;
 
     /// Called when a system event occurs (e.g. "system:switch-tier").
-    /// Plugins use this to transition their internal state or trigger follow-up flows.
     on-event: func(event: string, payload: option<string>);
 }
 
