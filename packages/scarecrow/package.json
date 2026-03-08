@@ -6,6 +6,6 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@refarm.dev/tractor": "workspace:*"
+    "@refarm.dev/tractor": "*"
   }
 }
