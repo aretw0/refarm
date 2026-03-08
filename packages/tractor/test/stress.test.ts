@@ -24,9 +24,11 @@ function createMockManifest(id: string): PluginManifest {
     name: `Manifest ${id}`,
     version: "0.1.0",
     entry: `https://mock.test/${id}.wasm`,
+    targets: ["browser"],
     capabilities: { provides: [], requires: [] },
     permissions: [],
     observability: { hooks: ["onLoad"] },
+    certification: { license: "MIT", a11yLevel: 0, languages: ["en"] }
   };
 }
 
@@ -115,7 +117,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins sequentially", async () => {
     stubFetch();
-    const host = new PluginHost();
+    const host = new PluginHost(vi.fn());
 
     for (let i = 0; i < 100; i++) {
       await host.load(createMockManifest(`plugin-${i}`), `hash-${i}`);
@@ -130,7 +132,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins concurrently", async () => {
     stubFetch();
-    const host = new PluginHost();
+    const host = new PluginHost(vi.fn());
 
     const loads = Array.from({ length: 100 }, (_, i) =>
       host.load(createMockManifest(`plugin-${i}`), `hash-${i}`)
@@ -144,7 +146,7 @@ describe("Plugin Flood", () => {
 
   it("loads 500 plugins concurrently within 2 seconds", async () => {
     stubFetch();
-    const host = new PluginHost();
+    const host = new PluginHost(vi.fn());
 
     const start = performance.now();
 
@@ -168,7 +170,7 @@ describe("Plugin Flood", () => {
       })
     );
 
-    const host = new PluginHost();
+    const host = new PluginHost(vi.fn());
 
     await expect(
       host.load(createMockManifest("broken-plugin"), "hash")
@@ -177,7 +179,7 @@ describe("Plugin Flood", () => {
 
   it("plugin IDs are unique — no collisions under flood", async () => {
     stubFetch();
-    const host = new PluginHost();
+    const host = new PluginHost(vi.fn());
 
     const ids = Array.from({ length: 200 }, (_, i) => `plugin-${i}`);
     await Promise.all(
