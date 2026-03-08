@@ -1,0 +1,13 @@
+{
+  "extends": "@refarm.dev/tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "paths": {
+      "@refarm.dev/tractor/test/*": ["../tractor/test/*"],
+      "@refarm.dev/tractor/test/test-utils": ["../tractor/test/test-utils.ts"]
+    }
+  },
+  "include": ["src/**/*", "test/**/*"]
+}
+
+
