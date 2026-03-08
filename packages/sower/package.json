@@ -11,10 +11,10 @@
     "directory": "packages/sower"
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --project tsconfig.json --noEmit",
-    "type-check": "tsc --project tsconfig.json --noEmit",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

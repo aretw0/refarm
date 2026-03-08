@@ -152,6 +152,29 @@ interface integration {
     on-event: func(event: string, payload: option<string>);
 }
 
+/// Interface for plugins that want to serve HTTP requests (like the Antenna plugin).
+/// The Tractor will route requests matching specific nodes or paths to this handler.
+interface http-handler {
+    /// Describes an incoming HTTP request
+    record http-request {
+        method: string,
+        path: string,
+        query: string,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+
+    /// Describes the outgoing HTTP response
+    record http-response {
+        status: u16,
+        headers: list<tuple<string, string>>,
+        body: option<list<u8>>,
+    }
+
+    /// Handle an incoming HTTP request routed to this plugin.
+    handle-request: func(req: http-request) -> result<http-response, plugin-error>;
+}
+
 /// Static metadata returned by the plugin.
 record plugin-metadata {
     name: string,
@@ -178,4 +201,7 @@ world refarm-plugin {
 
     /// Exports that the plugin must implement.
     export integration;
+
+    /// Optional export for plugins that act as HTTP Gateways (e.g. Antenna).
+    export http-handler;
 }

@@ -18,6 +18,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./test/test-utils": {
+      "types": "./test/test-utils.ts",
+      "default": "./test/test-utils.ts"
     }
   },
   "scripts": {
@@ -40,6 +44,7 @@
     "@bytecodealliance/jco": "^1.4.0"
   },
   "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
     "typescript": "^5.7.3",
     "vitest": "^4.0.18"
   },
