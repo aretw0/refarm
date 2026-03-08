@@ -1,8 +1,17 @@
 {
-  "name": "@refarm/tractor",
+  "name": "@refarm.dev/tractor",
   "version": "0.1.0",
   "description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/tractor"
+  },
+  "bugs": {
+    "url": "https://github.com/refarm-dev/refarm/issues"
+  },
+  "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -27,7 +36,8 @@
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/sync-contract-v1": "*",
-    "@refarm.dev/plugin-manifest": "*"
+    "@refarm.dev/plugin-manifest": "*",
+    "@bytecodealliance/jco": "^1.4.0"
   },
   "devDependencies": {
     "typescript": "^5.7.3",

@@ -30,7 +30,7 @@
   "bugs": {
     "url": "https://github.com/refarm-dev/refarm/issues"
   },
-  "homepage": "https://github.com/refarm-dev/refarm/tree/main/packages/sync-contract-v1#readme",
+  "homepage": "https://refarm.dev.br",
   "files": [
     "dist",
     "README.md"

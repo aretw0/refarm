@@ -11,12 +11,12 @@
  */
 
 import {
-    PHYSICAL_SCHEMA_V1,
-    STORAGE_CAPABILITY,
-    type StorageAdapter,
-    type StorageProvider,
-    type StorageQuery,
-    type StorageRecord
+  PHYSICAL_SCHEMA_V1,
+  STORAGE_CAPABILITY,
+  type StorageAdapter,
+  type StorageProvider,
+  type StorageQuery,
+  type StorageRecord
 } from "@refarm.dev/storage-contract-v1";
 
 // Wait, I put schema.ts in /packages/storage-contract-v1/src/schema.ts
@@ -44,11 +44,28 @@ export interface QueryOptions {
  * sqlite-wasm instance once you wire up the WASM binary.
  */
 export class OPFSSQLiteAdapter implements StorageAdapter {
-  /** @internal */
-  private _db: unknown = null;
+  private _db: any = null;
+  private _sqlite3: any = null;
 
   async open(name: string): Promise<OPFSSQLiteAdapter> {
     console.info(`[storage-sqlite] Opening database: ${name}`);
+    
+    // In a real browser environment, this would involve:
+    // 1. Loading the WASM binary
+    // 2. Initializing wa-sqlite with OPFS VFS
+    // 3. Opening the connection
+    
+    // For now, we provide the implementation pattern that matches wa-sqlite
+    this._db = {
+      exec: async (sql: string, options: any = {}) => {
+        console.debug(`[sqlite] EXEC: ${sql}`, options.bind);
+        return [];
+      },
+      close: async () => {
+        console.debug("[sqlite] CLOSED");
+      }
+    };
+
     return this;
   }
 
@@ -64,33 +81,33 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     sourcePlugin: string | null,
   ): Promise<void> {
     await this.execute(
-      `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin)
-       VALUES (?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
+       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
       { params: [id, type, context, payload, sourcePlugin] },
     );
   }
 
   async queryNodes(type: string): Promise<any[]> {
     return this.query(
-      "SELECT payload FROM nodes WHERE type = ? ORDER BY created_at DESC",
+      "SELECT payload FROM nodes WHERE type = ? ORDER BY updated_at DESC",
       { params: [type] },
     );
   }
 
-  async execute(sql: string, options: QueryOptions = {}): Promise<any> {
+  async execute(sql: string, args: any = {}): Promise<any> {
     this._assertOpen();
-    // TODO: delegate to this._db.exec(sql, { bind: options.params })
-    void sql;
-    void options;
-    return 0;
+    const params = args?.params || args;
+    return await this._db.exec(sql, { bind: params });
   }
 
-  async query<T = any>(sql: string, options: QueryOptions = {}): Promise<T[]> {
+  async query<T = any>(sql: string, args: any = {}): Promise<T[]> {
     this._assertOpen();
-    // TODO: delegate to this._db.exec(sql, { bind: options.params, returnValue: 'resultRows', rowMode: 'object' })
-    void sql;
-    void options;
-    return [] as T[];
+    const params = args?.params || args;
+    return await this._db.exec(sql, { 
+      bind: params, 
+      returnValue: 'resultRows', 
+      rowMode: 'object' 
+    });
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
@@ -107,12 +124,14 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   }
 
   async close(): Promise<void> {
-    // TODO: (this._db as any)?.close();
+    if (this._db) {
+      await this._db.close();
+    }
     this._db = null;
   }
 
   private _assertOpen(): void {
-    // In production, check this._db !== null and throw if not open.
+    if (!this._db) throw new Error("[storage-sqlite] Database not open");
   }
 }
 

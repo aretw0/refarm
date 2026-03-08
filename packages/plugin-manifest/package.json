@@ -16,6 +16,7 @@
     "dev": "tsc --project tsconfig.json --watch",
     "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
@@ -31,7 +32,7 @@
     "url": "https://github.com/refarm-dev/refarm.git",
     "directory": "packages/plugin-manifest"
   },
-  "homepage": "https://github.com/refarm-dev/refarm/tree/main/packages/plugin-manifest#readme",
+  "homepage": "https://refarm.dev.br",
   "files": [
     "dist",
     "README.md"
