@@ -1,0 +1,53 @@
+# .github/workflows/deploy-homestead.yml
+# 
+# Refarm Homestead Deployment — "Residency in Grand Style"
+#
+# This workflow automates the deployment of the Homestead app to GitHub Pages.
+# It ensures the required security headers (COOP/COEP) are considered for the
+# static hosting environment (GitHub Pages handles these via headers if configured).
+
+name: Deploy Homestead
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'apps/homestead/**'
+      - 'packages/**'
+      - '.github/workflows/deploy-homestead.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Setup
+        uses: ./.github/actions/setup
+
+      - name: Build Homestead
+        # Compositional build via turbo, filtering for the homestead app
+        run: npx turbo build --filter=@refarm.dev/homestead
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: apps/homestead/dist
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

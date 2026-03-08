@@ -1,0 +1,20 @@
+{
+  "@context": {
+    "refarm": "https://refarm.dev.br/ontology#",
+    "schema": "https://schema.org/",
+    "SovereignTranslation": "refarm:SovereignTranslation",
+    "namespace": "refarm:namespace",
+    "locale": "schema:inLanguage",
+    "keys": "refarm:translationKeys",
+    "timestamp": "schema:dateModified"
+  },
+  "@type": "SovereignTranslation",
+  "@id": "urn:refarm:l8n:{namespace}:{locale}",
+  "namespace": "{plugin-id | refarm:core}",
+  "locale": "{ISO-639-1}",
+  "timestamp": "{ISO_DATE}",
+  "keys": {
+    "welcome": "Welcome to the Machine",
+    "save": "Save Changes"
+  }
+}

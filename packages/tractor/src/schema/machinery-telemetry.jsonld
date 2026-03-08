@@ -1,0 +1,20 @@
+{
+  "@context": {
+    "refarm": "https://refarm.dev.br/ontology#",
+    "schema": "https://schema.org/",
+    "MachineryTelemetry": "refarm:MachineryTelemetry",
+    "event": "refarm:event",
+    "pluginId": "refarm:pluginId",
+    "apiName": "refarm:apiName",
+    "durationMs": "refarm:durationMs",
+    "timestamp": "schema:dateCreated",
+    "payload": "schema:value"
+  },
+  "@type": "MachineryTelemetry",
+  "@id": "urn:refarm:machinery:{timestamp}",
+  "timestamp": "{ISO_DATE}",
+  "event": "plugin:load | api:call | storage:io",
+  "pluginId": "{PLUGIN_ID}",
+  "durationMs": 0.0,
+  "payload": {}
+}

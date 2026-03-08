@@ -1,0 +1,52 @@
+---
+/**
+ * Refarm Studio — The Shed (O Galpão)
+ *
+ * A specialized shell for prototyping and maintaining your machinery.
+ * This area serves as a host for development plugins that can provide
+ * editors, compilers, and test runners.
+ */
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout title="The Shed — Refarm Studio">
+  <div id="loading-overlay" class="loading-state">
+    <div class="spinner"></div>
+    <p>Opening The Shed...</p>
+  </div>
+</Layout>
+
+<script>
+  import { Tractor } from "@refarm.dev/tractor";
+  import { StudioShell } from "../lib/studio-shell";
+
+  async function boot() {
+    try {
+      // 1. Initialize Adapters
+      const storage = { 
+        ensureSchema: async () => {},
+        storeNode: async () => {},
+        queryNodes: async () => [],
+        execute: async () => {}, 
+        query: async () => [], 
+        close: async () => {} 
+      };
+      const identity = {};
+
+      // 2. Boot Tractor
+      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any });
+      
+      // 3. Handover to Shell Orchestrator
+      const shell = new StudioShell(tractor);
+      await shell.setup();
+
+      // 4. Hide loading
+      document.getElementById("loading-overlay")?.remove();
+      
+    } catch (err) {
+      console.error("[dev] Boot failed", err);
+    }
+  }
+
+  boot();
+</script>
