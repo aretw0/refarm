@@ -47,10 +47,10 @@ npm run bench
 ### 4. Verify Installation
 
 ```bash
-npm run build -- -F @refarm/kernel
+npm run build -- -F @refarm.dev/kernel
 
 # Should output:
-# ✅ @refarm/kernel built successfully
+# ✅ @refarm.dev/kernel built successfully
 ```
 
 ---
@@ -81,7 +81,7 @@ packages/tractor/
 ### Initialize Tractor
 
 ```typescript
-import { Tractor } from '@refarm/tractor';
+import { Tractor } from '@refarm.dev/tractor';
 
 const tractor = await Tractor.boot({
   storage: storageAdapter,   // Implements StorageAdapter v1
@@ -192,7 +192,7 @@ npm run test:watch       # Watch mode
 
 ## Storage Layer
 
-Tractor delegates persistence to any implementation of `@refarm.dev/storage-contract-v1`. While `@refarm/storage-sqlite` is the default reference implementation, any adapter that fulfills the contract (e.g., PostgreSQL, IndexedDB) can be used.
+Tractor delegates persistence to any implementation of `@refarm.dev/storage-contract-v1`. While `@refarm.dev/storage-sqlite` is the default reference implementation, any adapter that fulfills the contract (e.g., PostgreSQL, IndexedDB) can be used.
 
 The contract defines:
 - The required **Sovereign Graph** table schema.
