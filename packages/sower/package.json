@@ -1,0 +1,31 @@
+{
+  "name": "@refarm.dev/sower",
+  "version": "0.1.0",
+  "description": "The Sower (O Semeador) — Initial Seed & Onboarding Plugin",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/sower"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --project tsconfig.json --noEmit",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@refarm.dev/tractor": "*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
