@@ -1,0 +1,74 @@
+name: Granular Matrix Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  # -----------------------------------------------------------------
+  # JOB 1: Standard Local Symbiosis (Turborepo Filter)
+  # -----------------------------------------------------------------
+  local-symbiosis:
+    name: Local Symbiosis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Build Shared Contracts & Configs
+        run: npx turbo run build --filter="@refarm.dev/storage-contract-v1" --filter="@refarm.dev/identity-contract-v1" --filter="@refarm.dev/tsconfig"
+
+      - name: Turbo Test (Local Monorepo Boundaries)
+        run: npx turbo run test --filter=...[origin/main]
+
+  # -----------------------------------------------------------------
+  # JOB 2: Matrix Discovery (Detect changes and calculate impact)
+  # -----------------------------------------------------------------
+  matrix-setup:
+    name: Matrix Discovery
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.build-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      - name: Build Matrix DAG
+        id: build-matrix
+        run: node scripts/ci/github-matrix-builder.mjs
+
+  # -----------------------------------------------------------------
+  # JOB 3: Matrix Isolator Builder (Parallel Regression testing)
+  # -----------------------------------------------------------------
+  matrix-runner:
+    name: ${{ matrix.name }}
+    needs: [matrix-setup]
+    runs-on: ubuntu-latest
+    # If matrix is empty, this job is skipped automatically
+    if: ${{ fromJson(needs.matrix-setup.outputs.matrix).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix-setup.outputs.matrix) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: ./.github/actions/setup
+
+      # STRATEGY: FORWARD COMPAT (Isolating modified package to test against NPM deps)
+      - name: Execute Forward Compatibility
+        if: ${{ matrix.strategy == 'forward' }}
+        run: node scripts/ci/matrix-runner.mjs --run-forward ${{ matrix.package }}
+
+      # STRATEGY: BACKWARD COMPAT (Injecting modified package into published dependents)
+      - name: Execute Backward Compatibility
+        if: ${{ matrix.strategy == 'backward' }}
+        run: node scripts/ci/matrix-runner.mjs --run-backward ${{ matrix.package }} ${{ matrix.consumer }}
