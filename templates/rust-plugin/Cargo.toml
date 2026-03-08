@@ -1,0 +1,19 @@
+[package]
+name = "rust-plugin-template"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# Standard WASI dependencies
+# wit-bindgen will be used to generate bindings from our WIT
+wit-bindgen = "0.17.0"
+
+[package.metadata.component]
+package = "refarm:plugin"
+
+[package.metadata.component.target]
+path = "../../wit/refarm-sdk.wit"
+world = "refarm-plugin"
