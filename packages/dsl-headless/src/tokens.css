@@ -1,0 +1,78 @@
+/**
+ * Refarm Design Tokens — "Grand Style" Essentials
+ * 
+ * These CSS variables define the visual identity of Refarm.
+ * They are provided by the host and consumed by plugins to ensure cohesion.
+ */
+
+:root {
+  /* Neutral Palette (Dark Mode First) */
+  --refarm-bg-primary: #0d1117;
+  --refarm-bg-secondary: #161b22;
+  --refarm-bg-elevated: #21262d;
+
+  --refarm-border-default: #30363d;
+  --refarm-border-muted: #21262d;
+
+  --refarm-text-primary: #c9d1d9;
+  --refarm-text-secondary: #8b949e;
+  --refarm-text-muted: #484f58;
+
+  /* Accessibility: Focus & Contrast */
+  --refarm-focus-ring: 0 0 0 3px rgba(88, 166, 255, 0.5);
+  --refarm-high-contrast-border: #ffffff;
+
+  /* Accent: "Tractor Green" / "Solo Fértil" Emerald */
+  --refarm-accent-primary: #238636;
+  --refarm-accent-secondary: #2ea043;
+  --refarm-accent-muted: rgba(35, 134, 54, 0.4);
+
+  /* Feedback */
+  --refarm-error: #f85149;
+  --refarm-warning: #d29922;
+  --refarm-success: #3fb950;
+  --refarm-info: #58a6ff;
+
+  /* Typography */
+  --refarm-font-mono: 'Fira Code', 'Cascadia Code', 'Source Code Pro', monospace;
+  --refarm-font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+
+  /* Effects */
+  --refarm-radius-sm: 4px;
+  --refarm-radius-md: 8px;
+  --refarm-radius-lg: 12px;
+
+  --refarm-shadow-sm: 0 1px 0 rgba(1, 4, 9, 0.04);
+  --refarm-shadow-md: 0 4px 8px rgba(1, 4, 9, 0.3);
+
+  /* Glassmorphism primitives */
+  --refarm-glass-bg: rgba(22, 27, 34, 0.7);
+  --refarm-glass-blur: blur(12px);
+}
+
+/* Base Primitives (Headless Utility Classes) */
+.refarm-button {
+  background: var(--refarm-accent-primary);
+  color: white;
+  border: 1px solid var(--refarm-border-default);
+  border-radius: var(--refarm-radius-sm);
+  padding: 0.5rem 1rem;
+  font-family: var(--refarm-font-sans);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.refarm-button:hover {
+  background: var(--refarm-accent-secondary);
+}
+
+.refarm-card {
+  background: var(--refarm-bg-secondary);
+  border: 1px solid var(--refarm-border-default);
+  border-radius: var(--refarm-radius-md);
+  padding: 1.5rem;
+}
+
+.refarm-mono {
+  font-family: var(--refarm-font-mono);
+}
