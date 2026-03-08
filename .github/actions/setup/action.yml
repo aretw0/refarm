@@ -18,4 +18,11 @@ runs:
 
     - name: Install dependencies
       shell: bash
-      run: npm ci
+      run: |
+        if [ -f package-lock.json ]; then
+          echo "Found package-lock.json, attempting npm ci..."
+          npm ci || (echo "npm ci failed, falling back to npm install..." && npm install)
+        else
+          echo "No package-lock.json found, running npm install..."
+          npm install
+        fi
