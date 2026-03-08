@@ -1,0 +1,30 @@
+{
+  "name": "@refarm.dev/dsl-headless",
+  "version": "0.1.0",
+  "description": "Universal Headless Design System Language for the Refarm ecosystem (Host & Plugins)",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "storybook": "^8.0.0",
+    "@storybook/html": "^8.0.0",
+    "@storybook/html-vite": "^8.0.0",
+    "@storybook/addon-essentials": "^8.0.0",
+    "@storybook/addon-interactions": "^8.0.0",
+    "@storybook/addon-links": "^8.0.0",
+    "@storybook/addon-a11y": "^8.0.0",
+    "storybook-addon-figma": "^1.1.0"
+  },
+  "license": "MIT"
+}
