@@ -17,7 +17,7 @@
       "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/src/index.ts"],
       "@refarm.dev/identity-contract-v1": ["./packages/identity-contract-v1/src/index.ts"],
       "@refarm.dev/plugin-manifest": ["./packages/plugin-manifest/src/index.ts"],
-      "@refarm/tractor": ["./packages/tractor/src/index.ts"],
+      "@refarm.dev/tractor": ["./packages/tractor/src/index.ts"],
       "@refarm.dev/*": ["./packages/*/src"]
     }
   },

@@ -102,6 +102,18 @@ interface tractor-bridge {
     /// Retrieve the current user's identity information.
     /// This is used to determine if the user is a guest and what storage tier they are using.
     get-identity: func() -> result<identity-info, plugin-error>;
+
+    /// Discover a plugin that provides a specific API (e.g. "OutputApi").
+    /// Returns the plugin's ID if found and permitted.
+    get-plugin-api: func(api-name: string) -> result<node-id, plugin-error>;
+
+    /// Emit a telemetry event from the plugin (e.g. for performance or audit).
+    /// This is captured by the Tractor and can be observed by Scarecrow.
+    emit-telemetry: func(event: string, payload: option<string>);
+
+    /// Switches the engine's identity/storage tier (e.g. from 'visitor' to 'guest').
+    /// This usually triggers a shell-level reload or re-initialization.
+    switch-tier: func(tier: string) -> result<_, plugin-error>;
 }
 
 /// Information about the current user's identity and storage tier.
@@ -143,8 +155,16 @@ interface integration {
     /// Called before the plugin is unloaded; clean up resources.
     teardown: func();
 
+    /// Return semantic help nodes produced by this plugin.
+    /// Used by the Shell to build the global System Help explorer.
+    get-help-nodes: func() -> result<list<json-ld-node>, plugin-error>;
+
     /// Return a human-readable name and version for display in Studio.
     metadata: func() -> plugin-metadata;
+
+    /// Called when a system event occurs (e.g. "system:switch-tier").
+    /// Plugins use this to transition their internal state or trigger follow-up flows.
+    on-event: func(event: string, payload: option<string>);
 }
 
 /// Static metadata returned by the plugin.
