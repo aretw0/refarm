@@ -1,112 +1,142 @@
 ---
-/**
- * Refarm Studio — Home Page
- *
- * Entry point for the Studio.  Bootstraps the Kernel client-side and
- * provides a dashboard overview.
- */
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Refarm Studio">
-  <section style="max-width: 800px; margin: 0 auto;">
-    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">Welcome to Refarm Studio</h2>
-    <p style="color: #8b949e; margin-bottom: 2rem;">
-      Your sovereign local-first workspace for building and managing Refarm plugins.
-      All data lives in your browser — nothing leaves without your explicit consent.
-    </p>
+<Layout title="Dashboard — Refarm Studio">
+  <div id="loading-overlay" class="loading-state">
+    <div class="spinner"></div>
+    <p>Initializing Sovereign Environment...</p>
+  </div>
 
-    <div id="kernel-status" style="
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 8px;
-      padding: 1rem 1.5rem;
-      margin-bottom: 1.5rem;
-    ">
-      <strong>Kernel status:</strong> <span id="status-text" style="color: #8b949e;">Initialising…</span>
-    </div>
-
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem;">
-      <a href="/plugins" style="
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1.25rem;
-        text-decoration: none;
-        color: inherit;
-        transition: border-color 0.2s;
-      ">
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔌</div>
-        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Plugin Marketplace</h3>
-        <p style="color: #8b949e; font-size: 0.875rem;">Discover and install plugins via Nostr NIP-89</p>
-      </a>
-
-      <a href="/graph" style="
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1.25rem;
-        text-decoration: none;
-        color: inherit;
-      ">
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🗄️</div>
-        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Data Graph</h3>
-        <p style="color: #8b949e; font-size: 0.875rem;">Browse your sovereign JSON-LD data nodes</p>
-      </a>
-
-      <a href="/dev" style="
-        background: #161b22;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-        padding: 1.25rem;
-        text-decoration: none;
-        color: inherit;
-      ">
-        <div style="font-size: 2rem; margin-bottom: 0.5rem;">⚡</div>
-        <h3 style="color: #58a6ff; margin-bottom: 0.25rem;">Plugin Dev</h3>
-        <p style="color: #8b949e; font-size: 0.875rem;">Build and test plugins in the WebContainers sandbox</p>
-      </a>
-    </div>
-  </section>
+  <style>
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 40vh;
+      color: var(--refarm-text-secondary);
+      font-family: var(--refarm-font-mono);
+    }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--refarm-bg-elevated);
+      border-top: 3px solid var(--refarm-accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
 </Layout>
 
 <script>
-  /**
-   * Client-side Kernel bootstrap.
-   * Runs in the browser after the page loads.
-   */
-  async function initKernel() {
-    const statusEl = document.getElementById("status-text")!;
+  import { Tractor } from "@refarm.dev/tractor";
+  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
+  import { StudioShell } from "../lib/studio-shell";
+  import { SowerPlugin } from "@refarm.dev/sower";
+  import { ScarecrowPlugin } from "@refarm.dev/scarecrow";
+  import { HeraldPlugin } from "../lib/herald";
+  import { FireflyPlugin } from "../lib/firefly";
+
+  async function boot() {
     try {
-      // Dynamic import keeps the heavy WASM bootstrap off the critical path
-      const { Tractor } = await import("@refarm/tractor");
+      const mode = localStorage.getItem('refarm:mode') || sessionStorage.getItem('refarm:mode') || 'visitor';
+      console.info(`[homestead] Booting in ${mode} mode`);
+
+      // 1. Initialize Adapters
+      // If visitor/guest, we might use a temporary DB name or In-Memory
+      const dbName = mode === 'citizen' ? 'refarm-main' : `refarm-temp-${Date.now()}`;
+      const storage = await new OPFSSQLiteAdapter().open(dbName);
       
-      // Injecting primitives (Stubbed for now in Homestead IDE until proper integration)
-      const storageAdapter = { 
-        ensureSchema: async () => {},
-        storeNode: async () => {},
-        queryNodes: async () => [],
-        execute: async () => {}, 
-        query: async () => [], 
-        close: async () => {} 
+      const identity = { 
+        id: "core", 
+        getPublicKey: async () => "root",
+        sign: async (data: string) => data 
       };
-      const pluginHost = {
-        load: async (manifest) => {
-          console.log("Loading plugin from manifest:", manifest);
-          return { id: manifest.id, name: manifest.name, call: async () => {}, terminate: () => {} };
+
+      // 2. Boot Tractor
+      const tractor = await Tractor.boot({ 
+        storage: storage as any, 
+        identity: identity as any,
+        envMetadata: {
+          version: "0.1.0-solo-fertil", // Mocking build-time injection for now
+          commit: "dev"
         }
-      };
-      const identityAdapter = {};
+      });
+
+      // 3. Instantiate Core Plugins (Local handles for now)
+      const herald = new HeraldPlugin(tractor);
+      const sower = new SowerPlugin(tractor);
+      const scarecrow = new ScarecrowPlugin(tractor);
+      const firefly = new FireflyPlugin(tractor);
+
+      tractor.plugins.registerInternal({
+        id: "sower",
+        name: "O Semeador",
+        manifest: { id: "sower", name: "O Semeador", version: "0.1.0", entry: "", capabilities: { providersApi: ["onboarding"] } } as any,
+        call: async (fn, args: any) => {
+          if (fn === "get-help-nodes") return [JSON.stringify(await sower.getOnboardingNode())];
+          if (fn === "on-event") {
+            const [event, payload] = args as [string, string];
+            sower.onEvent(event, payload);
+          }
+          return null;
+        },
+        terminate: () => {},
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "sower" })
+      });
+
+      tractor.plugins.registerInternal({
+        id: "scarecrow",
+        name: "O Espantalho",
+        manifest: { id: "scarecrow", name: "O Espantalho", version: "0.1.0", entry: "", capabilities: {} } as any,
+        call: async () => null,
+        terminate: () => {},
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "scarecrow" })
+      });
       
-      await Tractor.boot({ storage: storageAdapter, identity: identityAdapter, pluginHost: pluginHost });
-      statusEl.textContent = "✅ Online — SQLite/OPFS ready";
-      statusEl.style.color = "#3fb950";
+      tractor.plugins.registerInternal({
+        id: "firefly",
+        name: "O Vagalume",
+        manifest: { id: "firefly", name: "O Vagalume", version: "0.1.0", entry: "", capabilities: {} } as any,
+        call: async (fn, args: any) => {
+          if (fn === "show-toast") firefly.showToast(args.message, args.actionable);
+          if (fn === "spotlight") firefly.spotlight(args.targetId, args.message);
+          return null;
+        },
+        terminate: () => {},
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" })
+      });
+      
+      // 4. Handover to Shell Orchestrator
+      const shell = new StudioShell(tractor);
+      await shell.setup();
+
+      // 5. Announce successful boot and monitor lifecycle
+      herald.announce();
+      herald.monitorLifecycle();
+
+      // 6. Hide loading
+      document.getElementById("loading-overlay")?.remove();
+      
     } catch (err) {
-      statusEl.textContent = `❌ Error: ${(err as Error).message}`;
-      statusEl.style.color = "#f85149";
-      console.error("[studio] Kernel boot failed", err);
+      console.error("[homestead] Boot failed", err);
+      const loading = document.getElementById("loading-overlay");
+      if (loading) {
+        loading.innerHTML = `
+          <div style="text-align:center; color: var(--refarm-accent-secondary);">
+            <p>Boot Failed: ${(err as Error).message}</p>
+            <button onclick="location.reload()" style="margin-top:1rem; padding: 0.5rem 1.5rem; border-radius: 20px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer;">Retry</button>
+          </div>
+        `;
+      }
     }
   }
 
-  initKernel();
+  boot();
 </script>
