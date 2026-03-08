@@ -1,0 +1,23 @@
+{
+  "@context": {
+    "refarm": "https://refarm.dev.br/ontology#",
+    "schema": "https://schema.org/",
+    "UITelemetry": "refarm:UITelemetry",
+    "event": "refarm:event",
+    "pluginId": "refarm:pluginId",
+    "a11yScore": "refarm:a11yScore",
+    "domPollution": "refarm:domPollution",
+    "isSeizureSafe": "refarm:isSeizureSafe",
+    "updateVelocity": "refarm:updateVelocity",
+    "timestamp": "schema:dateCreated"
+  },
+  "@type": "UITelemetry",
+  "@id": "urn:refarm:ui-telemetry:{timestamp}",
+  "timestamp": "{ISO_DATE}",
+  "event": "ui:a11y_audit | ui:performance | ui:gremlin_check",
+  "pluginId": "{PLUGIN_ID}",
+  "a11yScore": 1.0,
+  "domPollution": 0,
+  "updateVelocity": 0,
+  "isSeizureSafe": true
+}

@@ -1,0 +1,30 @@
+{
+  "@context": {
+    "refarm": "https://refarm.dev.br/ontology#",
+    "schema": "https://schema.org/",
+    "UIStateSnapshot": "refarm:UIStateSnapshot",
+    "slots": "refarm:slots",
+    "activePlugins": "refarm:activePlugins",
+    "theme": "refarm:theme",
+    "timestamp": "schema:dateCreated",
+    "author": "schema:author"
+  },
+  "@type": "UIStateSnapshot",
+  "@id": "urn:refarm:ui:snapshot:{timestamp}",
+  "timestamp": "{ISO_DATE}",
+  "author": "{USER_ID}",
+  "slots": {
+    "header-nav": { "pluginId": "@refarm/nav-main" },
+    "statusbar": { "pluginId": "@refarm/terminal" },
+    "main": { "pluginId": "@refarm/dashboard" }
+  },
+  "theme": {
+    "background": "glassmorphism",
+    "accent": "var(--refarm-accent-primary)"
+  },
+  "activePlugins": [
+    "@refarm/terminal",
+    "@refarm/nav-main",
+    "@refarm/dashboard"
+  ]
+}
