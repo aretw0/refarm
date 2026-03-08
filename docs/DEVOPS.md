@@ -164,7 +164,7 @@ npm run test:unit
 - **Root cause:** TypeScript sample code was embedded directly inside `<textarea>...</textarea>` in an Astro template. Curly braces and template interpolation tokens (`{}`, `${}`) inside that inline block were interpreted by the Astro parser.
 - **Fix applied (Mar 6, 2026):** Moved sample editor content to a frontmatter string (`defaultPluginCode`) and rendered it via `{defaultPluginCode}` in the textarea.
 - **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).
-- **Verification:** `npm run build -w @refarm/studio` succeeds locally.
+- **Verification:** `npm run build -w @refarm.dev/studio` succeeds locally.
 
 **Warning: "The CJS build of Vite's Node API is deprecated" in Git Hooks**
 

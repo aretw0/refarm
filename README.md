@@ -1,6 +1,6 @@
 # Refarm
 
-[![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE)
+[![License](https://img.shields.io/github/license/refarm-dev/refarm.svg?color=red)](LICENSE)
 
 > **Personal Operating System for Sovereign Data**
 

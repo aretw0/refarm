@@ -588,7 +588,7 @@ await kernel.telemetry.uploadDump(dump.id);
 
 ```typescript
 // Users can plug their own monitoring tools
-import { ObserverPlugin } from "@refarm/sdk";
+import { ObserverPlugin } from "@refarm.dev/sdk";
 import * as Sentry from "@sentry/browser";
 
 export class SentryObserver implements ObserverPlugin {

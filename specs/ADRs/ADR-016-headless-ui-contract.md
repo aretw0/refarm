@@ -254,7 +254,7 @@ jobs:
 <button @click=${this.handleSave}>Save</button>
 
 // After (headless primitive)
-import { Button } from '@refarm/ui-headless';
+import { Button } from '@refarm.dev/ui-headless';
 
 <rf-button @click=${this.handleSave}>
   ${msg('Save')}

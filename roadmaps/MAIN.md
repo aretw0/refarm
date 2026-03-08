@@ -533,7 +533,7 @@ TBD - to be generated from completed work
 
 ### DDD (Domain Driven Implementation)
 
-- [ ] Domain: Public `@refarm/ui-sdk` package (stable API)
+- [ ] Domain: Public `@refarm.dev/ui-sdk` package (stable API)
 - [ ] Docs: Plugin UI composition guide
 - [ ] Docs: UI contract migration examples
 - [ ] Example: Reference plugin with custom UI components

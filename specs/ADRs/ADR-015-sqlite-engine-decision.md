@@ -14,7 +14,7 @@
 
 ## The Question
 
-Which SQLite implementation should power `@refarm/storage-sqlite` in the browser?
+Which SQLite implementation should power `@refarm.dev/storage-sqlite` in the browser?
 
 1. **wa-sqlite** (SQL.js maintainer's successor)
    - Compiled from native SQLite C source → WASM
@@ -210,7 +210,7 @@ npm run build:analyze            # Webpack/Rollup analysis
 
 ## Decision
 
-**Adopt wa-sqlite as the SQL engine for `@refarm/storage-sqlite` (provisional)**
+**Adopt wa-sqlite as the SQL engine for `@refarm.dev/storage-sqlite` (provisional)**
 
 ### Rationale
 

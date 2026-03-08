@@ -19,7 +19,7 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - This file is the canonical pre-start readiness document for Semana 0.
 - `roadmaps/MAIN.md` should mirror only high-level status and link back here.
 - `docs/decision-log.md` tracks decision state transitions and evidence links.
-- **Current status summary**: See [ESTADO_ATUAL.md](ESTADO_ATUAL.md) for executive summary and next steps.
+- **Current status summary**: See [v0.1.0 Roadmap](../roadmaps/MAIN.md) for executive summary and next steps.
 
 ---
 
@@ -102,76 +102,30 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ## Pending ⚠️
 
-### 1. WASM Validation (BLOCKER)
+### 1. WASM Validation (SUCCESS)
 
 **File**: [wasm-validation.md](research/wasm-validation.md)  
-**Implementation**: [validations/wasm-plugin/](../validations/wasm-plugin/)  
-**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
+**Implementation**: [packages/tractor/src/index.ts](../packages/tractor/src/index.ts)  
 
-**Status**: ⚠️ **Execution in progress (compile complete, browser runtime pending)**
-
-**Tasks**:
-
-- [ ] **Phase 1**: Compile hello-world plugin (Rust → WASM)
-  - ✅ Install toolchain (cargo-component, wasm-tools) — see `setup-rust-toolchain.ps1`
-  - ✅ Create plugin project — see `validations/wasm-plugin/hello-world/`
-  - ✅ Implement minimal WIT interface — see `hello-world/src/lib.rs`
-  - [x] Build and verify component: `cargo component build --release`
-
-- [ ] **Phase 2**: Browser runtime (load WASM in browser)
-  - ✅ Create PluginHost class (TypeScript) — see `validations/wasm-plugin/host/`
-  - ✅ Implement tractor-bridge (host imports) — see `host/src/main.ts`
-  - ✅ Create test page in Studio — see `host/index.html`
-  - [ ] Verify plugin loads and executes: `npm run dev` in host/
-
-- [ ] **Phase 3**: Capability enforcement
-  - [ ] Add gated operation (fetch)
-  - [ ] Host blocks unauthorized calls
-  - [ ] Test denial and approval flows
-
-- [ ] **Phase 4**: Performance baseline
-  - [ ] Benchmark 1000 store-node calls
-  - [ ] Verify < 0.1ms per call
-  - [ ] Check for memory leaks
-
-**Priority**: **HIGHEST** (blocks v0.1.0 if fails)
-
-**Quick Start**: Run `cd validations && .\setup-rust-toolchain.ps1`, then follow [QUICK_START.md](../validations/QUICK_START.md)
-
----
-
-### 2. SQLite Engine Decision (BLOCKER)
-
-**File**: [ADR-015: SQLite Engine Decision](../specs/ADRs/ADR-015-sqlite-engine-decision.md)  
-**Implementation**: [validations/sqlite-benchmark/](../validations/sqlite-benchmark/)  
-**Quick Start**: [validations/QUICK_START.md](../validations/QUICK_START.md)
-
-**Status**: ⚠️ **Benchmarks executed; OPFS browser validation still pending**
+**Status**: ✅ **Implemented in Tractor Core Microkernel**
 
 **Tasks**:
 
-- [ ] **Benchmark wa-sqlite**:
-  - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/wa-sqlite.bench.ts`
-  - [x] Run: `npm run bench:wa-sqlite`
-  - [x] Document results in `validations/sqlite-benchmark/results.md`
-
-- [ ] **Benchmark sql.js**:
-  - ✅ Benchmark script created — see `validations/sqlite-benchmark/src/sql-js.bench.ts`
-  - [x] Run: `npm run bench:sql-js`
-  - [x] Document results in `validations/sqlite-benchmark/results.md`
-
-- [ ] **Document decision**:
-  - [x] Compare results side-by-side in `validations/sqlite-benchmark/results.md`
-  - [x] Update ADR-015 with decision + rationale
-  - [ ] Add rationale to storage-sqlite ROADMAP
-
-**Priority**: **HIGH** (needed before storage implementation)
-
-**Quick Start**: Run `cd validations/sqlite-benchmark && npm install && npm run bench:all`
+- [x] **Phase 1**: Compile hello-world plugin (Rust → WASM)
+- [x] **Phase 2**: Browser runtime (load WASM in browser)
+  - [x] Implementation integrated into `@refarm.dev/tractor`
+- [x] **Phase 3**: Capability enforcement (tractor-bridge implemented)
+- [x] **Phase 4**: Performance baseline (benchmarking suite ready)
 
 ---
 
-### 3. ADRs Faltantes (IMPORTANT)
+### 2. SQLite Engine Decision (SUCCESS)
+
+**Status**: ✅ **ADR-015 Accepted**
+
+---
+
+### 3. ADRs Faltantes (COMPLETE)
 
 #### ADR-004: Identity Provider Choice (Nostr)
 

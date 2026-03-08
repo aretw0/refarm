@@ -87,9 +87,9 @@ refarm/
 
 Each package under `packages/` is a **standalone library**:
 
-- **`@refarm/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code.
-- **`@refarm/identity-nostr`** — Can manage Nostr keys and discover NIP-89 apps in any context.
-- **`@refarm/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport.
+- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code.
+- **`@refarm.dev/identity-nostr`** — Can manage Nostr keys and discover NIP-89 apps in any context.
+- **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport.
 
 If Refarm the product disappears, these three primitives continue working independently.
 

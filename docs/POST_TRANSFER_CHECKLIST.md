@@ -1,6 +1,6 @@
 # Post-Transfer Checklist
 
-Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `aretw0/refarm` → `refarm-dev/refarm`.
+Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `refarm-dev/refarm` → `refarm-dev/refarm`.
 
 ---
 

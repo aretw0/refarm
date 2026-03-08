@@ -157,7 +157,7 @@ See [ADR-006: Guest Mode](../specs/ADRs/ADR-006-guest-mode-collaborative-session
 
 ```bash
 # Clone template
-git clone --depth 1 https://github.com/aretw0/refarm.git
+git clone --depth 1 https://github.com/refarm-dev/refarm.git
 cd refarm/examples/matrix-bridge
 
 # Install

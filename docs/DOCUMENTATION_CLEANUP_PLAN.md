@@ -55,7 +55,7 @@ Research (2754 linhas total):
 # 1. Quando a migração for executada, criar um entry no decision-log.md:
 ## Decisão: Repository Transfer (2026-03-07)
 
-**What**: Transferred aretw0/refarm → refarm-dev/refarm
+**What**: Transferred refarm-dev/refarm → refarm-dev/refarm
 **When**: 2026-03-07
 **Proof**: Github org refarm-dev created, namespace protected with @refarm-dev npm scope
 **Owner**: @aretw0, GitHub Copilot
@@ -178,7 +178,7 @@ git commit -m "docs: consolidate research into INDEX (see ADRs)"
 
 ### 4. Update All Internal URLs
 
-- Find: `aretw0/refarm` → Replace: `refarm-dev/refarm`
+- Find: `refarm-dev/refarm` → Replace: `refarm-dev/refarm`
 - Find: `github.com/aretw0` → Replace: `github.com/refarm-dev`
 - Run: `grep -r "aretw0" docs/ apps/ packages/` to find remaining refs
 

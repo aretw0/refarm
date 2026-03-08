@@ -123,12 +123,12 @@ The conceptual models proven in Go (DAG execution from trellis, state machine pa
 
 - `apps/kernel` — Will implement orchestration patterns inspired by trellis engine, natively in TS
 - `packages/*` — Remain pure TS, no WASM-from-Go dependencies
-- Future `@refarm/daemon` (Go) — Local agent using lifecycle + procio for OS-level data access
+- Future `@refarm.dev/daemon` (Go) — Local agent using lifecycle + procio for OS-level data access
 
 **Concept transfer roadmap:**
 
 1. **Engine patterns** (from trellis): DAG execution, worker state machines → inform `apps/kernel` plugin orchestration design
-2. **Observability patterns** (from introspection): State visualization, Mermaid generation → inform `@refarm/sdk` observer primitives (see ADR-007)
+2. **Observability patterns** (from introspection): State visualization, Mermaid generation → inform `@refarm.dev/sdk` observer primitives (see ADR-007)
 3. **Lifecycle patterns** (from lifecycle): Graceful shutdown, signal differentiation → inform future Go daemon architecture
 4. **Data patterns** (from loam): Parser composition, reactive stores → inform `packages/storage-sqlite` design
 
