@@ -360,8 +360,8 @@ npm run lint      # Type check & linting
 
 ## Questions?
 
-- **Issues**: Check [existing issues](https://github.com/aretw0/refarm/issues)
-- **Discussions**: Start a [discussion thread](https://github.com/aretw0/refarm/discussions)
+- **Issues**: Check [existing issues](https://github.com/refarm-dev/refarm/issues)
+- **Discussions**: Start a [discussion thread](https://github.com/refarm-dev/refarm/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities
 
 ---

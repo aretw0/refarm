@@ -14,17 +14,17 @@
   "timestamp": "{ISO_DATE}",
   "author": "{USER_ID}",
   "slots": {
-    "header-nav": { "pluginId": "@refarm/nav-main" },
-    "statusbar": { "pluginId": "@refarm/terminal" },
-    "main": { "pluginId": "@refarm/dashboard" }
+    "header-nav": { "pluginId": "@refarm.dev/nav-main" },
+    "statusbar": { "pluginId": "@refarm.dev/terminal" },
+    "main": { "pluginId": "@refarm.dev/dashboard" }
   },
   "theme": {
     "background": "glassmorphism",
     "accent": "var(--refarm-accent-primary)"
   },
   "activePlugins": [
-    "@refarm/terminal",
-    "@refarm/nav-main",
-    "@refarm/dashboard"
+    "@refarm.dev/terminal",
+    "@refarm.dev/nav-main",
+    "@refarm.dev/dashboard"
   ]
 }

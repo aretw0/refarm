@@ -1,4 +1,4 @@
-# @refarm/hello-world-plugin
+# @refarm.dev/hello-world-plugin
 
 A minimal reference implementation of a Refarm plugin.
 
@@ -12,7 +12,7 @@ A minimal reference implementation of a Refarm plugin.
 ## Installation
 
 ```bash
-npm install @refarm/hello-world-plugin
+npm install @refarm.dev/hello-world-plugin
 ```
 
 ## Usage

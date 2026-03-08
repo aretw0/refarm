@@ -5,8 +5,8 @@
     "rootDir": "src",
     "outDir": "dist",
     "paths": {
-      "@refarm/storage-contract-v1": ["../storage-contract-v1/dist/index.d.ts"],
-      "@refarm/*": ["../*/dist/index.d.ts"]
+      "@refarm.dev/storage-contract-v1": ["../storage-contract-v1/dist/index.d.ts"],
+      "@refarm.dev/*": ["../*/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
