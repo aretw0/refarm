@@ -1,8 +1,17 @@
 {
-  "name": "@refarm/sync-crdt",
+  "name": "@refarm.dev/sync-crdt",
   "version": "0.1.0",
   "description": "CRDT-based sync primitive — conflict-free replicated data types for local-first applications",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/sync-crdt"
+  },
+  "bugs": {
+    "url": "https://github.com/refarm-dev/refarm/issues"
+  },
+  "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

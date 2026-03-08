@@ -1,8 +1,17 @@
 {
-  "name": "@refarm/identity-nostr",
+  "name": "@refarm.dev/identity-nostr",
   "version": "0.1.0",
   "description": "Nostr identity primitive — keypair management, NIP-89/94 plugin discovery, usable independently",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/identity-nostr"
+  },
+  "bugs": {
+    "url": "https://github.com/refarm-dev/refarm/issues"
+  },
+  "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {

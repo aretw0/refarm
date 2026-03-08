@@ -1,8 +1,17 @@
 {
-  "name": "@refarm/storage-sqlite",
+  "name": "@refarm.dev/storage-sqlite",
   "version": "0.1.0",
   "description": "Sovereign SQLite/OPFS storage primitive — usable independently of Refarm",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/storage-sqlite"
+  },
+  "bugs": {
+    "url": "https://github.com/refarm-dev/refarm/issues"
+  },
+  "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
