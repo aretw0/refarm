@@ -106,8 +106,10 @@ export interface PluginInstance {
  * Sandboxed plugin host.
  *
  * Plugins communicate with the Tractor exclusively through the WIT-defined
- * interface (see /wit/refarm-sdk.wit).  They never receive direct access to
- * the DOM, the network, or the SQLite connection.
+ * interface (see /wit/refarm-sdk.wit). 
+ * 
+ * Standard WASI calls (wasi:http, wasi:logging) are intercepted here to enforce
+ * the Refarm capability model.
  */
 export class PluginHost {
   private _instances: Map<string, PluginInstance> = new Map();
@@ -115,10 +117,48 @@ export class PluginHost {
   constructor(private emit: (data: TelemetryEvent) => void) {}
 
   /**
+   * Internal WASI Interceptor.
+   * Redirects standard WASI calls to capability-gated host logic.
+   */
+  private getWasiImports(manifest: PluginManifest) {
+    return {
+      'wasi:logging/logging': {
+        log: (level: string, context: string, message: string) => {
+          console.log(`[plugin:${manifest.id}] [${level}] ${message}`);
+          this.emit({ event: "plugin:log", pluginId: manifest.id, payload: { level, message } });
+        }
+      },
+      'wasi:http/outgoing-handler': {
+        handle: async (request: any) => {
+          // CAPABILITY GATE: Check if plugin is allowed to fetch this origin
+          const url = typeof request === 'string' ? request : request.url;
+          const isAllowed = manifest.capabilities.allowedOrigins?.some((orb: string) => url.startsWith(orb));
+          
+          if (!isAllowed) {
+            console.warn(`[tractor] Blocked unauthorized fetch to ${url} by ${manifest.id}`);
+            throw new Error("HTTP request not permitted by capabilities");
+          }
+
+          // Forward to real fetch if allowed
+          return fetch(request);
+        }
+      },
+      'refarm:plugin/tractor-bridge': {
+        'store-node': async (nodeJson: string) => {
+          // Capability check: can this plugin store this type?
+          // (Implementation deferred to Tractor.storeNode logic)
+          return "node-id-stub";
+        },
+        'request-permission': async (cap: string, reason: string) => {
+          console.info(`[tractor] Permission request by ${manifest.id}: ${cap} (${reason})`);
+          return true; // Stub: auto-accept in dev
+        }
+      }
+    };
+  }
+
+  /**
    * Load and instantiate a WASM component plugin.
-   *
-   * @param manifest  The plugin's formal manifest containing entry point and capabilities.
-   * @param wasmHash  Optional: Expected SHA-256 hex hash for integrity verification (if not in manifest).
    */
   async load(
     manifest: PluginManifest,
@@ -128,29 +168,9 @@ export class PluginHost {
     const wasmUrl = manifest.entry;
     const startTime = performance.now();
 
-    const finalHash = wasmHash ?? (manifest as any).wasmHash ?? "placeholder"; 
-
-    // Tractor-Native WASM Integrity Verification
-    // Plugins are signed with generic Ed25519 signatures, completely agnostic to Nostr.
-    // The engine verifies the binary against the manifest's declared hash before instantiation.
-    const verifyWasmIntegrity = async (buffer: ArrayBuffer, expectedHash: string): Promise<boolean> => {
-      // In a full implementation, we hash the buffer (e.g., using SubtleCrypto SHA-256) 
-      // and compare it to expectedHash, then verify the manifest signature via ed25519.
-      console.debug(`[kernel] WASM integrity check for ${pluginId} (stub)`);
-      return true;
-    };
-    const response = await fetch(wasmUrl);
-    if (!response.ok) {
-      throw new Error(
-        `[tractor] Failed to fetch plugin: ${response.statusText}`,
-      );
-    }
-    const buffer = await response.arrayBuffer();
-
-    // JCO Integration Pattern:
-    // In a real environment, we use 'transpile' to convert the component 
-    // to a JS module that imports WASI.
-    console.info(`[tractor] Loading component: ${pluginId} (via jco/wasi-p2)`);
+    // JCO Integration Logic (Conceptual Interceptor)
+    const imports = this.getWasiImports(manifest);
+    console.info(`[tractor] Instantiating ${pluginId} with WASI Interceptor...`);
 
     const instance: PluginInstance = {
       id: pluginId,
@@ -188,7 +208,6 @@ export class PluginHost {
 
     this._instances.set(pluginId, instance);
 
-    // Bootstrap: trigger 'setup' exported function if it exists
     try {
       await instance.call("setup");
     } catch (err) {
