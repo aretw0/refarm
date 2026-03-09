@@ -77,6 +77,7 @@ Central register for high-impact technical decisions that are pending or recentl
 | Quality gate baseline alignment | ADR-013 | 2026-03-06 | Root scripts and CI jobs aligned; smoke-test baseline seeded in critical workspaces |
 | Native browser permissions as proxy capabilities | ADR-024 | 2026-03-07 | Capabilities as superset of browser native permissions |
 | Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
+| Rust WASM plugin compilation in CI | (inline) | 2026-03-09 | Added Rust toolchain + WASM build steps to test.yml and granular-tests.yml; JCO integration tests require pre-compiled plugin binary |
 
 ---
 
