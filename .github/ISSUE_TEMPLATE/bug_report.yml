@@ -1,0 +1,62 @@
+name: 🐞 Bug Report
+description: Report a bug, crash, or unexpected behavior in the Refarm Kernel, Apps, or Contracts.
+title: "[Bug]: "
+labels: ["kind:bug", "needs:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Thank you for reporting an issue!**
+        Please provide as much context as possible. Refarm relies on deterministic systems, so exact reproduction steps are critical.
+  - type: input
+    id: version
+    attributes:
+      label: Refarm Version
+      description: Which version of Tractor, Homestead, or the Contracts are you using?
+      placeholder: e.g., 0.1.0 or commit hash
+    validations:
+      required: true
+  - type: dropdown
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this bug happen?
+      options:
+        - Browser (WASM/OPFS)
+        - Node.js Server
+        - Deno/Edge
+        - Other (Please specify below)
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: How can we trigger this bug?
+      placeholder: |
+        1. Initialize Tractor with SecurityMode 'strict'
+        2. Attempt to sign Node...
+        3. See error...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+      description: What actually happened? (Include logs, stack traces, or screenshots if applicable)
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Any other information, like operating system, browser version, or relevant plugins?
+    validations:
+      required: false

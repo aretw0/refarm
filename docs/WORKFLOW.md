@@ -8,33 +8,16 @@
 
 ## Visual Overview
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Development Lifecycle                     │
-└─────────────────────────────────────────────────────────────┘
-
-    ┌─────────┐        ┌─────────┐        ┌─────────┐        ┌─────────┐
-    │   SDD   │──────▶│   BDD   │───────▶│   TDD   │──────▶│   DDD   │
-    │  Specs  │        │ Int.Test│        │Unit Test│        │  Code   │
-    └─────────┘        └─────────┘        └─────────┘        └─────────┘
-        │                   │                   │                   │
-        │                   │                   │                   │
-    ADRs + Specs       Tests FAIL 🔴       Tests FAIL 🔴      Tests PASS 🟢
-    peer reviewed      peer reviewed      coverage ≥80%      changeset created
-        │                   │                   │                   │
-        ▼                   ▼                   ▼                   ▼
-    ✅ Gate 1            ✅ Gate 2           ✅ Gate 3           ✅ Gate 4
-    No TODOs            Integration         Unit contracts      All GREEN
-    Complete specs      behavior defined    defined             Coverage met
-```
+![Development Lifecycle](./diagrams/workflow-diagram.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/workflow-diagram.mermaid)
 
 **Key Principle**: Tests fail FIRST (red), then code makes them pass (green).
 
 **Detailed Flow**:
 
-![SDD to DDD Workflow](./workflow-diagram.svg)
+![SDD to DDD Workflow](./diagrams/workflow-diagram.svg)
 
-**Diagram Source of Truth**: [`docs/workflow-diagram.mermaid`](./workflow-diagram.mermaid)
+**Diagram Source of Truth**: [`docs/diagrams/workflow-diagram.mermaid`](file:///workspaces/refarm/docs/diagrams/workflow-diagram.mermaid)
 
 To regenerate this diagram after editing the source:
 
@@ -403,39 +386,42 @@ export async function insert(
 ### Starting a New Milestone
 
 ```bash
-# 1. Create ADR
-vim specs/ADRs/ADR-004-identity-provider.md
+# 1. Start a new task using the Developer Toolbox
+npm run task:start
 
-# 2. Write specs
-vim specs/features/identity-interface.md
+# > Select "Feature / Issue Mode"
+# > Enter GitHub Issue ID: 42
+# > Linked to: "identity provider implementation"
+# > Do you want to initialize an SDD Spec? (Y) -> vim specs/features/identity-provider.md
+# > Does this feature require an ADR? (Y) -> vim specs/ADRs/ADR-004-identity-provider.md
 
-# 3. Peer review (GitHub PR)
-gh pr create --title "SDD: Identity Provider Spec" --label "phase:sdd"
-
-# 4. After approval, write integration tests (BDD)
+# 2. Write integration tests (BDD)
 vim packages/identity-nostr/tests/integration/identity.spec.ts
 
-# 5. Run tests (should FAIL)
-npm test  # Expected: RED
+# 3. Verify Quality Gates (should FAIL / RED)
+npm run task:verify
 
-# 6. Write unit tests (TDD)
+# 4. Write unit tests & Implement (TDD & DDD)
 vim packages/identity-nostr/src/keypair.test.ts
-
-# 7. Run tests (should FAIL)
-npm test  # Expected: RED
-
-# 8. Implement (DDD)
 vim packages/identity-nostr/src/keypair.ts
 
-# 9. Run tests (should PASS)
-npm test  # Expected: GREEN
+# 5. Verify Quality Gates (should PASS / GREEN)
+npm run task:verify
 
-# 10. Create changeset
-npm run changeset
+# 6. Finish Task
+# This automates running `task:verify`, changeset generation, commits, and pushes
+npm run task:finish
 
-# 11. Open PR
-gh pr create --title "feat(identity): Nostr keypair implementation" --label "phase:ddd"
+# 7. Open PR
+# The finish script suggests: gh pr create --title "finish: work on #42" --fill --body "Fixes #42"
 ```
+
+### Comandos do Toolbox
+
+1. `npm run task:start` (Inicia uma branch BDD guiada)
+2. `npm run task:verify` (Roda os Lint/Tests/Crates Checks)
+3. `npm run task:finish` (Gera changesets e abre o Pull Request orgânico)
+4. `npm run task:rebrand` (Renomeia a marca e domínios em caso de necessidade extrema)
 
 ---
 

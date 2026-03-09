@@ -1,4 +1,4 @@
-# ADR-024: Native Browser Permissions as Capabilities
+# ADR-029: Native Browser Permissions as Capabilities
 
 **Date**: 2026-03-07
 **Status**: Accepted
@@ -15,6 +15,7 @@ As **Capabilities (Permissões Refarm)** atuarão como um **superset (superconju
 4. **Revogação Específica**: O usuário pode revogar o acesso à câmera *apenas para o Plugin XYZ*, mantendo ativo para o Plugin ABC. Isso seria impossível contando apenas com a permissão global do navegador.
 
 **Consequences**:
+
 - **Positivas**: Segurança extrema, transparência e controle total do usuário sobre qual módulo (plugin) faz o que. Auditoria em nível de componente e UX aprimorada em relação à privacidade.
 - **Negativas**: O contrato WIT (`refarm-sdk.wit`) precisará crescer ("inchar" controladamente) para prover abstrações sobre as APIs do navegador na medida em que plugins precisarem delas (ex: `get-geolocation() -> result<location>`).
 

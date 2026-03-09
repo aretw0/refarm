@@ -1,0 +1,18 @@
+graph TD
+    subgraph Citizenship ["Plugin Citizenship Score"]
+        Score[Citizen Score]
+        Score --- S1[healthy]
+        Score --- S2[degraded]
+        Score --- S3[isolated]
+        Score --- S4[quarantined]
+    end
+
+    subgraph Monitoring ["Operation Monitoring"]
+        M1[Record start time + memory]
+        M2[Execute plugin code]
+        M3[Catch errors]
+        M4[Report to Monitor]
+        M5[Update health score]
+        
+        M1 --> M2 --> M3 --> M4 --> M5
+    end

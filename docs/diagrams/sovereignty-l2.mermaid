@@ -1,0 +1,18 @@
+graph TD
+    subgraph Port ["Tractor: Universal Storage Port"]
+        Engine[Choose your Engine]
+        Interface[Standard Interface]
+        
+        Engine --- Interface
+        
+        Interface --> S_A[Strategy A: SQLite + Lenses]
+        Interface --> S_B[Strategy B: cr-sqlite]
+        Interface --> S_C[Strategy C: PGLite]
+    end
+
+    subgraph Evolution ["Evolution Management (Cambria)"]
+        E1[Data tagged with version]
+        E2[Bidirectional Lenses]
+        E3[Unknown fields in Op-Log]
+        E4[Materialization follows engine]
+    end

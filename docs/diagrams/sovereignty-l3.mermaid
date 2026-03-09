@@ -1,0 +1,14 @@
+graph TD
+    subgraph Versioning ["Sovereign Graph Versioning"]
+        COMMIT[COMMIT] --> C_ACT[Creates immutable snapshot + audit]
+        BRANCH[BRANCH] --> B_ACT[Create parallel local work streams]
+        CHECKOUT[CHECKOUT] --> CH_ACT[Restore CRDT state from commit]
+        REVERT[REVERT] --> R_ACT[Creates inverse operations - no deletion]
+    end
+
+    subgraph DAG ["Merkle DAG"]
+        B --> A
+        C_HEAD["C - main HEAD"] --> B
+        D --> B
+        E_HEAD["E - draft HEAD"] --> D
+    end

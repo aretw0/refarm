@@ -1,0 +1,14 @@
+graph TD
+    subgraph Read ["On every read"]
+        R1[Fetch from SQLite/IndexedDB] --> R2[Verify checksum]
+        R2 -->|Mismatch| R3[Attempt recovery]
+        R3 --> R3a[Fallback to WAL]
+        R3 --> R3b[Downshift schema version]
+        R3 --> R3c[Salvage what is readable]
+    end
+
+    subgraph Write ["On every write"]
+        W1[Compute + store checksum] --> W2[Log to WAL before commit]
+        W2 --> W3[Atomic append]
+        W3 --> W4[Verify write succeeded]
+    end

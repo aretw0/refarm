@@ -30,6 +30,7 @@ refarm/
 ├── packages/               # 📦 Independent Primitives (cultivated by Tractor)
 │   ├── tractor/            # 🚜 Refarm Tractor — The machinery/host orchestrator
 │   ├── storage-sqlite/     # Offline-first SQLite/OPFS adapter
+│   ├── storage-pglite/     # Postgres WASM adapter for embeddings/AI
 │   ├── identity-nostr/     # Nostr keypair + NIP-89/94 discovery
 │   ├── sync-crdt/          # SyncEngine + Conflict-free replication
 │   ├── plugin-manifest/    # Schema & validation for the WASM sandbox
@@ -53,33 +54,8 @@ refarm/
 
 ## Layer Diagram
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                     Refarm Homestead                    │
-│   (Astro SSG + WebContainers — apps/homestead)          │
-│   ┌──────────────┐   ┌───────────────┐                  │
-│   │storage-sqlite│   │ identity-nostr│  ← Instantiates  │
-│   └──────┬───────┘   └───────┬───────┘      Adapters    │
-└──────────┼───────────────────┼──────────────────────────┘
-           │ Inject            │ Inject
-┌──────────▼───────────────────▼──────────────────────────┐
-│                    Refarm Tractor                       │
-│   (apps/tractor)                                         │
-│   ┌──────────────┐ ┌──────────────┐ ┌───────────────┐  │
-│   │PluginHost    │ │ Normaliser   │ │ SyncEngine    │  │
-│   │(WASM sandbox)│ │(→ JSON-LD)   │ │(CRDT)         │  │
-│   └──────┬───────┘ └──────┬───────┘ └──────┬────────┘  │
-└──────────┼────────────────┼────────────────┼────────────┘
-           │                │                │
-     WIT boundary    ┌───────▼──────┐   ┌─────▼─────────┐
-            │        │ Storage Port │   │ Sync Port     │
- ┌──────────▼───┐    └──────────────┘   └───────────────┘
- │Plugin (WASM) │
- │ implements   │    ┌──────────────────────────────────┐
- │ integration  │    │       Identity Port              │
- │ world        │    └──────────────────────────────────┘
- └──────────────┘
-```
+![Layer Diagram](./diagrams/layer-diagram.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/layer-diagram.mermaid)
 
 ---
 
@@ -88,31 +64,35 @@ refarm/
 Each package under `packages/` is a **standalone library**:
 
 - **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code.
-- **`@refarm.dev/identity-nostr`** — Can manage Nostr keys and discover NIP-89 apps in any context.
+- **`@refarm.dev/storage-pglite`** — Postgres in the browser via WASM/WebGPU path.
+- **`@refarm.me/identity-nostr`** — Manages Nostr keys. A Transport-specific Identity adapter.
 - **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport.
+- **`@refarm.dev/plugin-courier`** — The dynamic "Courier/Router". It abstracts the network layer, automatically figuring out if peers are on the same local network (mDNS/WebRTC) or if it needs to bounce signals off Public/Private Relays. Anyone running Refarm can operate their own Relay. It provides location-agnostic peer discovery and transport routing.
 
-If Refarm the product disappears, these three primitives continue working independently.
+**Crucial Distinction on Independence:**
+While the *plugins* you write for Refarm are tightly coupled to the Tractor's WASM Sandbox (they don't make sense without the engine), the core primitives listed above (`storage-sqlite`, `storage-pglite`, core `identity`, and pure `sync-crdt` logic) are designed as agnostic libraries. If the Refarm UI disappears, you can still import these specific packages into a standard Node.js/Browser project and continue reading your local data or syncing via CRDTs.
 
 ---
 
 ## Plugin System
 
-### How a Plugin Communicates with the Tractor
+### How a Plugin Communicates with the Tractor (Microkernel)
+
+Refarm aligns with the **WebAssembly System Interface (WASI)**. Plugins use standard syscalls, gated by Tractor's capability manager.
 
 ```
-Plugin (WASM Component)              Tractor (Host)
+Plugin (WASM Component)              Tractor (WASI Host)
 ─────────────────────────            ─────────────────────
-export integration {                 import tractor-bridge {
+import wasi:http/types               exports wasi:http/handler
+import wasi:filesystem/preopens      implements wasi:filesystem
+                                     
+export integration {                 implements tractor-bridge {
   setup() → result                     store-node(json-ld) → node-id
   ingest() → result<u32>               get-node(id) → json-ld
-  push(payload) → result               query-nodes(type, limit) → list
-  teardown()                           fetch(req) → response   ← capability-gated
-  metadata() → plugin-metadata         log(level, msg)
-}                                      request-permission(cap, reason) → bool
-                                     }
+}                                    }
 ```
 
-All communication is **typed by the WIT contract** (`wit/refarm-sdk.wit`). The tractor host validates every call. Plugins cannot escape the sandbox.
+All communication is **typed by WIT contracts**. The tractor host validates every call. Plugins cannot escape the sandbox. Use of WASI ensures that native libraries can run in Refarm with minimal shim logic.
 
 ### Plugin Distribution (Nostr)
 
