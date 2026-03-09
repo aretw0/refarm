@@ -112,22 +112,20 @@ jobs:
             PRERELEASE="true"
           fi
 
-          NOTES=$(cat <<EOF
-## ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}
+          NOTES=$(cat <<'EOF'
+          ## ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}
 
-Published to npm: https://www.npmjs.com/package/${{ steps.pkg.outputs.name }}/v/${{ steps.pkg.outputs.version }}
+          Published to npm: https://www.npmjs.com/package/${{ steps.pkg.outputs.name }}/v/${{ steps.pkg.outputs.version }}
 
-### Installation
+          ### Installation
 
-\`\`\`bash
-npm install ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
-\`\`\`
+          npm install ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
 
-### Changes
+          ### Changes
 
-See [CHANGELOG.md](https://github.com/refarm-dev/refarm/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details.
-EOF
-)
+          See [CHANGELOG.md](https://github.com/refarm-dev/refarm/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details.
+          EOF
+          )
           gh release create "${{ github.ref_name }}" \
             --title "Release ${{ steps.pkg.outputs.name }} v${{ steps.pkg.outputs.version }}" \
             --notes "$NOTES" \
