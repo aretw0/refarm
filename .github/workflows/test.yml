@@ -140,9 +140,19 @@ jobs:
             ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}-
             ${{ runner.os }}-playwright-
 
-      - name: Install Playwright browsers
-        if: steps.e2e_check.outputs.enabled == 'true' && steps.playwright_cache.outputs.cache-hit != 'true'
-        run: npm --prefix validations/wasm-plugin/host exec playwright install --with-deps
+      - name: Install E2E host dependencies
+        if: steps.e2e_check.outputs.enabled == 'true'
+        run: npm --prefix validations/wasm-plugin/host ci
+
+      - name: Install Playwright browsers (from cache or fresh)
+        if: steps.e2e_check.outputs.enabled == 'true'
+        run: |
+          if [ "${{ steps.playwright_cache.outputs.cache-hit }}" != "true" ]; then
+            npm --prefix validations/wasm-plugin/host exec playwright install --with-deps
+          else
+            echo "Playwright browsers restored from cache"
+            npm --prefix validations/wasm-plugin/host exec playwright install
+          fi
 
       - name: Download build artifacts
         if: steps.e2e_check.outputs.enabled == 'true'
