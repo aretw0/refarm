@@ -40,9 +40,11 @@ jobs:
         run: npm --prefix packages/storage-sqlite run test:conformance
 
       - name: Unit tests
+        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
         run: npm run test:unit -- --coverage
 
       - name: Integration tests
+        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
         run: npm run test:integration
         
       - name: Benchmark Quality Gate (Tractor)
@@ -140,7 +142,7 @@ jobs:
           path: .
 
       - name: Run E2E tests
-        if: steps.e2e_check.outputs.enabled == 'true'
+        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
         run: npm run test:e2e
 
       - name: Upload Playwright report

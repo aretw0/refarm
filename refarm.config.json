@@ -1,0 +1,18 @@
+{
+  "brand": {
+    "name": "Refarm",
+    "slug": "refarm",
+    "scopes": {
+      "dev": "@refarm.dev",
+      "me": "@refarm.me",
+      "social": "@refarm.social"
+    },
+    "urls": {
+      "site": "https://refarm.dev",
+      "repository": "https://github.com/refarm-dev/refarm"
+    }
+  },
+  "infrastructure": {
+    "gitHost": "github"
+  }
+}

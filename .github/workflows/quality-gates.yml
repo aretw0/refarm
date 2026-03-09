@@ -1,0 +1,77 @@
+name: Quality Gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  sdd-gate:
+    if: contains(github.event.pull_request.labels.*.name, 'phase:sdd')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+      - name: Verify Specs/ADR Changes
+        run: |
+          git fetch origin main
+          CHANGES=$(git diff --name-only origin/main...HEAD | grep "^specs/" || true)
+          if [ -z "$CHANGES" ]; then
+            echo "::error::No changes found in specs/ directory. SDD phase requires design documentation."
+            exit 1
+          fi
+      - name: Check for TODO/TBD in specs
+        run: |
+          if grep -rE "TODO|TBD" specs/; then
+            echo "::error::Found TODO or TBD in specs. SDD must be complete and finalized."
+            exit 1
+          fi
+
+  bdd-gate:
+    if: contains(github.event.pull_request.labels.*.name, 'phase:bdd')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup
+      - name: Ensure tests fail (Red Phase)
+        run: |
+          echo "🔍 Verifying Red Phase: Integration tests should FAIL."
+          # We run only integration tests and expect them to exit with non-zero
+          # If they PASS, it means the 'new' behavior isn't actually missing or a regression isn't being caught.
+          npm run test:integration && (echo "::error::Tests passed but were expected to FAIL in BDD Red Phase." && exit 1) || (echo "✅ Tests failed as expected for Red Phase." && exit 0)
+
+  tdd-gate:
+    if: contains(github.event.pull_request.labels.*.name, 'phase:tdd')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup
+      - name: Unit Tests and Coverage
+        run: |
+          # Enforce unit tests pass and check coverage
+          npm run test:unit -- --coverage
+          # The coverage report should exist. Higher level thresholds are handled in vitest/turbo config.
+
+  ddd-gate:
+    if: contains(github.event.pull_request.labels.*.name, 'phase:ddd')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6.0.2
+      - uses: ./.github/actions/setup
+      - name: Full Verification (Green Light)
+        run: |
+          npm run lint
+          npm run type-check
+          npm run build
+          npm test
+      - name: Verify Changeset
+        run: |
+          # Verify that at least one changeset exists (excluding README)
+          if [ ! -d ".changeset" ] || [ $(ls .changeset/*.md | grep -v README.md | wc -l) -eq 0 ]; then
+            echo "::error::No changeset found. DDD phase requires documentation of changes for release."
+            exit 1
+          fi
