@@ -1,21 +1,26 @@
 
 ## 📊 Performance Benchmark Report
 
+Baseline meta: sha=d71f2ff | branch=main | node=v22.16.0 | platform=linux | arch=x64
+Current meta: sha=d71f2ff | branch=main | node=v22.16.0 | platform=linux | arch=x64
+
+Environment comparability: ✅ node/platform/arch match
+
 | Benchmark | Baseline (ops/s) | Current (ops/s) | Δ % | Threshold | Status |
 | :--- | :---: | :---: | :---: | :---: | :---: |
-| Tractor.boot() — zero-latency adapters | 3320.45 | 2337.46 | -29.60% | 55% | ✅ |
-| Tractor.boot() — 10ms schema latency | 91.65 | 93.53 | +2.04% | 10% | ✅ |
-| Tractor.boot() — with sync adapter | 4024.58 | 2370.85 | -41.09% | 55% | ✅ |
-| Load 1 plugin | 9081.69 | 4824.81 | -46.87% | 55% | ✅ |
-| Load 10 plugins sequentially | 1067.33 | 508.83 | -52.33% | 55% | ✅ |
-| Load 50 plugins concurrently | 280.61 | 139.01 | -50.46% | 55% | ✅ |
-| Load 100 plugins concurrently | 121.44 | 68.64 | -43.48% | 55% | ✅ |
-| storeNode() x1 | 4158.65 | 2505.16 | -39.76% | 55% | ✅ |
-| storeNode() x100 sequential | 2359.75 | 1253.64 | -46.87% | 55% | ✅ |
-| storeNode() x100 concurrent | 2503.35 | 1238.07 | -50.54% | 55% | ✅ |
-| normaliseToSovereignGraph() x1 | 870865.01 | 936995.39 | +7.59% | 10% | ✅ |
-| normaliseToSovereignGraph() x1000 | 1021.41 | 1039.89 | +1.81% | 25% | ✅ |
-| Boot → Load 10 plugins → Store 50 nodes → Query → Shutdown | 723.37 | 392.64 | -45.72% | 55% | ✅ |
+| Tractor.boot() — zero-latency adapters | 2274.26 | 2289.85 | +0.69% | 55% | ✅ |
+| Tractor.boot() — 10ms schema latency | 90.48 | 90.41 | -0.08% | 10% | ✅ |
+| Tractor.boot() — with sync adapter | 3291.93 | 2770.22 | -15.85% | 55% | ✅ |
+| Load 1 plugin | 2798.85 | 2161.42 | -22.77% | 55% | ✅ |
+| Load 10 plugins sequentially | 267.99 | 267.82 | -0.06% | 55% | ✅ |
+| Load 50 plugins concurrently | 68.28 | 62.00 | -9.20% | 55% | ✅ |
+| Load 100 plugins concurrently | 34.31 | 33.69 | -1.83% | 55% | ✅ |
+| storeNode() x1 | 3216.46 | 3177.84 | -1.20% | 55% | ✅ |
+| storeNode() x100 sequential | 1405.38 | 1265.08 | -9.98% | 55% | ✅ |
+| storeNode() x100 concurrent | 1354.41 | 1366.91 | +0.92% | 55% | ✅ |
+| normaliseToSovereignGraph() x1 | 978351.40 | 1028695.23 | +5.15% | 10% | ✅ |
+| normaliseToSovereignGraph() x1000 | 966.96 | 1001.89 | +3.61% | 25% | ✅ |
+| Boot → Load 10 plugins → Store 50 nodes → Query → Shutdown | 233.94 | 235.53 | +0.68% | 55% | ✅ |
 
 **Summary:**
 - 🚨 Regressions: 0
