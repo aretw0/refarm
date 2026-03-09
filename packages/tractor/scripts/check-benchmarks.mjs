@@ -28,6 +28,14 @@ function loadJson(p) {
     return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
+function printMeta(label, meta) {
+    if (!meta) {
+        return `${label}: unknown`;
+    }
+
+    return `${label}: sha=${meta.gitSha ?? 'unknown'} | branch=${meta.gitBranch ?? 'unknown'} | node=${meta.node ?? 'unknown'} | platform=${meta.platform ?? 'unknown'} | arch=${meta.arch ?? 'unknown'}`;
+}
+
 async function run() {
     const baseline = loadJson(BASELINE_PATH);
     const current = loadJson(CURRENT_PATH);
@@ -54,6 +62,12 @@ async function run() {
         '| Benchmark | Baseline (ops/s) | Current (ops/s) | Δ % | Threshold | Status |',
         '| :--- | :---: | :---: | :---: | :---: | :---: |'
     ];
+
+    const baselineMeta = baseline._meta;
+    const currentMeta = current._meta;
+    const environmentComparable = baselineMeta && currentMeta
+        ? baselineMeta.node === currentMeta.node && baselineMeta.platform === currentMeta.platform && baselineMeta.arch === currentMeta.arch
+        : false;
 
     current.files.forEach(f => {
         f.groups.forEach(g => {
@@ -83,6 +97,11 @@ async function run() {
 
     const report = `
 ## 📊 Performance Benchmark Report
+
+${printMeta('Baseline meta', baselineMeta)}
+${printMeta('Current meta', currentMeta)}
+
+${environmentComparable ? 'Environment comparability: ✅ node/platform/arch match' : 'Environment comparability: ⚠️ node/platform/arch differ or missing metadata'}
 
 ${tableRows.join('\n')}
 
