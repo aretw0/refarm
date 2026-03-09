@@ -176,6 +176,7 @@ jobs:
           path: |
             validations/wasm-plugin/hello-world/target
             validations/wasm-plugin/host/public/hello-world-plugin.wasm
+            validations/wasm-plugin/host/src/generated
           key: ${{ runner.os }}-wasm-plugin-${{ hashFiles('validations/wasm-plugin/hello-world/Cargo.toml', 'validations/wasm-plugin/hello-world/Cargo.lock', 'validations/wasm-plugin/hello-world/src/**', 'validations/wasm-plugin/hello-world/wit/**') }}
           restore-keys: |
             ${{ runner.os }}-wasm-plugin-
@@ -193,7 +194,7 @@ jobs:
           cp validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm validations/wasm-plugin/host/public/hello-world-plugin.wasm
 
       - name: Transpile WASM to JavaScript
-        if: steps.e2e_check.outputs.enabled == 'true'
+        if: steps.e2e_check.outputs.enabled == 'true' && steps.wasm_cache.outputs.cache-hit != 'true'
         run: npm --prefix validations/wasm-plugin/host run build:wasm
 
       - name: Install Playwright browsers (from cache or fresh)
@@ -202,8 +203,8 @@ jobs:
           if [ "${{ steps.playwright_cache.outputs.cache-hit }}" != "true" ]; then
             npm --prefix validations/wasm-plugin/host exec playwright install --with-deps
           else
-            echo "Playwright browsers restored from cache"
-            npm --prefix validations/wasm-plugin/host exec playwright install
+            echo "Playwright browsers restored from cache, ensuring system dependencies..."
+            npm --prefix validations/wasm-plugin/host exec playwright install-deps
           fi
 
       - name: Download build artifacts
