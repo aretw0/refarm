@@ -19,6 +19,7 @@
     "bench:sqlite": "npm --prefix validations/sqlite-benchmark run bench:all",
     "test:repro": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:coverage": "vitest run --coverage",
+    "perf:baseline:prepush": "node scripts/perf/prepush-baseline.mjs --out artifacts/perf/prepush-baseline.csv",
     "type-check": "turbo type-check",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "deps:check": "node scripts/check-deps.mjs",
