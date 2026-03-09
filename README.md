@@ -23,6 +23,16 @@ We're exploring this through:
 
 ---
 
+## The Sovereign Ecosystem
+
+Refarm is a unified architecture that manifests as distinct experiences depending on the domain used to access it. All domains run the same core engine but curate different capabilities:
+
+- **`refarm.dev`**: The core engine, SDKs, and developer portal.
+- **`refarm.me`**: The sovereign identity and private "Second Brain" interface.
+- **`refarm.social`**: The public network, federated communities, and P2P gardens.
+
+---
+
 ## Status
 
 🚧 **In active research & development**

@@ -1,0 +1,14 @@
+graph TD
+    subgraph Device ["User's Device (Browser + OPFS)"]
+        SQLite["SQLite Database<br/>(JSON-LD nodes + metadata)"]
+        IndexedDB["IndexedDB<br/>(CRDT State)"]
+        Commits["Versioning Commits (Log)<br/>(Content-addressed)"]
+        
+        SQLite ---|"One node = one row"| SQLite
+        SQLite ---|"Checksum per row"| SQLite
+        
+        IndexedDB ---|"Yjs document encoded"| IndexedDB
+        IndexedDB ---|"Write-ahead log"| IndexedDB
+        
+        Commits ---|"Immutable / Parent chaining"| Commits
+    end

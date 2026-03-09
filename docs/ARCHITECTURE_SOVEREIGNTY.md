@@ -26,33 +26,8 @@ Our commitment: **None of these scenarios happen.**
 
 ### Layer 0: Persistence (The Ground Truth)
 
-```
-┌─────────────────────────────────────┐
-│  User's Device (Browser + OPFS)     │
-│                                     │
-│  ┌─────────────────────────────────┐
-│  │       SQLite Database           │
-│  │  (JSON-LD nodes + metadata)     │
-│  │  - One node = one row           │
-│  │  - Checksum per row (detect     │
-│  │    corruption)                  │
-│  └─────────────────────────────────┘
-│                                     │
-│  ┌─────────────────────────────────┐
-│  │    IndexedDB (CRDT State)       │
-│  │  - Yjs document encoded         │
-│  │  - Write-ahead log              │
-│  │  - Snapshots for fast restore   │
-│  └─────────────────────────────────┘
-│                                     │
-│  ┌─────────────────────────────────┐
-│  │   Versioning Commits (Log)      │
-│  │  - Content-addressed by hash    │
-│  │  - Immutable (never modified)   │
-│  │  - Parent chaining (causal)     │
-│  └─────────────────────────────────┘
-└─────────────────────────────────────┘
-```
+![Layer 0: Persistence](./diagrams/sovereignty-l0.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l0.mermaid)
 
 **Invariant**: Everything checksummed, nothing can silently corrupt.
 
@@ -60,32 +35,8 @@ Our commitment: **None of these scenarios happen.**
 
 ### Layer 1: Storage & CRDT Self-Healing (ADR-021, Part 1)
 
-```
-┌────────────────────────────────────────────┐
-│  Tractor: Storage Integrity Checks          │
-│                                            │
-│  On every read:                            │
-│  ┌────────────────────────────────────┐   │
-│  │ 1. Fetch from SQLite/IndexedDB     │   │
-│  │ 2. Verify checksum                 │   │
-│  │ 3. If mismatch → attempt recovery  │   │
-│  │    - Fallback to Write-Ahead Log   │   │
-│  │    - Downshift schema version       │   │
-│  │    - Salvage what's readable        │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  On every write:                           │
-│  ┌────────────────────────────────────┐   │
-│  │ 1. Compute + store checksum        │   │
-│  │ 2. Log to WAL before commit        │   │
-│  │ 3. Atomic append                   │   │
-│  │ 4. Verify write succeeded          │   │
-│  └────────────────────────────────────┘   │
-│                                            │
-│  Result: Storage layer can heal itself     │
-│  from corruption OR data loss.             │
-└────────────────────────────────────────────┘
-```
+![Layer 1: Self-Healing](./diagrams/sovereignty-l1.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l1.mermaid)
 
 **Key guarantees**:
 
@@ -95,79 +46,24 @@ Our commitment: **None of these scenarios happen.**
 
 ---
 
-### Layer 2: Schema & Migration Resilience (ADR-010 Integrated)
+### Layer 2: Pluggable Storage & Migration Resilience (ADR-023/031)
 
-```
-┌──────────────────────────────────────────────────────┐
-│  Tractor: Schema Evolution Management                 │
-│                                                      │
-│  Old data v0 → Current version vN                   │
-│                                                      │
-│  ┌──────────────────────────────────────────────┐   │
-│  │ When app reads old node:                     │   │
-│  │                                              │   │
-│  │ 1. Detect schema version from @context      │   │
-│  │ 2. If old: apply migration lenses            │   │
-│  │    - v0 → v1: add tags: [] (default)        │   │
-│  │    - v1 → v2: add timestamps (infer)        │   │
-│  │    - etc.                                   │   │
-│  │ 3. If migration fails:                       │   │
-│  │    - Try downgrading (use v0 view)          │   │
-│  │    - If all fails: salvage structure         │   │
-│  │ 4. Persist upgraded version going forward   │   │
-│  └──────────────────────────────────────────────┘   │
-│                                                      │
-│  Result: User never sees "incompatible format"     │
-│  error or data loss from upgrades.                 │
-└──────────────────────────────────────────────────────┘
-```
+![Layer 2: Pluggable Storage](./diagrams/sovereignty-l2.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l2.mermaid)
 
 **Key guarantees**:
 
-- ✅ Old data always readable (even if app version leaps)
-- ✅ Gradual migration (not required upfront)
-- ✅ Rollback safe (old schema version accessible)
+- ✅ **Engine-Agnostic**: User can switch storage engines (e.g., to PGLite for AI features) without losing history.
+- ✅ **Bidirectional Sync**: Old clients can often "see" through new data via lens projections.
+- ✅ **Op-Log Integrity**: The underlying CRDT log (Layer 0) remains the source of truth, regardless of the materialized view in SQLite/Postgres.
+- ✅ **Graceful Transition**: No "flag days" for schema changes. Peers converge lazily.
 
 ---
 
 ### Layer 3: Graph Versioning & Reversibility (ADR-020)
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  Tractor: Sovereign Graph Versioning                     │
-│                                                         │
-│  4 User-Facing Primitives:                              │
-│                                                         │
-│  1. COMMIT                                              │
-│     └─ tractor.graph.commit({ message: "..." })         │
-│        Creates immutable snapshot + point-in-time audit │
-│        ↓                                                 │
-│        Merkle DAG:                                      │
-│        main:  A ← B ← C (HEAD)                         │
-│        draft: B ← D ← E (alternative history)          │
-│                                                         │
-│  2. BRANCH                                              │
-│     └─ tractor.graph.branch("main" | "draft/exp")       │
-│        Create parallel work streams                     │
-│        Both are local (offline-first)                  │
-│        Each has own commit history                     │
-│                                                         │
-│  3. CHECKOUT                                            │
-│     └─ tractor.graph.checkout("draft/exp")              │
-│        Restore CRDT state from commit                   │
-│        Working graph = exactly that snapshot            │
-│        Reproducible (same commit → same state)         │
-│                                                         │
-│  4. REVERT                                              │
-│     └─ tractor.graph.revert("commitHash")               │
-│        Creates inverse operations (no deletion!)        │
-│        Preserves auditability                           │
-│        Safe for multi-device sync                       │
-│                                                         │
-│  Philosophy: Git-like UX for user data                 │
-│  but CRDT-native (conflicts merge automatically)       │
-└─────────────────────────────────────────────────────────┘
-```
+![Layer 3: Graph Versioning](./diagrams/sovereignty-l3.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l3.mermaid)
 
 **Key guarantees**:
 
@@ -180,62 +76,8 @@ Our commitment: **None of these scenarios happen.**
 
 ### Layer 4: Plugin Citizenship & Monitoring (ADR-021, Part 2)
 
-```
-┌──────────────────────────────────────────────────────────┐
-│  Tractor: Plugin Health & Isolation                      │
-│                                                          │
-│  Each plugin gets a "Citizenship Score":                │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │  PluginCitizen {                                   │  │
-│  │    id: "storage:v1"                               │  │
-│  │    state: "healthy" | "degraded" | "isolated"    │  │
-│  │    healthScore: 95/100                             │  │
-│  │    memoryUsage: 32MB / 64MB quota                 │  │
-│  │    errorRate: 0.1%                                 │  │
-│  │    lastHealthCheckAt: timestamp                    │  │
-│  │  }                                                  │  │
-│  └────────────────────────────────────────────────────┘  │
-│                                                          │
-│  Every plugin operation measured:                       │
-│  ┌────────────────────────────────────────────────────┐  │
-│  │  tractor.executeCapability(                         │  │
-│  │    pluginId: "storage:v1",                        │  │
-│  │    method: "store",                               │  │
-│  │    args: [...]                                     │  │
-│  │  )                                                  │  │
-│  │                                                    │  │
-│  │  ↓ (tractor wraps execution)                        │  │
-│  │                                                    │  │
-│  │  1. Record start time + memory                    │  │
-│  │  2. Execute plugin code                           │  │
-│  │  3. Catch errors                                  │  │
-│  │  4. Report to CitizenshipMonitor                 │  │
-│  │     - duration, memory delta, success/fail        │  │
-│  │  5. Update health score (rules engine)            │  │
-│  │  6. If degraded/isolated → event to Observability│  │
-│  │                                                    │  │
-│  │  ↓ (state transitions)                             │  │
-│  │                                                    │  │
-│  │  healthy (score 80-100)                           │  │
-│  │    ↓                                               │  │
-│  │  degraded (score 50-79)                           │  │
-│  │    └─ reduce quotas (50% memory, 50% I/O)        │  │
-│  │    └─ increase monitoring frequency                │  │
-│  │    ↓                                               │  │
-│  │  isolated (score <50)                             │  │
-│  │    └─ severe throttling (10% quota)               │  │
-│  │    └─ block risky operations                      │  │
-│  │    ↓                                               │  │
-│  │  quarantined (extreme cases)                      │  │
-│  │    └─ disable plugin entirely                     │  │
-│  │    └─ preserve system integrity                   │  │
-│  └────────────────────────────────────────────────────┘  │
-│                                                          │
-│  Result: Bad plugin cannot crash entire system.         │
-│  Tractor detects + isolates before damage spreads.       │
-└──────────────────────────────────────────────────────────┘
-```
+![Layer 4: Plugin Citizenship](./diagrams/sovereignty-l4.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l4.mermaid)
 
 **Key guarantees**:
 
@@ -248,46 +90,8 @@ Our commitment: **None of these scenarios happen.**
 
 ### Layer 5: User Sovereignty (Philosophy)
 
-```
-┌────────────────────────────────────────────────────────┐
-│  User Experience: What You Own, You Control            │
-│                                                        │
-│  Homestead UI shows:                                      │
-│  ┌──────────────────────────────────────────────────┐  │
-│  │ [Graph Versioning]          [Plugin Health]      │  │
-│  │ • main (HEAD: Commit C)      ✅ storage:v1 (95)  │  │
-│  │ • draft/q1-planning          ⚠️  sync:v1 (60)    │  │
-│  │ • archive/2024 (collapsed)   ❌ ui-plugin (20)   │  │
-│  │ • [+ Commit]                 [Isolate]           │  │
-│  │                                                  │  │
-│  │ [Recent History]             [Recovery Options] │  │
-│  │ • [C] "Q1 complete" (now)    • Revert to C-1    │  │
-│  │ • [B] "Q1 draft" (-3 days)   • Checkout branch  │  │
-│  │ • [A] "Initial" (-1 week)    • Export data      │  │
-│  │                                                  │  │
-│  │ [Data Health]                                    │  │
-│  │ • Corruption checks: ✅ passed                   │  │
-│  │ • Schema compatibility: ✅ all upgradeable       │  │
-│  │ • Plugin isolation: ⚠️ 1 plugin throttled       │  │
-│  └──────────────────────────────────────────────────┘  │
-│                                                        │
-│  User Can:                                            │
-│  • Experiment → branch("experiment")                  │
-│  • Make mistakes → revert safely                      │
-│  • Use multiple devices → automatic merge             │
-│  • Upgrade app → old data still works                 │
-│  • Audit changes → full history + author             │
-│  • Disable bad plugins → without losing data         │
-│  • Export everything → full ownership                │
-│                                                        │
-│  System Guarantees:                                   │
-│  ✅ Never silent data loss                           │
-│  ✅ Always recoverable (back N commits)              │
-│  ✅ Never locked in (full export, open formats)      │
-│  ✅ Always auditable (who did what when)             │
-│  ✅ Always safe (corruption caught + repaired)       │
-└────────────────────────────────────────────────────────┘
-```
+![Layer 5: Philosophy](./diagrams/sovereignty-l5.svg)
+[View source](file:///workspaces/refarm/docs/diagrams/sovereignty-l5.mermaid)
 
 ---
 

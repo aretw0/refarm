@@ -2,6 +2,16 @@
 
 This document tracks the thematic names used for core components and plugins within the Refarm ecosystem. The naming convention follows a **Rural / Protective / Sovereign Estate** aesthetic.
 
+## Domain Strategy & Topology
+
+Refarm is a unified architecture that manifests as distinct sub-ecosystems depending on the "lens" or domain used to access it. All domains run the same Tractor core but curate different plugins and identity contexts.
+
+| Domain | Role & Persona | Key Components |
+| :--- | :--- | :--- |
+| **`refarm.dev`** | **The Factory Floor / Core Engine**. The developer portal, WIT definitions, and the Tractor microkernel. | Tractor, Courier, Heartwood, SDKs, Graph Schemas |
+| **`refarm.me`** | **The Sovereign Identity**. The personal, private "Second Brain". Focuses on E2EE, Zero-Knowledge, and personal agency. | Homestead, Private Storage, Keys / Recovery |
+| **`refarm.social`** | **The Village**. The networked, public-facing facet. Digital Gardens, P2P CRDT sync, and federated communication. | Social Plugins, Public Feeds |
+
 ## Core Components
 
 | Name | Role | Status |
@@ -9,7 +19,8 @@ This document tracks the thematic names used for core components and plugins wit
 | **Tractor** | The Core Engine / Microkernel. Orchestrates all plugins. | Stable |
 | **Homestead** | The primary user interface / Dashboard application. | Active |
 | **Sower** | Data Seeder / Provisioner. Handles initial state and migrations. | Active |
-| **Scarecrow** | Security, Identity, and Access Control. Protects the "crops" (data). | Active |
+| **Scarecrow** | System Auditor. Evaluates performance/A11y citizenship. | Active |
+| **Heartwood** | The Security Kernel (WASM). Protects the Root of Trust. | Active |
 
 ## Plugins & Modules
 
@@ -18,7 +29,7 @@ This document tracks the thematic names used for core components and plugins wit
 | **Herald (Arauto)** | In-app notification system and event announcer. | In Use |
 | **Firefly** | Discovery and lightweight status indicators. | In Use |
 | **Tractor-Bridge** | WIT interface between Tractor and Plugins. | Stable |
-| **Antenna** | Web Publisher / Gateway. Broadcasts the Graph to the outside world. | Planned |
+| **Courier** | Global Courier / Router. Rotes data between peers via local LAN or Relays. | Active |
 
 ## Potential Names (The "Pantry")
 

@@ -35,7 +35,8 @@ This contract defines:
 
 - **What the plugin exports** (`integration` interface): `setup`, `ingest`, `push`, `teardown`, `metadata`
 - **What the tractor offers** (`tractor-bridge` interface): `storeNode`, `fetch`, `log`, `requestPermission`
-- **Security model**: Plugins are sandboxed and can only call tractor functions they have capabilities for
+- **WASI Alignment**: Plugins are compiled as WASI-compatible components. For network (`wasi-http`) and filesystem (`wasi-filesystem`) access, use standard WASI syscalls, which the Tractor Microkernel intercepts and gates based on your declared capabilities.
+- **Security model**: Plugins are sandboxed and can only call tractor functions or WASI syscalls they have capabilities for.
 
 ### Plugin Lifecycle
 
