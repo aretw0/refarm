@@ -13,8 +13,8 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit",
+    "lint": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json ../tractor/tsconfig.build.json --force && tsc --noEmit",
+    "type-check": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json ../tractor/tsconfig.build.json --force && tsc --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
