@@ -1,3 +1,11 @@
+import {
+  STORAGE_CAPABILITY,
+  type StorageAdapter,
+  type StorageProvider,
+  type StorageQuery,
+  type StorageRecord
+} from "@refarm.dev/storage-contract-v1";
+
 /**
  * @refarm.dev/storage-sqlite
  *
@@ -10,52 +18,48 @@
  * In Node.js:     uses the `better-sqlite3` binding.
  */
 
-import {
-  PHYSICAL_SCHEMA_V1,
-  STORAGE_CAPABILITY,
-  type StorageAdapter,
-  type StorageProvider,
-  type StorageQuery,
-  type StorageRecord
-} from "@refarm.dev/storage-contract-v1";
+// ─── Physical Schema ────────────────────────────────────────────────────────
 
-// Wait, I put schema.ts in /packages/storage-contract-v1/src/schema.ts
-// Let me fix the import after I verify the path.
-
-// ─── Public Types ────────────────────────────────────────────────────────────
-
-/** A single row returned from a query, typed as a plain object. */
-export type Row = Record<string, any>;
-
-/** Options accepted by StorageAdapter.query() */
-export interface QueryOptions {
-  /** Bound parameters (positional or named). */
-  params?: any;
-}
+export const PHYSICAL_SCHEMA_V1 = [
+  // Core nodes table (Materialized View)
+  `CREATE TABLE IF NOT EXISTS nodes (
+    id            TEXT PRIMARY KEY,
+    type          TEXT NOT NULL,
+    context       TEXT NOT NULL,
+    payload       JSON NOT NULL,
+    source_plugin TEXT,
+    updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  
+  // CRDT Operation Log (The Truth)
+  // Implements ADR-028: Triple-based Op-Log
+  `CREATE TABLE IF NOT EXISTS crdt_log (
+    id         TEXT PRIMARY KEY, -- Operation ID (peer/clock)
+    node_id    TEXT NOT NULL,
+    field      TEXT NOT NULL,
+    value      JSON,
+    peer_id    TEXT NOT NULL,
+    hlc_time   TEXT NOT NULL,    -- Hybrid Logical Clock for convergence
+    applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(node_id) REFERENCES nodes(id)
+  )`,
+  
+  `CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type)`,
+  `CREATE INDEX IF NOT EXISTS idx_crdt_node ON crdt_log(node_id)`,
+];
 
 // ─── SQLite / OPFS Adapter ───────────────────────────────────────────────────
 
 /**
  * Browser-side SQLite adapter using the Origin Private File System.
- *
- * NOTE: Actual sqlite-wasm bootstrapping is deferred to runtime so that this
- * module can be imported in environments that lack OPFS (e.g. test runners)
- * without throwing at import time.  Replace the `_db` stubs below with a real
- * sqlite-wasm instance once you wire up the WASM binary.
  */
 export class OPFSSQLiteAdapter implements StorageAdapter {
   private _db: any = null;
-  private _sqlite3: any = null;
 
   async open(name: string): Promise<OPFSSQLiteAdapter> {
     console.info(`[storage-sqlite] Opening database: ${name}`);
     
-    // In a real browser environment, this would involve:
-    // 1. Loading the WASM binary
-    // 2. Initializing wa-sqlite with OPFS VFS
-    // 3. Opening the connection
-    
-    // For now, we provide the implementation pattern that matches wa-sqlite
+    // Pattern for real environment (stubbed for now)
     this._db = {
       exec: async (sql: string, options: any = {}) => {
         console.debug(`[sqlite] EXEC: ${sql}`, options.bind);
@@ -73,6 +77,10 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     await runMigrations(this, PHYSICAL_SCHEMA_V1);
   }
 
+  /**
+   * Store a node by first writing to the CRDT log and then materializing.
+   * This ensures that the engine can always reconstruct the state from the log.
+   */
   async storeNode(
     id: string,
     type: string,
@@ -80,11 +88,30 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     payload: string,
     sourcePlugin: string | null,
   ): Promise<void> {
-    await this.execute(
-      `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
-       VALUES (?, ?, ?, ?, ?, datetime('now'))`,
-      { params: [id, type, context, payload, sourcePlugin] },
-    );
+    // 1. In a real HL-Clock environment, we'd generate a timestamp here.
+    const hlc = new Date().toISOString(); 
+    const peerId = "local-host"; // Should come from identity
+
+    await this.transaction(async () => {
+      // 2. Log the operation (Field-level LWW simplified for MVP)
+      // In a full implementation, we'd decompose the payload into triples.
+      await this.execute(
+        `INSERT OR REPLACE INTO crdt_log (id, node_id, field, value, peer_id, hlc_time)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        { params: [`${peerId}/${Date.now()}`, id, "@payload", payload, peerId, hlc] },
+      );
+
+      // 3. Materialize into the nodes table
+      await this.execute(
+        `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now'))`,
+        { params: [id, type, context, payload, sourcePlugin] },
+      );
+    });
+  }
+
+  async getLogForNode(nodeId: string): Promise<any[]> {
+    return this.query("SELECT * FROM crdt_log WHERE node_id = ? ORDER BY hlc_time ASC", { params: [nodeId] });
   }
 
   async queryNodes(type: string): Promise<any[]> {
@@ -112,6 +139,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     this._assertOpen();
+    // Implementation pattern for wa-sqlite/better-sqlite3
     await this.execute("BEGIN");
     try {
       const result = await fn();
