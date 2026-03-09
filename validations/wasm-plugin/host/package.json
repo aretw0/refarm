@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:wasm": "npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=./kernel-bridge.js",
+    "build:wasm": "npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
     "prebuild": "npm run build:wasm",
     "build": "vite build",
     "preview": "vite preview",
