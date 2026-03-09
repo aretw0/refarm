@@ -5,7 +5,10 @@ use crate::exports::refarm::plugin::plugin::{self, PluginMetadata};
 /// Simple WASM Plugin for Testing JCO Integration
 ///
 /// This plugin exports functions that match the refarm:plugin world.
+/// The Plugin struct is never constructed directly — wit-bindgen generates
+/// the glue code that calls these trait methods from WASM exports.
 
+#[allow(dead_code)]
 struct Plugin;
 
 impl plugin::Guest for Plugin {
