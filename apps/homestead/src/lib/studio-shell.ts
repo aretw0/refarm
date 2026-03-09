@@ -17,13 +17,30 @@ export class StudioShell {
     this.discoverSlots();
   }
 
+  private shouldLog(level: "info" | "warn" | "error"): boolean {
+    const priority = { silent: 0, error: 1, warn: 2, info: 3 };
+    return priority[this.tractor.logLevel] >= priority[level];
+  }
+
+  private logInfo(...args: unknown[]): void {
+    if (this.shouldLog("info")) console.info(...args);
+  }
+
+  private logWarn(...args: unknown[]): void {
+    if (this.shouldLog("warn")) console.warn(...args);
+  }
+
+  private logError(...args: unknown[]): void {
+    if (this.shouldLog("error")) console.error(...args);
+  }
+
   private discoverSlots() {
     const slotElements = document.querySelectorAll('.slot');
     slotElements.forEach(el => {
       const id = el.id.replace('refarm-slot-', '');
       this.slots.set(id, el as HTMLElement);
     });
-    console.info("[shell] Slots discovered:", Array.from(this.slots.keys()));
+    this.logInfo("[shell] Slots discovered:", Array.from(this.slots.keys()));
   }
 
   /**
@@ -37,7 +54,7 @@ export class StudioShell {
     this.tractor.observe((data: TelemetryEvent) => {
       if (data.event === "system:switch-tier") {
         const tier = data.payload?.tier;
-        console.info(`[shell] Mode switch detected: ${tier}. Persisting and reloading...`);
+        this.logInfo(`[shell] Mode switch detected: ${tier}. Persisting and reloading...`);
         localStorage.setItem('refarm:mode', tier);
         window.location.reload();
       }
@@ -49,7 +66,7 @@ export class StudioShell {
         const el = document.querySelector(selector) as HTMLElement;
         
         if (el && state) {
-          console.info(`[shell] Reflection: Plugin ${pluginId} moved to state: ${state}`);
+          this.logInfo(`[shell] Reflection: Plugin ${pluginId} moved to state: ${state}`);
           el.setAttribute("data-refarm-state", state);
         }
       }
@@ -168,7 +185,7 @@ export class StudioShell {
   private async injectPluginIntoSlot(pluginId: string, slotId: string) {
     const container = this.slots.get(slotId);
     if (!container) {
-      console.warn(`[shell] Slot ${slotId} not found for plugin ${pluginId}`);
+      this.logWarn(`[shell] Slot ${slotId} not found for plugin ${pluginId}`);
       return;
     }
 
@@ -204,7 +221,7 @@ export class StudioShell {
         pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
       }
     } catch (e) {
-      console.error(`[shell] Failed to render plugin ${pluginId}`, e);
+      this.logError(`[shell] Failed to render plugin ${pluginId}`, e);
     }
   }
 
