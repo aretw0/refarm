@@ -103,7 +103,19 @@ else
 fi
 echo ""
 
-# 4. Security audit (high/critical only)
+# 4. Quality Gate (SDD->BDD->TDD->DDD)
+echo "🔍 Checking Refarm Quality Gate..."
+node packages/toolbox/src/quality-gate.mjs || {
+  if [ "\$IS_PROTECTED_BRANCH" -eq 1 ]; then
+    echo "❌ Quality Gate failed (blocking in strict mode)."
+    exit 1
+  fi
+  echo "⚠️ Quality Gate failed (warning in permissive mode)."
+  WARNINGS=1
+}
+echo ""
+
+# 5. Security audit (high/critical only)
 echo "🔒 Checking security (advisory local check)..."
 if npm audit --audit-level=high --silent 2>/dev/null; then
   echo "   ✅ No high/critical vulnerabilities"
