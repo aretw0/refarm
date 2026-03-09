@@ -159,6 +159,15 @@ jobs:
             cargo install --locked cargo-component --version 0.19.1
           fi
 
+      - name: Verify cargo-component
+        if: steps.e2e_check.outputs.enabled == 'true'
+        run: |
+          if ! cargo component --version; then
+            echo "::error::cargo-component is not available after installation"
+            echo "::error::Run 'cargo install --locked cargo-component --version 0.19.1'"
+            exit 1
+          fi
+
       - name: Cache WASM plugin build
         id: wasm_cache
         if: steps.e2e_check.outputs.enabled == 'true'
