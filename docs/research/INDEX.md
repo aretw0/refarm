@@ -13,6 +13,7 @@ This folder serves as a reference library for the research that informed Refarm'
 | **Pluggable Storage** | Multi-engine support (SQLite, PGLite, cr-sqlite) | [ADR-029](../../specs/ADRs/ADR-029-pluggable-relational-storage.md) |
 | **Microkernel** | WASI-compatible sandboxed plugins | [ADR-025](../../specs/ADRs/ADR-025-pure-microkernel-architecture.md) |
 | **Sync Engine** | Field-level CRDT with HLC Convergence | [ADR-028](../../specs/ADRs/ADR-028-crdt-sqlite-convergence-strategy.md) |
+| **Storage Pattern** | Triple-based Op-Log with Materializer | [ADR-028](../../specs/ADRs/ADR-028-crdt-sqlite-convergence-strategy.md) |
 | **Graph Versioning**| Git-like Commit/Branch/Revert for Data | [ADR-020](../../specs/ADRs/ADR-020-sovereign-graph-versioning.md) |
 | **Self-Healing** | Checksum validation & Plugin Citizenship | [ADR-021](../../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md) |
 
