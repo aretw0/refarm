@@ -23,7 +23,7 @@
   "scripts": {
     "build": "npm --prefix ../storage-contract-v1 run build && tsc --project tsconfig.json",
     "dev": "tsc --project tsconfig.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "npm --prefix ../storage-contract-v1 run build && tsc --noEmit",
     "type-check": "npm --prefix ../storage-contract-v1 run build && tsc --noEmit",
     "test:conformance": "vitest run src/storage-v1.conformance.test.ts",
     "test:unit": "vitest run --passWithNoTests",
