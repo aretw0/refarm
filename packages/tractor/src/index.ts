@@ -301,6 +301,15 @@ export class PluginHost {
       );
     }
 
+    // Fetch and validate WASM module
+    console.info(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
+    const response = await fetch(wasmUrl);
+    if (!response.ok) {
+      throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+    }
+    const wasmBuffer = await response.arrayBuffer();
+    console.info(`[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`);
+
     // JCO Integration Logic (Conceptual Interceptor)
     const imports = this.getWasiImports(manifest, profile);
     const modeLabel = profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";

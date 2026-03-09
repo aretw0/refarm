@@ -1,5 +1,5 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index";
 
 function createManifest(profile: "strict" | "trusted-fast"): PluginManifest {
@@ -30,6 +30,21 @@ function createManifest(profile: "strict" | "trusted-fast"): PluginManifest {
 }
 
 describe("PluginHost trust grants", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        statusText: "OK",
+        arrayBuffer: async () => new Uint8Array(1024).buffer,
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("blocks trusted-fast profile without an explicit grant", async () => {
     const host = new PluginHost(vi.fn());
 
