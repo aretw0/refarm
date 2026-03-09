@@ -25,7 +25,7 @@ describe("Tractor Telemetry", () => {
       "@type": "TestNode",
       "@id": "urn:test:1",
       "refarm:sourcePlugin": "test-plugin"
-    });
+    }, "none");
 
     expect(listener).toHaveBeenCalledWith(expect.objectContaining({
       event: "storage:io",
