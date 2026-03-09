@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createMockManifest } from "./fixtures.js";
-import { validatePluginManifest } from "./validate.js";
+import { createMockManifest } from "./fixtures.ts";
+import { validatePluginManifest } from "./validate.ts";
 
 describe("plugin-manifest validation", () => {
   it("accepts valid manifest with required observability hooks", () => {
@@ -93,5 +93,34 @@ describe("certification validation", () => {
         certification: { ...manifest.certification, languages: [] }
     });
     expect(result.errors).toContain("certification.languages must be a non-empty array");
+  });
+});
+
+describe("trust profile validation", () => {
+  it("accepts trusted-fast profile with a valid lease", () => {
+    const manifest = createMockManifest({
+      trust: {
+        profile: "trusted-fast",
+        leaseHours: 24,
+      },
+    });
+
+    const result = validatePluginManifest(manifest);
+    expect(result.valid).toBe(true);
+  });
+
+  it("rejects invalid trust profile and lease", () => {
+    const manifest = createMockManifest({
+      trust: {
+        profile: "trusted-fast",
+        leaseHours: 0,
+      },
+    });
+
+    (manifest.trust as any).profile = "unsafe";
+
+    const result = validatePluginManifest(manifest);
+    expect(result.errors).toContain("trust.profile must be one of: strict, trusted-fast");
+    expect(result.errors).toContain("trust.leaseHours must be a positive number when provided");
   });
 });

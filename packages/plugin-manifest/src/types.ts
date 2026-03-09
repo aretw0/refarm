@@ -5,6 +5,15 @@ export type TelemetryHook =
   | "onError"
   | "onTeardown";
 
+export type PluginExecutionProfile = "strict" | "trusted-fast";
+
+export interface PluginTrustMetadata {
+  /** Preferred runtime profile. `trusted-fast` requires an explicit host trust grant. */
+  profile: PluginExecutionProfile;
+  /** Optional TTL hint for host-side trust grants. */
+  leaseHours?: number;
+}
+
 export interface PluginCapabilities {
   provides: string[];
   requires: string[];
@@ -50,6 +59,11 @@ export interface PluginManifest {
     /** ISO 639-1 languages supported */
     languages: string[];
   };
+  /**
+   * Optional trust metadata for host policy negotiation.
+   * The host decides whether to honor `trusted-fast`.
+   */
+  trust?: PluginTrustMetadata;
 }
 
 export interface ManifestValidationResult {
