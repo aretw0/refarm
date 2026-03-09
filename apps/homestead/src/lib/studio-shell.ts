@@ -1,4 +1,4 @@
-import { Tractor } from "@refarm.dev/tractor";
+import { Tractor, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
 import { A11yGuard } from "./a11y-guard";
 
 export interface ShellSlot {
@@ -34,7 +34,7 @@ export class StudioShell {
     this.updateStatus(this.tractor.l8n.t("refarm:core/loading"));
     
     // Listen for system events
-    this.tractor.observe((data) => {
+    this.tractor.observe((data: TelemetryEvent) => {
       if (data.event === "system:switch-tier") {
         const tier = data.payload?.tier;
         console.info(`[shell] Mode switch detected: ${tier}. Persisting and reloading...`);
@@ -81,7 +81,7 @@ export class StudioShell {
     if (!mainSlot) return;
 
     const helpNodes = await this.tractor.getHelpNodes();
-    const seedNode = helpNodes.find(n => n["refarm:renderType"] === "landing") || helpNodes[0];
+    const seedNode = helpNodes.find((n: SovereignNode) => n["refarm:renderType"] === "landing") || helpNodes[0];
 
     if (seedNode["refarm:renderType"] === "landing") {
       mainSlot.innerHTML = `
@@ -153,7 +153,7 @@ export class StudioShell {
           ${this.tractor.l8n.t("refarm:core/welcome")}
         </h1>
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
-          ${helpNodes.map(node => `
+          ${helpNodes.map((node: SovereignNode) => `
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
