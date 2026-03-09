@@ -192,6 +192,10 @@ jobs:
           mkdir -p validations/wasm-plugin/host/public
           cp validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm validations/wasm-plugin/host/public/hello-world-plugin.wasm
 
+      - name: Transpile WASM to JavaScript
+        if: steps.e2e_check.outputs.enabled == 'true'
+        run: npm --prefix validations/wasm-plugin/host run build:wasm
+
       - name: Install Playwright browsers (from cache or fresh)
         if: steps.e2e_check.outputs.enabled == 'true'
         run: |
