@@ -3,28 +3,12 @@
 /// WebAssembly Interface Type (WIT) definition for the Refarm Plugin SDK.
 ///
 /// This file defines the **entire communication surface** between a plugin
-/// (WASM component) and the Refarm Tractor.  Plugins are fully sandboxed:
-/// they cannot access the DOM, the network, or SQLite directly.  All
-/// interactions MUST go through the imports listed in `refarm:plugin/tractor-bridge`.
+/// (WASM component) and the Refarm Tractor.  Plugins are fully sandboxed.
 ///
 /// Standard: WebAssembly Component Model (WASI Preview 2)
 /// Spec:     https://component-model.bytecodealliance.org/
-///
-/// ┌──────────────────────────────────────┐
-/// │            Plugin (WASM)             │
-/// │  implements  refarm:plugin/integration│
-/// │  uses        refarm:plugin/tractor-bridge│
-/// └──────────────────────────────────────┘
-///         ↕ WIT boundary (sandbox)
-/// ┌──────────────────────────────────────┐
-/// │          Refarm Tractor (host)        │
-/// └──────────────────────────────────────┘
 
 package refarm:plugin@0.1.0;
-
-/// The Refarm Plugin SDK imports interfaces from standard WASI where possible.
-/// For this version, we define them inline to ensure zero-config builds,
-/// but they follow the wasi:http and wasi:logging patterns.
 
 // ─── Shared Types ─────────────────────────────────────────────────────────────
 
@@ -36,12 +20,9 @@ type json-ld-node = string;
 /// Convention: urn:<plugin-id>:<local-id>   (e.g. "urn:matrix-bridge:msg-42")
 type node-id = string;
 
-// ─── World: Tractor → Plugin Imports (what the plugin can call) ────────────────
+// ─── World: Tractor → Plugin Imports (Capabilities) ───────────────────────────
 
-/// Capability interface exposed by the Tractor to the plugin.
-///
-/// This is the ONLY way a plugin can interact with the outside world.
-/// The tractor host implementation enforces all permissions.
+/// Interface provided by the Tractor to the plugin for sovereign data access.
 interface tractor-bridge {
     /// Store (upsert) a JSON-LD node into the user's sovereign graph.
     /// The tractor validates the schema and may reject malformed payloads.
@@ -52,15 +33,6 @@ interface tractor-bridge {
 
     /// Query nodes by @type.  Returns up to `limit` nodes.
     query-nodes: func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
-
-    /// Perform a capability-gated HTTP request.
-    /// Aligned with wasi:http/outgoing-handler.
-    /// The tractor checks the allowed-origins list configured by the user.
-    fetch: func(req: http-request) -> result<http-response, plugin-error>;
-
-    /// Emit a structured log message visible in Studio's terminal.
-    /// Aligned with wasi:logging/logging.
-    log: func(level: log-level, message: string);
 
     /// Request a user-facing permission prompt (e.g. "Allow Matrix Bridge
     /// to read your contacts?").  Returns true if the user accepts.
@@ -77,28 +49,7 @@ interface tractor-bridge {
     emit-telemetry: func(event: string, payload: option<string>);
 }
 
-/// A minimal HTTP request (network access is capability-gated).
-record http-request {
-    method: http-method,
-    url: string,
-    headers: list<tuple<string, string>>,
-    body: option<list<u8>>,
-}
-
-/// A minimal HTTP response.
-record http-response {
-    status: u16,
-    headers: list<tuple<string, string>>,
-    body: list<u8>,
-}
-
-/// HTTP method enum for allowed fetch operations.
-enum http-method { get, post, put, patch, delete }
-
-/// Log severity levels.
-enum log-level { debug, info, warn, error }
-
-/// Error type for all tractor-bridge operations.
+/// Error type for tractor operations.
 variant plugin-error {
     /// The operation is not permitted by the current capability grant.
     not-permitted(string),
@@ -106,8 +57,6 @@ variant plugin-error {
     not-found(node-id),
     /// The provided JSON-LD payload is malformed.
     invalid-schema(string),
-    /// A network fetch failed.
-    network-error(string),
     /// An unspecified internal tractor error.
     internal(string),
 }
@@ -122,7 +71,7 @@ record identity-info {
     identifier: string,
 }
 
-// ─── World: Plugin → Tractor Exports (what the tractor can call) ────────────────
+// ─── World: Plugin → Tractor Exports (Lifecycle) ──────────────────────────────
 
 /// Interface the plugin MUST implement.
 /// The tractor calls these lifecycle hooks.
@@ -155,7 +104,6 @@ interface integration {
 /// Interface for plugins that want to serve HTTP requests (like the Antenna plugin).
 /// The Tractor will route requests matching specific nodes or paths to this handler.
 interface http-handler {
-    /// Describes an incoming HTTP request
     record http-request {
         method: string,
         path: string,
@@ -164,7 +112,6 @@ interface http-handler {
         body: option<list<u8>>,
     }
 
-    /// Describes the outgoing HTTP response
     record http-response {
         status: u16,
         headers: list<tuple<string, string>>,
@@ -196,12 +143,16 @@ record plugin-metadata {
 ///
 /// Then distribute it via Nostr NIP-94 and announce it with NIP-89.
 world refarm-plugin {
-    /// Imports provided by the Tractor host.
+    /// Standard WASI imports (Shadowed/Intercepted by Tractor for security)
+    import wasi:http/outgoing-handler@0.2.0;
+    import wasi:logging/logging;
+
+    /// Refarm-specific capabilities
     import tractor-bridge;
 
     /// Exports that the plugin must implement.
     export integration;
 
-    /// Optional export for plugins that act as HTTP Gateways (e.g. Antenna).
+    /// Optional export for HTTP Gateways
     export http-handler;
 }
