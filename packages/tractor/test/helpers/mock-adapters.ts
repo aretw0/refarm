@@ -148,10 +148,10 @@ export class MockSyncAdapter implements SyncAdapter {
 
 // ─── Factory Helpers ──────────────────────────────────────────────────────────
 
-export function createMockConfig(latency?: MockLatencyConfig) {
+export function createMockConfig(latency?: MockLatencyConfig, opts?: { includeSync?: boolean }) {
   return {
     storage: new MockStorageAdapter(latency),
     identity: new MockIdentityAdapter(),
-    sync: new MockSyncAdapter(),
+    sync: opts?.includeSync !== false ? new MockSyncAdapter() : undefined,
   };
 }

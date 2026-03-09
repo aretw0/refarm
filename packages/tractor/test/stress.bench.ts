@@ -40,17 +40,17 @@ function createBenchManifest(id: string): PluginManifest {
 
 describe("Boot", () => {
   bench("Tractor.boot() — zero-latency adapters", async () => {
-    const tractor = await Tractor.boot(createMockConfig());
+    const tractor = await Tractor.boot(createMockConfig(undefined, { includeSync: false }));
     await tractor.shutdown();
   });
 
   bench("Tractor.boot() — 10ms schema latency", async () => {
-    const tractor = await Tractor.boot(createMockConfig({ schemaMs: 10 }));
+    const tractor = await Tractor.boot(createMockConfig({ schemaMs: 10 }, { includeSync: false }));
     await tractor.shutdown();
   });
 
   bench("Tractor.boot() — with sync adapter", async () => {
-    const tractor = await Tractor.boot(createMockConfig());
+    const tractor = await Tractor.boot(createMockConfig(undefined, { includeSync: true }));
     await tractor.shutdown();
   });
 });

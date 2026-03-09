@@ -7,7 +7,7 @@
 export interface SecretAuthPrompt {
   title: string;
   hint?: string;
-  tier: 'gold' | 'silver' | 'bronze';
+  tier: "gold" | "silver" | "bronze";
 }
 
 export type AuthResponse = { success: boolean; key?: CryptoKey };
@@ -16,7 +16,7 @@ export class SecretHost {
   private _sessionKeys: Map<string, CryptoKey> = new Map();
 
   constructor(
-    private onAuthRequest: (prompt: SecretAuthPrompt) => Promise<AuthResponse>
+    private onAuthRequest: (prompt: SecretAuthPrompt) => Promise<AuthResponse>,
   ) {}
 
   /**
@@ -24,7 +24,9 @@ export class SecretHost {
    * This is the "Auto-Lock" safety mechanism for Guest and Normal modes.
    */
   async lock(): Promise<void> {
-    console.info("[secret-host] Executing Auto-Lock. Purging session keys...");
+    console.info(
+      "[secret-host] Executing Auto-Lock. Purging session keys...",
+    );
     this._sessionKeys.clear();
   }
 
@@ -40,7 +42,7 @@ export class SecretHost {
     const response = await this.onAuthRequest({
       title: `Unlock Secret`,
       hint: hint || "Refarm is requesting access to a secured hardware key.",
-      tier
+      tier,
     });
 
     if (!response.success || !response.key) {
@@ -59,24 +61,25 @@ export class SecretHost {
   /**
    * Anchors a new secret to the hardware enclave or password.
    */
-  async createSecret(value: string, tier: 'gold' | 'silver'): Promise<any> {
+  async createSecret(value: string, tier: "gold" | "silver"): Promise<any> {
     // 1. Request a key (from Hardware or Password)
     const response = await this.onAuthRequest({
       title: `Create Sovereign Secret`,
-      tier
+      tier,
     });
 
-    if (!response.success || !response.key) throw new Error("Key creation denied.");
+    if (!response.success || !response.key)
+      throw new Error("Key creation denied.");
 
     // 2. Encrypt the value (Mock JWE creation)
     return {
       "@type": "SovereignSecret",
-      "tier": tier,
-      "jwe": {
-        "ciphertext": "mock-encrypted-data",
-        "tag": "mock-tag"
+      tier: tier,
+      jwe: {
+        ciphertext: "mock-encrypted-data",
+        tag: "mock-tag",
       },
-      "timestamp": new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

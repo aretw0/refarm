@@ -41,7 +41,7 @@ export interface TractorConfig {
   envMetadata?: Record<string, string>;
   /** If true, generates the ephemeral identity immediately on boot (e.g., for collab links). */
   forceGuestMode?: boolean;
-  /** 
+  /**
    * Default security policy for the engine.
    * strict (default): verify all, sign all, throw on canary trip.
    * permissive: sign all, warn on canary but don't block.
@@ -68,14 +68,14 @@ type TelemetryListener = (data: TelemetryEvent) => void;
 
 class EventEmitter {
   private listeners: Set<TelemetryListener> = new Set();
-  
+
   on(listener: TelemetryListener) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
   }
 
   emit(data: TelemetryEvent) {
-    this.listeners.forEach(l => l(data));
+    this.listeners.forEach((l) => l(data));
   }
 }
 
@@ -115,8 +115,8 @@ type ExecutionProfile = "strict" | "trusted-fast";
  * Sandboxed plugin host.
  *
  * Plugins communicate with the Tractor exclusively through the WIT-defined
- * interface (see /wit/refarm-sdk.wit). 
- * 
+ * interface (see /wit/refarm-sdk.wit).
+ *
  * Standard WASI calls (wasi:http, wasi:logging) are intercepted here to enforce
  * the Refarm capability model.
  */
@@ -124,7 +124,9 @@ export class PluginHost {
   private _instances: Map<string, PluginInstance> = new Map();
   private readonly trustGrants: Map<string, PluginTrustGrant> = new Map();
 
-  constructor(private emit: (data: TelemetryEvent) => void) {}
+  constructor(
+    private emit: (data: TelemetryEvent) => void,
+  ) {}
 
   private getTrustKey(pluginId: string, wasmHash: string): string {
     return `${pluginId}::${wasmHash}`;
@@ -157,16 +159,24 @@ export class PluginHost {
     manifest: PluginManifest,
     wasmHash?: string,
   ): ExecutionProfile {
-    const trust = (manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }).trust;
+    const trust = (
+      manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }
+    ).trust;
     const requestedProfile: ExecutionProfile = trust?.profile ?? "strict";
     if (requestedProfile !== "trusted-fast") {
       return "strict";
     }
 
-    return this.hasValidTrustGrant(manifest.id, wasmHash) ? "trusted-fast" : "strict";
+    return this.hasValidTrustGrant(manifest.id, wasmHash)
+      ? "trusted-fast"
+      : "strict";
   }
 
-  grantTrust(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
+  grantTrust(
+    pluginId: string,
+    wasmHash: string,
+    leaseMs?: number,
+  ): PluginTrustGrant {
     const now = Date.now();
     const grant: PluginTrustGrant = {
       pluginId,
@@ -186,9 +196,16 @@ export class PluginHost {
     return grant;
   }
 
-  trustManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
-    const trust = (manifest as PluginManifest & { trust?: { leaseHours?: number } }).trust;
-    const leaseMs = trust?.leaseHours ? trust.leaseHours * 60 * 60 * 1000 : undefined;
+  trustManifestOnce(
+    manifest: PluginManifest,
+    wasmHash: string,
+  ): PluginTrustGrant {
+    const trust = (
+      manifest as PluginManifest & { trust?: { leaseHours?: number } }
+    ).trust;
+    const leaseMs = trust?.leaseHours
+      ? trust.leaseHours * 60 * 60 * 1000
+      : undefined;
     return this.grantTrust(manifest.id, wasmHash, leaseMs);
   }
 
@@ -202,7 +219,11 @@ export class PluginHost {
         }
       }
     }
-    this.emit({ event: "plugin:trust_revoked", pluginId, payload: { wasmHash } });
+    this.emit({
+      event: "plugin:trust_revoked",
+      pluginId,
+      payload: { wasmHash },
+    });
   }
 
   /**
@@ -222,7 +243,10 @@ export class PluginHost {
         return false;
       }
 
-      const url = typeof request === 'string' ? request : (request as { url?: string })?.url;
+      const url =
+        typeof request === "string"
+          ? request
+          : (request as { url?: string })?.url;
       if (!url) {
         return false;
       }
@@ -231,36 +255,44 @@ export class PluginHost {
     };
 
     return {
-      'wasi:logging/logging': {
+      "wasi:logging/logging": {
         log: (level: string, context: string, message: string) => {
           if (!isTrustedFast) {
-            console.log(`[plugin:${manifest.id}] [${level}] ${message}`);
+            console.debug(`[plugin:${manifest.id}] [${level}] ${message}`);
           }
-          this.emit({ event: "plugin:log", pluginId: manifest.id, payload: { level, message } });
-        }
+          this.emit({
+            event: "plugin:log",
+            pluginId: manifest.id,
+            payload: { level, message },
+          });
+        },
       },
-      'wasi:http/outgoing-handler': {
+      "wasi:http/outgoing-handler": {
         handle: async (request: any) => {
           if (!isAllowedRequest(request)) {
-            const url = typeof request === 'string' ? request : request?.url;
-            console.warn(`[tractor] Blocked unauthorized fetch to ${url || "<unknown>"} by ${manifest.id}`);
+            const url = typeof request === "string" ? request : request?.url;
+            console.warn(
+              `[tractor] Blocked unauthorized fetch to ${url || "<unknown>"} by ${manifest.id}`,
+            );
             throw new Error("HTTP request not permitted by capabilities");
           }
 
           return fetch(request);
-        }
+        },
       },
-      'refarm:plugin/tractor-bridge': {
-        'store-node': async (nodeJson: string) => {
+      "refarm:plugin/tractor-bridge": {
+        "store-node": async (nodeJson: string) => {
           // Capability check: can this plugin store this type?
           // (Implementation deferred to Tractor.storeNode logic)
           return "node-id-stub";
         },
-        'request-permission': async (cap: string, reason: string) => {
-          console.info(`[tractor] Permission request by ${manifest.id}: ${cap} (${reason})`);
+        "request-permission": async (cap: string, reason: string) => {
+          console.debug(
+            `[tractor] Permission request by ${manifest.id}: ${cap} (${reason})`,
+          );
           return true; // Stub: auto-accept in dev
-        }
-      }
+        },
+      },
     };
   }
 
@@ -276,48 +308,59 @@ export class PluginHost {
     const startTime = performance.now();
 
     const profile = this.resolveExecutionProfile(manifest, wasmHash);
-    const trust = (manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }).trust;
+    const trust = (
+      manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }
+    ).trust;
     if (trust?.profile === "trusted-fast" && !wasmHash) {
       throw new Error(
-        `[tractor] Trusted-fast requires wasmHash for ${pluginId}.`
+        `[tractor] Trusted-fast requires wasmHash for ${pluginId}.`,
       );
     }
 
     if (trust?.profile === "trusted-fast" && wasmHash) {
       const grants = this.getGrantsForPlugin(pluginId);
-      const hasGrantForCurrentHash = grants.some((grant) => grant.wasmHash === wasmHash);
+      const hasGrantForCurrentHash = grants.some(
+        (grant) => grant.wasmHash === wasmHash,
+      );
       if (grants.length > 0 && !hasGrantForCurrentHash) {
         // Fingerprint changed: revoke stale grants and force explicit re-trust.
         this.revokeTrust(pluginId);
         throw new Error(
-          `[tractor] Trusted-fast revoked for ${pluginId}: wasm hash changed. Re-grant trust for the new binary.`
+          `[tractor] Trusted-fast revoked for ${pluginId}: wasm hash changed. Re-grant trust for the new binary.`,
         );
       }
     }
 
     if (trust?.profile === "trusted-fast" && profile !== "trusted-fast") {
       throw new Error(
-        `[tractor] Trusted-fast denied for ${pluginId}. Grant trust for this wasm hash before loading.`
+        `[tractor] Trusted-fast denied for ${pluginId}. Grant trust for this wasm hash before loading.`,
       );
     }
 
     // Fetch and validate WASM module
-    console.info(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
+    console.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
     const response = await fetch(wasmUrl);
     if (!response.ok) {
-      throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+      throw new Error(
+        `[tractor] Failed to fetch plugin: ${response.statusText}`,
+      );
     }
     const wasmBuffer = await response.arrayBuffer();
-    console.info(`[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`);
+    console.debug(
+      `[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`,
+    );
 
     // JCO Integration Logic (Component Model WASM)
     const imports = this.getWasiImports(manifest, profile);
-    const modeLabel = profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";
-    console.info(`[tractor] Instantiating ${pluginId} with WASI Interceptor (${modeLabel})...`);
+    const modeLabel =
+      profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";
+    console.debug(
+      `[tractor] Instantiating ${pluginId} with WASI Interceptor (${modeLabel})...`,
+    );
 
     // TODO: Real Component Model instantiation via JCO transpile + WebAssembly.instantiate
     // Currently using mock; awaiting plugin-compiler integration.
-    // When available: 
+    // When available:
     //   1. Transpile WASM via jco.transpile() to get JS binding + typed interface
     //   2. Instantiate via WebAssembly.instantiate(wasmBuffer, { env: imports })
     //   3. Extract exported functions from component instance
@@ -329,19 +372,19 @@ export class PluginHost {
       manifest,
       call: async (fn, args) => {
         const callStart = performance.now();
-        console.group(`[plugin:${pluginId}] call: ${fn}`);
-        
+        console.debug(`[plugin:${pluginId}] call: ${fn}`);
+
         // Mock implementation: return null
         // Real implementation will dispatch to ComponentInstance[fn](...args)
         const result = null;
-        
+
         this.emit({
           event: "api:call",
           pluginId,
           durationMs: performance.now() - callStart,
-          payload: { fn, args, result }
+          payload: { fn, args, result },
         });
-        console.groupEnd();
+        console.debug(`[plugin:${pluginId}] call end: ${fn}`);
         return result;
       },
       terminate: () => {
@@ -352,10 +395,10 @@ export class PluginHost {
         this.emit({
           event,
           pluginId,
-          payload
+          payload,
         });
       },
-      state: "running"
+      state: "running",
     };
 
     this._instances.set(pluginId, instance);
@@ -370,9 +413,9 @@ export class PluginHost {
       event: "plugin:load",
       pluginId,
       durationMs: performance.now() - startTime,
-      payload: { profile, wasmHash }
+      payload: { profile, wasmHash },
     });
-    
+
     return instance;
   }
 
@@ -395,9 +438,9 @@ export class PluginHost {
       this.emit({
         event: "system:plugin_state_changed",
         pluginId,
-        payload: { state }
+        payload: { state },
       });
-      console.info(`[tractor] Plugin ${pluginId} transitioned to ${state}`);
+      console.debug(`[tractor] Plugin ${pluginId} transitioned to ${state}`);
     }
   }
 
@@ -420,12 +463,15 @@ export class PluginHost {
     const allHelp: SovereignNode[] = [];
     for (const plugin of this._instances.values()) {
       try {
-        const nodes = await plugin.call("get-help-nodes") as any[];
+        const nodes = (await plugin.call("get-help-nodes")) as any[];
         if (nodes) {
-          allHelp.push(...nodes.map(n => JSON.parse(n)));
+          allHelp.push(...nodes.map((n) => JSON.parse(n)));
         }
       } catch (err) {
-        console.warn(`[tractor] Failed to get help from plugin ${plugin.id}:`, err);
+        console.warn(
+          `[tractor] Failed to get help from plugin ${plugin.id}:`,
+          err,
+        );
       }
     }
     return allHelp;
@@ -458,10 +504,70 @@ export class PluginHost {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const SAS_EMOJIS = [
-  "🐶", "🐱", "🦁", "🐯", "🦒", "🦊", "🦝", "🐮", "🐷", "🐭", "🐹", "🐰", "🐻", "🐨", "🐼", "🐸",
-  "🦓", "🐴", "🦄", "🐲", "🦖", "🐢", "🐍", "🐙", "🦑", "🦐", "🦀", "🐬", "🐳", "🦈", "🐡", "🐠",
-  "🦋", "🐝", "🐞", "🐜", "🦗", "🕷️", "🦂", "🦟", "🦠", "🌻", "🌼", "🌽", "🌾", "🌿", "🍀", "🍁",
-  "🍄", "🥓", "🥨", "🧀", "🥞", "🍳", "🥖", "🥐", "🌭", "🍔", "🍟", "🍕", "🥗", "🥘", "🥪", "🌮"
+  "🐶",
+  "🐱",
+  "🦁",
+  "🐯",
+  "🦒",
+  "🦊",
+  "🦝",
+  "🐮",
+  "🐷",
+  "🐭",
+  "🐹",
+  "🐰",
+  "🐻",
+  "🐨",
+  "🐼",
+  "🐸",
+  "🦓",
+  "🐴",
+  "🦄",
+  "🐲",
+  "🦖",
+  "🐢",
+  "🐍",
+  "🐙",
+  "🦑",
+  "🦐",
+  "🦀",
+  "🐬",
+  "🐳",
+  "🦈",
+  "🐡",
+  "🐠",
+  "🦋",
+  "🐝",
+  "🐞",
+  "🐜",
+  "🦗",
+  "🕷️",
+  "🦂",
+  "🦟",
+  "🦠",
+  "🌻",
+  "🌼",
+  "🌽",
+  "🌾",
+  "🌿",
+  "🍀",
+  "🍁",
+  "🍄",
+  "🥓",
+  "🥨",
+  "🧀",
+  "🥞",
+  "🍳",
+  "🥖",
+  "🥐",
+  "🌭",
+  "🍔",
+  "🍟",
+  "🍕",
+  "🥗",
+  "🥘",
+  "🥪",
+  "🌮",
 ];
 
 // ─── Sovereign Graph Normaliser ───────────────────────────────────────────────
@@ -531,55 +637,78 @@ export interface RecoveryProof {
 export interface RecoveryProvider {
   id: string;
   name: string;
-  initiate(request: RecoveryRequest): Promise<{ sessionId: string; requiredProofs: string[] }>;
+  initiate(
+    request: RecoveryRequest,
+  ): Promise<{ sessionId: string; requiredProofs: string[] }>;
   submitProof(sessionId: string, proof: RecoveryProof): Promise<boolean>;
   finalize(sessionId: string): Promise<Uint8Array>;
 }
 
 export class IdentityRecoveryHost {
   private providers: Map<string, RecoveryProvider> = new Map();
-  private activeSessions: Map<string, { providerId: string; sessionId: string }> = new Map();
+  private activeSessions: Map<
+    string,
+    { providerId: string; sessionId: string }
+  > = new Map();
 
   constructor(private emit: (data: TelemetryEvent) => void) {}
 
   registerProvider(provider: RecoveryProvider) {
     this.providers.set(provider.id, provider);
-    this.emit({ event: "system:recovery_provider_registered", payload: { id: provider.id, name: provider.name } });
+    this.emit({
+      event: "system:recovery_provider_registered",
+      payload: { id: provider.id, name: provider.name },
+    });
   }
 
   async initiateRecovery(providerId: string, request: RecoveryRequest) {
     const provider = this.providers.get(providerId);
-    if (!provider) throw new Error(`[recovery] Provider not found: ${providerId}`);
+    if (!provider)
+      throw new Error(`[recovery] Provider not found: ${providerId}`);
 
     const result = await provider.initiate(request);
     const tractorSessionId = Math.random().toString(36).substring(7);
-    this.activeSessions.set(tractorSessionId, { providerId, sessionId: result.sessionId });
+    this.activeSessions.set(tractorSessionId, {
+      providerId,
+      sessionId: result.sessionId,
+    });
 
-    this.emit({ event: "system:recovery_initiated", payload: { tractorSessionId, providerId } });
+    this.emit({
+      event: "system:recovery_initiated",
+      payload: { tractorSessionId, providerId },
+    });
     return { tractorSessionId, ...result };
   }
 
   async submitProof(tractorSessionId: string, proof: RecoveryProof) {
     const session = this.activeSessions.get(tractorSessionId);
-    if (!session) throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
+    if (!session)
+      throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
 
     const provider = this.providers.get(session.providerId)!;
     const success = await provider.submitProof(session.sessionId, proof);
-    
-    this.emit({ event: "system:recovery_proof_submitted", payload: { tractorSessionId, success } });
+
+    this.emit({
+      event: "system:recovery_proof_submitted",
+      payload: { tractorSessionId, success },
+    });
     return success;
   }
 
   async finalizeRecovery(tractorSessionId: string) {
     const session = this.activeSessions.get(tractorSessionId);
-    if (!session) throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
+    if (!session)
+      throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
 
     const provider = this.providers.get(session.providerId)!;
     const signature = await provider.finalize(session.sessionId);
-    
+
     this.activeSessions.delete(tractorSessionId);
-    this.emit({ event: "system:recovery_finalized", payload: { tractorSessionId } });
-    
+    this.emit({
+      event: "system:recovery_finalized",
+      payload: { tractorSessionId },
+    });
+
     return signature;
   }
 }
@@ -587,7 +716,8 @@ export class IdentityRecoveryHost {
 // ─── Tractor ───────────────────────────────────────────────────────────────────
 
 export class Tractor {
-  static readonly VERSION = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+  static readonly VERSION =
+    (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
   readonly storage: StorageAdapter;
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
@@ -598,10 +728,10 @@ export class Tractor {
   readonly commands: CommandHost;
   readonly recovery: IdentityRecoveryHost;
   readonly defaultSecurityMode: SecurityMode;
-  
+
   /** Ephemeral identity used for signing during Guest/Visitor sessions. */
   private _ephemeralKeypair?: { publicKey: Uint8Array; secretKey: Uint8Array };
-  
+
   private readonly events: EventEmitter = new EventEmitter();
 
   private constructor(
@@ -621,18 +751,25 @@ export class Tractor {
     this.events.on((data) => {
       this.plugins.dispatch(data);
     });
-    
+
     // Default auth provider that denies access unless overridden by the Shell
-    const authProvider = config.onAuthRequest || (async () => {
-      console.warn("[tractor] No secret auth provider configured. Access denied.");
-      return { success: false };
-    });
-    
-    
+    const authProvider =
+      config.onAuthRequest ||
+      (async () => {
+        console.warn(
+          "[tractor] No secret auth provider configured. Access denied.",
+        );
+        return { success: false };
+      });
+
     this.secrets = new SecretHost(authProvider);
-    this.commands = new CommandHost((event: string, payload: any) => this.events.emit({ event, payload }));
-    this.recovery = new IdentityRecoveryHost((data: TelemetryEvent) => this.events.emit(data));
-    
+    this.commands = new CommandHost((event: string, payload: any) =>
+      this.events.emit({ event, payload }),
+    );
+    this.recovery = new IdentityRecoveryHost((data: TelemetryEvent) =>
+      this.events.emit(data),
+    );
+
     this.registerCoreCommands();
 
     // Immediate generation IF requested (Collab/High-Trust)
@@ -647,17 +784,19 @@ export class Tractor {
       title: "Enter Guest Mode",
       category: "Identity",
       description: "Generate an ephemeral identity for signing.",
-      handler: () => this.enableGuestMode()
+      handler: () => this.enableGuestMode(),
     });
 
     this.commands.register({
       id: "system:identity:debug",
       title: "Show Current Identity",
       category: "Identity",
-      handler: () => ({ 
-        publicKey: this._ephemeralKeypair ? this.uint8ToHex(this._ephemeralKeypair.publicKey) : this.identity.publicKey,
-        type: this._ephemeralKeypair ? "guest" : "permanent"
-      })
+      handler: () => ({
+        publicKey: this._ephemeralKeypair
+          ? this.uint8ToHex(this._ephemeralKeypair.publicKey)
+          : this.identity.publicKey,
+        type: this._ephemeralKeypair ? "guest" : "permanent",
+      }),
     });
 
     this.commands.register({
@@ -669,10 +808,10 @@ export class Tractor {
         const sas = this.generateSasEmojis();
         this.emitTelemetry({
           event: "security:verification_start",
-          payload: { method: "sas", emojis: sas }
+          payload: { method: "sas", emojis: sas },
         });
         return { sas };
-      }
+      },
     });
 
     this.commands.register({
@@ -682,19 +821,22 @@ export class Tractor {
       handler: async (args: { confirmed: boolean }) => {
         this.emitTelemetry({
           event: "security:verification_result",
-          payload: { method: "sas", success: args.confirmed }
+          payload: { method: "sas", success: args.confirmed },
         });
         return { success: args.confirmed };
-      }
+      },
     });
 
     this.commands.register({
       id: "system:security:recovery:initiate",
       title: "Initiate Account Recovery",
       category: "Security",
-      handler: async (args: { providerId: string; request: RecoveryRequest }) => {
+      handler: async (args: {
+        providerId: string;
+        request: RecoveryRequest;
+      }) => {
         return this.recovery.initiateRecovery(args.providerId, args.request);
-      }
+      },
     });
 
     this.commands.register({
@@ -702,59 +844,78 @@ export class Tractor {
       title: "Trust Plugin Binary",
       category: "Security",
       description: "Grant trusted-fast execution for a plugin fingerprint.",
-      handler: (args: { pluginId: string; wasmHash: string; leaseMs?: number }) => {
+      handler: (args: {
+        pluginId: string;
+        wasmHash: string;
+        leaseMs?: number;
+      }) => {
         if (!args?.pluginId || !args?.wasmHash) {
           throw new Error("pluginId and wasmHash are required");
         }
         return this.trustPlugin(args.pluginId, args.wasmHash, args.leaseMs);
-      }
+      },
     });
 
     this.commands.register({
       id: "system:security:trust-plugin-once",
       title: "Trust This Plugin Once",
       category: "Security",
-      description: "One-time high-performance trust grant with explicit user acknowledgment.",
-      handler: (args: { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean }) => {
+      description:
+        "One-time high-performance trust grant with explicit user acknowledgment.",
+      handler: (args: {
+        manifest: PluginManifest;
+        wasmHash: string;
+        acknowledgeRisk: boolean;
+      }) => {
         if (!args?.manifest || !args?.wasmHash) {
           throw new Error("manifest and wasmHash are required");
         }
         if (!args.acknowledgeRisk) {
-          throw new Error("Risk acknowledgment is required for trusted-fast mode");
+          throw new Error(
+            "Risk acknowledgment is required for trusted-fast mode",
+          );
         }
 
-        const trust = (args.manifest as PluginManifest & { trust?: { profile?: string } }).trust;
+        const trust = (
+          args.manifest as PluginManifest & { trust?: { profile?: string } }
+        ).trust;
         if (trust?.profile !== "trusted-fast") {
           throw new Error("manifest trust.profile must be trusted-fast");
         }
 
-        const grant = this.trustPluginManifestOnce(args.manifest, args.wasmHash);
+        const grant = this.trustPluginManifestOnce(
+          args.manifest,
+          args.wasmHash,
+        );
         return {
           grant,
           warning:
             "Trusted-fast enabled for this binary fingerprint. Plugin publisher assumes responsibility for host-impacting behavior.",
         };
-      }
+      },
     });
 
     this.commands.register({
       id: "system:security:revoke-plugin-trust",
       title: "Revoke Plugin Trust",
       category: "Security",
-      description: "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
+      description:
+        "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
       handler: (args: { pluginId: string; wasmHash?: string }) => {
         if (!args?.pluginId) {
           throw new Error("pluginId is required");
         }
         this.revokePluginTrust(args.pluginId, args.wasmHash);
         return { ok: true };
-      }
+      },
     });
   }
 
   private generateSasEmojis(count: number = 7): string[] {
     const emojis: string[] = [];
-    const seed = this._ephemeralKeypair ? this._ephemeralKeypair.publicKey : new Uint8Array(8);
+    const seed = this._ephemeralKeypair
+      ? this._ephemeralKeypair.publicKey
+      : new Uint8Array(8);
     // Deterministic selection based on key if possible, or random for now
     for (let i = 0; i < count; i++) {
       const idx = Math.floor(Math.random() * SAS_EMOJIS.length);
@@ -766,12 +927,13 @@ export class Tractor {
   /**
    * Transition from Visitor to Guest Mode.
    * Generates an ephemeral keypair for non-committal data signing.
-   * 
+   *
    * @returns The hex-encoded public key of the guest identity.
    */
   async enableGuestMode(): Promise<string> {
-    if (this._ephemeralKeypair) return this.uint8ToHex(this._ephemeralKeypair.publicKey);
-    
+    if (this._ephemeralKeypair)
+      return this.uint8ToHex(this._ephemeralKeypair.publicKey);
+
     await this.initializeEphemeralIdentity();
     return this.uint8ToHex(this._ephemeralKeypair!.publicKey);
   }
@@ -780,22 +942,26 @@ export class Tractor {
     const privKey = ed.utils.randomSecretKey();
     const pubKey = await ed.getPublicKeyAsync(privKey);
     this._ephemeralKeypair = { publicKey: pubKey, secretKey: privKey };
-    
-    console.info(`[tractor] Ephemeral Identity initialized: ${this.uint8ToHex(pubKey)}`);
+
+    console.info(
+      `[tractor] Ephemeral Identity initialized: ${this.uint8ToHex(pubKey)}`,
+    );
     this.events.emit({
       event: "identity:ephemeral_ready",
-      payload: { publicKey: this.uint8ToHex(pubKey) }
+      payload: { publicKey: this.uint8ToHex(pubKey) },
     });
   }
 
   private uint8ToHex(arr: Uint8Array): string {
-    return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    return Array.from(arr)
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
   }
 
   private hexToUint8(hex: string): Uint8Array {
     const matches = hex.match(/.{1,2}/g);
     if (!matches) return new Uint8Array();
-    return new Uint8Array(matches.map(byte => parseInt(byte, 16)));
+    return new Uint8Array(matches.map((byte) => parseInt(byte, 16)));
   }
 
   /**
@@ -805,15 +971,20 @@ export class Tractor {
     const signature = node["refarm:signature"];
     if (!signature) return false;
 
-    if (signature.alg === "external" && signature.sig === "delegated") return true;
+    if (signature.alg === "external" && signature.sig === "delegated")
+      return true;
     if (signature.alg !== "ed25519") return false;
 
     try {
       // Reconstruct the data that was signed
       // We must remove the signature(s) added by signNode()
-      const { "refarm:signature": _s, "refarm:signatures": _ss, ...unsignedNode } = node;
+      const {
+        "refarm:signature": _s,
+        "refarm:signatures": _ss,
+        ...unsignedNode
+      } = node;
       const data = new TextEncoder().encode(JSON.stringify(unsignedNode));
-      
+
       const sig = this.hexToUint8(signature.sig);
       const pub = this.hexToUint8(signature.pubkey);
 
@@ -830,8 +1001,10 @@ export class Tractor {
    */
   static async boot(config: TractorConfig): Promise<Tractor> {
     // 1. Validate mandatory adapters
-    if (!config.storage) throw new Error("[tractor] A Storage Adapter is required to boot.");
-    if (!config.identity) throw new Error("[tractor] An Identity Adapter is required to boot.");
+    if (!config.storage)
+      throw new Error("[tractor] A Storage Adapter is required to boot.");
+    if (!config.identity)
+      throw new Error("[tractor] An Identity Adapter is required to boot.");
 
     // 2. Initialize Core Schema (Delegated to adapter)
     await config.storage.ensureSchema();
@@ -841,8 +1014,9 @@ export class Tractor {
       await config.sync.start();
     }
 
+    const tractor = new Tractor(config.storage, config.identity, config);
     console.info("[tractor] Booted ✓");
-    return new Tractor(config.storage, config.identity, config);
+    return tractor;
   }
 
   /**
@@ -856,11 +1030,18 @@ export class Tractor {
    * Grant trusted-fast execution for a specific plugin binary fingerprint.
    * The grant is keyed by plugin id + wasm hash and can be optionally time-boxed.
    */
-  trustPlugin(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
+  trustPlugin(
+    pluginId: string,
+    wasmHash: string,
+    leaseMs?: number,
+  ): PluginTrustGrant {
     return this.plugins.grantTrust(pluginId, wasmHash, leaseMs);
   }
 
-  trustPluginManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
+  trustPluginManifestOnce(
+    manifest: PluginManifest,
+    wasmHash: string,
+  ): PluginTrustGrant {
     return this.plugins.trustManifestOnce(manifest, wasmHash);
   }
 
@@ -896,7 +1077,7 @@ export class Tractor {
   /**
    * Connect a permanent identity (e.g. from Nostr).
    * This replaces the current identity adapter and clears any ephemeral session.
-   * 
+   *
    * If transitioning from Guest to Permanent, it generates an 'IdentityConversion' node
    * as defined in ADR-034 to maintain cryptographic ownership links.
    */
@@ -904,24 +1085,31 @@ export class Tractor {
     const previousGuestKey = this._ephemeralKeypair;
     const permanentPubKey = adapter.publicKey;
 
-    console.info(`[tractor] Connecting new identity: ${permanentPubKey || "unknown"}`);
-    
+    console.info(
+      `[tractor] Connecting new identity: ${permanentPubKey || "unknown"}`,
+    );
+
     // 1. If we were in Guest Mode, create the Conversion Link
     if (previousGuestKey && permanentPubKey) {
-      console.info("[tractor] Transitioning Guest -> Permanent. Generating IdentityConversion node...");
-      
+      console.info(
+        "[tractor] Transitioning Guest -> Permanent. Generating IdentityConversion node...",
+      );
+
       const conversionNode: SovereignNode = {
         "@context": "https://refarm.dev/schemas/v1",
         "@type": "IdentityConversion",
         "@id": `urn:refarm:identity:conversion:${this.uint8ToHex(previousGuestKey.publicKey)}`,
-        "guestPubkey": this.uint8ToHex(previousGuestKey.publicKey),
-        "permanentPubkey": permanentPubKey,
-        "timestamp": new Date().toISOString()
+        guestPubkey: this.uint8ToHex(previousGuestKey.publicKey),
+        permanentPubkey: permanentPubKey,
+        timestamp: new Date().toISOString(),
       };
 
       // Signature 1: By the Guest Key (Proving voluntary transfer)
-      const guestSignedNode = await this.signNodeWithKeypair(conversionNode, previousGuestKey);
-      
+      const guestSignedNode = await this.signNodeWithKeypair(
+        conversionNode,
+        previousGuestKey,
+      );
+
       // Update identity to permanent
       this.identity = adapter;
       this._ephemeralKeypair = undefined;
@@ -929,14 +1117,14 @@ export class Tractor {
       // Signature 2: By the Permanent Key (Proving acceptance)
       // Note: signNode now uses this.identity since _ephemeralKeypair is cleared
       const doubleSignedNode = await this.signNode(guestSignedNode);
-      
+
       // Persist the link
       await this.storage.storeNode(
         doubleSignedNode["@id"] as string,
         doubleSignedNode["@type"] as string,
         doubleSignedNode["@context"] as string,
         JSON.stringify(doubleSignedNode),
-        "system:identity"
+        "system:identity",
       );
 
       console.info("[tractor] IdentityConversation node persisted ✓");
@@ -944,30 +1132,33 @@ export class Tractor {
       this.identity = adapter;
       this._ephemeralKeypair = undefined;
     }
-    
+
     this.events.emit({
       event: "identity:connected",
-      payload: { publicKey: adapter.publicKey }
+      payload: { publicKey: adapter.publicKey },
     });
   }
 
   /**
    * Internal helper to sign a node with a specific keypair (ignoring current state).
    */
-  private async signNodeWithKeypair(node: SovereignNode, keypair: { publicKey: Uint8Array; secretKey: Uint8Array }): Promise<SovereignNode> {
+  private async signNodeWithKeypair(
+    node: SovereignNode,
+    keypair: { publicKey: Uint8Array; secretKey: Uint8Array },
+  ): Promise<SovereignNode> {
     const nodeData = JSON.stringify(node);
     const signature = await ed.signAsync(
       new TextEncoder().encode(nodeData),
-      keypair.secretKey
+      keypair.secretKey,
     );
 
     return {
       ...node,
       "refarm:signature": {
-        "pubkey": this.uint8ToHex(keypair.publicKey),
-        "sig": this.uint8ToHex(signature),
-        "alg": "ed25519"
-      }
+        pubkey: this.uint8ToHex(keypair.publicKey),
+        sig: this.uint8ToHex(signature),
+        alg: "ed25519",
+      },
     };
   }
 
@@ -979,7 +1170,7 @@ export class Tractor {
     console.info(`[tractor] Switching to tier: ${tier}`);
     this.events.emit({
       event: "system:switch-tier",
-      payload: { tier }
+      payload: { tier },
     });
   }
 
@@ -1000,30 +1191,30 @@ export class Tractor {
       "@context": "https://schema.org/",
       "@type": "HelpPage",
       "@id": "urn:refarm:core:seed",
-      "name": "Sovereign Engine",
-      "text": "The engine is active. You are currently in Visitor Mode. Experience plugins can be cultivated to expand this soil.",
+      name: "Sovereign Engine",
+      text: "The engine is active. You are currently in Visitor Mode. Experience plugins can be cultivated to expand this soil.",
       "refarm:sourcePlugin": "core",
       "refarm:priority": 0,
-      "refarm:renderType": "landing"
+      "refarm:renderType": "landing",
     };
   }
 
   /**
    * Persist a normalised sovereign node to the local graph.
-   * 
+   *
    * Includes 'Security Canaries' (tripwires) to detect tampering or clock attacks.
    * Can be overridden by the caller for high-performance needs (e.g. games).
    */
   async storeNode(node: SovereignNode, mode?: SecurityMode): Promise<void> {
     const startTime = performance.now();
     const securityMode = mode ?? this.defaultSecurityMode;
-    
+
     // 1. Mandatory Proton-Level Signing (skipped in "none" mode)
     let signedNode = node;
     if (securityMode !== "none") {
       signedNode = await this.signNode(node);
     }
-    
+
     // 2. SECURITY CANARIES (Tripwires)
     if (securityMode !== "none") {
       // Canary A: Immediate Verification (Tampering Detect)
@@ -1031,24 +1222,33 @@ export class Tractor {
       if (!isVerified) {
         this.events.emit({
           event: "system:security:canary_tripped",
-          payload: { type: "tampering", nodeId: signedNode["@id"] }
+          payload: { type: "tampering", nodeId: signedNode["@id"] },
         });
         if (securityMode === "strict") {
-          throw new Error(`[tractor] Security Alert: Tampering detected on node ${signedNode["@id"]}`);
+          throw new Error(
+            `[tractor] Security Alert: Tampering detected on node ${signedNode["@id"]}`,
+          );
         }
       }
 
       // Canary B: Clock Skew Detection (Future nodes)
       const nodeClock = node["refarm:clock"] as number | undefined;
-      const nodeTime = nodeClock || (node["timestamp"] ? new Date(node["timestamp"] as string).getTime() : Date.now());
-      
-      if (typeof nodeTime === 'number' && nodeTime > Date.now() + 10000) { // 10s grace
+      const nodeTime =
+        nodeClock ||
+        (node["timestamp"]
+          ? new Date(node["timestamp"] as string).getTime()
+          : Date.now());
+
+      if (typeof nodeTime === "number" && nodeTime > Date.now() + 10000) {
+        // 10s grace
         this.events.emit({
           event: "system:security:canary_tripped",
-          payload: { type: "clock_skew", nodeId: signedNode["@id"] }
+          payload: { type: "clock_skew", nodeId: signedNode["@id"] },
         });
         if (securityMode === "strict") {
-          throw new Error(`[tractor] Security Alert: Clock skew detected. Node is from the future.`);
+          throw new Error(
+            `[tractor] Security Alert: Clock skew detected. Node is from the future.`,
+          );
         }
       }
     }
@@ -1064,9 +1264,9 @@ export class Tractor {
 
     this.events.emit({
       event: "storage:io",
-      pluginId: (node["refarm:sourcePlugin"] as string | undefined),
+      pluginId: node["refarm:sourcePlugin"] as string | undefined,
       durationMs: performance.now() - startTime,
-      payload: { type: node["@type"], action: "store" }
+      payload: { type: node["@type"], action: "store" },
     });
   }
 
@@ -1078,11 +1278,13 @@ export class Tractor {
   ): Promise<T[]> {
     const startTime = performance.now();
     const rows = await this.storage.queryNodes(type);
-    const nodes = rows.map((r: { payload: string }) => JSON.parse(r.payload) as T);
+    const nodes = rows.map(
+      (r: { payload: string }) => JSON.parse(r.payload) as T,
+    );
     this.events.emit({
       event: "storage:io",
       durationMs: performance.now() - startTime,
-      payload: { type, action: "query", count: nodes.length }
+      payload: { type, action: "query", count: nodes.length },
     });
     return nodes;
   }
@@ -1090,21 +1292,27 @@ export class Tractor {
   /**
    * Internal helper to sign a node using the best available identity.
    * Throws if no identity is active (Visitor Mode).
-   * 
+   *
    * If the node already has a signature, it moves it to the 'refarm:signatures' array
    * and appends the new one.
    */
   async signNode(node: SovereignNode): Promise<SovereignNode> {
-    const pubKey = this._ephemeralKeypair 
+    const pubKey = this._ephemeralKeypair
       ? this.uint8ToHex(this._ephemeralKeypair.publicKey)
       : this.identity.publicKey;
 
     if (!pubKey) {
-      throw new Error("[tractor] Action blocked: You must be in Guest or Permanent mode to sign and store data.");
+      throw new Error(
+        "[tractor] Action blocked: You must be in Guest or Permanent mode to sign and store data.",
+      );
     }
-    
+
     // Deterministic Signing: Always sign the "Pure" node (excluding signatures)
-    const { "refarm:signature": _s, "refarm:signatures": _ss, ...pureNode } = node;
+    const {
+      "refarm:signature": _s,
+      "refarm:signatures": _ss,
+      ...pureNode
+    } = node;
     const nodeData = JSON.stringify(pureNode);
     const dataEncoded = new TextEncoder().encode(nodeData);
 
@@ -1112,40 +1320,45 @@ export class Tractor {
 
     // 1. Generate the signature
     if (this._ephemeralKeypair) {
-      const sigData = await ed.signAsync(dataEncoded, this._ephemeralKeypair.secretKey);
+      const sigData = await ed.signAsync(
+        dataEncoded,
+        this._ephemeralKeypair.secretKey,
+      );
       signature = {
         pubkey: pubKey,
         sig: this.uint8ToHex(sigData),
-        alg: "ed25519"
+        alg: "ed25519",
       };
     } else if (this.identity.sign) {
       const result = await this.identity.sign(nodeData);
       signature = {
         pubkey: pubKey,
         sig: result.signature,
-        alg: result.algorithm
+        alg: result.algorithm,
       };
     } else {
       signature = {
         pubkey: pubKey,
         alg: "external",
-        sig: "delegated"
+        sig: "delegated",
       };
     }
 
     // 2. Attach to the node (Multi-signature support)
     const newNode = { ...node };
-    
+
     if (newNode["refarm:signature"]) {
       // Transition to/update array if this is the second+ signature
-      const existingSigs = newNode["refarm:signatures"] || [newNode["refarm:signature"] as SovereignSignature];
+      const existingSigs = newNode["refarm:signatures"] || [
+        newNode["refarm:signature"] as SovereignSignature,
+      ];
       newNode["refarm:signatures"] = [...existingSigs, signature];
       // Keep refarm:signature as the LATEST for convenience
       newNode["refarm:signature"] = signature;
     } else {
       newNode["refarm:signature"] = signature;
     }
-    
+
     return newNode;
   }
 
