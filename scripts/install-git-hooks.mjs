@@ -58,7 +58,7 @@ WARNINGS=0
 
 # 1. Lint
 echo "📝 Checking lint..."
-if npm run lint --silent 2>&1 | filter_vite_warning >/dev/null; then
+if CI=1 npm run lint --silent -- --force 2>&1 | filter_vite_warning >/dev/null; then
   echo "   ✅ Lint passed"
 else
   if [ \$IS_PROTECTED_BRANCH -eq 1 ]; then
@@ -73,7 +73,7 @@ echo ""
 
 # 2. Type-check
 echo "🔤 Checking types..."
-TYPECHECK_OUTPUT=$(npm run type-check --silent 2>&1 | filter_vite_warning)
+TYPECHECK_OUTPUT=$(CI=1 npm run type-check --silent -- --force 2>&1 | filter_vite_warning)
 TYPECHECK_STATUS=$?
 if [ \$TYPECHECK_STATUS -eq 0 ]; then
   echo "   ✅ Type-check passed"
