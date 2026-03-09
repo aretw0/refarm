@@ -1,4 +1,6 @@
 export {
+    type PluginExecutionProfile,
+    type PluginTrustMetadata,
     REQUIRED_TELEMETRY_HOOKS,
     type ManifestValidationResult,
     type PluginCapabilities,

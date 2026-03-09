@@ -33,6 +33,9 @@ export function createMockManifest(overrides: Partial<PluginManifest> = {}): Plu
       a11yLevel: 0,
       languages: ["en"],
     },
+    trust: {
+      profile: "strict",
+    },
     ...overrides,
   };
 }

@@ -20,6 +20,8 @@ describe("Tractor Core Commands", () => {
     expect(ids).toContain("system:identity:debug");
     expect(ids).toContain("system:security:verify-device");
     expect(ids).toContain("system:security:confirm-sas");
+    expect(ids).toContain("system:security:trust-plugin");
+    expect(ids).toContain("system:security:revoke-plugin-trust");
   });
 
   it("should execute system:security:verify-device and return 7 emojis", async () => {
