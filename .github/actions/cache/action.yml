@@ -1,0 +1,30 @@
+name: "Cache Wrapper"
+description: "Generic cache wrapper for GitHub Actions"
+
+inputs:
+  path:
+    description: "File/directory paths to cache"
+    required: true
+  key:
+    description: "Primary cache key"
+    required: true
+  restore-keys:
+    description: "Restore key prefixes (multiline)"
+    required: false
+    default: ""
+
+outputs:
+  cache-hit:
+    description: "Whether cache hit occurred"
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Cache
+      id: cache
+      uses: actions/cache@v4.2.2
+      with:
+        path: ${{ inputs.path }}
+        key: ${{ inputs.key }}
+        restore-keys: ${{ inputs.restore-keys }}
