@@ -611,6 +611,31 @@ Before publishing, ensure:
 **Cause**: Missing WIT bindings or incorrect export names.
 **Fix**: Regenerate bindings from `wit/refarm-sdk.wit`, check `#[no_mangle]` directives.
 
+### Rust: `warning: struct is never constructed`
+**Symptom**: When compiling Rust plugins, you see:
+
+```
+warning: struct `Plugin` is never constructed
+  --> src/lib.rs:9:8
+```
+
+**Cause**: The struct implementing `Guest` trait is never instantiated directly. The `wit_bindgen::generate!()` macro generates glue code that calls trait methods without constructing the struct. This is the **intended pattern** for wit-bindgen.
+
+**Fix**: Add `#[allow(dead_code)]` above the struct declaration:
+
+```rust
+#[allow(dead_code)]
+struct Plugin;
+
+impl plugin::Guest for Plugin {
+  // Your implementations
+}
+```
+
+**Impact**: This warning is **harmless** and specific to your plugin implementation. Plugin users will **not** see it — they only interact with the compiled WASM component through the WIT interface. Other plugin developers may see it in their own builds if they use the same pattern, but it's expected and documented.
+
+**Alternative**: Some Rust plugins use a zero-sized type or unit struct with explicit exports instead of traits, but the trait pattern is **recommended** by wit-bindgen for cleaner type safety.
+
 ---
 
 ## Examples
