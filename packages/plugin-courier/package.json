@@ -1,7 +1,7 @@
 {
-  "name": "@refarm.dev/plugin-antenna",
+  "name": "@refarm.dev/plugin-courier",
   "version": "0.1.0",
-  "description": "Graph-native Web Publisher Plugin (The Antenna) for Refarm.",
+  "description": "Graph-native Web Publisher Plugin (The Courier) for Refarm.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
