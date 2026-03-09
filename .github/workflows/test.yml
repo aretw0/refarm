@@ -39,6 +39,16 @@ jobs:
       - name: Storage capability conformance
         run: npm --prefix packages/storage-sqlite run test:conformance
 
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Build WASM plugin for tests
+        run: |
+          cd validations/simple-wasm-plugin
+          cargo build --target wasm32-unknown-unknown --release
+
       - name: Unit tests
         if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
         run: npm run test:unit -- --coverage
