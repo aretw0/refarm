@@ -12,11 +12,18 @@ export interface SecretAuthPrompt {
 
 export type AuthResponse = { success: boolean; key?: CryptoKey };
 
+export interface SecretHostLogger {
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+}
+
 export class SecretHost {
   private _sessionKeys: Map<string, CryptoKey> = new Map();
 
   constructor(
     private onAuthRequest: (prompt: SecretAuthPrompt) => Promise<AuthResponse>,
+    private logger: SecretHostLogger = console,
   ) {}
 
   /**
@@ -24,7 +31,7 @@ export class SecretHost {
    * This is the "Auto-Lock" safety mechanism for Guest and Normal modes.
    */
   async lock(): Promise<void> {
-    console.info(
+    this.logger.info(
       "[secret-host] Executing Auto-Lock. Purging session keys...",
     );
     this._sessionKeys.clear();
@@ -36,7 +43,7 @@ export class SecretHost {
   async decryptSecret(encryptedBlob: any): Promise<string | null> {
     const { tier, hint } = encryptedBlob;
 
-    console.info(`[secret-host] Requesting unlock for tier: ${tier}`);
+    this.logger.info(`[secret-host] Requesting unlock for tier: ${tier}`);
 
     // Call the Shell's UI via the auth request callback
     const response = await this.onAuthRequest({
@@ -46,13 +53,13 @@ export class SecretHost {
     });
 
     if (!response.success || !response.key) {
-      console.warn(`[secret-host] Unlock failed or denied by user.`);
+      this.logger.warn(`[secret-host] Unlock failed or denied by user.`);
       return null;
     }
 
     // Placeholder for actual JWE decryption using the derived CryptoKey
     // In a real implementation, we would use crypto.subtle.decrypt
-    console.debug(`[secret-host] Decrypting payload with ${tier} key...`);
+    this.logger.debug(`[secret-host] Decrypting payload with ${tier} key...`);
 
     // Mock successful decryption
     return "decrypted-secret-value-placeholder";
