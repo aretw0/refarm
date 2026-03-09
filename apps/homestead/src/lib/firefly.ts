@@ -1,4 +1,4 @@
-import { Tractor } from "@refarm.dev/tractor";
+import { Tractor, type TelemetryEvent } from "@refarm.dev/tractor";
 
 /**
  * Firefly Plugin (O Vagalume)
@@ -14,7 +14,7 @@ export class FireflyPlugin {
   }
 
   private setupListeners() {
-    this.tractor.observe((data) => {
+    this.tractor.observe((data: TelemetryEvent) => {
       // Listen for system alerts
       if (data.event === "system:alert") {
         this.showToast(data.payload?.reason || "System Alert", data.payload?.severity === "error");

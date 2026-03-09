@@ -1,4 +1,4 @@
-import { Tractor } from "@refarm.dev/tractor";
+import { Tractor, type TelemetryEvent } from "@refarm.dev/tractor";
 
 /**
  * Herald Plugin (O Arauto)
@@ -13,7 +13,7 @@ export class HeraldPlugin {
   }
 
   private setupHerald() {
-    this.tractor.observe((data) => {
+    this.tractor.observe((data: TelemetryEvent) => {
       if (data.event === "plugin:load") {
         const plugin = this.tractor.plugins.get(data.pluginId!);
         const version = plugin?.manifest.version || "0.0.0";
