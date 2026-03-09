@@ -1,0 +1,20 @@
+[package]
+name = "refarm-simple-wasm-plugin"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.21"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+path = "wit"
+world = "refarm-plugin"
