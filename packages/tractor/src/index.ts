@@ -48,9 +48,52 @@ export interface TractorConfig {
    * none: skip signing and verification (high performance, e.g. for games).
    */
   securityMode?: SecurityMode;
+  /**
+   * Runtime log verbosity.
+   * info (default): info, warn, error
+   * warn: warn, error
+   * error: error only
+   * silent: disable Tractor runtime logs
+   */
+  logLevel?: TractorLogLevel;
 }
 
 export type SecurityMode = "strict" | "permissive" | "none";
+export type TractorLogLevel = "info" | "warn" | "error" | "silent";
+
+interface TractorLogger {
+  info(...args: unknown[]): void;
+  warn(...args: unknown[]): void;
+  debug(...args: unknown[]): void;
+}
+
+const TRACTOR_LOG_PRIORITY: Record<TractorLogLevel, number> = {
+  silent: 0,
+  error: 1,
+  warn: 2,
+  info: 3,
+};
+
+function isTractorLogLevel(value: unknown): value is TractorLogLevel {
+  return value === "info" || value === "warn" || value === "error" || value === "silent";
+}
+
+function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
+  if (configLevel) return configLevel;
+
+  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const envLevel = env?.REFARM_LOG_LEVEL;
+  if (isTractorLogLevel(envLevel)) return envLevel;
+
+  // Keep benchmark output focused on Vitest + summary by default.
+  const lifecycleEvent = env?.npm_lifecycle_event || "";
+  const vitestMode = env?.VITEST_MODE || "";
+  if (env?.VITEST === "true" && (lifecycleEvent.includes("bench") || vitestMode.includes("benchmark"))) {
+    return "silent";
+  }
+
+  return "info";
+}
 
 // ─── Engine Telemetry ──────────────────────────────────────────────────────────
 
@@ -126,6 +169,7 @@ export class PluginHost {
 
   constructor(
     private emit: (data: TelemetryEvent) => void,
+    private logger: TractorLogger = console,
   ) {}
 
   private getTrustKey(pluginId: string, wasmHash: string): string {
@@ -258,7 +302,7 @@ export class PluginHost {
       "wasi:logging/logging": {
         log: (level: string, context: string, message: string) => {
           if (!isTrustedFast) {
-            console.debug(`[plugin:${manifest.id}] [${level}] ${message}`);
+            this.logger.debug(`[plugin:${manifest.id}] [${level}] ${message}`);
           }
           this.emit({
             event: "plugin:log",
@@ -338,7 +382,7 @@ export class PluginHost {
     }
 
     // Fetch and validate WASM module
-    console.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
+    this.logger.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
     const response = await fetch(wasmUrl);
     if (!response.ok) {
       throw new Error(
@@ -346,7 +390,7 @@ export class PluginHost {
       );
     }
     const wasmBuffer = await response.arrayBuffer();
-    console.debug(
+    this.logger.debug(
       `[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`,
     );
 
@@ -354,7 +398,7 @@ export class PluginHost {
     const imports = this.getWasiImports(manifest, profile);
     const modeLabel =
       profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";
-    console.debug(
+    this.logger.debug(
       `[tractor] Instantiating ${pluginId} with WASI Interceptor (${modeLabel})...`,
     );
 
@@ -372,7 +416,7 @@ export class PluginHost {
       manifest,
       call: async (fn, args) => {
         const callStart = performance.now();
-        console.debug(`[plugin:${pluginId}] call: ${fn}`);
+        this.logger.debug(`[plugin:${pluginId}] call: ${fn}`);
 
         // Mock implementation: return null
         // Real implementation will dispatch to ComponentInstance[fn](...args)
@@ -384,7 +428,7 @@ export class PluginHost {
           durationMs: performance.now() - callStart,
           payload: { fn, args, result },
         });
-        console.debug(`[plugin:${pluginId}] call end: ${fn}`);
+        this.logger.debug(`[plugin:${pluginId}] call end: ${fn}`);
         return result;
       },
       terminate: () => {
@@ -406,7 +450,7 @@ export class PluginHost {
     try {
       await instance.call("setup");
     } catch (err) {
-      console.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
+      this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
     }
 
     this.emit({
@@ -440,7 +484,7 @@ export class PluginHost {
         pluginId,
         payload: { state },
       });
-      console.debug(`[tractor] Plugin ${pluginId} transitioned to ${state}`);
+      this.logger.debug(`[tractor] Plugin ${pluginId} transitioned to ${state}`);
     }
   }
 
@@ -728,6 +772,7 @@ export class Tractor {
   readonly commands: CommandHost;
   readonly recovery: IdentityRecoveryHost;
   readonly defaultSecurityMode: SecurityMode;
+  readonly logLevel: TractorLogLevel;
 
   /** Ephemeral identity used for signing during Guest/Visitor sessions. */
   private _ephemeralKeypair?: { publicKey: Uint8Array; secretKey: Uint8Array };
@@ -744,7 +789,15 @@ export class Tractor {
     this.sync = config.sync;
     this.envMetadata = config.envMetadata || {};
     this.defaultSecurityMode = config.securityMode || "strict";
-    this.plugins = new PluginHost((data) => this.events.emit(data));
+    this.logLevel = resolveDefaultLogLevel(config.logLevel);
+    this.plugins = new PluginHost(
+      (data) => this.events.emit(data),
+      {
+        info: (...args: unknown[]) => this.logInfo(...args),
+        warn: (...args: unknown[]) => this.logWarn(...args),
+        debug: (...args: unknown[]) => this.logDebug(...args),
+      },
+    );
     this.l8n = new L8nHost();
 
     // Wire the Telemetry Bus to the Plugin Host for event-dispatching
@@ -756,13 +809,17 @@ export class Tractor {
     const authProvider =
       config.onAuthRequest ||
       (async () => {
-        console.warn(
+        this.logWarn(
           "[tractor] No secret auth provider configured. Access denied.",
         );
         return { success: false };
       });
 
-    this.secrets = new SecretHost(authProvider);
+    this.secrets = new SecretHost(authProvider, {
+      info: (...args: unknown[]) => this.logInfo(...args),
+      warn: (...args: unknown[]) => this.logWarn(...args),
+      debug: (...args: unknown[]) => this.logDebug(...args),
+    });
     this.commands = new CommandHost((event: string, payload: any) =>
       this.events.emit({ event, payload }),
     );
@@ -924,6 +981,22 @@ export class Tractor {
     return emojis;
   }
 
+  private shouldLog(level: "info" | "warn" | "error"): boolean {
+    return TRACTOR_LOG_PRIORITY[this.logLevel] >= TRACTOR_LOG_PRIORITY[level];
+  }
+
+  private logInfo(...args: unknown[]): void {
+    if (this.shouldLog("info")) console.info(...args);
+  }
+
+  private logWarn(...args: unknown[]): void {
+    if (this.shouldLog("warn")) console.warn(...args);
+  }
+
+  private logDebug(...args: unknown[]): void {
+    if (this.shouldLog("info")) console.debug(...args);
+  }
+
   /**
    * Transition from Visitor to Guest Mode.
    * Generates an ephemeral keypair for non-committal data signing.
@@ -943,7 +1016,7 @@ export class Tractor {
     const pubKey = await ed.getPublicKeyAsync(privKey);
     this._ephemeralKeypair = { publicKey: pubKey, secretKey: privKey };
 
-    console.info(
+    this.logInfo(
       `[tractor] Ephemeral Identity initialized: ${this.uint8ToHex(pubKey)}`,
     );
     this.events.emit({
@@ -1015,7 +1088,7 @@ export class Tractor {
     }
 
     const tractor = new Tractor(config.storage, config.identity, config);
-    console.info("[tractor] Booted ✓");
+    tractor.logInfo("[tractor] Booted ✓");
     return tractor;
   }
 
@@ -1085,13 +1158,13 @@ export class Tractor {
     const previousGuestKey = this._ephemeralKeypair;
     const permanentPubKey = adapter.publicKey;
 
-    console.info(
+    this.logInfo(
       `[tractor] Connecting new identity: ${permanentPubKey || "unknown"}`,
     );
 
     // 1. If we were in Guest Mode, create the Conversion Link
     if (previousGuestKey && permanentPubKey) {
-      console.info(
+      this.logInfo(
         "[tractor] Transitioning Guest -> Permanent. Generating IdentityConversion node...",
       );
 
@@ -1127,7 +1200,7 @@ export class Tractor {
         "system:identity",
       );
 
-      console.info("[tractor] IdentityConversation node persisted ✓");
+      this.logInfo("[tractor] IdentityConversation node persisted ✓");
     } else {
       this.identity = adapter;
       this._ephemeralKeypair = undefined;
@@ -1167,7 +1240,7 @@ export class Tractor {
    * Emits a system event that the Shell should handle (e.g. by reloading).
    */
   async switchTier(tier: string): Promise<void> {
-    console.info(`[tractor] Switching to tier: ${tier}`);
+    this.logInfo(`[tractor] Switching to tier: ${tier}`);
     this.events.emit({
       event: "system:switch-tier",
       payload: { tier },
@@ -1366,7 +1439,7 @@ export class Tractor {
     this.plugins.terminateAll();
     await this.secrets.lock();
     await this.storage.close();
-    console.info("[tractor] Shutdown ✓");
+    this.logInfo("[tractor] Shutdown ✓");
   }
 }
 
