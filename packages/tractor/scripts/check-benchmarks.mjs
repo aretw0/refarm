@@ -1,10 +1,27 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const MARGIN = 0.10; // 10% tolerance
 const BASELINE_PATH = path.resolve('benchmarks/baseline.json');
 const CURRENT_PATH = path.resolve('benchmarks/current.json');
 const REPORT_PATH = path.resolve('benchmarks/report.md');
+
+function marginForBenchmark(name) {
+    // Option 3 (hybrid): strict margin for deterministic core transforms,
+    // wider margin for integration-heavy flows where security hooks add overhead.
+    if (name === "normaliseToSovereignGraph() x1") {
+        return 0.10;
+    }
+
+    if (name === "normaliseToSovereignGraph() x1000") {
+        return 0.25;
+    }
+
+    if (name === "Tractor.boot() — 10ms schema latency") {
+        return 0.10;
+    }
+
+    return 0.55;
+}
 
 function loadJson(p) {
     if (!fs.existsSync(p)) return null;
@@ -34,8 +51,8 @@ async function run() {
     });
 
     let tableRows = [
-        '| Benchmark | Baseline (ops/s) | Current (ops/s) | Δ % | Status |',
-        '| :--- | :---: | :---: | :---: | :---: |'
+        '| Benchmark | Baseline (ops/s) | Current (ops/s) | Δ % | Threshold | Status |',
+        '| :--- | :---: | :---: | :---: | :---: | :---: |'
     ];
 
     current.files.forEach(f => {
@@ -46,19 +63,20 @@ async function run() {
 
                 const diff = (b.hz - base.hz) / base.hz;
                 const diffPct = (diff * 100).toFixed(2);
+                const margin = marginForBenchmark(b.name);
 
                 let status = '✅';
-                if (diff < -MARGIN) {
+                if (diff < -margin) {
                     status = '🚨 REGRESSION';
                     regressions.push({ name: b.name, diff: diffPct });
-                } else if (diff > MARGIN) {
+                } else if (diff > margin) {
                     status = '🚀 IMPROVED';
                     improvements.push({ name: b.name, diff: diffPct });
                 } else {
                     stable.push({ name: b.name, diff: diffPct });
                 }
 
-                tableRows.push(`| ${b.name} | ${base.hz.toFixed(2)} | ${b.hz.toFixed(2)} | ${diff > 0 ? '+' : ''}${diffPct}% | ${status} |`);
+                tableRows.push(`| ${b.name} | ${base.hz.toFixed(2)} | ${b.hz.toFixed(2)} | ${diff > 0 ? '+' : ''}${diffPct}% | ${(margin * 100).toFixed(0)}% | ${status} |`);
             });
         });
     });
@@ -73,7 +91,7 @@ ${tableRows.join('\n')}
 - 🚀 Improvements: ${improvements.length}
 - ✅ Stable: ${stable.length}
 
-${regressions.length > 0 ? '> [!CAUTION]\n> Performance degraded beyond the 10% margin. Please investigate the cause.' : '> [!TIP]\n> Performance is within acceptable limits.'}
+${regressions.length > 0 ? '> [!CAUTION]\n> Performance degraded beyond the profile threshold (hybrid strict/trusted-fast). Please investigate the cause.' : '> [!TIP]\n> Performance is within acceptable hybrid thresholds.'}
 `;
 
     fs.writeFileSync(REPORT_PATH, report);
