@@ -1,5 +1,5 @@
 {
-  "name": "@refarm.dev/identity-nostr",
+  "name": "@refarm.me/identity-nostr",
   "version": "0.1.0",
   "description": "Nostr identity primitive — keypair management, NIP-89/94 plugin discovery, usable independently",
   "type": "module",
