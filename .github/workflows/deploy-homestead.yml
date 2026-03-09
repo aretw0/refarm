@@ -34,7 +34,7 @@ jobs:
 
       - name: Build Homestead
         # Compositional build via turbo, filtering for the homestead app
-        run: npx turbo build --filter=@refarm.dev/homestead
+        run: npx turbo build --filter=@refarm.me/homestead
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
