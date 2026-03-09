@@ -102,6 +102,15 @@ export interface PluginInstance {
   state: PluginState;
 }
 
+export interface PluginTrustGrant {
+  pluginId: string;
+  wasmHash: string;
+  grantedAt: number;
+  expiresAt?: number;
+}
+
+type ExecutionProfile = "strict" | "trusted-fast";
+
 /**
  * Sandboxed plugin host.
  *
@@ -113,33 +122,131 @@ export interface PluginInstance {
  */
 export class PluginHost {
   private _instances: Map<string, PluginInstance> = new Map();
+  private readonly trustGrants: Map<string, PluginTrustGrant> = new Map();
 
   constructor(private emit: (data: TelemetryEvent) => void) {}
+
+  private getTrustKey(pluginId: string, wasmHash: string): string {
+    return `${pluginId}::${wasmHash}`;
+  }
+
+  private hasValidTrustGrant(pluginId: string, wasmHash?: string): boolean {
+    if (!wasmHash) return false;
+    const key = this.getTrustKey(pluginId, wasmHash);
+    const grant = this.trustGrants.get(key);
+    if (!grant) return false;
+    if (grant.expiresAt && Date.now() > grant.expiresAt) {
+      this.trustGrants.delete(key);
+      return false;
+    }
+    return true;
+  }
+
+  private getGrantsForPlugin(pluginId: string): PluginTrustGrant[] {
+    const prefix = `${pluginId}::`;
+    const grants: PluginTrustGrant[] = [];
+    for (const [key, grant] of this.trustGrants.entries()) {
+      if (key.startsWith(prefix)) {
+        grants.push(grant);
+      }
+    }
+    return grants;
+  }
+
+  private resolveExecutionProfile(
+    manifest: PluginManifest,
+    wasmHash?: string,
+  ): ExecutionProfile {
+    const trust = (manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }).trust;
+    const requestedProfile: ExecutionProfile = trust?.profile ?? "strict";
+    if (requestedProfile !== "trusted-fast") {
+      return "strict";
+    }
+
+    return this.hasValidTrustGrant(manifest.id, wasmHash) ? "trusted-fast" : "strict";
+  }
+
+  grantTrust(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
+    const now = Date.now();
+    const grant: PluginTrustGrant = {
+      pluginId,
+      wasmHash,
+      grantedAt: now,
+      expiresAt: leaseMs ? now + leaseMs : undefined,
+    };
+    this.trustGrants.set(this.getTrustKey(pluginId, wasmHash), grant);
+    this.emit({
+      event: "plugin:trust_granted",
+      pluginId,
+      payload: {
+        wasmHash,
+        expiresAt: grant.expiresAt,
+      },
+    });
+    return grant;
+  }
+
+  trustManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
+    const trust = (manifest as PluginManifest & { trust?: { leaseHours?: number } }).trust;
+    const leaseMs = trust?.leaseHours ? trust.leaseHours * 60 * 60 * 1000 : undefined;
+    return this.grantTrust(manifest.id, wasmHash, leaseMs);
+  }
+
+  revokeTrust(pluginId: string, wasmHash?: string): void {
+    if (wasmHash) {
+      this.trustGrants.delete(this.getTrustKey(pluginId, wasmHash));
+    } else {
+      for (const key of this.trustGrants.keys()) {
+        if (key.startsWith(`${pluginId}::`)) {
+          this.trustGrants.delete(key);
+        }
+      }
+    }
+    this.emit({ event: "plugin:trust_revoked", pluginId, payload: { wasmHash } });
+  }
 
   /**
    * Internal WASI Interceptor.
    * Redirects standard WASI calls to capability-gated host logic.
    */
-  private getWasiImports(manifest: PluginManifest) {
+  private getWasiImports(manifest: PluginManifest, profile: ExecutionProfile) {
+    const allowedOrigins = manifest.capabilities.allowedOrigins ?? [];
+    const isTrustedFast = profile === "trusted-fast";
+
+    const isAllowedRequest = (request: unknown): boolean => {
+      if (isTrustedFast) {
+        return true;
+      }
+
+      if (allowedOrigins.length === 0) {
+        return false;
+      }
+
+      const url = typeof request === 'string' ? request : (request as { url?: string })?.url;
+      if (!url) {
+        return false;
+      }
+
+      return allowedOrigins.some((origin: string) => url.startsWith(origin));
+    };
+
     return {
       'wasi:logging/logging': {
         log: (level: string, context: string, message: string) => {
-          console.log(`[plugin:${manifest.id}] [${level}] ${message}`);
+          if (!isTrustedFast) {
+            console.log(`[plugin:${manifest.id}] [${level}] ${message}`);
+          }
           this.emit({ event: "plugin:log", pluginId: manifest.id, payload: { level, message } });
         }
       },
       'wasi:http/outgoing-handler': {
         handle: async (request: any) => {
-          // CAPABILITY GATE: Check if plugin is allowed to fetch this origin
-          const url = typeof request === 'string' ? request : request.url;
-          const isAllowed = manifest.capabilities.allowedOrigins?.some((orb: string) => url.startsWith(orb));
-          
-          if (!isAllowed) {
-            console.warn(`[tractor] Blocked unauthorized fetch to ${url} by ${manifest.id}`);
+          if (!isAllowedRequest(request)) {
+            const url = typeof request === 'string' ? request : request?.url;
+            console.warn(`[tractor] Blocked unauthorized fetch to ${url || "<unknown>"} by ${manifest.id}`);
             throw new Error("HTTP request not permitted by capabilities");
           }
 
-          // Forward to real fetch if allowed
           return fetch(request);
         }
       },
@@ -168,9 +275,36 @@ export class PluginHost {
     const wasmUrl = manifest.entry;
     const startTime = performance.now();
 
+    const profile = this.resolveExecutionProfile(manifest, wasmHash);
+    const trust = (manifest as PluginManifest & { trust?: { profile?: ExecutionProfile } }).trust;
+    if (trust?.profile === "trusted-fast" && !wasmHash) {
+      throw new Error(
+        `[tractor] Trusted-fast requires wasmHash for ${pluginId}.`
+      );
+    }
+
+    if (trust?.profile === "trusted-fast" && wasmHash) {
+      const grants = this.getGrantsForPlugin(pluginId);
+      const hasGrantForCurrentHash = grants.some((grant) => grant.wasmHash === wasmHash);
+      if (grants.length > 0 && !hasGrantForCurrentHash) {
+        // Fingerprint changed: revoke stale grants and force explicit re-trust.
+        this.revokeTrust(pluginId);
+        throw new Error(
+          `[tractor] Trusted-fast revoked for ${pluginId}: wasm hash changed. Re-grant trust for the new binary.`
+        );
+      }
+    }
+
+    if (trust?.profile === "trusted-fast" && profile !== "trusted-fast") {
+      throw new Error(
+        `[tractor] Trusted-fast denied for ${pluginId}. Grant trust for this wasm hash before loading.`
+      );
+    }
+
     // JCO Integration Logic (Conceptual Interceptor)
-    const imports = this.getWasiImports(manifest);
-    console.info(`[tractor] Instantiating ${pluginId} with WASI Interceptor...`);
+    const imports = this.getWasiImports(manifest, profile);
+    const modeLabel = profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";
+    console.info(`[tractor] Instantiating ${pluginId} with WASI Interceptor (${modeLabel})...`);
 
     const instance: PluginInstance = {
       id: pluginId,
@@ -217,7 +351,8 @@ export class PluginHost {
     this.emit({
       event: "plugin:load",
       pluginId,
-      durationMs: performance.now() - startTime
+      durationMs: performance.now() - startTime,
+      payload: { profile, wasmHash }
     });
     
     return instance;
@@ -543,6 +678,33 @@ export class Tractor {
         return this.recovery.initiateRecovery(args.providerId, args.request);
       }
     });
+
+    this.commands.register({
+      id: "system:security:trust-plugin",
+      title: "Trust Plugin Binary",
+      category: "Security",
+      description: "Grant trusted-fast execution for a plugin fingerprint.",
+      handler: (args: { pluginId: string; wasmHash: string; leaseMs?: number }) => {
+        if (!args?.pluginId || !args?.wasmHash) {
+          throw new Error("pluginId and wasmHash are required");
+        }
+        return this.trustPlugin(args.pluginId, args.wasmHash, args.leaseMs);
+      }
+    });
+
+    this.commands.register({
+      id: "system:security:revoke-plugin-trust",
+      title: "Revoke Plugin Trust",
+      category: "Security",
+      description: "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
+      handler: (args: { pluginId: string; wasmHash?: string }) => {
+        if (!args?.pluginId) {
+          throw new Error("pluginId is required");
+        }
+        this.revokePluginTrust(args.pluginId, args.wasmHash);
+        return { ok: true };
+      }
+    });
   }
 
   private generateSasEmojis(count: number = 7): string[] {
@@ -643,6 +805,25 @@ export class Tractor {
    */
   observe(listener: TelemetryListener) {
     return this.events.on(listener);
+  }
+
+  /**
+   * Grant trusted-fast execution for a specific plugin binary fingerprint.
+   * The grant is keyed by plugin id + wasm hash and can be optionally time-boxed.
+   */
+  trustPlugin(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
+    return this.plugins.grantTrust(pluginId, wasmHash, leaseMs);
+  }
+
+  trustPluginManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
+    return this.plugins.trustManifestOnce(manifest, wasmHash);
+  }
+
+  /**
+   * Revoke trusted-fast execution grant(s) for a plugin.
+   */
+  revokePluginTrust(pluginId: string, wasmHash?: string): void {
+    this.plugins.revokeTrust(pluginId, wasmHash);
   }
 
   /**

@@ -80,6 +80,19 @@ export function validatePluginManifest(
     }
   }
 
+  if (manifest.trust) {
+    if (!['strict', 'trusted-fast'].includes(manifest.trust.profile)) {
+      errors.push("trust.profile must be one of: strict, trusted-fast");
+    }
+
+    if (
+      manifest.trust.leaseHours !== undefined &&
+      (!Number.isFinite(manifest.trust.leaseHours) || manifest.trust.leaseHours <= 0)
+    ) {
+      errors.push("trust.leaseHours must be a positive number when provided");
+    }
+  }
+
   const hooks = new Set(manifest.observability?.hooks ?? []);
   for (const requiredHook of REQUIRED_TELEMETRY_HOOKS) {
     if (!hooks.has(requiredHook)) {
