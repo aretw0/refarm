@@ -46,6 +46,7 @@ export interface IdentityProvider {
 
 export interface IdentityAdapter {
   publicKey?: string;
+  sign?(data: string): Promise<{ signature: string; algorithm: string }>;
 }
 
 export interface IdentityConformanceResult {

@@ -1,0 +1,17 @@
+[package]
+name = "refarm-heartwood"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+ed25519-dalek = "2.1"
+rand_core = { version = "0.6", features = ["getrandom"] }
+wit-bindgen = "0.17.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+[package.metadata.component]
+package = "refarm:heartwood"

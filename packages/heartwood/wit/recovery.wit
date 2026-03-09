@@ -1,0 +1,36 @@
+package refarm:identity;
+
+interface recovery {
+    /// A unique identifier for the recovery session.
+    type session-id = string;
+
+    /// The type of proof required (e.g., "social-signature", "otp", "webauthn").
+    type proof-type = string;
+
+    record recovery-request {
+        identity-root: string,
+        new-device-pubkey: string,
+        timestamp: u64
+    }
+
+    record proof {
+        proof-type: proof-type,
+        data: list<u8>
+    }
+
+    /// Initialize a recovery session.
+    /// Returns a session ID and a list of required proof types.
+    initiate-recovery: func(request: recovery-request) -> result<tuple<session-id, list<proof-type>>, string>;
+
+    /// Submit a proof for the active session.
+    submit-proof: func(session: session-id, proof: proof) -> result<bool, string>;
+
+    /// Finalize recovery. 
+    /// If successful, returns a signature from the recovery provider 
+    /// that Heartwood can use to verify the authority to rotate keys.
+    finalize-recovery: func(session: session-id) -> result<list<u8>, string>;
+}
+
+world recovery-provider {
+    export recovery;
+}

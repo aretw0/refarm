@@ -22,9 +22,16 @@ describe("StudioShell Orchestrator", () => {
                             ui: { slots: ["statusbar"] }
                         }
                     }
-                ])
+                ]),
+                get: vi.fn().mockReturnValue({ state: "running" })
             },
-            getPluginApi: vi.fn().mockResolvedValue("mock-api")
+            getPluginApi: vi.fn().mockResolvedValue("mock-api"),
+            l8n: {
+                t: vi.fn((key) => key)
+            },
+            observe: vi.fn(),
+            emitTelemetry: vi.fn(),
+            getHelpNodes: vi.fn().mockResolvedValue([{ "refarm:renderType": "landing", name: "Test Landing Node", text: "Welcome" }])
         };
     });
 
@@ -51,6 +58,6 @@ describe("StudioShell Orchestrator", () => {
         await shell.setup();
 
         const statusEl = document.getElementById("system-status");
-        expect(statusEl?.textContent).toBe("Ready");
+        expect(statusEl?.textContent).toBe("refarm:core/status_ready");
     });
 });

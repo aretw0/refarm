@@ -1,5 +1,5 @@
 {
-  "name": "@refarm.dev/homestead",
+  "name": "@refarm.me/homestead",
   "version": "0.1.0",
   "description": "Refarm Homestead — in-browser IDE for developing, testing and publishing Refarm plugins",
   "type": "module",
@@ -16,7 +16,7 @@
   "dependencies": {
     "@astrojs/check": "^0.9.2",
     "@refarm.dev/tractor": "*",
-    "@refarm.dev/identity-nostr": "*",
+    "@refarm.me/identity-nostr": "*",
     "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/dsl-headless": "*",
     "astro": "^5.3.0"

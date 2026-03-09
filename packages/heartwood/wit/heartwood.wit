@@ -1,0 +1,22 @@
+package refarm:heartwood;
+
+interface types {
+    record keypair {
+        public-key: list<u8>,
+        secret-key: list<u8>
+    }
+
+    variant heartwood-error {
+        invalid-signature,
+        unauthorized,
+        internal-error(string)
+    }
+}
+
+world core {
+    use types.{keypair, heartwood-error};
+    
+    export sign: func(payload: list<u8>, secret-key: list<u8>) -> result<list<u8>, heartwood-error>;
+    export verify: func(payload: list<u8>, signature: list<u8>, public-key: list<u8>) -> bool;
+    export generate-keypair: func() -> keypair;
+}
