@@ -12,6 +12,16 @@ import { bench, describe } from "vitest";
 import { PluginHost, Tractor, normaliseToSovereignGraph } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 
+function createSilentBenchConfig(
+  latency?: Parameters<typeof createMockConfig>[0],
+  opts?: Parameters<typeof createMockConfig>[1],
+) {
+  return {
+    ...createMockConfig(latency, opts),
+    logLevel: "silent" as const,
+  };
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 function stubFetchGlobal() {
@@ -40,17 +50,17 @@ function createBenchManifest(id: string): PluginManifest {
 
 describe("Boot", () => {
   bench("Tractor.boot() — zero-latency adapters", async () => {
-    const tractor = await Tractor.boot(createMockConfig(undefined, { includeSync: false }));
+    const tractor = await Tractor.boot(createSilentBenchConfig(undefined, { includeSync: false }));
     await tractor.shutdown();
   });
 
   bench("Tractor.boot() — 10ms schema latency", async () => {
-    const tractor = await Tractor.boot(createMockConfig({ schemaMs: 10 }, { includeSync: false }));
+    const tractor = await Tractor.boot(createSilentBenchConfig({ schemaMs: 10 }, { includeSync: false }));
     await tractor.shutdown();
   });
 
   bench("Tractor.boot() — with sync adapter", async () => {
-    const tractor = await Tractor.boot(createMockConfig(undefined, { includeSync: true }));
+    const tractor = await Tractor.boot(createSilentBenchConfig(undefined, { includeSync: true }));
     await tractor.shutdown();
   });
 });
@@ -99,7 +109,7 @@ describe("Plugin Loading", () => {
 
 describe("Storage Throughput", () => {
   bench("storeNode() x1", async () => {
-    const config = createMockConfig();
+    const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
     const node = normaliseToSovereignGraph(
       { "@id": "urn:bench:1", name: "Bench" },
@@ -111,7 +121,7 @@ describe("Storage Throughput", () => {
   });
 
   bench("storeNode() x100 sequential", async () => {
-    const config = createMockConfig();
+    const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
     for (let i = 0; i < 100; i++) {
       const node = normaliseToSovereignGraph(
@@ -125,7 +135,7 @@ describe("Storage Throughput", () => {
   });
 
   bench("storeNode() x100 concurrent", async () => {
-    const config = createMockConfig();
+    const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
     await Promise.all(
       Array.from({ length: 100 }, (_, i) => {
@@ -161,7 +171,7 @@ describe("Full Lifecycle", () => {
   stubFetchGlobal();
 
   bench("Boot → Load 10 plugins → Store 50 nodes → Query → Shutdown", async () => {
-    const config = createMockConfig();
+    const config = createSilentBenchConfig();
     const tractor = await Tractor.boot(config);
 
     // Load plugins
