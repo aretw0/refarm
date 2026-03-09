@@ -310,10 +310,18 @@ export class PluginHost {
     const wasmBuffer = await response.arrayBuffer();
     console.info(`[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`);
 
-    // JCO Integration Logic (Conceptual Interceptor)
+    // JCO Integration Logic (Component Model WASM)
     const imports = this.getWasiImports(manifest, profile);
     const modeLabel = profile === "trusted-fast" ? "TRUSTED FAST PATH" : "strict path";
     console.info(`[tractor] Instantiating ${pluginId} with WASI Interceptor (${modeLabel})...`);
+
+    // TODO: Real Component Model instantiation via JCO transpile + WebAssembly.instantiate
+    // Currently using mock; awaiting plugin-compiler integration.
+    // When available: 
+    //   1. Transpile WASM via jco.transpile() to get JS binding + typed interface
+    //   2. Instantiate via WebAssembly.instantiate(wasmBuffer, { env: imports })
+    //   3. Extract exported functions from component instance
+    // Note: WebAssembly not available in Node.js test environment; tests use mocks.
 
     const instance: PluginInstance = {
       id: pluginId,
@@ -323,14 +331,15 @@ export class PluginHost {
         const callStart = performance.now();
         console.group(`[plugin:${pluginId}] call: ${fn}`);
         
-        // Mocking the call dispatch to the transpiled component exports
-        const result = null; 
+        // Mock implementation: return null
+        // Real implementation will dispatch to ComponentInstance[fn](...args)
+        const result = null;
         
         this.emit({
           event: "api:call",
           pluginId,
           durationMs: performance.now() - callStart,
-          payload: { fn, args }
+          payload: { fn, args, result }
         });
         console.groupEnd();
         return result;
