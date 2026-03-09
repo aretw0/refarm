@@ -322,6 +322,54 @@ if (plugin.memoryUsage > plugin.quota) {
 
 ---
 
+## Category 7: Test Coverage Gaps
+
+### Limitation 7.1: Astro Files Not Type-Checked by Default
+
+**Discovered**: 2026-03-09 (PluginInstance.state missing in homestead index.astro)
+
+**Worst Case**:
+
+- TypeScript errors in `.astro` `<script>` sections go undetected
+- Code deploys to production with type mismatches
+- Runtime errors in browser (worse UX, harder to debug)
+
+**Why It Happened**:
+
+1. **`tsc` doesn't process `.astro` files**: TypeScript compiler only checks `.ts`, `.tsx`, `.js`
+2. **No `astro check` in CI/hooks**: Astro's type-checker wasn't integrated in pre-push or workflows
+3. **Homestead excluded from test matrix**: `granular-tests.yml` focuses on `packages/**`, not `apps/**`
+4. **Deploy skips type-check**: `deploy-homestead.yml` only runs `turbo build`, no validation
+
+**Early Warning Signals**:
+
+- Editor shows red squiggles (user saw this first!)
+- Manual `astro check` reveals errors
+- Runtime errors in browser console
+
+**Mitigation (Implemented 2026-03-09)**:
+
+✅ **Immediate**:
+- Added `astro:check` script to homestead package.json
+- Integrated `astro check` into `lint` and `type-check` scripts  
+- Pre-push hooks now catch Astro type errors
+
+⚠️ **Future (v0.2.0)**:
+- Add homestead E2E tests to CI matrix (Playwright)
+- Create smoke tests for plugin registration flow
+- Document Astro-specific patterns in DEVELOPMENT_WORKFLOW.md
+
+**Status**: ✅ Mitigated for homestead; pattern documented for future apps
+
+**Lessons Learned**:
+
+1. **Framework-specific tooling required**: Each framework (Astro, Svelte, Vue) has custom type-checkers
+2. **Don't assume tsc covers everything**: Validate all file types in polyglot repos
+3. **Test matrix should include apps**: Not just packages, but entry points users interact with
+4. **Pre-push hooks are last defense**: If CI doesn't catch it, hooks prevent bad commits
+
+---
+
 ## Summary: What You Can Rely On Today
 
 | Mitigation | Status | When |

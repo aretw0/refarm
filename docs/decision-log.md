@@ -76,6 +76,7 @@ Central register for high-impact technical decisions that are pending or recentl
 | SQLite engine choice (wa-sqlite vs sql.js) | ADR-015 | 2026-03-06 | Accepted provisionally; Node benchmark completed, browser OPFS validation pending |
 | Quality gate baseline alignment | ADR-013 | 2026-03-06 | Root scripts and CI jobs aligned; smoke-test baseline seeded in critical workspaces |
 | Native browser permissions as proxy capabilities | ADR-024 | 2026-03-07 | Capabilities as superset of browser native permissions |
+| Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
 
 ---
 
