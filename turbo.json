@@ -16,10 +16,13 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "*.config.*"],
-      "outputs": ["coverage/**"]
+      "inputs": ["src/**", "test/**", "*.config.*"]
     },
     "test:unit": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "test/**", "*.config.*"]
+    },
+    "test:coverage": {
       "dependsOn": ["^build"],
       "inputs": ["src/**", "test/**", "*.config.*"],
       "outputs": ["coverage/**"]
