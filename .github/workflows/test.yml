@@ -177,9 +177,9 @@ jobs:
             validations/wasm-plugin/hello-world/target
             validations/wasm-plugin/host/public/hello-world-plugin.wasm
             validations/wasm-plugin/host/src/generated
-          key: ${{ runner.os }}-wasm-plugin-v2-${{ hashFiles('validations/wasm-plugin/hello-world/Cargo.toml', 'validations/wasm-plugin/hello-world/Cargo.lock', 'validations/wasm-plugin/hello-world/src/**', 'validations/wasm-plugin/hello-world/wit/**', 'validations/wasm-plugin/host/package.json', 'validations/wasm-plugin/host/src/kernel-bridge.js') }}
+          key: ${{ runner.os }}-wasm-plugin-${{ hashFiles('validations/wasm-plugin/hello-world/Cargo.toml', 'validations/wasm-plugin/hello-world/Cargo.lock', 'validations/wasm-plugin/hello-world/src/**', 'validations/wasm-plugin/hello-world/wit/**', 'validations/wasm-plugin/host/package.json', 'validations/wasm-plugin/host/src/kernel-bridge.js') }}
           restore-keys: |
-            ${{ runner.os }}-wasm-plugin-v2-
+            ${{ runner.os }}-wasm-plugin-
 
       - name: Build hello-world WASM plugin
         if: steps.e2e_check.outputs.enabled == 'true' && steps.wasm_cache.outputs.cache-hit != 'true'
