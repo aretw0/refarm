@@ -693,6 +693,33 @@ export class Tractor {
     });
 
     this.commands.register({
+      id: "system:security:trust-plugin-once",
+      title: "Trust This Plugin Once",
+      category: "Security",
+      description: "One-time high-performance trust grant with explicit user acknowledgment.",
+      handler: (args: { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean }) => {
+        if (!args?.manifest || !args?.wasmHash) {
+          throw new Error("manifest and wasmHash are required");
+        }
+        if (!args.acknowledgeRisk) {
+          throw new Error("Risk acknowledgment is required for trusted-fast mode");
+        }
+
+        const trust = (args.manifest as PluginManifest & { trust?: { profile?: string } }).trust;
+        if (trust?.profile !== "trusted-fast") {
+          throw new Error("manifest trust.profile must be trusted-fast");
+        }
+
+        const grant = this.trustPluginManifestOnce(args.manifest, args.wasmHash);
+        return {
+          grant,
+          warning:
+            "Trusted-fast enabled for this binary fingerprint. Plugin publisher assumes responsibility for host-impacting behavior.",
+        };
+      }
+    });
+
+    this.commands.register({
       id: "system:security:revoke-plugin-trust",
       title: "Revoke Plugin Trust",
       category: "Security",
