@@ -27,8 +27,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --project tsconfig.json --noEmit",
-    "type-check": "tsc --project tsconfig.json --noEmit",
+    "lint": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json --force && tsc --project tsconfig.json --noEmit",
+    "type-check": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json --force && tsc --project tsconfig.json --noEmit",
     "test:unit": "vitest run --passWithNoTests",
     "bench": "vitest bench test/stress.bench.ts",
     "bench:save": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/baseline.json && node scripts/sanitize-bench.mjs benchmarks/baseline.json",

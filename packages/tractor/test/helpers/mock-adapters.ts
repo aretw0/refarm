@@ -109,8 +109,9 @@ export class MockIdentityAdapter implements IdentityAdapter {
 
 export class MockSyncAdapter implements SyncAdapter {
   private _running = false;
+  private _callbacks = new Set<(update: Uint8Array) => void>();
 
-  readonly stats = { start: 0, stop: 0 };
+  readonly stats = { start: 0, stop: 0, applyUpdate: 0, getUpdate: 0, onUpdate: 0 };
 
   async start(): Promise<void> {
     this.stats.start++;
@@ -120,6 +121,24 @@ export class MockSyncAdapter implements SyncAdapter {
   async stop(): Promise<void> {
     this.stats.stop++;
     this._running = false;
+  }
+
+  async applyUpdate(update: Uint8Array): Promise<void> {
+    this.stats.applyUpdate++;
+    for (const cb of this._callbacks) {
+      cb(update);
+    }
+  }
+
+  async getUpdate(): Promise<Uint8Array> {
+    this.stats.getUpdate++;
+    return new Uint8Array();
+  }
+
+  onUpdate(callback: (update: Uint8Array) => void): () => void {
+    this.stats.onUpdate++;
+    this._callbacks.add(callback);
+    return () => this._callbacks.delete(callback);
   }
 
   get running(): boolean {
