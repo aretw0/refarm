@@ -10,6 +10,8 @@ export interface PluginCapabilities {
   requires: string[];
   providesApi?: string[];
   requiresApi?: string[];
+  /** Domains this plugin is allowed to fetch (e.g. ["https://api.github.com"]) */
+  allowedOrigins?: string[];
 }
 
 export interface PluginManifest {
