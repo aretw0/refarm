@@ -1,0 +1,49 @@
+name: 💡 Feature Request (SDD Spec)
+description: Suggest a new feature or improvement. This initiates the Specification Driven Development (SDD) phase.
+title: "[Feature]: "
+labels: ["kind:enhancement", "phase:sdd", "needs:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Welcome to the Specification Phase!**
+        Refarm uses Specification Driven Development (SDD). Your idea will be debated here, and if accepted, will become an active branch for technical planning or implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The Problem
+      description: What problem are you trying to solve? Is it related to sovereignty, performance, UX, or extensibility?
+      placeholder: "I find it frustrating that..."
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How do you envision this working? What should the interface or user experience look like?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you thought of any other ways to solve this?
+    validations:
+      required: false
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Acceptance Criteria (BDD)
+      description: If implemented, how will we know it's done? What behavior should tests verify?
+      placeholder: |
+        - [ ] Feature X does Y
+        - [ ] Feature X fails gracefully when Z
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+      description: Add any other context or screenshots about the feature request here.
+    validations:
+      required: false

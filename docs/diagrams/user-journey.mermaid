@@ -1,0 +1,18 @@
+graph LR
+    subgraph Act0 ["Act 0: Discovery"]
+        Day0[Day 0: Guest Mode] --> Day05[Day 0.5: Create Identity]
+    end
+    subgraph Act1 ["Act I: Ownership"]
+        Day05 --> Day1[Day 1: PWA Install]
+        Day1 --> Day2[Day 2: Signal Bridge]
+        Day2 --> Day3[Day 3: Multi-device Sync]
+    end
+    subgraph Act2 ["Act II: Usage"]
+        Day3 --> Day5[Day 5: AI Query]
+        Day5 --> Day10[Day 10: Portability]
+    end
+    subgraph Act3 ["Act III: Extension"]
+        Day10 --> Day15[Day 15: Developer Onboarding]
+        Day15 --> Day20[Day 20: Publishing]
+    end
+

@@ -1,0 +1,40 @@
+graph TD
+    subgraph Homestead ["Refarm Homestead (Astro SSG)"]
+        HS_SQLite["storage-sqlite"]
+        HS_Nostr["identity-nostr"]
+    end
+
+    subgraph Tractor ["Refarm Tractor (The Microkernel)"]
+        PluginHost["PluginHost (WASI Runtime)"]
+        Normaliser["Normaliser (→ JSON-LD)"]
+        SyncEngine["SyncEngine (CRDT)"]
+        Heartwood["Heartwood (WASM Security)"]
+    end
+
+    subgraph Interfaces ["Interfaces & Ports"]
+        StoragePort["Storage Port"]
+        SyncPort["Sync Port"]
+        IdentityPort["Identity Port"]
+    end
+
+    subgraph WASM ["Plugin Sandbox"]
+        Plugin["Plugin (WASM)"]
+    end
+
+    Homestead -->|"Instantiates Adapters"| HS_SQLite
+    Homestead -->|"Instantiates Adapters"| HS_Nostr
+    
+    HS_SQLite -.->|"Inject"| StoragePort
+    HS_Nostr -.->|"Inject"| IdentityPort
+    
+    Tractor -->|"Uses"| StoragePort
+    Tractor -->|"Uses"| SyncPort
+    Tractor -->|"Uses"| Heartwood
+    Heartwood -->|"Protects"| IdentityPort
+
+    PluginHost ---|"WASI Boundary"| Plugin
+    Plugin -->|"storeNode"| StoragePort
+    Plugin -->|"fetch/log"| PluginHost
+
+    Normaliser -->|"Normalise"| StoragePort
+    SyncEngine -->|"Sync"| SyncPort

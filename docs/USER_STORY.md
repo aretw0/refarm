@@ -31,8 +31,8 @@ Alice clicks **"Join as Guest"** — no signup, no password, no friction.
 
 **What happens**:
 
-- Studio loads instantly (PWA cached)
-- Tractor creates **vaultId** (UUID) — no keypair, no mnemonic
+- Studio loads instantly (PWA cached).
+- **Visitor Phase**: No keys created. Alice is purely "read-only" relative to the network, but can experiment with local UI.
 - Alice chooses how to store her data:
 
 ```
@@ -46,11 +46,18 @@ Alice clicks **"Join as Guest"** — no signup, no password, no friction.
 
 Alice picks **"Keep locally"** — she wants her work to survive a browser restart.
 
+**Guest Phase Triggered**:
+
+- As Alice starts typing or adding a sticky note, Tractor prompts: *"Entering Guest Mode. Your actions will be signed by a temporary session key."*
+- Tractor generates **Ephemeral Keypair** (ed25519).
+- **Mandatory Signing**: Every note Alice adds is instantly signed by her ephemeral guest key.
+
 ```
 [Board loads]
   ✓ 3 other participants online
   ✓ Board has 47 sticky notes + 12 connections
   ✓ Your data is stored locally (persistent)
+  ✓ Guest Identity: @temp_5e3a8... (Ephemeral)
   
   Guest-a7c3f2 (you)  Alice (host)  Bob  Carol
 ```
@@ -385,18 +392,9 @@ Alice publishes her Matrix Bridge to the Nostr plugin registry:
 
 ## The Complete Journey
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ DAY 1-3: Bootstrap                    (v0.1-v0.2)       │
-│ └─ Install Refarm, identity, first plugin sync          │
-├─────────────────────────────────────────────────────────┤
-│ DAY 5-10: Operate                     (v0.3)            │
-│ └─ Query with AI, search, export data                   │
-├─────────────────────────────────────────────────────────┤
-│ DAY 15-20: Extend                     (v0.4)            │
-│ └─ Create plugins, publish to community                 │
-└─────────────────────────────────────────────────────────┘
-```
+![Alice's Refarm Journey](./diagrams/user-journey.svg)
+
+[View source](file:///workspaces/refarm/docs/diagrams/user-journey.mermaid)
 
 ---
 
