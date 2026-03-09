@@ -74,4 +74,11 @@ export class MockStorageAdapter implements StorageAdapter {
 
 export class MockIdentityAdapter implements IdentityAdapter {
   publicKey?: string = "did:mock:123";
+
+  async sign(data: string): Promise<{ signature: string; algorithm: string }> {
+    return {
+      signature: "delegated",
+      algorithm: "external"
+    };
+  }
 }
