@@ -43,8 +43,16 @@ export interface SyncProvider {
 }
 
 export interface SyncAdapter {
+  /** Initialize the sync engine and transports. */
   start(): Promise<void>;
+  /** Gracefully shutdown. */
   stop(): Promise<void>;
+  /** Apply a binary CRDT update (e.g. from a Nostr relay or WebRTC peer). */
+  applyUpdate(update: Uint8Array): Promise<void>;
+  /** Retrieve the current state as a binary update (delta or full state). */
+  getUpdate(): Promise<Uint8Array>;
+  /** Subscribe to local updates that need to be broadcast to the network. */
+  onUpdate(callback: (update: Uint8Array) => void): () => void;
 }
 
 export interface SyncConformanceResult {
