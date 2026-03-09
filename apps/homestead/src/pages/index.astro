@@ -88,7 +88,8 @@ import Layout from "../layouts/Layout.astro";
           return null;
         },
         terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "sower" })
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "sower" }),
+        state: "idle"
       });
 
       tractor.plugins.registerInternal({
@@ -97,7 +98,8 @@ import Layout from "../layouts/Layout.astro";
         manifest: { id: "scarecrow", name: "O Espantalho", version: "0.1.0", entry: "", capabilities: {} } as any,
         call: async () => null,
         terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "scarecrow" })
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "scarecrow" }),
+        state: "idle"
       });
       
       tractor.plugins.registerInternal({
@@ -110,7 +112,8 @@ import Layout from "../layouts/Layout.astro";
           return null;
         },
         terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" })
+        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" }),
+        state: "idle"
       });
       
       // 4. Handover to Shell Orchestrator

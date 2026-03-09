@@ -7,8 +7,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "lint": "tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/plugin-manifest/tsconfig.json ../../packages/tractor/tsconfig.build.json --force && tsc --noEmit",
-    "type-check": "tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/plugin-manifest/tsconfig.json ../../packages/tractor/tsconfig.build.json --force && tsc --noEmit",
+    "astro:check": "astro check",
+    "lint": "npm run astro:check && tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/plugin-manifest/tsconfig.json ../../packages/tractor/tsconfig.build.json --force && tsc --noEmit",
+    "type-check": "npm run astro:check && tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/plugin-manifest/tsconfig.json ../../packages/tractor/tsconfig.build.json --force && tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf dist .astro"
