@@ -23,8 +23,10 @@ import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host";
 import { L8nHost } from "./lib/l8n-host";
 import { AuthResponse, SecretAuthPrompt, SecretHost } from "./lib/secret-host";
+import { EventEmitter, TelemetryEvent, TelemetryListener, TelemetryRingBuffer } from "./lib/telemetry";
 export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
+export * from "./lib/telemetry";
 
 // ─── Tractor Configuration ─────────────────────────────────────────────────────
 
@@ -96,31 +98,7 @@ function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel 
 }
 
 // ─── Engine Telemetry ──────────────────────────────────────────────────────────
-
-/**
- * Internal pulse of the Tractor engine.
- */
-export interface TelemetryEvent {
-  event: string;
-  pluginId?: string;
-  durationMs?: number;
-  payload?: any;
-}
-
-type TelemetryListener = (data: TelemetryEvent) => void;
-
-class EventEmitter {
-  private listeners: Set<TelemetryListener> = new Set();
-
-  on(listener: TelemetryListener) {
-    this.listeners.add(listener);
-    return () => this.listeners.delete(listener);
-  }
-
-  emit(data: TelemetryEvent) {
-    this.listeners.forEach((l) => l(data));
-  }
-}
+// Moved to src/lib/telemetry.ts
 
 // ─── Plugin Host ──────────────────────────────────────────────────────────────
 
@@ -773,6 +751,7 @@ export class Tractor {
   readonly recovery: IdentityRecoveryHost;
   readonly defaultSecurityMode: SecurityMode;
   readonly logLevel: TractorLogLevel;
+  readonly telemetryRing: TelemetryRingBuffer;
 
   /** Ephemeral identity used for signing during Guest/Visitor sessions. */
   private _ephemeralKeypair?: { publicKey: Uint8Array; secretKey: Uint8Array };
@@ -799,10 +778,12 @@ export class Tractor {
       },
     );
     this.l8n = new L8nHost();
+    this.telemetryRing = new TelemetryRingBuffer({ capacity: 1000 });
 
     // Wire the Telemetry Bus to the Plugin Host for event-dispatching
     this.events.on((data) => {
       this.plugins.dispatch(data);
+      this.telemetryRing.push(data);
     });
 
     // Default auth provider that denies access unless overridden by the Shell
@@ -836,6 +817,16 @@ export class Tractor {
   }
 
   private registerCoreCommands() {
+    this.commands.register({
+      id: "system:diagnostics:export",
+      title: "Export Diagnostic Telemetry",
+      category: "System",
+      description: "Exports a sanitized slice of recent internal telemetry events.",
+      handler: () => {
+        return { events: this.telemetryRing.dump() };
+      },
+    });
+
     this.commands.register({
       id: "system:identity:guest",
       title: "Enter Guest Mode",
