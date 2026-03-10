@@ -314,10 +314,10 @@ function storeNode(jsonLd: string): string {
 
 | Operation | Target | Measured |
 |-----------|--------|----------|
-| Load plugin (<500KB) | <100ms | TBD |
-| Setup | <10ms | TBD |
-| Execute method | <5ms | TBD |
-| Unload plugin | <50ms | TBD |
+| Load plugin (<500KB) | <100ms | <1000ms (CI E2E validado; otimização futura) |
+| Setup | <10ms | não medido individualmente (funcional validado) |
+| Execute method | <5ms | não medido individualmente (funcional validado) |
+| Unload plugin | <50ms | não medido individualmente (funcional validado) |
 
 ---
 
