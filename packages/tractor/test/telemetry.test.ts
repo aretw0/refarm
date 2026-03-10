@@ -168,3 +168,22 @@ describe("TelemetryRingBuffer", () => {
     expect(payload.smallArray).toEqual([1, 2, 3]);
   });
 });
+
+describe("TelemetryHost", () => {
+  it("should register correctly and capture core events", async () => {
+    const mockStorage: any = { ensureSchema: vi.fn(), queryNodes: vi.fn().mockResolvedValue([]) };
+    const mockIdentity: any = { getSigningPublicKey: vi.fn().mockResolvedValue("key") };
+    
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    
+    // Trigger an event (calling the Tractor wrapper, not the raw adapter)
+    await tractor.queryNodes("Test");
+    
+    // The query should have emitted a storage:io event caught by the telemetry host relay in index.ts constructor
+    const dump = await tractor.commands.execute("system:diagnostics:export");
+    
+    expect(dump.events.length).toBeGreaterThan(0);
+    expect(dump.events.some((e: any) => e.event === "storage:io")).toBe(true);
+  });
+});
+
