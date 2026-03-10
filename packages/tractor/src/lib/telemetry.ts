@@ -133,3 +133,50 @@ export class TelemetryRingBuffer {
     return sanitized;
   }
 }
+
+/**
+ * Manages the collection and export of telemetry events.
+ * Following the Host pattern, it decouples diagnostics from the main Tractor domain.
+ */
+export class TelemetryHost {
+  private ring: TelemetryRingBuffer;
+
+  constructor(options: TelemetryRingBufferOptions = {}) {
+    this.ring = new TelemetryRingBuffer(options);
+  }
+
+  /**
+   * Pushes an event into the recorder.
+   */
+  push(event: TelemetryEvent): void {
+    this.ring.push(event);
+  }
+
+  /**
+   * Returns the sanitized events.
+   */
+  dump(): TelemetryEvent[] {
+    return this.ring.dump();
+  }
+
+  /**
+   * Registers itself with the engine's event bus and command host.
+   * This is what keeps the main Tractor class clean.
+   */
+  register(events: EventEmitter, commands: any): void {
+    // Listen to all events and log them in the ring buffer
+    events.on((data) => this.push(data));
+
+    // Expose the diagnostic export command
+    commands.register({
+      id: "system:diagnostics:export",
+      title: "Export Diagnostic Telemetry",
+      category: "System",
+      description: "Exports a sanitized slice of recent internal telemetry events.",
+      handler: () => {
+        return { events: this.dump() };
+      },
+    });
+  }
+}
+
