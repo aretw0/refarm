@@ -2,6 +2,7 @@ import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { describe, expect, it, vi } from "vitest";
 import { Tractor } from "../src/index";
+import { TelemetryRingBuffer } from "../src/lib/telemetry";
 
 describe("Tractor Telemetry", () => {
   const mockStorage: StorageAdapter = {
@@ -90,5 +91,80 @@ describe("Tractor Telemetry", () => {
 
     const result = await tractor.secrets.decryptSecret({ tier: "gold" });
     expect(result).toBeNull();
+  });
+});
+
+describe("TelemetryRingBuffer", () => {
+  it("should respect maximum capacity and overwrite oldest events", () => {
+    const ring = new TelemetryRingBuffer({ capacity: 3 });
+    
+    ring.push({ event: "event_1" });
+    ring.push({ event: "event_2" });
+    ring.push({ event: "event_3" });
+    ring.push({ event: "event_4" });
+
+    const dumped = ring.dump();
+    expect(dumped.length).toBe(3);
+    // event_1 should be evicted
+    expect(dumped[0].event).toBe("event_2");
+    expect(dumped[1].event).toBe("event_3");
+    expect(dumped[2].event).toBe("event_4");
+  });
+
+  it("should sanitize strict sensitive keys during dump", () => {
+    const ring = new TelemetryRingBuffer({ capacity: 10, sensitiveKeys: ["secret", "password"] });
+    
+    ring.push({
+      event: "auth",
+      payload: {
+        username: "solofertil",
+        secret: "my_super_secret",
+        password: "my_password",
+        publicData: "visible"
+      }
+    });
+
+    const dumped = ring.dump();
+    const payload = dumped[0].payload;
+
+    expect(payload.secret).toBe("[REDACTED]");
+    expect(payload.password).toBe("[REDACTED]");
+    expect(payload.username).toBe("solofertil");
+    expect(payload.publicData).toBe("visible");
+  });
+
+  it("should truncate long strings", () => {
+    const ring = new TelemetryRingBuffer({ capacity: 10, maxValueLength: 10 });
+    
+    ring.push({
+      event: "data",
+      payload: { short: "abc", long: "this_is_a_very_long_string_indeed" }
+    });
+
+    const dumped = ring.dump();
+    const payload = dumped[0].payload;
+
+    expect(payload.short).toBe("abc");
+    expect(payload.long).toBe("this_is_a_... [TRUNCATED]");
+  });
+
+  it("should format binary and array types appropriately", () => {
+    const ring = new TelemetryRingBuffer({ capacity: 10 });
+    
+    ring.push({
+      event: "binary",
+      payload: {
+        bytes: new Uint8Array(2048),
+        bigArray: new Array(100).fill(1),
+        smallArray: [1, 2, 3]
+      }
+    });
+
+    const dumped = ring.dump();
+    const payload = dumped[0].payload;
+
+    expect(payload.bytes).toBe("[Uint8Array(2048)]");
+    expect(payload.bigArray).toBe("[Array(100)]");
+    expect(payload.smallArray).toEqual([1, 2, 3]);
   });
 });
