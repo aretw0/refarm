@@ -143,8 +143,26 @@ echo "🚀 Push allowed"
 exit 0
 `;
 
+const postCheckoutHookContent = `#!/bin/sh
+# Post-checkout hook: warns/generates tractor baseline when switching branches
+# Installed by: npm run hooks:install
+
+# Only trigger when switching branches, not when checking out files
+if [ "$3" = "1" ]; then
+  echo "🌱 [Refarm] Branch changed. Validating Tractor Benchmark Baseline..."
+  cd packages/tractor
+  if [ ! -f "benchmarks/baseline.json" ]; then
+    echo "⚠️  No baseline found. Generating one now..."
+    npm run bench:save
+  else
+    echo "✅ Baseline present. (Run 'npm run bench:save' manually to refresh)"
+  fi
+fi
+`;
+
 const hooksDir = join(rootDir, '.git', 'hooks');
-const hookPath = join(hooksDir, 'pre-push');
+const prePushPath = join(hooksDir, 'pre-push');
+const postCheckoutPath = join(hooksDir, 'post-checkout');
 
 try {
   // Ensure .git/hooks directory exists
@@ -152,15 +170,17 @@ try {
     mkdirSync(hooksDir, { recursive: true });
   }
 
-  // Write hook file
-  writeFileSync(hookPath, hookContent, 'utf8');
+  // Write hook files
+  writeFileSync(prePushPath, hookContent, 'utf8');
+  writeFileSync(postCheckoutPath, postCheckoutHookContent, 'utf8');
 
   // Make executable (chmod +x)
-  chmodSync(hookPath, 0o755);
+  chmodSync(prePushPath, 0o755);
+  chmodSync(postCheckoutPath, 0o755);
 
-  console.log('✅ Git pre-push hook installed successfully!');
+  console.log('✅ Git hooks (pre-push, post-checkout) installed successfully!');
   console.log('');
-  console.log('The hook runs automatically before every push with context-aware behavior:');
+  console.log('The pre-push hook runs automatically before every push with context-aware behavior:');
   console.log('');
   console.log('📌 STRICT mode (on main/develop):');
   console.log('  - Blocks push on lint + type-check failures');
@@ -171,10 +191,12 @@ try {
   console.log('  - Non-blocking local warnings only');
   console.log('  - CI/CD validates full gates on server');
   console.log('');
+  console.log('The post-checkout hook ensures developers generate benchmark baselines when switching branches.');
+  console.log('');
   console.log('To bypass the hook (not recommended):');
   console.log('  git push --no-verify');
 } catch (error) {
-  console.error('❌ Failed to install pre-push hook:', error.message);
+  console.error('❌ Failed to install git hooks:', error.message);
   console.error('');
   console.error('This might happen if:');
   console.error('  - Not in a git repository');

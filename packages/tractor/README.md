@@ -250,6 +250,8 @@ DEBUG=refarm:plugin-host:* npm run dev
 npm run bench:check
 ```
 
+> **Local Baselines**: Refarm uses Git hooks to prompt you to generate a `benchmarks/baseline.json` when switching branches. This file represents your performance floor. If you optimize or refactor code, run `npm run bench:save` to update your local baseline snapshot, then use `npm run bench:check` to compare your current work against it.
+
 ---
 
 ## Troubleshooting

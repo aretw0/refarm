@@ -59,6 +59,20 @@ jobs:
 
       - name: Benchmark Quality Gate (Tractor)
         run: |
+          # Capture current branch explicitly for detached HEAD states
+          CURRENT_BRANCH=$(git rev-parse HEAD)
+          
+          # Generate baseline from main
+          git fetch origin main || true
+          git checkout origin/main || git checkout main || true
+          npm ci
+          cd packages/tractor
+          npm run bench:save
+          cd ../..
+          
+          # Return to PR commit and test
+          git checkout $CURRENT_BRANCH
+          npm ci
           cd packages/tractor
           npm run bench:check
 
