@@ -67,17 +67,23 @@ describe("Boot", () => {
 
 // ─── Plugin Loading ──────────────────────────────────────────────────────────
 
+const silentLogger = {
+  info: () => {},
+  warn: () => {},
+  debug: () => {},
+};
+
 describe("Plugin Loading", () => {
   stubFetchGlobal();
 
   bench("Load 1 plugin", async () => {
-    const host = new PluginHost(() => {});
+    const host = new PluginHost(() => {}, silentLogger);
     await host.load(createBenchManifest("p1"), "hash");
     host.terminateAll();
   });
 
   bench("Load 10 plugins sequentially", async () => {
-    const host = new PluginHost(() => {});
+    const host = new PluginHost(() => {}, silentLogger);
     for (let i = 0; i < 10; i++) {
       await host.load(createBenchManifest(`p${i}`), `h${i}`);
     }
@@ -85,7 +91,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 50 plugins concurrently", async () => {
-    const host = new PluginHost(() => {});
+    const host = new PluginHost(() => {}, silentLogger);
     await Promise.all(
       Array.from({ length: 50 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
@@ -95,7 +101,7 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 100 plugins concurrently", async () => {
-    const host = new PluginHost(() => {});
+    const host = new PluginHost(() => {}, silentLogger);
     await Promise.all(
       Array.from({ length: 100 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
