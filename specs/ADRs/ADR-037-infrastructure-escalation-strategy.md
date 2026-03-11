@@ -34,7 +34,12 @@ For users who need constant uptime without relying on third-party SaaS "mailboxe
 - **Architecture:** Node.js/Deno/Bun running the `@refarm.dev/tractor` package on a VPS, Raspberry Pi, or Homelab.
 - **Rules:** This is just another peer in the CRDT swarm, but it runs 24/7. It acts as a reliable backup and a constant seed for the user's graph.
 
-### Phase 4: Targeted Server-Side Rendering (SSR) [Strictly Limited]
+### Phase 4: Sovereign Backend Framework (API Layer)
+Refarm is not just a consumer application; it provides an SDK mechanism. To expose the power of the Sovereign Graph to external systems, users can deploy an API layer.
+- **Architecture:** An Astro backend (SSR/Serverless) acting as an API gateway.
+- **Rules:** The backend framework uses the `@refarm.dev/tractor` engine headless. It exposes REST/GraphQL/RPC endpoints directly from the user's graph. It can be deployed privately (to serve only the user's secure devices/applications) or publicly (to act as a public data publisher). It keeps the Tractor kernel strictly clean of routing/HTTP logic which is handled entirely by Astro.
+
+### Phase 5: Targeted Server-Side Rendering (SSR) [Strictly Limited]
 If, and only if, a specific feature requires SEO indexing (e.g., public profile pages on `@refarm.social`), we may introduce SSR.
 - **Architecture:** Edge-rendered Astro endpoints.
 - **Rules:** SSR is applied **only** to specific public-facing routes, not the core Studio/Desktop application. The Homestead IDE remains a pure SSG/SPA Bootloader.
@@ -45,6 +50,7 @@ If, and only if, a specific feature requires SEO indexing (e.g., public profile 
 - **Preserves Sovereignty:** Users are never locked out of their data if the "Cloud Mailbox" goes down. The source of truth remains on their devices.
 - **Scalable:** Cloudflare Workers/KV are incredibly cheap and scalable, perfect for dumb message queuing.
 - **Friend-to-Friend Sharing:** An always-on node or cloud mailbox allows seamless async sharing between friends across timezones.
+- **Full Spectrum Stack:** Offering a Sovereign API framework allows power users to treat their Graph as a headless CMS or unified data backbone for third-party scripts.
 
 ### Negative
 - **Architectural Complexity:** Syncing state between a local CRDT, a cloud mailbox, and a friend's offline device introduces challenging distributed systems edge cases.
