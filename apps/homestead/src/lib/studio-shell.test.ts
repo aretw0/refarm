@@ -55,6 +55,7 @@ describe("StudioShell Orchestrator", () => {
         await shell.setup();
 
         const statusEl = document.getElementById("system-status");
+        // Default mock locale is 'en' unless navigator.language is mocked
         expect(statusEl?.textContent).toBe("Ready");
     });
 });
