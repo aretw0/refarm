@@ -1,4 +1,4 @@
-import { Tractor, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
+import { L8nHost, Tractor, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
 import { A11yGuard } from "./a11y-guard";
 
 export interface ShellSlot {
@@ -11,10 +11,34 @@ export interface ShellSlot {
  * It maps plugins to DOM slots and manages their lifecycle in the browser.
  */
 export class StudioShell {
+  private l8n: L8nHost;
   private slots: Map<string, HTMLElement> = new Map();
 
   constructor(private tractor: Tractor) {
+    this.l8n = new L8nHost();
+    this.setupL8n();
     this.discoverSlots();
+  }
+
+  private setupL8n() {
+    // 1. Detect Browser Locale
+    const locale = navigator.language.split('-')[0] || 'en';
+    this.l8n.setLocale(locale);
+
+    // 2. Register Bootloader Bundle (PT/EN)
+    this.l8n.registerKeys('refarm:core', {
+      'loading': 'Loading...',
+      'status_ready': 'Ready',
+      'welcome': 'Welcome to Sovereign Graph'
+    });
+
+    if (locale === 'pt') {
+      this.l8n.registerKeys('refarm:core', {
+        'loading': 'Carregando...',
+        'status_ready': 'Pronto',
+        'welcome': 'Bem-vindo ao Grafo Soberano'
+      });
+    }
   }
 
   private shouldLog(level: "info" | "warn" | "error"): boolean {
@@ -48,7 +72,7 @@ export class StudioShell {
    */
   async setup() {
     A11yGuard.applySaneDefaults(document.body);
-    this.updateStatus("Loading...");
+    this.updateStatus(this.l8n.t("refarm:core/loading"));
     
     // Listen for system events
     this.tractor.observe((data: TelemetryEvent) => {
@@ -90,7 +114,7 @@ export class StudioShell {
       await this.renderSystemHelp();
     }
 
-    this.updateStatus("Ready");
+    this.updateStatus(this.l8n.t("refarm:core/status_ready"));
   }
 
   private async renderSystemHelp() {
@@ -167,7 +191,7 @@ export class StudioShell {
     mainSlot.innerHTML = `
       <div class="system-help-explorer" style="max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: 2.5rem; margin-bottom: 2rem; background: var(--refarm-accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          Welcome to Sovereign Graph
+          ${this.l8n.t("refarm:core/welcome")}
         </h1>
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
           ${helpNodes.map((node: SovereignNode) => `
