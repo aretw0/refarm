@@ -95,6 +95,31 @@ async function run() {
         });
     });
 
+    // Calculate Average Improvement
+    let totalDiff = 0;
+    let baselineCount = 0;
+
+    current.files.forEach(f => {
+        f.groups.forEach(g => {
+            g.benchmarks.forEach(b => {
+                const base = baselineMap.get(b.name);
+                if (base) {
+                    totalDiff += ((b.hz - base.hz) / base.hz) * 100;
+                    baselineCount++;
+                }
+            });
+        });
+    });
+
+    const averageDiff = baselineCount > 0 ? (totalDiff / baselineCount) : 0;
+
+    // Priority Threshold for PR Comments
+    // 1. CI Env -> 2. Local Env -> 3. Default (5%)
+    const envMargin = process.env.BENCHMARK_MARGIN_PCT;
+    const commentThreshold = (envMargin && !Number.isNaN(parseFloat(envMargin)))
+        ? parseFloat(envMargin)
+        : 5.0; // Default 5% average improvement required to trigger a PR comment
+
     const report = `
 ## 📊 Performance Benchmark Report
 
@@ -109,12 +134,24 @@ ${tableRows.join('\n')}
 - 🚨 Regressions: ${regressions.length}
 - 🚀 Improvements: ${improvements.length}
 - ✅ Stable: ${stable.length}
+- 📈 Average Diff: ${averageDiff >= 0 ? '+' : ''}${averageDiff.toFixed(2)}%
 
 ${regressions.length > 0 ? '> [!CAUTION]\n> Performance degraded beyond the profile threshold (hybrid strict/trusted-fast). Please investigate the cause.' : '> [!TIP]\n> Performance is within acceptable hybrid thresholds.'}
 `;
 
     fs.writeFileSync(REPORT_PATH, report);
     console.log(report);
+
+    // Output payload for GitHub Actions to pick up and comment on the PR
+    if (process.env.GITHUB_ACTIONS && regressions.length === 0) {
+        const ghaPayload = {
+            improved: averageDiff > commentThreshold,
+            diff: averageDiff.toFixed(2),
+            threshold: commentThreshold
+        };
+
+        fs.writeFileSync(path.resolve('benchmarks/gha-payload.json'), JSON.stringify(ghaPayload, null, 2));
+    }
 
     if (regressions.length > 0) {
         process.exit(1);
