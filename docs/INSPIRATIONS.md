@@ -19,6 +19,8 @@ This document is a tribute to the "Greats" we've learned from.
 - **[Wasmtime / Bytecode Alliance](https://bytecodealliance.org)**: For the WASM Component Model and the "Componentize" vision. Their work on WASI and WIT is what makes our `Heartwood` security kernel and untrusted plugin sandboxing possible.
 - **[Vim](https://www.vim.org)**: For teaching the world that the keyboard is the fastest interface for the human mind. Refarm's intent-centric navigation aims to bring that "flow state" to every digital task.
 
+- **[SilverBullet.md](https://silverbullet.md)**: For the "Plugs" architecture and the concept of a "Self-Extending" workspace. Their vision of personal knowledge management through a clean, extensible engine is a major influence on our plugin model.
+
 ### 🌐 The Lineage of the Sovereign Graph
 
 O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a culminação moderna de décadas de pesquisa em ciência da computação.
