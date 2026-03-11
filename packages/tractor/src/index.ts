@@ -21,9 +21,8 @@ import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host";
-import { L8nHost } from "./lib/l8n-host";
-import { AuthResponse, SecretAuthPrompt, SecretHost } from "./lib/secret-host";
 import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
+export * from "./lib/identity-recovery-host";
 export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
 export * from "./lib/telemetry";
@@ -37,8 +36,6 @@ export interface TractorConfig {
   identity: IdentityAdapter;
   /** (Optional) Multi-device CRDT synchronization adapter. */
   sync?: SyncAdapter;
-  /** Callback for hardware/secret authentication prompts. */
-  onAuthRequest?: (prompt: SecretAuthPrompt) => Promise<AuthResponse>;
   /** Build-time metadata (e.g., versions, commit hashes). */
   envMetadata?: Record<string, string>;
   /** If true, generates the ephemeral identity immediately on boot (e.g., for collab links). */
@@ -87,10 +84,8 @@ function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel 
   const envLevel = env?.REFARM_LOG_LEVEL;
   if (isTractorLogLevel(envLevel)) return envLevel;
 
-  // Keep benchmark output focused on Vitest + summary by default.
-  const lifecycleEvent = env?.npm_lifecycle_event || "";
-  const vitestMode = env?.VITEST_MODE || "";
-  if (env?.VITEST === "true" && (lifecycleEvent.includes("bench") || vitestMode.includes("benchmark"))) {
+  // Keep test output clean by default.
+  if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
     return "silent";
   }
 
@@ -524,73 +519,6 @@ export class PluginHost {
   }
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-const SAS_EMOJIS = [
-  "🐶",
-  "🐱",
-  "🦁",
-  "🐯",
-  "🦒",
-  "🦊",
-  "🦝",
-  "🐮",
-  "🐷",
-  "🐭",
-  "🐹",
-  "🐰",
-  "🐻",
-  "🐨",
-  "🐼",
-  "🐸",
-  "🦓",
-  "🐴",
-  "🦄",
-  "🐲",
-  "🦖",
-  "🐢",
-  "🐍",
-  "🐙",
-  "🦑",
-  "🦐",
-  "🦀",
-  "🐬",
-  "🐳",
-  "🦈",
-  "🐡",
-  "🐠",
-  "🦋",
-  "🐝",
-  "🐞",
-  "🐜",
-  "🦗",
-  "🕷️",
-  "🦂",
-  "🦟",
-  "🦠",
-  "🌻",
-  "🌼",
-  "🌽",
-  "🌾",
-  "🌿",
-  "🍀",
-  "🍁",
-  "🍄",
-  "🥓",
-  "🥨",
-  "🧀",
-  "🥞",
-  "🍳",
-  "🥖",
-  "🥐",
-  "🌭",
-  "🍔",
-  "🍟",
-  "🍕",
-  "🥗",
-  "🥘",
-  "🥪",
-  "🌮",
-];
 
 // ─── Sovereign Graph Normaliser ───────────────────────────────────────────────
 
@@ -642,98 +570,6 @@ export function normaliseToSovereignGraph(
   };
 }
 
-// ─── Identity Recovery Host ──────────────────────────────────────────────────
-
-export interface RecoveryRequest {
-  providerId: string;
-  identityRoot: string;
-  newDevicePubkey: string;
-  timestamp: number;
-}
-
-export interface RecoveryProof {
-  type: string;
-  data: Uint8Array;
-}
-
-export interface RecoveryProvider {
-  id: string;
-  name: string;
-  initiate(
-    request: RecoveryRequest,
-  ): Promise<{ sessionId: string; requiredProofs: string[] }>;
-  submitProof(sessionId: string, proof: RecoveryProof): Promise<boolean>;
-  finalize(sessionId: string): Promise<Uint8Array>;
-}
-
-export class IdentityRecoveryHost {
-  private providers: Map<string, RecoveryProvider> = new Map();
-  private activeSessions: Map<
-    string,
-    { providerId: string; sessionId: string }
-  > = new Map();
-
-  constructor(private emit: (data: TelemetryEvent) => void) {}
-
-  registerProvider(provider: RecoveryProvider) {
-    this.providers.set(provider.id, provider);
-    this.emit({
-      event: "system:recovery_provider_registered",
-      payload: { id: provider.id, name: provider.name },
-    });
-  }
-
-  async initiateRecovery(providerId: string, request: RecoveryRequest) {
-    const provider = this.providers.get(providerId);
-    if (!provider)
-      throw new Error(`[recovery] Provider not found: ${providerId}`);
-
-    const result = await provider.initiate(request);
-    const tractorSessionId = Math.random().toString(36).substring(7);
-    this.activeSessions.set(tractorSessionId, {
-      providerId,
-      sessionId: result.sessionId,
-    });
-
-    this.emit({
-      event: "system:recovery_initiated",
-      payload: { tractorSessionId, providerId },
-    });
-    return { tractorSessionId, ...result };
-  }
-
-  async submitProof(tractorSessionId: string, proof: RecoveryProof) {
-    const session = this.activeSessions.get(tractorSessionId);
-    if (!session)
-      throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
-
-    const provider = this.providers.get(session.providerId)!;
-    const success = await provider.submitProof(session.sessionId, proof);
-
-    this.emit({
-      event: "system:recovery_proof_submitted",
-      payload: { tractorSessionId, success },
-    });
-    return success;
-  }
-
-  async finalizeRecovery(tractorSessionId: string) {
-    const session = this.activeSessions.get(tractorSessionId);
-    if (!session)
-      throw new Error(`[recovery] Session not found: ${tractorSessionId}`);
-
-    const provider = this.providers.get(session.providerId)!;
-    const signature = await provider.finalize(session.sessionId);
-
-    this.activeSessions.delete(tractorSessionId);
-    this.emit({
-      event: "system:recovery_finalized",
-      payload: { tractorSessionId },
-    });
-
-    return signature;
-  }
-}
 
 // ─── Tractor ───────────────────────────────────────────────────────────────────
 
@@ -744,11 +580,8 @@ export class Tractor {
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
   readonly plugins: PluginHost;
-  readonly secrets: SecretHost;
-  readonly l8n: L8nHost;
   readonly envMetadata: Record<string, string>;
   readonly commands: CommandHost;
-  readonly recovery: IdentityRecoveryHost;
   readonly defaultSecurityMode: SecurityMode;
   readonly logLevel: TractorLogLevel;
   readonly telemetry: TelemetryHost;
@@ -777,31 +610,10 @@ export class Tractor {
         debug: (...args: unknown[]) => this.logDebug(...args),
       },
     );
-    this.l8n = new L8nHost();
     this.telemetry = new TelemetryHost({ capacity: 1000 });
-
-    // Default auth provider that denies access unless overridden by the Shell
-    const authProvider =
-      config.onAuthRequest ||
-      (async () => {
-        this.logWarn(
-          "[tractor] No secret auth provider configured. Access denied.",
-        );
-        return { success: false };
-      });
-
-    this.secrets = new SecretHost(authProvider, {
-      info: (...args: unknown[]) => this.logInfo(...args),
-      warn: (...args: unknown[]) => this.logWarn(...args),
-      debug: (...args: unknown[]) => this.logDebug(...args),
-    });
 
     this.commands = new CommandHost((event: string, payload: any) =>
       this.events.emit({ event, payload }),
-    );
-
-    this.recovery = new IdentityRecoveryHost((data: TelemetryEvent) =>
-      this.events.emit(data),
     );
 
     // Wire the Telemetry Bus to components
@@ -840,45 +652,7 @@ export class Tractor {
       }),
     });
 
-    this.commands.register({
-      id: "system:security:verify-device",
-      title: "Verify New Device",
-      category: "Security",
-      description: "Start SAS (Emoji) verification for a new device.",
-      handler: async () => {
-        const sas = this.generateSasEmojis();
-        this.emitTelemetry({
-          event: "security:verification_start",
-          payload: { method: "sas", emojis: sas },
-        });
-        return { sas };
-      },
-    });
 
-    this.commands.register({
-      id: "system:security:confirm-sas",
-      title: "Confirm Security Code",
-      category: "Security",
-      handler: async (args: { confirmed: boolean }) => {
-        this.emitTelemetry({
-          event: "security:verification_result",
-          payload: { method: "sas", success: args.confirmed },
-        });
-        return { success: args.confirmed };
-      },
-    });
-
-    this.commands.register({
-      id: "system:security:recovery:initiate",
-      title: "Initiate Account Recovery",
-      category: "Security",
-      handler: async (args: {
-        providerId: string;
-        request: RecoveryRequest;
-      }) => {
-        return this.recovery.initiateRecovery(args.providerId, args.request);
-      },
-    });
 
     this.commands.register({
       id: "system:security:trust-plugin",
@@ -952,18 +726,7 @@ export class Tractor {
     });
   }
 
-  private generateSasEmojis(count: number = 7): string[] {
-    const emojis: string[] = [];
-    const seed = this._ephemeralKeypair
-      ? this._ephemeralKeypair.publicKey
-      : new Uint8Array(8);
-    // Deterministic selection based on key if possible, or random for now
-    for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * SAS_EMOJIS.length);
-      emojis.push(SAS_EMOJIS[idx]);
-    }
-    return emojis;
-  }
+
 
   private shouldLog(level: "info" | "warn" | "error"): boolean {
     return TRACTOR_LOG_PRIORITY[this.logLevel] >= TRACTOR_LOG_PRIORITY[level];
@@ -1421,7 +1184,6 @@ export class Tractor {
 
   async shutdown(): Promise<void> {
     this.plugins.terminateAll();
-    await this.secrets.lock();
     await this.storage.close();
     this.logInfo("[tractor] Shutdown ✓");
   }

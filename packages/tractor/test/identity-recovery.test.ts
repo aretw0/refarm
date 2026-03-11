@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { RecoveryProof, RecoveryProvider, RecoveryRequest, Tractor } from "../src/index";
-import { MockIdentityAdapter, MockStorageAdapter } from "./test-utils";
+import { IdentityRecoveryHost, RecoveryProof, RecoveryProvider, RecoveryRequest } from "../src/index";
 
 class MockRecoveryProvider implements RecoveryProvider {
   id = "mock-social";
@@ -20,16 +19,13 @@ class MockRecoveryProvider implements RecoveryProvider {
 }
 
 describe("Identity Recovery System", () => {
-  let tractor: Tractor;
+  let recovery: IdentityRecoveryHost;
   let provider: MockRecoveryProvider;
 
   beforeEach(async () => {
-    tractor = await Tractor.boot({
-      storage: new MockStorageAdapter(),
-      identity: new MockIdentityAdapter(),
-    });
+    recovery = new IdentityRecoveryHost();
     provider = new MockRecoveryProvider();
-    tractor.recovery.registerProvider(provider);
+    recovery.registerProvider(provider);
   });
 
   it("should perform a full recovery flow", async () => {
@@ -41,27 +37,24 @@ describe("Identity Recovery System", () => {
     };
 
     // 1. Initiate
-    const initResult = await tractor.commands.execute("system:security:recovery:initiate", {
-      providerId: "mock-social",
-      request
-    });
+    const initResult = await recovery.initiateRecovery("mock-social", request);
     expect(initResult.tractorSessionId).toBeDefined();
     expect(initResult.requiredProofs).toContain("signature");
 
     // 2. Submit Proof
-    const proofSuccess = await tractor.recovery.submitProof(initResult.tractorSessionId, {
+    const proofSuccess = await recovery.submitProof(initResult.tractorSessionId, {
       type: "signature",
       data: new Uint8Array([1, 2, 3])
     });
     expect(proofSuccess).toBe(true);
 
     // 3. Finalize
-    const signature = await tractor.recovery.finalizeRecovery(initResult.tractorSessionId);
+    const signature = await recovery.finalizeRecovery(initResult.tractorSessionId);
     expect(signature).toEqual(new Uint8Array([0xde, 0xad, 0xbe, 0xef]));
   });
 
   it("should fail for non-existent sessions", async () => {
-    await expect(tractor.recovery.submitProof("ghost", { type: "test", data: new Uint8Array() }))
+    await expect(recovery.submitProof("ghost", { type: "test", data: new Uint8Array() }))
       .rejects.toThrow("[recovery] Session not found: ghost");
   });
 });

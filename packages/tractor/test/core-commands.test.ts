@@ -18,23 +18,11 @@ describe("Tractor Core Commands", () => {
 
     expect(ids).toContain("system:identity:guest");
     expect(ids).toContain("system:identity:debug");
-    expect(ids).toContain("system:security:verify-device");
-    expect(ids).toContain("system:security:confirm-sas");
     expect(ids).toContain("system:security:trust-plugin");
     expect(ids).toContain("system:security:trust-plugin-once");
     expect(ids).toContain("system:security:revoke-plugin-trust");
   });
 
-  it("should execute system:security:verify-device and return 7 emojis", async () => {
-    const result = await tractor.commands.execute("system:security:verify-device");
-    expect(result.sas).toHaveLength(7);
-    expect(Array.isArray(result.sas)).toBe(true);
-  });
-
-  it("should execute system:security:confirm-sas and emit telemetry", async () => {
-    const result = await tractor.commands.execute("system:security:confirm-sas", { confirmed: true });
-    expect(result.success).toBe(true);
-  });
 
   it("should require explicit acknowledgment for trust-plugin-once", async () => {
     await expect(
