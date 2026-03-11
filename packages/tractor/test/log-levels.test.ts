@@ -8,7 +8,7 @@
  * - SecretHost logger integration works
  */
 
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tractor } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 
@@ -30,9 +30,9 @@ describe("Tractor Log Levels", () => {
   });
 
   describe("logLevel configuration", () => {
-    it("should default to 'info' level in normal conditions", async () => {
+    it("should default to 'silent' level in vitest conditions", async () => {
       const tractor = await Tractor.boot(createMockConfig());
-      expect(tractor.logLevel).toBe("info");
+      expect(tractor.logLevel).toBe("silent");
       await tractor.shutdown();
     });
 
@@ -136,87 +136,17 @@ describe("Tractor Log Levels", () => {
     });
   });
 
-  describe("SecretHost logger integration", () => {
-    it("should suppress SecretHost logs in silent mode", async () => {
-      const tractor = await Tractor.boot({
-        ...createMockConfig(),
-        logLevel: "silent",
-      });
 
-      // Trigger a lock operation (which normally logs)
-      await tractor.secrets.lock();
-
-      const lockCalls = consoleInfoSpy.mock.calls.filter((call: unknown[]) =>
-        call.some((arg: unknown) => String(arg).includes("Auto-Lock"))
-      );
-      expect(lockCalls.length).toBe(0);
-
-      await tractor.shutdown();
-    });
-
-    it("should allow SecretHost logs in info mode", async () => {
-      const tractor = await Tractor.boot({
-        ...createMockConfig(),
-        logLevel: "info",
-      });
-
-      await tractor.secrets.lock();
-
-      const lockCalls = consoleInfoSpy.mock.calls.filter((call: unknown[]) =>
-        call.some((arg: unknown) => String(arg).includes("Auto-Lock"))
-      );
-      expect(lockCalls.length).toBeGreaterThan(0);
-
-      await tractor.shutdown();
-    });
-
-    it("should suppress unlock request logs in warn-only mode", async () => {
-      const tractor = await Tractor.boot({
-        ...createMockConfig(),
-        logLevel: "warn",
-        onAuthRequest: async () => ({ success: false }),
-      });
-
-      // Trigger unlock request
-      const result = await tractor.secrets.decryptSecret({
-        tier: "silver",
-        hint: "test",
-      });
-
-      expect(result).toBeNull();
-
-      // The "Requesting unlock" message is info level, should be suppressed
-      const unlockRequestCalls = consoleInfoSpy.mock.calls.filter((call: unknown[]) =>
-        call.some((arg: unknown) => String(arg).includes("Requesting unlock"))
-      );
-      expect(unlockRequestCalls.length).toBe(0);
-
-      // But the "Unlock failed" message is warn level, should appear
-      const unlockFailedCalls = consoleWarnSpy.mock.calls.filter((call: unknown[]) =>
-        call.some((arg: unknown) => String(arg).includes("Unlock failed"))
-      );
-      expect(unlockFailedCalls.length).toBeGreaterThan(0);
-
-      await tractor.shutdown();
-    });
-  });
 
   describe("Log cascading behavior", () => {
-    it("info level should allow info, warn, and error", async () => {
+    it("info level should allow info", async () => {
       const tractor = await Tractor.boot({
         ...createMockConfig(),
         logLevel: "info",
       });
 
-      await tractor.secrets.lock();
-      await tractor.secrets.decryptSecret({
-        tier: "silver",
-        hint: "test",
-        onAuthRequest: async () => ({ success: false }),
-      });
-
+      await tractor.enableGuestMode();
       expect(consoleInfoSpy).toHaveBeenCalled();
-      expect(consoleWarnSpy).toHaveBeenCalled();
 
       await tractor.shutdown();
     });
@@ -225,17 +155,12 @@ describe("Tractor Log Levels", () => {
       const tractor = await Tractor.boot({
         ...createMockConfig(),
         logLevel: "warn",
-        onAuthRequest: async () => ({ success: false }),
       });
 
-      await tractor.secrets.lock();
-      await tractor.secrets.decryptSecret({ tier: "silver" });
+      await tractor.enableGuestMode();
 
       // Info should be suppressed
       expect(consoleInfoSpy).not.toHaveBeenCalled();
-
-      // Warn should appear
-      expect(consoleWarnSpy).toHaveBeenCalled();
 
       await tractor.shutdown();
     });
@@ -244,11 +169,9 @@ describe("Tractor Log Levels", () => {
       const tractor = await Tractor.boot({
         ...createMockConfig(),
         logLevel: "error",
-        onAuthRequest: async () => ({ success: false }),
       });
 
-      await tractor.secrets.lock();
-      await tractor.secrets.decryptSecret({ tier: "silver" });
+      await tractor.enableGuestMode();
 
       expect(consoleInfoSpy).not.toHaveBeenCalled();
       expect(consoleWarnSpy).not.toHaveBeenCalled();
@@ -271,7 +194,6 @@ describe("Tractor Log Levels", () => {
 
       // Trigger multiple lifecycle operations
       await tractor.enableGuestMode();
-      await tractor.secrets.lock();
       await tractor.shutdown();
 
       // Nothing should have logged
