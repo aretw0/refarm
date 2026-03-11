@@ -48,7 +48,7 @@ export class StudioShell {
    */
   async setup() {
     A11yGuard.applySaneDefaults(document.body);
-    this.updateStatus(this.tractor.l8n.t("refarm:core/loading"));
+    this.updateStatus("Loading...");
     
     // Listen for system events
     this.tractor.observe((data: TelemetryEvent) => {
@@ -90,7 +90,7 @@ export class StudioShell {
       await this.renderSystemHelp();
     }
 
-    this.updateStatus(this.tractor.l8n.t("refarm:core/status_ready"));
+    this.updateStatus("Ready");
   }
 
   private async renderSystemHelp() {
@@ -167,7 +167,7 @@ export class StudioShell {
     mainSlot.innerHTML = `
       <div class="system-help-explorer" style="max-width: 800px; margin: 0 auto;">
         <h1 style="font-size: 2.5rem; margin-bottom: 2rem; background: var(--refarm-accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
-          ${this.tractor.l8n.t("refarm:core/welcome")}
+          Welcome to Sovereign Graph
         </h1>
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
           ${helpNodes.map((node: SovereignNode) => `
