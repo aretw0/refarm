@@ -114,13 +114,13 @@ const { title = "Refarm Studio" } = Astro.props;
     <div id="refarm-shell">
       <header id="refarm-header">
         <div id="refarm-slot-logo" class="slot">
-           <a href="/" class="logo">🚜 <span>Refarm</span></a>
+           <a href={import.meta.env.BASE_URL} class="logo">🚜 <span>Refarm</span></a>
         </div>
         <nav id="refarm-slot-nav" class="slot">
-          <a href="/">Dashboard</a>
-          <a href="/plugins">Marketplace</a>
-          <a href="/graph">Graph</a>
-          <a href="/shed">The Shed</a>
+          <a href={import.meta.env.BASE_URL}>Dashboard</a>
+          <a href={`${import.meta.env.BASE_URL}plugins`}>Marketplace</a>
+          <a href={`${import.meta.env.BASE_URL}graph`}>Graph</a>
+          <a href={`${import.meta.env.BASE_URL}shed`}>The Shed</a>
         </nav>
       </header>
       
