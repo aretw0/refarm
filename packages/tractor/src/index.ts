@@ -21,6 +21,7 @@ import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host";
+import { L8nHost } from "./lib/l8n-host";
 import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
 export * from "./lib/identity-recovery-host";
 export * from "./lib/l8n-host";
@@ -585,6 +586,7 @@ export class Tractor {
   readonly defaultSecurityMode: SecurityMode;
   readonly logLevel: TractorLogLevel;
   readonly telemetry: TelemetryHost;
+  readonly l8n: L8nHost;
 
   /** Ephemeral identity used for signing during Guest/Visitor sessions. */
   private _ephemeralKeypair?: { publicKey: Uint8Array; secretKey: Uint8Array };
@@ -610,6 +612,9 @@ export class Tractor {
         debug: (...args: unknown[]) => this.logDebug(...args),
       },
     );
+    this.l8n = new L8nHost({
+      info: (...args: unknown[]) => this.logInfo(...args),
+    });
     this.telemetry = new TelemetryHost({ capacity: 1000 });
 
     this.commands = new CommandHost((event: string, payload: any) =>
