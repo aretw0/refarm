@@ -1,22 +1,24 @@
-# Proposta: Plugin DX, Naming & Environment
+# RFC: Plugin DX & Environment Architecture
 
 ## 1. Nomenclatura (Naming) e Natureza
 
-Embora tenhamos discutido nomes temáticos como *Implements* (Implementos) ou *Seeds* (Sementes), a clareza para o desenvolvedor final muitas vezes vence. Portanto, operaremos com:
+Para manter a clareza arquitetural e o alinhamento com os padrões da indústria, os módulos estendíveis do sistema serão denominados de forma objetiva:
 
-- **Plugins** (O padrão ouro universal)
-- **Grafts (Enxertos):** Se quisermos um apelido temático sutil no futuro, Grafts se conecta bem à ideia de enxertar funcionalidades num "tronco" (o Grafo).
+- **Plugins:** O termo principal e universal para módulos que estendem o Tractor.
+- **Grafts (Enxertos):** Termo secundário/temático que pode ser utilizado em contextos educacionais ou metafóricos do *Sovereign Graph*, remetendo à ação de "enxertar" funcionalidades na árvore principal.
 
-**Importante:** Um Plugin no Refarm **não é exclusivamente WASM**.
-Enquanto o WASM (Component Model via WIT) é a nossa tecnologia "Sandboxed" para plugins de terceiros e de alto risco, o Tractor (Host) também suportará Plugins "Nativos" (como funções JS diretas) para o núcleo confiável, ou para cenários Edge onde rodar uma Cloudflare Worker em JS puro é melhor. A interface lógica (Contrato) é a mesma, mas a execução pode variar.
+### Natureza Híbrida de Execução
+É fundamental estabelecer que um Plugin no ecossistema Refarm **não é exclusivamente um módulo WASM**.
+Enquanto o WASM (via WebAssembly Component Model e WIT) representa a solução segura e encapsulada (*sandboxed*) para plugins de terceiros ou de alto risco, a interface lógica (O Contrato) permanece agnóstica em relação ao motor de execução. O *Tractor* (Host) suportará:
+1. **Plugins WASM:** Para execução segura de binários não confiáveis (Rust, Go, C, etc.).
+2. **Plugins Nativos (ex: JS/TS direto):** Para plugins confiáveis de instâncias primárias ou cenários de altíssima performance em *Edge Workers*, onde a sobrecarga de um runtime WASM embutido não seja justificável.
 
-## 2. Padronização de Logs (DX)
+## 2. Padronização de Logs e Telemetria (DX)
 
-Os plugins (feitos em Rust, Go, TS) já têm `stdout` e `stderr` naturais via WASI. O host (Tractor) intercepta isso hoje.
-Porém, "texto puro" no `stdout` perde semântica.
+Os plugins que compilam para WASI expõem nativamente canais convencionais (`stdout` e `stderr`), que são interceptados pelo host. No entanto, o uso de texto puro em `stdout` resulta na perda de semântica de criticidade e rastreabilidade estruturada.
 
-**A Solução DX:**
-Devemos definir uma interface no arquivo WIT (ex: `refarm:environment/logger`) que expõe:
+**Proposta Arquitetural (Host Calls):**
+O sistema deve definir uma interface padronizada no contrato WIT (ex: `refarm:environment/logger`) para garantir o tráfego de metadados:
 
 ```wit
 interface logger {
@@ -25,29 +27,33 @@ interface logger {
 }
 ```
 
-**Por que?** Porque assim, quando um plugin chama `logger.log(warn, "Demorou muito")`, o Tractor (Host) recebe isso de forma estruturada.
-Isso destrava a melhor *Developer Experience (DX)* **para qualquer linguagem que compile para WASM** (Rust, TypeScript/Javy, Go, Python, etc.), não apenas Rust. O WIT gera os bindings (SDKs) automaticamente para a linguagem alvo do desenvolvedor daquele Plugin. O Host (Refarm) recebe, injeta metadados (timestamp, autor) e roteia para o console do DevTools (com cores) ou para a telemetria do servidor.
+**Benefícios da Abordagem Integrada:**
+- **Developer Experience (DX) Cativante:** Qualquer linguagem suportada pelo Component Model (Rust, TypeScript, Go, Python) terá os *bindings* (SDKs) gerados automaticamente. Ao executar `logger.log(warn, "msg")`, a semântica é preservada.
+- **Enriquecimento pelo Host:** O *Tractor* recebe a chamada estruturada, aplica o carimbo de tempo (timestamp exato) e o identificador do plugin (metadados de origem).
+- **Roteamento Inteligente:** O Host pode rotear esse log processado para o DevTools (com formatação de cores adequada) ou transmiti-lo para um agregador de telemetria externo, dependendo do ambiente em que o Kernel está operando.
 
-## 3. Consciência de Ambiente (Environment Awareness)
+## 3. Consciência de Ambiente (Environment Capabilities)
 
-Você levantou um ponto crucial: um "enum" estático de ambientes (`browser`, `edge`, etc.) é frágil.
-E o Desktop? O "Desktop" na arquitetura "Local First" significa um *Local Runner* (Tauri, Electron, Deno rodando local).
+Plugins complexos requerem estratégias de fallback dependendo do contexto físico de onde estão sendo executados. Utilizar Enumerações estáticas para definir o alvo (como `browser`, `edge`, `desktop`) é arquiteturalmente frágil.
 
 **A Solução: Classes de Runners e Capabilities Dinâmicas**
-Em vez de um alvo engessado, devemos fornecer um mapa de *Capabilities* (Capacidades) e *Classes de Runner*. O plugin diz "eu quero usar isso", e o host diz "nesse host, eu tenho ou não tenho recurso X".
+O sistema abolirá alvos estáticos em favor de um mapa dinâmico de *Capabilities* (Capacidades) acoplado a uma *Runner Class*. O plugin passa a investigar o host de forma explícita.
 
-**Exemplo de Interface:**
+**Proposta de Interface WIT:**
 
 ```wit
 interface runtime {
-    /// Pode ser 'web-browser', 'edge-worker', 'local-daemon' (desktop/cli), 'cloud-server'
+    /// Identifica a categoria matriz do ambiente (ex: 'web-browser', 'edge-worker', 'local-daemon', 'cloud-server')
     runner-class: func() -> string
     
-    /// O plugin pergunta se o ambiente atual tem certa capacidade
+    /// O plugin consulta ativamente o host sobre a disponibilidade de uma feature de hardare/software
     /// Ex: has-capability("gpu-inference") -> bool
     /// Ex: has-capability("fs-persistent") -> bool
     has-capability: func(cap: string) -> bool
 }
 ```
 
-Isso cria um ecossistema natural onde novos tipos de "hosts" podem surgir no futuro. Se um plugin sabe que o `runner-class()` é `edge-worker`, ele já sabe que tem restrições de memória de CPU e talvez decida não importar um modelo grande. Se ele chama `has-capability("local-sqlite")` e recebe `true`, ele já sabe que pode abusar do DB.
+**Casos de Uso Previstos:**
+- Um ecossistema expansível onde novos "hosts" exóticos futuros (ex: dispositivos embarcados locais) são suportados imediatamente.
+- Consciência Preditiva: Se um plugin de processamento identifica que a `runner-class()` é um `edge-worker`, ele infere restrições severas de memória/CPU e pode abortar o carregamento de grandes modelos de IA.
+- Agressividade Segura: Se `has-capability("local-sqlite")` for verdadeiro, o plugin pode otimizar suas queries para persistência transacional síncrona, caso contrário faz downgrade para indexação efêmera.
