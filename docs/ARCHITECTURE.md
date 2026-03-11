@@ -11,6 +11,8 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 | Principle | Meaning |
 |---|---|
 | **Offline-First** | All data lives in the browser (SQLite via OPFS). Network is optional. |
+| **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. It never relies on Cloud SSR for rendering. |
+| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays, not UI servers. |
 | **Radical Ejection Right** | Every primitive can be taken out and used in another project. No vendor lock-in. |
 | **Sandboxed Plugins** | Plugins run as WASM components and communicate only through WIT-defined interfaces. |
 | **Sovereign Graph** | All data is normalised to JSON-LD before persistence — semantically portable. |
@@ -226,6 +228,18 @@ const myNodes = await tractor.queryNodes({ owner: activeVaultId });
 ```
 
 See [ADR-006: Guest Mode](../specs/ADRs/ADR-006-guest-mode-collaborative-sessions.md) for detailed design.
+
+---
+
+## Edge Connectivity & Serverless Limits
+
+Refarm is constrained strictly to Static Site Generation (SSG) and Single Page Application (SPA) architectures to preserve the Sovereign Bootloader principle. Refarm must always be deployable to static hosts (GitHub Pages, S3, IPFS).
+
+When local or P2P capabilities are exhausted (e.g., when a sovereign instance needs to receive an asynchronous Webhook while the user's browser is closed), Refarm will utilize **Targeted Edge Workers** (such as Cloudflare Workers or similar serverless functions).
+
+However, these Edge Workers are strictly limited to acting as asynchronous transit layers—"mailboxes" or Key-Value (KV) relays that queue data for the user's sovereign instance to poll, hydrate, and process upon "wake up". The Edge will **never** generate the HTML/UI or process the core domain logic natively.
+
+See [ADR-036: Sovereign Bootloader and Strict SSG](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) for the architecture constraints.
 
 ---
 
