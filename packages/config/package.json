@@ -1,0 +1,25 @@
+{
+  "name": "@refarm.dev/config",
+  "version": "0.1.0",
+  "description": "Centralized configuration wrapper for Refarm applications",
+  "type": "module",
+  "exports": {
+    "./astro": "./astro.mjs"
+  },
+  "scripts": {
+    "lint": "echo \"Nothing to lint\"",
+    "test": "echo \"No tests yet\"",
+    "build": "echo \"Nothing to build\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/refarm-dev/refarm.git",
+    "directory": "packages/config"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "astro": ">=4.0.0"
+  }
+}

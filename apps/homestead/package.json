@@ -25,6 +25,7 @@
     "astro": "^5.3.0"
   },
   "devDependencies": {
+    "@refarm.dev/config": "*",
     "typescript": "^5.7.3",
     "@refarm.dev/tsconfig": "*"
   },
