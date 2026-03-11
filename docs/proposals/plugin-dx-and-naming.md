@@ -1,16 +1,14 @@
 # Proposta: Plugin DX, Naming & Environment
 
-## 1. Nomenclatura Temática (The Theme)
+## 1. Nomenclatura (Naming) e Natureza
 
-No SilverBullet eles se chamam "Plugs". No Refarm, já que nossa metáfora raiz é a Fazenda, o Solo, as Sementes e o Trator, aqui estão algumas propostas de como chamar nossos Plugins (WASM Components):
+Embora tenhamos discutido nomes temáticos como *Implements* (Implementos) ou *Seeds* (Sementes), a clareza para o desenvolvedor final muitas vezes vence. Portanto, operaremos com:
 
-- **Implements (Implementos):** Um trator não faz nada sozinho, ele precisa de implementos (arados, colheitadeiras, plantadeiras) engatados na tomada de força (PTO = nossa interface WIT).
-  - *Exemplo:* "Vamos instalar o Implemento de Pagamentos no Tractor."
-- **Grafts (Enxertos):** Conecta bem com a ideia de Árvores/Grafos. Você enxerta uma nova funcionalidade no tronco principal.
-- **Seeds (Sementes):** Plugins pequenos que crescem e tomam conta de uma área de dados no seu Grafo.
-- **Sprouts (Brotos):** Módulos que adicionam vida nova ao sistema.
+- **Plugins** (O padrão ouro universal)
+- **Grafts (Enxertos):** Se quisermos um apelido temático sutil no futuro, Grafts se conecta bem à ideia de enxertar funcionalidades num "tronco" (o Grafo).
 
-*(Minha recomendação forte: **Implements**. Combina perfeitamente com o kernel se chamar `Tractor`!)*
+**Importante:** Um Plugin no Refarm **não é exclusivamente WASM**.
+Enquanto o WASM (Component Model via WIT) é a nossa tecnologia "Sandboxed" para plugins de terceiros e de alto risco, o Tractor (Host) também suportará Plugins "Nativos" (como funções JS diretas) para o núcleo confiável, ou para cenários Edge onde rodar uma Cloudflare Worker em JS puro é melhor. A interface lógica (Contrato) é a mesma, mas a execução pode variar.
 
 ## 2. Padronização de Logs (DX)
 
@@ -27,25 +25,29 @@ interface logger {
 }
 ```
 
-**Por que?** Porque assim, quando um plugin chama `logger.log(warn, "Demorou muito")`, o Tractor (Host) recebe isso de forma estruturada, com metadados do autor do plugin, timestamp exato, e pode repassar isso direitinho para o console do DevTools do navegador *com cores*, ou mandar para um serviço de telemetria se estiver rodando no Cloud. E claro, nós podemos criar macros em Rust (`tractor_log::info!()`) para a experiência na linguagem raiz ser 100% transparente.
+**Por que?** Porque assim, quando um plugin chama `logger.log(warn, "Demorou muito")`, o Tractor (Host) recebe isso de forma estruturada.
+Isso destrava a melhor *Developer Experience (DX)* **para qualquer linguagem que compile para WASM** (Rust, TypeScript/Javy, Go, Python, etc.), não apenas Rust. O WIT gera os bindings (SDKs) automaticamente para a linguagem alvo do desenvolvedor daquele Plugin. O Host (Refarm) recebe, injeta metadados (timestamp, autor) e roteia para o console do DevTools (com cores) ou para a telemetria do servidor.
 
 ## 3. Consciência de Ambiente (Environment Awareness)
 
-Você está certo. O plugin precisa saber onde está pisando. O Astro expõe `Astro.locals` ou variáveis de ambiente para decidir entre cliente e servidor.
-Para os WASM Plugins, também podemos passar isso no instante da carga ou expor como um Host Call (Syscall, como o Silverbullet chama).
+Você levantou um ponto crucial: um "enum" estático de ambientes (`browser`, `edge`, etc.) é frágil.
+E o Desktop? O "Desktop" na arquitetura "Local First" significa um *Local Runner* (Tauri, Electron, Deno rodando local).
+
+**A Solução: Classes de Runners e Capabilities Dinâmicas**
+Em vez de um alvo engessado, devemos fornecer um mapa de *Capabilities* (Capacidades) e *Classes de Runner*. O plugin diz "eu quero usar isso", e o host diz "nesse host, eu tenho ou não tenho recurso X".
 
 **Exemplo de Interface:**
 
 ```wit
 interface runtime {
-    enum target { browser, edge, cloud, desktop }
+    /// Pode ser 'web-browser', 'edge-worker', 'local-daemon' (desktop/cli), 'cloud-server'
+    runner-class: func() -> string
     
-    /// Retorna onde o kernel está executando agora
-    current-target: func() -> target
-    
-    /// Retorna se o usuário está online na rede P2P
-    is-online: func() -> bool
+    /// O plugin pergunta se o ambiente atual tem certa capacidade
+    /// Ex: has-capability("gpu-inference") -> bool
+    /// Ex: has-capability("fs-persistent") -> bool
+    has-capability: func(cap: string) -> bool
 }
 ```
 
-Isso impede que os desenvolvedores criem dependências rígidas com "abstrações mágicas" que falham silenciosamente. Se o plugin de Inteligência Artificial sabe que está no `browser`, ele usa um modelo GGUF menor; se ele chama `current-target()` e vê `edge`, ele faz uma call remota; se vê `cloud`, ele carrega o modelo gigante na GPU.
+Isso cria um ecossistema natural onde novos tipos de "hosts" podem surgir no futuro. Se um plugin sabe que o `runner-class()` é `edge-worker`, ele já sabe que tem restrições de memória de CPU e talvez decida não importar um modelo grande. Se ele chama `has-capability("local-sqlite")` e recebe `true`, ele já sabe que pode abusar do DB.
