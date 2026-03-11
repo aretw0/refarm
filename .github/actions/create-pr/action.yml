@@ -30,7 +30,7 @@ runs:
   using: "composite"
   steps:
     - name: Create pull request
-      uses: peter-evans/create-pull-request@v8.1.0
+      uses: peter-evans/create-pull-request@c5a5b1689255be9d0092f0be22144e2870425785 # v8.1.0 (2026 stable)
       with:
         token: ${{ inputs.token }}
         commit-message: ${{ inputs.commit-message }}
