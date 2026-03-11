@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: ./.github/actions/checkout
         with:
           fetch-depth: "0"
 
@@ -58,6 +58,7 @@ jobs:
         run: npm run test:integration
 
       - name: Benchmark Quality Gate (Tractor)
+        id: benchmark
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
@@ -76,6 +77,140 @@ jobs:
           cd packages/tractor
           npm run bench:check
 
+          # Export payload to GHA env vars if the script exited cleanly
+          if [ -f "benchmarks/gha-payload.json" ]; then
+            IMPROVED=$(jq -r '.improved' benchmarks/gha-payload.json)
+            DIFF=$(jq -r '.diff' benchmarks/gha-payload.json)
+            THRESH=$(jq -r '.threshold' benchmarks/gha-payload.json)
+            echo "improved=$IMPROVED" >> $GITHUB_OUTPUT
+            echo "diff=$DIFF" >> $GITHUB_OUTPUT
+            echo "threshold=$THRESH" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR on Benchmark Increase
+        if: github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        uses: ./.github/actions/github-script
+        with:
+          script: |
+            const diff = parseFloat('${{ steps.benchmark.outputs.diff }}');
+            const threshold = parseFloat('${{ steps.benchmark.outputs.threshold }}');
+            
+            // Fetch existing comments from the bot
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComments = comments.filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('🚀 Tractor Performance Increased!'));
+            
+            // Find the high-water mark from previous comments
+            let highWaterMark = threshold;
+            const regex = /\+\*\*([0-9.]+)\%\*\* Average Improvement/;
+            
+            for (const comment of botComments) {
+              const match = comment.body.match(regex);
+              if (match && match[1]) {
+                const pct = parseFloat(match[1]);
+                if (pct > highWaterMark) {
+                  highWaterMark = pct;
+                }
+              }
+            }
+            
+            // Only comment if the current performance strictly beats the highest water mark
+            if (diff > highWaterMark) {
+              let body = `### 🚀 Tractor Performance Increased!\n\n`;
+              body += `Great job! You've successfully optimized the Tractor Engine core.\n\n`;
+              body += `- **Threshold Required:** +${threshold}%\n`;
+              body += `- **Previous High-Water Mark:** +${highWaterMark}%\n`;
+              body += `- **Current PR Speedup:** +**${diff}%** Average Improvement\n\n`;
+              body += `> *Note: Please remember to run \`npm run bench:save\` locally to re-calibrate your development baseline, though the repository baseline is generated dynamically from main.*`;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            } else {
+              console.log(`Benchmark diff (+${diff}%) is not higher than the previous high-water mark (+${highWaterMark}%). Skipping comment.`);
+            }
+
+      - name: Coverage Quality Gate (Tractor)
+        id: coverage
+        run: |
+          cd packages/tractor
+          npm run coverage:check
+          
+          # Export payload to GHA env vars if the script exited cleanly
+          if [ -f "coverage/gha-payload.json" ]; then
+            IMPROVED=$(jq -r '.improved' coverage/gha-payload.json)
+            PREV=$(jq -r '.previous' coverage/gha-payload.json)
+            CURR=$(jq -r '.current' coverage/gha-payload.json)
+            DIFF=$(jq -r '.diff' coverage/gha-payload.json)
+            echo "improved=$IMPROVED" >> $GITHUB_OUTPUT
+            echo "previous=$PREV" >> $GITHUB_OUTPUT
+            echo "current=$CURR" >> $GITHUB_OUTPUT
+            echo "diff=$DIFF" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR on Coverage Increase
+        if: github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        uses: ./.github/actions/github-script
+        with:
+          script: |
+            const currentCoverage = parseFloat('${{ steps.coverage.outputs.current }}');
+            const previousCoverage = parseFloat('${{ steps.coverage.outputs.previous }}');
+            const diff = '${{ steps.coverage.outputs.diff }}';
+            
+            // Fetch existing comments from the bot
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const botComments = comments.filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('🚀 Tractor Coverage Increased!'));
+            
+            // Find the high-water mark from previous comments
+            let highWaterMark = previousCoverage;
+            const regex = /Current High Score: \*\*([0-9.]+)\%\*\*/;
+            
+            for (const comment of botComments) {
+              const match = comment.body.match(regex);
+              if (match && match[1]) {
+                const pct = parseFloat(match[1]);
+                if (pct > highWaterMark) {
+                  highWaterMark = pct;
+                }
+              }
+            }
+            
+            // Only comment if the current coverage strictly beats the highest water mark
+            if (currentCoverage > highWaterMark) {
+              let body = `### 🚀 Tractor Coverage Increased!\n\n`;
+              body += `Great job! You've increased the test coverage for the Tractor Engine core.\n\n`;
+              body += `- **Previous Baseline (or last high-water):** ${highWaterMark}%\n`;
+              body += `- **Current High Score: **${currentCoverage}%\n`;
+              body += `- **Improvement:** +${(currentCoverage - highWaterMark).toFixed(2)}%\n\n`;
+              
+              if (currentCoverage >= 100) {
+                body += `\n\n🎉 **PERFECT COVERAGE!** 💯 You've reached the holy grail.`;
+              } else {
+                 body += `\n> *Note: Please remember to run \`npm run coverage:save\` and commit the new baseline so your changes protect the project moving forward.*`;
+              }
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            } else {
+              console.log(`Coverage (${currentCoverage}%) is not higher than the previous high-water mark (${highWaterMark}%). Skipping comment.`);
+            }
+
       - name: Upload coverage
         if: always()
         uses: ./.github/actions/codecov-upload
@@ -91,7 +226,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: ./.github/actions/checkout
 
       - name: Setup
         id: setup
@@ -118,7 +253,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: ./.github/actions/checkout
 
       - name: Setup
         id: setup
@@ -248,7 +383,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: ./.github/actions/checkout
 
       - name: Setup
         id: setup
