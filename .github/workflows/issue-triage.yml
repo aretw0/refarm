@@ -12,12 +12,11 @@ jobs:
       contents: read
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: ./.github/actions/checkout
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: ./.github/actions/setup
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install Dependencies
         run: npm ci
