@@ -30,7 +30,7 @@ export function defineConfig(userConfig = {}) {
 
     // Base path configuration for Pages deployment
     const site = process.env.ASTRO_SITE || refarmConfig?.brand?.urls?.site || undefined;
-    const base = process.env.ASTRO_BASE || (process.env.NODE_ENV === 'production' && refarmConfig?.brand?.slug ? `/${refarmConfig.brand.slug}` : '/');
+    const base = process.env.ASTRO_BASE || (process.env.NODE_ENV === 'production' && refarmConfig?.brand?.slug ? `/${refarmConfig.brand.slug}/` : '/');
 
     // Safely merge configurations
     const mergedConfig = {
