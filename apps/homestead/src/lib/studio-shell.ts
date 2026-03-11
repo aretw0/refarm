@@ -111,7 +111,7 @@ export class StudioShell {
           </p>
           
           <div class="landing-actions" style="display: flex; gap: 1.5rem; justify-content: center;">
-            <a href="/onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
+            <a href="${import.meta.env.BASE_URL}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
               Cultivate your soil
             </a>
             <button id="try-guest-mode" class="btn-secondary" style="padding: 1rem 2.5rem; background: transparent; color: var(--refarm-text-primary); border: 2px solid var(--refarm-border-default); border-radius: 50px; font-weight: 600; cursor: pointer;">
@@ -128,7 +128,7 @@ export class StudioShell {
 
       // Wire up Guest Mode button (Insight "Divisor de Águas")
       mainSlot.querySelector("#try-guest-mode")?.addEventListener("click", () => {
-        window.location.href = "/onboarding?mode=guest";
+        window.location.href = "${import.meta.env.BASE_URL}onboarding?mode=guest";
       });
 
       return;
