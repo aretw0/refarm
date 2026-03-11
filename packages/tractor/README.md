@@ -6,11 +6,11 @@
 
 ## What Is This?
 
-Tractor is Refarm's core SDK and orchestration engine. It follows a strict **Microkernel architecture**: it provides the mechanisms but delegates all domain-specific logic (Storage, Identity, Sync) to **Adapters/Plugins**.
+Tractor is Refarm's core SDK and orchestration engine. It follows a strict **Microkernel architecture**: it provides the raw data mechanisms but explicitly delegates all presentation, orchestration, and domain-specific logic to **Host Providers** or **Plugins**.
 
 - 🔌 **Plugin Orchestrator**: Hosts WASM components via WIT boundary.
 - 💾 **Abstract Storage**: Delegates persistence to versioned contracts.
-- 🔐 **Contract-First**: Depends only on `@refarm.dev/*-contract-v1`.
+- 💡 **Headless Kernel**: UI logic (Vault Secrets, Localization, Account Recovery) is strictly decoupled into independent `Host` classes.
 - 🎯 **Data Normalization**: Validates and transforms → JSON-LD (Sovereign Graph).
 - 🌍 **Isomorphic**: Runs identically in Browser, Node.js, and Edge environments.
 
