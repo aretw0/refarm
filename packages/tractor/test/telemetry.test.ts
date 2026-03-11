@@ -1,7 +1,7 @@
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { describe, expect, it, vi } from "vitest";
-import { Tractor } from "../src/index";
+import { SecretHost, Tractor } from "../src/index";
 import { TelemetryRingBuffer } from "../src/lib/telemetry";
 
 describe("Tractor Telemetry", () => {
@@ -63,9 +63,10 @@ describe("Tractor Telemetry", () => {
     const onAuthRequest = vi.fn().mockResolvedValue({ success: true, key: { mock: true } });
     const tractor = await Tractor.boot({
       storage: mockStorage,
-      identity: mockIdentity,
-      onAuthRequest
+      identity: mockIdentity
     });
+
+    const secrets = new SecretHost(onAuthRequest);
 
     const mockSecretBlob = {
       "@type": "SovereignSecret",
@@ -73,7 +74,7 @@ describe("Tractor Telemetry", () => {
       "jwe": { ciphertext: "..." }
     };
 
-    const result = await tractor.secrets.decryptSecret(mockSecretBlob);
+    const result = await secrets.decryptSecret(mockSecretBlob);
     
     expect(onAuthRequest).toHaveBeenCalledWith(expect.objectContaining({
       tier: "gold"
@@ -85,11 +86,12 @@ describe("Tractor Telemetry", () => {
     const onAuthRequest = vi.fn().mockResolvedValue({ success: false });
     const tractor = await Tractor.boot({
       storage: mockStorage,
-      identity: mockIdentity,
-      onAuthRequest
+      identity: mockIdentity
     });
 
-    const result = await tractor.secrets.decryptSecret({ tier: "gold" });
+    const secrets = new SecretHost(onAuthRequest);
+
+    const result = await secrets.decryptSecret({ tier: "gold" });
     expect(result).toBeNull();
   });
 });

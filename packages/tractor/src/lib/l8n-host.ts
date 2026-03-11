@@ -5,11 +5,23 @@
  * - "refarm:core/save" -> Core terminology correctly localized.
  * - "plugin-id:welcome" -> Plugin-specific terminology.
  */
+export interface L8nHostLogger {
+  info(...args: unknown[]): void;
+}
+
+function resolveDefaultLogger(): L8nHostLogger {
+  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
+    return { info: () => {} };
+  }
+  return console;
+}
+
 export class L8nHost {
   private _namespaces: Map<string, Record<string, string>> = new Map();
   private _currentLocale: string = 'en';
 
-  constructor() {
+  constructor(private logger: L8nHostLogger = resolveDefaultLogger()) {
     this.setupCore();
   }
 
@@ -29,7 +41,7 @@ export class L8nHost {
    */
   setLocale(locale: string) {
     this._currentLocale = locale;
-    console.info(`[l8n] Locale changed to: ${locale}`);
+    this.logger.info(`[l8n] Locale changed to: ${locale}`);
   }
 
   /**
