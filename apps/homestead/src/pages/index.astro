@@ -35,13 +35,12 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { Tractor } from "@refarm.dev/tractor";
-  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
-  import { StudioShell } from "../lib/studio-shell";
   import { SowerPlugin } from "@refarm.dev/sower";
-  import { ScarecrowPlugin } from "@refarm.dev/scarecrow";
-  import { HeraldPlugin } from "../lib/herald";
+  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
+  import { Tractor } from "@refarm.dev/tractor";
   import { FireflyPlugin } from "../lib/firefly";
+  import { HeraldPlugin } from "../lib/herald";
+  import { StudioShell } from "../lib/studio-shell";
 
   async function boot() {
     try {
@@ -72,7 +71,6 @@ import Layout from "../layouts/Layout.astro";
       // 3. Instantiate Core Plugins (Local handles for now)
       const herald = new HeraldPlugin(tractor);
       const sower = new SowerPlugin(tractor);
-      const scarecrow = new ScarecrowPlugin(tractor);
       const firefly = new FireflyPlugin(tractor);
 
       tractor.plugins.registerInternal({
