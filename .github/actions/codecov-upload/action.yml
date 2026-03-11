@@ -22,7 +22,7 @@ runs:
   using: "composite"
   steps:
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v5.5.2
+      uses: codecov/codecov-action@0565863a3012c7fc5b7df8be23ca6e6c1e9206b1 # v5.5.2 (2026 stable)
       with:
         files: ${{ inputs.files }}
         flags: ${{ inputs.flags }}
