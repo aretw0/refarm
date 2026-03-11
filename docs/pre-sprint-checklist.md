@@ -191,20 +191,17 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ---
 
-#### CI/CD Pipeline
+#### CI/CD Pipeline & Quality Gates
 
-**File**: [.github/workflows/test.yml](../../.github/workflows/test.yml)  
-**Status**: ✅ Baseline aligned (scripts/jobs exist); reliability now depends on project-owned tests and browser validations
+**File**: `.github/workflows/*.yml`
+**Status**: ✅ Baseline fully aligned and centralized to 2026 standards.
 
-**Current priorities**:
-
+**Completed Priorities**:
 - [x] Root commands available: `test:unit`, `test:integration`, `test:e2e`
 - [x] Turbo tasks aligned with workspace scripts (`test:unit` configured)
-- [x] Changeset validation exists as dedicated workflow (`check-changeset`)
-- [x] Seed smoke tests in critical workspaces to avoid "green with no signal"
-- [ ] Validate browser-dependent checks (WASM host + OPFS) with evidence attached
-
-**Priority**: **HIGH** (blocks trustworthy quality enforcement)
+- [x] Dynamic Test Coverage Gate: Fails PRs if coverage drops, comments High-Water Mark improvements.
+- [x] Dynamic Benchmark Gate: Tracks average improvements, fails regressions, comments High-Water Mark.
+- [x] 2026 Action Wrappers: All 11 workflows centralized via `.github/actions/*` for total version pinning.
 
 ---
 
@@ -277,13 +274,11 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 
 ---
 
-### Gate 3: Testing Strategy Defined
+### Gate 3: Testing Strategy & Governance Defined
 
-**Condition**: ADR-013 accepted, test infra scaffolded, CI commands executable, and smoke tests present in critical workspaces
+**Condition**: ADR-013 accepted, dynamic quality gates for Coverage and Benchmarks enforced in CI, tests passing with clean DX (noise silenced).
 
-**On Success**: TDD phase can proceed smoothly
-
-**On Failure**: Can proceed with basic setup, refine during Sprint 1
+**Status**: ✅ Completed. Enforced via `.github/workflows/quality-gates.yml`.
 
 ---
 
@@ -312,12 +307,14 @@ This document tracks the **Semana 0** (Week 0) preparatory work required before 
 - [x] ADR-013: Testing Strategy written and reviewed
 - [x] ADR-015: SQLite Engine Decision written (pending validation)
 - [x] Tractor README with quick start guide created
-- [x] GitHub Actions CI/CD pipeline configured
+- [x] GitHub Actions CI/CD pipeline configured (Strict Actions Centralization)
+- [x] Dynamic Quality Gates deployed (Coverage & Benchmarks)
 - [x] Root quality scripts executable (`test:unit`, `test:integration`, `test:e2e`)
 - [ ] WASM Validation complete (all phases ✅)
 - [ ] SQLite engine decided (ADR-015 validated + accepted)
 - [x] Smoke tests available in critical workspaces
 - [ ] WIT contract verified (plugin compiles and runs)
+- [x] Tractor Microkernel purely headless (domains externalized to Hosts)
 - [ ] JSON-LD schema examples complete
 - [ ] Sub-roadmaps have technical decisions
 

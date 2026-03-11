@@ -37,11 +37,11 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 🚧 **In active research & development**
 
-- **Current phase**: Semana 0 - Pre-Sprint readiness (2 validations pending)
+- **Current phase**: Semana 0 - Pre-Sprint readiness completed (Architecture, QA Gates, CI/CD)
 - **Next milestone**: v0.1.0 Sprint 1 SDD (Spec Driven Development)
 - Architecture defined via [ADRs](specs/ADRs/)
 - Core flow: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
-- Readiness tracking: [Estado Atual](docs/ESTADO_ATUAL.md)
+- Readiness tracking: [Pre-Sprint Checklist](docs/pre-sprint-checklist.md)
 - Feedback welcome; production use not recommended yet
 
 ---
@@ -61,7 +61,7 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 **Documentation:**
 
-- [Estado Atual](docs/ESTADO_ATUAL.md) — Current status and next steps (PT-BR)
+- [Pre-Sprint Checklist](docs/pre-sprint-checklist.md) — Current readiness status for Sprint 1
 - [Architecture Guide](docs/ARCHITECTURE.md) — System design
 - [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
 - [DevOps & Setup](docs/DEVOPS.md) — Environment, CI, and reusable workflow operations
