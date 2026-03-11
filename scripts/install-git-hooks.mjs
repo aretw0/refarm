@@ -144,18 +144,26 @@ exit 0
 `;
 
 const postCheckoutHookContent = `#!/bin/sh
-# Post-checkout hook: warns/generates tractor baseline when switching branches
+# Post-checkout hook: warns/generates tractor baselines when switching branches
 # Installed by: npm run hooks:install
 
 # Only trigger when switching branches, not when checking out files
 if [ "$3" = "1" ]; then
-  echo "🌱 [Refarm] Branch changed. Validating Tractor Benchmark Baseline..."
+  echo "🌱 [Refarm] Branch changed. Validating Tractor Baselines..."
   cd packages/tractor
+  
   if [ ! -f "benchmarks/baseline.json" ]; then
-    echo "⚠️  No baseline found. Generating one now..."
+    echo "⚠️  No benchmark baseline found. Generating one now..."
     npm run bench:save
   else
-    echo "✅ Baseline present. (Run 'npm run bench:save' manually to refresh)"
+    echo "✅ Benchmark baseline present. (Run 'npm run bench:save' manually to refresh)"
+  fi
+  
+  if [ ! -f "benchmarks/coverage-baseline.json" ]; then
+    echo "⚠️  No coverage baseline found. Generating one now..."
+    npm run coverage:save
+  else
+    echo "✅ Coverage baseline present. (Run 'npm run coverage:save' manually to refresh)"
   fi
 fi
 `;
