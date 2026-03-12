@@ -1,0 +1,32 @@
+{
+  "name": "@refarm.dev/homestead",
+  "version": "0.1.0",
+  "description": "Refarm Homestead — Shared Shell SDK and UI Primitives",
+  "type": "module",
+  "exports": {
+    "./sdk": {
+      "types": "./src/sdk/index.ts",
+      "import": "./src/sdk/index.ts"
+    },
+    "./ui": {
+      "types": "./src/ui/index.ts",
+      "import": "./src/ui/index.ts"
+    },
+    "./styles/*": "./src/styles/*"
+  },
+  "scripts": {
+    "build": "tsc",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@refarm.dev/tractor": "*",
+    "astro": "^5.3.0"
+  },
+  "devDependencies": {
+    "@refarm.dev/config": "*",
+    "@refarm.dev/tsconfig": "*",
+    "typescript": "^5.7.3"
+  },
+  "license": "MIT"
+}

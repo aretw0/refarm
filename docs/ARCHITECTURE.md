@@ -152,7 +152,7 @@ Refarm supports **guest sessions** for zero-friction onboarding. The key design 
 const vaultId = crypto.randomUUID(); // "vault-a7c3f2"
 
 // 3. Guest picks storage tier (ephemeral / persistent / synced)
-// If persistent or synced → OPFS/SQLite (same as permanent users)
+// If persistent or synced → OPFS/SQLite (isolated by vaultId)
 localStorage.setItem("refarm:vault", JSON.stringify({
   vaultId,
   type: "guest",
@@ -161,11 +161,20 @@ localStorage.setItem("refarm:vault", JSON.stringify({
 }));
 
 // Instantiate the adapters in the host (Homestead)
-const storage = await new OPFSSQLiteAdapter().open(vaultId);
+// The open() call returns a scoped, namespaced adapter instance
+const baseStorage = new OPFSSQLiteAdapter();
+const storage = await baseStorage.open(vaultId); 
 const identity = new EphemeralIdentity(vaultId);
 
-// 4. Boot Tractor with injected adapters
-const tractor = await Tractor.boot({ storage, identity });
+// 4. Boot Tractor with injected adapters and namespace
+const tractor = await Tractor.boot({ 
+  storage, 
+  identity,
+  namespace: vaultId 
+});
+
+// 5. [Optional] Spawn isolated child environments
+const childTractor = await tractor.spawnChild("ephemeral-analyzer");
 
 // 5. Guest creates nodes — same API as permanent users
 tractor.storeNode({
