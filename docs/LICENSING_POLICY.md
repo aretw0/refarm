@@ -10,7 +10,7 @@ Para garantir esse delicado balanço de poderes — protegendo a liberdade do us
 
 > **O que é afetado:**
 >
-> - `apps/homestead` (A Interface Principal do Usuário)
+> - `apps/dev` (A Interface Principal do Usuário)
 > - `packages/tractor` (O Motor Soberano / Microkernel)
 > - `packages/sower` (Plugin de Onboarding / Futura CLI de Scaffolding)
 > - Plugins Nativos (`plugin-antenna`, `plugin-scarecrow`, etc., criados pela equipe Core).

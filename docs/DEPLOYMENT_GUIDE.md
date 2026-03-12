@@ -42,7 +42,7 @@ The Refarm micro-kernel is strict. By running the `plugin-ci`, you ensure that:
 ## 3. Advanced Cloud Deployments (SSR)
 
 If you need Edge features or SSR:
-1. Open `apps/homestead/astro.config.mjs`.
+1. Open `apps/dev/astro.config.mjs`.
 2. Add an adapter (e.g., `@astrojs/vercel` or `@astrojs/cloudflare`).
 3. Change `output: "static"` to `output: "hybrid"`.
 
