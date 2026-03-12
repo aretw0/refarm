@@ -291,7 +291,7 @@ npm test
 ### Start the Homestead only
 
 ```bash
-cd apps/homestead
+cd apps/dev
 npm run dev
 ```
 
