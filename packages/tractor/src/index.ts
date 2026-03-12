@@ -32,6 +32,8 @@ export * from "./lib/telemetry";
 export interface TractorConfig {
   /** The abstract storage mechanism (e.g., OPFS SQLite adapter). */
   storage: StorageAdapter;
+  /** The vault namespace for this tractor instance (e.g. 'prod', 'dev', ':memory:'). */
+  namespace: string;
   /** The user identity mechanism (e.g., Nostr Keypair adapter). */
   identity: IdentityAdapter;
   /** (Optional) Multi-device CRDT synchronization adapter. */
@@ -577,6 +579,7 @@ export class Tractor {
   static readonly VERSION =
     (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
   readonly storage: StorageAdapter;
+  readonly namespace: string;
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
   readonly plugins: PluginHost;
@@ -597,6 +600,7 @@ export class Tractor {
     config: TractorConfig,
   ) {
     this.storage = storage;
+    this.namespace = config.namespace;
     this.identity = identity;
     this.sync = config.sync;
     this.envMetadata = config.envMetadata || {};
@@ -827,6 +831,10 @@ export class Tractor {
       throw new Error("[tractor] An Identity Adapter is required to boot.");
 
     // 2. Initialize Core Schema (Delegated to adapter)
+    // In multi-vault mode, the adapter returns a scoped/isolated instance
+    if ((config.storage as any).open) {
+      config.storage = await (config.storage as any).open(config.namespace);
+    }
     await config.storage.ensureSchema();
 
     // 3. Start Sync if provided
@@ -835,8 +843,28 @@ export class Tractor {
     }
 
     const tractor = new Tractor(config.storage, config.identity, config);
-    tractor.logInfo("[tractor] Booted ✓");
+    tractor.logInfo(`[tractor:${config.namespace}] Booted ✓`);
     return tractor;
+  }
+
+  /**
+   * Spawns a child Tractor in a new isolated vault.
+   * Hierarchical orchestration as defined in ADR-041.
+   */
+  async spawnChild(namespace: string, configOverrides: Partial<TractorConfig> = {}): Promise<Tractor> {
+    this.logInfo(`[tractor:${this.namespace}] Spawning child vault: ${namespace}`);
+    
+    const childConfig: TractorConfig = {
+      ...configOverrides,
+      namespace,
+      // If no storage provided, we try to reuse the parent's storage class but with new namespace
+      storage: configOverrides.storage || this.storage, 
+      identity: configOverrides.identity || this.identity,
+      logLevel: configOverrides.logLevel || this.logLevel,
+      securityMode: configOverrides.securityMode || this.defaultSecurityMode,
+    };
+
+    return await Tractor.boot(childConfig);
   }
 
   /**

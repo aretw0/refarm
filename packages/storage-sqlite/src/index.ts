@@ -48,39 +48,48 @@ export const PHYSICAL_SCHEMA_V1 = [
   `CREATE INDEX IF NOT EXISTS idx_crdt_node ON crdt_log(node_id)`,
 ];
 
-// ─── SQLite / OPFS Adapter ───────────────────────────────────────────────────
-
 /**
- * Browser-side SQLite adapter using the Origin Private File System.
+ * Browser-side SQLite adapter using the Origin Private File System or Memory.
+ * Implements Multi-Vault (Namespace) isolation.
  */
 export class OPFSSQLiteAdapter implements StorageAdapter {
   private _db: any = null;
+  private _namespace: string = "default";
+  private _sqlite: any = null;
 
-  async open(name: string): Promise<OPFSSQLiteAdapter> {
-    console.info(`[storage-sqlite] Opening database: ${name}`);
+  constructor(sqlite?: any) {
+    // In a real browser environment, sqlite would be imported or injected
+    this._sqlite = sqlite;
+  }
+
+  /**
+   * Opens a namespaced vault. 
+   * @param namespace The vault name (e.g. "prod", "dev", ":memory:").
+   */
+  async open(namespace: string): Promise<OPFSSQLiteAdapter> {
+    const scoped = new OPFSSQLiteAdapter(this._sqlite);
+    scoped._namespace = namespace;
+    console.info(`[storage-sqlite] Opening namespaced vault: ${namespace}`);
     
-    // Pattern for real environment (stubbed for now)
-    this._db = {
-      exec: async (sql: string, options: any = {}) => {
-        console.debug(`[sqlite] EXEC: ${sql}`, options.bind);
-        return [];
-      },
-      close: async () => {
-        console.debug("[sqlite] CLOSED");
-      }
-    };
+    // 1. Identify Target Path
+    const isMemory = namespace === ":memory:" || !namespace;
+    const dbPath = isMemory ? ":memory:" : `/opfs/refarm-${namespace}.db`;
 
-    return this;
+    // 2. Initialize Engine
+    if (!scoped._sqlite) {
+      console.warn("[storage-sqlite] No SQLite engine provided, falling back to memory stub");
+      scoped._db = scoped._createMemoryStub();
+    } else {
+      scoped._db = await scoped._sqlite.open(dbPath);
+    }
+
+    return scoped;
   }
 
   async ensureSchema(): Promise<void> {
     await runMigrations(this, PHYSICAL_SCHEMA_V1);
   }
 
-  /**
-   * Store a node by first writing to the CRDT log and then materializing.
-   * This ensures that the engine can always reconstruct the state from the log.
-   */
   async storeNode(
     id: string,
     type: string,
@@ -88,20 +97,16 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     payload: string,
     sourcePlugin: string | null,
   ): Promise<void> {
-    // 1. In a real HL-Clock environment, we'd generate a timestamp here.
     const hlc = new Date().toISOString(); 
-    const peerId = "local-host"; // Should come from identity
+    const peerId = "local-host"; 
 
     await this.transaction(async () => {
-      // 2. Log the operation (Field-level LWW simplified for MVP)
-      // In a full implementation, we'd decompose the payload into triples.
       await this.execute(
         `INSERT OR REPLACE INTO crdt_log (id, node_id, field, value, peer_id, hlc_time)
          VALUES (?, ?, ?, ?, ?, ?)`,
         { params: [`${peerId}/${Date.now()}`, id, "@payload", payload, peerId, hlc] },
       );
 
-      // 3. Materialize into the nodes table
       await this.execute(
         `INSERT OR REPLACE INTO nodes (id, type, context, payload, source_plugin, updated_at)
          VALUES (?, ?, ?, ?, ?, datetime('now'))`,
@@ -139,7 +144,6 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
     this._assertOpen();
-    // Implementation pattern for wa-sqlite/better-sqlite3
     await this.execute("BEGIN");
     try {
       const result = await fn();
@@ -159,7 +163,17 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   }
 
   private _assertOpen(): void {
-    if (!this._db) throw new Error("[storage-sqlite] Database not open");
+    if (!this._db) throw new Error(`[storage-sqlite] Vault "${this._namespace}" not open`);
+  }
+
+  private _createMemoryStub() {
+    // Fallback for tests if real wa-sqlite is not injected
+    return {
+      exec: async (sql: string, options: any = {}) => {
+        return [];
+      },
+      close: async () => {}
+    };
   }
 }
 
