@@ -9,6 +9,7 @@ describe("Tractor Core Commands", () => {
     tractor = await Tractor.boot({
       storage: new MockStorageAdapter(),
       identity: new MockIdentityAdapter(),
+      namespace: "test-core-commands"
     });
   });
 

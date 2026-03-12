@@ -17,7 +17,7 @@ describe("Tractor Telemetry", () => {
   } as any;
 
   it("should emit telemetry when a node is stored", async () => {
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-io" });
     const listener = vi.fn();
     tractor.observe(listener);
 
@@ -36,7 +36,7 @@ describe("Tractor Telemetry", () => {
   });
 
   it("should emit telemetry when a plugin is loaded", async () => {
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-load" });
     const listener = vi.fn();
     tractor.observe(listener);
 
@@ -63,7 +63,8 @@ describe("Tractor Telemetry", () => {
     const onAuthRequest = vi.fn().mockResolvedValue({ success: true, key: { mock: true } });
     const tractor = await Tractor.boot({
       storage: mockStorage,
-      identity: mockIdentity
+      identity: mockIdentity,
+      namespace: "test-telemetry-secret"
     });
 
     const secrets = new SecretHost(onAuthRequest);
@@ -86,7 +87,8 @@ describe("Tractor Telemetry", () => {
     const onAuthRequest = vi.fn().mockResolvedValue({ success: false });
     const tractor = await Tractor.boot({
       storage: mockStorage,
-      identity: mockIdentity
+      identity: mockIdentity,
+      namespace: "test-telemetry-deny"
     });
 
     const secrets = new SecretHost(onAuthRequest);
@@ -176,7 +178,7 @@ describe("TelemetryHost", () => {
     const mockStorage: any = { ensureSchema: vi.fn(), queryNodes: vi.fn().mockResolvedValue([]) };
     const mockIdentity: any = { getSigningPublicKey: vi.fn().mockResolvedValue("key") };
     
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-host" });
     
     // Trigger an event (calling the Tractor wrapper, not the raw adapter)
     await tractor.queryNodes("Test");

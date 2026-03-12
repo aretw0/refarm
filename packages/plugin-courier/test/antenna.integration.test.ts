@@ -8,7 +8,7 @@ describe("Antenna Plugin (SDD/BDD)", () => {
     // 1. Setup the Tractor Engine
     const mockStorage = new MockStorageAdapter();
     const mockIdentity = new MockIdentityAdapter();
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-courier" });
 
     // 2. Plant the Sovereign Seed (Store the WebPage node)
     await tractor.storeNode({
@@ -40,7 +40,7 @@ describe("Antenna Plugin (SDD/BDD)", () => {
   });
 
   it("GIVEN the Easter Egg is enabled, WHEN a user requests the sovereign signal route, THEN it returns the ASCII art", async () => {
-    const tractor = await Tractor.boot({ storage: new MockStorageAdapter(), identity: new MockIdentityAdapter() });
+    const tractor = await Tractor.boot({ storage: new MockStorageAdapter(), identity: new MockIdentityAdapter(), namespace: "test-courier-easter" });
     const antenna = new AntennaPlugin(tractor, { enableEasterEggs: true });
 
     const req = new Request("http://localhost.refarm/.well-known/sovereign-signal");
@@ -57,7 +57,7 @@ describe("Antenna Plugin (SDD/BDD)", () => {
   });
 
   it("GIVEN a request for a non-existent node, WHEN the Antenna processes it, THEN it returns 404", async () => {
-    const tractor = await Tractor.boot({ storage: new MockStorageAdapter(), identity: new MockIdentityAdapter() });
+    const tractor = await Tractor.boot({ storage: new MockStorageAdapter(), identity: new MockIdentityAdapter(), namespace: "test-courier-404" });
     const antenna = new AntennaPlugin(tractor);
 
     const req = new Request("http://localhost.refarm/ghosts-of-the-past");
