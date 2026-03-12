@@ -1,0 +1,70 @@
+---
+import { Layout } from "@refarm.dev/homestead/ui";
+---
+
+<Layout title="Refarm.me — My Sovereign Space">
+  <div id="loading-overlay" class="loading-state">
+    <div class="spinner"></div>
+    <p>Opening your personal vault...</p>
+  </div>
+
+  <style>
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 40vh;
+      color: var(--refarm-text-secondary);
+      font-family: var(--refarm-font-mono);
+    }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid var(--refarm-bg-elevated);
+      border-top: 3px solid var(--refarm-accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 1rem;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</Layout>
+
+<script>
+  import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
+  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
+  import { Tractor } from "@refarm.dev/tractor";
+
+  async function boot() {
+    try {
+      const storage = await new OPFSSQLiteAdapter().open("refarm-me-main");
+      
+      const identity = { 
+        id: "citizen", 
+        getPublicKey: async () => "me",
+        sign: async (data: string) => data 
+      };
+
+      const tractor = await Tractor.boot({ 
+        storage: storage as any, 
+        identity: identity as any,
+        namespace: "citizen",
+        envMetadata: { version: "0.1.0-solo-fertil", commit: "me" }
+      });
+
+      // Register default citizen experience plugins
+      new HeraldPlugin(tractor).announce();
+      new FireflyPlugin(tractor);
+
+      const shell = new StudioShell(tractor);
+      await shell.setup();
+
+      document.getElementById("loading-overlay")?.remove();
+      
+    } catch (err) {
+      console.error("[me] Boot failed", err);
+    }
+  }
+
+  boot();
+</script>
