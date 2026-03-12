@@ -9,6 +9,7 @@ describe("Security Canaries (Tripwires)", () => {
     tractor = await Tractor.boot({
       storage: new MockStorageAdapter(),
       identity: new MockIdentityAdapter(),
+      namespace: "test-security-canaries"
     });
     await tractor.enableGuestMode();
   });

@@ -15,6 +15,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
     tractor = await Tractor.boot({
       storage,
       identity,
+      namespace: "test-identity-lifecycle"
     });
   });
 

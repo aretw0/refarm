@@ -16,7 +16,7 @@ describe("Tractor Plugin States", () => {
   } as any;
 
   it("should initialize internal plugins with 'running' state", async () => {
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-states" });
     
     tractor.plugins.registerInternal({
       id: "my-plugin",
@@ -32,7 +32,7 @@ describe("Tractor Plugin States", () => {
   });
 
   it("should transition state and emit event", async () => {
-    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity });
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-states-transition" });
     const listener = vi.fn();
     tractor.observe(listener);
 
