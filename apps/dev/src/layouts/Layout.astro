@@ -1,0 +1,10 @@
+---
+import { Layout as BaseLayout } from "@refarm.dev/homestead/ui";
+interface Props {
+  title?: string;
+}
+const { title } = Astro.props;
+---
+<BaseLayout title={title}>
+  <slot />
+</BaseLayout>

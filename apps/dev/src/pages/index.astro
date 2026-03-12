@@ -38,9 +38,7 @@ import Layout from "../layouts/Layout.astro";
   import { SowerPlugin } from "@refarm.dev/sower";
   import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
   import { Tractor } from "@refarm.dev/tractor";
-  import { FireflyPlugin } from "../lib/firefly";
-  import { HeraldPlugin } from "../lib/herald";
-  import { StudioShell } from "../lib/studio-shell";
+  import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
 
   async function boot() {
     try {
@@ -62,6 +60,7 @@ import Layout from "../layouts/Layout.astro";
       const tractor = await Tractor.boot({ 
         storage: storage as any, 
         identity: identity as any,
+        namespace: "studio-main",
         envMetadata: {
           version: "0.1.0-solo-fertil", // Mocking build-time injection for now
           commit: "dev"

@@ -16,7 +16,7 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { Tractor } from "@refarm.dev/tractor";
-  import { StudioShell } from "../lib/studio-shell";
+  import { StudioShell } from "@refarm.dev/homestead/sdk";
 
   async function boot() {
     try {
@@ -32,7 +32,7 @@ import Layout from "../layouts/Layout.astro";
       const identity = {};
 
       // 2. Boot Tractor
-      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any });
+      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any, namespace: "studio-graph" });
       
       // 3. Handover to Shell Orchestrator
       const shell = new StudioShell(tractor);
