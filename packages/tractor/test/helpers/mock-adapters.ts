@@ -27,8 +27,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // ─── Mock Storage Adapter ─────────────────────────────────────────────────────
 
 export class MockStorageAdapter implements StorageAdapter {
-  private _store = new Map<string, any>();
+  private static _globalStores = new Map<string, Map<string, any>>();
+  private _store: Map<string, any> = new Map();
   private _latency: Required<MockLatencyConfig>;
+  namespace: string = "default";
 
   /** Track call counts for assertions */
   readonly stats = {
@@ -47,6 +49,16 @@ export class MockStorageAdapter implements StorageAdapter {
       queryMs: latency.queryMs ?? 0,
       executeMs: latency.executeMs ?? 0,
     };
+  }
+
+  async open(namespace: string): Promise<MockStorageAdapter> {
+    const scoped = new MockStorageAdapter(this._latency);
+    scoped.namespace = namespace;
+    if (!MockStorageAdapter._globalStores.has(namespace)) {
+      MockStorageAdapter._globalStores.set(namespace, new Map());
+    }
+    scoped._store = MockStorageAdapter._globalStores.get(namespace)!;
+    return scoped;
   }
 
   async ensureSchema(): Promise<void> {
@@ -148,9 +160,10 @@ export class MockSyncAdapter implements SyncAdapter {
 
 // ─── Factory Helpers ──────────────────────────────────────────────────────────
 
-export function createMockConfig(latency?: MockLatencyConfig, opts?: { includeSync?: boolean }) {
+export function createMockConfig(latency?: MockLatencyConfig, opts?: { includeSync?: boolean, namespace?: string }) {
   return {
     storage: new MockStorageAdapter(latency),
+    namespace: opts?.namespace || "test-vault",
     identity: new MockIdentityAdapter(),
     sync: opts?.includeSync !== false ? new MockSyncAdapter() : undefined,
   };
