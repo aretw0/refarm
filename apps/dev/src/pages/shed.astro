@@ -1,23 +1,24 @@
 ---
 /**
- * Refarm Studio — Plugin Marketplace
+ * Refarm Studio — The Shed (O Galpão)
  *
- * Discovers plugins via Nostr NIP-89 (kind:31990 events) and allows the user
- * to install them into the local Kernel sandbox.
+ * A specialized shell for prototyping and maintaining your machinery.
+ * This area serves as a host for development plugins that can provide
+ * editors, compilers, and test runners.
  */
 import Layout from "../layouts/Layout.astro";
 ---
 
-<Layout title="Plugin Marketplace — Refarm Studio">
+<Layout title="The Shed — Refarm Studio">
   <div id="loading-overlay" class="loading-state">
     <div class="spinner"></div>
-    <p>Loading Plugin Marketplace...</p>
+    <p>Opening The Shed...</p>
   </div>
 </Layout>
 
 <script>
   import { Tractor } from "@refarm.dev/tractor";
-  import { StudioShell } from "../lib/studio-shell";
+  import { StudioShell } from "@refarm.dev/homestead/sdk";
 
   async function boot() {
     try {
@@ -33,7 +34,7 @@ import Layout from "../layouts/Layout.astro";
       const identity = {};
 
       // 2. Boot Tractor
-      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any });
+      const tractor = await Tractor.boot({ storage: storage as any, identity: identity as any, namespace: "studio-shed" });
       
       // 3. Handover to Shell Orchestrator
       const shell = new StudioShell(tractor);
@@ -43,7 +44,7 @@ import Layout from "../layouts/Layout.astro";
       document.getElementById("loading-overlay")?.remove();
       
     } catch (err) {
-      console.error("[marketplace] Boot failed", err);
+      console.error("[dev] Boot failed", err);
     }
   }
 
