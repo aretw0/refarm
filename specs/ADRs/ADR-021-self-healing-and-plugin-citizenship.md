@@ -805,6 +805,30 @@ describe('Self-Healing Integration', () => {
 
 ---
 
+## Layer 4: Recovery from Deletion & "Hard Reset" Boundary
+
+### Problem: What if the Graph is wiped?
+If the user clears browser data (SQLite/OPFS/LocalStorage), the runtime state is lost.
+
+### Solution: The Triad of Recovery
+1. **L0: Repo Seed (Static Fallback)**: As defined in [boot process](../docs/REFARM_AS_OS_BOOT.md), the system always has access to the static seed served by the host. If no vault is found, it re-boots from the seed.
+2. **L1: Nostr-Backed Checkpoints**: If identity is active, the kernel can look for NIP-94/kind:1063 events that point to encrypted graph snapshots (backups).
+3. **L2: Local Vault Export**: Users are encouraged to "Export Vault" to a local file, which acts as a portable physical backup.
+
+### The Minimal Kernel Command Set (The "BIOS")
+The boundary for a "Hard Reset" is the point where internal plugins fail and the user needs a bare-metal interface to recover. The kernel must ALWAYS expose these commands via a fallback console (even if CSS/UI fails):
+
+| Command | Action |
+|---------|--------|
+| `kernel.vault.reset()` | Delete all local data and re-boot from Repo Seed. |
+| `kernel.vault.import(file)` | Overwrite current graph with an exported vault file. |
+| `kernel.vault.sync(remote)` | Attempt an emergency sync from a known peer/relay. |
+| `kernel.identity.login(key)` | Re-authenticate to regain access to encrypted backups. |
+
+This "Recovery Shell" must be implemented in pure, dependency-free JS within the `Homestead` bootloader.
+
+---
+
 ## Open Questions
 
 1. **User notification**: How much should we expose to UI? Full detail vs. simplified health status?
