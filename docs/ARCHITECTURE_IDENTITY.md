@@ -45,3 +45,7 @@ Notice there is no mention of `npub`, `relays`, or `events`. The Tractor engine 
 Similarly, the Tractor Kernel verifies the integrity of loaded plugins (`verifyWasmIntegrity`) not through Nostr, but by checking the Ed25519 signature embedded in the plugin's manifest against the actual SHA-256 hash of the `.wasm` binary.
 
 **Conclusion:** Nostr is highly synergistic with Refarm, but Refarm answers to no one but the cryptographic math itself. You are your own server.
+
+## Advanced Key Support & Discovery
+1. **DID Resolution**: Tractor behaves as a universal DID revolver. New identities (Apple Passkeys, GPG, Ethereum) are added via plugins that implement the `IdentityBridge` contract.
+2. **Researcher Discovery & Security**: Refarm enables the generation of transient keys/DIDs for secure reporting. Security researchers can discover the organization's public security policy through the graph and establish an E2EE channel directly with Refarm maintainers using these agnostic primitives.
