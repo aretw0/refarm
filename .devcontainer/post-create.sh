@@ -44,9 +44,10 @@ npm audit fix --force 2>/dev/null || true
 echo "[refarm-devcontainer] Installing git hooks..."
 npm run hooks:install || true
 
-# Install Playwright browser dependencies (chromium, firefox, webkit)
-# This runs after npm ci, so @playwright/test is already installed
-echo "[refarm-devcontainer] Installing Playwright browser dependencies..."
+# Install Playwright browser dependencies and Chromium binary
+echo "[refarm-devcontainer] Installing Playwright Chromium..."
+npx playwright install chromium
+echo "[refarm-devcontainer] Installing Playwright system dependencies..."
 cd validations/wasm-plugin/host && sudo npx playwright install-deps && cd - >/dev/null || true
 
 echo "[refarm-devcontainer] Tool versions:"
