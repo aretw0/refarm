@@ -37,6 +37,13 @@ export class L8nHost {
   }
 
   /**
+   * Gets the current locale.
+   */
+  getLocale(): string {
+    return this._currentLocale;
+  }
+
+  /**
    * Sets the current locale and triggers a reactive update.
    */
   setLocale(locale: string) {
