@@ -51,7 +51,10 @@
   "homepage": "https://refarm.dev.br",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "validations/*",
+    "validations/*/host",
+    "validations/*/browser"
   ],
   "devDependencies": {
     "@changesets/cli": "^2.30.0",
