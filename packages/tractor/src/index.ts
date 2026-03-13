@@ -60,7 +60,7 @@ export interface TractorConfig {
 }
 
 export type SecurityMode = "strict" | "permissive" | "none";
-export type TractorLogLevel = "info" | "warn" | "error" | "silent";
+export type TractorLogLevel = "info" | "warn" | "error" | "debug" | "silent";
 
 interface TractorLogger {
   info(...args: unknown[]): void;
@@ -69,7 +69,7 @@ interface TractorLogger {
   error(...args: unknown[]): void;
 }
 
-const SILENT_LOGGER: TractorLogger = {
+export const SILENT_LOGGER: TractorLogger = {
   info: () => {},
   warn: () => {},
   debug: () => {},
@@ -81,10 +81,17 @@ const TRACTOR_LOG_PRIORITY: Record<TractorLogLevel, number> = {
   error: 1,
   warn: 2,
   info: 3,
+  debug: 4,
 };
 
 function isTractorLogLevel(value: unknown): value is TractorLogLevel {
-  return value === "info" || value === "warn" || value === "error" || value === "silent";
+  return (
+    value === "info" ||
+    value === "warn" ||
+    value === "error" ||
+    value === "debug" ||
+    value === "silent"
+  );
 }
 
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
@@ -152,7 +159,7 @@ export class PluginHost {
 
   constructor(
     private emit: (data: TelemetryEvent) => void,
-    private logger: TractorLogger = SILENT_LOGGER,
+    private logger: TractorLogger = console,
   ) {}
 
   private getTrustKey(pluginId: string, wasmHash: string): string {
@@ -741,8 +748,11 @@ export class Tractor {
 
 
 
-  private shouldLog(level: "info" | "warn" | "error"): boolean {
-    return TRACTOR_LOG_PRIORITY[this.logLevel] >= TRACTOR_LOG_PRIORITY[level];
+  private shouldLog(level: Exclude<TractorLogLevel, "silent">): boolean {
+    if (this.logLevel === "silent") return false;
+    const priority = TRACTOR_LOG_PRIORITY[level];
+    const threshold = TRACTOR_LOG_PRIORITY[this.logLevel];
+    return priority <= threshold;
   }
 
   private logInfo(...args: unknown[]): void {
@@ -755,7 +765,7 @@ export class Tractor {
 
   private logDebug(...args: unknown[]): void {
     // Debug logs should only show up if explicitly requested or in info mode
-    if (this.shouldLog("info")) console.debug(...args);
+    if (this.shouldLog("debug")) console.debug(...args);
   }
 
   private logError(...args: unknown[]): void {
