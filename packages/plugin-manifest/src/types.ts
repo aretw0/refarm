@@ -60,6 +60,11 @@ export interface PluginManifest {
     languages: string[];
   };
   /**
+   * Internationalization metadata for plugin-specific translations.
+   * Can be a localized bundle or a URL to one.
+   */
+  i18n?: Record<string, any> | string;
+  /**
    * Optional trust metadata for host policy negotiation.
    * The host decides whether to honor `trusted-fast`.
    */
