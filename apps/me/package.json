@@ -8,7 +8,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro:check": "astro check",
-    "type-check": "npm run astro:check && tsc --noEmit"
+    "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
+    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@refarm.dev/homestead": "*",
