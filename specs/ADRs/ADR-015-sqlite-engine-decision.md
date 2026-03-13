@@ -1,6 +1,6 @@
 # ADR-015: SQLite Engine Decision (wa-sqlite vs sql.js)
 
-**Status**: Accepted (Provisional)  
+**Status**: Accepted  
 **Date**: 2026-03-06  
 **Decision Drivers**:
 
@@ -394,11 +394,17 @@ npm run bench:browser  # To be implemented
 
 ---
 
-## Timeline
+---
 
-- **2026-03-06**: Node benchmark executed, wa-sqlite provisionally accepted
-- **2026-03-07**: OPFS validation deferred to Sprint 1 Pre-BDD gate
-- **Target**: Sprint 1 Week 1 (complete before BDD tests written)
-- **v0.1.0 (SDD phase)**: Spec storage interface with wa-sqlite in mind
-- **v0.1.0 (DDD phase)**: Implement `WaSqliteAdapter`
-- **v0.2.0**: Add FTS5 + JSON1 features
+## Final Validation (2026-03-13)
+
+**Status**: ✅ **VERIFIED**
+
+- **WASM Component Model**: Verified via `jco` transpile and browser host lifecycle execution.
+- **SQLite Performance**: Node-based benchmark confirmed `wa-sqlite` query efficiency and feature set.
+- **Decision**: Officially adopted `wa-sqlite` for `@refarm.dev/storage-sqlite`.
+
+**Integration**:
+- Engine integrated into `OPFSSQLiteAdapter`.
+- Devcontainer updated with Chromium for Playwright E2E.
+- Automated asset sync added to package scripts.
