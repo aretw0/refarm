@@ -80,116 +80,62 @@ handleKeyDown(event: KeyboardEvent) {
 
 ### 2. Internacionalização (i18n)
 
-#### Setup (astro-i18next)
+#### Strategy (JSON-Only)
 
-```bash
-npm install astro-i18next astro-i18next-loader
-npm install --save-dev @lit/localize
-```
+Refarm follows a "Sovereign Locale" strategy:
+- Root locales are stored in `locales/*.json`.
+- Apps and packages import these JSON files directly using the `@refarm.dev/locales/*` path alias.
+- No sync scripts are used; JSON is the direct source of truth.
 
 #### Configuration
 
-**astro.config.mjs**:
+**tsconfig.json**:
 
-```javascript
-import { defineConfig } from "astro/config";
-import astroI18next from "astro-i18next";
-
-export default defineConfig({
-  integrations: [astroI18next()],
-  i18n: {
-    defaultLocale: "pt-BR",
-    locales: ["pt-BR", "en", "es"],
-    routing: {
-      prefixDefaultLocale: false  // /en/... not /pt-BR/...
+```json
+{
+  "compilerOptions": {
+    "paths": {
+      "@refarm.dev/locales/*.json": ["../../locales/*.json"]
     }
   }
-});
+}
 ```
 
 #### Adding Translations
-
-Create locale files:
-
-```
-locales/
-├── pt-BR.json
-├── en.json
-└── es.json
-```
 
 **locales/pt-BR.json**:
 
 ```json
 {
-  "nav.home": "Início",
-  "nav.plugins": "Plugins",
-  "nav.docs": "Documentação",
-  "studio.welcome": "Bem-vindo ao Refarm Homestead",
-  "studio.plugins": {
-    "title": "Meus Plugins",
-    "empty": "Nenhum plugin instalado",
-    "count": "{count, plural, one {# plugin} other {# plugins}}"
-  },
-  "action.save": "Salvar",
-  "action.delete": "Deletar",
-  "error.network": "Erro de conexão. Tente novamente."
+  "refarm:core": {
+    "loading": "Carregando...",
+    "status_ready": "Pronto",
+    "welcome": "Bem-vindo ao Grafo Soberano"
+  }
 }
 ```
 
-**locales/en.json**:
+#### Plugin i18n Facilitation
+
+Plugins can declare their own translations in their manifest. The Host (Homestead) automatically registers these keys.
+
+**plugin-manifest.json**:
 
 ```json
 {
-  "nav.home": "Home",
-  "nav.plugins": "Plugins",
-  "nav.docs": "Documentation",
-  "studio.welcome": "Welcome to Refarm Homestead",
-  "studio.plugins": {
-    "title": "My Plugins",
-    "empty": "No plugins installed",
-    "count": "{count, plural, one {# plugin} other {# plugins}}"
-  },
-  "action.save": "Save",
-  "action.delete": "Delete",
-  "error.network": "Connection error. Please try again."
-}
-```
-
-#### Using in Astro Components
-
-```astro
----
-import { useTranslation } from "astro-i18next";
-
-const { t } = useTranslation();
----
-
-<nav>
-  <a href="/">{t("nav.home")}</a>
-  <a href="/plugins">{t("nav.plugins")}</a>
-  <a href="/docs">{t("nav.docs")}</a>
-</nav>
-
-<h1>{t("studio.welcome")}</h1>
-```
-
-#### Using in Web Components (Lit)
-
-```typescript
-import { LitElement, html } from "lit";
-import { msg, localized, str } from "@lit/localize";
-
-@localized()
-@customElement("studio-header")
-export class HomesteadHeader extends LitElement {
-  render() {
-    return html`
-      <h1>${msg("Welcome to Refarm Homestead")}</h1>
-      <p>${msg(str`You have ${this.pluginCount} plugins configured`)}</p>
-    `;
+  "id": "my-plugin",
+  "i18n": {
+    "en": { "hello": "Hello" },
+    "pt": { "hello": "Oló" }
   }
 }
+```
+
+#### Using in Homestead (Shell)
+
+```typescript
+// Shell.ts automatically handles registration
+this.l8n.t("my-plugin/hello"); // "Olá" (if locale is pt)
 ```
 
 ---
