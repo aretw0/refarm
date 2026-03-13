@@ -21,6 +21,8 @@
     "test:coverage": "vitest run --coverage",
     "perf:baseline:prepush": "node scripts/perf/prepush-baseline.mjs --out artifacts/perf/prepush-baseline.csv",
     "type-check": "turbo type-check",
+    "type-check:dist": "turbo type-check:dist",
+    "clean:derivatives": "git clean -fX packages/*/src apps/*/src validations/*/src",
     "clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
     "deps:check": "node scripts/check-deps.mjs",
     "deps:update": "node scripts/check-deps.mjs --update",

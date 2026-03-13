@@ -15,7 +15,8 @@
     "build": "tsc --project tsconfig.json",
     "dev": "tsc --project tsconfig.json --watch",
     "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"

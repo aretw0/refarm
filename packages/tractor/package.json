@@ -27,8 +27,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json --force && tsc --project tsconfig.json --noEmit",
-    "type-check": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json --force && tsc --project tsconfig.json --noEmit",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test:unit": "vitest run --passWithNoTests",
     "coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
     "coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",

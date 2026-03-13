@@ -16,7 +16,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "type-check": "tsc --noEmit",
+    "type-check": "tsc --project tsconfig.json --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

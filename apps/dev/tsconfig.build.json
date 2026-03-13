@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@refarm.dev/tractor": ["../../packages/tractor/dist/index.d.ts"],
+      "@refarm.dev/homestead": ["../../packages/homestead/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*", ".astro/types.d.ts"]
+}
