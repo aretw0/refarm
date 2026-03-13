@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 describe("JCO Integration", () => {
   const wasmPath = path.resolve(
     __dirname,
-    "../../../validations/simple-wasm-plugin/target/wasm32-unknown-unknown/release/refarm_simple_wasm_plugin.wasm",
+    "../../../validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm",
   );
 
   let wasmBuffer: Buffer;
@@ -58,9 +58,9 @@ describe("JCO Integration", () => {
   });
 
   it("should have compiled plugin of expected size", () => {
-    // The cdylib should be optimized to ~10KB with wit-bindgen overhead
-    expect(wasmBuffer.length).toBeGreaterThan(8000);
-    expect(wasmBuffer.length).toBeLessThan(20000);
+    // The hello_world_plugin.wasm is a real component-model-based plugin, ~70KB
+    expect(wasmBuffer.length).toBeGreaterThan(50000);
+    expect(wasmBuffer.length).toBeLessThan(100000);
   });
 
   it("should document component linking requirement", () => {
