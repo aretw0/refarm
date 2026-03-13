@@ -1,23 +1,18 @@
 {
   "extends": "@refarm.dev/tsconfig/node.json",
   "compilerOptions": {
-    "composite": true,
+    "composite": false,
+    "declaration": true,
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {
       "@refarm.dev/tractor": ["./src/index.ts"],
-      "@refarm.dev/storage-contract-v1": ["../storage-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/sync-contract-v1": ["../sync-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/identity-contract-v1": ["../identity-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/plugin-manifest": ["../plugin-manifest/dist/index.d.ts"]
+      "@refarm.dev/storage-contract-v1": ["../storage-contract-v1/src/index.ts"],
+      "@refarm.dev/sync-contract-v1": ["../sync-contract-v1/src/index.ts"],
+      "@refarm.dev/identity-contract-v1": ["../identity-contract-v1/src/index.ts"],
+      "@refarm.dev/plugin-manifest": ["../plugin-manifest/src/index.ts"]
     }
   },
-  "references": [
-    { "path": "../storage-contract-v1" },
-    { "path": "../sync-contract-v1" },
-    { "path": "../identity-contract-v1" },
-    { "path": "../plugin-manifest" }
-  ],
   "include": ["src/**/*", "test/**/*"],
   "exclude": ["node_modules", "dist"]
 }

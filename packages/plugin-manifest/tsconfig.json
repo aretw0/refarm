@@ -1,10 +1,13 @@
 {
   "extends": "@refarm.dev/tsconfig/base.json",
   "compilerOptions": {
-    "composite": true,
+    "composite": false,
     "declaration": true,
-    "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@refarm.dev/tractor": ["../tractor/src/index.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

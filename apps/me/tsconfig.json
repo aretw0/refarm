@@ -1,12 +1,13 @@
 {
   "extends": "@refarm.dev/tsconfig/dom.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {
+      "@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
+      "@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"]
+    }
   },
-  "include": ["src/**/*", ".astro/types.d.ts"],
-  "references": [
-    { "path": "../../packages/tractor" },
-    { "path": "../../packages/homestead" }
-  ]
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*", ".astro/types.d.ts"]
 }
