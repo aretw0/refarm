@@ -45,6 +45,13 @@ export class CommandHost {
   }
 
   /**
+   * Get a registered command by ID.
+   */
+  get(id: string): RegisteredCommand | undefined {
+    return this.commands.get(id);
+  }
+
+  /**
    * Unregister a command (e.g., when a plugin is unloaded).
    */
   unregister(id: string) {
