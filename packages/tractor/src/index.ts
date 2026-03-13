@@ -66,7 +66,15 @@ interface TractorLogger {
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
   debug(...args: unknown[]): void;
+  error(...args: unknown[]): void;
 }
+
+const SILENT_LOGGER: TractorLogger = {
+  info: () => {},
+  warn: () => {},
+  debug: () => {},
+  error: () => {},
+};
 
 const TRACTOR_LOG_PRIORITY: Record<TractorLogLevel, number> = {
   silent: 0,
@@ -144,7 +152,7 @@ export class PluginHost {
 
   constructor(
     private emit: (data: TelemetryEvent) => void,
-    private logger: TractorLogger = console,
+    private logger: TractorLogger = SILENT_LOGGER,
   ) {}
 
   private getTrustKey(pluginId: string, wasmHash: string): string {
@@ -612,6 +620,7 @@ export class Tractor {
         info: (...args: unknown[]) => this.logInfo(...args),
         warn: (...args: unknown[]) => this.logWarn(...args),
         debug: (...args: unknown[]) => this.logDebug(...args),
+        error: (...args: unknown[]) => this.logError(...args),
       },
     );
     this.telemetry = new TelemetryHost({ capacity: 1000 });
@@ -745,7 +754,12 @@ export class Tractor {
   }
 
   private logDebug(...args: unknown[]): void {
+    // Debug logs should only show up if explicitly requested or in info mode
     if (this.shouldLog("info")) console.debug(...args);
+  }
+
+  private logError(...args: unknown[]): void {
+    if (this.shouldLog("error")) console.error(...args);
   }
 
   /**
