@@ -71,6 +71,7 @@ const silentLogger = {
   info: () => {},
   warn: () => {},
   debug: () => {},
+  error: () => {},
 };
 
 describe("Plugin Loading", () => {
