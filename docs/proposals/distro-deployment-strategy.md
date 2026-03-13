@@ -48,6 +48,20 @@ Isso é saudável. O core do Refarm (Tractor + SDK) permanecerá como packages i
 - **Fase 1 (Atual)**: Tudo em um monorepo para acelerar o desenvolvimento do "Solo Fértil".
 - **Fase 2 (Evolução)**: Extração de distros maduras para repositórios especializados, permitindo plugins e governanças específicas.
 
+## Reflexão 4: Evolução para SSR e Hibridismo
+
+**Pergunta**: Se o `dev` evoluir para SSR, ele ainda pode aproveitar o GitHub Pages para a parte estática e outras nuvens para a parte dinâmica?
+
+**Análise**:
+Sim, e isso toca no coração do princípio de **Sovereignty** do Refarm.
+
+1. **Hibridismo Nativo do Astro**: O Astro permite configurar o `output: 'hybrid'`. Isso significa que podemos marcar páginas de documentação e marketing como `prerender = true` (Estáticas) e deixar as funcionalidades de backend/edge como dinâmicas.
+2. **Distribuição de Assets**: No limite, você pode ter o "Core" do app (o Bootloader estático) servido pelo GitHub Pages e as requisições de dados/processamento sendo feitas para um **Edge Worker** (Cloudflare) que roda 24h.
+3. **Sovereign Bootloader (ADR-036)**: É crucial lembrar que no Refarm, o SSR **nunca** deve ser o responsável por renderizar a UI inicial. A UI deve ser sempre soberana no browser do usuário. O SSR/Edge entra como uma "Camada de Conveniência" ou "Mailbox" para processamento assíncrono.
+4. **Multi-Origin**: Se o app precisar de SSR para funcionalidades complexas (ex: logs, relays Nostr, processamento pesado), ele pode ser publicado no Cloudflare como o host principal (que lida com ambos), enquanto o GitHub Pages mantém uma versão "Ultra-Resiliente/Estática" que serve como fallback ou espelho oficial da documentação.
+
+**Conclusão**: O hibridismo é o caminho. O GitHub Pages serve a "Paz de Espírito" de ter o código e o bootloader sempre disponíveis, enquanto o SSR em outras nuvens provê a "Potência" necessária para as distros evoluírem.
+
 ## Mapeamento de Próximos Passos
 
 1. Consolidar o `apps/dev` como o host tanto para o marketing/docs quanto para o Studio.
