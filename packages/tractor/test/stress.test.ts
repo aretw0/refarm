@@ -9,7 +9,7 @@
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PluginHost, Tractor, normaliseToSovereignGraph } from "../src/index";
+import { PluginHost, SILENT_LOGGER, Tractor, normaliseToSovereignGraph } from "../src/index";
 import {
     MockIdentityAdapter,
     MockStorageAdapter,
@@ -117,7 +117,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins sequentially", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn());
+    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
 
     for (let i = 0; i < 100; i++) {
       await host.load(createMockManifest(`plugin-${i}`), `hash-${i}`);
@@ -132,7 +132,7 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins concurrently", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn());
+    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
 
     const loads = Array.from({ length: 100 }, (_, i) =>
       host.load(createMockManifest(`plugin-${i}`), `hash-${i}`)
@@ -146,7 +146,7 @@ describe("Plugin Flood", () => {
 
   it("loads 500 plugins concurrently within 2 seconds", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn());
+    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
 
     const start = performance.now();
 
@@ -170,7 +170,7 @@ describe("Plugin Flood", () => {
       })
     );
 
-    const host = new PluginHost(vi.fn());
+    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
 
     await expect(
       host.load(createMockManifest("broken-plugin"), "hash")
@@ -179,7 +179,7 @@ describe("Plugin Flood", () => {
 
   it("plugin IDs are unique — no collisions under flood", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn());
+    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
 
     const ids = Array.from({ length: 200 }, (_, i) => `plugin-${i}`);
     await Promise.all(
