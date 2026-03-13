@@ -62,6 +62,23 @@ Sim, e isso toca no coração do princípio de **Sovereignty** do Refarm.
 
 **Conclusão**: O hibridismo é o caminho. O GitHub Pages serve a "Paz de Espírito" de ter o código e o bootloader sempre disponíveis, enquanto o SSR em outras nuvens provê a "Potência" necessária para as distros evoluírem.
 
+## Reflexão 5: Estratégia PWA (Day 1)
+
+**Pergunta**: Teremos vários PWAs, um para cada domínio? Tudo será PWA desde o Dia 1?
+
+**Análise**:
+A natureza **Offline-First** (ADR-002) do Refarm exige que a experiência do app seja fundamentada em tecnologias de Service Workers para garantir que o sistema funcione sem rede.
+
+1. **Um PWA por Domínio**: Sim. Cada distro (`dev`, `me`, `social`) terá seu próprio `manifest.json` e Service Worker.
+    - Isso permite que o usuário instale o "Refarm Studio" no desktop e o "Refarm.me" no celular como apps independentes.
+    - Evita confusão de escopo de cache e permissões entre as diferentes personalidades do sistema.
+2. **PWA Day 1 (Hibridismo de Entrypoint)**:
+    - A **Landing Page/Docs** não precisa ser necessariamente instalável para todos, mas o **Núcleo do App** (o `/studio` no `dev`, ou o `/hub` no `me`) deve ser PWA desde o primeiro deploy.
+    - Isso garante que a promessa de soberania de dados (SQLite/OPFS) seja acompanhada pela soberania de execução (Service Worker caching).
+3. **Partes não-PWA**: A documentação pública e conteúdos de marketing podem se comportar como sites tradicionais para SEO e descoberta, enquanto o "Sovereign Bootloader" assume o papel de PWA assim que o usuário entra no fluxo de uso do sistema.
+
+**Conclusão**: O PWA não é um "feature extra", é a forma como o Sovereign Bootloader é entregue. Teremos múltiplos PWAs isolados por domínio para garantir clareza e independência.
+
 ## Mapeamento de Próximos Passos
 
 1. Consolidar o `apps/dev` como o host tanto para o marketing/docs quanto para o Studio.
