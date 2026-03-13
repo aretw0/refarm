@@ -1,6 +1,8 @@
-/// <reference lib="dom" />
 import { L8nHost, Tractor, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
+
+import en from "@refarm.dev/locales/en.json";
+import ptBR from "@refarm.dev/locales/pt-BR.json";
 
 export interface ShellSlot {
   id: string;
@@ -27,18 +29,10 @@ export class StudioShell {
     this.l8n.setLocale(locale);
 
     // 2. Register Bootloader Bundle (PT/EN)
-    this.l8n.registerKeys('refarm:core', {
-      'loading': 'Loading...',
-      'status_ready': 'Ready',
-      'welcome': 'Welcome to Sovereign Graph'
-    });
+    this.l8n.registerKeys('refarm:core', en);
 
     if (locale === 'pt') {
-      this.l8n.registerKeys('refarm:core', {
-        'loading': 'Carregando...',
-        'status_ready': 'Pronto',
-        'welcome': 'Bem-vindo ao Grafo Soberano'
-      });
+      this.l8n.registerKeys('refarm:core', ptBR);
     }
   }
 
@@ -243,6 +237,22 @@ export class StudioShell {
     });
 
     try {
+      const plugin = this.tractor.plugins.get(pluginId);
+      
+      // Automatic i18n Registration
+      if (plugin?.manifest.i18n) {
+        const bundle = plugin.manifest.i18n;
+        const locale = this.l8n.getLocale();
+        
+        if (typeof bundle === 'object') {
+          const keys = bundle[locale] || bundle['en'] || bundle;
+          this.l8n.registerKeys(pluginId, keys);
+        } else if (typeof bundle === 'string') {
+          // Future: Fetch remote bundle
+          this.logInfo(`[shell] Plugin ${pluginId} defines remote i18n: ${bundle}`);
+        }
+      }
+
       const api = await this.tractor.getPluginApi(`${pluginId}:ui`);
       if (api) {
         pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
