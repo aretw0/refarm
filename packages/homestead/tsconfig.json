@@ -1,19 +1,13 @@
 {
-  "extends": "@refarm.dev/tsconfig/base.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
+    "baseUrl": "../..",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "composite": false,
-    "declaration": true,
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "esModuleInterop": true,
-    "baseUrl": ".",
-    "paths": {
-      "@refarm.dev/locales/*": ["../../locales/*"],
-      "@refarm.dev/tractor": ["../tractor/src/index.ts"],
-      "@refarm.dev/plugin-manifest": ["../plugin-manifest/src/index.ts"]
-    }
+    "declaration": false,
+    "declarationMap": false,
+    "allowJs": true
   },
   "include": ["src/**/*"],
   "exclude": ["src/**/*.astro", "src/ui/index.ts"]
