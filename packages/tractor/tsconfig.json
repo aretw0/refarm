@@ -1,18 +1,12 @@
 {
-  "extends": "@refarm.dev/tsconfig/node.json",
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "composite": false,
-    "declaration": true,
+    "declaration": false,
+    "declarationMap": false,
     "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@refarm.dev/tractor": ["./src/index.ts"],
-      "@refarm.dev/storage-contract-v1": ["../storage-contract-v1/src/index.ts"],
-      "@refarm.dev/sync-contract-v1": ["../sync-contract-v1/src/index.ts"],
-      "@refarm.dev/identity-contract-v1": ["../identity-contract-v1/src/index.ts"],
-      "@refarm.dev/plugin-manifest": ["../plugin-manifest/src/index.ts"]
-    }
+    "baseUrl": "../.."
   },
-  "include": ["src/**/*", "test/**/*"],
+  "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]
 }

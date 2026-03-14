@@ -20,6 +20,7 @@
       "@refarm.dev/tractor": ["./packages/tractor/src/index.ts"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index.ts"],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index.ts"],
+      "@refarm.dev/locales/*": ["./locales/*"],
       "@refarm.dev/*": ["./packages/*/src"]
     }
   },
