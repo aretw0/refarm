@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "setup:wasm": "cp node_modules/@sqlite.org/sqlite-wasm/dist/sqlite3* public/ && cp node_modules/sql.js/dist/sql-wasm.wasm public/",
+    "setup:wasm": "cp $(node -p \"path.dirname(require.resolve('@sqlite.org/sqlite-wasm/package.json'))\")/dist/sqlite3* public/ && cp $(node -p \"require.resolve('sql.js/dist/sql-wasm.wasm')\") public/",
     "build": "npm run setup:wasm && tsc && vite build",
     "preview": "vite preview",
     "preview:test": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
