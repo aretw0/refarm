@@ -13,9 +13,11 @@ import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadConfig } from "@refarm.dev/config";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
+const config = loadConfig(ROOT_DIR);
 
 /**
  * Identify packages that have changed compared to main branch

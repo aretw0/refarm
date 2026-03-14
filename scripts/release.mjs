@@ -12,12 +12,14 @@
  *   node scripts/release.mjs identity-contract-v1 0.2.0
  */
 
-import { exec } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { promisify } from "node:util";
+import { loadConfig } from "@refarm.dev/config";
 
 const execAsync = promisify(exec);
+const config = loadConfig();
+const devScope = config.brand?.scopes?.dev || "@refarm.dev";
+const repoUrl = config.brand?.urls?.repository?.replace(".git", "") || "https://github.com/refarm-dev/refarm";
 
 const PACKAGES = [
   "storage-contract-v1",
@@ -26,7 +28,7 @@ const PACKAGES = [
   "plugin-manifest",
 ];
 
-const ORG = "@refarm-dev";
+const ORG = devScope;
 
 async function main() {
   const [, , packageName, versionBump] = process.argv;
@@ -126,7 +128,7 @@ async function main() {
   console.log(`  2. Push the tag to trigger CI/CD:`);
   console.log(`     git push origin ${tagName}`);
   console.log(`  3. Monitor the workflow:`);
-  console.log(`     https://github.com/refarm-dev/refarm/actions`);
+  console.log(`     ${repoUrl}/actions`);
   console.log(`\nTo abort:`);
   console.log(`  git reset --hard HEAD~1`);
   console.log(`  git tag -d ${tagName}`);
