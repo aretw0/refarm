@@ -95,6 +95,25 @@ Our commitment: **None of these scenarios happen.**
 
 ---
 
+### Layer 6: Infrastructure Sovereignty (ADR-043)
+
+**Key guarantees**:
+
+- ✅ **Everything as Config (EaC)**: The project is its own dogfood representation — zero hardcoded dependencies in CI/CD.
+- ✅ **Decoupled Providers**: Abstracted "Provider Bridges" (Git/DNS) prevent platform lock-in.
+- ✅ **Kill Switch (Escape Hatch)**: A one-click automated migration pipeline to move the entire project (Repo + DNS + Meta) to another host.
+- ✅ **Radical Portability**: Infrastructure state travels with the project's config, just like user data.
+
+**Technical Implementation: Strategic Bootstrap**
+
+The "Sovereignty of Infrastructure" is achieved through a dynamic configuration engine that detects **intent** before consolidation:
+
+1. **Intent Detection**: The system identifies the activation mode (`Static`, `Persistent`, or `Ephemeral`) based on repository signals or environment overrides.
+2. **Pluggable Sources**: Config is unified from multiple sources (`JsonSource`, `EnvSource`, `RemoteGraphSource`) with dynamic precedence.
+3. **Active Sovereignty**: In `Persistent` mode, the project derives its entire infrastructure state from a Sovereign Graph 24/7, enabling real-time infrastructure auto-healing and migration.
+
+---
+
 ## How These Layers Interact: Example Scenario
 
 ### Scenario: User Upgrades App While Offline
