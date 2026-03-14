@@ -27,17 +27,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup
         uses: ./.github/actions/setup
 
-      - name: Build Homestead
-        # Compositional build via turbo, filtering for the homestead app
-        run: npx turbo build --filter=@refarm.me/homestead
+      - name: Build Refarm.dev App
+        # Compositional build via turbo, filtering for the app
+        run: npx turbo build --filter=@refarm.dev/app
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: ./.github/actions/upload-pages
         with:
           path: apps/dev/dist
 
@@ -50,4 +50,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: ./.github/actions/deploy-pages
