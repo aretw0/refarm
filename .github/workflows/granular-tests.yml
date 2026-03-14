@@ -17,10 +17,15 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: ./.github/actions/setup
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Setup Refarm Environment
+        run: node scripts/ci/setup-env.mjs
 
       - name: Build Shared Contracts & Configs
-        run: npx turbo run build --filter="@refarm.dev/storage-contract-v1" --filter="@refarm.dev/identity-contract-v1" --filter="@refarm.dev/tsconfig"
+        run: npx turbo run build --filter="$REFARM_SCOPE_DEV/storage-contract-v1" --filter="$REFARM_SCOPE_DEV/identity-contract-v1" --filter="$REFARM_SCOPE_DEV/tsconfig"
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
