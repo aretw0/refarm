@@ -12,10 +12,11 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },

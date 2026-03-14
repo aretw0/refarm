@@ -12,8 +12,8 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "tsc --noEmit",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
