@@ -1,4 +1,4 @@
-# Refarm Antenna - Odin Template
+# Refarm Courier - Odin Template
 
 This is a high-level, data-focused template for an Antenna (HTTP Gateway) plugin using Odin.
 
