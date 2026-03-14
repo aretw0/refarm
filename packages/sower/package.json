@@ -11,10 +11,11 @@
     "directory": "packages/sower"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "lint": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json ../tractor/tsconfig.build.json --force && tsc --noEmit",
-    "type-check": "tsc --build ../identity-contract-v1/tsconfig.json ../storage-contract-v1/tsconfig.json ../sync-contract-v1/tsconfig.json ../plugin-manifest/tsconfig.json ../tractor/tsconfig.build.json --force && tsc --noEmit",
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run"
   },
   "dependencies": {
