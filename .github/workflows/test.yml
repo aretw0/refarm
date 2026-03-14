@@ -39,15 +39,18 @@ jobs:
       - name: Storage capability conformance
         run: npm --prefix packages/storage-sqlite run test:conformance
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+      - name: Install cargo-component
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
 
       - name: Build WASM plugin for tests
         run: |
-          cd validations/simple-wasm-plugin
-          cargo build --target wasm32-unknown-unknown --release
+          cd validations/wasm-plugin/hello-world
+          cargo component build --release
 
       - name: Unit tests
         if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
