@@ -32,9 +32,12 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Setup Refarm Environment
+        run: node scripts/ci/setup-env.mjs
+
       - name: Build Refarm.dev App
-        # Compositional build via turbo, filtering for the app
-        run: npx turbo build --filter=@refarm.dev/app
+        # Compositional build via turbo, filtering for the app using the dynamic scope
+        run: npx turbo build --filter="$REFARM_SCOPE_DEV/app"
 
       - name: Upload artifact
         uses: ./.github/actions/upload-pages

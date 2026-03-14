@@ -15,6 +15,7 @@ on:
 
 jobs:
   publish:
+    # TODO: Remove this condition when we have a separate org for refarm.dev
     if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
     name: Publish to npm
     runs-on: ubuntu-latest
@@ -32,8 +33,9 @@ jobs:
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
-        with:
-          node-version: "22"
+
+      - name: Setup Refarm Environment
+        run: node scripts/ci/setup-env.mjs
 
       - name: Build all packages
         run: npm run build --workspaces
@@ -50,8 +52,8 @@ jobs:
           VERSION=$(echo "$TAG" | sed 's/.*@//')
 
           # Determine workspace directory
-          # @refarm.dev/storage-contract-v1 → packages/storage-contract-v1
-          WORKSPACE=$(echo "$PKG_NAME" | sed 's/@refarm\.dev\///')
+          # Uses the dynamic scope from config
+          WORKSPACE=$(echo "$PKG_NAME" | sed "s|$REFARM_SCOPE_DEV/||")
 
           echo "name=$PKG_NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
@@ -123,7 +125,7 @@ jobs:
 
           ### Changes
 
-          See [CHANGELOG.md](https://github.com/refarm-dev/refarm/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details.
+          See [CHANGELOG.md]($REFARM_REPO_URL/blob/main/packages/${{ steps.pkg.outputs.workspace }}/CHANGELOG.md) for details.
           EOF
           )
           gh release create "${{ github.ref_name }}" \

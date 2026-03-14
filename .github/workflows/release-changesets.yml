@@ -27,8 +27,9 @@ jobs:
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
-        with:
-          node-version: "22"
+
+      - name: Setup Refarm Environment
+        run: node scripts/ci/setup-env.mjs
 
       - name: Validate quality gates
         run: |
