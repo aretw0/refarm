@@ -1,23 +1,24 @@
 import { execSync } from 'node:child_process';
-import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { gitHost, gitUrlAdapter } from '../src/git-adapter.mjs';
 
 vi.mock('node:fs', () => {
-    return {
-        default: {
-            readFileSync: vi.fn(() => JSON.stringify({
-                infrastructure: { gitHost: 'github' }
-            }))
-        },
-        readFileSync: vi.fn(() => JSON.stringify({
-            infrastructure: { gitHost: 'github' }
-        }))
-    };
+  const readFileSync = vi.fn(() => JSON.stringify({ infrastructure: { gitHost: 'github' } }));
+  return {
+    default: { readFileSync },
+    readFileSync
+  };
 });
 
-// We need to mock child_process completely since we don't want tests 
-// actually creating issues or relying on local 'gh' installations
-vi.mock('node:child_process');
+vi.mock('node:child_process', () => {
+  const execSync = vi.fn();
+  return {
+    default: { execSync },
+    execSync
+  };
+});
+
+const mockedExecSync = vi.mocked(execSync);
 
 describe('Toolbox: Git Host Adapter', () => {
     
@@ -32,7 +33,7 @@ describe('Toolbox: Git Host Adapter', () => {
     });
 
     it('should incorrectly fail checkCli if execSync throws', () => {
-        (execSync as Mock).mockImplementationOnce(() => {
+        mockedExecSync.mockImplementationOnce(() => {
             throw new Error('Command not found');
         });
         
@@ -41,7 +42,7 @@ describe('Toolbox: Git Host Adapter', () => {
     });
 
     it('should pass checkCli if gh and auth status return successfully', () => {
-        (execSync as Mock).mockReturnValue('gh version 2.40.1'); // mock success
+        mockedExecSync.mockReturnValue('gh version 2.40.1'); // mock success
         
         const hasCli = gitUrlAdapter.checkCli();
         expect(hasCli).toBe(true);
@@ -51,7 +52,7 @@ describe('Toolbox: Git Host Adapter', () => {
     describe('Issue Management', () => {
         it('issue.view should parse and return title from gh json output', () => {
             const mockOutput = '{"title":"Test Issue Title"}';
-            (execSync as Mock).mockReturnValue(mockOutput);
+            mockedExecSync.mockReturnValue(mockOutput);
             
             const result = gitUrlAdapter.issue.view('123');
             
@@ -63,7 +64,7 @@ describe('Toolbox: Git Host Adapter', () => {
         });
 
         it('issue.create should build the correct gh cli command', () => {
-            (execSync as Mock).mockReturnValue('https://github.com/refarm-dev/refarm/issues/42');
+            mockedExecSync.mockReturnValue('https://github.com/refarm-dev/refarm/issues/42');
             
             const url = gitUrlAdapter.issue.create('[Feature]: Test', 'kind:enhancement', 'Body text');
             
