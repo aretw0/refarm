@@ -2,9 +2,12 @@ import { execSync } from "node:child_process";
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadConfig } from "@refarm.dev/config";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
+const config = loadConfig(ROOT_DIR);
+const devScope = config.brand?.scopes?.dev || "@refarm.dev";
 
 // 1. Identify changed packages
 function getChangedPackages() {
@@ -52,7 +55,7 @@ function buildMatrix(changed) {
 // 3. Execution Engines (Agnostic Runners)
 function runForward(pkgName) {
     console.log(`\n▶ Isolating ${pkgName} to test against NPM registry...`);
-    const pkgDir = join(ROOT_DIR, "packages", pkgName.replace("@refarm.dev/", ""));
+    const pkgDir = join(ROOT_DIR, "packages", pkgName.replace(`${devScope}/`, ""));
     try {
         // Strip workspaces and install purely from NPM
         execSync(`sed -i 's/"workspace:\\*"/"latest"/g' package.json`, { cwd: pkgDir });
@@ -71,8 +74,8 @@ function runForward(pkgName) {
 
 function runBackward(pkgName, consumerName) {
     console.log(`\n▶ Packing local ${pkgName} and injecting into published ${consumerName}...`);
-    const pkgDir = join(ROOT_DIR, "packages", pkgName.replace("@refarm.dev/", ""));
-    const testDir = join(ROOT_DIR, ".turbo", "matrix-test", consumerName.replace("@refarm.dev/", ""));
+    const pkgDir = join(ROOT_DIR, "packages", pkgName.replace(`${devScope}/`, ""));
+    const testDir = join(ROOT_DIR, ".turbo", "matrix-test", consumerName.replace(`${devScope}/`, ""));
 
     try {
         execSync("npm run build", { cwd: pkgDir, stdio: "inherit" });
