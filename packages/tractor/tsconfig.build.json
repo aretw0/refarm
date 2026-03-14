@@ -1,13 +1,15 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "declaration": true,
+    "declarationMap": true,
     "rootDir": "src",
     "outDir": "dist",
     "paths": {
-      "@refarm.dev/storage-contract-v1": ["../../packages/storage-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/sync-contract-v1": ["../../packages/sync-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/identity-contract-v1": ["../../packages/identity-contract-v1/dist/index.d.ts"],
-      "@refarm.dev/plugin-manifest": ["../../packages/plugin-manifest/dist/index.d.ts"]
+      "@refarm.dev/storage-contract-v1": ["./packages/storage-contract-v1/dist/index.d.ts"],
+      "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/dist/index.d.ts"],
+      "@refarm.dev/identity-contract-v1": ["./packages/identity-contract-v1/dist/index.d.ts"],
+      "@refarm.dev/plugin-manifest": ["./packages/plugin-manifest/dist/index.d.ts"]
     }
   },
   "include": ["src/**/*"]
