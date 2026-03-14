@@ -1,4 +1,4 @@
-import { L8nHost, Tractor, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
+import { L8nHost, Tractor, TRACTOR_LOG_PRIORITY, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
 
 import en from "@refarm.dev/locales/en.json";
@@ -37,8 +37,7 @@ export class StudioShell {
   }
 
   private shouldLog(level: "info" | "warn" | "error"): boolean {
-    const priority = { silent: 0, error: 1, warn: 2, info: 3 };
-    return priority[this.tractor.logLevel] >= priority[level];
+    return TRACTOR_LOG_PRIORITY[this.tractor.logLevel] >= TRACTOR_LOG_PRIORITY[level];
   }
 
   private logInfo(...args: unknown[]): void {

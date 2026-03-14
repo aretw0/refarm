@@ -76,7 +76,7 @@ export const SILENT_LOGGER: TractorLogger = {
   error: () => {},
 };
 
-const TRACTOR_LOG_PRIORITY: Record<TractorLogLevel, number> = {
+export const TRACTOR_LOG_PRIORITY: Record<TractorLogLevel, number> = {
   silent: 0,
   error: 1,
   warn: 2,
