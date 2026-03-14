@@ -28,12 +28,12 @@ jobs:
           targets: wasm32-wasip1
 
       - name: Install cargo-component
-              run: |
-                if cargo component --version >/dev/null 2>&1; then
-                  echo "cargo-component already installed"
-                else
-                  cargo install --locked cargo-component --version 0.21.1
-                fi
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
 
       - name: Build WASM plugin for tests
         run: |
@@ -77,7 +77,8 @@ jobs:
       matrix: ${{ fromJson(needs.matrix-setup.outputs.matrix) }}
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
@@ -89,12 +90,12 @@ jobs:
           targets: wasm32-wasip1
 
       - name: Install cargo-component
-              run: |
-                if cargo component --version >/dev/null 2>&1; then
-                  echo "cargo-component already installed"
-                else
-                  cargo install --locked cargo-component --version 0.21.1
-                fi
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
 
       - name: Build WASM plugin for tests
         run: |
