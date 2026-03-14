@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { runStorageV1Conformance } from "@refarm.dev/storage-contract-v1";
 
-import { createStorageV1Provider } from "./index.js";
+import { createStorageV1Provider } from "./index";
 
 describe("@refarm.dev/storage-sqlite storage:v1 conformance", () => {
   it("passes storage:v1 contract", async () => {
