@@ -1,0 +1,14 @@
+name: "Deploy Pages"
+description: "Secure wrapper for actions/deploy-pages with pinned hash."
+
+outputs:
+  page_url:
+    description: "The URL of the deployed page"
+    value: ${{ steps.deployment.outputs.page_url }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Deploy to GitHub Pages
+      id: deployment
+      uses: actions/deploy-pages@d6db90164ac5d11dc05ee9dd755c94660bb92361 # v4.0.5

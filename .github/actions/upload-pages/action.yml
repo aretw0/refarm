@@ -1,0 +1,16 @@
+name: "Upload Pages Artifact"
+description: "Secure wrapper for actions/upload-pages-artifact with pinned hash."
+
+inputs:
+  path:
+    description: "Directory containing the static assets"
+    required: true
+    default: "dist"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@56afc609e742026585c96e0b4fbc08c773bce051 # v3.0.1
+      with:
+        path: ${{ inputs.path }}
