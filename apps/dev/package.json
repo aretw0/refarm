@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/app",
   "version": "0.1.0",
-  "description": "Refarm Homestead — in-browser IDE for developing, testing and publishing Refarm plugins",
+  "description": "Refarm Dev App — in-browser IDE for developing, testing and publishing Refarm plugins",
   "type": "module",
   "scripts": {
     "dev": "astro dev",
