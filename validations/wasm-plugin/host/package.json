@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:wasm": "npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
-    "prebuild": "npm run build:wasm",
-    "build": "vite build",
+    "build:wasm": "[ -f public/hello-world-plugin.wasm ] && npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js || echo 'WASM plugin missing, skipping transpilation'",
+    "build": "npm run build:wasm && vite build",
     "preview": "vite preview",
     "preview:test": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "preview:static": "npm run build && serve dist -l 4174",
