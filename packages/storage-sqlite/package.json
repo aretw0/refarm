@@ -21,10 +21,11 @@
     }
   },
   "scripts": {
-    "build": "npm --prefix ../storage-contract-v1 run build && tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
-    "lint": "npm --prefix ../storage-contract-v1 run build && tsc --noEmit",
-    "type-check": "npm --prefix ../storage-contract-v1 run build && tsc --noEmit",
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test:conformance": "vitest run src/storage-v1.conformance.test.ts",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
