@@ -2,23 +2,17 @@ import { defineConfig as defineAstroConfig } from "astro/config";
 import fs from "fs";
 import path from "path";
 
-// Helper to look for refarm.config.json by walking up the directory tree
-function findRefarmConfig() {
+// Helper to look for refarm root by walking up the directory tree
+function findRefarmRoot() {
     let currentDir = process.cwd();
     while (true) {
         const configPath = path.join(currentDir, "refarm.config.json");
-        if (fs.existsSync(configPath)) {
-            try {
-                return JSON.parse(fs.readFileSync(configPath, "utf-8"));
-            } catch (e) {
-                return {};
-            }
-        }
+        if (fs.existsSync(configPath)) return currentDir;
         const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break; // Reached FS root
+        if (parentDir === currentDir) break; 
         currentDir = parentDir;
     }
-    return {};
+    return process.cwd();
 }
 
 /**
@@ -26,7 +20,14 @@ function findRefarmConfig() {
  * It automatically reads `refarm.config.json` and injects required headers for WebContainers.
  */
 export function defineConfig(userConfig = {}) {
-    const refarmConfig = findRefarmConfig();
+    const root = findRefarmRoot();
+    const configPath = path.join(root, "refarm.config.json");
+    let refarmConfig = {};
+    if (fs.existsSync(configPath)) {
+        try {
+            refarmConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        } catch (e) {}
+    }
 
     // Base path configuration for Pages deployment
     const site = process.env.ASTRO_SITE || refarmConfig?.brand?.urls?.site || undefined;
@@ -48,6 +49,13 @@ export function defineConfig(userConfig = {}) {
         },
         vite: {
             ...(userConfig.vite || {}),
+            resolve: {
+                ...(userConfig.vite?.resolve || {}),
+                alias: {
+                    "@refarm.dev/locales": path.resolve(root, "locales"),
+                    ...(userConfig.vite?.resolve?.alias || {})
+                }
+            },
             optimizeDeps: {
                 ...(userConfig.vite?.optimizeDeps || {}),
                 exclude: [
