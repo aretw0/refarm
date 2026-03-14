@@ -29,6 +29,7 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+    "test": "npm run test:unit",
     "test:unit": "vitest run --passWithNoTests",
     "coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
     "coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
