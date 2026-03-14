@@ -27,6 +27,14 @@ jobs:
         with:
           targets: wasm32-wasip1
 
+- name: Install cargo-component
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
+
       - name: Build WASM plugin for tests
         run: |
           cd validations/wasm-plugin/hello-world
@@ -79,6 +87,14 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-wasip1
+
+- name: Install cargo-component
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
 
       - name: Build WASM plugin for tests
         run: |
