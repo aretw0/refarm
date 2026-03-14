@@ -1,5 +1,5 @@
-import { execSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { loadConfig } from "@refarm.dev/config";
 
 const colors = {
     reset: '\x1b[0m',
@@ -46,14 +46,14 @@ async function main() {
     }
 
     // 4. URL Consistency (Housechores)
-    const rootPkg = JSON.parse(readFileSync('package.json', 'utf-8'));
-    const expectedRepo = 'https://github.com/refarm-dev/refarm.git';
+    const config = loadConfig();
+    const expectedRepo = config.brand?.urls?.repository;
     const expectedPrefix = 'git+';
 
     if (rootPkg.repository?.url === `${expectedPrefix}${expectedRepo}` || rootPkg.repository?.url === expectedRepo) {
-        success('Root repository URL is correct (refarm-dev)');
+        success(`Root repository URL is correct (${config.brand?.owner || 'config owner'})`);
     } else {
-        error(`Root repository URL mismatch: ${rootPkg.repository?.url}`);
+        error(`Root repository URL mismatch: ${rootPkg.repository?.url} vs expected ${expectedRepo}`);
         allPassed = false;
     }
 
