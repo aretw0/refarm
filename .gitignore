@@ -111,3 +111,7 @@ deps-report.md
 # Keep baseline.json versioned, ignore temporary outputs
 **/benchmarks/current.json
 **/benchmarks/report.md
+
+# ─── Generated Github Tag Artifacts ───────────────────────────────────────────────
+# Ignore generated test output files
+**/*_tags.txt
