@@ -1,13 +1,15 @@
-import { fileURLToPath } from "node:url";
+import { mergeConfig, defineConfig } from "vitest/config";
+import { baseConfig, getAliases } from "../../vitest.config";
+import path from "node:path";
 
-import { defineConfig } from "vitest/config";
-
-export default defineConfig({
-  resolve: {
-    alias: {
-      "@refarm.dev/storage-contract-v1": fileURLToPath(
-        new URL("../storage-contract-v1/src/index.ts", import.meta.url),
-      ),
+export default mergeConfig(
+  baseConfig,
+  defineConfig({
+    resolve: {
+      alias: getAliases(path.resolve(__dirname, "../../"))
     },
-  },
-});
+    test: {
+      // Package specific overrides if any
+    }
+  })
+);
