@@ -2,14 +2,15 @@
   "brand": {
     "name": "Refarm",
     "slug": "refarm",
+    "owner": "aretw0",
     "scopes": {
-      "dev": "@refarm.dev",
-      "me": "@refarm.me",
-      "social": "@refarm.social"
+      "dev": "@{{brand.slug}}.dev",
+      "me": "@{{brand.slug}}.me",
+      "social": "@{{brand.slug}}.social"
     },
     "urls": {
-      "site": "https://refarm.dev",
-      "repository": "https://github.com/refarm-dev/refarm"
+      "site": "https://{{brand.owner}}.{{infrastructure.gitHost}}.io/{{brand.slug}}",
+      "repository": "https://{{infrastructure.gitHost}}.com/{{brand.owner}}/{{brand.slug}}"
     }
   },
   "infrastructure": {

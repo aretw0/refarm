@@ -2,18 +2,7 @@ import { defineConfig as defineAstroConfig } from "astro/config";
 import fs from "fs";
 import path from "path";
 
-// Helper to look for refarm root by walking up the directory tree
-function findRefarmRoot() {
-    let currentDir = process.cwd();
-    while (true) {
-        const configPath = path.join(currentDir, "refarm.config.json");
-        if (fs.existsSync(configPath)) return currentDir;
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break; 
-        currentDir = parentDir;
-    }
-    return process.cwd();
-}
+import { findRefarmRoot, loadConfig } from "./index.mjs";
 
 /**
  * Wraps the standard Astro defineConfig with Refarm's monorepo defaults.
@@ -21,13 +10,7 @@ function findRefarmRoot() {
  */
 export function defineConfig(userConfig = {}) {
     const root = findRefarmRoot();
-    const configPath = path.join(root, "refarm.config.json");
-    let refarmConfig = {};
-    if (fs.existsSync(configPath)) {
-        try {
-            refarmConfig = JSON.parse(fs.readFileSync(configPath, "utf-8"));
-        } catch (e) {}
-    }
+    const refarmConfig = loadConfig(root);
 
     // Base path configuration for Pages deployment
     const site = process.env.ASTRO_SITE || refarmConfig?.brand?.urls?.site || undefined;

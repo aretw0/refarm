@@ -4,6 +4,7 @@
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
   "exports": {
+    ".": "./index.mjs",
     "./astro": "./astro.mjs"
   },
   "scripts": {
