@@ -121,3 +121,6 @@ deps-report.md
 # ─── Generated Github Tag Artifacts ───────────────────────────────────────────────
 # Ignore generated test output files
 **/*_tags.txt
+
+# Ignore implementation plans
+implementation_plan*.md
