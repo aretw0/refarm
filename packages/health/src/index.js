@@ -19,23 +19,45 @@ export class SovereignHealth {
     }
 
     /**
+     * Helper to find files recursively.
+     */
+    _getAllFiles(dirPath, arrayOfFiles) {
+        const files = fs.readdirSync(dirPath);
+        arrayOfFiles = arrayOfFiles || [];
+
+        files.forEach((file) => {
+            if (fs.statSync(dirPath + "/" + file).isDirectory()) {
+                if (file !== "node_modules" && file !== ".git" && file !== "dist") {
+                    arrayOfFiles = this._getAllFiles(dirPath + "/" + file, arrayOfFiles);
+                }
+            } else {
+                arrayOfFiles.push(path.join(dirPath, "/", file));
+            }
+        });
+
+        return arrayOfFiles;
+    }
+
+    /**
      * Detects if source files are being incorrectly ignored by Git.
      */
     async checkGitIgnores() {
         const issues = [];
         try {
-            // Find all .ts and .js files in src/ directories
-            const srcFilesOutput = execSync('find packages -path "*/src/*.ts" -o -path "*/src/*.js"', { encoding: "utf-8" });
-            const srcFiles = srcFilesOutput.split("\n").filter(Boolean);
+            const git = (await import("isomorphic-git")).default;
+            const allFiles = this._getAllFiles(path.join(process.cwd(), "packages"));
+            const srcFiles = allFiles.filter(f => (f.includes("/src/") && (f.endsWith(".ts") || f.endsWith(".js"))));
 
             for (const file of srcFiles) {
-                try {
-                    // Check if file is ignored by git
-                    execSync(`git check-ignore -q "${file}"`);
-                    // If check-ignore returns 0, the file IS ignored (bad for src files)
-                    issues.push({ file, type: "incorrectly_ignored" });
-                } catch (e) {
-                    // git check-ignore returns 1 if file is NOT ignored (this is good)
+                const relativePath = path.relative(process.cwd(), file);
+                const ignored = await git.isIgnored({
+                    fs,
+                    dir: process.cwd(),
+                    filepath: relativePath
+                });
+
+                if (ignored) {
+                    issues.push({ file: relativePath, type: "incorrectly_ignored" });
                 }
             }
         } catch (e) {
