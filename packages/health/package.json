@@ -1,0 +1,16 @@
+{
+  "name": "@refarm.dev/health",
+  "version": "0.1.0",
+  "description": "The Health — Deterministic project diagnostics for Refarm.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
