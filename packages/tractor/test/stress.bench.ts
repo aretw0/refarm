@@ -8,9 +8,14 @@
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { bench, describe } from "vitest";
+import { SovereignRegistry } from "@refarm.dev/registry";
+import { bench, describe, vi } from "vitest";
 import { PluginHost, Tractor, normaliseToSovereignGraph } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
+
+vi.mock("@refarm.dev/heartwood", () => ({
+  verify: vi.fn().mockReturnValue(true),
+}));
 
 function createSilentBenchConfig(
   latency?: Parameters<typeof createMockConfig>[0],
@@ -78,13 +83,15 @@ describe("Plugin Loading", () => {
   stubFetchGlobal();
 
   bench("Load 1 plugin", async () => {
-    const host = new PluginHost(() => {}, silentLogger);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(() => {}, registry, silentLogger);
     await host.load(createBenchManifest("p1"), "hash");
     host.terminateAll();
   });
 
   bench("Load 10 plugins sequentially", async () => {
-    const host = new PluginHost(() => {}, silentLogger);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(() => {}, registry, silentLogger);
     for (let i = 0; i < 10; i++) {
       await host.load(createBenchManifest(`p${i}`), `h${i}`);
     }
@@ -92,7 +99,8 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 50 plugins concurrently", async () => {
-    const host = new PluginHost(() => {}, silentLogger);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(() => {}, registry, silentLogger);
     await Promise.all(
       Array.from({ length: 50 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
@@ -102,7 +110,8 @@ describe("Plugin Loading", () => {
   });
 
   bench("Load 100 plugins concurrently", async () => {
-    const host = new PluginHost(() => {}, silentLogger);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(() => {}, registry, silentLogger);
     await Promise.all(
       Array.from({ length: 100 }, (_, i) =>
         host.load(createBenchManifest(`p${i}`), `h${i}`)
