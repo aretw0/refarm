@@ -14,15 +14,47 @@ export class WindmillEngine {
     }
 
     /**
+     * Pull current infrastructure state from providers.
+     */
+    async pull() {
+        console.log("📥 [Windmill] Pulling infrastructure state...");
+        const state = {
+            github: { exists: false, visibility: "unknown" },
+            cloudflare: { records: [] }
+        };
+
+        // GitHub Pull
+        if (this.config.infrastructure?.gitHost === "github") {
+            const repoName = this.config.brand?.slug || "refarm-project";
+            const repos = await this.github.listRepos();
+            if (repos.includes(repoName)) {
+                state.github.exists = true;
+                // Add more metadata if needed
+            }
+        }
+
+        // Cloudflare Pull
+        if (this.config.infrastructure?.cloudflare) {
+            state.cloudflare.records = await this.cloudflare.listRecords();
+        }
+
+        return state;
+    }
+
+    /**
      * Reconcile infrastructure state with the configuration.
      */
     async sync() {
         const results = {
             github: null,
-            cloudflare: null
+            cloudflare: null,
+            status: "pending"
         };
 
         console.log("🚀 [Windmill] Starting infrastructure synchronization...");
+        
+        // 0. Pull current state for context
+        const currentState = await this.pull();
 
         // 1. GitHub Reconciliation (Mirroring/Audit)
         if (this.config.infrastructure?.gitHost === "github") {
@@ -35,6 +67,7 @@ export class WindmillEngine {
                 });
             } else {
                 console.warn("⚠️ [Windmill] No backup repository configured, skipping mirror.");
+                results.github = { status: "skipped", message: "No backup URL" };
             }
         }
 
@@ -46,8 +79,10 @@ export class WindmillEngine {
             });
         } else {
             console.log("ℹ️ [Windmill] No DNS records defined in configuration.");
+            results.cloudflare = { status: "skipped", message: "No records defined" };
         }
 
+        results.status = "completed";
         return results;
     }
 }
