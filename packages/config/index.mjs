@@ -124,20 +124,27 @@ const RemoteSource = {
     async load(root, endpoint) {
         if (!endpoint) return {};
         
+        const token = process.env.REFARM_REMOTE_TOKEN;
+        const headers = {
+            "Accept": "application/json",
+            "X-Refarm-Client": "config-loader"
+        };
+
+        if (token) {
+            headers["Authorization"] = `Bearer ${token}`;
+        }
+
         try {
-            const res = await fetch(endpoint, {
-                headers: {
-                    "Accept": "application/json",
-                    "X-Refarm-Client": "config-loader"
-                }
-            });
+            console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
+            const res = await fetch(endpoint, { headers });
             
             if (!res.ok) {
                 console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);
                 return {};
             }
             
-            return await res.json();
+            const data = await res.json();
+            return data?.config || data; // Support both wrapped and direct JSON
         } catch (e) {
             console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
             return {};

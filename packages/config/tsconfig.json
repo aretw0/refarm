@@ -1,0 +1,10 @@
+{
+  "extends": "../tsconfig/node.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": ".",
+    "allowJs": true
+  },
+  "include": ["index.mjs", "astro.mjs", "index.d.ts"],
+  "exclude": ["node_modules", "dist"]
+}
