@@ -1,0 +1,19 @@
+{
+  "name": "@refarm.dev/silo",
+  "version": "0.1.0",
+  "description": "The Silo — Context and Secret Provisioner for Refarm.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.0.0"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
