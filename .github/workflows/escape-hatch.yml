@@ -1,0 +1,47 @@
+name: "Refarm: Escape Hatch (Emergency Gate)"
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_repo_url:
+        description: "Backup Repository URL (Mirror Target)"
+        required: true
+        default: ""
+      sync_dns:
+        description: "Reconcile DNS to Backup?"
+        type: boolean
+        default: true
+
+jobs:
+  escape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+
+      - name: Bootstrap Silo & Windmill
+        run: |
+          npm install
+          node scripts/ci/setup-env.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REFARM_GITHUB_TOKEN }}
+
+      - name: Execute Emergency Migration
+        run: |
+          # Inject backup intent via environment
+          export REFARM_GIT_BACKUP_URL="${{ github.event.inputs.target_repo_url }}"
+          
+          if [ "${{ github.event.inputs.sync_dns }}" == "true" ]; then
+             echo "🛡️ Emergency DNS Sync Requested"
+             # In a real scenario, this might point to a backup zone or record
+          fi
+
+          node scripts/ci/sync-infra.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REFARM_GITHUB_TOKEN }}
