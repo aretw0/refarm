@@ -1,5 +1,6 @@
 import { GitHubProvider } from "./providers/github.js";
 import { CloudflareProvider } from "./providers/cloudflare.js";
+import path from "node:path";
 
 /**
  * Windmill: Infrastructure Provider Bridges.
@@ -84,6 +85,65 @@ export class WindmillEngine {
 
         results.status = "completed";
         return results;
+    }
+
+    /**
+     * Deploy artifacts to sovereign targets.
+     * Orchestrates multiple targets if defined in config.
+     * @param {"cloudflare" | "github" | "all"} [target] - The target platform.
+     * @returns {Promise<{status: string, results?: any[], message?: string}>}
+     */
+    async deploy(target = "all") {
+        console.log(`🚀 [Windmill] Deploying to ${target}...`);
+        
+        const distribution = this.config.distribution?.targets || [];
+        const results = [];
+
+        if (target === "all") {
+            if (distribution.length === 0) {
+                return { status: "error", message: "No distribution targets defined in refarm.config.json" };
+            }
+
+            for (const t of distribution) {
+                const result = await this._deployToTarget(t);
+                results.push({ target: t.type, ...result });
+            }
+
+            const failed = results.filter(r => r.status === "error");
+            return { 
+                status: failed.length > 0 ? "partial_failure" : "success", 
+                results 
+            };
+        } else {
+            // Single target deployment
+            const targetConfig = distribution.find(t => t.type === target) || { type: target };
+            const result = await this._deployToTarget(targetConfig);
+            return { status: result.status, ...result };
+        }
+    }
+
+    /**
+     * Internal helper to route deployment to specific provider.
+     */
+    async _deployToTarget(targetConfig) {
+        const { type, site, repo, dist } = targetConfig;
+        const projectDir = path.resolve(process.cwd(), dist || "dist");
+        
+        if (type === "cloudflare") {
+            const siteName = site || this.config.brand?.slug || "refarm-site";
+            return await this.cloudflare.deployPages(siteName, projectDir, {
+                dryRun: this.options.dryRun
+            });
+        }
+
+        if (type === "github") {
+            const repoName = repo || this.config.brand?.slug || "refarm-repo";
+            return await this.github.deployPages(repoName, projectDir, {
+                dryRun: this.options.dryRun
+            });
+        }
+
+        return { status: "error", message: `Unsupported deployment target: ${type}` };
     }
 }
 
