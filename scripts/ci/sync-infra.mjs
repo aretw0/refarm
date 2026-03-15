@@ -10,7 +10,8 @@ async function main() {
     const config = loadConfig();
 
     if (!config.brand) {
-        console.error("❌ Failed to load Refarm configuration.");
+        console.error("❌ Failed to load Refarm configuration (brand missing).");
+        console.log("Config loaded:", JSON.stringify(config, null, 2));
         process.exit(1);
     }
 

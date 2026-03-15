@@ -1,19 +1,19 @@
-name: "Refarm: Escape Hatch (Emergency Gate)"
+name: 🚨 Escape Hatch (Infrastructure Migration)
 
 on:
   workflow_dispatch:
     inputs:
-      target_repo_url:
-        description: "Backup Repository URL (Mirror Target)"
-        required: true
-        default: ""
-      sync_dns:
-        description: "Reconcile DNS to Backup?"
+      backup_repo:
+        description: 'Target Backup Repository URL'
+        required: false
+      dry_run:
+        description: 'Dry Run'
         type: boolean
         default: true
 
 jobs:
-  escape:
+  migrate:
+    name: Radical Portability Sync
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -23,25 +23,22 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
-      - name: Bootstrap Silo & Windmill
-        run: |
-          npm install
-          node scripts/ci/setup-env.mjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.REFARM_GITHUB_TOKEN }}
+      - name: Install Dependencies
+        run: npm ci
 
-      - name: Execute Emergency Migration
+      - name: Setup Environment
+        run: node scripts/ci/setup-env.mjs
+
+      - name: Sync Infrastructure
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ZONE_ID: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+          # Override backup repo if provided manually
+          REFARM_SCOPE_BACKUP_REPO: ${{ github.event.inputs.backup_repo }}
         run: |
-          # Inject backup intent via environment
-          export REFARM_GIT_BACKUP_URL="${{ github.event.inputs.target_repo_url }}"
-          
-          if [ "${{ github.event.inputs.sync_dns }}" == "true" ]; then
-             echo "🛡️ Emergency DNS Sync Requested"
-             # In a real scenario, this might point to a backup zone or record
+          DRY_RUN_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
           fi
-
-          node scripts/ci/sync-infra.mjs
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.REFARM_GITHUB_TOKEN }}
+          node scripts/ci/sync-infra.mjs $DRY_RUN_FLAG
