@@ -115,6 +115,16 @@ Use descriptive commit messages:
 - ✅ Good: "Add CRDT vector clock implementation"
 - ❌ Avoid: "Fix stuff", "WIP", "asdf"
 
+### Agentic Engineering & Rigor
+
+This project is designed for human-AI collaboration. AI Agents (like Antigravity) are expected to follow specific rules of engagement to maintain monorepo integrity:
+
+- **Artifact Sovereignty**: Never manually edit build artifacts/generated files (`dist/`, `.turbo/`, etc.). Edits must always happen in `src/`.
+- **Cycle Awareness**: If you change a dependency package, you must run its build script before verifying consuming packages.
+- **Sovereign Knowledge**: Transition technical decisions and session knowledge into the project's documentation files.
+
+For detailed AI engineering constraints, see [AGENTS.md](AGENTS.md).
+
 ### Diagrams
 
 Diagrams are stored as Mermaid source files (`.mermaid`) with auto-generated SVG renderings.
