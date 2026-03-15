@@ -1,43 +1,24 @@
 import { loadConfig } from "@refarm.dev/config";
+import { SiloCore } from "@refarm.dev/silo";
 import { writeFileSync } from "node:fs";
 
 /**
- * Setup Environment for GitHub Actions
- * Exports configuration values to GITHUB_ENV
+ * Silo Provisioner for GitHub Actions
+ * Replaces the legacy setup-env.mjs using the Silo core.
  */
-function setup() {
-    console.log("--- Setting up Refarm Environment ---");
+function run() {
+    console.log("🌾 Silo: Provisioning Environment Context...");
     const config = loadConfig();
-    
-    const envs = {
-        REFARM_BRAND_NAME: config.brand?.name,
-        REFARM_BRAND_SLUG: config.brand?.slug,
-        REFARM_BRAND_OWNER: config.brand?.owner,
-        REFARM_GIT_HOST: config.infrastructure?.gitHost,
-        REFARM_SITE_URL: config.brand?.urls?.site,
-        REFARM_REPO_URL: config.brand?.urls?.repository,
-    };
-
-    // Dynamically export all scopes
-    if (config.brand?.scopes) {
-        for (const [key, value] of Object.entries(config.brand.scopes)) {
-            envs[`REFARM_SCOPE_${key.toUpperCase()}`] = value;
-        }
-    }
+    const silo = new SiloCore(config);
 
     if (process.env.GITHUB_ENV) {
-        let output = "";
-        for (const [key, value] of Object.entries(envs)) {
-            if (value) {
-                output += `${key}=${value}\n`;
-            }
-        }
+        const output = silo.provision("github");
         writeFileSync(process.env.GITHUB_ENV, output, { flag: 'a' });
-        console.log("✅ Config exported to GITHUB_ENV");
+        console.log("✅ Context provisioned to GITHUB_ENV");
     } else {
-        console.log("📋 Configuration (Local Debug):");
-        console.log(envs);
+        const context = silo.provision("object");
+        console.log("📋 Sovereign Context (Local):", context);
     }
 }
 
-setup();
+run();

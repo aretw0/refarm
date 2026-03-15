@@ -1,42 +1,37 @@
 import { loadConfig } from "@refarm.dev/config";
-import { GitHubProvider } from "./providers/github.mjs";
-import { CloudflareProvider } from "./providers/cloudflare.mjs";
+import { WindmillEngine } from "@refarm.dev/windmill";
 
 /**
- * Infrastructure Synchronizer
- * Reconciles the state of external providers with refarm.config.json
+ * CLI Entry point for Windmill Infrastructure Sync
+ * Usage: node scripts/ci/sync-infra.mjs [--dry-run]
  */
-async function sync() {
-    console.log("--- Refarm Infrastructure Sync ---");
-    
+async function main() {
+    const isDryRun = process.argv.includes("--dry-run");
     const config = loadConfig();
+
     if (!config.brand) {
-        console.error("Failed to load config. Make sure refarm.config.json exists.");
+        console.error("❌ Failed to load Refarm configuration.");
         process.exit(1);
     }
 
-    const github = new GitHubProvider(config);
-    const cloudflare = new CloudflareProvider(config);
+    const windmill = new WindmillEngine(config, {
+        dryRun: isDryRun,
+        verbose: true
+    });
 
-    // 1. Sync DNS (if Cloudflare config exists)
-    if (config.infrastructure?.cloudflare) {
-        const records = [
-            { type: "CNAME", name: config.brand.slug, content: `${config.brand.slug}.github.io` },
-            // Add more records derived from config
-        ];
-        await cloudflare.updateDNS(records);
+    try {
+        const results = await windmill.sync();
+        
+        if (isDryRun) {
+            console.log("\n🧪 Dry Run finished. Review the changes above.");
+        } else {
+            console.log("\n✨ Infrastructure reconciliation complete.");
+        }
+    } catch (err) {
+        console.error("\n💥 Windmill crashed during sync:");
+        console.error(err);
+        process.exit(1);
     }
-
-    // 2. Audit Repositories (if GitHub config exists)
-    if (config.infrastructure?.gitHost === "github") {
-        const repos = await github.listRepos();
-        console.log(`[sync] Found ${repos.length} repositories in organization.`);
-    }
-
-    console.log("--- Sync Complete ---");
 }
 
-sync().catch(err => {
-    console.error(err);
-    process.exit(1);
-});
+main();
