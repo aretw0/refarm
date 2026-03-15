@@ -57,6 +57,25 @@ export class SiloCore {
 
 
     /**
+     * Load configuration from a remote source (Sovereign Graph).
+     */
+    async loadRemoteConfig(url) {
+        console.log(`📡 [Silo] Fetching remote configuration from ${url}...`);
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            
+            // Merge remote config into current context
+            this.config = { ...this.config, ...data };
+            return { status: "success", strategy: data.strategy || "ephemeral" };
+        } catch (e) {
+            console.error(`[Silo] Failed to fetch remote config: ${e.message}`);
+            return { status: "error", message: e.message };
+        }
+    }
+
+    /**
      * Resolve all context tokens based on current config and environment.
      * In the sovereign model, this looks for GITHUB_TOKEN, CLOUDFLARE_API_TOKEN, etc.
      */
@@ -64,10 +83,13 @@ export class SiloCore {
         const tokens = new Map();
         const storedTokens = await this.loadTokens();
         
-        // Priority: 1. Environment Variables, 2. Stored Tokens
+        // Priority: 
+        // 1. Remote Overrides (from this.config.tokens if loaded via Sovereign Graph)
+        // 2. Environment Variables
+        // 3. Stored Tokens
         const mapping = {
-            'REFARM_GITHUB_TOKEN': process.env.GITHUB_TOKEN || process.env.REFARM_GITHUB_TOKEN || storedTokens.githubToken,
-            'REFARM_CLOUDFLARE_API_TOKEN': process.env.CLOUDFLARE_API_TOKEN || process.env.REFARM_CLOUDFLARE_API_TOKEN || storedTokens.cloudflareToken
+            'REFARM_GITHUB_TOKEN': this.config.tokens?.githubToken || process.env.GITHUB_TOKEN || process.env.REFARM_GITHUB_TOKEN || storedTokens.githubToken,
+            'REFARM_CLOUDFLARE_API_TOKEN': this.config.tokens?.cloudflareToken || process.env.CLOUDFLARE_API_TOKEN || process.env.REFARM_CLOUDFLARE_API_TOKEN || storedTokens.cloudflareToken
         };
 
         for (const [key, value] of Object.entries(mapping)) {
