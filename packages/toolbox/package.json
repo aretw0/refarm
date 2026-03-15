@@ -4,10 +4,12 @@
   "description": "Refarm Developer CLI Toolbox for SDD/BDD/DDD workflows.",
   "type": "module",
   "main": "dist/cli.mjs",
+  "types": "dist/cli.d.mts",
   "bin": {
-    "refarm-task": "./src/cli.mjs"
+    "refarm-task": "./dist/cli.mjs"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
     "test": "vitest run"
   },
   "devDependencies": {
