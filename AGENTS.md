@@ -1,6 +1,6 @@
-# AGENTS.md: Rules of Engagement for the Sovereign Farm
+# Rules of Engagement for the Sovereign Farm
 
-This document defines the constraints and expectations for AI Agents (like Antigravity) working on the Refarm monorepo.
+This document defines the constraints and expectations for AI Agents working on the Refarm monorepo.
 
 ## 1. Source Sovereignty
 - **Source is Truth**: All edits must happen in `src/` or source-level directories.
