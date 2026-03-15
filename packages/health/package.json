@@ -9,6 +9,9 @@
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch"
   },
+  "dependencies": {
+    "isomorphic-git": "^1.25.10"
+  },
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
