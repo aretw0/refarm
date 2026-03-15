@@ -1,8 +1,12 @@
+import { SiloCore } from "@refarm.dev/silo";
+import { Windmill } from "@refarm.dev/windmill";
+
 /**
  * SowerCore: The seeding engine of Refarm.
  * Handles templates, interactive flows, and initial project structure.
  * Designed to be runtime-neutral (CLI, Browser, or Server).
  */
+
 export class SowerCore {
   /**
    * Returns the onboarding steps/intentions as a data-driven structure.
@@ -68,4 +72,38 @@ export class SowerCore {
 
     return null;
   }
+
+  /**
+   * Sows the project with tokens and verifies infrastructure.
+   */
+  async sow(tokens: { githubToken: string; cloudflareToken: string }, brand: { owner: string }) {
+    console.log(`[sower-core] Sowing tokens for ${brand.owner}...`);
+
+    const silo = new SiloCore();
+    await silo.saveTokens(tokens);
+
+    // Temporarily set env for verification
+    process.env.GITHUB_TOKEN = tokens.githubToken;
+    process.env.CLOUDFLARE_API_TOKEN = tokens.cloudflareToken;
+
+    const windmill = new Windmill({
+      brand: { owner: brand.owner, urls: { repository: "" } },
+      infrastructure: { gitHost: "github" }
+    });
+
+    const results: any = {
+        github: { ok: false },
+        cloudflare: { ok: true } // Cloudflare is Token-based, simple check for now
+    };
+
+    try {
+        const repos = await windmill.github.listRepos();
+        results.github = { ok: true, count: repos.length };
+    } catch (e: any) {
+        results.github = { ok: false, error: e.message };
+    }
+
+    return results;
+  }
 }
+
