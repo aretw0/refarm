@@ -1,0 +1,23 @@
+{
+  "extends": "@refarm.dev/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "baseUrl": ".",
+    "paths": {
+      "@refarm.dev/config": ["../config/index.d.ts"],
+      "@refarm.dev/silo": ["../silo/dist/index.d.ts"],
+      "@refarm.dev/windmill": ["../windmill/dist/index.d.ts"],
+      "@refarm.dev/fence": ["../fence/dist/index.d.ts"],
+      "@refarm.dev/thresher": ["../thresher/dist/index.d.ts"],
+      "@refarm.dev/health": ["../health/dist/index.d.ts"],
+      "@refarm.dev/sower": ["../sower/dist/index.d.ts"],
+      "@refarm.dev/tractor": ["../tractor/dist/index.d.ts"]
+    },
+    "allowJs": true,
+    "maxNodeModuleJsDepth": 2
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
+}
