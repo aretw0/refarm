@@ -35,9 +35,9 @@ export class SowerCore {
   }
 
   /**
-   * Helper to recursively copy directories.
+   * Helper to recursively copy directories with token substitution.
    */
-  private _copyRecursive(src: string, dest: string) {
+  private _copyRecursive(src: string, dest: string, tokens: Record<string, string> = {}) {
     const exists = fs.existsSync(src);
     const stats = exists && fs.statSync(src);
     const isDirectory = exists && stats && stats.isDirectory();
@@ -47,10 +47,19 @@ export class SowerCore {
         fs.mkdirSync(dest, { recursive: true });
       }
       fs.readdirSync(src).forEach((child) => {
-        this._copyRecursive(path.join(src, child), path.join(dest, child));
+        this._copyRecursive(path.join(src, child), path.join(dest, child), tokens);
       });
     } else {
-      fs.copyFileSync(src, dest);
+      // For files, read content, replace tokens, and write to dest
+      const content = fs.readFileSync(src, "utf-8");
+      let hydratedContent = content;
+
+      for (const [key, value] of Object.entries(tokens)) {
+        const regex = new RegExp(`{{${key}}}`, "g");
+        hydratedContent = hydratedContent.replace(regex, value);
+      }
+
+      fs.writeFileSync(dest, hydratedContent);
     }
   }
 
@@ -70,6 +79,12 @@ export class SowerCore {
       }
     };
 
+    // Hydration tokens
+    const tokens: Record<string, string> = {
+      "REFARM_NAME": config.brand.name,
+      "REFARM_SLUG": config.brand.slug
+    };
+
     // Template specific adjustments
     let templateSubPath = "typescript"; // Default
     if (templateId === "courier") {
@@ -87,7 +102,7 @@ export class SowerCore {
         
         if (fs.existsSync(templatePath)) {
             console.log(`[sower-core] Hydrating from ${templatePath} to ${options.targetDir}...`);
-            this._copyRecursive(templatePath, options.targetDir);
+            this._copyRecursive(templatePath, options.targetDir, tokens);
         } else {
             console.warn(`[sower-core] Template path not found: ${templatePath}`);
         }
