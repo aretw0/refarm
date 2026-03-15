@@ -1,5 +1,7 @@
 import { SiloCore } from "@refarm.dev/silo";
 import { Windmill } from "@refarm.dev/windmill";
+import * as fs from "node:fs";
+import * as path from "node:path";
 
 /**
  * SowerCore: The seeding engine of Refarm.
@@ -33,44 +35,72 @@ export class SowerCore {
   }
 
   /**
+   * Helper to recursively copy directories.
+   */
+  private _copyRecursive(src: string, dest: string) {
+    const exists = fs.existsSync(src);
+    const stats = exists && fs.statSync(src);
+    const isDirectory = exists && stats && stats.isDirectory();
+
+    if (isDirectory) {
+      if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+      }
+      fs.readdirSync(src).forEach((child) => {
+        this._copyRecursive(path.join(src, child), path.join(dest, child));
+      });
+    } else {
+      fs.copyFileSync(src, dest);
+    }
+  }
+
+  /**
    * Scaffolds a new Refarm configuration or project structure.
    */
-  async scaffold(intent: string, options: any = {}) {
-    console.log(`[sower-core] Scaffolding intent: ${intent}`, options);
+  async scaffold(templateId: string, options: any = {}) {
+    console.log(`[sower-core] Scaffolding template: ${templateId}`, options);
     
-    if (intent === "switch-to-guest") {
-      return {
-        tier: "guest",
-        config: {
-          mode: "ephemeral",
-          storage: "memory"
-        }
-      };
+    // In Phase 3, we default to "citizen" tier for everything
+    const config: any = {
+      mode: "persistent",
+      storage: "opfs",
+      brand: {
+          name: options.name || "My Sovereign Farm",
+          slug: (options.name || "my-sovereign-farm").toLowerCase().replace(/\s+/g, "-")
+      }
+    };
+
+    // Template specific adjustments
+    let templateSubPath = "typescript"; // Default
+    if (templateId === "courier") {
+        config.type = "app";
+    } else if (templateId === "rust-plugin") {
+        config.type = "plugin";
+        config.engine = "heartwood";
+        templateSubPath = "."; // rust-plugin template doesn't have subdirs yet
     }
 
-    if (intent === "switch-to-citizen") {
-      // Identity Generation (Sovereignty)
-      const seed = crypto.getRandomValues(new Uint8Array(32));
-      const privateKey = Buffer.from(seed).toString("hex");
-      const publicKey = "pending_calculation"; // Real calc in Silo/KeyManager
-      
-      return {
-        tier: "citizen",
-        config: {
-          mode: "persistent",
-          storage: "opfs"
-        },
-        identity: {
-          publicKey,
-          hostingPath: ".refarm/identity.json"
-        },
-        secrets: {
-          masterPrivateKey: privateKey
+    // Hydrate files if targetDir is provided
+    if (options.targetDir) {
+        const rootDir = process.cwd(); // Assuming run from monorepo root for now
+        const templatePath = path.join(rootDir, "templates", templateId, templateSubPath);
+        
+        if (fs.existsSync(templatePath)) {
+            console.log(`[sower-core] Hydrating from ${templatePath} to ${options.targetDir}...`);
+            this._copyRecursive(templatePath, options.targetDir);
+        } else {
+            console.warn(`[sower-core] Template path not found: ${templatePath}`);
         }
-      };
     }
 
-    return null;
+    return {
+      tier: "citizen",
+      template: templateId,
+      config,
+      identity: {
+        hostingPath: ".refarm/identity.json"
+      }
+    };
   }
 
   /**

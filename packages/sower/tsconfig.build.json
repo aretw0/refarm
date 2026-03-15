@@ -3,6 +3,8 @@
   "compilerOptions": {
     "noEmit": false,
     "declaration": true,
-    "declarationMap": true
+    "declarationMap": true,
+    "emitDeclarationOnly": false
   },
+  "include": ["src/**/*"]
 }
