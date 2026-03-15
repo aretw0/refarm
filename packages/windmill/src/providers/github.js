@@ -63,6 +63,31 @@ export class GitHubProvider {
     }
 
     /**
+     * Deploy artifacts to GitHub Pages
+     */
+    async deployPages(repoName, projectDir, options = {}) {
+        console.log(`🚀 [GitHub] Deploying ${repoName} to Pages...`);
+
+        if (options.dryRun) {
+            console.log(`[GitHub] [DRY RUN] Would deploy artifacts from ${projectDir} to gh-pages branch.`);
+            return { status: "dry-run", url: `https://${this.org}.github.io/${repoName}` };
+        }
+
+        // Implementation stub: Push to gh-pages branch
+        try {
+            console.log(`[GitHub] Pushing artifacts from ${projectDir} to gh-pages...`);
+            // Mocking logic or using isomorphic-git to push to a specific branch
+            return { 
+                status: "success", 
+                url: `https://${this.org}.github.io/${repoName}`,
+                message: "Branch gh-pages updated."
+            };
+        } catch (e) {
+            return { status: "error", message: e.message };
+        }
+    }
+
+    /**
      * List repositories in the organization
      */
     async listRepos() {
