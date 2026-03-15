@@ -1,4 +1,4 @@
-package refarm:identity;
+package refarm:heartwood;
 
 interface recovery {
     /// A unique identifier for the recovery session.

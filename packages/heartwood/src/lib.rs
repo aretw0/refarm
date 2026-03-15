@@ -1,57 +1,53 @@
-use ed25519_dalek::{Keypair, PublicKey, SecretKey, Signer, Verifier};
-use rand_core::OsRng;
-use std::convert::TryFrom;
+#[allow(warnings)]
+mod bindings;
 
-wit_bindgen::generate!({
-    world: "core",
-    exports: {
-        world: Sentinel,
-    }
-});
+use bindings::{Guest, Keypair, HeartwoodError};
+use ed25519_dalek::{SigningKey, Verifier, VerifyingKey, Signature, Signer};
+use rand_core::RngCore;
+use rand_core::OsRng;
 
 struct Sentinel;
 
 impl Guest for Sentinel {
     fn sign(payload: Vec<u8>, secret_key: Vec<u8>) -> Result<Vec<u8>, HeartwoodError> {
-        let secret = SecretKey::from_bytes(&secret_key)
+        let secret_bytes: [u8; 32] = secret_key.try_into()
             .map_err(|_| HeartwoodError::InternalError("Invalid secret key length".to_string()))?;
         
-        let public = PublicKey::from(&secret);
-        let keypair = Keypair {
-            secret,
-            public,
-        };
-
-        let signature = keypair.sign(&payload);
+        let signing_key = SigningKey::from_bytes(&secret_bytes);
+        let signature = signing_key.sign(&payload);
+        
         Ok(signature.to_bytes().to_vec())
     }
 
     fn verify(payload: Vec<u8>, signature: Vec<u8>, public_key: Vec<u8>) -> bool {
-        let public = match PublicKey::from_bytes(&public_key) {
-            Ok(p) => p,
+        let public_bytes: [u8; 32] = match public_key.try_into() {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        
+        let verifying_key = match VerifyingKey::from_bytes(&public_bytes) {
+            Ok(k) => k,
             Err(_) => return false,
         };
 
-        let sig = match ed25519_dalek::Signature::try_from(signature.as_slice()) {
+        let sig = match Signature::try_from(signature.as_slice()) {
             Ok(s) => s,
             Err(_) => return false,
         };
 
-        public.verify(&payload, &sig).is_ok()
+        verifying_key.verify(&payload, &sig).is_ok()
     }
 
     fn generate_keypair() -> Keypair {
-        let mut csprng = OsRng;
-        let mut secret_bytes = [0u8; 32];
-        csprng.fill_bytes(&mut secret_bytes);
+        let mut seed = [0u8; 32];
+        OsRng.fill_bytes(&mut seed);
+        let signing_key = SigningKey::from_bytes(&seed);
         
-        let secret = SecretKey::from_bytes(&secret_bytes).unwrap();
-        let public = PublicKey::from(&secret);
-
         Keypair {
-            public_key: public.to_bytes().to_vec(),
-            secret_key: secret.to_bytes().to_vec(),
+            public_key: signing_key.verifying_key().to_bytes().to_vec(),
+            secret_key: signing_key.to_bytes().to_vec(),
         }
     }
 }
 
+bindings::export!(Sentinel with_types_in bindings);
