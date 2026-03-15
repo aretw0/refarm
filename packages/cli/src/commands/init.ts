@@ -1,7 +1,9 @@
 import { SowerCore } from "@refarm.dev/sower";
+import { SiloCore } from "@refarm.dev/silo";
 import chalk from "chalk";
 import { Command } from "commander";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, existsSync } from "node:fs";
+
 
 export const initCommand = new Command("init")
   .description("Scaffold a new Sovereign Farm")
@@ -14,25 +16,35 @@ export const initCommand = new Command("init")
 
     if (result) {
       // 1. Create Directories
-      mkdirSync(".refarm", { recursive: true });
+      if (!existsSync(".refarm")) {
+        mkdirSync(".refarm", { recursive: true });
+      }
       
-      // 2. Write Identity Metadata (Security Transparency - Public)
-      if (result.identity) {
-        writeFileSync(".refarm/identity.json", JSON.stringify(result.identity, null, 2));
-        console.log(chalk.gray(`  - .refarm/identity.json (Public Identity Created)`));
-      }
+      // 2. Bootstrap Real Identity via Silo (SOVEREIGN IMPROVEMENT)
+      console.log(chalk.blue("🔑 Silo: Generating your Sovereign Master Key..."));
+      const silo = new SiloCore();
+      const identity = await silo.bootstrapIdentity() as any;
 
-      // 3. Write Secret Key (Private - SOBER PROTECTION)
-      if (result.secrets?.masterPrivateKey) {
-        writeFileSync(".refarm/identity.key", result.secrets.masterPrivateKey);
-        console.log(chalk.yellow(`  - .refarm/identity.key (PRIVATE - DO NOT COMMIT)`));
-      }
+
+      // 3. Write Identity Metadata (Security Transparency - Public)
+      const identityMetadata = {
+        publicKey: identity.publicKey,
+        bootstrappedAt: identity.timestamp,
+        name
+      };
+      writeFileSync(".refarm/identity.json", JSON.stringify(identityMetadata, null, 2));
+      console.log(chalk.gray(`  - .refarm/identity.json (Public Identity Created)`));
 
       // 4. Write Config
-      writeFileSync("refarm.config.json", JSON.stringify(result.config, null, 2));
+      const config = {
+        ...result.config,
+        brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }
+      };
+      writeFileSync("refarm.config.json", JSON.stringify(config, null, 2));
       console.log(chalk.gray(`  - refarm.config.json`));
     }
 
     console.log(chalk.blue("\n✨ Project structure seeded."));
-    console.log(`\nNext step: run ${chalk.cyan("refarm guide")} to audit your nutrients.`);
+    console.log(`\nNext step: run ${chalk.cyan("refarm sow")} to provide your nutrients.`);
   });
+

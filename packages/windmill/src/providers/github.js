@@ -1,6 +1,6 @@
 import { execSync } from "node:child_process";
 import git from "isomorphic-git";
-import http from "isomorphic-git/http/node/index.js";
+import http from "isomorphic-git/http/node";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -66,29 +66,45 @@ export class GitHubProvider {
      * List repositories in the organization
      */
     async listRepos() {
+        if (!this.token) {
+            console.warn(`[GitHub] No GITHUB_TOKEN available, cannot list repos for ${this.org}`);
+            return [];
+        }
+
+        console.log(`[GitHub] Fetching repositories for ${this.org} (Pure JS)...`);
+        
         try {
-            // Check if gh is authenticated first to avoid hangs
-            execSync("gh auth status", { stdio: "ignore" });
-            const output = execSync(`gh repo list ${this.org} --json name --jq '.[].name'`, { 
-                encoding: "utf-8", 
-                timeout: 5000 
+            const res = await fetch(`https://api.github.com/orgs/${this.org}/repos`, {
+                headers: {
+                    "Authorization": `token ${this.token}`,
+                    "Accept": "application/vnd.github.v3+json"
+                }
             });
-            return output.trim().split("\n").filter(Boolean);
+
+            if (!res.ok) {
+                // Fallback to user repos if org fetch fails (might be a user, not an org)
+                const userRes = await fetch(`https://api.github.com/users/${this.org}/repos`, {
+                    headers: {
+                        "Authorization": `token ${this.token}`,
+                        "Accept": "application/vnd.github.v3+json"
+                    }
+                });
+                
+                if (!userRes.ok) {
+                    const error = await userRes.json();
+                    throw new Error(error.message || "GitHub API Error");
+                }
+                
+                const data = await userRes.json();
+                return Array.isArray(data) ? data.map(r => r.name) : [];
+            }
+
+            const data = await res.json();
+            return Array.isArray(data) ? data.map(r => r.name) : [];
         } catch (e) {
-            console.warn(`[GitHub] gh CLI unavailable or unauthenticated, attempting dynamic fetch...`);
-            return await this.listReposViaFetch();
+            console.error(`[GitHub] Failed to list repos: ${e.message}`);
+            return [];
         }
     }
-
-    async listReposViaFetch() {
-        if (!this.token) return [];
-        const res = await fetch(`https://api.github.com/orgs/${this.org}/repos`, {
-            headers: {
-                "Authorization": `token ${this.token}`,
-                "Accept": "application/vnd.github.v3+json"
-            }
-        });
-        const data = await res.json();
-        return Array.isArray(data) ? data.map(r => r.name) : [];
-    }
 }
+
