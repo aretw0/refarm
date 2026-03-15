@@ -1,19 +1,4 @@
 {
-  "brand": {
-    "name": "Refarm",
-    "slug": "refarm",
-    "owner": "aretw0",
-    "scopes": {
-      "dev": "@{{brand.slug}}.dev",
-      "me": "@{{brand.slug}}.me",
-      "social": "@{{brand.slug}}.social"
-    },
-    "urls": {
-      "site": "https://{{brand.owner}}.{{infrastructure.gitHost}}.io/{{brand.slug}}",
-      "repository": "https://{{infrastructure.gitHost}}.com/{{brand.owner}}/{{brand.slug}}"
-    }
-  },
-  "infrastructure": {
-    "gitHost": "github"
-  }
+  "mode": "persistent",
+  "storage": "opfs"
 }
