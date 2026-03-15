@@ -3,19 +3,19 @@
   "version": "0.1.0",
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
-  "main": "./index.mjs",
-  "types": "./index.d.ts",
+  "main": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
   "exports": {
     ".": {
-      "import": "./index.mjs",
-      "types": "./index.d.ts"
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.mts"
     },
-    "./astro": "./astro.mjs"
+    "./astro": "./dist/astro.mjs"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",
     "test": "echo \"No tests yet\"",
-    "build": "echo \"Nothing to build\""
+    "build": "tsc --project tsconfig.build.json"
   },
   "repository": {
     "type": "git",
