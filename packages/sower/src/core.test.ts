@@ -1,0 +1,72 @@
+import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { SowerCore } from "./core.js";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
+
+describe("SowerCore Scaffolding (Isolated)", () => {
+    let tempDir: string;
+
+    beforeEach(() => {
+        // Create a unique temporary directory for each test
+        tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sower-test-"));
+    });
+
+    afterEach(() => {
+        // Cleanup the temporary directory
+        if (fs.existsSync(tempDir)) {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+    });
+
+    it("should hydrate the 'courier' template correctly", async () => {
+        const sower = new SowerCore();
+        const projectName = "test-courier-farm";
+        const targetDir = path.join(tempDir, projectName);
+
+        const result = await sower.scaffold("courier", { 
+            name: projectName, 
+            targetDir 
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.tier).toBe("citizen");
+        expect(result?.config.type).toBe("app");
+
+        // Verify files were copied (template has README.md in typescript subpath)
+        expect(fs.existsSync(path.join(targetDir, "README.md"))).toBe(true);
+    });
+
+    it("should hydrate the 'rust-plugin' template correctly", async () => {
+        const sower = new SowerCore();
+        const projectName = "test-rust-plugin";
+        const targetDir = path.join(tempDir, projectName);
+
+        const result = await sower.scaffold("rust-plugin", { 
+            name: projectName, 
+            targetDir 
+        });
+
+        expect(result).toBeDefined();
+        expect(result?.tier).toBe("citizen");
+        expect(result?.config.type).toBe("plugin");
+        expect(result?.config.engine).toBe("heartwood");
+
+        // Verify files were copied (rust-plugin has Cargo.toml)
+        expect(fs.existsSync(path.join(targetDir, "Cargo.toml"))).toBe(true);
+    });
+
+    it("should generate correct brand configuration", async () => {
+        const sower = new SowerCore();
+        const projectName = "My Awesome Farm";
+        const targetDir = path.join(tempDir, "my-awesome-farm");
+
+        const result = await sower.scaffold("courier", { 
+            name: projectName, 
+            targetDir 
+        });
+
+        expect(result?.config.brand.name).toBe(projectName);
+        expect(result?.config.brand.slug).toBe("my-awesome-farm");
+    });
+});
