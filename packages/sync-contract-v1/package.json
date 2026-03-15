@@ -20,7 +20,13 @@
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["plugin", "capability", "sync", "contract", "conformance"],
+  "keywords": [
+    "plugin",
+    "capability",
+    "sync",
+    "contract",
+    "conformance"
+  ],
   "author": "Refarm Contributors",
   "license": "MIT",
   "repository": {

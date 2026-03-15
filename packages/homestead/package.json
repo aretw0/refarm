@@ -5,14 +5,14 @@
   "type": "module",
   "exports": {
     "./sdk": {
-      "types": "./src/sdk/index.ts",
-      "import": "./src/sdk/index.ts"
+      "types": "./dist/sdk/index.js",
+      "import": "./dist/sdk/index.js"
     },
     "./ui": {
-      "types": "./src/ui/index.ts",
-      "import": "./src/ui/index.ts"
+      "types": "./dist/ui/index.js",
+      "import": "./dist/ui/index.js"
     },
-    "./styles/*": "./src/styles/*"
+    "./styles/*": "./dist/styles/*"
   },
   "scripts": {
     "build": "tsc",
