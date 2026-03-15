@@ -1,6 +1,7 @@
 {
   "extends": "@refarm.dev/tsconfig/dom.json",
   "compilerOptions": {
+    "noEmit": true,
     "outDir": "./dist",
     "baseUrl": ".",
     "paths": {

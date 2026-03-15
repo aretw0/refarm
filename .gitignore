@@ -64,6 +64,7 @@ Cargo.lock          # Only for libraries (apps should keep their own)
 *.pem
 *.key
 *.p12
+.refarm/*.key
 
 # ─── Test Coverage & Reports ─────────────────────────────────────────────────
 coverage/
@@ -77,13 +78,18 @@ playwright/.cache/
 *.tsbuildinfo
 *.js.map
 *.d.ts.map
+*.d.mts.map
+*.d.cts.map
 
 # Ignore in-place JS/DTS emissions (source is always .ts)
-# Exceptions are handled by explicitly ignoring 'dist' and 'build' folders above
-packages/**/*.js
-packages/**/*.d.ts
-!packages/**/dist/**/*.js
-!packages/**/dist/**/*.d.ts
+# Test byproducts and Local Identity
+.refarm/
+
+# Standard: All compiled outputs go to dist/
+# Use a more targeted approach for packages
+packages/**/dist/
+packages/**/build/
+packages/**/.turbo/
 
 # ─── Editor & IDE ─────────────────────────────────────────────────────────────
 .claude/agents/

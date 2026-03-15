@@ -25,14 +25,30 @@ async function runTests() {
     delete process.env.REFARM_GIT_HOST;
     console.log("  ✅ Test 2 Passed");
 
-    // Test 3: Strategic Bootstrap (Ephemeral)
-    console.log("  [Test 3] Strategic Bootstrap (Ephemeral)...");
-    process.env.REFARM_EPHEMERAL_SOURCE = "https://mock.graph/v1";
-    const asyncConfig = await loadConfigAsync(root);
-    // RemoteSource.load currently just logs, but it defines the precedence
-    assert.ok(asyncConfig.brand, "Async config should load");
+    // Test 4: Async Loading & Remote Merging
+    console.log("  [Test 4] Async Loading & Remote Merging...");
+    // Mock fetch for remote source
+    const originalFetch = global.fetch;
+    global.fetch = async (url) => {
+        if (url === "https://sovereign.graph/refarm") {
+            return {
+                ok: true,
+                json: async () => ({ brand: { motto: "Sovereignty by Design" } })
+            };
+        }
+        return { ok: false };
+    };
+
+    process.env.REFARM_EPHEMERAL_SOURCE = "https://sovereign.graph/refarm";
+    const remoteConfig = await loadConfigAsync(root);
+    assert.strictEqual(remoteConfig.brand.motto, "Sovereignty by Design", "Remote config merge failed");
+    
+    // Check precedence (env should still win if in static, but in ephemeral/persistent remote has its place)
+    // bootstrapIntent for ephemeral says precedence: ["json", "env", "remote"]
+    
     delete process.env.REFARM_EPHEMERAL_SOURCE;
-    console.log("  ✅ Test 3 Passed");
+    global.fetch = originalFetch;
+    console.log("  ✅ Test 4 Passed");
 
     console.log("\n🎉 All @refarm.dev/config tests passed!");
 }

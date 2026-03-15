@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Refarm Developer CLI Toolbox for SDD/BDD/DDD workflows.",
   "type": "module",
-  "main": "src/cli.mjs",
+  "main": "dist/cli.mjs",
   "bin": {
     "refarm-task": "./src/cli.mjs"
   },

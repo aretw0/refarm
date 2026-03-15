@@ -30,7 +30,13 @@
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["sqlite", "opfs", "offline-first", "local-first", "wasm"],
+  "keywords": [
+    "sqlite",
+    "opfs",
+    "offline-first",
+    "local-first",
+    "wasm"
+  ],
   "dependencies": {
     "@refarm.dev/storage-contract-v1": "*"
   },

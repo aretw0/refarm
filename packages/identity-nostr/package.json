@@ -28,7 +28,14 @@
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["nostr", "nip-89", "nip-94", "identity", "decentralized", "sovereign"],
+  "keywords": [
+    "nostr",
+    "nip-89",
+    "nip-94",
+    "identity",
+    "decentralized",
+    "sovereign"
+  ],
   "license": "MIT",
   "devDependencies": {
     "typescript": "^5.7.3"

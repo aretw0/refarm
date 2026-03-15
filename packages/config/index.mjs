@@ -119,12 +119,29 @@ const EnvSource = {
 const RemoteSource = {
     name: "remote",
     /**
-     * @TODO Implement full Sovereign Graph / External API resolution.
-     * This is currently a placeholder for Phase 2 implementation.
+     * Implement full Sovereign Graph / External API resolution.
      */
     async load(root, endpoint) {
-        console.log(`[refarm/config] Fetching remote config from ${endpoint}...`);
-        return {};
+        if (!endpoint) return {};
+        
+        try {
+            const res = await fetch(endpoint, {
+                headers: {
+                    "Accept": "application/json",
+                    "X-Refarm-Client": "config-loader"
+                }
+            });
+            
+            if (!res.ok) {
+                console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);
+                return {};
+            }
+            
+            return await res.json();
+        } catch (e) {
+            console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
+            return {};
+        }
     }
 };
 
