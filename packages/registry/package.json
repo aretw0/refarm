@@ -1,0 +1,25 @@
+{
+  "name": "@refarm.dev/registry",
+  "version": "0.1.0",
+  "description": "Sovereign Registry: Plugin Discovery & Management",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "test": "npx vitest run src/index.test.ts --root . --environment node"
+  },
+  "dependencies": {
+    "@refarm.dev/plugin-manifest": "0.1.0",
+    "@refarm.dev/heartwood": "0.1.0"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
