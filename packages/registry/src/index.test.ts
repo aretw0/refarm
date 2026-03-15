@@ -38,6 +38,50 @@ describe("SovereignRegistry", () => {
         await expect(registry.register(manifest)).rejects.toThrow("Plugin must have a unique identifier");
     });
 
+    it("should resolve a plugin from a remote URL", async () => {
+        const mockManifest = {
+            id: "remote-plugin",
+            version: "2.0.0",
+            name: "Remote Plugin"
+        };
+
+        // Mock fetch
+        global.fetch = vi.fn().mockResolvedValue({
+            ok: true,
+            json: async () => mockManifest
+        });
+
+        const entry = await registry.resolveRemote("remote-plugin", "https://api.refarm.dev/plugins/remote-plugin");
+        
+        expect(entry.manifest.id).toBe("remote-plugin");
+        expect(entry.sourceUrl).toBe("https://api.refarm.dev/plugins/remote-plugin");
+        expect(registry.getPlugin("remote-plugin")).toBeDefined();
+    });
+
+    it("should manage plugin lifecycle (activate/deactivate)", async () => {
+        const keyManager = new KeyManager();
+        const keypair = await keyManager.generateMasterKey();
+        const manifest = { id: "lifecycle-plugin", version: "1" } as any;
+        
+        await registry.register(manifest);
+        
+        // Validation required before activation
+        await expect(registry.activatePlugin("lifecycle-plugin")).rejects.toThrow("must be validated before activation");
+
+        const signature = await keyManager.sign(JSON.stringify(manifest), keypair.privateKey);
+        await registry.validatePlugin("lifecycle-plugin", signature, keypair.publicKey);
+        
+        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
+
+        // Activate
+        await registry.activatePlugin("lifecycle-plugin");
+        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("active");
+
+        // Deactivate
+        await registry.deactivatePlugin("lifecycle-plugin");
+        expect(registry.getPlugin("lifecycle-plugin")?.status).toBe("validated");
+    });
+
     it("should validate a plugin signature using Heartwood", async () => {
         const keyManager = new KeyManager();
         const keypair = await keyManager.generateMasterKey();

@@ -5,6 +5,7 @@ export interface RegistryEntry {
     manifest: PluginManifest;
     status: "registered" | "validated" | "active" | "error";
     timestamp: string;
+    sourceUrl?: string; // Origin URL for remote plugins
     error?: string;
 }
 
@@ -24,7 +25,7 @@ export class SovereignRegistry {
     /**
      * Registers a new plugin by its manifest.
      */
-    async register(manifest: PluginManifest): Promise<string> {
+    async register(manifest: PluginManifest, sourceUrl?: string): Promise<string> {
         if (!manifest.id) {
             throw new Error("Plugin must have a unique identifier (id)");
         }
@@ -32,10 +33,37 @@ export class SovereignRegistry {
         this.plugins.set(manifest.id, {
             manifest,
             status: "registered",
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            sourceUrl
         });
         
         return manifest.id;
+    }
+
+    /**
+     * Resolves a plugin from a remote source.
+     * In Phase 6, this supports HTTP/JSON resolution.
+     */
+    async resolveRemote(id: string, sourceUrl: string): Promise<RegistryEntry> {
+        try {
+            const response = await fetch(sourceUrl);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch manifest from ${sourceUrl}: ${response.statusText}`);
+            }
+            
+            const manifest = await response.json() as PluginManifest;
+            if (manifest.id !== id) {
+                throw new Error(`Manifest ID mismatch: expected ${id}, got ${manifest.id}`);
+            }
+
+            await this.register(manifest, sourceUrl);
+            const entry = this.getPlugin(id);
+            if (!entry) throw new Error("Failed to retrieve registered plugin");
+            
+            return entry;
+        } catch (e: any) {
+            throw new Error(`Remote resolution failed for ${id}: ${e.message}`);
+        }
     }
 
     /**
@@ -78,6 +106,47 @@ export class SovereignRegistry {
             plugin.status = "error";
             plugin.error = e.message;
             throw e;
+        }
+    }
+
+    /**
+     * Activates a validated plugin.
+     */
+    async activatePlugin(id: string): Promise<void> {
+        const plugin = this.getPlugin(id);
+        if (!plugin) throw new Error(`Plugin ${id} not found`);
+        if (plugin.status !== "validated") {
+            throw new Error(`Plugin ${id} must be validated before activation (current status: ${plugin.status})`);
+        }
+        
+        plugin.status = "active";
+        plugin.timestamp = new Date().toISOString();
+    }
+
+    /**
+     * Deactivates an active plugin.
+     */
+    async deactivatePlugin(id: string): Promise<void> {
+        const plugin = this.getPlugin(id);
+        if (!plugin) throw new Error(`Plugin ${id} not found`);
+        
+        plugin.status = "validated"; // Return to validated state
+        plugin.timestamp = new Date().toISOString();
+    }
+
+    /**
+     * Exports the current registry state as a JSON-serializable array.
+     */
+    exportState(): RegistryEntry[] {
+        return Array.from(this.plugins.values());
+    }
+
+    /**
+     * Imports a registry state from a stored array.
+     */
+    importState(entries: RegistryEntry[]): void {
+        for (const entry of entries) {
+            this.plugins.set(entry.manifest.id, entry);
         }
     }
 }
