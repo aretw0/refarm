@@ -8,13 +8,18 @@
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { SovereignRegistry } from "@refarm.dev/registry";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PluginHost, SILENT_LOGGER, Tractor, normaliseToSovereignGraph } from "../src/index";
 import {
-    MockIdentityAdapter,
-    MockStorageAdapter,
-    createMockConfig
+  MockIdentityAdapter,
+  MockStorageAdapter,
+  createMockConfig
 } from "./helpers/mock-adapters";
+
+vi.mock("@refarm.dev/heartwood", () => ({
+  verify: vi.fn().mockReturnValue(true),
+}));
 
 // ─── Shared Mock Manifest Factory ─────────────────────────────────────────────
 
@@ -35,6 +40,18 @@ function createMockManifest(id: string): PluginManifest {
 // ─── Boot Stress ──────────────────────────────────────────────────────────────
 
 describe("Boot Stress", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+      ok: true,
+      statusText: "OK",
+      arrayBuffer: async () => new Uint8Array(1024).buffer,
+    }));
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
   it("boots successfully with all three adapters", async () => {
     const config = createMockConfig();
     const tractor = await Tractor.boot(config);
@@ -51,7 +68,13 @@ describe("Boot Stress", () => {
 
     for (let i = 0; i < 50; i++) {
       const config = createMockConfig();
-      tractors.push(await Tractor.boot(config));
+      const tractor = await Tractor.boot(config); // Boot the tractor first
+      const manifest = createMockManifest(`plugin-${i}`);
+      await tractor.registry.register(manifest);
+      const entry = tractor.registry.getPlugin(manifest.id);
+      if (entry) entry.status = "validated";
+      await tractor.plugins.load(manifest); // Load plugin using the booted tractor
+      tractors.push(tractor); // Push the booted tractor
     }
 
     expect(tractors).toHaveLength(50);
@@ -117,7 +140,8 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins sequentially", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     for (let i = 0; i < 100; i++) {
       await host.load(createMockManifest(`plugin-${i}`), `hash-${i}`);
@@ -132,7 +156,8 @@ describe("Plugin Flood", () => {
 
   it("loads 100 plugins concurrently", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const loads = Array.from({ length: 100 }, (_, i) =>
       host.load(createMockManifest(`plugin-${i}`), `hash-${i}`)
@@ -146,7 +171,8 @@ describe("Plugin Flood", () => {
 
   it("loads 500 plugins concurrently within 2 seconds", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const start = performance.now();
 
@@ -170,7 +196,8 @@ describe("Plugin Flood", () => {
       })
     );
 
-    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     await expect(
       host.load(createMockManifest("broken-plugin"), "hash")
@@ -179,7 +206,8 @@ describe("Plugin Flood", () => {
 
   it("plugin IDs are unique — no collisions under flood", async () => {
     stubFetch();
-    const host = new PluginHost(vi.fn(), SILENT_LOGGER);
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const ids = Array.from({ length: 200 }, (_, i) => `plugin-${i}`);
     await Promise.all(
