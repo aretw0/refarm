@@ -1,0 +1,22 @@
+{
+  "name": "@refarm.dev/windmill",
+  "version": "0.1.0",
+  "description": "The Windmill — Infrastructure Reconciliation Engine for Refarm.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^3.0.0",
+    "@refarm.dev/config": "*",
+    "http-node": "^1.2.0",
+    "isomorphic-git": "^1.37.4"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
