@@ -1,41 +1,40 @@
 import { SovereignNode, Tractor } from "@refarm.dev/tractor";
+import { SowerCore } from "./core.js";
 
 /**
  * The Sower (O Semeador) — Initial Seed & Onboarding Plugin.
  */
 export class SowerPlugin {
-  constructor(private tractor: Tractor) {}
+  private core: SowerCore;
+
+  constructor(private tractor: Tractor) {
+    this.core = new SowerCore();
+  }
 
   async getOnboardingNode(): Promise<SovereignNode> {
+    const flow = this.core.getOnboardingFlow();
+    
     return {
       "@context": "https://schema.org/",
       "@type": "EntryPoint",
       "@id": "urn:refarm:sower:onboarding",
-      "name": "Cultivate your Soil",
-      "description": "Choose your level of engagement with the sovereign web.",
+      "name": flow.name,
+      "description": flow.description,
       "refarm:renderType": "onboarding",
-      "refarm:options": [
-        {
-          "id": "guest",
-          "label": "Guest Mode",
-          "description": "Temporary participation. No chaves, no persistent storage.",
-          "intent": "switch-to-guest"
-        },
-        {
-          "id": "citizen",
-          "label": "Sovereign Citizen",
-          "description": "Full ownership. Nostr identity and persistent OPFS storage.",
-          "intent": "switch-to-citizen"
-        }
-      ]
+      "refarm:options": flow.options.map(opt => ({
+        ...opt,
+        "label": opt.label,
+        "description": opt.description,
+        "intent": opt.intent
+      }))
     };
   }
 
   async handleIntent(intent: string) {
-    if (intent === "switch-to-guest") {
-      await this.tractor.switchTier("guest");
-    } else if (intent === "switch-to-citizen") {
-      await this.tractor.switchTier("citizen");
+    const result = await this.core.scaffold(intent);
+    
+    if (result && result.tier) {
+      await this.tractor.switchTier(result.tier as any);
     }
   }
 
@@ -43,8 +42,6 @@ export class SowerPlugin {
     console.info(`[sower] Received system event: ${event}`, payload);
     const data = JSON.parse(payload);
     
-    // Composable Logic (n8n-style):
-    // When switching to guest, we "seed" the next flow.
     if (event === "system:switch-tier" && data.tier === "guest") {
       console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
       
@@ -62,3 +59,5 @@ export class SowerPlugin {
     }
   }
 }
+
+export { SowerCore };
