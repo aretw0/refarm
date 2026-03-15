@@ -34,7 +34,12 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         expect(result?.config.type).toBe("app");
 
         // Verify files were copied (template has README.md in typescript subpath)
-        expect(fs.existsSync(path.join(targetDir, "README.md"))).toBe(true);
+        const readmePath = path.join(targetDir, "README.md");
+        expect(fs.existsSync(readmePath)).toBe(true);
+
+        // Verify token substitution
+        const readmeContent = fs.readFileSync(readmePath, "utf-8");
+        expect(readmeContent).toContain(projectName);
     });
 
     it("should hydrate the 'rust-plugin' template correctly", async () => {
