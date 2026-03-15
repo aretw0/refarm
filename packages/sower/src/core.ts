@@ -150,5 +150,28 @@ export class SowerCore {
 
     return results;
   }
+
+  /**
+   * Hydrates a configuration from a remote Sovereign Graph node.
+   */
+  async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<any> {
+      console.log(`[sower-core] Hydrating from remote graph node: ${nodeId} via ${gatewayUrl}`);
+      try {
+          const response = await fetch(`${gatewayUrl}/nodes/${encodeURIComponent(nodeId)}`);
+          if (!response.ok) {
+              throw new Error(`Failed to fetch graph node: ${response.statusText}`);
+          }
+          
+          const node = await response.json();
+          // Extract refarm-specific configuration from the JSON-LD node
+          return {
+              tier: node["refarm:tier"] || "guest",
+              config: node["refarm:config"] || {},
+              plugins: node["refarm:recommendedPlugins"] || []
+          };
+      } catch (e: any) {
+          throw new Error(`Remote hydration failed: ${e.message}`);
+      }
+  }
 }
 
