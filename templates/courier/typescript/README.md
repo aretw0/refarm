@@ -1,4 +1,4 @@
-# Refarm Courier - TypeScript Template
+# {{REFARM_NAME}} - Refarm Courier Template
 
 This is a template for building an Courier (HTTP Gateway) plugin for Refarm using TypeScript and `jco`.
 
