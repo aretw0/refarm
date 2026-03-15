@@ -1,6 +1,7 @@
 import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { KeyManager } from "./key-manager.js";
 
 
 /**
