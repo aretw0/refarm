@@ -3,8 +3,13 @@
   "version": "0.1.0",
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
+  "main": "./index.mjs",
+  "types": "./index.d.ts",
   "exports": {
-    ".": "./index.mjs",
+    ".": {
+      "import": "./index.mjs",
+      "types": "./index.d.ts"
+    },
     "./astro": "./astro.mjs"
   },
   "scripts": {
