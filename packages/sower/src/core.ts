@@ -1,0 +1,71 @@
+/**
+ * SowerCore: The seeding engine of Refarm.
+ * Handles templates, interactive flows, and initial project structure.
+ * Designed to be runtime-neutral (CLI, Browser, or Server).
+ */
+export class SowerCore {
+  /**
+   * Returns the onboarding steps/intentions as a data-driven structure.
+   */
+  getOnboardingFlow() {
+    return {
+      name: "Cultivate your Soil",
+      description: "Choose your level of engagement with the sovereign web.",
+      options: [
+        {
+          id: "guest",
+          label: "Guest Mode",
+          description: "Temporary participation. No keys, no persistent storage.",
+          intent: "switch-to-guest"
+        },
+        {
+          id: "citizen",
+          label: "Sovereign Citizen",
+          description: "Full ownership. Sovereign identity (Keys) and persistent storage.",
+          intent: "switch-to-citizen"
+        }
+      ]
+    };
+  }
+
+  /**
+   * Scaffolds a new Refarm configuration or project structure.
+   */
+  async scaffold(intent: string, options: any = {}) {
+    console.log(`[sower-core] Scaffolding intent: ${intent}`, options);
+    
+    if (intent === "switch-to-guest") {
+      return {
+        tier: "guest",
+        config: {
+          mode: "ephemeral",
+          storage: "memory"
+        }
+      };
+    }
+
+    if (intent === "switch-to-citizen") {
+      // Identity Generation (Sovereignty)
+      const seed = crypto.getRandomValues(new Uint8Array(32));
+      const privateKey = Buffer.from(seed).toString("hex");
+      const publicKey = "pending_calculation"; // Real calc in Silo/KeyManager
+      
+      return {
+        tier: "citizen",
+        config: {
+          mode: "persistent",
+          storage: "opfs"
+        },
+        identity: {
+          publicKey,
+          hostingPath: ".refarm/identity.json"
+        },
+        secrets: {
+          masterPrivateKey: privateKey
+        }
+      };
+    }
+
+    return null;
+  }
+}
