@@ -20,16 +20,13 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6.3.0
-        with:
-          node-version: 22
-          cache: 'npm'
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Build WASM
         # Using turbo for compositional build (if the plugin is part of a monorepo)
