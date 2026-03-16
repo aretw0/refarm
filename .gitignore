@@ -127,5 +127,6 @@ deps-report.md
 # Ignore generated test output files
 **/*_tags.txt
 
-# Ignore implementation plans
+# Ignore export plans
 implementation_plan*.md
+prompt*.md
