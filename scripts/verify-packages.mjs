@@ -1,8 +1,9 @@
-import { SiloCore } from "@refarm.dev/silo";
-import { WindmillEngine } from "@refarm.dev/windmill";
-import { FenceCore } from "@refarm.dev/fence";
-import { ThresherCore } from "@refarm.dev/thresher";
 import { loadConfig } from "@refarm.dev/config";
+import { FenceCore } from "@refarm.dev/fence";
+import { SiloCore } from "@refarm.dev/silo";
+import { ThresherCore } from "@refarm.dev/thresher";
+import { WindmillEngine } from "@refarm.dev/windmill";
+import { HealthCore } from "@refarm.dev/health";
 
 async function verify() {
   console.log("🚀 Deterministic Verification Starting...");
@@ -45,6 +46,14 @@ async function verify() {
     console.log("✅ Thresher: Package resolved.");
   } catch (e) {
     console.error("❌ Thresher: Failed.", e.message);
+  }
+
+  // 6. Health
+  try {
+    const health = new HealthCore();
+    console.log("✅ Health: Package resolved.");
+  } catch (e) {
+    console.error("❌ Health: Failed.", e.message);
   }
 
   console.log("🏁 Verification Finished.");

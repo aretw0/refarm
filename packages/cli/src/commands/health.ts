@@ -1,4 +1,4 @@
-import { SovereignHealth } from "@refarm.dev/health";
+import { HealthCore } from "@refarm.dev/health";
 import chalk from "chalk";
 import { Command } from "commander";
 
@@ -14,7 +14,7 @@ export const healthCommand = new Command("health")
   .action(async () => {
     console.log(chalk.blue("🔍 Running Sovereign Health Audit...\n"));
 
-    const health = new SovereignHealth();
+    const health = new HealthCore();
     const results = await health.audit() as { git: HealthIssue[], builds: HealthIssue[], alignment: HealthIssue[] };
     const resonance = await health.checkResolutionStatus() as { package: string, mode: string }[];
 
