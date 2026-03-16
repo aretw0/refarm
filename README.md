@@ -65,7 +65,7 @@ Categorized entry points for users, developers, and auditors.
 - **[ADRs](specs/ADRs/README.md)** — Architectural Decision Records.
 
 ### 🛠 Development & Ops
-- **[Development Workflow](docs/WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
+- **[Sovereign Workflow](docs/WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](docs/DEVOPS.md)** — Environment, CI, and Reusable Workflows.
 - **[Package Registry](packages/README.md)** — List of all 26+ packages and their publishing maturity.
 
