@@ -5,19 +5,23 @@
 
 ---
 
-## Active Development
+## 🗺 Knowledge Map (Architecture of Truth)
 
-- **[Main Roadmap](../roadmaps/MAIN.md)** - Semantic versioning & milestones (SDD→BDD→TDD→DDD)
-- **[Development Workflow](WORKFLOW.md)** - Process guide: SDD→BDD→TDD→DDD with quality gates
-- **[Architecture](ARCHITECTURE.md)** - System overview & design decisions
-- **[DevOps & Setup](DEVOPS.md)** - Dev container, CI/security operations, vulnerability status
-- **[Security Policy](../SECURITY.md)** - Responsible disclosure and security policy scope
-- **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** - Quality gates, hooks, and issue control
-- **[Branch Protection Setup](BRANCH_PROTECTION_SETUP.md)** - Required checks and review rules for protected branches
-- **[Decision Log](decision-log.md)** - Current high-impact decisions (owner, status, evidence)
-- **[Accessibility & i18n](A11Y_I18N_GUIDE.md)** - WCAG 2.2 + internationalization guide
-- **[Specs & ADRs](../specs/)** - Specifications & Architecture Decision Records
-- **[Mermaid Diagram Catalog](../specs/diagrams/INDEX.md)** - Dense architecture and systems showcase (source + SVG)
+### 🏛 Philosophy & Vision
+- **[Architecture](ARCHITECTURE.md)** - System design, Evolutionary Roadmap (Legacy Bootstrap absorbed).
+- **[User Story](USER_STORY.md)** - The "why" and user personas.
+- **[Inspirations](INSPIRATIONS.md)** - Technical and conceptual foundations.
+
+### 🛠 Development & Ops
+- **[Development Workflow](WORKFLOW.md)** - The SDD→BDD→TDD→DDD process.
+- **[DevOps & Setup](DEVOPS.md)** - Dev containers, CI, security, and hardware requirements.
+- **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** - Guardrails and publishing hygiene.
+- **[Decision Log](decision-log.md)** - Record of high-impact architectural choices.
+
+### 📦 Ecosystem & Plugins
+- **[Package Registry](../packages/README.md)** - *[NEW]* Catalog of all monorepo components.
+- **[Plugin Developer Playbook](PLUGIN_DEVELOPER_PLAYBOOK.md)** - Guide for building sovereign extensions.
+- **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** - Technical details of the plugin sandbox.
 
 ---
 
