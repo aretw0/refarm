@@ -11,6 +11,11 @@ export default mergeConfig(
     test: {
       environment: "node",
       include: ["test/**/*.test.ts"],
+      server: {
+        deps: {
+          inline: ["@bytecodealliance/jco", "@noble/ed25519"]
+        }
+      }
     },
   })
 );
