@@ -13,7 +13,7 @@
 - **[Inspirations](INSPIRATIONS.md)** - Technical and conceptual foundations.
 
 ### 🛠 Development & Ops
-- **[Development Workflow](WORKFLOW.md)** - The SDD→BDD→TDD→DDD process.
+- **[Sovereign Workflow](WORKFLOW.md)** - The SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** - Dev containers, CI, security, and hardware requirements.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** - Guardrails and publishing hygiene.
 - **[Decision Log](decision-log.md)** - Record of high-impact architectural choices.
