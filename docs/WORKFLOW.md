@@ -60,8 +60,12 @@ Force structured gates at every milestone:
 
 **Goal**: Document architectural decisions and component contracts BEFORE writing tests or code.
 
-**Artifacts**:
+**Sovereign Interoperability Gates**:
+- **WASM Components**: Define capabilities in WIT (Wasm Interface Type).
+- **Sovereign Graph**: Define JSON-LD structures for semantic data portability.
+- **Contract Interface**: Define the TypeScript interface and conforming capability (e.g., `storage:v1`).
 
+**Artifacts**:
 - **ADRs** (Architecture Decision Records) — Major technical choices
 - **Specs** — Component interfaces, data schemas, API contracts
 - **Diagrams** — Data flow, sequence diagrams, architecture overviews
@@ -92,7 +96,11 @@ specs/
 
 ### Phase 2: BDD (Behavior Driven Development)
 
-**Goal**: Write integration tests that describe **what the system should do** from a user's perspective.
+**Goal**: Define expected behavior via integration tests and conformance suites before implementation.
+
+**Core Mechanics**:
+- **Conformance Suites**: Use `run[Contract]Conformance()` helpers to validate interface compliance.
+- **Integration Specs**: Describe user scenarios (e.g., `vitest` unit tests acting as behavior specs).
 
 **Characteristic**: Tests MUST FAIL initially (red phase).
 
@@ -218,9 +226,14 @@ describe("CRUD operations", () => {
 
 ---
 
-### Phase 4: DDD (Domain Driven Implementation)
+### Phase 4: DDD (Domain Driven Design & Implementation)
 
-**Goal**: Write the minimal code necessary to make ALL tests pass (green phase).
+**Goal**: Write the minimal code necessary to make ALL tests pass while cultivating the "Solo Fértil".
+
+**Domain Layers**:
+- **Sovereign Nodes**: Map concepts (Identity, Note) to the JSON-LD graph.
+- **Tractor Policies**: Orchestrate plugin interaction with user data.
+- **Plugin Ingestion**: Normalize external data into sovereign formats.
 
 **Characteristic**: Tests transition from RED → GREEN.
 
@@ -567,6 +580,21 @@ specs/ADRs/
 - Regressions going unnoticed
 
 **Result**: Predictable, measurable progress toward high-quality software.
+
+---
+
+## 🏗 Source Sovereignty & Hygiene
+
+### 1. Tracking Policy: Source vs. Derivatives
+To avoid repository bloating and ensure reproducibility:
+- **Track Only Source**: `.ts`, `.wit`, `.ld.json`, `.md`.
+- **Ignore Derivatives**: `.js`, `.d.ts`, binary `.wasm` (managed by CI/build).
+- **Cleanup**: Run `npm run clean:derivatives` to purge ignored artifacts.
+
+### 2. Dual-Mode Resolution (`reso.mjs`)
+The project supports a dynamic resolution switcher to balance speed and rigor:
+- **Source Mode (`node scripts/reso.mjs src`)**: Instant DX with direct `src/` imports.
+- **Dist Mode (`node scripts/reso.mjs dist`)**: CI/Release verification against build artifacts.
 
 ---
 
