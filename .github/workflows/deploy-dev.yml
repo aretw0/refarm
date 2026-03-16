@@ -32,8 +32,14 @@ jobs:
       - name: Setup
         uses: ./.github/actions/setup
 
+      - name: Switch to Local Resolution (src)
+        run: node scripts/reso.mjs src
+
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
+
+      - name: Restore Distribution Resolution (dist)
+        run: node scripts/reso.mjs dist
 
       - name: Build Refarm.dev App
         # Compositional build via turbo, filtering for the app using the dynamic scope
