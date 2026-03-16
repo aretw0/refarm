@@ -5,8 +5,6 @@ import { Tractor } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 // @ts-ignore
 import * as heartwoodFixture from "./fixtures/heartwood-transpiled/heartwood.js";
-import { SILENT_LOGGER } from "../src/index";
-import { PluginManifest } from "@refarm.dev/registry";
 
 // Mock heartwood to avoid WASM initialization issues in this test
 vi.mock("@refarm.dev/heartwood", () => ({
@@ -50,6 +48,7 @@ describe("Real WASM Instantiation Integration", () => {
     const imports = (tractor.plugins as any).getWasiImports(manifest, "strict");
 
     // Instantiate with fixture logic
+    // @ts-expect-error - JCO generates dynamic exports that are not typed in this fixture
     const componentInstance = await heartwoodFixture.instantiate((name: string) => {
         const baseName = name.endsWith(".wasm") ? name.slice(0, -5) : name;
         const p = path.join(fixtureWasmDir, `${baseName}.wasm`);

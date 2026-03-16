@@ -5,7 +5,7 @@
 *Objetivo: Estabilizar as fundações de armazenamento e interface, provando a arquitetura básica antes de introduzir descentralização ou IA pesada.*
 
 * **1. A Interface Unificada (PWA & Web Components)**
-  * Evoluir o atual `apps/studio` (Astro) para um Progressive Web App (PWA).
+  * Evoluir o atual `apps/dev` (Astro) para um Progressive Web App (PWA).
   * O *Kernel* fornecerá uma UI Headless baseada em Web Components, para que os plugins renderizem dados sem pesar o navegador.
 * **2. O Solo (Sovereign Graph) e Segurança WASI**
   * Implementar o *Capability-Based Security* via `refarm-sdk.wit`, garantindo que plugins (WASM) tenham permissões granulares de acesso ao `storage-sqlite`.
