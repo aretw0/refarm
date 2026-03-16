@@ -16,11 +16,13 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "node": "./dist/index.js",
+      "browser": "./dist/index.browser.js",
       "import": "./dist/index.js",
-      "types": "./dist/index.d.js"
+      "types": "./dist/index.d.ts"
     },
     "./test/test-utils": {
-      "types": "./dist/test/test-utils.js",
+      "types": "./dist/test/test-utils.d.ts",
       "default": "./dist/test/test-utils.js"
     }
   },
