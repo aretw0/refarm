@@ -215,10 +215,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
       - run: npm ci
       - run: npm run type-check
       - run: npm run test
@@ -259,6 +257,6 @@ const note = await storage.get("note-123");
 
 ## Support
 
-- Contract packages: https://github.com/refarm-dev/refarm/tree/main/packages
-- Plugin developer guide: https://github.com/refarm-dev/refarm/blob/main/docs/PLUGIN_DEVELOPER_PLAYBOOK.md
-- ADR-018: Capability contracts: https://github.com/refarm-dev/refarm/blob/main/specs/ADRs/ADR-018-capability-contracts-and-observability-gates.md
+- Contract packages: <https://github.com/refarm-dev/refarm/tree/main/packages>
+- Plugin developer guide: <https://github.com/refarm-dev/refarm/blob/main/docs/PLUGIN_DEVELOPER_PLAYBOOK.md>
+- ADR-018: Capability contracts: <https://github.com/refarm-dev/refarm/blob/main/specs/ADRs/ADR-018-capability-contracts-and-observability-gates.md>
