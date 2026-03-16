@@ -15,19 +15,26 @@
  * "If Refarm disappears, every primitive keeps working on its own."
  */
 
+import * as jco from "@bytecodealliance/jco";
 import * as ed from "@noble/ed25519";
 import { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
+import { SovereignRegistry } from "@refarm.dev/registry";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
-import { SovereignRegistry } from "@refarm.dev/registry";
-import * as jco from "@bytecodealliance/jco";
+import * as fs from "node:fs/promises";
+import { pathToFileURL } from "node:url";
+import { createRequire } from "node:module";
+import * as os from "node:os";
+import * as path from "node:path";
 import { CommandHost } from "./lib/command-host";
 import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
 export * from "./lib/identity-recovery-host";
 export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
 export * from "./lib/telemetry";
+
+const require = createRequire(import.meta.url);
 
 // ─── Tractor Configuration ─────────────────────────────────────────────────────
 
@@ -291,19 +298,69 @@ export class PluginHost {
       return allowedOrigins.some((origin: string) => url.startsWith(origin));
     };
 
-    return {
-      "wasi:logging/logging": {
-        log: (level: string, context: string, message: string) => {
-          if (!isTrustedFast) {
-            this.logger.debug(`[plugin:${manifest.id}] [${level}] ${message}`);
-          }
-          this.emit({
-            event: "plugin:log",
-            pluginId: manifest.id,
-            payload: { level, message },
-          });
-        },
+    const wasiLogging = {
+      log: (level: string, context: string, message: string) => {
+        if (!isTrustedFast) {
+          this.logger.debug(`[plugin:${manifest.id}] [${level}] ${message}`);
+        }
+        this.emit({
+          event: "plugin:log",
+          pluginId: manifest.id,
+          payload: { level, message },
+        });
       },
+    };
+
+    const wasiEnvironment = {
+      getEnvironment: () => [], // TODO: inject from Sovereign Graph
+      getArguments: () => [],
+      initialDirectory: () => undefined,
+    };
+
+    const wasiStreams = {
+      read: async () => [new Uint8Array(), true],
+      write: async () => 0n,
+      blockingRead: async () => [new Uint8Array(), true],
+      blockingWrite: async () => 0n,
+      subscribe: () => 0n,
+      drop: () => {},
+      InputStream: class InputStream {},
+      OutputStream: class OutputStream {},
+    };
+
+    const wasiStubs = {
+      // Many JCO components expect these to exist even if empty
+      "wasi:cli/exit": { exit: () => {} },
+      "wasi:cli/stdin": { getStdin: () => 0 },
+      "wasi:cli/stdout": { getStdout: () => 1 },
+      "wasi:cli/stderr": { getStderr: () => 2 },
+      "wasi:clocks/wall-clock": {
+        now: () => ({ seconds: BigInt(Math.floor(Date.now() / 1000)), nanoseconds: 0 }),
+        resolution: () => ({ seconds: 1n, nanoseconds: 0 }),
+      },
+      "wasi:filesystem/types": {
+        filesystemErrorCode: () => {},
+        descriptor: class Descriptor {},
+        Descriptor: class Descriptor {},
+      },
+      "wasi:filesystem/preopens": { getDirectories: () => [] },
+      "wasi:random/random": {
+        getRandomBytes: (len: bigint) => new Uint8Array(Number(len)),
+        getRandomU64: () => 0n,
+      },
+      "wasi:io/error": { 
+        error: class Error {},
+        Error: class Error {},
+       },
+      "wasi:io/streams": wasiStreams,
+    };
+
+    const imports: any = {
+      "wasi:logging/logging": wasiLogging,
+      "wasi:logging/logging@0.1.0-draft": wasiLogging,
+      "wasi:cli/environment": wasiEnvironment,
+      "wasi:cli/environment@0.2.0": wasiEnvironment,
+      "wasi:cli/environment@0.2.3": wasiEnvironment,
       "wasi:http/outgoing-handler": {
         handle: async (request: any) => {
           if (!isAllowedRequest(request)) {
@@ -313,24 +370,24 @@ export class PluginHost {
             );
             throw new Error("HTTP request not permitted by capabilities");
           }
-
           return fetch(request);
         },
       },
       "refarm:plugin/tractor-bridge": {
-        "store-node": async (nodeJson: string) => {
-          // Capability check: can this plugin store this type?
-          // (Implementation deferred to Tractor.storeNode logic)
-          return "node-id-stub";
-        },
-        "request-permission": async (cap: string, reason: string) => {
-          console.debug(
-            `[tractor] Permission request by ${manifest.id}: ${cap} (${reason})`,
-          );
-          return true; // Stub: auto-accept in dev
-        },
+        "store-node": async (nodeJson: string) => "node-id-stub",
+        "request-permission": async (cap: string, reason: string) => true,
       },
     };
+
+    // Add versioned stubs
+    const versions = ["", "@0.2.0", "@0.2.3"];
+    for (const [key, val] of Object.entries(wasiStubs)) {
+      for (const v of versions) {
+        imports[`${key}${v}`] = val;
+      }
+    }
+
+    return imports;
   }
 
   /**
@@ -384,13 +441,19 @@ export class PluginHost {
 
     // Fetch and validate WASM module
     this.logger.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
-    const response = await fetch(wasmUrl);
-    if (!response.ok) {
-      throw new Error(
-        `[tractor] Failed to fetch plugin: ${response.statusText}`,
-      );
+    let wasmBuffer: ArrayBuffer;
+
+    if (wasmUrl.startsWith("file://")) {
+        const filePath = wasmUrl.replace("file://", "");
+        const buffer = await fs.readFile(filePath);
+        wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+    } else {
+        const response = await fetch(wasmUrl);
+        if (!response.ok) {
+            throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+        }
+        wasmBuffer = await response.arrayBuffer();
     }
-    const wasmBuffer = await response.arrayBuffer();
     this.logger.debug(
       `[tractor] WASM loaded: ${(wasmBuffer.byteLength / 1024).toFixed(2)} KB`,
     );
@@ -406,16 +469,67 @@ export class PluginHost {
     // Real Component Model instantiation path via JCO
     let componentInstance: any = null;
     try {
-        const { files } = await jco.transpile(new Uint8Array(wasmBuffer), {
+        const opts = {
             name: pluginId.replace(/[^a-z0-9]/gi, '_'),
-            instantiation: true,
-        });
-        this.logger.debug(`[tractor] JCO transpile successful for ${pluginId} (${Object.keys(files).length} files)`);
+            // Skip instantiation mode to use default
+        };
+        const { files } = await jco.transpile(new Uint8Array(wasmBuffer), opts as any);
         
-        // Note: Real instantiation requires execution of transpiled JS.
-        // In this environment, we simulate the binding.
+        // In Node.js environment, we write to a local cache dir and import
+        // We use a directory that is part of the package structure to allow relative imports
+        const distDir = path.resolve(__dirname, "../.jco-dist", pluginId);
+        await fs.mkdir(distDir, { recursive: true });
+        
+        const jcoName = pluginId.replace(/[^a-z0-9]/gi, '_');
+        let entryPoint = "";
+
+        // Write all files
+        for (const [filename, content] of Object.entries(files)) {
+            const filePath = path.join(distDir, filename);
+            await fs.mkdir(path.dirname(filePath), { recursive: true });
+            await fs.writeFile(filePath, content as any);
+            
+            if (filename === `${jcoName}.js`) {
+                entryPoint = filePath;
+            }
+        }
+
+        if (!entryPoint) {
+            const items = await fs.readdir(distDir);
+            const rootJs = items.find(f => f.endsWith(".js"));
+            if (rootJs) entryPoint = path.join(distDir, rootJs);
+        }
+
+        if (!entryPoint) {
+            throw new Error(`[tractor] No JS entry point found in JCO output for ${pluginId}`);
+        }
+
+        // Dynamic import of the transpiled JCO code using relative path
+        const relativePath = "./" + path.relative(__dirname, entryPoint).replace(/\\/g, "/");
+        const module = await import(relativePath);
+        
+        // Instantiate the component with imports
+        if (module.instantiate) {
+            componentInstance = await module.instantiate(imports, (name: string) => {
+                const wasmFile = Object.entries(files).find(([f]) => f.includes(name) && f.endsWith(".wasm"));
+                return wasmFile ? wasmFile[1] : null;
+            });
+        } else {
+            componentInstance = module;
+        }
+
+        if (componentInstance) {
+             const keys = Object.keys(componentInstance);
+             const integrationKeys = componentInstance.integration ? Object.keys(componentInstance.integration) : [];
+             this.logger.debug(`[tractor] JCO Instantiation successful for ${pluginId}. Keys: [${keys.join(", ")}], Integration: [${integrationKeys.join(", ")}]`);
+        }
+
+        // Cleanup temp files (optional, but good for hygiene)
+        // await fs.rm(tempDir, { recursive: true, force: true });
+        
     } catch (e: any) {
-        this.logger.warn(`[tractor] JCO transpile failed for ${pluginId}: ${e.message}`);
+        process.stderr.write(`[DEBUG] JCO transpile/instantiation failed: ${e.message}\n`);
+        this.logger.warn(`[tractor] JCO transpile/instantiation failed for ${pluginId}: ${e.message}`);
     }
 
     const instance: PluginInstance = {
@@ -426,8 +540,25 @@ export class PluginHost {
         const callStart = performance.now();
         this.logger.debug(`[plugin:${pluginId}] call: ${fn}`);
 
-        // Dispatch to componentInstance if available, otherwise mock
-        const result = componentInstance ? await componentInstance[fn](args) : null;
+        let result = null;
+        if (componentInstance) {
+            process.stderr.write(`[DEBUG] Calling ${fn} on componentInstance. keys=${Object.keys(componentInstance).join(",")}\n`);
+            // Handle WIT nested exports (e.g., 'integration.metadata')
+            // In Heartwood, methods are exports of the root world
+            if (componentInstance.integration && typeof componentInstance.integration[fn] === "function") {
+                result = await componentInstance.integration[fn](args);
+            } else if (typeof componentInstance[fn] === "function") {
+                result = await componentInstance[fn](args);
+            } else {
+                 this.logger.warn(`[plugin:${pluginId}] function ${fn} not found in component instance`);
+            }
+        }
+
+        if (result === null && componentInstance) {
+             const keys = Object.keys(componentInstance);
+             const integrationKeys = componentInstance.integration ? Object.keys(componentInstance.integration) : [];
+             this.logger.warn(`[tractor] Call to ${fn} returned null. Component Keys: [${keys.join(", ")}], Integration Keys: [${integrationKeys.join(", ")}]`);
+        }
 
         this.emit({
           event: "api:call",
