@@ -47,6 +47,11 @@ jobs:
             cargo install --locked cargo-component --version 0.21.1
           fi
 
+      - name: Rust cache
+        uses: Swatinem/rust-cache@23df33aa571f9a34c355730335c154ec56f54a97 # v2.7.7
+        with:
+          workspaces: validations/wasm-plugin/hello-world -> target
+
       - name: Build WASM plugin for tests
         run: |
           cd validations/wasm-plugin/hello-world
@@ -59,6 +64,10 @@ jobs:
       - name: Integration tests
         if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
         run: npm run test:integration
+
+      - name: Tractor Real WASM Instantiation
+        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+        run: npx vitest run packages/tractor/test/real-instantiation.integration.test.ts --run --reporter tap
 
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
