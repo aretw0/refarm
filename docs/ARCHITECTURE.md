@@ -14,7 +14,7 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 | **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. |
 | **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays. |
 | **Radical Ejection Right** | Every primitive can be taken out and used in another project. |
-| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. |
+| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. In the browser, WASM is loaded via OPFS-cached ES modules (install-time transpilation). In Node.js, JCO transpiles at plugin load time. |
 | **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). |
 | **Decentralised Discovery**| Pluggable architecture; designed for P2P protocols (e.g. Nostr) for future plugin marketplaces. |
 
@@ -110,6 +110,19 @@ export integration {                 implements tractor-bridge {
 ```
 
 All communication is **typed by WIT contracts**. The tractor host validates every call. Plugins cannot escape the sandbox. Use of WASI ensures that native libraries can run in Refarm with minimal shim logic.
+
+### Plugin Loading: Node.js vs Browser
+
+Plugin loading follows different strategies depending on the runtime environment:
+
+| Environment | Strategy | When | Stores |
+|---|---|---|---|
+| **Node.js** | JCO transpiles WASM → JS at `PluginHost.load()` | Plugin load time | `.jco-dist/` on disk |
+| **Browser** | WASM cached to OPFS at install time via `installPlugin()` | Plugin install | OPFS-cached ES modules |
+| **Browser (runtime)** | `dynamic import()` of OPFS-cached module | Plugin use | Instance in memory |
+| **CI (no Rust)** | Pre-compiled `pkg/` artifacts used directly | Build time | Git-tracked `pkg/` |
+
+The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundles Node.js-only imports (`node:fs`, `node:path`, `@bytecodealliance/jco`). See [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
 
 ### Plugin Distribution (Nostr)
 
