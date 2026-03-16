@@ -1,6 +1,5 @@
 <!-- HEADER / BANNER -->
 <div align="center">
-  <!-- Dica: Coloque a URL de um logo oficial aqui quando tiver -->
   <img src="https://img.icons8.com/fluency/96/000000/tree-structure.png" alt="Refarm Logo" width="90" />
   
   <h1>Refarm</h1>
@@ -27,9 +26,9 @@ Most digital life scatters across dozens of platforms. Your data lives inside co
 We're exploring this through:
 
 - **Offline-first storage** — data lives in your browser, not corporate servers
-- **Plugin architecture** — extend via client-side WASM, not cloud APIs
+- **Plugin architecture** — extend via client-side WASM, fully agnostic of registries
 - **Open formats** — everything is JSON-LD, portable to any platform
-- **Pragmatic decentralisation** — Nostr for identity, not email for verification
+- **Pragmatic decentralisation** — Agnostic identity & discovery; Nostr as a first-class option, but not a silo
 
 ---
 
@@ -45,14 +44,14 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 ## Status
 
-🚧 **In active research & development**
+🚧 **Core Alignment & Architectural Stabilization**
 
-- **Current phase**: Semana 0 - Pre-Sprint readiness completed (Architecture, QA Gates, CI/CD)
-- **Next milestone**: v0.1.0 Sprint 1 SDD (Spec Driven Development)
-- Architecture defined via [ADRs](specs/ADRs/)
-- Core flow: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
-- Readiness tracking: [Pre-Sprint Checklist](docs/pre-sprint-checklist.md)
-- Feedback welcome; production use not recommended yet
+Refarm is transitioning from an experimental research project to a stable, modular engine. We are currently formalizing the emergence of its core primitives into a cohesive, auditable system.
+
+- **Current phase**: Core Refactor Completed (Modular Tractor, Stratified Health, Harmonized Namespaces)
+- **Next milestone**: v0.1.0 "Sovereign Alignment" — First official public release of contract primitives
+- **Registry maturity**: Tracking ready-to-publish packages in [Package Registry](packages/README.md)
+- **Methodology**: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
 
 ---
 
