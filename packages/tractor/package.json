@@ -20,8 +20,8 @@
       "types": "./dist/index.d.js"
     },
     "./test/test-utils": {
-      "types": "./test/test-utils.ts",
-      "default": "./test/test-utils.ts"
+      "types": "./dist/test/test-utils.js",
+      "default": "./dist/test/test-utils.js"
     }
   },
   "scripts": {
