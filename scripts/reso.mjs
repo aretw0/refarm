@@ -32,8 +32,51 @@ if (mode === 'status') {
 
 console.log(chalk.blue(`🔄 Switching workspace resolution to: ${chalk.bold(mode)}`));
 
+const resolveToSrc = (pkgPath, distPath) => {
+  const base = distPath.replace(/^\.\//, '').replace(/^dist\//, '').replace(/\.(mjs|js|d\.mts|d\.ts)$/, '');
+  const extensions = ['.ts', '.mjs', '.js'];
+  const dirs = ['src/', ''];
+  
+  for (const dir of dirs) {
+    for (const ext of extensions) {
+      const cand = `${dir}${base}${ext}`;
+      if (fs.existsSync(path.join(pkgPath, cand))) {
+        return `./${cand}`;
+      }
+    }
+  }
+  return null;
+};
+
+const resolveToDist = (srcPath) => {
+  return srcPath
+    .replace(/^\.\//, '')
+    .replace(/^src\//, 'dist/')
+    .replace(/\.ts$/, '.js')
+    .replace(/\.mjs$/, '.mjs') // Keep .mjs if it was .mjs
+    // If it was in root, move to dist
+    .replace(/^([^d][^i][^s][^t])/, 'dist/$1'); 
+};
+
+// Refined resolveToDist that's safer
+const safeResolveToDist = (srcPath) => {
+  if (!srcPath) return srcPath;
+  let p = srcPath.replace(/^\.\//, '');
+  if (p.startsWith('src/')) {
+    p = p.replace('src/', 'dist/');
+  } else if (p.startsWith('pkg/')) {
+    // Keep as is, pkg is distribution-ready for WASM
+  } else if (!p.startsWith('dist/')) {
+    p = 'dist/' + p;
+  }
+  
+  if (p.endsWith('.d.ts') || p.endsWith('.d.mts')) return './' + p;
+  return './' + p.replace(/\.ts$/, '.js').replace(/\.mts$/, '.mjs');
+};
+
 for (const pkg of packages) {
-  const pkgJsonPath = path.join(packagesDir, pkg, 'package.json');
+  const pkgPath = path.join(packagesDir, pkg);
+  const pkgJsonPath = path.join(pkgPath, 'package.json');
   if (fs.existsSync(pkgJsonPath)) {
     let pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf8'));
     const original = JSON.stringify(pkgJson);
@@ -41,31 +84,28 @@ for (const pkg of packages) {
     // 1. Handle Main field
     if (mode === 'src') {
       if (pkgJson.main?.includes('dist/')) {
-        const tsMatch = pkgJson.main.replace('dist/', 'src/').replace('.js', '.ts');
-        const jsMatch = pkgJson.main.replace('dist/', 'src/').replace('.js', '.js');
-        if (fs.existsSync(path.join(packagesDir, pkg, tsMatch))) {
-          pkgJson.main = tsMatch;
-        } else if (fs.existsSync(path.join(packagesDir, pkg, jsMatch))) {
-          pkgJson.main = jsMatch;
-        }
+        const srcMatch = resolveToSrc(pkgPath, pkgJson.main);
+        if (srcMatch) pkgJson.main = srcMatch;
       }
     } else {
-      if (pkgJson.main?.includes('src/')) {
-        pkgJson.main = pkgJson.main.replace('src/', 'dist/').replace('.ts', '.js');
+      if (!pkgJson.main?.includes('dist/') && pkgJson.name !== 'refarm') {
+        pkgJson.main = safeResolveToDist(pkgJson.main);
       }
     }
 
     // 2. Handle Types field
     if (mode === 'src') {
       if (pkgJson.types?.includes('dist/')) {
-          const tsMatch = pkgJson.types.replace('dist/', 'src/').replace('.d.ts', '.ts');
-          if (fs.existsSync(path.join(packagesDir, pkg, tsMatch))) {
-            pkgJson.types = tsMatch;
-          }
+        const srcMatch = resolveToSrc(pkgPath, pkgJson.types);
+        if (srcMatch) pkgJson.types = srcMatch;
       }
     } else {
-      if (pkgJson.types?.includes('src/')) {
-        pkgJson.types = pkgJson.types.replace('src/', 'dist/').replace('.ts', '.d.ts');
+      if (pkgJson.types && !pkgJson.types.includes('dist/') && !pkgJson.types.startsWith('pkg/')) {
+        let t = safeResolveToDist(pkgJson.types);
+        if (!t.endsWith('.d.ts') && !t.endsWith('.d.mts')) {
+            t = t.replace(/\.js$/, '.d.ts').replace(/\.mjs$/, '.d.mts');
+        }
+        pkgJson.types = t;
       }
     }
 
@@ -75,15 +115,10 @@ for (const pkg of packages) {
         for (const key in obj) {
           if (typeof obj[key] === 'string') {
             if (mode === 'src' && obj[key].includes('dist/')) {
-              const tsMatch = obj[key].replace('dist/', 'src/').replace('.js', '.ts');
-              const jsMatch = obj[key].replace('dist/', 'src/').replace('.js', '.js');
-              if (fs.existsSync(path.join(packagesDir, pkg, tsMatch))) {
-                obj[key] = tsMatch;
-              } else if (fs.existsSync(path.join(packagesDir, pkg, jsMatch))) {
-                obj[key] = jsMatch;
-              }
-            } else if (mode === 'dist' && obj[key].includes('src/')) {
-              obj[key] = obj[key].replace('src/', 'dist/').replace('.ts', '.js');
+              const srcMatch = resolveToSrc(pkgPath, obj[key]);
+              if (srcMatch) obj[key] = srcMatch;
+            } else if (mode === 'dist' && !obj[key].includes('dist/') && !obj[key].startsWith('node_modules/')) {
+              obj[key] = safeResolveToDist(obj[key]);
             }
           } else if (typeof obj[key] === 'object' && obj[key] !== null) {
             processExports(obj[key]);
