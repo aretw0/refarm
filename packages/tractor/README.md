@@ -40,6 +40,9 @@ Tractor runs on **<http://localhost:3000>** (Node.js + TypeScript via tsx)
 cd packages/tractor
 npx vitest run test/stress.test.ts
 
+# Run real WASM instantiation integration (validates JCO runtime)
+npx vitest run test/real-instantiation.integration.test.ts
+
 # Run benchmarks
 npm run bench
 ```
@@ -200,9 +203,9 @@ The contract defines:
 
 ---
 
-## Plugin System
-
 Plugins communicate via **WIT interface** defined in [`wit/refarm-sdk.wit`](../../wit/refarm-sdk.wit).
+
+**Runtime**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at runtime. This allows seamless integration with Node.js and Browser ESM while maintaining the capability-gated sandbox.
 
 **Security model**:
 
