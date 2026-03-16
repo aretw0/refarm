@@ -5,17 +5,17 @@
   "type": "module",
   "exports": {
     "./sdk": {
-      "types": "./dist/sdk/index.d.ts",
+      "types": "./dist/sdk/index.js",
       "import": "./dist/sdk/index.js"
     },
     "./ui": {
-      "types": "./dist/ui/index.js",
-      "import": "./dist/ui/index.js"
+      "types": "./src/ui/index.ts",
+      "import": "./src/ui/index.ts"
     },
     "./styles/*": "./dist/styles/*"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run"
