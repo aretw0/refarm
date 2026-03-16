@@ -28,7 +28,7 @@ We're exploring this through:
 - **Offline-first storage** — data lives in your browser, not corporate servers
 - **Plugin architecture** — extend via client-side WASM, fully agnostic of registries
 - **Open formats** — everything is JSON-LD, portable to any platform
-- **Pragmatic decentralisation** — Agnostic identity & discovery; Nostr as a first-class option, but not a silo
+- **Pragmatic decentralisation** — Designed for agnostic identity & discovery; future-proof for protocols like Nostr, while maintaining local-first simplicity.
 
 ---
 

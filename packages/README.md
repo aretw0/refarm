@@ -26,7 +26,7 @@ These packages define the interoperability layers between Refarm and its plugins
 |---|---|---|---|
 | [`@refarm.dev/storage-sqlite`](./storage-sqlite) | Storage | OPFS/SQLite | 🟡 Beta |
 | [`@refarm.dev/storage-memory`](./storage-memory) | Storage | In-Memory | 🟢 Stable |
-| [`@refarm.me/identity-nostr`](./identity-nostr) | Identity | Nostr/Relays | 🟡 Beta |
+| [`@refarm.me/identity-nostr`](./identity-nostr) | Identity | Nostr/Relays | 🟠 Alpha (Experimental) |
 | [`@refarm.dev/sync-crdt`](./sync-crdt) | Sync | Automerge-like | 🟠 Alpha |
 
 ## 🏗 Sub-systems & Utilities
