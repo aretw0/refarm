@@ -1,0 +1,132 @@
+# .github/workflows/reusable-build-wasm-plugin.yml
+#
+# Reusable workflow: Rust → WASM (wasm32-wasip1) → JCO transpile
+#
+# Usage (from this monorepo):
+#   jobs:
+#     build-heartwood:
+#       uses: ./.github/workflows/reusable-build-wasm-plugin.yml
+#       with:
+#         component-name: heartwood
+#         workspace-path: packages/heartwood
+#
+# Usage (from external plugin repos):
+#   jobs:
+#     build-wasm:
+#       uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+#       with:
+#         component-name: my-plugin
+#         workspace-path: .
+
+name: Build WASM Plugin
+
+on:
+  workflow_call:
+    inputs:
+      workspace-path:
+        description: "Path to the plugin workspace relative to repo root"
+        type: string
+        default: "."
+      component-name:
+        description: "Component name passed to jco --name (use lowercase-kebab)"
+        type: string
+        required: true
+      rust-target:
+        description: "Rust compilation target"
+        type: string
+        default: "wasm32-wasip1"
+      output-dir:
+        description: "Output directory for jco transpile (relative to workspace-path)"
+        type: string
+        default: "pkg"
+      upload-artifact:
+        description: "Upload transpiled artifacts as a GitHub Actions artifact"
+        type: boolean
+        default: true
+      artifact-retention-days:
+        description: "Artifact retention in days"
+        type: number
+        default: 30
+    outputs:
+      integrity-hash:
+        description: "SHA-256 of the compiled WASM binary (hex)"
+        value: ${{ jobs.build-wasm.outputs.integrity-hash }}
+
+jobs:
+  build-wasm:
+    runs-on: ubuntu-latest
+    outputs:
+      integrity-hash: ${{ steps.integrity.outputs.hash }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v4.2.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install Node dependencies
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+        working-directory: ${{ inputs.workspace-path }}
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@a54c7afa936fefeb4456b2dd8068152669aa8203 # stable
+        with:
+          targets: ${{ inputs.rust-target }}
+
+      - name: Cache Rust build artifacts
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            ${{ inputs.workspace-path }}/target
+          key: ${{ runner.os }}-cargo-${{ inputs.component-name }}-${{ hashFiles(format('{0}/Cargo.lock', inputs.workspace-path)) }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ inputs.component-name }}-
+
+      - name: Build WASM binary
+        working-directory: ${{ inputs.workspace-path }}
+        run: cargo build --target ${{ inputs.rust-target }} --release
+
+      - name: JCO transpile
+        working-directory: ${{ inputs.workspace-path }}
+        run: |
+          WASM_FILE=$(find target/${{ inputs.rust-target }}/release -maxdepth 1 -name "*.wasm" ! -name "*.d.wasm" | head -n1)
+          if [ -z "$WASM_FILE" ]; then
+            echo "::error::No WASM file found in target/${{ inputs.rust-target }}/release/"
+            exit 1
+          fi
+          echo "Transpiling: $WASM_FILE"
+          npx jco transpile "$WASM_FILE" -o ${{ inputs.output-dir }} --name ${{ inputs.component-name }}
+
+      - name: Compute integrity hash
+        id: integrity
+        working-directory: ${{ inputs.workspace-path }}
+        run: |
+          WASM_FILE=$(find target/${{ inputs.rust-target }}/release -maxdepth 1 -name "*.wasm" ! -name "*.d.wasm" | head -n1)
+          HASH=$(sha256sum "$WASM_FILE" | awk '{print $1}')
+          echo "hash=$HASH" >> "$GITHUB_OUTPUT"
+          echo "### WASM Build: ${{ inputs.component-name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Component | \`${{ inputs.component-name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Target | \`${{ inputs.rust-target }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SHA-256 | \`$HASH\` |" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload transpiled artifacts
+        if: inputs.upload-artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: wasm-${{ inputs.component-name }}
+          path: ${{ inputs.workspace-path }}/${{ inputs.output-dir }}
+          retention-days: ${{ inputs.artifact-retention-days }}
