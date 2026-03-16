@@ -53,7 +53,8 @@ async function main() {
 
     // 3. Run Verification Pipeline
     console.log("\n🔍 Running strict verification pipeline before finishing...");
-    runCommand('node scripts/toolbox/verify.mjs');
+    const verifyPath = path.join(__dirname, 'verify.mjs');
+    runCommand(`node ${verifyPath}`);
 
     // 4. Generate Changeset if needed
     console.log("\n📦 Running Changeset CLI to document your work (Answer the prompts)...");

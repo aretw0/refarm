@@ -15,7 +15,8 @@ function runCheck(name, command) {
 async function main() {
     console.log("🚜 Refarm Developer Toolbox: Quality Gates\n");
 
-    const isHotfix = runCheck("Checking Branch", "git rev-parse --abbrev-ref HEAD | grep '^hotfix/' > /dev/null 2>&1");
+    const branchName = execSync("git rev-parse --abbrev-ref HEAD", { encoding: 'utf8' }).trim();
+    const isHotfix = branchName.startsWith('hotfix/');
 
     if (isHotfix) {
         console.log("🔥 Hotfix branch detected! Ensuring critical tests pass...");
