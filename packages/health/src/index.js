@@ -1,6 +1,3 @@
-import { FileSystemAuditor } from "./auditors/generic.js";
-import { RefarmProjectAuditor } from "./auditors/project.js";
-
 /**
  * HealthCore: The sovereign health orchestrator.
  * Acts as a registry for multiple health auditors (Project, User, Org).
@@ -12,9 +9,6 @@ export class HealthCore {
 
     constructor(graphContext = null) {
         this.#graphContext = graphContext;
-        // Register default auditors in order of stratification
-        this.register(new FileSystemAuditor());
-        this.register(new RefarmProjectAuditor());
     }
 
     /**
@@ -49,7 +43,7 @@ export class HealthCore {
     /**
      * Runs all registered auditors or a specific subset in a stratified sequence.
      */
-    async audit(requestedAuditors, policyId = null) {
+    async audit(requestedAuditors = null, policyId = null) {
         const results = {};
         const policy = policyId ? await this.loadPolicy(policyId) : null;
 
@@ -59,7 +53,7 @@ export class HealthCore {
             policy: policy || {} // Inject policy into the context
         };
 
-        const targets = requestedAuditors 
+        const targets = requestedAuditors
             ? requestedAuditors.map(id => this.#auditors.get(id)).filter(Boolean)
             : Array.from(this.#auditors.values());
 
@@ -89,3 +83,5 @@ export class HealthCore {
         return await projectAuditor.checkResolutionStatus(process.cwd());
     }
 }
+
+export { FileSystemAuditor, RefarmProjectAuditor };
