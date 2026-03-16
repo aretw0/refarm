@@ -46,6 +46,10 @@ Cargo.lock          # Only for libraries (apps should keep their own)
 # ─── WIT / Component Model ───────────────────────────────────────────────────
 # Compiled component binaries (re-generated from .wit sources)
 *.wasm.component
+.jco-cache/
+.jco-dist/
+**/.jco-cache/
+**/.jco-dist/
 
 # ─── SQLite / OPFS ───────────────────────────────────────────────────────────
 *.sqlite
