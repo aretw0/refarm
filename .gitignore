@@ -129,4 +129,4 @@ deps-report.md
 
 # Ignore export plans
 implementation_plan*.md
-prompt*.md
+*prompt*.md
