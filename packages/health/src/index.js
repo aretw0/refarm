@@ -1,157 +1,91 @@
-import fs from "node:fs";
-import path from "node:path";
-import { execSync } from "node:child_process";
+import { FileSystemAuditor } from "./auditors/generic.js";
+import { RefarmProjectAuditor } from "./auditors/project.js";
 
 /**
- * SovereignHealth: Reconstructed from signatures.
- * Audits monorepo for Git hygiene, builds, and alignment.
+ * HealthCore: The sovereign health orchestrator.
+ * Acts as a registry for multiple health auditors (Project, User, Org).
+ * Supports stratified auditing where layers can build on each other.
  */
-export class SovereignHealth {
-    /**
-     * Runs all deterministic diagnostics.
-     */
-    async audit() {
-        return {
-            git: await this.checkGitIgnores(),
-            builds: await this.checkBuildConfigs(),
-            alignment: await this.checkPackageAlignment()
-        };
+export class HealthCore {
+    #auditors = new Map();
+    #graphContext = null;
+
+    constructor(graphContext = null) {
+        this.#graphContext = graphContext;
+        // Register default auditors in order of stratification
+        this.register(new FileSystemAuditor());
+        this.register(new RefarmProjectAuditor());
     }
 
     /**
-     * Helper to find files recursively.
+     * Registers a new specialized health auditor.
      */
-    _getAllFiles(dirPath, arrayOfFiles) {
-        const files = fs.readdirSync(dirPath);
-        arrayOfFiles = arrayOfFiles || [];
-
-        files.forEach((file) => {
-            if (fs.statSync(dirPath + "/" + file).isDirectory()) {
-                if (file !== "node_modules" && file !== ".git" && file !== "dist") {
-                    arrayOfFiles = this._getAllFiles(dirPath + "/" + file, arrayOfFiles);
-                }
-            } else {
-                arrayOfFiles.push(path.join(dirPath, "/", file));
-            }
-        });
-
-        return arrayOfFiles;
+    register(auditor) {
+        if (!auditor.id) throw new Error("Auditor must have a unique 'id' field.");
+        this.#auditors.set(auditor.id, auditor);
     }
 
     /**
-     * Detects if source files are being incorrectly ignored by Git.
+     * Loads a health policy from the Sovereign Graph to guide the auditors.
+     * Positioned for Phase 7+ where policies are encoded as Graph Nodes.
      */
-    async checkGitIgnores() {
-        const issues = [];
+    async loadPolicy(policyNodeId) {
+        if (!this.#graphContext) {
+            console.warn(`[Health] Cannot load policy ${policyNodeId}: No Graph Context provided.`);
+            return null;
+        }
+
         try {
-            const git = (await import("isomorphic-git")).default;
-            const allFiles = this._getAllFiles(path.join(process.cwd(), "packages"));
-            const srcFiles = allFiles.filter(f => (f.includes("/src/") && (f.endsWith(".ts") || f.endsWith(".js"))));
-
-            for (const file of srcFiles) {
-                const relativePath = path.relative(process.cwd(), file);
-                const ignored = await git.isIgnored({
-                    fs,
-                    dir: process.cwd(),
-                    filepath: relativePath
-                });
-
-                if (ignored) {
-                    issues.push({ file: relativePath, type: "incorrectly_ignored" });
-                }
-            }
+            // Mocking graph fetch for now - in full implementation, 
+            // this would use the real Tractor/Graph query engine.
+            const policyNode = await this.#graphContext.queryNode(policyNodeId);
+            return policyNode?.healthPolicy || null;
         } catch (e) {
-            console.error(`[Health] Git ignore audit failed: ${e.message}`);
+            console.error(`[Health] Failed to fetch policy ${policyNodeId}: ${e.message}`);
+            return null;
         }
-        return issues;
     }
 
-
     /**
-     * Ensures all packages have a valid tsconfig.build.json.
+     * Runs all registered auditors or a specific subset in a stratified sequence.
      */
-    async checkBuildConfigs() {
-        const issues = [];
-        const packagesDir = path.resolve(process.cwd(), "packages");
-        if (!fs.existsSync(packagesDir)) return issues;
+    async audit(requestedAuditors, policyId = null) {
+        const results = {};
+        const policy = policyId ? await this.loadPolicy(policyId) : null;
 
-        const pkgs = fs.readdirSync(packagesDir);
-        for (const pkg of pkgs) {
-            const pkgPath = path.join(packagesDir, pkg);
-            if (!fs.statSync(pkgPath).isDirectory()) continue;
-            
-            const pkgJsonPath = path.join(pkgPath, "package.json");
-            if (!fs.existsSync(pkgJsonPath)) continue;
+        const context = {
+            rootDir: process.cwd(),
+            timestamp: new Date().toISOString(),
+            policy: policy || {} // Inject policy into the context
+        };
 
-            // heartwood is Rust/WASM, tsconfig is just configs
-            if (pkg === "heartwood" || pkg === "tsconfig") continue;
+        const targets = requestedAuditors 
+            ? requestedAuditors.map(id => this.#auditors.get(id)).filter(Boolean)
+            : Array.from(this.#auditors.values());
 
-            const buildTsConfig = path.join(pkgPath, "tsconfig.build.json");
-            if (!fs.existsSync(buildTsConfig)) {
-                issues.push({ package: pkg, type: "missing_build_config" });
-            }
+        for (const auditor of targets) {
+            const auditorResult = await auditor.audit(context);
+            results[auditor.id] = auditorResult;
+            context[auditor.id] = auditorResult;
         }
-        return issues;
+
+        if (results.project) {
+            return {
+                ...results.project,
+                _orchestrator: results,
+                _policy: policy
+            };
+        }
+
+        return results;
     }
 
     /**
-     * Verifies if package entry points point to dist/.
-     */
-    async checkPackageAlignment() {
-        const issues = [];
-        const status = await this.checkResolutionStatus();
-        
-        for (const item of status) {
-            // tsconfig doesn't have a dist/ folder, it's just raw json
-            if (item.package === "tsconfig") continue;
-
-            if (item.mode === "LOCAL (src)") {
-                issues.push({ package: item.package, entry: "src/", type: "local_alignment" });
-            }
-        }
-        return issues;
-    }
-
-    /**
-     * Reports resolution status (LOCAL vs PUBLISHED) for all packages.
+     * Helper for backward compatibility.
      */
     async checkResolutionStatus() {
-        const status = [];
-        const packagesDir = path.resolve(process.cwd(), "packages");
-        if (!fs.existsSync(packagesDir)) return status;
-
-        const pkgs = fs.readdirSync(packagesDir);
-        for (const pkg of pkgs) {
-            const pkgPath = path.join(packagesDir, pkg);
-            if (!fs.statSync(pkgPath).isDirectory()) continue;
-
-            const pkgJsonPath = path.join(pkgPath, "package.json");
-            if (fs.existsSync(pkgJsonPath)) {
-                const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, "utf-8"));
-                const main = pkgJson.main || "";
-                const exportsStr = JSON.stringify(pkgJson.exports || {});
-                
-                // If it's a special package that doesn't follow the pattern, we might want to skip or handle specially
-                // But for now, let's just make it more robust.
-                const isDist = main.includes("dist") || exportsStr.includes("dist/");
-                const isSrc = main.includes("src") || exportsStr.includes("src/");
-
-                let mode = "PUBLISHED (dist)";
-                if (isSrc && !isDist) {
-                    mode = "LOCAL (src)";
-                } else if (!isSrc && !isDist) {
-                    // Default to published if neither is found (e.g. tsconfig)
-                    mode = "PUBLISHED (dist)";
-                }
-                
-                if (pkg === "tsconfig" || pkg === "heartwood") {
-                    status.push({ package: pkg, mode: "PUBLISHED (dist)" });
-                    continue;
-                }
-
-                status.push({ package: pkg, mode });
-            }
-        }
-        return status;
+        const projectAuditor = this.#auditors.get("project");
+        if (!projectAuditor) return [];
+        return await projectAuditor.checkResolutionStatus(process.cwd());
     }
 }
