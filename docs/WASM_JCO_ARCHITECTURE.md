@@ -11,14 +11,60 @@ Refarm aims for **Digital Sovereignty**. This requires a plugin system that is:
 
 The **Wasm Component Model** (via WIT - WebAssembly Interface Types) provides the boundary. [JCO](https://github.com/bytecodealliance/jco) is the toolset that transpiles these standardized WASM components into executable JavaScript modules.
 
-## The Transpilation Flow
+## Transpilation Flow
 
-When a plugin is loaded in Tractor:
-1. **Fetch**: The WASM binary is retrieved.
-2. **Transpile**: `jco` converts the binary into a set of JS files and core WASM modules.
-3. **Cache**: These files are stored in `.jco-cache` (mapped by component ID) to avoid redundant transpilation.
-4. **Import**: The glue code is dynamically imported using ESM `import()`.
-5. **Instantiate**: The host provides WASI stubs to satisfy the component's environment requirements.
+The transpilation strategy depends on the runtime environment.
+
+### Node.js (current)
+
+```mermaid
+sequenceDiagram
+    participant App
+    participant PluginHost
+    participant JCO
+    participant Disk
+
+    App->>PluginHost: load(manifest)
+    PluginHost->>PluginHost: fetch WASM binary
+    PluginHost->>JCO: transpile(wasmBuffer)
+    JCO-->>Disk: write .jco-dist/<pluginId>/
+    Disk-->>PluginHost: file paths
+    PluginHost->>PluginHost: dynamic import(entryPoint)
+    PluginHost-->>App: PluginInstance
+```
+
+### Browser (install-time, ADR-044)
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant installPlugin
+    participant JCO as JCO (Node/Worker)
+    participant OPFS
+    participant PluginHost
+
+    User->>installPlugin: installPlugin(manifest, wasmUrl)
+    installPlugin->>installPlugin: fetch WASM binary
+    installPlugin->>JCO: transpile(wasmBuffer)
+    JCO-->>OPFS: write transpiled ES modules
+    Note over OPFS: cached by component ID
+
+    User->>PluginHost: load(manifest)
+    PluginHost->>OPFS: read cached module
+    OPFS-->>PluginHost: ES module URL
+    PluginHost->>PluginHost: dynamic import(opfsUrl)
+    PluginHost-->>User: PluginInstance
+```
+
+## Runtime vs Build-time: onde cada coisa acontece
+
+| Ambiente | Ferramenta | Quando é invocada | Produz |
+|---|---|---|---|
+| **Node.js** (dev/server) | `jco.transpile()` at runtime | `PluginHost.load()` | `.jco-dist/<pluginId>/` on disk |
+| **Browser** (install) | `installPlugin()` + JCO | First use of a plugin | OPFS-cached ES modules |
+| **Browser** (runtime) | `dynamic import()` | `PluginHost.load()` from OPFS | Plugin instance in memory |
+| **CI** (no Rust toolchain) | `pkg/` pre-compiled artifacts | `npm run build:ci` | Skips rebuild, uses committed `pkg/` |
+| **CI** (with Rust toolchain) | `reusable-build-wasm-plugin.yml` | Rust source changes | Refreshed `pkg/` artifacts |
 
 ## WASI Stubs & Versioning
 
@@ -31,8 +77,12 @@ Refarm solves this by providing **Version-Agnostic stubs**:
 ## CI/CD Alignment
 
 To ensure high-fidelity verification without bloating CI runners:
+
 - **Fixtures**: Stable components (like Heartwood) are pre-transpiled into `__fixtures__` within tests. This bypasses the need for full Rust toolchains during every CI run for package-level tests.
 - **WASM Tracking**: Specific test fixtures are explicitly allowed in git via `.gitignore` exceptions.
+- **`pkg/` as stable reference**: `packages/heartwood/pkg/` contains the JCO-transpiled artifacts committed to the repository. They are the source of truth for all consumers in standard CI runs.
+- **`build:ci` script**: `heartwood` exposes a `build:ci` npm script that checks for `target/wasm32-wasip1/release/refarm_heartwood.wasm`. If the binary is absent (no Rust toolchain), it exits successfully and logs a skip message — `pkg/` is used as-is. If the binary is present, it re-runs `jco transpile` to refresh `pkg/`.
+- **Reusable rebuild workflow**: When Heartwood's Rust source changes and a full rebuild is required, use `.github/workflows/reusable-build-wasm-plugin.yml`. This workflow installs the Rust toolchain, compiles, transpiles, and uploads `pkg/` as an artifact. External plugin authors can call this workflow from their own repos via `uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main`.
 
 ---
 

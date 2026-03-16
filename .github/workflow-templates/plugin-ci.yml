@@ -1,67 +1,44 @@
 # .github/workflow-templates/plugin-ci.yml
-# 
+#
 # Refarm Plugin CI/CD — "DevOps in Grand Style"
 #
-# This workflow standardises the test and build process for Refarm plugins.
-# 1. Installs dependencies
-# 2. Runs Vitest (Unit & Conformance)
-# 3. Compiles the WASM component
-# 4. Generates the SHA-256 integrity hash for NIP-94
+# This template standardises the test and build process for Refarm plugins.
+# It delegates the WASM compilation pipeline to the reusable workflow at
+# refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml
+#
+# Replace MY_PLUGIN_NAME with your component name (lowercase-kebab).
 
 name: Plugin CI
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 jobs:
-  build-and-test:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
 
       - name: Setup Node.js
         uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f
+        with:
+          node-version: "22"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build WASM
-        # Using turbo for compositional build (if the plugin is part of a monorepo)
-        # or fallback to npm run build.
-        run: |
-          if [ -f "turbo.json" ]; then
-            npx turbo build
-          else
-            npm run build
-          fi
-
       - name: Run Tests (Unit & Conformance)
-        run: |
-          if [ -f "turbo.json" ]; then
-            npx turbo test
-          else
-            npm test
-          fi
+        run: npm test
 
-      - name: Generate Integrity Hash
-        id: integrity
-        run: |
-          # Extract WASM path from manifest or conventional location
-          WASM_FILE=$(find dist -name "*.wasm" | head -n 1)
-          if [ -f "$WASM_FILE" ]; then
-            HASH=$(sha256sum "$WASM_FILE" | awk '{print $1}')
-            echo "hash=$HASH" >> $GITHUB_OUTPUT
-            echo "Calculated Integrity Hash: $HASH"
-          else
-            echo "::warning title=WASM Missing::No .wasm file found in dist/."
-          fi
-
-      - name: Conformance Summary
-        run: |
-          echo "### Plugin CI Summary" >> $GITHUB_STEP_SUMMARY
-          echo "✔ Build successful" >> $GITHUB_STEP_SUMMARY
-          echo "✔ Tests passed" >> $GITHUB_STEP_SUMMARY
-          echo "✔ Integrity Hash: \`${{ steps.integrity.outputs.hash }}\`" >> $GITHUB_STEP_SUMMARY
+  build-wasm:
+    needs: test
+    uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main
+    with:
+      component-name: MY_PLUGIN_NAME
+      workspace-path: .
+      output-dir: pkg
+      upload-artifact: true
