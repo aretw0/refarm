@@ -6,11 +6,13 @@ import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
 import { TractorLogger } from "./types";
 import { SovereignNode } from "./graph-normalizer";
-import { TrustManager, PluginTrustGrant, ExecutionProfile } from "./trust-manager";
+import { TrustManager, ExecutionProfile } from "./trust-manager";
+import type { PluginTrustGrant } from "./trust-manager";
 import { WasiImports } from "./wasi-imports";
-import { PluginInstance, PluginInstanceHandle, PluginState } from "./instance-handle";
+import { PluginInstanceHandle } from "./instance-handle";
+import type { PluginInstance, PluginState } from "./instance-handle";
 
-export { PluginInstance, PluginState, PluginTrustGrant };
+export type { PluginInstance, PluginState, PluginTrustGrant };
 
 /**
  * Sandboxed plugin host.
