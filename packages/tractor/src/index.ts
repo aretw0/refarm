@@ -8,36 +8,34 @@
 import * as ed from "@noble/ed25519";
 import { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
+import { SovereignRegistry } from "@refarm.dev/registry";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
 import { CommandHost } from "./lib/command-host";
-import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
-import { 
-  TractorConfig, 
-  SecurityMode, 
-  TractorLogLevel, 
-  TRACTOR_LOG_PRIORITY, 
-  isTractorLogLevel 
-} from "./lib/types";
-import { 
-  SovereignNode, 
-  SovereignSignature, 
-  normaliseToSovereignGraph 
+import {
+  SovereignNode,
+  SovereignSignature
 } from "./lib/graph-normalizer";
-import { 
-  PluginHost, 
-  PluginInstance, 
-  PluginState, 
-  PluginTrustGrant 
+import {
+  PluginHost, PluginState,
+  PluginTrustGrant
 } from "./lib/plugin-host";
+import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
+import {
+  SecurityMode,
+  TRACTOR_LOG_PRIORITY,
+  TractorConfig,
+  TractorLogLevel,
+  isTractorLogLevel
+} from "./lib/types";
 
+export * from "./lib/graph-normalizer";
 export * from "./lib/identity-recovery-host";
 export * from "./lib/l8n-host";
+export * from "./lib/plugin-host";
 export * from "./lib/secret-host";
 export * from "./lib/telemetry";
 export * from "./lib/types";
-export * from "./lib/graph-normalizer";
-export * from "./lib/plugin-host";
 
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
   if (configLevel) return configLevel;
@@ -73,16 +71,14 @@ export class Tractor {
   private constructor(
     storage: StorageAdapter,
     identity: IdentityAdapter,
+    registry: SovereignRegistry,
     config: TractorConfig,
   ) {
     this.storage = storage;
     this.namespace = config.namespace;
     this.identity = identity;
     this.sync = config.sync;
-    
-    // We import registry here to avoid issues or keep it simple
-    const { SovereignRegistry } = require("@refarm.dev/registry");
-    this.registry = new SovereignRegistry();
+    this.registry = registry;
 
     this.envMetadata = config.envMetadata || {};
     this.defaultSecurityMode = config.securityMode || "strict";
@@ -110,6 +106,8 @@ export class Tractor {
 
     if (config.forceGuestMode) {
       this.initializeEphemeralIdentity();
+    } else {
+      this.logInfo(`[tractor] Tractor ${Tractor.VERSION} Booted in Visitor Mode.`);
     }
   }
 
@@ -142,6 +140,21 @@ export class Tractor {
       handler: (args: { pluginId: string; wasmHash: string; leaseMs?: number }) => {
         if (!args?.pluginId || !args?.wasmHash) throw new Error("pluginId and wasmHash are required");
         return this.trustPlugin(args.pluginId, args.wasmHash, args.leaseMs);
+      },
+    });
+
+    this.commands.register({
+      id: "system:security:trust-plugin-once",
+      title: "Trust Plugin Manifest (Once)",
+      category: "Security",
+      description: "Temporarily trust a plugin manifest for fast execution.",
+      handler: (args: { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean }) => {
+        if (!args?.acknowledgeRisk) throw new Error("Risk acknowledgment is required");
+        const grant = this.trustPluginManifestOnce(args.manifest, args.wasmHash);
+        return {
+          warning: "✨ Trusted-fast enabled for this session.",
+          grant,
+        };
       },
     });
 
@@ -219,7 +232,9 @@ export class Tractor {
     }
     await config.storage.ensureSchema();
     if (config.sync) await config.sync.start();
-    return new Tractor(config.storage, config.identity, config);
+    const registry = new SovereignRegistry();
+    const tractor = new Tractor(config.storage, config.identity, registry, config);
+    return tractor;
   }
 
   async spawnChild(namespace: string, configOverrides: Partial<TractorConfig> = {}): Promise<Tractor> {
@@ -318,11 +333,28 @@ export class Tractor {
     const startTime = performance.now();
     const securityMode = mode ?? this.defaultSecurityMode;
     let signedNode = node;
-    if (securityMode !== "none") signedNode = await this.signNode(node);
     if (securityMode !== "none") {
+      const timestamp = (node as any).timestamp;
+      if (timestamp) {
+        const CLOCK_SKEW_GRACE_MS = 10_000;
+        if (new Date(timestamp).getTime() > Date.now() + CLOCK_SKEW_GRACE_MS) {
+          this.events.emit({
+            event: "system:security:canary_tripped",
+            payload: { type: "clock_skew", nodeId: node["@id"], timestamp },
+          });
+          throw new Error(`[tractor] Security Alert: Clock skew detected on node ${node["@id"]}`);
+        }
+      }
+      signedNode = await this.signNode(node);
       const isVerified = await this.verifyNode(signedNode);
-      if (!isVerified && securityMode === "strict") {
-        throw new Error(`[tractor] Security Alert: Tampering detected on node ${signedNode["@id"]}`);
+      if (!isVerified) {
+        this.events.emit({
+          event: "system:security:canary_tripped",
+          payload: { type: "tampering", nodeId: signedNode["@id"] },
+        });
+        if (securityMode === "strict") {
+          throw new Error(`[tractor] Security Alert: Tampering detected on node ${signedNode["@id"]}`);
+        }
       }
     }
     await this.storage.storeNode(
@@ -342,12 +374,13 @@ export class Tractor {
 
   async queryNodes<T extends SovereignNode = SovereignNode>(type: string): Promise<T[]> {
     const rows = await this.storage.queryNodes(type);
+    this.events.emit({ event: "storage:io", payload: { type, action: "query" } });
     return rows.map((r: { payload: string }) => JSON.parse(r.payload) as T);
   }
 
   async signNode(node: SovereignNode): Promise<SovereignNode> {
     const pubKey = this._ephemeralKeypair ? this.uint8ToHex(this._ephemeralKeypair.publicKey) : this.identity.publicKey;
-    if (!pubKey) throw new Error("[tractor] Action blocked: Identity required.");
+    if (!pubKey) throw new Error("[tractor] Action blocked: You must be in Guest or Permanent mode to sign and store data.");
     const { "refarm:signature": _s, "refarm:signatures": _ss, ...pureNode } = node;
     const nodeData = JSON.stringify(pureNode);
     const dataEncoded = new TextEncoder().encode(nodeData);
@@ -373,8 +406,10 @@ export class Tractor {
   }
 
   async shutdown(): Promise<void> {
+    this.logInfo("[tractor] Shutting down heavy machinery...");
     this.plugins.terminateAll();
     await this.storage.close();
+    this.logInfo("[tractor] Tractor Shutdown complete.");
   }
 }
 
