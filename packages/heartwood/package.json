@@ -10,7 +10,7 @@
   "module": "./pkg/heartwood.js",
   "types": "./pkg/heartwood.d.ts",
   "scripts": {
-    "build:wasm": "cargo build --target wasm32-wasip1 --release",
+    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo build --target wasm32-wasip1 --release",
     "build:transpile": "npx jco transpile target/wasm32-wasip1/release/refarm_heartwood.wasm -o pkg --name heartwood",
     "build": "npm run build:wasm && npm run build:transpile",
     "test": "cargo test"
