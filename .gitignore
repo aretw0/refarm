@@ -42,6 +42,7 @@ Cargo.lock          # Only for libraries (apps should keep their own)
 *.wasm
 # Exception: checked-in WASM fixtures used in tests
 !**/__fixtures__/**/*.wasm
+!packages/tractor/test/fixtures/**/*.wasm
 
 # ─── WIT / Component Model ───────────────────────────────────────────────────
 # Compiled component binaries (re-generated from .wit sources)
