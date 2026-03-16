@@ -203,6 +203,8 @@ The contract defines:
 
 ---
 
+## Plugin System
+
 Plugins communicate via **WIT interface** defined in [`wit/refarm-sdk.wit`](../../wit/refarm-sdk.wit).
 
 **Runtime**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at runtime. This allows seamless integration with Node.js and Browser ESM while maintaining the capability-gated sandbox.
