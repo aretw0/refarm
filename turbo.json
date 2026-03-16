@@ -27,6 +27,11 @@
       "inputs": ["src/**", "test/**", "*.config.*"],
       "outputs": ["coverage/**"]
     },
+    "build:ci": {
+      "dependsOn": ["^build:ci"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": ["dist/**", ".astro/**", "pkg/**"]
+    },
     "clean": {
       "cache": false
     },
