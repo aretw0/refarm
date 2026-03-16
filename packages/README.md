@@ -15,10 +15,10 @@ These packages define the interoperability layers between Refarm and its plugins
 
 | Package | Tests | Status | Publishing |
 |---|---|---|---|
-| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ 6 Tests | 🟢 Ready | **Target v0.1.1** |
-| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.1** |
-| [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.1** |
-| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | ✅ Validation | 🟢 Ready | **Target v0.1.1** |
+| [`@refarm.dev/storage-contract-v1`](./storage-contract-v1) | ✅ 6 Tests | 🟢 Ready | **Target v0.1.0** |
+| [`@refarm.dev/identity-contract-v1`](./identity-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
+| [`@refarm.dev/sync-contract-v1`](./sync-contract-v1) | ✅ 2 Tests | 🟢 Ready | **Target v0.1.0** |
+| [`@refarm.dev/plugin-manifest`](./plugin-manifest) | ✅ Validation | 🟢 Ready | **Target v0.1.0** |
 
 ## 🔌 Storage & Identity Adapters
 

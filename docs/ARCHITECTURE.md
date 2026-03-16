@@ -16,7 +16,7 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 | **Radical Ejection Right** | Every primitive can be taken out and used in another project. |
 | **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. |
 | **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). |
-| **Decentralised Discovery**| Plugin marketplace runs over Nostr (NIP-89/94). |
+| **Decentralised Discovery**| Pluggable registries; supports Nostr (NIP-89/94) as a primary option. |
 
 ---
 
