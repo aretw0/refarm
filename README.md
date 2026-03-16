@@ -56,30 +56,28 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 ---
 
-## Project Structure
+## 🗺 Sovereign Navigation Map
 
-**Apps:**
+Categorized entry points for users, developers, and auditors.
 
-- `apps/tractor` — Core orchestration and plugin host
-- `apps/homestead` — Web IDE for managing data and plugins
+### 🏛 Philosophy & Arch
+- **[Architecture](docs/ARCHITECTURE.md)** — Core design principles and Evolutionary Roadmap.
+- **[Knowledge Map](docs/INDEX.md)** — The "Architecture of Truth" (Master Index).
+- **[ADRs](specs/ADRs/README.md)** — Architectural Decision Records.
 
-**Packages** (reusable libraries):
+### 🛠 Development & Ops
+- **[Development Workflow](docs/WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
+- **[DevOps & Setup](docs/DEVOPS.md)** — Environment, CI, and Reusable Workflows.
+- **[Package Registry](packages/README.md)** — List of all 26+ packages and their publishing maturity.
 
-- `packages/storage-sqlite` — Offline storage with SQLite + OPFS
-- `packages/identity-nostr` — Sovereign identity via Nostr
-- `packages/sync-crdt` — Real-time sync with CRDT
+### 🛡 Governance & Security
+- **[PR Quality Governance](docs/PR_QUALITY_GOVERNANCE.md)** — Quality gates and changeset policy.
+- **[Security Policy](SECURITY.md)** — Disclosure and operational status.
+- **[Agent Rules](AGENTS.md)** — Rules of engagement for AI collaborators.
 
-**Documentation:**
-
-- [Pre-Sprint Checklist](docs/pre-sprint-checklist.md) — Current readiness status for Sprint 1
-- [Architecture Guide](docs/ARCHITECTURE.md) — System design
-- [Workflow Guide](docs/WORKFLOW.md) — Development process (SDD→BDD→TDD→DDD)
-- [DevOps & Setup](docs/DEVOPS.md) — Environment, CI, and reusable workflow operations
-- [PR Quality Governance](docs/PR_QUALITY_GOVERNANCE.md) — Quality gates, issue control, and changeset policy
-- [Branch Protection Setup](docs/BRANCH_PROTECTION_SETUP.md) — Practical GitHub branch rule configuration
-- [Research & Validation](docs/research/INDEX.md) — Technical feasibility studies
-- [ADRs](specs/ADRs/README.md) — Architecture decisions
-- [Roadmap](roadmaps/MAIN.md) — v0.1.0 through v1.0.0 milestones
+### 📊 Status & Roadmap
+- **[Main Roadmap](roadmaps/MAIN.md)** — v0.1.0 through v1.0.0 milestones.
+- **[Research Archive](docs/research/INDEX.md)** — Historical technical feasibility studies.
 
 ---
 

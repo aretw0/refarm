@@ -11,12 +11,27 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 | Principle | Meaning |
 |---|---|
 | **Offline-First** | All data lives in the browser (SQLite via OPFS). Network is optional. |
-| **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. It never relies on Cloud SSR for rendering. |
-| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays, not UI servers. |
-| **Radical Ejection Right** | Every primitive can be taken out and used in another project. No vendor lock-in. |
-| **Sandboxed Plugins** | Plugins run as WASM components and communicate only through WIT-defined interfaces. |
-| **Sovereign Graph** | All data is normalised to JSON-LD before persistence — semantically portable. |
-| **Decentralised Discovery** | Plugin marketplace runs over Nostr (NIP-89/94). No central server. |
+| **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. |
+| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays. |
+| **Radical Ejection Right** | Every primitive can be taken out and used in another project. |
+| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. |
+| **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). |
+| **Decentralised Discovery**| Plugin marketplace runs over Nostr (NIP-89/94). |
+
+---
+
+## Evolutionary Roadmap
+
+The Refarm vision is executed in stratified phases, evolving from a local "Fertile Soil" to an "Autonomous Sovereign Agent".
+
+### Phase 1: The Fertile Soil (Stability)
+Focus on the **Sovereign Microkernel** (Tractor) and stable storage. Ensuring that plugins can ingest data into the **Sovereign Graph** with strict capability-based security.
+
+### Phase 2: Hybrid Connectivity (Cognition)
+Introduction of **Hybrid Sync** (Matrix/HTTP/P2P) and local AI (via **WebLLM**). The engine becomes capable of structured JSON generation, transforming raw inputs into semantic nodes automatically.
+
+### Phase 3: Sovereign Agent (Autonomy)
+Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system transitions from a database to an autonomous assistant that can execute actions offline based on natural language.
 
 ---
 ## Monorepo Map
