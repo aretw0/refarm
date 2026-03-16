@@ -252,7 +252,7 @@ export class StudioShell {
         }
       }
 
-      const api = await this.tractor.getPluginApi(`${pluginId}:ui`);
+      const api = this.tractor.plugins.findByApi(`${pluginId}:ui`);
       if (api) {
         pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
       }
