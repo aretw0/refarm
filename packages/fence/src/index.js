@@ -2,7 +2,7 @@
  * The Fence: Project Boundary Auditor.
  * Stub reconstruction.
  */
-export class Fence {
+export class FenceCore {
     async audit() {
         return [];
     }
