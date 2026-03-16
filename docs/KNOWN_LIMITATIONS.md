@@ -180,6 +180,29 @@ if (plugin.memoryUsage > plugin.quota) {
 
 ---
 
+### Limitation 3.0: `PluginHost.load()` Not Available in Browser Without OPFS Cache
+
+**Worst Case**:
+
+- Browser app imports `@refarm.dev/tractor` and calls `tractor.plugins.load(manifest)`
+- Runtime throws: *"PluginHost requires the Node.js runtime or a pre-installed WASM cache"*
+- Plugin features are unavailable; app must handle the error or degrade gracefully
+
+**When We'll Know**:
+
+- Vite build error if `node:fs`, `node:path`, or `@bytecodealliance/jco` are bundled for browser (early)
+- Runtime error in browser console when `load()` is called without a prior `installPlugin()` (late)
+
+**Mitigation**:
+
+- `@refarm.dev/tractor` exports a `browser` condition (`index.browser.js`) that replaces `PluginHost` with a stub. Vite resolves this automatically — no bundler configuration needed.
+- Calling `load()` throws a descriptive error pointing to [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
+- Future: `installPlugin(manifest, wasmUrl)` will cache the JCO-transpiled module to OPFS so subsequent `load()` calls work offline in the browser.
+
+**Status**: ✅ Build-time mitigation (export condition) implemented. `installPlugin()` pending (ADR-044 step 3).
+
+---
+
 ### Limitation 3.2: Plugin Conflict (Two Plugins Compete for Same Resource)
 
 **Worst Case**:
