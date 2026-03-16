@@ -6,7 +6,7 @@
 # It ensures the required security headers (COOP/COEP) are considered for the
 # static hosting environment (GitHub Pages handles these via headers if configured).
 
-name: Deploy to GitHub Pages
+name: Deploy to Refarm.dev
 
 on:
   push:
