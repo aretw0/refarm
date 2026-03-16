@@ -4,6 +4,7 @@
     "composite": true,
     "declaration": true,
     "declarationMap": true,
+    "noEmit": false,
     "rootDir": "src",
     "outDir": "dist",
     "paths": {
