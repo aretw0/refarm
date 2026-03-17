@@ -42,14 +42,14 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@bytecodealliance/jco": "^1.4.0",
+    "@noble/ed25519": "^3.0.0",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/registry": "*",
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/sync-contract-v1": "*"
   },
   "devDependencies": {
-    "@noble/ed25519": "^3.0.0",
     "@refarm.dev/tsconfig": "*",
     "nostr-tools": "^2.23.3",
     "typescript": "^5.7.3",
