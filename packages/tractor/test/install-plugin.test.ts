@@ -77,4 +77,52 @@ describe("installPlugin", () => {
       installPlugin(mockManifest, "https://example.com/missing.wasm")
     ).rejects.toThrow("[installPlugin] Failed to fetch");
   });
+
+  describe("integrity verification", () => {
+    async function computeSRI(buffer: ArrayBuffer): Promise<string> {
+      const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+      const hashBytes = new Uint8Array(hashBuffer);
+      let binaryString = "";
+      for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
+      return `sha256-${btoa(binaryString)}`;
+    }
+
+    it("accepts a WASM that matches manifest.integrity", async () => {
+      const integrity = await computeSRI(mockBuffer);
+      const manifestWithIntegrity = { ...mockManifest, integrity };
+
+      const result = await installPlugin(manifestWithIntegrity, "https://example.com/test.wasm");
+      expect(result.cached).toBe(false);
+      expect(result.byteLength).toBe(1024);
+    });
+
+    it("rejects a WASM whose hash does not match manifest.integrity", async () => {
+      const tamperedBuffer = new ArrayBuffer(512); // different content
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        statusText: "OK",
+        arrayBuffer: async () => tamperedBuffer,
+      });
+      const integrity = await computeSRI(mockBuffer); // hash of original, not tampered
+      const manifestWithIntegrity = { ...mockManifest, integrity };
+
+      await expect(
+        installPlugin(manifestWithIntegrity, "https://example.com/test.wasm")
+      ).rejects.toThrow("[installPlugin] Integrity check failed");
+    });
+
+    it("skips verification when manifest has no integrity field", async () => {
+      // mockManifest has no integrity — should succeed without any hash check
+      const result = await installPlugin(mockManifest, "https://example.com/test.wasm");
+      expect(result.cached).toBe(false);
+    });
+
+    it("rejects an unsupported integrity algorithm", async () => {
+      const manifestWithBadAlgo = { ...mockManifest, integrity: "md5-abc123" };
+
+      await expect(
+        installPlugin(manifestWithBadAlgo, "https://example.com/test.wasm")
+      ).rejects.toThrow("Unsupported integrity algorithm");
+    });
+  });
 });
