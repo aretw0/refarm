@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { SovereignRegistry } from "@refarm.dev/registry";
+import { execFileSync } from "node:child_process";
+import { basename, extname } from "node:path";
 
 export const pluginCommand = new Command("plugin")
   .description("Manage Refarm plugins");
@@ -84,4 +86,27 @@ pluginCommand
   .action(async (query: string) => {
     console.log(chalk.blue(`🔍 Searching for '${query}' in the Sovereign Graph...`));
     console.log(chalk.gray("(Search requires Farmhand daemon — coming soon)"));
+  });
+
+pluginCommand
+  .command("bundle <input>")
+  .description("Compile a WASM plugin to a JS component using jco transpile")
+  .option("-o, --output <dir>", "Output directory", "./dist")
+  .option("-n, --name <name>", "Plugin name (defaults to input filename without extension)")
+  .action((input: string, options: { output: string; name?: string }) => {
+    const name = options.name ?? basename(input, extname(input));
+    const outDir = options.output;
+
+    console.log(chalk.blue(`📦 Bundling plugin ${chalk.bold(name)} from ${input}...`));
+    console.log(chalk.gray(`   Output: ${outDir}`));
+
+    try {
+      execFileSync("npx", ["jco", "transpile", input, "-o", outDir, "--name", name], {
+        stdio: "inherit",
+      });
+      console.log(chalk.green(`✅ Plugin bundled to ${outDir}/${name}.js`));
+    } catch (e: any) {
+      console.error(chalk.red(`❌ Bundle failed: ${e.message}`));
+      process.exitCode = 1;
+    }
   });

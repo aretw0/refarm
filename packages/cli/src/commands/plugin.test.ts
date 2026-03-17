@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // vi.hoisted() runs before vi.mock() hoisting
-const { mockResolveRemote, mockListPlugins, mockGetPlugin, mockDeactivatePlugin } = vi.hoisted(() => ({
+const { mockResolveRemote, mockListPlugins, mockGetPlugin, mockDeactivatePlugin, mockExecFileSync } = vi.hoisted(() => ({
   mockResolveRemote: vi.fn(),
   mockListPlugins: vi.fn().mockReturnValue([]),
   mockGetPlugin: vi.fn(),
   mockDeactivatePlugin: vi.fn(),
+  mockExecFileSync: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/registry", () => ({
@@ -17,6 +18,10 @@ vi.mock("@refarm.dev/registry", () => ({
       deactivatePlugin: mockDeactivatePlugin,
     };
   }),
+}));
+
+vi.mock("node:child_process", () => ({
+  execFileSync: mockExecFileSync,
 }));
 
 import { pluginCommand } from "./plugin.js";
@@ -121,6 +126,54 @@ describe("pluginCommand", () => {
   describe("plugin search <query>", () => {
     it("completes without error", async () => {
       await expect(runPlugin("search", "weather")).resolves.not.toThrow();
+    });
+  });
+
+  describe("plugin bundle <input>", () => {
+    beforeEach(() => {
+      mockExecFileSync.mockReturnValue(undefined);
+    });
+
+    it("calls jco transpile with correct arguments", async () => {
+      await runPlugin("bundle", "my-plugin.wasm", "-o", "./out");
+
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        "npx",
+        expect.arrayContaining(["jco", "transpile", "my-plugin.wasm", "-o", "./out"]),
+        expect.objectContaining({ stdio: "inherit" })
+      );
+    });
+
+    it("uses input filename as plugin name when --name not provided", async () => {
+      await runPlugin("bundle", "my-plugin.wasm");
+
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        "npx",
+        expect.arrayContaining(["--name", "my-plugin"]),
+        expect.any(Object)
+      );
+    });
+
+    it("uses provided --name when given", async () => {
+      await runPlugin("bundle", "my-plugin.wasm", "--name", "custom-name");
+
+      expect(mockExecFileSync).toHaveBeenCalledWith(
+        "npx",
+        expect.arrayContaining(["--name", "custom-name"]),
+        expect.any(Object)
+      );
+    });
+
+    it("sets process.exitCode = 1 when execFileSync throws", async () => {
+      mockExecFileSync.mockImplementation(() => {
+        throw new Error("jco not found");
+      });
+      const originalExitCode = process.exitCode;
+
+      await runPlugin("bundle", "bad-plugin.wasm");
+
+      expect(process.exitCode).toBe(1);
+      process.exitCode = originalExitCode;
     });
   });
 });
