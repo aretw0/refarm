@@ -6,6 +6,10 @@ inputs:
     description: "Node.js version"
     required: false
     default: "22"
+  rust-target:
+    description: "Rust target to install (e.g. wasm32-wasip1)"
+    required: false
+    default: "wasm32-wasip1"
 
 runs:
   using: "composite"
@@ -26,3 +30,8 @@ runs:
           echo "No package-lock.json found, running npm install..."
           npm install
         fi
+
+    - name: Setup Rust WASM Target
+      if: ${{ inputs.rust-target != '' }}
+      shell: bash
+      run: rustup target add ${{ inputs.rust-target }}

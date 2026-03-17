@@ -228,6 +228,7 @@ npm run test:unit
 ### Current Baseline (March 6, 2026)
 
 - **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
+- **Rust Target Provisioning:** The `./.github/actions/setup` action accepts a `rust-target` input (default: `wasm32-wasip1`) to ensure WASM compilation works without duplicating `rustup` logic across workflows.
 - **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it instead of rebuilding.
 - **Playwright browser cache:** `e2e` caches `~/.cache/ms-playwright` using key `${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}`.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
