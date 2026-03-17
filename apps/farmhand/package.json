@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/sync-crdt": "*",
     "@refarm.dev/tractor": "*",
