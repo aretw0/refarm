@@ -100,3 +100,7 @@ export class PluginHost {
     // no-op in browser
   }
 }
+
+export { installPlugin } from "./lib/install-plugin";
+export type { InstallPluginResult } from "./lib/install-plugin";
+export { getCachedPlugin, cachePlugin, evictPlugin } from "./lib/opfs-plugin-cache";
