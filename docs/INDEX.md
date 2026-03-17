@@ -25,6 +25,12 @@
 - **[ADR-044: WASM Plugin Loading — Browser Strategy](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md)** - Export conditions, PluginHost browser stub, OPFS install-time transpilation path.
 - **[Plugin Developer Stories](PLUGIN_DEVELOPER_STORIES.md)** - Jornada do desenvolvedor de plugin: do uso pessoal ao ecossistema P2P. Proposta soberana, mecanismos de distribuição (hoje e amanhã), tabela de status.
 
+### 🚀 Future Tracks (See Roadmap)
+Detailed planning for the following tracks is now consolidated in the **[Evolutionary Roadmap](../roadmaps/MAIN.md)**:
+- 🦀 **Tractor-Rust Native**: The `wasmtime` port of Tractor for 10MB memory-constrained edge devices.
+- 🚜 **Farmhand Daemons**: Headless, background Tractor instances for offline CRDT task completion.
+- 🧠 **Kernel-Level Agents**: Incorporating local AI models directly into the Tractor WASM sandbox execution.
+
 ---
 
 ## Distribution & Publishing
@@ -45,7 +51,7 @@ Guias para transferência organizacional e distribuição pública de pacotes:
 Wiki de fundamentação técnica - consultar quando necessário:
 
 - **[Phase 1 Foundations](research/phase1-technical-foundations.md)** - 16 tecnologias core validadas (PWA, OPFS, CRDT, WebLLM, etc)
-- **[Critical Validations](research/critical-validations.md)** - 4 validações críticas (WebLLM Workers, CRDT+OPFS, WASI, Schema)
+- **[Critical Validations](research/critical-validations.md)** - 4 validações críticas (WebLLM Workers, Loro CRDT+SQLite CQRS, WASI, Schema)
 - **[Phases 2-4 Research](research/phases2-4-technical-research.md)** - Tecnologias futuras (Matrix, Nostr, MediaPipe, etc)
 - **[Design System Bootstrap Discussion](research/design-system-bootstrap-discussion.md)** - Critérios de timing para bootstrap headless com sane defaults, a11y e i18n
 
