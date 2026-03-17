@@ -1,4 +1,3 @@
-import { execSync } from "node:child_process";
 import git from "isomorphic-git";
 import http from "isomorphic-git/http/node";
 import fs from "node:fs";
