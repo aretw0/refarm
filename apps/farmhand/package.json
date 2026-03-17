@@ -1,0 +1,27 @@
+{
+  "name": "@refarm.dev/farmhand",
+  "version": "0.1.0",
+  "description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
+  "type": "module",
+  "main": "./src/index.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/index.ts",
+    "dev": "node --watch --experimental-strip-types src/index.ts",
+    "build": "tsc --project tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@refarm.dev/storage-contract-v1": "*",
+    "@refarm.dev/sync-crdt": "*",
+    "@refarm.dev/tractor": "*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.14",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
+  },
+  "license": "AGPL-3.0-only"
+}
