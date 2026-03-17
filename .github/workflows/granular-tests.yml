@@ -27,18 +27,6 @@ jobs:
       - name: Build Shared Contracts & Configs
         run: npx turbo run build --filter="$REFARM_SCOPE_DEV/storage-contract-v1" --filter="$REFARM_SCOPE_DEV/identity-contract-v1" --filter="$REFARM_SCOPE_DEV/tsconfig"
 
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip1
-
-      - name: Install cargo-component
-        run: |
-          if cargo component --version >/dev/null 2>&1; then
-            echo "cargo-component already installed"
-          else
-            cargo install --locked cargo-component --version 0.21.1
-          fi
 
       - name: Build WASM plugin for tests
         run: |
@@ -88,19 +76,6 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup
-
-      - name: Setup Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-wasip1
-
-      - name: Install cargo-component
-        run: |
-          if cargo component --version >/dev/null 2>&1; then
-            echo "cargo-component already installed"
-          else
-            cargo install --locked cargo-component --version 0.21.1
-          fi
 
       - name: Build WASM plugin for tests
         run: |
