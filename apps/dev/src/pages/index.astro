@@ -37,6 +37,7 @@ import Layout from "../layouts/Layout.astro";
 <script>
   import { SowerPlugin } from "@refarm.dev/sower";
   import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
+  import { LoroCRDTStorage, BrowserSyncClient, randomPeerId } from "@refarm.dev/sync-loro";
   import { Tractor } from "@refarm.dev/tractor";
   import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
 
@@ -48,17 +49,21 @@ import Layout from "../layouts/Layout.astro";
       // 1. Initialize Adapters
       // If visitor/guest, we might use a temporary DB name or In-Memory
       const dbName = mode === 'citizen' ? 'refarm-main' : `refarm-temp-${Date.now()}`;
-      const storage = await new OPFSSQLiteAdapter().open(dbName);
-      
-      const identity = { 
-        id: "core", 
+      const sqliteStorage = await new OPFSSQLiteAdapter().open(dbName);
+      const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
+      const syncClient = new BrowserSyncClient(storage);
+      syncClient.connect();
+
+      const identity = {
+        id: "core",
         getPublicKey: async () => "root",
-        sign: async (data: string) => data 
+        sign: async (data: string) => data
       };
 
       // 2. Boot Tractor
-      const tractor = await Tractor.boot({ 
-        storage: storage as any, 
+      const tractor = await Tractor.boot({
+        storage: storage as any,
+        sync: storage,
         identity: identity as any,
         namespace: "studio-main",
         envMetadata: {
