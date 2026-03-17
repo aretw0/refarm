@@ -1,0 +1,6 @@
+{
+  "extends": "@refarm.dev/tsconfig/dom.json",
+  "compilerOptions": { "noEmit": true },
+  "exclude": ["node_modules", "dist"],
+  "include": ["src/**/*", ".astro/types.d.ts"]
+}

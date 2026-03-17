@@ -1,13 +1,29 @@
-# {{REFARM_NAME}} - Refarm Courier Template
+# {{REFARM_NAME}} — A Sovereign Farm
 
-This is a template for building an Courier (HTTP Gateway) plugin for Refarm using TypeScript and `jco`.
+A sovereign Astro application scaffolded by [Refarm](https://refarm.dev).
 
 ## Structure
 
-- `src/index.ts`: The main Courier processor.
-- `package.json`: Build commands (`npm run build`).
+```
+src/
+  pages/
+    index.astro     # Main page — boots Tractor, mounts StudioShell
+astro.config.mjs    # Astro config via @refarm.dev/config
+tsconfig.json       # TypeScript config via @refarm.dev/tsconfig
+package.json        # Dependencies and scripts
+```
 
-## Building
+## Getting Started
 
-1. Run `npm install`
-2. Run `npm run build` to generate the WASM component.
+```bash
+npm install
+npm run dev
+```
+
+## Scripts
+
+| Command          | Description                       |
+|------------------|-----------------------------------|
+| `npm run dev`    | Start local development server    |
+| `npm run build`  | Build for production              |
+| `npm run preview`| Preview the production build      |
