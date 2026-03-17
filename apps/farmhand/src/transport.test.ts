@@ -46,10 +46,10 @@ describe("WebSocketSyncTransport", () => {
     expect(mockState.wssOn).toHaveBeenCalledWith("connection", expect.any(Function));
   });
 
-  it("onReceive registers a handler that is not called before connections", () => {
+  it("onMessage registers a handler that is not called before connections", () => {
     const handler = vi.fn();
     const transport = new WebSocketSyncTransport(42000);
-    transport.onReceive(handler);
+    transport.onMessage(handler);
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -59,7 +59,7 @@ describe("WebSocketSyncTransport", () => {
     expect(mockState.wssClose).toHaveBeenCalled();
   });
 
-  it("send serializes the op and calls send on open clients", async () => {
+  it("broadcast sends binary bytes to all open clients", () => {
     const transport = new WebSocketSyncTransport(42000);
 
     // Extract the connection handler registered with wss.on("connection", ...)
@@ -78,17 +78,10 @@ describe("WebSocketSyncTransport", () => {
 
     connectionHandler?.(mockClient);
 
-    const op = {
-      id: "op-1",
-      peerId: "peer-1",
-      clock: { "peer-1": 1 },
-      timestamp: Date.now(),
-      op: { type: "lww-set", path: ["foo"], value: "bar" },
-    };
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    transport.broadcast(bytes);
 
-    await transport.send(op);
-
-    expect(mockClientSend).toHaveBeenCalledWith(JSON.stringify(op));
+    expect(mockClientSend).toHaveBeenCalledWith(bytes);
   });
 
   it("returns 0 for port when server address is null", () => {

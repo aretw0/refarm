@@ -1,17 +1,22 @@
 import { WebSocketServer, WebSocket } from "ws";
-import type { CRDTOperation, SyncTransport } from "@refarm.dev/sync-crdt";
 
 /**
  * WebSocketSyncTransport
  *
- * Implements SyncTransport over WebSocket connections.
- * Acts as a server hub: when a CRDT operation arrives from one client,
- * it's broadcast to all other connected clients.
+ * Pure binary relay transport for Loro CRDT updates.
+ * Sends and receives Uint8Array frames — no JSON serialization.
+ *
+ * When a peer sends a binary CRDT update:
+ *   1. The update is broadcast to all OTHER connected peers (relay mode).
+ *   2. The local message handler is notified (applies to local LoroCRDTStorage).
+ *
+ * Architecture: ADR-045 — Loro binary delta over WebSocket.
+ * Replaces the JSON CRDTOperation transport from @refarm.dev/sync-crdt (stub).
  */
-export class WebSocketSyncTransport implements SyncTransport {
-  private wss: WebSocketServer;
-  private clients: Set<WebSocket> = new Set();
-  private _receiveHandler: ((op: CRDTOperation) => void) | null = null;
+export class WebSocketSyncTransport {
+  private readonly wss: WebSocketServer;
+  private readonly clients = new Set<WebSocket>();
+  private _msgHandler: ((bytes: Uint8Array) => void) | null = null;
 
   constructor(port: number) {
     this.wss = new WebSocketServer({ port });
@@ -20,14 +25,11 @@ export class WebSocketSyncTransport implements SyncTransport {
       this.clients.add(ws);
 
       ws.on("message", (data: Buffer | ArrayBuffer | Buffer[]) => {
-        try {
-          const op: CRDTOperation = JSON.parse(data.toString());
-          if (this._receiveHandler) {
-            this._receiveHandler(op);
-          }
-        } catch (e) {
-          console.warn("[farmhand] Invalid CRDT message:", e);
-        }
+        const bytes = toUint8Array(data);
+        // Relay to all other peers
+        this.broadcast(bytes, ws);
+        // Notify local CRDT storage
+        this._msgHandler?.(bytes);
       });
 
       ws.on("close", () => {
@@ -41,17 +43,24 @@ export class WebSocketSyncTransport implements SyncTransport {
     });
   }
 
-  async send(op: CRDTOperation): Promise<void> {
-    const payload = JSON.stringify(op);
+  /**
+   * Broadcast binary bytes to all connected peers.
+   * @param except - Optionally skip one client (the sender).
+   */
+  broadcast(bytes: Uint8Array, except?: WebSocket): void {
     for (const client of this.clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(payload);
+      if (client !== except && client.readyState === WebSocket.OPEN) {
+        client.send(bytes);
       }
     }
   }
 
-  onReceive(handler: (op: CRDTOperation) => void): void {
-    this._receiveHandler = handler;
+  /**
+   * Register a handler for incoming binary messages from remote peers.
+   * Wire this to LoroCRDTStorage.applyUpdate.
+   */
+  onMessage(handler: (bytes: Uint8Array) => void): void {
+    this._msgHandler = handler;
   }
 
   async disconnect(): Promise<void> {
@@ -63,6 +72,19 @@ export class WebSocketSyncTransport implements SyncTransport {
 
   get port(): number {
     const addr = this.wss.address();
-    return typeof addr === "object" && addr !== null ? (addr as { port: number }).port : 0;
+    return typeof addr === "object" && addr !== null
+      ? (addr as { port: number }).port
+      : 0;
   }
+}
+
+function toUint8Array(data: Buffer | ArrayBuffer | Buffer[]): Uint8Array {
+  if (Array.isArray(data)) {
+    return Buffer.concat(data);
+  }
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data);
+  }
+  // Node.js Buffer
+  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }

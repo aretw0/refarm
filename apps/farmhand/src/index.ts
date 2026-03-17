@@ -1,8 +1,9 @@
 /**
  * Farmhand — Headless Refarm daemon
  *
- * Boots a Tractor instance and exposes a WebSocket sync transport on port 42000.
- * Studio (browser) connects to ws://localhost:42000 for CRDT sync.
+ * Boots a Tractor instance backed by LoroCRDTStorage (ADR-045) and exposes a
+ * WebSocket sync transport on port 42000. Studio (browser) connects to
+ * ws://localhost:42000 for binary Loro CRDT sync.
  *
  * Reactive behaviors:
  *  - PluginRoute nodes  → load the referenced plugin into this Tractor instance
@@ -14,8 +15,7 @@ import path from "node:path";
 import { Tractor } from "@refarm.dev/tractor";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
-import { SyncEngine } from "@refarm.dev/sync-crdt";
-import type { CRDTOperation } from "@refarm.dev/sync-crdt";
+import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { WebSocketSyncTransport } from "./transport.js";
 
 const FARMHAND_PORT = 42000;
@@ -29,8 +29,8 @@ const FARMHAND_ID = `farmhand:${os.hostname()}`;
 const REGISTRY_PATH = path.join(os.homedir(), ".refarm", "registry.json");
 
 /**
- * Minimal in-memory StorageAdapter for the Farmhand MVP.
- * Future: replace with @refarm.dev/storage-sqlite once Node.js SQLite adapter is ready.
+ * Minimal in-memory StorageAdapter — serves as the CQRS read model.
+ * Future: replace with @refarm.dev/storage-sqlite (Farmhand Phase 2).
  */
 function createMemoryStorage(): StorageAdapter {
   const store: Map<string, unknown> = new Map();
@@ -98,18 +98,6 @@ async function handlePluginRoute(tractor: Tractor, node: Record<string, unknown>
  *   - "@id":            string  — unique task ID
  *
  * After execution you should write a FarmhandTaskResult node via tractor.storeNode().
- * The result node should include:
- *   - "@type": "FarmhandTaskResult"
- *   - "task:resultFor": <task @id>
- *   - "task:status":    "completed" | "error"
- *   - "task:result":    <function return value>  OR  "task:error": <message>
- *
- * Consider: what should happen if the plugin is not yet loaded when the task arrives?
- *   A) Fail immediately (simple, predictable)
- *   B) Auto-load the plugin on demand (requires plugin:manifest to also be provided)
- *   C) Queue and retry once PluginRoute loads it (complex, but more robust)
- *
- * Implement your chosen strategy in the function body below.
  */
 async function handleFarmhandTask(
   tractor: Tractor,
@@ -118,19 +106,12 @@ async function handleFarmhandTask(
   const assignedTo = node["task:assignedTo"] as string | undefined;
   if (assignedTo && assignedTo !== FARMHAND_ID) return;
 
-  const taskId     = node["@id"] as string;
-  const pluginId   = node["task:pluginId"] as string;
-  const fn         = node["task:function"] as string ?? "run";
-  const args       = node["task:args"];
-
-  // ── TODO: implement task execution ─────────────────────────────────────────
-  // Scaffold: get the plugin instance and call it.
-  // Replace this stub with your chosen strategy (A, B, or C above).
+  const taskId   = node["@id"] as string;
+  const pluginId = node["task:pluginId"] as string;
 
   const instance = tractor.plugins.get(pluginId);
   if (!instance) {
     console.warn(`[farmhand] FarmhandTask ${taskId}: plugin "${pluginId}" not loaded — dropping task`);
-    // Write a failed result so Studio knows the task was received but not handled
     await tractor.storeNode({
       "@context": "https://schema.refarm.dev/",
       "@type": "FarmhandTaskResult",
@@ -142,24 +123,29 @@ async function handleFarmhandTask(
     });
     return;
   }
-
-  // ── END TODO ────────────────────────────────────────────────────────────────
 }
 
 async function main() {
   console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
 
+  // CQRS: LoroDoc is the write model; memoryStorage is the read model.
+  // LoroCRDTStorage implements both StorageAdapter and SyncAdapter.
+  const readModel = createMemoryStorage();
+  const storage = new LoroCRDTStorage(readModel, peerIdFromString(FARMHAND_ID));
+  await storage.ensureSchema();
+
   const tractor = await Tractor.boot({
     namespace: "farmhand",
-    storage: createMemoryStorage(),
+    storage,
+    sync: storage,
     identity: createEphemeralIdentity(),
     logLevel: "info",
     forceGuestMode: true,
   });
 
-  console.log("[farmhand] Tractor booted.");
+  console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
-  // Write initial presence node
+  // Write initial presence node (goes into LoroDoc, projected to read model)
   await tractor.storeNode({
     "@context": "https://schema.refarm.dev/",
     "@type": "FarmhandPresence",
@@ -173,20 +159,21 @@ async function main() {
 
   console.log("[farmhand] Presence node written.");
 
-  // Start WebSocket transport
+  // Start WebSocket transport (binary Uint8Array frames — Loro deltas)
   const transport = new WebSocketSyncTransport(FARMHAND_PORT);
   console.log(`[farmhand] WebSocket server listening on ws://localhost:${FARMHAND_PORT}`);
 
-  // Wire SyncEngine to receive CRDT operations from connected Studio clients
-  const engine = new SyncEngine(FARMHAND_ID);
-  engine.addTransport(transport);
+  // Wire transport ↔ LoroCRDTStorage (binary Loro sync)
+  transport.onMessage((bytes) => void storage.applyUpdate(bytes));
+  storage.onUpdate((bytes) => transport.broadcast(bytes));
 
-  engine.onOperation(async (op: CRDTOperation) => {
-    const node = op.op as Record<string, unknown>;
+  // Subscribe to CRDT node changes to react to PluginRoute / FarmhandTask
+  tractor.observe(async (event: any) => {
+    if (event.event !== "storage:node:written") return;
+    const node = event.payload as Record<string, unknown> | undefined;
     if (!node || typeof node["@type"] !== "string") return;
 
     const type = node["@type"];
-
     if (type === "PluginRoute") {
       await handlePluginRoute(tractor, node);
     } else if (type === "FarmhandTask") {
