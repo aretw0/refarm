@@ -7,6 +7,80 @@ vi.mock("@refarm.dev/heartwood", () => ({
   verify: vi.fn().mockReturnValue(true),
 }));
 
+function createStrictManifest(): PluginManifest {
+  return {
+    id: "@refarm.dev/test-plugin",
+    name: "Test Plugin",
+    version: "0.1.0",
+    entry: "https://example.test/test.wasm",
+    capabilities: { provides: [], requires: [], allowedOrigins: [] },
+    permissions: [],
+    observability: { hooks: [] },
+    targets: ["browser"],
+    certification: { license: "MIT", a11yLevel: 1, languages: ["en"] },
+    trust: { profile: "strict" },
+  };
+}
+
+describe("PluginHost registry validation gate", () => {
+  beforeEach(() => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        statusText: "OK",
+        arrayBuffer: async () => new Uint8Array(1024).buffer,
+      })
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("throws in strict mode (default) if plugin is not in registry", async () => {
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry);
+    const manifest = createStrictManifest();
+    // intentionally NOT registering in registry
+
+    await expect(host.load(manifest)).rejects.toThrow(/not validated.*unregistered/i);
+  });
+
+  it("throws in strict mode if plugin status is 'registered' (not yet validated)", async () => {
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry);
+    const manifest = createStrictManifest();
+    registry.register(manifest);
+    // status is "registered" after register(), before validation
+
+    await expect(host.load(manifest)).rejects.toThrow(/not validated/i);
+  });
+
+  it("warns (does not throw) in permissive mode for unregistered plugin", async () => {
+    const registry = new SovereignRegistry();
+    const warnSpy = vi.fn();
+    const logger = { info: vi.fn(), warn: warnSpy, debug: vi.fn(), error: vi.fn() };
+    const host = new PluginHost(vi.fn(), registry, logger, "permissive");
+    const manifest = createStrictManifest();
+    // NOT in registry — permissive mode should warn and continue
+
+    await expect(host.load(manifest)).resolves.toBeDefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/not validated.*unregistered/i));
+  });
+
+  it("allows loading of a validated plugin in strict mode", async () => {
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry);
+    const manifest = createStrictManifest();
+    registry.register(manifest);
+    const entry = registry.getPlugin(manifest.id);
+    if (entry) entry.status = "validated";
+
+    await expect(host.load(manifest)).resolves.toBeDefined();
+  });
+});
+
 function createManifest(profile: "strict" | "trusted-fast"): PluginManifest {
   return {
     id: "@refarm.dev/high-perf-plugin",

@@ -4,7 +4,7 @@ import * as path from "node:path";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
-import { TractorLogger } from "./types";
+import { TractorLogger, SecurityMode } from "./types";
 import { SovereignNode } from "./graph-normalizer";
 import { TrustManager, ExecutionProfile } from "./trust-manager";
 import type { PluginTrustGrant } from "./trust-manager";
@@ -26,6 +26,7 @@ export class PluginHost {
     private emit: (data: TelemetryEvent) => void,
     private registry: SovereignRegistry,
     private logger: TractorLogger = console,
+    private securityMode: SecurityMode = "strict",
   ) {
     this.trustManager = new TrustManager(emit);
   }
@@ -76,7 +77,11 @@ export class PluginHost {
 
     const registryEntry = this.registry.getPlugin(pluginId);
     if (!registryEntry || (registryEntry.status !== "validated" && registryEntry.status !== "active")) {
-        this.logger.warn(`[tractor] Loading plugin ${pluginId} with status: ${registryEntry?.status || "unregistered"}`);
+        const msg = `[tractor] Plugin ${pluginId} is not validated (status: ${registryEntry?.status ?? "unregistered"})`;
+        if (this.securityMode !== "permissive") {
+            throw new Error(msg);
+        }
+        this.logger.warn(msg);
     }
 
     this.logger.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
