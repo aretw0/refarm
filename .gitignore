@@ -128,5 +128,5 @@ deps-report.md
 **/*_tags.txt
 
 # Ignore export plans
-implementation_plan*.md
+*_plan*.md
 *prompt*.md

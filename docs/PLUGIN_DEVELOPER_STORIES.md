@@ -21,7 +21,28 @@ O Refarm parte de uma premissa diferente:
 
 Não há registro central obrigatório. Não há aprovação prévia. Não há chave de API. Se você consegue servir um arquivo `.wasm` via HTTPS, você pode distribuir um plugin para qualquer instância Refarm que queira instalá-lo.
 
-A partir daí, o ecossistema oferece camadas opcionais — curadoria, descoberta via Nostr, verificação de integridade — para quem quer mais confiança sem abrir mão de soberania.
+A partir daí, o ecossistema oferece camadas opcionais — curadoria, descoberta descentralizada, verificação de integridade — para quem quer mais confiança sem abrir mão de soberania.
+
+---
+
+## Pré-Nível — Plugins da Distro (Core, Auto-Carregados)
+
+*"Você nem percebe que são plugins — simplesmente funcionam."*
+
+Antes de qualquer jornada individual de desenvolvedor, existe uma camada que já vem pronta
+na instalação do Refarm: os **plugins core da distro**.
+
+Eles não precisam de `installPlugin()`. Não chegam de uma URL pública. São **pré-empacotados
+no build da Homestead** e carregam automaticamente no boot do Tractor — você nunca precisa
+instalá-los.
+
+Exemplos típicos: monitor de armazenamento (OPFS), interface de identidade, painel de
+sincronização, gestão básica de grafo.
+
+**Quem pode fazer isso:** apenas mantenedores da distro — quem constrói e distribui a
+Homestead. Usuários comuns instalam plugins sob demanda, a partir do Nível 1.
+
+🏠 **Roda em:** browser (incluso no bundle) + daemon headless (quando o Tractor roda sem UI)
 
 ---
 
@@ -34,13 +55,39 @@ e quer que elas apareçam como nós no seu grafo soberano — sem passar por nen
 
 Marco não quer publicar nada. Não quer uma conta. Não quer permissão de ninguém.
 
+### Por que Marco precisa de um daemon
+
+O browser não pode ler `file:///home/marco/obsidian/`. É uma restrição de segurança
+fundamental: o browser só acessa arquivos que o usuário escolhe explicitamente (via file
+picker) ou que estão no OPFS (um filesystem virtual interno ao browser — não o disco real).
+
+Para integrar o sistema de arquivos local de forma automática e contínua, Marco precisa de
+um processo com acesso real ao disco: o **Refarm Daemon** — o Tractor rodando em Node.js,
+fora do browser.
+
 ### O que Marco faz
 
-Ele escreve um plugin Rust que:
+**1. Inicia o daemon no laptop:**
 
-1. Lê arquivos `.md` do diretório `~/obsidian/vault/`
-2. Converte cada nota para um nó JSON-LD
-3. Chama `store-node` via a bridge do Tractor
+```bash
+npx @refarm.dev/daemon
+# Daemon rodando em localhost:42000
+# Aguardando peers na rede local...
+```
+
+**2. O Studio detecta o daemon automaticamente:**
+
+```
+[Novo dispositivo detectado]
+  🖥️  Marco's Laptop — Daemon
+
+  [Sincronizar como novo dispositivo]  [Ignorar]
+```
+
+Marco clica "Sincronizar". O daemon agora é um **peer CRDT** do browser Refarm — igual a
+um segundo celular ou laptop sincronizando a mesma conta.
+
+**3. Marco escreve o plugin em Rust:**
 
 ```rust
 // validations/simple-wasm-plugin/src/lib.rs (padrão de referência)
@@ -63,7 +110,18 @@ impl plugin::Guest for Plugin {
 }
 ```
 
-Depois de compilar (`cargo component build --release`), o manifest dele é simples:
+**4. Compila e carrega no daemon:**
+
+```bash
+cargo component build --release
+```
+
+```typescript
+// No daemon (Node.js Tractor) — não no browser
+await tractor.plugins.load(manifest, wasmHash);
+```
+
+O manifest aponta para o arquivo local:
 
 ```json
 {
@@ -88,17 +146,27 @@ Depois de compilar (`cargo component build --release`), o manifest dele é simpl
 }
 ```
 
-Marco carrega o plugin na sua instância local:
+**5. O plugin roda no daemon, com acesso ao filesystem:**
 
-```typescript
-await tractor.plugins.load(manifest, wasmHash);
+- Daemon tem WASI filesystem preopens → lê `~/obsidian/vault/*.md`
+- Normaliza cada nota para um nó JSON-LD
+- Armazena no grafo local do daemon (SQLite)
+
+**6. O browser sincroniza automaticamente:**
+
+```
+[Studio]
+  ✓ 42 notas importadas do Obsidian
+  Origem: Marco's Laptop — Daemon
 ```
 
-**O código é dele. Os dados são dele. O WASM fica no disco dele.**
-Nunca precisa sair da máquina.
+Marco vê suas notas no browser **sem o browser ter tocado em nenhum arquivo local**.
 
-> **Mecanismo suportado hoje:** `entry: "file://..."` — o Tractor usa `fs.readFile()`
-> diretamente. Funciona apenas em contexto Node.js (servidor local, script, CLI).
+> **Mecanismo:** `entry: "file://..."` funciona **apenas no daemon** (Node.js Tractor).
+> No browser, `file://` é inválido — use `https://` ou OPFS cache.
+> O manifest do Marco declara `"targets": ["server"]` por exatamente essa razão.
+
+🖥️ **Roda em: daemon local** (Node.js Tractor no laptop ou Raspberry Pi do Marco)
 
 ---
 
@@ -150,9 +218,9 @@ O manifest atualizado:
 
 ### Instalação no browser
 
-No browser, o fluxo é diferente: o WASM precisa ser transpilado pelo JCO e
-armazenado em OPFS antes de poder ser usado. Isso acontece **na instalação**, não
-no boot. Veja [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
+No browser, o WASM precisa ser transpilado pelo JCO e armazenado em OPFS antes de poder
+ser usado. Isso acontece **na instalação**, não no boot. Veja
+[ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
 
 ```typescript
 // Instala uma vez (transpile JCO → cache OPFS)
@@ -161,6 +229,12 @@ await installPlugin(manifest, wasmHash);
 // Usa em qualquer boot subsequente (dynamic import do OPFS)
 await tractor.plugins.load(manifest);
 ```
+
+> **Status:** `installPlugin()` está **pendente de implementação** (ADR-044 passo 3).
+>
+> Alternativa disponível hoje: a Beatriz pode distribuir o bundle JS pré-transpilado
+> junto com o `.wasm` — o browser faz download do bundle JS e armazena em OPFS
+> diretamente, sem precisar rodar o JCO no browser.
 
 ### Verificação de integridade
 
@@ -175,6 +249,8 @@ sha256sum notion-sync.wasm
 
 > **Mecanismo suportado hoje:** `entry: "https://..."` + `wasmHash` para verificação.
 > O plugin roda apenas na instância da Beatriz. Qualquer URL HTTPS funciona.
+
+🌐 **Roda em: browser** (OPFS cache)
 
 ---
 
@@ -214,6 +290,8 @@ ecossistemas pequenos de confiança direta.
 > Este é o modelo "primitivo" e soberano. Sem infraestrutura extra.
 > Qualquer coisa acima disso é uma conveniência, não uma necessidade.
 
+🌐 **Roda em: browser**
+
 ---
 
 ## Nível 3 — Curadoria Refarm
@@ -249,19 +327,26 @@ clique — mas o WASM ainda vem da URL da Beatriz. O Refarm não hospeda nada.
 > e o diretório público estão sendo desenhados. O mecanismo técnico (URL + hash)
 > já existe.
 
+🌐 **Roda em: browser**
+
 ---
 
-## Nível 4 — Ecossistema P2P
+## Nível 4 — Ecossistema Descentralizado
 
 > ⚡ **Sneak peek** — o que está por vir, não o que existe hoje.
 
-### Nostr: Descoberta Descentralizada
+Qualquer Refarm que queira aceitar plugins de fontes desconhecidas precisa de um
+mecanismo de **descoberta** — encontrar plugins sem depender de uma única loja ou
+diretório central. Há várias formas de fazer isso, e o Refarm quer suportar mais
+de uma.
 
-O Nostr é o protocolo de identidade e mensagens que o Refarm usa para sincronização
-entre dispositivos. Faz sentido natural que o ecossistema de plugins também use Nostr
-para distribuição — e é para aí que estamos indo.
+### Nostr: Uma Opção Descentralizada
 
-O fluxo será:
+Nostr é um protocolo de mensagens descentralizado que o Refarm usa para identidade
+e sincronização. Faz sentido natural que o ecossistema de plugins também possa
+usá-lo para distribuição — e é para aí que estamos caminhando.
+
+O fluxo com Nostr seria:
 
 ```
 1. Desenvolvedor compila o plugin → WASM binary
@@ -285,14 +370,7 @@ O fluxo será:
 - **Sem controle central**: qualquer um pode publicar um evento NIP-89
 - **Verificação mantida**: o hash SHA-256 do NIP-94 garante integridade mesmo sem confiar no servidor
 - **Identidade**: o desenvolvedor assina o evento com sua chave Nostr — é rastreável e auditável
-- **Compatível com soberania**: instâncias Refarm escolhem *quais relays consultar* — podem ter uma lista curada de relays confiáveis
-
-O WIT do SDK já documenta a intenção:
-
-```wit
-/// Then distribute it via Nostr NIP-94 and announce it with NIP-89.
-world refarm-plugin { ... }
-```
+- **Compatível com soberania**: instâncias Refarm escolhem *quais relays consultar*
 
 > **Status:** Planejado como próximo passo natural. Não implementado ainda.
 > A implementação técnica do NIP-89/94 está na camada de `identity-nostr`.
@@ -302,9 +380,14 @@ world refarm-plugin { ... }
 | Mecanismo | Motivação | Notas |
 |---|---|---|
 | **Self-hosted relay** | Organizações com plugins internos | Você opera seu próprio relay Nostr; só seus usuários consultam |
-| **IPFS / Arweave** | URL permanente sem servidor | O WASM fica "forever" em endereço de conteúdo |
+| **IPFS / Arweave** | URL permanente sem servidor | O WASM fica em endereço de conteúdo permanente |
 | **Headless Tractor (VPS)** | Plugin sempre-on, sem browser | [ADR-037 Fase 3](../specs/ADRs/ADR-037-infrastructure-escalation-strategy.md): Tractor rodando em Raspberry Pi ou VPS |
 | **Server-side plugins** | Processamento pesado, sem WebAssembly no browser | [ADR-037 Fase 4+](../specs/ADRs/ADR-037-infrastructure-escalation-strategy.md): Astro API layer — ainda conceitual |
+
+O ponto central: **o mecanismo de descoberta é separado do mecanismo de distribuição**.
+Um plugin pode ser distribuído via URL simples e descoberto via Nostr — ou via diretório
+curado — ou só boca-a-boca. O hash SHA-256 garante integridade independentemente de como
+o usuário encontrou o plugin.
 
 ---
 
@@ -343,7 +426,7 @@ interface integration {
 }
 ```
 
-O Tractor injetar as **capabilities** como imports WASI — o plugin só consegue
+O Tractor injeta as **capabilities** como imports WASI — o plugin só consegue
 o que o manifesto declarou e o usuário aprovou:
 
 ```wit
@@ -404,7 +487,7 @@ O `PluginManifest` é o que o usuário vê antes de instalar. Cada campo é uma 
 | `capabilities.provides` | O que o plugin oferece ao seu grafo |
 | `capabilities.requires` | O que o plugin precisa de outros plugins |
 | `permissions` | O que o plugin vai pedir ao usuário (network, storage…) |
-| `targets` | Onde roda: no browser, no servidor, ou remotamente |
+| `targets` | Onde roda: `browser`, `server` (daemon), ou ambos |
 | `trust.profile` | `strict` = sandbox total; `trusted-fast` = você aprova explicitamente |
 | `certification.license` | Licença do código — você sabe o que aceita |
 
@@ -414,9 +497,12 @@ O `PluginManifest` é o que o usuário vê antes de instalar. Cada campo é uma 
 
 | Mecanismo | Status | O que é necessário |
 |---|---|---|
-| `file://` URL (Node.js/local) | ✅ Hoje | Apenas um arquivo `.wasm` no disco |
-| `https://` URL + SHA-256 | ✅ Hoje | Servidor HTTPS qualquer + hash do arquivo |
+| `file://` URL (daemon/Node.js) | ✅ Hoje | Arquivo `.wasm` no disco do daemon |
+| `https://` URL + SHA-256 (daemon) | ✅ Hoje | Servidor HTTPS qualquer + hash |
+| Bundle JS pré-transpilado (browser) | ✅ Hoje | Publisher distribui `.js` + `.wasm` |
 | Compartilhamento manual (manifest JSON) | ✅ Hoje | Nada além do que já existe |
+| Core da distro (auto-load) | ✅ Hoje | Pré-empacotado no build da Homestead |
+| `https://` URL + `installPlugin()` (browser) | 🚧 Pendente | ADR-044 passo 3 |
 | Curadoria Refarm (`refarm.dev/plugins`) | 🚧 Em construção | Manifesto válido + conformance tests |
 | Nostr NIP-94 + NIP-89 | 🔭 Próximo passo | Integração com `identity-nostr` |
 | Self-hosted relay Nostr | 🔭 Planejado | Relay próprio + NIP-89 |
