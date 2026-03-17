@@ -6,7 +6,10 @@
     "declarationMap": true,
     "rootDir": "src",
     "outDir": "dist",
-    "noEmit": false
+    "noEmit": false,
+    "paths": {
+      "@refarm.dev/plugin-manifest": ["./packages/plugin-manifest/dist/index.d.ts"]
+    }
   },
   "include": [
     "src/**/*"
