@@ -46,12 +46,17 @@ describe("Tractor Telemetry", () => {
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(8))
     });
 
-    await tractor.plugins.load({
+    const manifest = {
       id: "hello-world",
       name: "Hello World",
       entry: "https://example.com/plugin.wasm",
       capabilities: {}
-    } as any);
+    } as any;
+    await tractor.registry.register(manifest);
+    const entry = tractor.registry.getPlugin("hello-world");
+    if (entry) entry.status = "validated";
+
+    await tractor.plugins.load(manifest);
 
     expect(listener).toHaveBeenCalledWith(expect.objectContaining({
       event: "plugin:load",
