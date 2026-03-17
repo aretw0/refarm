@@ -1,0 +1,60 @@
+/// tem.wit
+///
+/// WIT interface for the TEM Sovereign Graph reasoning engine plugin.
+///
+/// The TEM plugin observes the Tractor's telemetry stream and maintains
+/// a Hebbian associative memory over the Sovereign Graph topology.
+/// It exposes prediction, pattern-completion and novelty-scoring APIs.
+///
+/// Standard: WebAssembly Component Model (WASI Preview 2)
+
+package refarm:tem@0.1.0;
+
+// ─── TEM API ──────────────────────────────────────────────────────────────────
+
+/// Output of a single TEM inference step.
+record tem-output {
+    /// Inferred place cell activations (observation-grounded), shape [sum-p]
+    p-inferred: list<float32>,
+    /// Place cells recalled from Hebbian memory via attractor dynamics
+    p-recalled: list<float32>,
+    /// Sensory prediction error: L2 distance between predicted and actual obs.
+    /// Lower = more familiar; higher = novel pattern.
+    novelty-score: float32,
+    /// Cosine similarity between recalled and generated place cells.
+    /// Higher = confident recall from memory.
+    prediction-confidence: float32,
+}
+
+/// The TEM reasoning API exposed by this plugin.
+interface tem-api {
+    /// Perform one inference step with an action and observation.
+    ///
+    /// action-id:  Index into the action vocabulary (see action-encoder.ts)
+    /// obs-vec:    Struct-aware observation vector, shape [n-x] (default 64)
+    ///
+    /// Updates the internal state (g, M, hiddens) and returns output metrics.
+    step: func(action-id: u32, obs-vec: list<float32>) -> result<tem-output, string>;
+
+    /// Pattern completion: given an abstract location hint, recall the
+    /// associated place-cell pattern from the Hebbian memory.
+    ///
+    /// location-hint: partial g vector, shape [sum-g]
+    recall: func(location-hint: list<float32>) -> result<list<float32>, string>;
+
+    /// Reset state for a new walk (new environment or context switch).
+    /// Clears abstract locations g, RNN hiddens, and Hebbian memory M.
+    reset-walk: func();
+
+    /// Return the novelty score from the most recent step().
+    /// Returns 0.0 if no step has been performed.
+    last-novelty: func() -> float32;
+}
+
+// ─── Plugin World ─────────────────────────────────────────────────────────────
+
+world tem-plugin {
+    import refarm:plugin/tractor-bridge@0.1.0;
+    export refarm:plugin/integration@0.1.0;
+    export tem-api;
+}
