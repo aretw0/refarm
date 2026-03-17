@@ -12,7 +12,8 @@
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@refarm.dev/fence": "*",
@@ -27,7 +28,8 @@
   },
   "devDependencies": {
     "@types/inquirer": "^9.0.9",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
