@@ -33,20 +33,25 @@ import { Layout } from "@refarm.dev/homestead/ui";
 <script>
   import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
   import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
+  import { LoroCRDTStorage, BrowserSyncClient, randomPeerId } from "@refarm.dev/sync-loro";
   import { Tractor } from "@refarm.dev/tractor";
 
   async function boot() {
     try {
-      const storage = await new OPFSSQLiteAdapter().open("refarm-me-main");
-      
-      const identity = { 
-        id: "citizen", 
+      const sqliteStorage = await new OPFSSQLiteAdapter().open("refarm-me-main");
+      const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
+      const syncClient = new BrowserSyncClient(storage);
+      syncClient.connect();
+
+      const identity = {
+        id: "citizen",
         getPublicKey: async () => "me",
-        sign: async (data: string) => data 
+        sign: async (data: string) => data
       };
 
-      const tractor = await Tractor.boot({ 
-        storage: storage as any, 
+      const tractor = await Tractor.boot({
+        storage: storage as any,
+        sync: storage,
         identity: identity as any,
         namespace: "citizen",
         envMetadata: { version: "0.1.0-solo-fertil", commit: "me" }
