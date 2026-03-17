@@ -1,7 +1,7 @@
 # ADR-003: CRDT Choice (Yjs)
 
-**Status**: Accepted  
-**Date**: 2026-03-06  
+**Status**: Superseded by [ADR-045](ADR-045-loro-crdt-adoption.md) (2026-03-17)
+**Date**: 2026-03-06
 **Deciders**: Core Team  
 **Related**: [ADR-002 (Offline-First)](ADR-002-offline-first-architecture.md), [Validation 2](../../docs/research/critical-validations.md#validação-2-crdt--opfs-quota-limite--confirmado)
 

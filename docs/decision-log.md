@@ -4,6 +4,56 @@ Central register for high-impact technical decisions that are pending or recentl
 
 ---
 
+## Composition Model: Blocks and Distros
+
+**Date**: 2026-03-17
+**Status**: Accepted
+**ADR**: [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md)
+
+**Decision**: Establish an explicit two-layer architecture. `packages/` are philosophy-neutral
+blocks that any developer can use to build any type of application (centralized, hybrid, or
+sovereign). `apps/` are opinionated distros that carry Refarm's sovereign philosophy. Blocks
+never assume local-first; distros are free to be as opinionated as needed.
+
+**New block**: `@refarm.dev/storage-rest` — first block explicitly targeting centralized apps.
+Implements `StorageAdapter` by proxying to any REST API. Proves that Tractor works as a plugin
+host for traditional web applications without requiring CRDT or P2P.
+
+**Dogfood rule**: Every Refarm distro must be buildable entirely from Refarm blocks.
+
+**Impact**:
+- `specs/ADRs/ADR-046-refarm-composition-model.md` created
+- `docs/ARCHITECTURE.md` updated with Composition Model section
+- `packages/storage-rest/` created as `@refarm.dev/storage-rest`
+- No breaking changes to any existing package
+
+---
+
+## CRDT Engine: Loro replaces Yjs
+
+**Date**: 2026-03-17
+**Status**: Accepted
+**ADR**: [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md)
+**Supersedes**: [ADR-003 (Yjs)](../specs/ADRs/ADR-003-crdt-synchronization.md)
+**Implements**: [ADR-028 (CRDT-SQLite convergence)](../specs/ADRs/ADR-028-crdt-sqlite-convergence-strategy.md)
+
+**Decision**: Adopt `loro-crdt` (Rust-core + WASM) as the CRDT engine. Implement the CQRS
+pattern from ADR-028: `LoroDoc` as the write model (source of truth), SQLite as the materialized
+read model (projected by a `Projector` that listens to `LoroDoc.subscribe`).
+
+**Key advantages over Yjs**: `LoroTree` with concurrent-move cycle detection, shallow snapshots
+for RPi/IoT targets, built-in time travel, single npm package for browser and daemon (no separate
+provider ecosystem), Rust-core correctness.
+
+**Impact**:
+- New package: `@refarm.dev/sync-loro` — the **only** package that depends on `loro-crdt`
+- `apps/farmhand/`: wired with `LoroCRDTStorage`; WebSocket transport changed to binary (`Uint8Array`)
+- `packages/homestead/`: `BrowserSyncClient` added for browser ↔ farmhand sync
+- `packages/sync-crdt/`: preserved as conceptual reference, no longer in production sync path
+- Zero breaking changes to `StorageAdapter`, `SyncAdapter`, or plugin contracts
+
+---
+
 ## Sprint 1 Readiness Status
 
 **Date**: 2026-03-07  

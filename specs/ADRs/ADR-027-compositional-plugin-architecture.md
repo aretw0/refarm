@@ -31,12 +31,12 @@ We will extend the `tractor-bridge` (WIT) to allow plugins to query for other pl
 
 **Consequences**:
 - **Positivas**: 
-    - **Total Modularity**: Users can swap the "Terminal" or "Editor" for any alternative.
-    - **Consistency**: The headless DSL ensures a premium, cohesive look while keeping plugins lightweight.
-    - **Ecosystem Growth**: Developers can build "Helper Plugins" that provide APIs for others.
+  - **Total Modularity**: Users can swap the "Terminal" or "Editor" for any alternative.
+  - **Consistency**: The headless DSL ensures a premium, cohesive look while keeping plugins lightweight.
+  - **Ecosystem Growth**: Developers can build "Helper Plugins" that provide APIs for others.
 - **Negativas**: 
-    - **Complexity**: Managing the dependency graph and cross-plugin security becomes more challenging.
-    - **Performance**: RPC calls between WASM components might have overhead (mitigated by WASI Preview 2 performance).
+  - **Complexity**: Managing the dependency graph and cross-plugin security becomes more challenging.
+  - **Performance**: RPC calls between WASM components might have overhead (mitigated by WASI Preview 2 performance).
 
 **Implementation Roadmap**:
 1. Update `packages/plugin-manifest` and `wit/refarm-sdk.wit`.
