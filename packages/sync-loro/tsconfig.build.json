@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@refarm.dev/storage-contract-v1": ["./packages/storage-contract-v1/dist/index.d.ts"],
+      "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}
