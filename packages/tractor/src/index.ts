@@ -29,13 +29,14 @@ import {
   isTractorLogLevel
 } from "./lib/types";
 
-export * from "./lib/graph-normalizer";
-export * from "./lib/identity-recovery-host";
-export * from "./lib/l8n-host";
-export * from "./lib/plugin-host";
-export * from "./lib/secret-host";
-export * from "./lib/telemetry";
-export * from "./lib/types";
+
+export * from "./lib/graph-normalizer.js";
+export * from "./lib/identity-recovery-host.js";
+export * from "./lib/l8n-host.js";
+export * from "./lib/plugin-host.js";
+export * from "./lib/secret-host.js";
+export * from "./lib/telemetry.js";
+export * from "./lib/types.js";
 
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
   if (configLevel) return configLevel;
@@ -251,18 +252,37 @@ export class Tractor {
   }
 
   observe(listener: TelemetryListener) { return this.events.on(listener); }
+  
+  /**
+   * Register a reactive handler for a specific node type.
+   * This provides a declarative way to respond to graph changes without
+   * manual filtering of the telemetry bus.
+   */
+  onNode(type: string, handler: (node: SovereignNode) => Promise<void>) {
+    return this.observe(async (event) => {
+      if (event.event !== "storage:node:written") return;
+      const node = event.payload as SovereignNode | undefined;
+      if (node && node["@type"] === type) {
+        await handler(node);
+      }
+    });
+  }
+  
   trustPlugin(pluginId: string, wasmHash: string, leaseMs?: number): PluginTrustGrant {
     return this.plugins.grantTrust(pluginId, wasmHash, leaseMs);
   }
+
   trustPluginManifestOnce(manifest: PluginManifest, wasmHash: string): PluginTrustGrant {
     return this.plugins.trustManifestOnce(manifest, wasmHash);
   }
   revokePluginTrust(pluginId: string, wasmHash?: string): void {
     this.plugins.revokeTrust(pluginId, wasmHash);
   }
+  
   setPluginState(pluginId: string, state: PluginState) {
     this.plugins.setState(pluginId, state);
   }
+
   emitTelemetry(data: TelemetryEvent) { this.events.emit(data); }
 
   async connectIdentity(adapter: IdentityAdapter): Promise<void> {
