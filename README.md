@@ -48,8 +48,8 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 Refarm is transitioning from an experimental research project to a stable, modular engine. We are currently formalizing the emergence of its core primitives into a cohesive, auditable system.
 
-- **Current phase**: Core Refactor Completed (Modular Tractor, Stratified Health, Harmonized Namespaces)
-- **Next milestone**: v0.1.0 "Sovereign Alignment" — First official public release of contract primitives
+- **Current phase**: Phase 6 - Sync & Execution Stabilization (Loro CRDT, WASM Component Plugins, Farmhand Daemon)
+- **Next milestone**: v0.1.0 "Sovereign Foundations" — First official public release of contract primitives
 - **Registry maturity**: Tracking ready-to-publish packages in [Package Registry](packages/README.md)
 - **Methodology**: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
 
