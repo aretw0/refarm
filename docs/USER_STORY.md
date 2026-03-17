@@ -1,7 +1,7 @@
 # User Story: "A Day in the Life of a Refarm User"
 
-> **Purpose**: Validate that the Refarm roadmap delivers a complete, compelling end-to-end experience.  
-> **Audience**: Product managers, developers, community feedback.  
+> **Purpose**: Validate that the Refarm roadmap delivers a complete, compelling end-to-end experience.
+> **Audience**: Product managers, developers, community feedback.
 > **Format**: Narrative walkthrough of first-time user journey.
 
 ---
@@ -23,7 +23,7 @@
 ```
 [Link opened in browser]
   🌱 Refarm Collaborative Board — "Project Planning"
-  
+
   [Join as Guest]  [Create Account]
 ```
 
@@ -38,7 +38,7 @@ Alice clicks **"Join as Guest"** — no signup, no password, no friction.
 ```
 [Storage Choice]
   How would you like to store your data?
-  
+
   ○ Just browsing  (cleared when tab closes)
   ○ Keep locally   (saved in this browser)
   ○ Sync devices   (share between your devices via code)
@@ -58,7 +58,7 @@ Alice picks **"Keep locally"** — she wants her work to survive a browser resta
   ✓ Board has 47 sticky notes + 12 connections
   ✓ Your data is stored locally (persistent)
   ✓ Guest Identity: @temp_5e3a8... (Ephemeral)
-  
+
   Guest-a7c3f2 (you)  Alice (host)  Bob  Carol
 ```
 
@@ -74,7 +74,7 @@ Alice picks **"Keep locally"** — she wants her work to survive a browser resta
 - ❌ Cannot publish plugins (no keypair for NIP-89/94)
 - ❌ Cannot recover via mnemonic on a new device (no mnemonic)
 
-**Alice's experience**: "Wow, I can collaborate AND keep my data without creating an account. But I want to sync via Nostr relays and sign my work..."
+**Alice's experience**: "Wow, I can collaborate AND keep my data without creating an account. But I want to sync across devices and sign my work..."
 
 ---
 
@@ -87,10 +87,10 @@ Alice picks **"Keep locally"** — she wants her work to survive a browser resta
   You're currently in Guest Mode.
   Create a permanent identity to:
     ✓ Sign your data (provenance & authorship)
-    ✓ Sync via Nostr relays (in addition to P2P)
+    ✓ Sync across devices (P2P or via relay)
     ✓ Publish plugins to the ecosystem
     ✓ Recover your vault with a mnemonic on any device
-  
+
   [Create Identity]  [Stay Guest]
 ```
 
@@ -111,11 +111,11 @@ Alice clicks **"Create Identity"**.
 [Identity Created]
   ✓ Your recovery phrase (write it down):
     turtle cloud forest... (12 words)
-  
+
   ✓ Data ownership transferred to your new identity
   ✓ Storage unchanged — your data is still in SQLite/OPFS
-  ✓ You are now: @alice_5f832a (Nostr identity)
-  
+  ✓ You are now: @alice_5f832a
+
   [Continue]
 ```
 
@@ -162,22 +162,21 @@ Launch → Recognizes existing identity from browser
 **Alice's action**: Opens Studio → "Install Plugin" → Searches "signal".
 
 ```
-[Search Results]
+[Refarm Plugin Directory — refarm.dev/plugins]
   🔗 Signal Bridge v1.0.0
-     by: @signal-devs:nostr
-     Syncs Signal conversations into your graph
-     ⭐⭐⭐⭐⭐ (47 endorsers)
-     
-     Install
+     by: signal-team
+     Syncs Signal conversations into your sovereign graph
+     ✓ Curated  ·  ✓ Hash verified  ·  ✓ MIT License
+
+     [Install]  [Details]
 ```
 
 **What happens**:
 
-1. Tractor finds plugin via Nostr relay query
-   - Query: `kind:31990, tag:d="signal-bridge"`
-2. Retrieves NIP-89 event → extracts NIP-94 file metadata
-3. Downloads WASM from URL
-4. Verifies SHA-256 hash (matches declared value)
+1. Alice clicks "Install"
+2. Studio shows the plugin's entry URL and SHA-256 hash for review
+3. Tractor downloads WASM from the plugin's URL
+4. Verifies SHA-256 hash (matches declared value — installation blocked if mismatch)
 5. Prompts Alice for permissions:
 
 ```
@@ -190,23 +189,23 @@ Launch → Recognizes existing identity from browser
 └──────────────────────────────────────┘
 ```
 
-1. Alice clicks "Allow"
-2. Plugin calls `setup()` → requests access token input
+6. Alice clicks "Allow"
+7. Plugin calls `setup()` → requests access token input
 
 ```
 [Input Dialog]
   Signal Bridge needs your Signal account token.
   (Not stored anywhere — held in memory during sync.)
-  
+
   [Paste token...]  [Next]
 ```
 
-1. Alice pastes token (from Signal's settings → Export)
-2. Plugin calls `ingest()`:
+8. Alice pastes token (from Signal's settings → Export)
+9. Plugin calls `ingest()`:
    - Fetches Signal conversations
    - Normalises each message to JSON-LD Message nodes
    - Normalises contacts to JSON-LD Person nodes
-   - Stores ~2000 nodes in SQLite (localStorage via OPFS)
+   - Stores ~2000 nodes in SQLite (via OPFS)
 
 ```
 [Progress bar]
@@ -214,14 +213,13 @@ Launch → Recognizes existing identity from browser
   ✓ 127 conversations processed
   ✓ 2,847 messages stored
   ✓ 156 contacts imported
-  
+
   Done. Plugin will sync daily.
 ```
 
 **Refarm delivered**:
 
-- ✅ v0.4.0 Plugin system (WASM sandbox, capability-based security)
-- ✅ v0.2.0 Network abstraction (Nostr plugin discovery)
+- ✅ v0.2.0 Plugin system (WASM sandbox, capability-based security, URL+hash install)
 
 ---
 
@@ -234,10 +232,10 @@ Launch → Recognizes existing identity from browser
 ```
 [Welcome to Refarm]
   Do you have an existing Refarm?
-  
+
   ○ Create new
   ○ Join existing
-  
+
   [Join existing → input recovery phrase from laptop]
 ```
 
@@ -246,7 +244,7 @@ Alice enters 12-word phrase.
 **Behind the scenes**:
 
 - Phone derives same keypair from phrase
-- Tractor detects another device is online (via WebRTC or Nostr discovery)
+- Tractor detects another device is online (via WebRTC or relay discovery)
 - Initiates CRDT sync:
   - Phone asks: "What nodes do you have?"
   - Laptop responds with vector clocks
@@ -258,14 +256,72 @@ Alice enters 12-word phrase.
 [Studio on Phone]
   ✓ Synced with Alice's Laptop
   Connected devices: 2
-  
+
   [2,847 messages]  [156 contacts]  [Search...]
 ```
 
 **Refarm delivered**:
 
 - ✅ v0.1.0 Storage + Sync (SQLite + CRDT)
-- ✅ v0.2.0 Multi-device sync (identity + WebRTC/Nostr)
+- ✅ v0.2.0 Multi-device sync (identity + CRDT over WebRTC or relay)
+
+---
+
+### Day 4: Local Files via Daemon
+
+**Alice's action**: She wants to import her Obsidian notes into Refarm. But the browser
+can't access her local filesystem directly.
+
+```
+[Studio — Install Plugin]
+  🔗 Obsidian Bridge v1.0.0
+     Imports .md files from a local Obsidian vault
+     ⚠️  Requires Refarm Daemon (local file access)
+
+  [Install on Daemon]  [Learn more]
+```
+
+Alice clicks **"Learn more"** and follows the daemon setup:
+
+```bash
+# Alice runs on her laptop terminal:
+npx @refarm.dev/daemon
+# → Daemon running at localhost:42000
+# → Waiting for browser to connect...
+```
+
+Studio detects the daemon automatically:
+
+```
+[New device connected]
+  🖥️  Alice's Laptop — Daemon
+
+  [Sync as new device]  [Ignore]
+```
+
+Alice clicks "Sync as new device". The daemon joins her CRDT swarm — same as adding a new phone.
+
+```
+[Devices]
+  📱 Alice's Phone
+  💻 Alice's Laptop (browser)
+  🖥️  Alice's Laptop — Daemon   ← new
+```
+
+She installs Obsidian Bridge on the daemon (which has filesystem access):
+
+```
+[Progress]
+  Obsidian Bridge running on daemon...
+  ✓ 347 notes imported from ~/obsidian/vault/
+  Syncing to your other devices...
+```
+
+Alice sees her Obsidian notes in the browser Refarm — **the browser never touched a local file**.
+
+**Refarm delivered**:
+
+- ✅ v0.3.0 Headless Tractor (daemon as CRDT peer, ADR-037 Phase 3)
 
 ---
 
@@ -278,9 +334,9 @@ Alice enters 12-word phrase.
 ```
 [Search box]
   "What are the topics I discuss with David?"
-  
+
   [Search type: Natural language]
-  
+
   [5 results]
   - "Meetup planning" (15 messages)
   - "Go programming" (23 messages)
@@ -308,6 +364,41 @@ Alice enters 12-word phrase.
 **Refarm delivered**:
 
 - ✅ v0.3.0 Local AI (WebLLM + Transformers.js in Web Workers)
+
+---
+
+### Day 7: Async Webhooks via Edge + Daemon
+
+**Alice's action**: She wants GitHub to notify her when someone mentions her in an issue —
+even when her browser is closed.
+
+Alice configures a GitHub webhook pointing to a Refarm relay endpoint:
+
+```
+GitHub Webhook → https://relay.refarm.dev/alice_pubkey/github
+```
+
+**What happens when a mention arrives**:
+
+1. GitHub posts to the relay (Cloudflare Worker — dumb mailbox, stores encrypted payload)
+2. Alice's daemon polls the mailbox every 5 minutes
+3. Daemon's GitHub plugin processes the event → creates `Mention` node in graph
+4. Graph syncs to Alice's browser and phone
+
+```
+[Studio notification]
+  🔔 @alice mentioned in: "RFC: new plugin API"
+     refarm-dev/refarm · issue #142
+
+     [Open]  [Dismiss]
+```
+
+Alice's browser was closed all night — but the mention landed in her graph automatically.
+
+**Refarm delivered**:
+
+- ✅ v0.3.0 Async mailbox (ADR-037 Phase 2 — edge relay as dumb mailbox)
+- ✅ v0.3.0 Daemon webhook processing (ADR-037 Phase 3)
 
 ---
 
@@ -344,49 +435,78 @@ She writes a **Matrix Bridge** plugin (Rust):
 
 ```rust
 // matrix-bridge/src/lib.rs
-#[no_mangle]
-pub extern "C" fn ingest() -> i32 {
-    let matrix_url = env::var("MATRIX_HOMESERVER").unwrap();
-    // Fetch rooms from Matrix
-    // Normalise to JSON-LD
-    // Store via tractor bridge
+impl plugin::Guest for Plugin {
+    fn ingest() -> Result<u32, String> {
+        // Fetch rooms from Matrix homeserver
+        // Normalise to JSON-LD Message/Person nodes
+        // Store via tractor bridge
+        Ok(rooms_synced)
+    }
 }
 ```
 
 Compiles to WASM:
 
 ```bash
-cargo build --release --target wasm32-unknown-unknown
+cargo component build --release
 # → matrix-bridge.wasm (87KB)
 ```
 
-Tests locally:
+Tests locally on her daemon:
 
 ```bash
 cargo test
 # ✓ All 12 tests pass
 ```
 
-## Day 20: Publish Plugin
+---
 
-Alice publishes her Matrix Bridge to the Nostr plugin registry:
+### Day 20: Publish Plugin
+
+Alice wants others to be able to install her Matrix Bridge.
+
+**The baseline — works today:**
 
 ```bash
-# 1. Upload WASM to GitHub releases
-# 2. Create NIP-94 event (file metadata)
-# 3. Create NIP-89 event (handler announcement)
-# 4. Sign both with her Nostr keypair
+# 1. Upload WASM to any HTTPS URL
+#    (GitHub Releases, her own server, IPFS...)
 
-# Within 10 seconds, other Refarm users can discover it:
-# Studio → Install Plugin → "matrix-bridge" → [Found]
+# 2. Generate SHA-256 hash
+sha256sum matrix-bridge.wasm
+# → b2e9c4f1...
+
+# 3. Create manifest.json with entry URL + hash
 ```
 
-**Result**: Alice is now a **plugin developer** for the Refarm ecosystem. Her Matrix Bridge helps others own their communication history.
+Anyone with the URL + manifest can install immediately:
+
+```
+[Studio — Install Plugin]
+  Paste plugin URL or manifest:
+  [https://alice.dev/plugins/matrix-bridge.wasm]
+
+  [Install]
+```
+
+**For broader reach:**
+
+```bash
+# 4. [Optional] Submit to refarm.dev/plugins for curation
+#    → Plugin appears in Studio search for all Refarm users
+
+# 5. [Optional, future] Announce via Nostr NIP-94 + NIP-89
+#    → Decentralized discovery via any compatible relay
+#    → Users choose which relays to query
+#    → No single point of failure, no central approval
+```
+
+**Result**: Alice is now a **plugin developer** for the Refarm ecosystem. Her Matrix Bridge helps others own their communication history — and it works without Nostr, without a registry, without asking anyone for permission.
 
 **Refarm delivered**:
 
 - ✅ v0.4.0 Developer tooling (SDK, templates, testing)
-- ✅ v0.2.0 Nostr plugin discovery (no central registry)
+- ✅ v0.2.0 URL+hash distribution (no central registry required)
+- 🔭 v0.4.0+ Nostr discovery (decentralized, opt-in)
 
 ---
 
@@ -420,9 +540,10 @@ Alice publishes her Matrix Bridge to the Nostr plugin registry:
 
 ### ✅ Decentralization
 
-- Plugins discovered via Nostr (no central app store)
+- Plugins distributed via any URL + SHA-256 — no central registry required
+- Decentralized discovery (Nostr, self-hosted relay, community directory) is optional
 - User identity is self-certifying (keypair)
-- Sync works P2P (WebRTC) or via public relays (Nostr)
+- Sync works P2P (WebRTC) or via relays (any compatible relay, self-hosted or public)
 
 ---
 
@@ -430,9 +551,14 @@ Alice publishes her Matrix Bridge to the Nostr plugin registry:
 
 ### ⚠️ Uptime
 
-If Alice closes laptop and phone, her Refarm is offline. Relays are not reliable.
+If Alice closes laptop, phone, and daemon, her Refarm is offline.
 
-**Future solution** (v1.0+): She can run a personal home server or pay for always-on relay.
+**Partial solution (v0.3.0+)**: She can run the Refarm Daemon on an always-on device
+(Raspberry Pi, home server) — it acts as a permanent CRDT peer and webhook receiver.
+
+**Cloud option (v0.4.0+)**: She can use a hosted relay as an async mailbox — relay stores
+encrypted CRDT updates, her devices download and process them on wake-up. She remains the
+data owner; the relay only stores ciphertext it cannot read.
 
 ### ⚠️ Discoverability
 
@@ -456,11 +582,15 @@ This story validates:
 
 - [ ] **v0.1.0 (Guest Mode)**: Can Alice try Refarm without creating identity?
 - [ ] **v0.1.0**: Can Alice store and sync data offline?
+- [ ] **v0.2.0**: Can she install a plugin via URL + SHA-256 (no Nostr required)?
 - [ ] **v0.2.0**: Can she manage identity and multi-device?
-- [ ] **v0.2.0 (Migration)**: Can guest data migrate seamlessly to permanent storage?
+- [ ] **v0.2.0 (Migration)**: Can guest data migrate seamlessly to permanent identity?
+- [ ] **v0.3.0**: Can she run a local daemon and sync it as a new device?
+- [ ] **v0.3.0**: Can she receive async webhooks via edge relay while browser is closed?
 - [ ] **v0.3.0**: Can she query with AI without internet?
-- [ ] **v0.4.0**: Can she create and publish plugins?
-- [ ] **Sovereignty**: Is the system truly decentralized and exportable?
+- [ ] **v0.4.0**: Can she publish a plugin via URL + hash (no Nostr required)?
+- [ ] **v0.4.0+**: Can she optionally announce her plugin via Nostr for decentralized discovery?
+- [ ] **Sovereignty**: Is the system truly sovereign and exportable?
 - [ ] **Security**: Are plugins sandboxed and permission-gated?
 - [ ] **UX**: Can a non-technical user understand the flow?
 - [ ] **Collaboration**: Can guests participate in shared experiences (boards, channels)?
@@ -486,7 +616,7 @@ This story validates:
    - Future: Optimise with partial sync, delta patches
 
 5. **Plugin trust**: How does Alice know Matrix Bridge is safe?
-   - MVP: Reviews/endorsements on Nostr
+   - MVP: Curated directory + hash verification
    - Future: Formal security audits, code signing, reputation systems
 
 6. **Guest capabilities in plugins**: Should plugins support guest users differently?
@@ -499,5 +629,6 @@ This story validates:
 
 - [Workflow: SDD→BDD→TDD→DDD](./WORKFLOW.md)
 - [Architecture: System Design](./ARCHITECTURE.md)
+- [Plugin Developer Stories](./PLUGIN_DEVELOPER_STORIES.md)
 - [Plugin Developer Playbook](./PLUGIN_DEVELOPER_PLAYBOOK.md)
 - [Security Model](../specs/features/plugin-security-model.md)
