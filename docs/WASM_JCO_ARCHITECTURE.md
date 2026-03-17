@@ -84,6 +84,12 @@ To ensure high-fidelity verification without bloating CI runners:
 - **`build:ci` script**: `heartwood` exposes a `build:ci` npm script that checks for `target/wasm32-wasip1/release/refarm_heartwood.wasm`. If the binary is absent (no Rust toolchain), it exits successfully and logs a skip message — `pkg/` is used as-is. If the binary is present, it re-runs `jco transpile` to refresh `pkg/`.
 - **Reusable rebuild workflow**: When Heartwood's Rust source changes and a full rebuild is required, use `.github/workflows/reusable-build-wasm-plugin.yml`. This workflow installs the Rust toolchain, compiles, transpiles, and uploads `pkg/` as an artifact. External plugin authors can call this workflow from their own repos via `uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main`.
 
+### Toolchain Provisioning in CI
+
+To support full compilation without requiring all workflows to duplicate Rust setup logic, Refarm uses a parameterized Setup action:
+
+- **Centralized `./.github/actions/setup`:** Accepts a `rust-target` parameter (default: `wasm32-wasip1`). It automatically runs `rustup target add` if a target is specified. This ensures that any standard job running `npm run build` or `npm run lint` natively possesses the required WASM target to compile components like `@refarm.dev/heartwood`.
+
 ---
 
 > "We treat WASM as the soil, JCO as the plow, and WIT as the fence that keeps the farm secure."
