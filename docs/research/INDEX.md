@@ -41,6 +41,11 @@ Refarm's positioning vs Obsidian, Logseq, and Anytype.
 
 - **Focus**: Local-first sovereignty and semantic data portability (JSON-LD).
 
+### [Toeverything (AFFiNE) Synergies](./toeverything-synergies.md)
+Analysis of Toeverything's ecosystem for decoupled integration.
+
+- **Focus**: Rust/WASM utilities for `tractor`, BlockSuite for frontend, and OctoBase CRDT sync.
+
 ---
 
 ## 📅 Maintenance
