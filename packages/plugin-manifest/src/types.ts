@@ -7,6 +7,35 @@ export type TelemetryHook =
 
 export type PluginExecutionProfile = "strict" | "trusted-fast";
 
+/**
+ * Runtime execution context where the plugin's code will be instantiated.
+ * Orthogonal to `targets` (which describes deployment environments).
+ *
+ * - "main-thread"    — default; runs in the host's main JS execution context
+ * - "worker"         — dedicated Worker thread (non-blocking, recommended for heavy compute)
+ * - "service-worker" — ServiceWorker scope (for offline/background use cases)
+ * - "node"           — Node.js child process or Worker thread
+ * - "edge"           — Edge runtime (e.g. Cloudflare Workers, Deno Deploy)
+ */
+export type ExecutionContextType =
+  | "main-thread"
+  | "worker"
+  | "service-worker"
+  | "node"
+  | "edge";
+
+export interface ExecutionContextConfig {
+  /** Preferred execution context. The host will attempt this first. */
+  preferred: ExecutionContextType;
+  /**
+   * Fallback context if `preferred` is unavailable (e.g. iOS Safari without Worker).
+   * When absent and `preferred` is unavailable, the host MAY refuse to load the plugin.
+   */
+  fallback?: ExecutionContextType;
+  /** Exhaustive list of contexts where this plugin is safe to run. */
+  allowed: ExecutionContextType[];
+}
+
 export interface PluginTrustMetadata {
   /** Preferred runtime profile. `trusted-fast` requires an explicit host trust grant. */
   profile: PluginExecutionProfile;
@@ -64,6 +93,19 @@ export interface PluginManifest {
    * Can be a localized bundle or a URL to one.
    */
   i18n?: Record<string, any> | string;
+  /**
+   * Declares the preferred and allowed execution contexts for this plugin.
+   * When absent, the host defaults to "main-thread".
+   *
+   * @example
+   * // TEM reasoning engine: must not block the main thread
+   * executionContext: {
+   *   preferred: "worker",
+   *   fallback: "main-thread",
+   *   allowed: ["worker", "main-thread"]
+   * }
+   */
+  executionContext?: ExecutionContextConfig;
   /**
    * Optional trust metadata for host policy negotiation.
    * The host decides whether to honor `trusted-fast`.

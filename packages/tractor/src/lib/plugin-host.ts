@@ -1,6 +1,4 @@
-import * as jco from "@bytecodealliance/jco";
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
@@ -9,8 +7,10 @@ import { SovereignNode } from "./graph-normalizer";
 import { TrustManager, ExecutionProfile } from "./trust-manager";
 import type { PluginTrustGrant } from "./trust-manager";
 import { WasiImports } from "./wasi-imports";
-import { PluginInstanceHandle } from "./instance-handle";
 import type { PluginInstance, PluginState } from "./instance-handle";
+import type { PluginRunner } from "./plugin-runner";
+import { MainThreadRunner } from "./main-thread-runner";
+import { WorkerRunner } from "./worker-runner";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
@@ -21,14 +21,44 @@ export type { PluginInstance, PluginState, PluginTrustGrant };
 export class PluginHost {
   private _instances: Map<string, PluginInstance> = new Map();
   private trustManager: TrustManager;
+  private _mainThreadRunner: MainThreadRunner;
+  private _workerRunner: WorkerRunner;
 
   constructor(
     private emit: (data: TelemetryEvent) => void,
     private registry: SovereignRegistry,
     private logger: TractorLogger = console,
     private securityMode: SecurityMode = "strict",
+    private distBase: string = __dirname + "/../.jco-dist",
   ) {
     this.trustManager = new TrustManager(emit);
+    this._mainThreadRunner = new MainThreadRunner(this.distBase, this.logger);
+    this._workerRunner = new WorkerRunner();
+  }
+
+  /**
+   * Resolves the appropriate PluginRunner for a manifest's execution context.
+   * Respects `preferred` → `fallback` → main-thread cascade.
+   */
+  private resolveRunner(manifest: PluginManifest): PluginRunner {
+    const ctx = manifest.executionContext;
+    if (!ctx) return this._mainThreadRunner;
+
+    const preferred = ctx.preferred;
+
+    if (preferred === "worker" && this._workerRunner.supports(manifest)) {
+      return this._workerRunner;
+    }
+
+    if (ctx.fallback === "main-thread" || !ctx.fallback) {
+      return this._mainThreadRunner;
+    }
+
+    // Unrecognized fallback — default to main thread
+    this.logger.warn(
+      `[tractor] executionContext.fallback "${ctx.fallback}" not supported; using main-thread`,
+    );
+    return this._mainThreadRunner;
   }
 
   hasValidTrustGrant(pluginId: string, wasmHash?: string): boolean {
@@ -88,69 +118,28 @@ export class PluginHost {
     let wasmBuffer: ArrayBuffer;
 
     if (wasmUrl.startsWith("file://")) {
-        const filePath = wasmUrl.replace("file://", "");
-        const buffer = await fs.readFile(filePath);
-        wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+      const filePath = wasmUrl.replace("file://", "");
+      const buffer = await fs.readFile(filePath);
+      wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
     } else {
-        const response = await fetch(wasmUrl);
-        if (!response.ok) throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
-        wasmBuffer = await response.arrayBuffer();
+      const response = await fetch(wasmUrl);
+      if (!response.ok) throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+      wasmBuffer = await response.arrayBuffer();
     }
 
     const wasi = new WasiImports(pluginId, this.logger, this.emit);
     const imports = wasi.generate(manifest, profile);
-    let componentInstance: any = null;
-    
-    try {
-        const opts = { name: pluginId.replace(/[^a-z0-9]/gi, '_') };
-        const { files } = await jco.transpile(new Uint8Array(wasmBuffer), opts as any);
-        
-        const distDir = path.resolve(__dirname, "../.jco-dist", pluginId);
-        await fs.mkdir(distDir, { recursive: true });
-        
-        const jcoName = pluginId.replace(/[^a-z0-9]/gi, '_');
-        let entryPoint = "";
+    const runner = this.resolveRunner(manifest);
 
-        for (const [filename, content] of Object.entries(files)) {
-            const filePath = path.join(distDir, filename);
-            await fs.mkdir(path.dirname(filePath), { recursive: true });
-            await fs.writeFile(filePath, content as any);
-            if (filename === `${jcoName}.js`) entryPoint = filePath;
-        }
-
-        if (!entryPoint) {
-            const items = await fs.readdir(distDir);
-            const rootJs = items.find(f => f.endsWith(".js"));
-            if (rootJs) entryPoint = path.join(distDir, rootJs);
-        }
-
-        if (!entryPoint) throw new Error(`[tractor] No JS entry point found found for ${pluginId}`);
-
-        const relativePath = "./" + path.relative(__dirname, entryPoint).replace(/\\/g, "/");
-        const module = await import(relativePath);
-        
-        if (module.instantiate) {
-            componentInstance = await module.instantiate(imports, (name: string) => {
-                const wasmFile = Object.entries(files).find(([f]) => f.includes(name) && f.endsWith(".wasm"));
-                return wasmFile ? wasmFile[1] : null;
-            });
-        } else {
-            componentInstance = module;
-        }
-    } catch (e: any) {
-        this.logger.warn(`[tractor] JCO instantiation failed for ${pluginId}: ${e.message}`);
-    }
-
-    const instance = new PluginInstanceHandle(
-      pluginId,
-      manifest.name,
+    const instance = await runner.instantiate(
       manifest,
-      componentInstance,
+      wasmBuffer,
+      imports,
       this.emit,
       (id) => {
         this._instances.delete(id);
         this.registry.deactivatePlugin(id).catch(() => {});
-      }
+      },
     );
 
     this._instances.set(pluginId, instance);
