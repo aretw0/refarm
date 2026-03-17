@@ -69,6 +69,13 @@ export interface PluginManifest {
    * The host decides whether to honor `trusted-fast`.
    */
   trust?: PluginTrustMetadata;
+  /**
+   * W3C Subresource Integrity hash for the WASM binary.
+   * Format: "sha256-<base64-encoded-sha256>"
+   * When present, installPlugin() will reject a fetched binary whose hash
+   * does not match, preventing silent acceptance of tampered bundles.
+   */
+  integrity?: string;
 }
 
 export interface ManifestValidationResult {
