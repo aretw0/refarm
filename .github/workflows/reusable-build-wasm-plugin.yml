@@ -93,9 +93,17 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-${{ inputs.component-name }}-
 
+      - name: Install cargo-component
+        run: |
+          if cargo component --version >/dev/null 2>&1; then
+            echo "cargo-component already installed"
+          else
+            cargo install --locked cargo-component --version 0.21.1
+          fi
+
       - name: Build WASM binary
         working-directory: ${{ inputs.workspace-path }}
-        run: cargo build --target ${{ inputs.rust-target }} --release
+        run: cargo component build --target ${{ inputs.rust-target }} --release
 
       - name: JCO transpile
         working-directory: ${{ inputs.workspace-path }}
