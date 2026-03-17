@@ -8,8 +8,6 @@ Architecture Decision Records for Refarm.
 
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
-| ADR | Title | Status | Date |
-|-----|-------|--------|------|
 | [001](ADR-001-monorepo-structure.md) | Monorepo Structure and Workspace Boundaries | Accepted | 2026-03-06 |
 | [002](ADR-002-offline-first-architecture.md) | Offline-First Architecture | Accepted | 2026-03-06 |
 | [003](ADR-003-crdt-synchronization.md) | CRDT Choice (Yjs) | Superseded | 2026-03-06 |
