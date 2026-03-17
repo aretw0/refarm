@@ -276,52 +276,67 @@ can't access her local filesystem directly.
 [Studio — Install Plugin]
   🔗 Obsidian Bridge v1.0.0
      Imports .md files from a local Obsidian vault
-     ⚠️  Requires Refarm Daemon (local file access)
+     ⚠️  Requires Farmhand (local file access)
 
-  [Install on Daemon]  [Learn more]
+  [Install on Farmhand]  [Learn more]
 ```
 
 Alice clicks **"Learn more"** and follows the daemon setup:
 
 ```bash
 # Alice runs on her laptop terminal:
-npx @refarm.dev/daemon
-# → Daemon running at localhost:42000
-# → Waiting for browser to connect...
+npx @refarm.dev/farmhand
+# → Farmhand running at localhost:42000
+# → Scanning ~/.refarm/plugins/...
 ```
 
-Studio detects the daemon automatically:
+Studio detects Farmhand automatically:
 
 ```
 [New device connected]
-  🖥️  Alice's Laptop — Daemon
+  🖥️  Alice's Laptop — Farmhand
 
   [Sync as new device]  [Ignore]
 ```
 
-Alice clicks "Sync as new device". The daemon joins her CRDT swarm — same as adding a new phone.
+Alice clicks "Sync as new device". Farmhand joins her CRDT swarm — same as adding a new phone.
 
 ```
 [Devices]
   📱 Alice's Phone
   💻 Alice's Laptop (browser)
-  🖥️  Alice's Laptop — Daemon   ← new
+  🖥️  Alice's Laptop — Farmhand   ← new
 ```
 
-She installs Obsidian Bridge on the daemon (which has filesystem access):
+Farmhand has already scanned `~/.refarm/plugins/` and written a `PluginDiscovery` node to the graph.
+Studio shows the routing panel:
+
+```
+[Studio — Farmhand Devices]
+  🖥️  Alice's Laptop — Farmhand
+     Discovered plugins:
+       📦 Obsidian Bridge v1.0.0  (found in ~/.refarm/plugins/)
+           [Load on this device]  [Load on RPi]  [Load on Edge]
+```
+
+Alice clicks **"Load on this device"**. Studio writes a `PluginRoute` node to the graph.
+Farmhand picks it up and loads the plugin:
 
 ```
 [Progress]
-  Obsidian Bridge running on daemon...
+  Obsidian Bridge loading on Farmhand...
   ✓ 347 notes imported from ~/obsidian/vault/
   Syncing to your other devices...
 ```
 
 Alice sees her Obsidian notes in the browser Refarm — **the browser never touched a local file**.
 
+> **If Obsidian Bridge isn't in `~/.refarm/plugins/` yet:**
+> Alice can install it via Studio → the plugin is flagged as requiring Farmhand and routed there automatically.
+
 **Refarm delivered**:
 
-- ✅ v0.3.0 Headless Tractor (daemon as CRDT peer, ADR-037 Phase 3)
+- ✅ v0.3.0 Farmhand (always-on CRDT peer + plugin scanner + router, ADR-037 Phase 3)
 
 ---
 
@@ -553,7 +568,7 @@ Anyone with the URL + manifest can install immediately:
 
 If Alice closes laptop, phone, and daemon, her Refarm is offline.
 
-**Partial solution (v0.3.0+)**: She can run the Refarm Daemon on an always-on device
+**Partial solution (v0.3.0+)**: She can run Farmhand on an always-on device
 (Raspberry Pi, home server) — it acts as a permanent CRDT peer and webhook receiver.
 
 **Cloud option (v0.4.0+)**: She can use a hosted relay as an async mailbox — relay stores
