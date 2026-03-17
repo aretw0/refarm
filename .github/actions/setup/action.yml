@@ -31,7 +31,18 @@ runs:
           npm install
         fi
 
-    - name: Setup Rust WASM Target
+    - name: Setup Rust toolchain
+      if: ${{ inputs.rust-target != '' }}
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.rust-target }}
+
+    - name: Install cargo-component
       if: ${{ inputs.rust-target != '' }}
       shell: bash
-      run: rustup target add ${{ inputs.rust-target }}
+      run: |
+        if cargo component --version >/dev/null 2>&1; then
+          echo "cargo-component already installed"
+        else
+          cargo install --locked cargo-component --version 0.21.1
+        fi
