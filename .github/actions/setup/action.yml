@@ -37,8 +37,16 @@ runs:
       with:
         targets: ${{ inputs.rust-target }}
 
-    - name: Install cargo-component
+    - name: Cache cargo-component
       if: ${{ inputs.rust-target != '' }}
+      id: cache-cargo-component
+      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      with:
+        path: ~/.cargo/bin/cargo-component
+        key: ${{ runner.os }}-cargo-component-0.21.1
+
+    - name: Install cargo-component
+      if: ${{ inputs.rust-target != '' && steps.cache-cargo-component.outputs.cache-hit != 'true' }}
       shell: bash
       run: |
         if cargo component --version >/dev/null 2>&1; then
@@ -46,3 +54,11 @@ runs:
         else
           cargo install --locked cargo-component --version 0.21.1
         fi
+
+    - name: Rust cache
+      if: ${{ inputs.rust-target != '' }}
+      uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+      with:
+        workspaces: |
+          packages/heartwood -> target
+          validations/wasm-plugin/hello-world -> target

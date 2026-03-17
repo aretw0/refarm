@@ -39,11 +39,6 @@ jobs:
       - name: Storage capability conformance
         run: npm --prefix packages/storage-sqlite run test:conformance
 
-      - name: Rust cache
-        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
-        with:
-          workspaces: validations/wasm-plugin/hello-world -> target
-
       - name: Build WASM plugin for tests
         run: |
           cd validations/wasm-plugin/hello-world
