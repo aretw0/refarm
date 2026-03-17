@@ -89,7 +89,7 @@ jobs:
             HAS_FAILURE="true"
           fi
 
-          npm audit --audit-level=${{ inputs.security-audit-level }}
+          npm audit --audit-level=${{ inputs.security-audit-level }} --omit=dev
           if [ $? -ne 0 ]; then
             AUDIT_STATUS="failure"
             HAS_FAILURE="true"

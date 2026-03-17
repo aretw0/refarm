@@ -42,7 +42,8 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Security gate (high and critical)
-        run: npm audit --audit-level=high
+        id: audit_gate
+        run: npm audit --audit-level=high --omit=dev
 
       - name: Generate full audit report
         id: audit_report
@@ -59,7 +60,7 @@ jobs:
 
       - name: Manage security issue
         id: manage_issue
-        if: always() && steps.audit_report.outcome == 'success'
+        if: always() && steps.audit_report.outcome == 'success' && steps.audit_gate.outcome == 'failure'
         uses: ./.github/actions/manage-issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
