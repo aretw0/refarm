@@ -6,6 +6,9 @@
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "tem-codegen": "./dist/codegen/index.js"
+  },
   "files": [
     "dist",
     "plugin.json",
