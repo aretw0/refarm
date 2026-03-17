@@ -1,6 +1,11 @@
 import * as heartwood from "@refarm.dev/heartwood";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 
+export interface RegistryPersistenceOptions {
+  /** Absolute path to the JSON file used to persist registry state. */
+  path: string;
+}
+
 export interface RegistryEntry {
     manifest: PluginManifest;
     status: "registered" | "validated" | "active" | "error";
@@ -16,10 +21,57 @@ export interface RegistryEntry {
 export class SovereignRegistry {
     private plugins: Map<string, RegistryEntry>;
     private config: Record<string, any>;
+    private _persistPath?: string;
 
-    constructor(config: Record<string, any> = {}) {
+    constructor(config: Record<string, any> = {}, persistence?: RegistryPersistenceOptions) {
         this.plugins = new Map();
         this.config = config;
+        this._persistPath = persistence?.path;
+    }
+
+    /**
+     * Factory: creates a registry and loads persisted state from `persistencePath`.
+     * Falls back to an empty registry if the file doesn't exist yet.
+     */
+    static async createWithPersistence(persistencePath: string): Promise<SovereignRegistry> {
+        const registry = new SovereignRegistry({}, { path: persistencePath });
+        await registry._loadState();
+        return registry;
+    }
+
+    private async _saveState(): Promise<void> {
+        if (!this._persistPath) return;
+        const { writeFile, mkdir } = await import("node:fs/promises");
+        const { dirname } = await import("node:path");
+        await mkdir(dirname(this._persistPath), { recursive: true });
+        await writeFile(this._persistPath, JSON.stringify(this.exportState(), null, 2), "utf-8");
+    }
+
+    private async _loadState(): Promise<void> {
+        if (!this._persistPath) return;
+        const { readFile } = await import("node:fs/promises");
+        try {
+            const raw = await readFile(this._persistPath, "utf-8");
+            const entries: RegistryEntry[] = JSON.parse(raw);
+            this.importState(entries);
+        } catch (e: any) {
+            if (e?.code !== "ENOENT") {
+                console.warn(`[registry] Could not load persisted state from ${this._persistPath}:`, e.message);
+            }
+            // ENOENT → first boot, start empty
+        }
+    }
+
+    /**
+     * Trust a registered plugin without cryptographic validation.
+     * Use in daemon/CLI contexts where the plugin source is already verified
+     * by other means (e.g. local file system, pinned WASM hash).
+     */
+    async trust(id: string): Promise<void> {
+        const plugin = this.plugins.get(id);
+        if (!plugin) throw new Error(`[registry] Plugin ${id} not found`);
+        plugin.status = "validated";
+        await this._saveState();
     }
 
     /**
@@ -36,7 +88,7 @@ export class SovereignRegistry {
             timestamp: new Date().toISOString(),
             sourceUrl
         });
-        
+        await this._saveState();
         return manifest.id;
     }
 
@@ -121,6 +173,7 @@ export class SovereignRegistry {
         
         plugin.status = "active";
         plugin.timestamp = new Date().toISOString();
+        await this._saveState();
     }
 
     /**
@@ -132,6 +185,7 @@ export class SovereignRegistry {
         
         plugin.status = "validated"; // Return to validated state
         plugin.timestamp = new Date().toISOString();
+        await this._saveState();
     }
 
     /**
