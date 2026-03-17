@@ -9,6 +9,30 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { cachePlugin, getCachedPlugin } from "./opfs-plugin-cache";
 
+/**
+ * Verify the SHA-256 integrity of a WASM buffer against a manifest's
+ * integrity string (W3C SRI format: "sha256-<base64>").
+ * Throws if the hash doesn't match.
+ */
+async function verifyIntegrity(buffer: ArrayBuffer, integrityString: string): Promise<void> {
+  if (!integrityString.startsWith("sha256-")) {
+    throw new Error(
+      `[installPlugin] Unsupported integrity algorithm in "${integrityString}". Only sha256- is supported.`
+    );
+  }
+  const expected = integrityString.slice(7); // strip "sha256-" prefix
+  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+  const hashBytes = new Uint8Array(hashBuffer);
+  let binaryString = "";
+  for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
+  const actual = btoa(binaryString);
+  if (actual !== expected) {
+    throw new Error(
+      `[installPlugin] Integrity check failed: expected sha256-${expected}, got sha256-${actual}`
+    );
+  }
+}
+
 export interface InstallPluginResult {
   pluginId: string;
   wasmUrl: string;
@@ -42,6 +66,11 @@ export async function installPlugin(
   }
 
   const buffer = await response.arrayBuffer();
+
+  if (manifest.integrity) {
+    await verifyIntegrity(buffer, manifest.integrity);
+  }
+
   await cachePlugin(pluginId, buffer);
 
   return { pluginId, wasmUrl, cached: false, byteLength: buffer.byteLength };
