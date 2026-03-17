@@ -84,4 +84,7 @@ export class HealthCore {
     }
 }
 
+import { FileSystemAuditor } from "./auditors/generic.js";
+import { RefarmProjectAuditor } from "./auditors/project.js";
+
 export { FileSystemAuditor, RefarmProjectAuditor };
