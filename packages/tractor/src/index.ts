@@ -93,6 +93,7 @@ export class Tractor {
         debug: (...args: unknown[]) => this.logDebug(...args),
         error: (...args: unknown[]) => this.logError(...args),
       },
+      this.defaultSecurityMode,
     );
 
     this.telemetry = new TelemetryHost({ capacity: 1000 });
