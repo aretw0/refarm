@@ -41,6 +41,15 @@ O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a cu
 
 ### 📊 Storage & Data
 
+- **[Loro (loro-dev)](https://loro.dev)**: For the most elegant CRDT library in the
+  JavaScript/WASM ecosystem. Their Rust-core + WASM architecture, `LoroTree` with concurrent
+  move cycle detection, shallow snapshots analogous to `git clone --depth=1`, and built-in
+  time travel (`revertTo`, `forkAt`) are the engine behind Refarm's local-first sovereign graph.
+  Special gratitude to the loro-dev community for making collaborative data structures accessible
+  without sacrificing correctness or performance. Refarm's CRDT synchronization layer — and the
+  CQRS pattern pairing `LoroDoc` with SQLite — would not be possible without their extraordinary
+  open-source work. See [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md).
+
 - **[SQLite](https://sqlite.org)**: For the most reliable and portable database on Earth.
 - **[vlcn.io (cr-sqlite)](https://vlcn.io)**: For the breakthrough in making relational databases natively CRDT-aware. This is the cornerstone of our offline-first synchronization strategy.
 - **[PGLite](https://pglite.dev)**: For proving that we can run full-featured PostgreSQL in the browser for advanced vector search and AI local-first capabilities.
