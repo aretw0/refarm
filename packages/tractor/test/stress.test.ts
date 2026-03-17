@@ -138,13 +138,21 @@ describe("Plugin Flood", () => {
     );
   }
 
+  async function registerAndValidate(registry: SovereignRegistry, manifest: PluginManifest) {
+    await registry.register(manifest);
+    const entry = registry.getPlugin(manifest.id);
+    if (entry) entry.status = "validated";
+  }
+
   it("loads 100 plugins sequentially", async () => {
     stubFetch();
     const registry = new SovereignRegistry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     for (let i = 0; i < 100; i++) {
-      await host.load(createMockManifest(`plugin-${i}`), `hash-${i}`);
+      const manifest = createMockManifest(`plugin-${i}`);
+      await registerAndValidate(registry, manifest);
+      await host.load(manifest, `hash-${i}`);
     }
 
     expect(host.get("plugin-0")).toBeDefined();
@@ -159,9 +167,10 @@ describe("Plugin Flood", () => {
     const registry = new SovereignRegistry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
-    const loads = Array.from({ length: 100 }, (_, i) =>
-      host.load(createMockManifest(`plugin-${i}`), `hash-${i}`)
-    );
+    const manifests = Array.from({ length: 100 }, (_, i) => createMockManifest(`plugin-${i}`));
+    await Promise.all(manifests.map((m) => registerAndValidate(registry, m)));
+
+    const loads = manifests.map((m, i) => host.load(m, `hash-${i}`));
 
     await Promise.all(loads);
 
@@ -174,11 +183,12 @@ describe("Plugin Flood", () => {
     const registry = new SovereignRegistry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
+    const manifests = Array.from({ length: 500 }, (_, i) => createMockManifest(`plugin-${i}`));
+    await Promise.all(manifests.map((m) => registerAndValidate(registry, m)));
+
     const start = performance.now();
 
-    const loads = Array.from({ length: 500 }, (_, i) =>
-      host.load(createMockManifest(`plugin-${i}`), `hash-${i}`)
-    );
+    const loads = manifests.map((m, i) => host.load(m, `hash-${i}`));
 
     await Promise.all(loads);
     const elapsed = performance.now() - start;
@@ -199,8 +209,11 @@ describe("Plugin Flood", () => {
     const registry = new SovereignRegistry();
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
+    const manifest = createMockManifest("broken-plugin");
+    await registerAndValidate(registry, manifest);
+
     await expect(
-      host.load(createMockManifest("broken-plugin"), "hash")
+      host.load(manifest, "hash")
     ).rejects.toThrow("[tractor] Failed to fetch plugin: Not Found");
   });
 
@@ -210,8 +223,11 @@ describe("Plugin Flood", () => {
     const host = new PluginHost(vi.fn(), registry, SILENT_LOGGER);
 
     const ids = Array.from({ length: 200 }, (_, i) => `plugin-${i}`);
+    const manifests = ids.map((id) => createMockManifest(id));
+    await Promise.all(manifests.map((m) => registerAndValidate(registry, m)));
+
     await Promise.all(
-      ids.map((id) => host.load(createMockManifest(id), `hash-${id}`))
+      manifests.map((m, i) => host.load(m, `hash-${ids[i]}`))
     );
 
     // All 200 should be tracked
@@ -344,7 +360,11 @@ describe("Shutdown Grace", () => {
 
     // Load 50 plugins
     for (let i = 0; i < 50; i++) {
-      await tractor.plugins.load(createMockManifest(`p-${i}`), `hash-${i}`);
+      const manifest = createMockManifest(`p-${i}`);
+      await tractor.registry.register(manifest);
+      const entry = tractor.registry.getPlugin(manifest.id);
+      if (entry) entry.status = "validated";
+      await tractor.plugins.load(manifest, `hash-${i}`);
     }
 
     expect(tractor.plugins.get("p-0")).toBeDefined();
