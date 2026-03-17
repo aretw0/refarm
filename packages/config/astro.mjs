@@ -32,6 +32,17 @@ export function defineConfig(userConfig = {}) {
         },
         vite: {
             ...(userConfig.vite || {}),
+            ssr: {
+                ...(userConfig.vite?.ssr || {}),
+                external: [
+                    "node:fs",
+                    "node:path",
+                    "node:os",
+                    "isomorphic-git",
+                    "@bytecodealliance/jco",
+                    ...(userConfig.vite?.ssr?.external || [])
+                ]
+            },
             resolve: {
                 ...(userConfig.vite?.resolve || {}),
                 alias: {
