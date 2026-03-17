@@ -11,7 +11,7 @@
   "module": "./pkg/heartwood.js",
   "types": "./pkg/heartwood.d.ts",
   "scripts": {
-    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo build --target wasm32-wasip1 --release",
+    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release",
     "build:transpile": "npx jco transpile target/wasm32-wasip1/release/refarm_heartwood.wasm -o pkg --name heartwood",
     "build": "npm run build:wasm && npm run build:transpile",
     "build:ci": "node -e \"const fs=require('fs');const p='target/wasm32-wasip1/release/refarm_heartwood.wasm';if(fs.existsSync(p)){console.log('[heartwood] WASM binary found. Running transpile...');require('child_process').execSync('npm run build:transpile',{stdio:'inherit',shell:true})}else{console.log('[heartwood] WASM binary not found at '+p+'. Using pre-compiled pkg/ artifacts. To rebuild: cargo build --target wasm32-wasip1 --release && npm run build:transpile')}\"",
