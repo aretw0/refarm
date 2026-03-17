@@ -34,6 +34,7 @@ O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a cu
 - **[Roam Research](https://roamresearch.com)**: Pela revolução dos grafos e popularização de links bidirecionais ao nível de bloco.
 - **[Obsidian](https://obsidian.md)**: Por provar que "Local-First" e arquivos baseados em markdown são o alicerce da soberania digital.
 - **[Logseq](https://logseq.com)**: Pelo compromisso com grafos open-source e outliners focados em privacidade.
+- **[Toeverything / AFFiNE](https://github.com/toeverything)**: Por liderarem a fronteira de CRDTs, Rust e WASM na construção de arquiteturas "Local-First". Projetos como OctoBase e os utilitários descentralizados em Rust mostram como construir motores sólidos e performáticos que servem de forte inspiração para o pacote `tractor` e `sync-loro` do Refarm.
 
 ### 🚜 Personal Lineage
 
