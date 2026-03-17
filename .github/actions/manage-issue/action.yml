@@ -36,6 +36,16 @@ runs:
         SEARCH_QUERY: ${{ inputs.search-query }}
         LABELS: ${{ inputs.labels }}
       run: |
+        if [ -n "$LABELS" ]; then
+          IFS=',' read -ra LABEL_ARRAY <<< "$LABELS"
+          for label in "${LABEL_ARRAY[@]}"; do
+            label=$(echo "$label" | xargs)
+            if [ -n "$label" ]; then
+              gh label create "$label" --color "ededed" 2>/dev/null || true
+            fi
+          done
+        fi
+
         ISSUE_URL=$(gh issue list --state open --search "$SEARCH_QUERY" --json url --jq '.[0].url')
 
         if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
