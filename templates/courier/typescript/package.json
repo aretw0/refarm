@@ -1,0 +1,21 @@
+{
+  "name": "{{REFARM_SLUG}}",
+  "version": "0.1.0",
+  "description": "{{REFARM_NAME}} — A Sovereign Farm",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "@refarm.dev/homestead": "latest",
+    "@refarm.dev/tractor": "latest",
+    "@refarm.dev/storage-sqlite": "latest",
+    "astro": "^5.3.0"
+  },
+  "devDependencies": {
+    "@refarm.dev/config": "latest",
+    "typescript": "^5.7.3"
+  }
+}
