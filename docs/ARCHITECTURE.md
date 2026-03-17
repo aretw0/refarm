@@ -6,6 +6,40 @@ Refarm is a Personal Operating System for centralising and "reforming" data from
 
 ---
 
+## Composition Model: Blocks and Distros
+
+Refarm is organized as two explicit layers. Understanding this distinction is essential before
+reading the rest of this document.
+
+**Blocks** (`packages/`): Philosophy-neutral primitives. Any developer — regardless of their
+architecture preferences — can use these to build centralized, hybrid, or sovereign applications.
+A block has no opinion about offline-first, P2P, or sovereignty. It implements one contract.
+
+**Distros** (`apps/`): Opinionated assemblies of blocks. `refarm.me`, `refarm.dev`, and
+`refarm.social` are Refarm's own distros. They represent the sovereign, local-first, P2P
+philosophy — but they are **examples**, not requirements. You can compose Refarm blocks into
+a traditional centralized web app without adopting any of it.
+
+**Dogfood rule**: Every Refarm distro is built entirely from Refarm blocks. This validates
+the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md).
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│                      DISTROS (apps/)                    │
+│  refarm.me  ·  refarm.dev  ·  refarm.social             │
+│  opinionated: sovereign, local-first, P2P               │
+└──────────────────────┬──────────────────────────────────┘
+                       │ assembled from
+┌──────────────────────▼──────────────────────────────────┐
+│                      BLOCKS (packages/)                 │
+│  tractor · storage-rest · storage-sqlite · sync-loro    │
+│  identity-nostr · dsl-headless · heartwood · …          │
+│  philosophy-neutral — any combination is valid          │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
 ## Design Principles
 
 | Principle | Meaning |
