@@ -18,6 +18,7 @@
   "dependencies": {
     "@refarm.dev/fence": "*",
     "@refarm.dev/health": "*",
+    "@refarm.dev/registry": "*",
     "@refarm.dev/silo": "*",
     "@refarm.dev/sower": "*",
     "@refarm.dev/thresher": "*",

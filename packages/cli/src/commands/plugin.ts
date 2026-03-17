@@ -1,54 +1,87 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { Tractor } from "@refarm.dev/tractor";
+import { SovereignRegistry } from "@refarm.dev/registry";
 
 export const pluginCommand = new Command("plugin")
   .description("Manage Refarm plugins");
+
+/**
+ * Lazy registry singleton — creates a fresh in-memory SovereignRegistry per process.
+ * Future: persist state to ~/.refarm/registry.json via importState/exportState.
+ */
+function createRegistry(): SovereignRegistry {
+  return new SovereignRegistry();
+}
 
 pluginCommand
   .command("list")
   .description("List all installed plugins")
   .action(async () => {
+    const registry = createRegistry();
+    const plugins = registry.listPlugins();
+
+    if (plugins.length === 0) {
+      console.log(chalk.gray("No plugins installed. Use 'refarm plugin install <id>' to add some."));
+      return;
+    }
+
     console.log(chalk.green("🌱 Installed Plugins:"));
-    // Note: In a real CLI, we'd need to boot Tractor or read its local registry storage.
-    // For now, we'll simulate the output based on Tractor's internal registry.
-    console.log(chalk.gray("No plugins found in local soil. Use 'refarm plugin install' to add some."));
+    for (const entry of plugins) {
+      const statusColor = entry.status === "active" ? chalk.green :
+                          entry.status === "validated" ? chalk.cyan : chalk.gray;
+      console.log(`  ${chalk.bold(entry.manifest.id)} @ ${entry.manifest.version} — ${statusColor(entry.status)}`);
+    }
   });
 
 pluginCommand
   .command("install <id>")
-  .description("Install a plugin by its ID")
+  .description("Install a plugin by its ID from the Sovereign Graph")
   .option("-s, --source <url>", "Remote source URL")
-  .action(async (id, options) => {
-    const source = options.source || `https://registry.refarm.dev/plugins/${id}.json`;
-    console.log(chalk.blue(`🚀 Installing plugin ${id} from ${source}...`));
-    
+  .action(async (id: string, options: { source?: string }) => {
+    const sourceUrl = options.source ?? `https://registry.refarm.dev/plugins/${id}.json`;
+    const registry = createRegistry();
+
+    console.log(chalk.blue(`🚀 Installing plugin ${chalk.bold(id)}...`));
+    console.log(chalk.gray(`   Source: ${sourceUrl}`));
+
     try {
-        // Mocking the installation flow:
-        // 1. Resolve remote manifest
-        // 2. Validate via Heartwood (simulated)
-        // 3. Register and set to validated
-        console.log(chalk.yellow(`📡 Resolving manifest for ${id}...`));
-        console.log(chalk.cyan(`🔑 Verifying cryptographic signature...`));
-        console.log(chalk.green(`✨ Plugin ${id} successfully installed and validated!`));
+      const entry = await registry.resolveRemote(id, sourceUrl);
+      console.log(chalk.green(`✅ Plugin ${chalk.bold(id)} resolved and registered.`));
+      console.log(chalk.gray(`   Version: ${entry.manifest.version}`));
+      console.log(chalk.gray(`   Status: ${entry.status}`));
+      console.log(chalk.yellow(`ℹ️  To activate, start the Farmhand daemon: farmhand start`));
     } catch (e: any) {
-        console.error(chalk.red(`❌ Installation failed: ${e.message}`));
+      console.error(chalk.red(`❌ Installation failed: ${e.message}`));
+      process.exitCode = 1;
     }
   });
 
 pluginCommand
   .command("remove <id>")
   .description("Remove an installed plugin")
-  .action(async (id) => {
-    console.log(chalk.yellow(`🗑️ Removing plugin ${id}...`));
-    console.log(chalk.green(`✅ Plugin ${id} removed.`));
+  .action(async (id: string) => {
+    const registry = createRegistry();
+    const plugin = registry.getPlugin(id);
+
+    if (!plugin) {
+      console.error(chalk.red(`❌ Plugin ${id} not found in registry.`));
+      process.exitCode = 1;
+      return;
+    }
+
+    if (plugin.status !== "active") {
+      console.log(chalk.yellow(`⚠️  Plugin ${id} is not active (status: ${plugin.status}). Nothing to deactivate.`));
+      return;
+    }
+
+    await registry.deactivatePlugin(id);
+    console.log(chalk.green(`✅ Plugin ${id} deactivated.`));
   });
 
 pluginCommand
   .command("search <query>")
   .description("Search for plugins in the Sovereign Graph")
-  .action(async (query) => {
-    console.log(chalk.blue(`🔍 Searching Sovereign Graph for '${query}'...`));
-    console.log(chalk.gray("- @refarm.dev/weather: Fetch weather data to your farm (Validated)"));
-    console.log(chalk.gray("- @refarm.dev/market: Price signals for digital crops (Sovereign)"));
+  .action(async (query: string) => {
+    console.log(chalk.blue(`🔍 Searching for '${query}' in the Sovereign Graph...`));
+    console.log(chalk.gray("(Search requires Farmhand daemon — coming soon)"));
   });
