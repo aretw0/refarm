@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "noEmit": false,
+    "rootDir": "src",
+    "outDir": "dist",
+    "paths": {
+      "@refarm.dev/plugin-manifest": ["./packages/plugin-manifest/dist/index.d.ts"],
+      "@refarm.dev/tractor": ["./packages/tractor/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

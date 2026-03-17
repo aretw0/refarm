@@ -1,0 +1,32 @@
+{
+  "name": "@refarm.dev/plugin-tem",
+  "version": "0.1.0",
+  "description": "TEM Sovereign Graph reasoning engine — Tolman-Eichenbaum Machine as a WASM plugin",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "plugin.json",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/tractor": "*"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "typescript": "^5.7.3",
+    "vitest": "^4.0.18"
+  },
+  "license": "AGPL-3.0-only",
+  "publishConfig": {
+    "access": "public"
+  }
+}
