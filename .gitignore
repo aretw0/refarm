@@ -71,6 +71,9 @@ Cargo.lock          # Only for libraries (apps should keep their own)
 *.p12
 .refarm/*.key
 
+# ─── Git Worktrees ───────────────────────────────────────────────────────────
+.worktrees/
+
 # ─── Test Coverage & Reports ─────────────────────────────────────────────────
 coverage/
 .nyc_output/
