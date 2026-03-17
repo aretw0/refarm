@@ -1,0 +1,36 @@
+{
+  "id": "refarm:tem",
+  "name": "TEM Reasoning Engine",
+  "version": "0.1.0",
+  "entry": "./dist/worker.js",
+  "workerEntry": "./dist/worker.js",
+  "capabilities": {
+    "provides": ["TemMemory", "NoveltyScore"],
+    "requires": [],
+    "providesApi": ["TemApi"],
+    "requiresApi": []
+  },
+  "permissions": [
+    "observe:telemetry",
+    "store:TemMemory",
+    "store:NoveltyScore"
+  ],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onError", "onTeardown"]
+  },
+  "targets": ["browser", "server"],
+  "executionContext": {
+    "preferred": "worker",
+    "fallback": "main-thread",
+    "allowed": ["worker", "main-thread", "service-worker"]
+  },
+  "certification": {
+    "license": "AGPL-3.0-only",
+    "a11yLevel": 0,
+    "languages": ["en"]
+  },
+  "trust": {
+    "profile": "trusted-fast",
+    "leaseHours": 72
+  }
+}
