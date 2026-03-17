@@ -167,19 +167,9 @@ async function main() {
   transport.onMessage((bytes) => void storage.applyUpdate(bytes));
   storage.onUpdate((bytes) => transport.broadcast(bytes));
 
-  // Subscribe to CRDT node changes to react to PluginRoute / FarmhandTask
-  tractor.observe(async (event: any) => {
-    if (event.event !== "storage:node:written") return;
-    const node = event.payload as Record<string, unknown> | undefined;
-    if (!node || typeof node["@type"] !== "string") return;
-
-    const type = node["@type"];
-    if (type === "PluginRoute") {
-      await handlePluginRoute(tractor, node);
-    } else if (type === "FarmhandTask") {
-      await handleFarmhandTask(tractor, node);
-    }
-  });
+  // Subscribe to CRDT node changes via the high-level reactive API
+  tractor.onNode("PluginRoute", (node) => handlePluginRoute(tractor, node));
+  tractor.onNode("FarmhandTask", (node) => handleFarmhandTask(tractor, node));
 
   // Periodic heartbeat: refresh FarmhandPresence every 30 seconds
   const heartbeatTimer = setInterval(async () => {
