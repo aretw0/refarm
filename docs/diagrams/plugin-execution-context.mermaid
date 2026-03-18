@@ -1,0 +1,22 @@
+flowchart TD
+    Load["Tractor.load( manifest )"]
+    EC{"executionContext\ndeclared?"}
+    Pref{"preferred context\navailable?"}
+    FB{"fallback\ndeclared?"}
+    WR["WorkerRunner\nnew Worker + Comlink"]
+    MT["MainThreadRunner\nJCO transpile + dynamic import"]
+    ERR["Error: no compatible runner"]
+
+    Load --> EC
+    EC -->|No| MT
+    EC -->|Yes| Pref
+    Pref -->|"worker ✓"| WR
+    Pref -->|"worker ✗"| FB
+    FB -->|"main-thread"| MT
+    FB -->|"none"| ERR
+
+    subgraph Example ["plugin-tem  executionContext"]
+        T1["preferred: worker"]
+        T2["fallback:  main-thread"]
+        T3["allowed:   worker · main-thread · service-worker"]
+    end
