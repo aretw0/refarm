@@ -10,6 +10,8 @@
  * should use the static data helpers directly.
  */
 
+import { SovereignNode, Tractor } from "@refarm.dev/tractor";
+
 const NODE_ERROR =
   "[sower] Scaffolding and token provisioning require the Node.js runtime " +
   "and cannot run in the browser.";
@@ -53,5 +55,65 @@ export class SowerCore {
 
   async hydrateFromRemote(_nodeId: string, _gatewayUrl: string): Promise<never> {
     throw new Error(NODE_ERROR);
+  }
+}
+
+/**
+ * The Sower (O Semeador) — Initial Seed & Onboarding Plugin (Browser safe).
+ */
+export class SowerPlugin {
+  private core: SowerCore;
+
+  constructor(private tractor: Tractor) {
+    this.core = new SowerCore();
+  }
+
+  async getOnboardingNode(): Promise<SovereignNode> {
+    const flow = this.core.getOnboardingFlow();
+    
+    return {
+      "@context": "https://schema.org/",
+      "@type": "EntryPoint",
+      "@id": "urn:refarm:sower:onboarding",
+      "name": flow.name,
+      "description": flow.description,
+      "refarm:renderType": "onboarding",
+      "refarm:options": flow.options.map(opt => ({
+        ...opt,
+        "label": opt.label,
+        "description": opt.description,
+        "intent": opt.intent
+      }))
+    };
+  }
+
+  async handleIntent(intent: string) {
+    // This will throw in the browser via SowerCore.scaffold
+    const result = await this.core.scaffold(intent);
+    
+    if (result && (result as any).tier) {
+      await this.tractor.switchTier((result as any).tier as any);
+    }
+  }
+
+  onEvent(event: string, payload: string) {
+    console.info(`[sower] Received system event: ${event}`, payload);
+    const data = JSON.parse(payload);
+    
+    if (event === "system:switch-tier" && data.tier === "guest") {
+      console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
+      
+      this.tractor.emitTelemetry({
+        event: "node:created",
+        payload: {
+          "@context": "https://schema.org/",
+          "@type": "Message",
+          "@id": "urn:refarm:sower:welcome-guest",
+          "name": "Welcome Guest",
+          "text": "Your temporary soil is now active. Explore the tools below.",
+          "refarm:renderType": "tutorial-step"
+        }
+      });
+    }
   }
 }

@@ -18,6 +18,7 @@
 ### 🛠 Development & Ops
 - **[Sovereign Workflow](WORKFLOW.md)** - The SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** - Dev containers, CI, security, and hardware requirements.
+- **[Known Limitations](KNOWN_LIMITATIONS.md)** - *[NEW]* Technical hurdles, resource quotas, and expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** - Guardrails and publishing hygiene.
 - **[Decision Log](decision-log.md)** - Record of high-impact architectural choices.
 

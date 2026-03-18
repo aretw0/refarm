@@ -393,6 +393,31 @@ if (plugin.memoryUsage > plugin.quota) {
 
 ---
 
+## Category 8: Build Artifacts & Bundler Noise
+
+### Limitation 8.1: Vite Warnings for Externalized Node.js Modules
+
+**Worst Case**:
+
+- Developer sees `[vite] Module "node:fs/promises" has been externalized` in CI logs
+- Assumes something is broken or that a Node-only dependency leaked into the browser
+- Spends hours trying to "fix" a warning that is actually handled by the architecture
+
+**Why It Happens**:
+
+1. **Sovereign Stratification**: Some packages in the monorepo are **Hybrid**. They contain both Node-compatible and Browser-compatible logic.
+2. **Detection**: Vite's resolver scans all imports. Even if a package uses conditional exports (`"browser": "..."`), Vite may still warn if it encounters a Node.js built-in in a shared file or if the package hasn't fully migrated to a browser-specific entrypoint.
+3. **JCO Transpilation**: Many of these references come from `jco` generated code which includes stubs for WASI that Vite (rightfully) externalizes in a browser context.
+4. **Automatic Mitigation**: Refarm's `@refarm.dev/tractor` and other core packages use the `browser` export condition. Vite correctly maps these Node modules to empty modules/stubs, so no runtime error occurs.
+
+**Mitigation**:
+
+- **Status**: ✅ Documented as expected behavior.
+- **Action**: Ignore these specific warnings for `@refarm.dev/*` packages unless accompanied by a runtime `ReferenceError: process is not defined` or similar.
+- **Long-term**: Continue refining `index.browser.ts` entrypoints for all core packages to minimize bundler scan noise.
+
+---
+
 ## Summary: What You Can Rely On Today
 
 | Mitigation | Status | When |
