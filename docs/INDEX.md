@@ -11,6 +11,7 @@
 - **[Architecture](ARCHITECTURE.md)** - System design, Evolutionary Roadmap (Legacy Bootstrap absorbed).
 - **[User Story](USER_STORY.md)** - The "why" and user personas.
 - **[Inspirations](INSPIRATIONS.md)** - Technical and conceptual foundations.
+- **[Agent Cognitive Model](../AGENTS.md#0-epistemic-framework-active-inference)** - Active Inference principles governing AI agent behavior in this repository.
 
 ### 🛠 Development & Ops
 - **[Sovereign Workflow](WORKFLOW.md)** - The SDD→BDD→TDD→DDD process.
