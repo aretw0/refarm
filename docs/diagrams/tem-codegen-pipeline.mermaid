@@ -1,0 +1,31 @@
+flowchart LR
+    subgraph Source ["torch_tem (Python repo)"]
+        CKPT["checkpoint.pt"]
+    end
+
+    subgraph Stage1 ["Stage 1 · Python  (stdlib only)"]
+        S1["tools/export_tem_bundle.py\n--checkpoint path  |  --synthetic"]
+        BUNDLE["bundle.json\nWeightsBundle schema"]
+        S1 --> BUNDLE
+    end
+
+    subgraph Stage2 ["Stage 2 · TypeScript CLI"]
+        CLI["npx tem-codegen\n--weights bundle.json  --out weights.ts"]
+        TS["src/core/generated/weights.ts\nFloat32Array literals  (tree-shakeable)"]
+        CLI --> TS
+    end
+
+    subgraph Load ["Plugin runtime"]
+        WB["loadWeightsFromBundle( TEM_WEIGHTS_BUNDLE )"]
+        TEM["TEMInference"]
+        WB --> TEM
+    end
+
+    subgraph WITPath ["Via codegen-api WIT  (runtime)"]
+        WAPI["codegen.generateWeightsTs( bundleJson )\n→ TypeScript source string"]
+    end
+
+    CKPT --> S1
+    BUNDLE --> CLI
+    TS --> WB
+    BUNDLE --> WAPI

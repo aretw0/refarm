@@ -6,9 +6,12 @@ graph TD
 
     subgraph Tractor ["Refarm Tractor (The Microkernel)"]
         PluginHost["PluginHost (WASI Runtime)"]
+        PluginRunner["PluginRunner\n(WorkerRunner / MainThreadRunner)"]
+        TelemetryBus["TelemetryBus"]
         Normaliser["Normaliser (→ JSON-LD)"]
         SyncEngine["SyncEngine (CRDT)"]
         Heartwood["Heartwood (WASM Security)"]
+        PluginHost -->|"resolves"| PluginRunner
     end
 
     subgraph Interfaces ["Interfaces & Ports"]
@@ -21,20 +24,29 @@ graph TD
         Plugin["Plugin (WASM)"]
     end
 
+    subgraph TEMWorker ["TEM Plugin (WebWorker)"]
+        ActionEnc["ActionEncoder\n1-hot vocab"]
+        ObsEnc["StructAwareEncoder\n64-dim slots"]
+        TEMCore["TEMInference\nHebbian + Attractor"]
+    end
+
     Homestead -->|"Instantiates Adapters"| HS_SQLite
     Homestead -->|"Instantiates Adapters"| HS_Nostr
-    
+
     HS_SQLite -.->|"Inject"| StoragePort
     HS_Nostr -.->|"Inject"| IdentityPort
-    
+
     Tractor -->|"Uses"| StoragePort
     Tractor -->|"Uses"| SyncPort
     Tractor -->|"Uses"| Heartwood
     Heartwood -->|"Protects"| IdentityPort
 
-    PluginHost ---|"WASI Boundary"| Plugin
+    PluginRunner -->|"WorkerRunner"| TEMWorker
+    PluginRunner ---|"WASI Boundary"| Plugin
     Plugin -->|"storeNode"| StoragePort
-    Plugin -->|"fetch/log"| PluginHost
+    Plugin -->|"emit event"| TelemetryBus
+    TelemetryBus -->|"observe"| TEMCore
+    TEMCore -->|"storeNode\nTemMemory · NoveltyScore"| StoragePort
 
     Normaliser -->|"Normalise"| StoragePort
     SyncEngine -->|"Sync"| SyncPort
