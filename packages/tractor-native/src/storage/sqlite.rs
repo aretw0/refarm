@@ -128,6 +128,21 @@ impl NativeStorage {
         Ok(())
     }
 
+    /// Retrieve a single node by ID. Returns `None` if not found.
+    pub fn get_node(&self, id: &str) -> Result<Option<String>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn
+            .prepare("SELECT payload FROM nodes WHERE id = ?1")
+            .context("prepare get_node")?;
+        let mut rows = stmt
+            .query_map(params![id], |row| row.get::<_, String>(0))
+            .context("get_node")?;
+        match rows.next() {
+            Some(row) => Ok(Some(row.context("get_node row")?)),
+            None => Ok(None),
+        }
+    }
+
     /// Query nodes by `@type`.
     ///
     /// Mirrors `queryNodes(type)` from OPFSSQLiteAdapter (TypeScript).

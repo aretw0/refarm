@@ -1,0 +1,76 @@
+/// Host-side WIT for tractor-native bindgen!
+///
+/// Same package / interface names as refarm-sdk.wit so the generated Rust
+/// function names are binary-compatible with plugins built against the full SDK.
+///
+/// WASI imports (wasi:http, wasi:logging) are OMITTED here because:
+///   - They are registered with the wasmtime Linker separately via wasmtime_wasi.
+///   - bindgen! does not need to generate Rust types for them.
+///   - Runtime plugin binaries that import WASI still work — the Linker provides them.
+
+package refarm:plugin@0.1.0;
+
+// ─── Shared Types (in their own interface so WIT parser accepts them) ─────────
+
+interface types {
+    type json-ld-node = string;
+    type node-id = string;
+
+    variant plugin-error {
+        not-permitted(string),
+        not-found(node-id),
+        invalid-schema(string),
+        internal(string),
+    }
+
+    record identity-info {
+        identity-type: string,
+        storage-tier: string,
+        identifier: string,
+    }
+
+    record plugin-metadata {
+        name: string,
+        version: string,
+        description: string,
+        supported-types: list<string>,
+        required-capabilities: list<string>,
+    }
+}
+
+// ─── Tractor → Plugin Imports (host implements) ──────────────────────────────
+
+interface tractor-bridge {
+    use types.{json-ld-node, node-id, plugin-error, identity-info};
+
+    store-node:         func(node: json-ld-node) -> result<node-id, plugin-error>;
+    get-node:           func(id: node-id) -> result<json-ld-node, plugin-error>;
+    query-nodes:        func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
+    request-permission: func(capability: string, reason: string) -> bool;
+    get-identity:       func() -> result<identity-info, plugin-error>;
+    get-plugin-api:     func(api-name: string) -> result<node-id, plugin-error>;
+    emit-telemetry:     func(event: string, payload: option<string>);
+}
+
+// ─── Plugin → Tractor Exports (host calls) ───────────────────────────────────
+
+interface integration {
+    use types.{json-ld-node, plugin-error, plugin-metadata};
+
+    setup:          func() -> result<_, plugin-error>;
+    ingest:         func() -> result<u32, plugin-error>;
+    push:           func(payload: json-ld-node) -> result<_, plugin-error>;
+    teardown:       func();
+    get-help-nodes: func() -> result<list<json-ld-node>, plugin-error>;
+    metadata:       func() -> plugin-metadata;
+    on-event:       func(event: string, payload: option<string>);
+}
+
+// ─── Host-side World ─────────────────────────────────────────────────────────
+
+/// Minimal world for host-side bindgen! (tractor-native).
+/// Use world "refarm-plugin" in refarm-sdk.wit for plugin authors.
+world refarm-plugin-host {
+    import tractor-bridge;
+    export integration;
+}
