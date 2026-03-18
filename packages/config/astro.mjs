@@ -1,6 +1,7 @@
 import { defineConfig as defineAstroConfig } from "astro/config";
 import fs from "fs";
 import path from "path";
+import wasm from "vite-plugin-wasm";
 
 import { findRefarmRoot, loadConfig } from "./index.mjs";
 
@@ -32,6 +33,10 @@ export function defineConfig(userConfig = {}) {
         },
         vite: {
             ...(userConfig.vite || {}),
+            plugins: [
+                wasm(),
+                ...(userConfig.vite?.plugins || [])
+            ],
             ssr: {
                 ...(userConfig.vite?.ssr || {}),
                 external: [
@@ -54,6 +59,7 @@ export function defineConfig(userConfig = {}) {
                 ...(userConfig.vite?.optimizeDeps || {}),
                 exclude: [
                     "@sqlite.org/sqlite-wasm",
+                    "loro-crdt",
                     ...(userConfig.vite?.optimizeDeps?.exclude || [])
                 ]
             },

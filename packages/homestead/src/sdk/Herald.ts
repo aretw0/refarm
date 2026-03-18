@@ -1,5 +1,6 @@
 /// <reference lib="dom" />
-import { Tractor, type TelemetryEvent } from "@refarm.dev/tractor";
+import type { Tractor, TelemetryEvent } from "@refarm.dev/tractor";
+import { TRACTOR_VERSION } from "@refarm.dev/tractor";
 
 /**
  * Herald Plugin (O Arauto)
@@ -67,7 +68,7 @@ export class HeraldPlugin {
       `  ██║  ██║███████╗██║     ██║  ██║██║  ██║██║ ╚═╝ ██║\n` +
       `  ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝\n` +
       `%c\n` +
-      `  Refarm Engine v${Tractor.VERSION} — Solo Fértil\n` +
+      `  Refarm Engine v${TRACTOR_VERSION} — Solo Fértil\n` +
       `  Sovereign Knowledge Infrastructure\n\n`,
       primary,
       muted

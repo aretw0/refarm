@@ -1,4 +1,5 @@
-import { L8nHost, Tractor, TRACTOR_LOG_PRIORITY, type SovereignNode, type TelemetryEvent } from "@refarm.dev/tractor";
+import { L8nHost, TRACTOR_LOG_PRIORITY } from "@refarm.dev/tractor";
+import type { Tractor, SovereignNode, TelemetryEvent } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
 
 import en from "@refarm.dev/locales/en.json";

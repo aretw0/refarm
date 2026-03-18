@@ -104,3 +104,12 @@ export class PluginHost {
 export { installPlugin } from "./lib/install-plugin";
 export type { InstallPluginResult } from "./lib/install-plugin";
 export { getCachedPlugin, cachePlugin, evictPlugin } from "./lib/opfs-plugin-cache";
+
+/** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */
+export const TRACTOR_VERSION: string = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+
+// Re-export Tractor for browser consumers.
+// node:fs/promises and @bytecodealliance/jco are now dynamic imports inside
+// MainThreadRunner.instantiate() and plugin-host.ts, so this import no longer
+// pulls Node-only modules into the browser bundle.
+export { Tractor } from "./index";

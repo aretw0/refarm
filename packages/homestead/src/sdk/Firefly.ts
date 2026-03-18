@@ -1,5 +1,5 @@
 /// <reference lib="dom" />
-import { Tractor, type TelemetryEvent } from "@refarm.dev/tractor";
+import type { Tractor, TelemetryEvent } from "@refarm.dev/tractor";
 
 /**
  * Firefly Plugin (O Vagalume)
