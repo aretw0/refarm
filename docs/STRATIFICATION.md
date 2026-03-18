@@ -28,3 +28,12 @@ Every package in `packages/` should follow one of these categories:
 
 ## 4. Recommendations
 We keep orchestration packages (`health`, `cli`) in **Pure JS (ESM)** to ensure Refarm can always diagnose itself even if the TS compiler fails. All other domain packages should move to **TS-Strict** for contractual robustness.
+
+## 5. Expected Build Behavior
+Because of this hybrid nature, build tools like Vite or Astro may warn about externalizing Node.js modules (e.g., `node:fs`) when bundling packages for the browser.
+
+This is **expected and managed** via conditional exports and stubs. For a detailed list of these "no-action" warnings and other technical hurdles, see **[KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md#category-8-build-artifacts--bundler-noise)**.
+
+---
+
+> "We cultivate the code as we cultivate the soil: with patience, honesty, and respect for the cycle."
