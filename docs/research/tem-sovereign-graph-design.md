@@ -344,12 +344,27 @@ world tem-plugin {
 
 ## 8. Out of Scope (this iteration)
 
-- Pre-training torch_tem on synthetic Refarm graphs (separate Python task)
+### Training weights (external dependency)
+
+Pre-training torch_tem on synthetic or real Refarm graphs is a separate task.
+See **[`packages/plugin-tem/TRAINING.md`](../../packages/plugin-tem/TRAINING.md)**
+for the complete guide: WeightsBundle contract, two-stage pipeline
+(`checkpoint.pt → bundle.json → weights.ts`), the `tools/generate_tem_sequences.mjs`
+data extraction tool, and the verification checklist.
+
+The 4 `it.todo` tests in `packages/plugin-tem/src/tem.integration.test.ts`
+(lines 64, 87, 119, 167) activate automatically once trained weights are integrated.
+
+### Remaining items
+
 - Transformers.js payload embedding (v2 upgrade path; ObsEncoder interface enables it)
 - ServiceWorker, Node, Edge runners (architecture supports; implement after Worker proven)
 - CRDT sync of Hebbian memory across devices (SyncAdapter extension required)
-- WorkerRunner + MainThreadRunner concrete implementations (PluginRunner interface exists; runners pending)
-- `storeNoveltyNode()` wiring to Tractor bridge (placeholder in `plugin.ts`; not yet persisted to Sovereign Graph)
+
+### Completed since original spec
+
+- ✅ WorkerRunner + MainThreadRunner concrete implementations (commit `bc7deb3`)
+- ✅ `storeNoveltyNode()` wired to Tractor bridge — persists `refarm:TemMemory` nodes to Sovereign Graph (commit `2f44439`)
 
 ---
 
