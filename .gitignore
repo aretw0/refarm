@@ -133,3 +133,8 @@ deps-report.md
 # Ignore export plans
 *_plan*.md
 *prompt*.md
+
+# Python bytecode
+__pycache__/
+*.pyc
+*.pyo
