@@ -10,7 +10,8 @@ export class WasiImports {
   constructor(
     private pluginId: string,
     private logger: TractorLogger,
-    private emit: (data: TelemetryEvent) => void
+    private emit: (data: TelemetryEvent) => void,
+    private storeNode?: (nodeJson: string) => Promise<void>,
   ) {}
 
   generate(manifest: PluginManifest, profile: ExecutionProfile): any {
@@ -100,8 +101,11 @@ export class WasiImports {
         },
       },
       "refarm:plugin/tractor-bridge": {
-        "store-node": async (nodeJson: string) => "node-id-stub",
-        "request-permission": async (cap: string, reason: string) => true,
+        "store-node": async (nodeJson: string) => {
+          if (this.storeNode) await this.storeNode(nodeJson);
+          return "ok";
+        },
+        "request-permission": async (_cap: string, _reason: string) => true,
       },
     };
 

@@ -14,12 +14,31 @@
  * Note: This file runs inside a Worker — no DOM access, no main thread state.
  */
 
-import { integration, temApi } from "./plugin";
+import { integration, temApi, setStoreNodeFn } from "./plugin";
 import { codegenApi } from "./codegen/plugin";
 
 const API: Record<string, (...args: any[]) => unknown> = {
   // WIT integration interface
-  setup: (_args: unknown) => { integration.setup(); return null; },
+  setup: (_args: unknown) => {
+    // Wire tractor-bridge store-node via bridge-call round-trip protocol
+    setStoreNodeFn(async (nodeJson: string): Promise<void> => {
+      const id = `bridge:${Date.now()}`;
+      await new Promise<void>((resolve, reject) => {
+        const onMsg = (ev: MessageEvent) => {
+          const m = ev.data as any;
+          if ((m.type === "bridge-result" || m.type === "bridge-error") && m.id === id) {
+            self.removeEventListener("message", onMsg as any);
+            if (m.type === "bridge-result") resolve();
+            else reject(new Error(m.message));
+          }
+        };
+        self.addEventListener("message", onMsg as any);
+        self.postMessage({ type: "bridge-call", id, fn: "store-node", args: nodeJson });
+      });
+    });
+    integration.setup();
+    return null;
+  },
   ingest: () => integration.ingest(),
   "on-event": (args: unknown) => {
     const { event, payload } = args as { event: string; payload?: string };
