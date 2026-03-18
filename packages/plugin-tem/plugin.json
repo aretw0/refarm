@@ -7,7 +7,7 @@
   "capabilities": {
     "provides": ["TemMemory", "NoveltyScore"],
     "requires": [],
-    "providesApi": ["TemApi"],
+    "providesApi": ["TemApi", "CodegenApi"],
     "requiresApi": []
   },
   "permissions": [
