@@ -7,7 +7,7 @@ graph TD
     subgraph Tractor ["Refarm Tractor (The Microkernel)"]
         PluginHost["PluginHost (WASI Runtime)"]
         PluginRunner["PluginRunner\n(WorkerRunner / MainThreadRunner)"]
-        TelemetryBus["TelemetryBus"]
+        TelemetryBus["EventEmitter\n(telemetry pub/sub)"]
         Normaliser["Normaliser (→ JSON-LD)"]
         SyncEngine["SyncEngine (CRDT)"]
         Heartwood["Heartwood (WASM Security)"]

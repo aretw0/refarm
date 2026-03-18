@@ -5,7 +5,7 @@ flowchart TD
     FB{"fallback\ndeclared?"}
     WR["WorkerRunner\nnew Worker + Comlink"]
     MT["MainThreadRunner\nJCO transpile + dynamic import"]
-    ERR["Error: no compatible runner"]
+    WARN["⚠️ logger.warn\n→ MainThreadRunner"]
 
     Load --> EC
     EC -->|No| MT
@@ -13,7 +13,8 @@ flowchart TD
     Pref -->|"worker ✓"| WR
     Pref -->|"worker ✗"| FB
     FB -->|"main-thread"| MT
-    FB -->|"none"| ERR
+    FB -->|"unrecognized"| WARN
+    WARN --> MT
 
     subgraph Example ["plugin-tem  executionContext"]
         T1["preferred: worker"]
