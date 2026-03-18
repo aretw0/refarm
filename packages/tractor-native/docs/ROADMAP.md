@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–3 ✅  |  Fase 4–9 ⬜
+Fase 0–4 ✅  |  Fase 5–9 ⬜
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -20,14 +20,14 @@ Fase 0–3 ✅  |  Fase 4–9 ⬜
 | 1 — Storage | ✅ | `337cf98` | `NativeStorage` rusqlite, schema idêntico ao storage-sqlite TS |
 | 2 — Trust | ✅ | `337cf98` | `TrustManager`, `TrustGrant`, `ExecutionProfile`, `SecurityMode` |
 | 3 — Telemetria | ✅ | `337cf98` | `TelemetryBus` broadcast, `RingBuffer`, masking de campos sensíveis |
-| 4 — Plugin Host | ⬜ | — | wasmtime `bindgen!`, `TractorNativeBindings`, carregamento de `.wasm` |
+| 4 — Plugin Host | ✅ | `aa21e7b` | wasmtime `bindgen!`, `TractorNativeBindings`, 7 bridge fns, 19/19 testes |
 | 5 — CRDT Sync | ⬜ | — | `NativeSync` com `loro::LoroDoc`, CQRS Projector |
 | 6 — WS Daemon | ⬜ | — | `WsServer` porta 42000, protocolo binário Loro |
 | 7 — API Pública | ⬜ | — | `TractorNative::boot()`, `main.rs` CLI, release build |
 | 8 — Conformance | ⬜ | — | Portar cenários vitest → `cargo test` |
 | 9 — Docs finais | ⬜ | — | ARCHITECTURE.md finalizado, ADR entry |
 
-**Testes atuais:** `cargo test -p tractor-native` → **13/13 ✅**
+**Testes atuais:** `cargo test -p tractor-native` → **19/19 ✅**
 
 ---
 
@@ -46,7 +46,7 @@ cargo test -p tractor-native
 # 4. Ver próxima fase pendente neste arquivo
 ```
 
-Continuar em: **[Fase 4 — Plugin Host](#fase-4--plugin-host-wasmtime--wit-bindings)**
+Continuar em: **[Fase 5 — CRDT Sync](#fase-5--crdt-sync-loro-rs--cqrs-projector)**
 
 ---
 
