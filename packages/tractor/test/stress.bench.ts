@@ -33,7 +33,7 @@ function stubFetchGlobal() {
   globalThis.fetch = (async () => ({
     ok: true,
     statusText: "OK",
-    arrayBuffer: async () => new Uint8Array(512).buffer,
+    arrayBuffer: async () => new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer,
   })) as any;
 }
 
