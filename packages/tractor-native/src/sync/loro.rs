@@ -147,8 +147,16 @@ impl NativeSync {
             .map_err(|e| anyhow!("export failed: {e:?}"))
     }
 
-    pub fn on_update(&self, _cb: impl Fn(Vec<u8>) + Send + Sync + 'static) {
-        tracing::warn!("on_update: stub");
+    /// Subscribe to local CRDT updates (for WsServer broadcasting in Phase 6).
+    /// The callback fires synchronously on each doc.commit().
+    /// The subscription is kept alive for the lifetime of this NativeSync instance.
+    pub fn on_update(&self, cb: impl Fn(Vec<u8>) + Send + Sync + 'static) {
+        // NOTE: subscribe_local_update callback must return bool (true = stay subscribed)
+        let sub = self.doc.subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
+            cb(bytes.clone());
+            true // always stay subscribed
+        }));
+        self.update_subs.lock().unwrap().push(sub);
     }
 
     pub fn export_snapshot(&self) -> Result<Vec<u8>> {
@@ -188,6 +196,25 @@ mod tests {
         // After store_node, the LoroDoc has content → export is non-empty
         let bytes = sync.get_update().unwrap();
         assert!(!bytes.is_empty(), "LoroDoc should have exported bytes after store_node");
+    }
+
+    #[test]
+    fn on_update_fires_on_store() {
+        use std::sync::{Arc, Mutex};
+
+        let sync = make_sync();
+        let fired: Arc<Mutex<Vec<Vec<u8>>>> = Arc::new(Mutex::new(Vec::new()));
+        let fired_clone = fired.clone();
+
+        sync.on_update(move |bytes| {
+            fired_clone.lock().unwrap().push(bytes);
+        });
+
+        sync.store_node("urn:test:sub-1", "Note", None, "{}", None).unwrap();
+
+        let calls = fired.lock().unwrap();
+        assert!(!calls.is_empty(), "on_update callback must fire after store_node");
+        assert!(!calls[0].is_empty(), "callback bytes must be non-empty");
     }
 
     #[test]
