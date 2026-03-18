@@ -19,8 +19,9 @@ path = "src/lib.rs"
 [dependencies]
 
 # Plugin host — WASM Component Model via wasmtime
-wasmtime      = { version = "26", features = ["component-model"] }
-wasmtime-wasi = { version = "26" }
+wasmtime           = { version = "26", features = ["component-model"] }
+wasmtime-wasi      = { version = "26" }
+wasmtime-wasi-http = { version = "26" }
 
 # Storage — SQLite, same schema as packages/storage-sqlite
 rusqlite = { version = "0.32", features = ["bundled"] }

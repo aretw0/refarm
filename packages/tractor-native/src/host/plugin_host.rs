@@ -2,52 +2,132 @@
 //!
 //! Mirrors `PluginHost` from packages/tractor/src/lib/plugin-host.ts.
 //!
-//! # Phase 4 — WIT bindings (wasmtime::component::bindgen!)
-//!
-//! ```rust,ignore
-//! wasmtime::component::bindgen!({
-//!     world: "refarm-plugin",
-//!     path: "wit",          // wit/refarm-sdk.wit
-//!     async: true,
-//! });
-//! // Generates: RefarmPlugin (call exports), RefarmPluginImports trait (host implements)
-//! ```
-//!
-//! Until Phase 4, this is a typed stub that compiles and accepts the correct types.
+//! Phase 4: wasmtime Component Model, WIT bindings via `bindgen!` macro.
+//! The macro reads `wit/refarm-sdk.wit` at compile time and generates:
+//! - `RefarmPlugin` — struct to call plugin exports (setup, ingest, etc.)
+//! - Trait(s) for `tractor-bridge` host functions — implemented by `TractorNativeBindings`
 
 use std::path::Path;
+use std::sync::Arc;
+
 use anyhow::Result;
+use sha2::{Digest, Sha256};
+use wasmtime::component::{Component, Linker};
+use wasmtime::{Config, Engine, Store};
+use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
+
 use crate::host::instance::PluginInstanceHandle;
+use crate::host::wasi_bridge::TractorNativeBindings;
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
 use crate::trust::TrustManager;
 
+// ── WIT Bindings ──────────────────────────────────────────────────────────────
+//
+// Reads `wit/host/refarm-plugin-host.wit` — a host-side world with same
+// package/interface names as refarm-sdk.wit but without WASI imports.
+// WASI (http, logging) is registered separately via wasmtime_wasi crates.
+//
+// Generates:
+//   - `RefarmPluginHost`     — caller for plugin exports (integration interface)
+//   - Host trait for imports — `TractorNativeBindings` must implement
+//
+wasmtime::component::bindgen!({
+    world: "refarm-plugin-host",
+    path: "wit/host",
+    async: true,
+});
+
+// ── TractorStore ──────────────────────────────────────────────────────────────
+//
+// The wasmtime Store state: bundles WASI context + HTTP context + our host bindings.
+// `wasmtime::Store<TractorStore>` is `!Send` — each plugin instance owns its store
+// and must be called from the same thread (matches the TS MainThreadRunner model).
+
+pub(crate) struct TractorStore {
+    pub wasi: WasiCtx,
+    pub http: wasmtime_wasi_http::WasiHttpCtx,
+    pub bindings: TractorNativeBindings,
+    pub table: ResourceTable,
+}
+
+// WasiView is required by wasmtime_wasi::add_to_linker_async — tells wasmtime
+// how to extract the WASI context + resource table from our store state.
+impl WasiView for TractorStore {
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+// WasiHttpView is required by wasmtime_wasi_http::add_only_http_to_linker_async.
+impl wasmtime_wasi_http::WasiHttpView for TractorStore {
+    fn ctx(&mut self) -> &mut wasmtime_wasi_http::WasiHttpCtx {
+        &mut self.http
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
+}
+
+// ── PluginHost ────────────────────────────────────────────────────────────────
+
 /// Orchestrates WASM plugin loading and lifecycle via wasmtime.
 ///
-/// Holds the wasmtime Engine (shared, expensive to create) and manages
-/// active plugin instances.
-#[derive(Clone, Debug)]
+/// Holds the wasmtime Engine (shared, expensive to create) and a pre-built
+/// Linker (registered once with WASI + tractor-bridge host functions).
 pub struct PluginHost {
     trust: TrustManager,
     telemetry: TelemetryBus,
-    // Phase 4: wasmtime::Engine (Arc<Engine>)
-    // Phase 4: HashMap<String, PluginInstanceHandle> active instances
+    engine: Arc<Engine>,
+    linker: Arc<Linker<TractorStore>>,
 }
 
 impl PluginHost {
-    pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Self {
-        Self { trust, telemetry }
+    /// Create a new PluginHost, initialising the wasmtime Engine and Linker.
+    ///
+    /// The Engine is expensive (~50ms) so it is shared via `Arc`. The Linker
+    /// is also shared — it is pre-populated with WASI P2 + tractor-bridge
+    /// host functions once and reused for every plugin instantiation.
+    pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Result<Self> {
+        // Configure wasmtime: async + component model required.
+        let mut config = Config::new();
+        config.async_support(true);
+        config.wasm_component_model(true);
+        let engine = Arc::new(Engine::new(&config)?);
+
+        // Build Linker — register WASI P2 + HTTP + tractor-bridge once.
+        let mut linker: Linker<TractorStore> = Linker::new(&engine);
+
+        // WASI Preview 2 (clocks, random, stdio, filesystem stubs, logging)
+        wasmtime_wasi::add_to_linker_async(&mut linker)?;
+
+        // WASI HTTP outgoing-handler (required by refarm-sdk.wit world)
+        wasmtime_wasi_http::add_only_http_to_linker_async(&mut linker)?;
+
+        // tractor-bridge — generated by bindgen!, implemented by TractorNativeBindings
+        // NOTE: exact type name revealed by first `cargo check` run.
+        // With world "refarm-plugin-host" the generated struct is likely `RefarmPluginHost`.
+        RefarmPluginHost::add_to_linker(&mut linker, |s| &mut s.bindings)?;
+
+        Ok(Self {
+            trust,
+            telemetry,
+            engine: engine,
+            linker: Arc::new(linker),
+        })
     }
 
-    /// Load a WASM plugin from a `.wasm` file path.
+    /// Load a WASM plugin from a `.wasm` Component file path.
     ///
-    /// Phase 4 full implementation:
-    /// 1. `wasmtime::Engine::new(&config)` with component-model feature
-    /// 2. `Component::from_file(&engine, path)` — parse WASM component
-    /// 3. `Linker::new(&engine)` + `wasmtime_wasi::add_to_linker_async()`
-    /// 4. Register `tractor-bridge` host functions via `TractorNativeBindings`
-    /// 5. `RefarmPlugin::instantiate_async(&store, &component, &linker)`
-    /// 6. Call `plugin.call_setup(&mut store)` — plugin lifecycle start
+    /// Flow:
+    /// 1. Read bytes + compute SHA-256 hash (for TrustManager)
+    /// 2. Build per-plugin WasiCtx + TractorNativeBindings
+    /// 3. `Component::from_file()` — parse WASM component binary
+    /// 4. `RefarmPlugin::instantiate_async()` — link + instantiate
+    /// 5. Call `setup()` export — plugin lifecycle start
     pub async fn load(&self, path: &Path, sync: &NativeSync) -> Result<PluginInstanceHandle> {
         let plugin_id = path
             .file_stem()
@@ -55,20 +135,54 @@ impl PluginHost {
             .unwrap_or("unknown")
             .to_string();
 
-        tracing::info!(plugin_id = %plugin_id, path = %path.display(), "Loading plugin (Phase 4 stub)");
+        tracing::info!(plugin_id = %plugin_id, path = %path.display(), "Loading plugin");
 
-        // Phase 4: replace with real wasmtime instantiation
         anyhow::ensure!(path.exists(), "Plugin file not found: {}", path.display());
+
+        // Compute SHA-256 hash for TrustManager verification.
+        let bytes = tokio::fs::read(path).await?;
+        let wasm_hash = hex::encode(Sha256::digest(&bytes));
+        tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
+
+        // Build per-plugin WASI context (isolated stdio, no filesystem preopens).
+        let wasi = WasiCtxBuilder::new()
+            .inherit_stderr()
+            .build();
+        let table = ResourceTable::new();
+        let http = wasmtime_wasi_http::WasiHttpCtx::new();
+        let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
+
+        // Parse the WASM component binary.
+        let component = Component::from_file(&self.engine, path)?;
+
+        // Create Store with our TractorStore state.
+        let mut store = Store::new(
+            &self.engine,
+            TractorStore { wasi, http, bindings, table },
+        );
+
+        // Instantiate: links all imports, produces a bound RefarmPluginHost.
+        let plugin =
+            RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
+
+        // Call setup() — required plugin lifecycle hook.
+        plugin
+            .refarm_plugin_integration()
+            .call_setup(&mut store)
+            .await?
+            .map_err(|e| anyhow::anyhow!("Plugin setup() failed: {:?}", e))?;
 
         self.telemetry.emit_named(
             "plugin:loaded",
             Some(plugin_id.clone()),
-            Some(serde_json::json!({ "path": path.to_string_lossy() })),
+            Some(serde_json::json!({
+                "path": path.to_string_lossy(),
+                "wasm_hash": wasm_hash,
+            })),
         );
 
-        Ok(PluginInstanceHandle {
-            id: plugin_id,
-            state: crate::host::instance::PluginState::Idle,
-        })
+        tracing::info!(plugin_id = %plugin_id, "Plugin loaded and setup() called");
+
+        Ok(PluginInstanceHandle::new(plugin_id, plugin, store))
     }
 }

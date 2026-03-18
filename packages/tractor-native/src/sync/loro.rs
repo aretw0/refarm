@@ -47,6 +47,11 @@ impl NativeSync {
         self.storage.store_node(id, type_, context, payload, source_plugin)
     }
 
+    /// Retrieve a single node by ID from the read model (rusqlite).
+    pub fn get_node(&self, id: &str) -> Result<Option<String>> {
+        self.storage.get_node(id)
+    }
+
     /// Query nodes by @type from the read model (rusqlite).
     pub fn query_nodes(&self, type_: &str) -> Result<Vec<crate::storage::NodeRow>> {
         self.storage.query_nodes(type_)

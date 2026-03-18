@@ -89,7 +89,7 @@ impl TractorNative {
         let storage = NativeStorage::open(&config.namespace)?;
         let sync = NativeSync::new(storage.clone())?;
         let trust = TrustManager::new();
-        let plugins = host::PluginHost::new(trust.clone(), telemetry.clone());
+        let plugins = host::PluginHost::new(trust.clone(), telemetry.clone())?;
 
         Ok(Self {
             storage,

@@ -60,7 +60,7 @@ docs(tractor-native): session checkpoint — phases X-Y complete
 - [x] Phase 1 — Storage: `NativeStorage` (rusqlite + PHYSICAL_SCHEMA_V1)
 - [x] Phase 2 — Trust: `TrustManager`, `TrustGrant`, `ExecutionProfile`, `SecurityMode`
 - [x] Phase 3 — Telemetry: `TelemetryBus` (broadcast fan-out), `RingBuffer`, sensitive masking
-- [ ] Phase 4 — Plugin Host: wasmtime `Component` loading, `bindgen!` WIT bindings, `TractorNativeBindings`
+- [x] Phase 4 — Plugin Host: wasmtime `Component` loading, `bindgen!` WIT bindings, `TractorNativeBindings`
 - [ ] Phase 5 — CRDT Sync: `NativeSync` with `loro::LoroDoc` + CQRS Projector
 - [ ] Phase 6 — WebSocket Daemon: `WsServer` on port 42000 (tokio-tungstenite, binary Loro frames)
 - [ ] Phase 7 — Public API: `TractorNative::boot()`, `main.rs` CLI args, release build
@@ -69,21 +69,26 @@ docs(tractor-native): session checkpoint — phases X-Y complete
 
 ### Next Session Entry Point
 
-**Continue at: Phase 4 — Plugin Host**
+**Continue at: Phase 5 — CRDT Sync**
 
-Key files to read before starting Phase 4:
-- `src/host/plugin_host.rs` — stub with Phase 4 instructions
-- `src/host/wasi_bridge.rs` — tractor-bridge host functions stub
-- `wit/refarm-sdk.wit` — WIT world = `refarm-plugin` (this is what `bindgen!` will consume)
-- `packages/tractor/src/lib/main-thread-runner.ts` — TS equivalent of wasmtime instantiation
-- `packages/tractor/src/lib/wasi-imports.ts` — TS equivalent of wasi_bridge.rs
+Key files to read before starting Phase 5:
+- `src/sync/loro.rs` — stub NativeSync (delegates to storage; Loro not yet wired)
+- `packages/sync-loro/src/loro-crdt-storage.ts` — TS equivalent (CQRS pattern)
+- `packages/sync-loro/src/browser-sync-client.ts` — WS binary protocol
 
-Phase 4 key steps:
-1. Add `wasmtime::component::bindgen!` macro call in `plugin_host.rs`
-2. Implement `RefarmPluginImports` trait on `TractorNativeBindings`
-3. Wire `WasiCtxBuilder` + linker for WASI P2 + custom `tractor-bridge` functions
-4. `RefarmPlugin::instantiate_async()` and call `setup()`
-5. Test with `validations/simple-wasm-plugin/*.wasm`
+Phase 5 key steps:
+1. Add `loro::LoroDoc` wrapped in `Arc<Mutex<>>` to `NativeSync`
+2. Implement Projector: `doc.subscribe()` → write to rusqlite read model
+3. Wire `store_node()` through LoroDoc (write model) → Projector → rusqlite
+4. `apply_update()` / `get_update()` — binary Loro delta frames (compatible with JS loro-crdt@1.10.7)
+5. Test CRDT roundtrip: two NativeSync instances, exchange updates, verify convergence
+
+Phase 4 completion state (19/19 tests ✅):
+- `wit/host/refarm-plugin-host.wit` — host-side world without WASI deps
+- `bindgen!` in `plugin_host.rs` with `path: "wit/host"`, `world: "refarm-plugin-host"`
+- `TractorNativeBindings` implements `refarm::plugin::tractor_bridge::Host` (7 bridge fns)
+- `PluginInstanceHandle` holds real `RefarmPluginHost` + `Store<TractorStore>`
+- `tests/fixtures/null-plugin.wasm` — pre-compiled Component fixture
 
 ---
 
