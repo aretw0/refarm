@@ -88,12 +88,12 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - **Why**: Eliminates JCO transpilation. Directly consumes standard `.wasm` components.
 - **Coordination**: Will share identical SQLite schemas and interface contracts with the TypeScript Tractor, allowing seamless database portability.
 
-**Progress** (Phases 0–3 of 9 complete — commit `337cf98`):
+**Progress** (Phases 0–4 of 9 complete — commit `aa21e7b`):
 - ✅ Phase 0 — Scaffolding (Cargo.toml, modular structure, session docs)
 - ✅ Phase 1 — `NativeStorage` (rusqlite, schema compat with `storage-sqlite`)
 - ✅ Phase 2 — `TrustManager` (TrustGrant, ExecutionProfile, SecurityMode)
 - ✅ Phase 3 — `TelemetryBus` (broadcast fan-out, RingBuffer, sensitive masking)
-- ⬜ Phase 4 — Plugin Host (wasmtime `bindgen!`, WIT wiring)
+- ✅ Phase 4 — Plugin Host (wasmtime `bindgen!`, WIT bindings, 19/19 tests)
 - ⬜ Phase 5 — CRDT Sync (loro-rs + CQRS Projector)
 - ⬜ Phase 6 — WebSocket Daemon (replaces farmhand on port 42000)
 - ⬜ Phase 7 — Public API + CLI binary
