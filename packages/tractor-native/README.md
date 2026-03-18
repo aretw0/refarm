@@ -30,6 +30,15 @@ cargo build --release -p tractor-native   # ~10 MB binary
 
 ---
 
+## Roadmap
+
+Roadmap detalhado com especificações por fase, desafios conhecidos, e critérios de graduação:
+**[docs/ROADMAP.md](docs/ROADMAP.md)**
+
+Vinculado ao roadmap principal do projeto: **[roadmaps/MAIN.md](../../roadmaps/MAIN.md)**
+
+---
+
 ## Session Continuity — Phase Checklist
 
 **To resume from a new chat / agent:**
@@ -40,6 +49,7 @@ cargo build --release -p tractor-native   # ~10 MB binary
 5. Continue from the next `[ ]` phase
 
 **At end of each session:** update the checkboxes below and commit:
+
 ```
 docs(tractor-native): session checkpoint — phases X-Y complete
 ```

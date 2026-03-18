@@ -79,11 +79,27 @@ To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, 
 
 These tracks run parallel to the core version bumps and represent ongoing Research & Development to push the boundaries of the Sovereign Web.
 
-### 🦀 Rust Tractor (`tractor-native`)
+### 🦀 Rust Tractor (`tractor-native`) 🚧 IN PROGRESS
+
+> Roadmap detalhado: [`packages/tractor-native/docs/ROADMAP.md`](../packages/tractor-native/docs/ROADMAP.md)
+
 Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust footprint (`~10MB`).
 - **Goal**: Enable direct execution on IoT devices (Raspberry Pi Zeros, Android via Termux) without the heavy JS V8 engine layer.
 - **Why**: Eliminates JCO transpilation. Directly consumes standard `.wasm` components.
 - **Coordination**: Will share identical SQLite schemas and interface contracts with the TypeScript Tractor, allowing seamless database portability.
+
+**Progress** (Phases 0–3 of 9 complete — commit `337cf98`):
+- ✅ Phase 0 — Scaffolding (Cargo.toml, modular structure, session docs)
+- ✅ Phase 1 — `NativeStorage` (rusqlite, schema compat with `storage-sqlite`)
+- ✅ Phase 2 — `TrustManager` (TrustGrant, ExecutionProfile, SecurityMode)
+- ✅ Phase 3 — `TelemetryBus` (broadcast fan-out, RingBuffer, sensitive masking)
+- ⬜ Phase 4 — Plugin Host (wasmtime `bindgen!`, WIT wiring)
+- ⬜ Phase 5 — CRDT Sync (loro-rs + CQRS Projector)
+- ⬜ Phase 6 — WebSocket Daemon (replaces farmhand on port 42000)
+- ⬜ Phase 7 — Public API + CLI binary
+- ⬜ Phase 8–9 — Conformance tests + graduation docs
+
+**Graduation plan**: when all phases pass, `tractor-native` → `tractor` (TS archived as `tractor-ts`).
 
 ### 🧠 Kernel-Level Agents
 Cultivating AI directly into the Refarm execution engine ("Tractor").
