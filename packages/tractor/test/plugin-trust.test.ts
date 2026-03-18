@@ -29,7 +29,7 @@ describe("PluginHost registry validation gate", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         statusText: "OK",
-        arrayBuffer: async () => new Uint8Array(1024).buffer,
+        arrayBuffer: async () => new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer,
       })
     );
   });
@@ -115,7 +115,7 @@ describe("PluginHost trust grants", () => {
       vi.fn().mockResolvedValue({
         ok: true,
         statusText: "OK",
-        arrayBuffer: async () => new Uint8Array(1024).buffer,
+        arrayBuffer: async () => new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer,
       })
     );
   });
