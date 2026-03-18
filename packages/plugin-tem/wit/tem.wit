@@ -53,8 +53,30 @@ interface tem-api {
 
 // ─── Plugin World ─────────────────────────────────────────────────────────────
 
+// ─── Codegen API ─────────────────────────────────────────────────────────────
+
+/// Code-generation interface: converts a WeightsBundle JSON to TypeScript source.
+///
+/// Enables other plugins to trigger codegen at runtime via:
+///   const codegen = await tractor.findByApi("CodegenApi");
+///   const result = await codegen.generateWeightsTs(bundleJson);
+interface codegen-api {
+    /// Validate that a WeightsBundle JSON has correct tensor shapes for the
+    /// embedded config (nG, nX, nActions). Returns the detected config JSON
+    /// on success: `{"nG":[...],"nX":N,"nActions":M}`.
+    validate-bundle: func(bundle-json: string) -> result<string, string>;
+
+    /// Generate a TypeScript source file from a WeightsBundle JSON.
+    /// The returned string is a complete `.ts` file with an exported
+    /// `TEM_WEIGHTS_BUNDLE` constant typed as `WeightsBundle`.
+    generate-weights-ts: func(bundle-json: string) -> result<string, string>;
+}
+
+// ─── Plugin World ─────────────────────────────────────────────────────────────
+
 world tem-plugin {
     import refarm:plugin/tractor-bridge@0.1.0;
     export refarm:plugin/integration@0.1.0;
     export tem-api;
+    export codegen-api;
 }
