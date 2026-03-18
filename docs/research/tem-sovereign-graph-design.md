@@ -143,21 +143,63 @@ WebLLM and Transformers.js are on the Refarm roadmap. Both are computationally h
 must not block the main thread. Establishing `executionContext` now means those integrations
 inherit the pattern without architectural debt.
 
-### D3 — Weights Strategy: Hybrid toward Full TypeScript Rewrite
+### D3 — Weights Strategy: Two-Stage Codegen Pipeline
 
-**Phase 1 (current):** Export torch_tem RNN and conjunction weights via ONNX, load via
-`ort-web`. Hebbian memory always runs in pure TypeScript (no ONNX needed for this part).
+The entire inference stack is **pure TypeScript** — no ONNX, no `ort-web` runtime.
+All tensor math (RNN forward, conjunction, Hebbian update, attractor loop) runs in TS.
+In CI and unit tests, `createRandomWeights()` provides structurally-correct zero weights.
 
-**Phase 2 (target):** Build `@refarm.dev/tem-codegen` CLI that:
-- Reads `TEM_model.py` and `checkpoint.pt` from the torch_tem repo
-- Generates TypeScript files with embedded `Float32Array` weight literals
-- Eliminates `ort-web` runtime dependency (~2MB)
-- Enables full TypeScript inspection and testing
+For production (trained weights), a two-stage pipeline is implemented:
 
-**Why codegen over manual rewrite?**
-Manually rewriting preserves no link to the upstream research. The codegen approach means
-when Whittington et al. publish TEM v2, running one command updates the TypeScript
-implementation. Research and production stay in sync automatically.
+```text
+torch_tem checkpoint.pt
+  → (Stage 1)  tools/export_tem_bundle.py   [Python, stdlib only for CI]
+  → bundle.json                              [WeightsBundle schema]
+  → (Stage 2)  npx tem-codegen
+  → src/core/generated/weights.ts           [Float32Array literals, tree-shakeable]
+```
+
+**WeightsBundle schema** (`packages/plugin-tem/src/core/weights.ts`):
+
+```typescript
+interface WeightsBundle {
+  version: string;
+  sourceCommit?: string;       // commit hash from torch_tem repo
+  config: { nG: number[]; nX: number; nActions: number };
+  weights: {
+    rnn: Array<Array<{         // [nActions][nModules]
+      W_ih: number[];          // [hidden × input] flattened
+      W_hh: number[];          // [hidden × hidden] flattened
+      b_ih: number[];
+      b_hh: number[];
+      hiddenSize: number;
+      inputSize: number;
+    }>>;
+    conjunction: { W_tile: number[]; W_repeat: number[] };
+    placeGenerator: Array<{ W: number[]; b: number[]; inFeatures: number; outFeatures: number }>;
+    sensoryDecoder:  Array<{ W: number[]; b: number[]; inFeatures: number; outFeatures: number }>;
+  };
+}
+```
+
+For the default config (`nG=[10,10,8,6,6]`, `nX=64`, `nActions=16`):
+`sumG=40`, `sumP=120` → `W_tile`: 4800 floats, `W_repeat`: 7680 floats.
+
+**Plugin-first principle** — `codegen-api` is a first-class WIT interface, not just a CLI:
+
+```text
+core (pure functions)  →  src/codegen/plugin.ts (WIT bridge)  →  src/codegen/index.ts (thin CLI)
+```
+
+> **Plugin-first**: any tool that must be callable at runtime exposes a WIT interface.
+> The CLI is always a thin wrapper over the pure core. This lets Refarm OS orchestrate
+> the tool without spawning external processes.
+
+**Why no ONNX?**
+ONNX requires ~2MB `ort-web` runtime and makes weight tensors opaque blobs. TypeScript
+codegen emits inspectable, tree-shakeable `Float32Array` literals with zero runtime overhead.
+When torch_tem v2 is published, one command regenerates the TypeScript. Research and
+production stay in sync automatically.
 
 ### D4 — Action Space Mapping
 
@@ -267,17 +309,34 @@ packages/
 ## 7. WIT API Contract
 
 ```wit
-interface tem-api {
-  record tem-output {
-    p-inferred: list<float32>,
-    novelty-score: float32,
-    prediction-confidence: float32,
-  }
+package refarm:tem@0.1.0;
 
-  step: func(action-id: u32, obs-vec: list<float32>) -> result<tem-output, string>;
-  recall: func(location-hint: list<float32>) -> result<list<float32>, string>;
-  reset-walk: func();
+record tem-output {
+  p-inferred:            list<float32>,   // observation-grounded place cells [sumP]
+  p-recalled:            list<float32>,   // recalled from Hebbian memory [sumP]
+  novelty-score:         float32,         // L2 prediction error; lower = familiar
+  prediction-confidence: float32,         // cosine(p-recalled, p-generated)
+}
+
+interface tem-api {
+  step:        func(action-id: u32, obs-vec: list<float32>) -> result<tem-output, string>;
+  recall:      func(location-hint: list<float32>) -> result<list<float32>, string>;
+  reset-walk:  func();
   last-novelty: func() -> float32;
+}
+
+interface codegen-api {
+  /// Validate WeightsBundle JSON shapes. Returns detected config JSON on success.
+  validate-bundle:      func(bundle-json: string) -> result<string, string>;
+  /// Generate TypeScript source with embedded Float32Array literals.
+  generate-weights-ts:  func(bundle-json: string) -> result<string, string>;
+}
+
+world tem-plugin {
+  import refarm:plugin/tractor-bridge@0.1.0;
+  export refarm:plugin/integration@0.1.0;
+  export tem-api;
+  export codegen-api;
 }
 ```
 
@@ -289,7 +348,8 @@ interface tem-api {
 - Transformers.js payload embedding (v2 upgrade path; ObsEncoder interface enables it)
 - ServiceWorker, Node, Edge runners (architecture supports; implement after Worker proven)
 - CRDT sync of Hebbian memory across devices (SyncAdapter extension required)
-- Codegen CLI (Step 6 of plan) — can be deferred until core inference works
+- WorkerRunner + MainThreadRunner concrete implementations (PluginRunner interface exists; runners pending)
+- `storeNoveltyNode()` wiring to Tractor bridge (placeholder in `plugin.ts`; not yet persisted to Sovereign Graph)
 
 ---
 
