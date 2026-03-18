@@ -55,11 +55,31 @@ impl NativeSync {
     }
 
     pub fn store_node(
-        &self, id: &str, type_: &str,
-        context: Option<&str>, payload: &str,
+        &self,
+        id: &str,
+        type_: &str,
+        context: Option<&str>,
+        payload: &str,
         source_plugin: Option<&str>,
     ) -> Result<()> {
-        self.storage.store_node(id, type_, context, payload, source_plugin)
+        // Write model: serialize node to JSON and insert into LoroDoc map "nodes"
+        let json = serde_json::json!({
+            "id": id,
+            "type": type_,
+            "context": context,
+            "payload": payload,
+            "sourcePlugin": source_plugin,
+        });
+        let nodes_map = self.doc.get_map("nodes");
+        let s = json.to_string();
+        nodes_map
+            .insert(id, s.as_str())
+            .map_err(|e| anyhow!("loro map insert: {e:?}"))?;
+        self.doc.commit();
+
+        // Eager projection to read model (CQRS)
+        self.storage.store_node(id, type_, context, payload, source_plugin)?;
+        Ok(())
     }
 
     pub fn get_node(&self, id: &str) -> Result<Option<String>> {
@@ -111,5 +131,15 @@ mod tests {
         let bytes = sync.get_update().expect("get_update");
         assert!(!bytes.is_empty(), "LoroDoc should export non-empty bytes even when empty");
         sync.store_node("urn:test:1", "Note", None, "{}", None).unwrap();
+    }
+
+    #[test]
+    fn store_node_writes_to_loro_doc() {
+        let sync = make_sync();
+        sync.store_node("urn:test:node-1", "Note", None, r#"{"text":"hello"}"#, None).unwrap();
+
+        // After store_node, the LoroDoc has content → export is non-empty
+        let bytes = sync.get_update().unwrap();
+        assert!(!bytes.is_empty(), "LoroDoc should have exported bytes after store_node");
     }
 }
