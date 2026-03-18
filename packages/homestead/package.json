@@ -5,11 +5,11 @@
   "type": "module",
   "exports": {
     "./sdk": {
-      "types": "./dist/sdk/index.js",
+      "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
     "./ui": {
-      "types": "./dist/ui/index.js",
+      "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"
     },
     "./styles/*": "./dist/styles/*"
