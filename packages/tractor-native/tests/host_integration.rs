@@ -21,7 +21,7 @@ fn make_host(telemetry: TelemetryBus) -> PluginHost {
 
 fn make_sync() -> NativeSync {
     let storage = NativeStorage::open(":memory:").unwrap();
-    NativeSync::new(storage).unwrap()
+    NativeSync::new(storage, ":memory:").unwrap()
 }
 
 // ── Basic load + setup ────────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ async fn call_teardown_does_not_panic() {
 #[tokio::test]
 async fn store_node_roundtrip_via_native_sync() {
     let storage = NativeStorage::open(":memory:").unwrap();
-    let sync = NativeSync::new(storage).unwrap();
+    let sync = NativeSync::new(storage, ":memory:").unwrap();
 
     sync.store_node(
         "urn:test:1",
