@@ -118,10 +118,17 @@ for (const pkg of packages) {
               const srcMatch = resolveToSrc(pkgPath, obj[key]);
               if (srcMatch) obj[key] = srcMatch;
             } else if (mode === 'dist' && !obj[key].includes('dist/') && !obj[key].startsWith('node_modules/')) {
-              obj[key] = safeResolveToDist(obj[key]);
-              if (key === 'types') {
-                if (!obj[key].endsWith('.d.ts') && !obj[key].endsWith('.d.mts')) {
-                  obj[key] = obj[key].replace(/\.js$/, '.d.ts').replace(/\.mjs$/, '.d.mts');
+              const distPath = safeResolveToDist(obj[key]);
+              const distFilePath = path.join(pkgPath, distPath.replace(/^\.\//, ''));
+              // Only switch to dist if the compiled artifact actually exists.
+              // Paths intentionally excluded from the TS build (e.g. Astro source
+              // exports) should stay pointing at src.
+              if (fs.existsSync(distFilePath)) {
+                obj[key] = distPath;
+                if (key === 'types') {
+                  if (!obj[key].endsWith('.d.ts') && !obj[key].endsWith('.d.mts')) {
+                    obj[key] = obj[key].replace(/\.js$/, '.d.ts').replace(/\.mjs$/, '.d.mts');
+                  }
                 }
               }
             }

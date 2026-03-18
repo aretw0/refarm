@@ -17,6 +17,7 @@
     "src/**/*"
   ],
   "exclude": [
-    "src/**/*.astro"
+    "src/**/*.astro",
+    "src/ui/index.ts"
   ]
 }
