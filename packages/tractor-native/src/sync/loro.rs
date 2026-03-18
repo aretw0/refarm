@@ -12,7 +12,9 @@ use std::sync::{Arc, Mutex};
 use crate::storage::NativeStorage;
 
 /// Peer ID derived from namespace — stable across restarts.
-/// Uses first 8 bytes of SHA-256(namespace), matching peerIdFromString() in TypeScript.
+/// Uses first 8 bytes of SHA-256(namespace).
+/// NOTE: TypeScript peerIdFromString() uses a multiply-hash — cross-stack peer IDs will differ.
+/// Cross-stack binary compatibility is a Phase 8 (Conformance Tests) concern.
 fn peer_id_from_namespace(namespace: &str) -> u64 {
     use sha2::{Digest, Sha256};
     let hash = Sha256::digest(namespace.as_bytes());
@@ -107,7 +109,7 @@ mod tests {
     fn sync_creates_with_loro_doc() {
         let sync = make_sync();
         let bytes = sync.get_update().expect("get_update");
-        assert!(!bytes.is_empty() || bytes.is_empty(), "get_update must not error");
+        assert!(!bytes.is_empty(), "LoroDoc should export non-empty bytes even when empty");
         sync.store_node("urn:test:1", "Note", None, "{}", None).unwrap();
     }
 }
