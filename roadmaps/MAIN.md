@@ -92,3 +92,14 @@ Cultivating AI directly into the Refarm execution engine ("Tractor").
 
 ### 🧩 Visual Plugin Builder (Low Code)
 - A plugin that allows building other `.wasm` plugins visually from within Refarm Studio, generating the components at runtime to radically democratize ecosystem extension.
+
+---
+
+## 🚀 Vision 2026: AI Agent Sovereignty
+Beyond v0.2.0, Refarm enters the "Sovereign Agent" era.
+
+- **[Vision 2026 Proposal](../docs/proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)**: Deep dive into the Agentic Autonomy roadmap.
+- **Milestones**:
+  - [ ] **Agentic Onboarding**: Natural language setup of the user's sovereign architecture during the first boot.
+  - [ ] **Runtime Code Synthesis**: Agent-led generation and hot-swapping of WASM plugins and UI components.
+  - [ ] **Universal Inference WIT**: Standardizing AI/LLM capabilities for the entire plugin ecosystem via WIT interfaces.

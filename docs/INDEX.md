@@ -8,7 +8,9 @@
 ## 🗺 Knowledge Map (Architecture of Truth)
 
 ### 🏛 Philosophy & Vision
-- **[Architecture](ARCHITECTURE.md)** - System design, Evolutionary Roadmap (Legacy Bootstrap absorbed).
+- **[ARCHITECTURE](ARCHITECTURE.md)** - System design, Evolutionary Roadmap (Legacy Bootstrap absorbed).
+- **[VISION 2026: AI Agent Sovereignty](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - *[NEW]* The North Star for Autonomous Sovereign Agents.
+- **[SYNERGY: AI Agent & TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - *[NEW]* How the Tolman-Eichenbaum Machine acts as the agent's cognitive map.
 - **[User Story](USER_STORY.md)** - The "why" and user personas.
 - **[Inspirations](INSPIRATIONS.md)** - Technical and conceptual foundations.
 - **[Agent Cognitive Model](../AGENTS.md#0-epistemic-framework-active-inference)** - Active Inference principles governing AI agent behavior in this repository.
@@ -25,6 +27,10 @@
 - **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** - Technical details of the plugin sandbox (transpilation flow, runtime vs build-time table, CI/CD alignment).
 - **[ADR-044: WASM Plugin Loading — Browser Strategy](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md)** - Export conditions, PluginHost browser stub, OPFS install-time transpilation path.
 - **[Plugin Developer Stories](PLUGIN_DEVELOPER_STORIES.md)** - Jornada do desenvolvedor de plugin: do uso pessoal ao ecossistema P2P. Proposta soberana, mecanismos de distribuição (hoje e amanhã), tabela de status.
+
+### 🚀 Vision 2026: AI Agent Sovereignty
+- **[Vision 2026 Document](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - *[NEW]* Deep dive into the Agentic Autonomy roadmap.
+- **[Synergy with TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - *[NEW]* The relationship between the Agênte and the Cognitive Map (TEM).
 
 ### 🚀 Future Tracks (See Roadmap)
 Detailed planning for the following tracks is now consolidated in the **[Evolutionary Roadmap](../roadmaps/MAIN.md)**:
