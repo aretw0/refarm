@@ -73,7 +73,7 @@ async function run() {
         f.groups.forEach(g => {
             g.benchmarks.forEach(b => {
                 const base = baselineMap.get(b.name);
-                if (!base) return;
+                if (!base || typeof base.hz !== 'number' || typeof b.hz !== 'number') return;
 
                 const diff = (b.hz - base.hz) / base.hz;
                 const diffPct = (diff * 100).toFixed(2);
@@ -103,7 +103,7 @@ async function run() {
         f.groups.forEach(g => {
             g.benchmarks.forEach(b => {
                 const base = baselineMap.get(b.name);
-                if (base) {
+                if (base && typeof base.hz === 'number' && typeof b.hz === 'number') {
                     totalDiff += ((b.hz - base.hz) / base.hz) * 100;
                     baselineCount++;
                 }
