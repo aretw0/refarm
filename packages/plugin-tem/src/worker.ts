@@ -15,6 +15,7 @@
  */
 
 import { integration, temApi } from "./plugin";
+import { codegenApi } from "./codegen/plugin";
 
 const API: Record<string, (...args: any[]) => unknown> = {
   // WIT integration interface
@@ -40,6 +41,16 @@ const API: Record<string, (...args: any[]) => unknown> = {
   },
   "tem:reset-walk": () => { temApi.resetWalk(); return null; },
   "tem:last-novelty": () => temApi.lastNovelty(),
+
+  // Codegen API
+  "codegen:validate-bundle": (args: unknown) => {
+    const { bundleJson } = args as { bundleJson: string };
+    return codegenApi.validateBundle(bundleJson);
+  },
+  "codegen:generate-weights-ts": (args: unknown) => {
+    const { bundleJson } = args as { bundleJson: string };
+    return codegenApi.generateWeightsTs(bundleJson);
+  },
 };
 
 // Listen for messages from WorkerRunner
