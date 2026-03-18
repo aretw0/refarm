@@ -16,11 +16,9 @@ if [ -z "$ORIGINAL_REMOTE_URL" ]; then
 fi
 
 echo "Captured remote: $ORIGINAL_REMOTE_URL"
-echo "Target patterns to REMOVE from history in all packages/*/src/:"
-echo " - *.js"
-echo " - *.js.map"
-echo " - *.d.ts"
-echo " - *.d.ts.map"
+echo "Target patterns to REMOVE from history (Surgical Purge):"
+echo " - .js and .d.ts only in packages/{plugin-manifest,identity-contract-v1,storage-contract-v1,sync-contract-v1}/src/"
+echo " - .js.map and .d.ts.map in ANY packages/*/src/"
 
 # Step 2: Create a backup mirror outside the repo
 REPO_PATH="$(pwd)"
