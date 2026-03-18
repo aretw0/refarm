@@ -1,0 +1,38 @@
+flowchart TD
+    subgraph Input ["Input (per step)"]
+        AE["ActionEncoder\n1-hot index → actionId"]
+        OE["StructAwareEncoder\nSovereignNode → 64-dim obsVec"]
+    end
+
+    subgraph GStream ["G-Stream · Grid Cells (Abstract Location)"]
+        RNN0["RNN module 0  nG=10"]
+        RNN1["RNN module 1  nG=10"]
+        RNNn["RNN modules 2-4  nG=[8,6,6]"]
+        g["g_t ∈ ℝ^40  (concatenated)"]
+        RNN0 & RNN1 & RNNn --> g
+    end
+
+    subgraph PStream ["P-Stream · Place Cells (Grounded Location)"]
+        Conj["Conjunction\ng × x → p_inferred  ℝ^120"]
+        PGen["PlaceGenerator\ng → p_generated  ℝ^120"]
+        g --> Conj
+        g --> PGen
+    end
+
+    subgraph Hebbian ["Hebbian Memory  M ∈ ℝ^{120×120}"]
+        Update["M_t = clamp( λ·M_{t-1}\n  + η·p_inf⊗p_inf − p_gen⊗p_gen, −1, +1 )"]
+        Attractor["Attractor (K=10 iters)\nh ← κ·h + h @ M  →  p_recalled ℝ^120"]
+        Conj --> Update
+        PGen --> Update
+        g --> Attractor
+    end
+
+    subgraph Output ["Output"]
+        NS["noveltyScore\nL2( p_inferred, p_generated )"]
+        PC["predictionConfidence\ncosine( p_recalled, p_generated )"]
+    end
+
+    AE --> GStream
+    OE --> Conj
+    Attractor --> PC
+    Conj & PGen --> NS
