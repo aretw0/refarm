@@ -119,6 +119,11 @@ for (const pkg of packages) {
               if (srcMatch) obj[key] = srcMatch;
             } else if (mode === 'dist' && !obj[key].includes('dist/') && !obj[key].startsWith('node_modules/')) {
               obj[key] = safeResolveToDist(obj[key]);
+              if (key === 'types') {
+                if (!obj[key].endsWith('.d.ts') && !obj[key].endsWith('.d.mts')) {
+                  obj[key] = obj[key].replace(/\.js$/, '.d.ts').replace(/\.mjs$/, '.d.mts');
+                }
+              }
             }
           } else if (typeof obj[key] === 'object' && obj[key] !== null) {
             processExports(obj[key]);
