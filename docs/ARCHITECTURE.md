@@ -65,7 +65,7 @@ Focus on the **Sovereign Microkernel** (Tractor) and stable storage. Ensuring th
 Introduction of **Hybrid Sync** (Matrix/HTTP/P2P) and local AI (via **WebLLM**). The engine becomes capable of structured JSON generation, transforming raw inputs into semantic nodes automatically.
 
 ### Phase 3: Sovereign Agent (Autonomy)
-Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system transitions from a database to an autonomous assistant that can execute actions offline based on natural language.
+Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system transitions from a database to an autonomous assistant (like Claude Code) capable of **Runtime Synthesis**—generating interfaces, plugins, and entire distros on the fly based on natural language. See **[Vision 2026](./proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)**.
 
 ---
 ## Monorepo Map
