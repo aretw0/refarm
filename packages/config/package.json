@@ -8,7 +8,7 @@
   "exports": {
     ".": {
       "import": "./dist/index.mjs",
-      "types": "./dist/index.mjs"
+      "types": "./dist/index.d.mts"
     },
     "./astro": "./dist/astro.mjs"
   },
