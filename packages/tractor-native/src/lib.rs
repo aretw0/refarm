@@ -87,7 +87,7 @@ impl TractorNative {
 
         let telemetry = TelemetryBus::new(config.telemetry_capacity);
         let storage = NativeStorage::open(&config.namespace)?;
-        let sync = NativeSync::new(storage.clone())?;
+        let sync = NativeSync::new(storage.clone(), &config.namespace)?;
         let trust = TrustManager::new();
         let plugins = host::PluginHost::new(trust.clone(), telemetry.clone())?;
 
