@@ -7,7 +7,7 @@
 //! Binary-compatible with loro-crdt JS (loro-crdt@1.10.7).
 
 use anyhow::{anyhow, Result};
-use loro::{ExportMode, LoroDoc, Subscription};
+use loro::{ExportMode, LoroDoc, LoroValue, Subscription, ValueOrContainer};
 use std::sync::{Arc, Mutex};
 use crate::storage::NativeStorage;
 
@@ -90,9 +90,56 @@ impl NativeSync {
         self.storage.query_nodes(type_)
     }
 
-    pub fn apply_update(&self, _bytes: &[u8]) -> Result<()> {
-        tracing::warn!("apply_update: stub");
+    /// Rebuild SQLite read model from current LoroDoc state.
+    /// Called after apply_update() or import_snapshot() to sync the read model.
+    /// Mirrors Projector.rebuildAll() from packages/sync-loro/src/projector.ts.
+    /// Never panics — logs errors and continues (CRDT must not crash).
+    fn project_all(&self) -> Result<()> {
+        let nodes_map = self.doc.get_map("nodes");
+
+        // Collect keys first to avoid borrow checker issues with simultaneous
+        // keys() iterator and get() calls on the same LoroMap.
+        let keys: Vec<String> = nodes_map.keys()
+            .map(|k| k.as_str().to_owned())
+            .collect();
+
+        for key in keys {
+            let raw_json = match nodes_map.get(&key) {
+                Some(ValueOrContainer::Value(LoroValue::String(s))) => s.to_string(),
+                Some(_) => {
+                    tracing::warn!("project_all: unexpected value type for key {key}");
+                    continue;
+                }
+                None => continue, // deleted
+            };
+
+            let node: serde_json::Value = match serde_json::from_str(&raw_json) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::error!("project_all: invalid JSON for node {key}: {e}");
+                    continue;
+                }
+            };
+
+            let id      = node["id"].as_str().unwrap_or(&key);
+            let type_   = node["type"].as_str().unwrap_or("");
+            let context = node["context"].as_str();
+            let payload = node["payload"].as_str().unwrap_or("{}");
+            let source  = node["sourcePlugin"].as_str();
+
+            // Must never crash the CRDT engine — mirror TypeScript's try/catch
+            if let Err(e) = self.storage.store_node(id, type_, context, payload, source) {
+                tracing::error!("project_all: failed to project node {key}: {e}");
+            }
+        }
         Ok(())
+    }
+
+    pub fn apply_update(&self, bytes: &[u8]) -> Result<()> {
+        self.doc
+            .import(bytes)
+            .map_err(|e| anyhow!("loro import: {e:?}"))?;
+        self.project_all()
     }
 
     pub fn get_update(&self) -> Result<Vec<u8>> {
@@ -141,5 +188,36 @@ mod tests {
         // After store_node, the LoroDoc has content → export is non-empty
         let bytes = sync.get_update().unwrap();
         assert!(!bytes.is_empty(), "LoroDoc should have exported bytes after store_node");
+    }
+
+    #[test]
+    fn apply_update_converges_read_model() {
+        // Peer A stores a node
+        let sync_a = {
+            let st = NativeStorage::open(":memory:").unwrap();
+            NativeSync::new(st, "peer-a").unwrap()
+        };
+        sync_a.store_node("urn:test:conv-1", "Task", None, r#"{"done":false}"#, None).unwrap();
+
+        // Peer B starts empty
+        let sync_b = {
+            let st = NativeStorage::open(":memory:").unwrap();
+            NativeSync::new(st, "peer-b").unwrap()
+        };
+        assert!(sync_b.get_node("urn:test:conv-1").unwrap().is_none(),
+            "peer-b should start without the node");
+
+        // Exchange: A → B
+        let bytes = sync_a.get_update().unwrap();
+        sync_b.apply_update(&bytes).unwrap();
+
+        // Peer B read model must now have the node
+        let node = sync_b.get_node("urn:test:conv-1").unwrap();
+        assert!(node.is_some(), "peer-b should have node after apply_update");
+
+        // Query by type must also work
+        let rows = sync_b.query_nodes("Task").unwrap();
+        assert_eq!(rows.len(), 1, "queryNodes should return 1 Task");
+        assert_eq!(rows[0].id, "urn:test:conv-1");
     }
 }
