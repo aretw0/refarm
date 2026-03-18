@@ -38,6 +38,9 @@ export * from "./lib/secret-host.js";
 export * from "./lib/telemetry.js";
 export * from "./lib/types.js";
 
+/** Sovereign engine version — also accessible from the browser entry as TRACTOR_VERSION. */
+export const TRACTOR_VERSION: string = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
   if (configLevel) return configLevel;
 

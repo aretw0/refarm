@@ -1,4 +1,5 @@
-import * as fs from "node:fs/promises";
+// Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
+// Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
@@ -120,7 +121,8 @@ export class PluginHost {
 
     if (wasmUrl.startsWith("file://")) {
       const filePath = wasmUrl.replace("file://", "");
-      const buffer = await fs.readFile(filePath);
+      const { readFile } = await import("node:fs/promises");
+      const buffer = await readFile(filePath);
       wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
     } else {
       const response = await fetch(wasmUrl);

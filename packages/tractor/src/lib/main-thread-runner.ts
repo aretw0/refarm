@@ -1,6 +1,5 @@
-import * as jco from "@bytecodealliance/jco";
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
+// Node-only deps (jco, fs, path) are loaded dynamically inside instantiate()
+// so this module can be safely imported in browser bundles without pulling in Node.js APIs.
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { TelemetryEvent } from "./telemetry";
 import { TractorLogger } from "./types";
@@ -40,6 +39,12 @@ export class MainThreadRunner implements PluginRunner {
     let componentInstance: any = null;
 
     try {
+      const [jco, fs, path] = await Promise.all([
+        import("@bytecodealliance/jco"),
+        import("node:fs/promises"),
+        import("node:path"),
+      ]);
+
       const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_") };
       const { files } = await jco.transpile(new Uint8Array(wasmBuffer), opts as any);
 
