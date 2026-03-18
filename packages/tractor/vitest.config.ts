@@ -15,6 +15,11 @@ export default mergeConfig(
         deps: {
           inline: ["@bytecodealliance/jco", "@noble/ed25519"]
         }
+      },
+      coverage: {
+        exclude: [
+          'src/transpiled/**'
+        ]
       }
     },
   })

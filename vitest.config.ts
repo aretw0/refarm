@@ -40,6 +40,8 @@ export const baseConfig = {
         'dist/',
         '**/*.test.ts',
         '**/*.spec.ts',
+        '**/test/**',
+        '**/src/transpiled/**'
       ],
     },
     include: ['**/*.test.ts', '**/*.spec.ts'],
