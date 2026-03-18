@@ -5,8 +5,9 @@ stateDiagram-v2
   Verified --> Loaded: instantiate WASM component
   Loaded --> Setup: setup() called
   Setup --> Running: permissions granted
-  Setup --> Blocked: permission denied
-  Blocked --> Uninstalled: user removes plugin
+  Setup --> Error: trust/permission denied
+  Error --> Loaded: can retry
+  Error --> Uninstalled: user removes plugin
 
   Running --> Ingesting: ingest() scheduled
   Ingesting --> Normalizing: plugin emits raw payload
