@@ -25,6 +25,14 @@ const DEFAULT_CONFIG: TEMConfig = {
   attractorK: 10,
 };
 
+// ─── Tractor Bridge ──────────────────────────────────────────────────────────
+
+let _storeNodeFn: ((nodeJson: string) => Promise<void>) | null = null;
+
+export function setStoreNodeFn(fn: ((nodeJson: string) => Promise<void>) | null): void {
+  _storeNodeFn = fn;
+}
+
 // ─── Plugin State ────────────────────────────────────────────────────────────
 
 let tem: TEMInference | null = null;
@@ -147,9 +155,16 @@ async function storeNoveltyNode(
   noveltyScore: number,
   confidence: number,
 ): Promise<void> {
-  // In a real WASM build, this calls the tractor-bridge WIT import.
-  // For now, a no-op placeholder — replaced by actual WIT binding during build.
-  void triggerEvent;
-  void noveltyScore;
-  void confidence;
+  if (!_storeNodeFn) return;
+  const nodeJson = JSON.stringify({
+    "@context": "https://refarm.dev/context/v1",
+    "@type": "refarm:TemMemory",
+    "@id": `urn:refarm:tem:novelty:${Date.now()}`,
+    "refarm:triggerEvent": triggerEvent,
+    "refarm:noveltyScore": noveltyScore,
+    "refarm:predictionConfidence": confidence,
+    "refarm:timestamp": new Date().toISOString(),
+    "refarm:sourcePlugin": "refarm:tem",
+  });
+  await _storeNodeFn(nodeJson);
 }

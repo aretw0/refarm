@@ -30,10 +30,11 @@ export class PluginHost {
     private logger: TractorLogger = console,
     private securityMode: SecurityMode = "strict",
     private distBase: string = __dirname + "/../.jco-dist",
+    private storeNode?: (nodeJson: string) => Promise<void>,
   ) {
     this.trustManager = new TrustManager(emit);
     this._mainThreadRunner = new MainThreadRunner(this.distBase, this.logger);
-    this._workerRunner = new WorkerRunner();
+    this._workerRunner = new WorkerRunner(this.storeNode);
   }
 
   /**
@@ -127,7 +128,7 @@ export class PluginHost {
       wasmBuffer = await response.arrayBuffer();
     }
 
-    const wasi = new WasiImports(pluginId, this.logger, this.emit);
+    const wasi = new WasiImports(pluginId, this.logger, this.emit, this.storeNode);
     const imports = wasi.generate(manifest, profile);
     const runner = this.resolveRunner(manifest);
 

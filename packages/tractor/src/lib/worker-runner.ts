@@ -22,6 +22,8 @@ import type { PluginRunner } from "./plugin-runner";
  * above is intentionally simple and Comlink-compatible.
  */
 export class WorkerRunner implements PluginRunner {
+  constructor(private storeNode?: (nodeJson: string) => Promise<void>) {}
+
   supports(_manifest: PluginManifest): boolean {
     return typeof Worker !== "undefined";
   }
@@ -43,8 +45,20 @@ export class WorkerRunner implements PluginRunner {
     >();
     let callSeq = 0;
 
-    worker.addEventListener("message", (ev) => {
+    worker.addEventListener("message", async (ev) => {
       const msg = ev.data as any;
+
+      if (msg.type === "bridge-call") {
+        const { id, fn, args } = msg;
+        try {
+          if (fn === "store-node" && this.storeNode) await this.storeNode(args as string);
+          worker.postMessage({ type: "bridge-result", id, result: "ok" });
+        } catch (e: any) {
+          worker.postMessage({ type: "bridge-error", id, message: e?.message ?? String(e) });
+        }
+        return;
+      }
+
       if (msg.type === "result" || msg.type === "error") {
         const pending = pendingCalls.get(msg.id);
         if (!pending) return;

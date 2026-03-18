@@ -95,6 +95,8 @@ export class Tractor {
         error: (...args: unknown[]) => this.logError(...args),
       },
       this.defaultSecurityMode,
+      undefined,
+      (nodeJson: string) => this.storeNode(JSON.parse(nodeJson)),
     );
 
     this.telemetry = new TelemetryHost({ capacity: 1000 });
