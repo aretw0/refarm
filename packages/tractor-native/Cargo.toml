@@ -1,0 +1,57 @@
+[package]
+name = "tractor-native"
+version = "0.1.0"
+edition = "2021"
+description = "Sovereign WASM plugin host — native Rust implementation of the Refarm Tractor"
+license = "MIT"
+
+# ─── Binary (daemon) ──────────────────────────────────────────────────────────
+[[bin]]
+name = "tractor-native"
+path = "src/main.rs"
+
+# ─── Library (embeddable) ─────────────────────────────────────────────────────
+[lib]
+name = "tractor_native"
+path = "src/lib.rs"
+
+# ─── Dependencies ─────────────────────────────────────────────────────────────
+[dependencies]
+
+# Plugin host — WASM Component Model via wasmtime
+wasmtime      = { version = "26", features = ["component-model"] }
+wasmtime-wasi = { version = "26" }
+
+# Storage — SQLite, same schema as packages/storage-sqlite
+rusqlite = { version = "0.32", features = ["bundled"] }
+
+# CRDT sync — binary-compatible with loro-crdt JS (loro-crdt@1.10.7)
+loro = "1"
+
+# Async runtime + WebSocket daemon
+tokio             = { version = "1", features = ["full"] }
+tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
+futures-util      = "0.3"
+
+# Crypto — ed25519 native (same algo as @noble/ed25519 / heartwood.wasm)
+# SecurityMode config makes signing opt-out — always available, never forced
+ed25519-dalek = { version = "2", features = ["rand_core"] }
+rand_core     = { version = "0.6", features = ["getrandom"] }
+sha2          = "0.10"   # SHA-256 for wasm_hash
+
+# Serialization
+serde      = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# Observability
+tracing            = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+
+# Utilities
+anyhow    = "1"
+thiserror = "1"
+uuid      = { version = "1", features = ["v4"] }
+
+# CLI argument parsing (daemon)
+clap = { version = "4", features = ["derive"] }
+hex  = "0.4"
