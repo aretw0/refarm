@@ -1,0 +1,4 @@
+# Limit compilation parallelism to prevent OOM in constrained dev containers.
+# wasmtime + loro + tokio[full] + bundled SQLite peak at >4 GB with unlimited jobs.
+[build]
+jobs = 2
