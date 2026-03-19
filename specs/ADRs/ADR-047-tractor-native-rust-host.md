@@ -95,14 +95,14 @@ TractorNative (lib.rs)
 
 | Form | Target | Entry point |
 |---|---|---|
-| `[lib]` | Tauri, CLI, edge agents | `use tractor_native::TractorNative` |
-| `[[bin]]` | Standalone daemon | `tractor-native --namespace default --port 42000` |
+| `[lib]` | Tauri, CLI, edge agents | `use tractor::TractorNative` |
+| `[[bin]]` | Standalone daemon | `tractor --namespace default --port 42000` |
 
 ---
 
 ## Graduation path
 
-When all criteria are met, `tractor-native` becomes the canonical `tractor`:
+✅ **Completed (ADR-048, 2026-03-19).** `tractor-native` is now the canonical `tractor`:
 
 | # | Criterion | Status |
 |---|---|---|
@@ -113,11 +113,11 @@ When all criteria are met, `tractor-native` becomes the canonical `tractor`:
 | 5 | Binary footprint ≤30 MB | ✅ 27 MB (errata: target redefined from ≤15 MB — see note below) |
 | 6 | All `@refarm.dev/tractor` consumers mapped | ✅ 4 apps + 8 packages |
 
-Migration steps:
-1. `packages/tractor` → `packages/tractor-ts` (preserve as reference)
-2. `packages/tractor-native` → `packages/tractor`
-3. Update `Cargo.toml name`, npm `package.json name`, path aliases in all consumers
-4. Write `ADR-048-tractor-graduation.md`
+Migration steps (completed):
+1. ✅ `packages/tractor` → `packages/tractor-ts` (npm name `@refarm.dev/tractor` unchanged)
+2. ✅ `packages/tractor-native` → `packages/tractor`
+3. ✅ `Cargo.toml`: `name = "tractor"`, binary `name = "tractor"`
+4. ✅ ADR-048 written and approved
 
 ---
 
@@ -140,7 +140,7 @@ Migration steps:
 The original criterion specified ≤15 MB for the release binary. This was written before measuring
 the actual wasmtime runtime footprint.
 
-**Measured** (2026-03-19): `target/release/tractor-native` = **27 MB** stripped release.
+**Measured** (2026-03-19): `target/release/tractor` = **27 MB** stripped release.
 
 Breakdown: wasmtime runtime accounts for ~18–20 MB. Strip flags (`--strip=all`, `opt-level="z"`)
 and musl cross-compile can reduce by 15–25%, but cannot reach ≤15 MB without removing wasmtime
@@ -161,6 +161,6 @@ and musl cross-compile can reduce by 15–25%, but cannot reach ≤15 MB without
 - [ADR-044 — WASM Plugin Loading Browser Strategy](ADR-044-wasm-plugin-loading-browser-strategy.md)
 - [ADR-045 — Loro CRDT Adoption](ADR-045-loro-crdt-adoption.md)
 - [ADR-015 — SQLite Engine Decision](ADR-015-sqlite-engine-decision.md)
-- `packages/tractor-native/docs/ARCHITECTURE.md` — implementation detail
-- `packages/tractor-native/docs/ROADMAP.md` — phase-by-phase progress
-- `packages/tractor-native/tests/conformance.rs` — graduation criteria verification
+- `packages/tractor/docs/ARCHITECTURE.md` — implementation detail
+- `packages/tractor/docs/ROADMAP.md` — phase-by-phase progress
+- `packages/tractor/tests/conformance.rs` — graduation criteria verification
