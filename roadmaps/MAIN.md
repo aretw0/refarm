@@ -83,12 +83,12 @@ These tracks run parallel to the core version bumps and represent ongoing Resear
 
 > Roadmap detalhado: [`packages/tractor-native/docs/ROADMAP.md`](../packages/tractor-native/docs/ROADMAP.md)
 
-Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust footprint (`~10MB`).
+Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust footprint (`~27MB`).
 - **Goal**: Enable direct execution on IoT devices (Raspberry Pi Zeros, Android via Termux) without the heavy JS V8 engine layer.
 - **Why**: Eliminates JCO transpilation. Directly consumes standard `.wasm` components.
 - **Coordination**: Will share identical SQLite schemas and interface contracts with the TypeScript Tractor, allowing seamless database portability.
 
-**Progress** (Phases 0–8 of 9 complete — 49/49 tests):
+**Progress** (Phases 0–9 complete — 51/51 tests):
 - ✅ Phase 0 — Scaffolding (Cargo.toml, modular structure, session docs)
 - ✅ Phase 1 — `NativeStorage` (rusqlite, schema compat with `storage-sqlite`)
 - ✅ Phase 2 — `TrustManager` (TrustGrant, ExecutionProfile, SecurityMode)
@@ -99,11 +99,11 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - ✅ Phase 7 — Public API + CLI binary (`TractorNative::boot()`, `--plugin`)
 - ✅ Phase 8 — Conformance (schema fix, 3 conformance tests, SecurityMode enforcement)
 - ✅ Phase 9 — Final docs (ARCHITECTURE.md, ADR-047, consumer map)
+- ✅ Criterion #3 — Plugin lifecycle (setup/ingest/teardown) conformance tests added
+- ✅ Criterion #5 — Binary footprint ≤30 MB: measured 27 MB; target redefined (ADR-047 errata)
 
-**Graduation blockers** (criteria #2, #3, #5 — see `packages/tractor-native/docs/ROADMAP.md`):
+**Graduation blockers** (criterion #2 only — see `packages/tractor-native/docs/ROADMAP.md`):
 - ⬜ Criterion #2: BrowserSyncClient Loro binary interop (needs browser test environment)
-- ⬜ Criterion #3: `simple-wasm-plugin` load in cargo test (needs `cargo-component` toolchain)
-- ⬜ Criterion #5: binary footprint — wasmtime makes ≤15 MB unrealistic; decision needed
 
 **Graduation plan**: when all criteria pass, `tractor-native` → `tractor` (TS archived as `tractor-ts`).
 

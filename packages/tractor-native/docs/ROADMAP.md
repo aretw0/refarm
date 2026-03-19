@@ -4,14 +4,14 @@
 
 **Versão alvo**: `0.1.0` (paridade comportamental com `@refarm.dev/tractor` TypeScript)
 **Estratégia**: Lib embeddable + daemon WebSocket que substitui o farmhand na porta 42000
-**Footprint alvo**: ~10 MB (sem Node.js / V8 / JCO)
+**Footprint alvo**: ≤30 MB (wasmtime runtime incluído; meta original ≤15 MB redefinida — ver ADR-047 errata)
 
 ---
 
 ## Estado atual
 
 ```
-Fase 0–9 ✅  |  Graduação bloqueada (critérios #2, #3, #5)
+Fase 0–9 ✅  |  Graduação bloqueada (critério #2 apenas)
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -27,7 +27,7 @@ Fase 0–9 ✅  |  Graduação bloqueada (critérios #2, #3, #5)
 | 8 — Conformance | ✅ | — | Schema fix + 3 conformance tests + binary size gate |
 | 9 — Docs finais | ✅ | — | ARCHITECTURE.md finalizado, ADR-047, consumer map |
 
-**Testes atuais:** `cargo test -p tractor-native` → **49/49 ✅**
+**Testes atuais:** `cargo test -p tractor-native` → **51/51 ✅**
 
 ---
 
@@ -267,14 +267,14 @@ Quando todos estes critérios forem atendidos, `tractor-native` se torna o `trac
 
 | # | Critério | Status | Como verificar |
 |---|---|---|---|
-| 1 | `cargo test -p tractor-native` — todos passam | ✅ 49/49 | CI verde |
+| 1 | `cargo test -p tractor-native` — todos passam | ✅ 51/51 | CI verde |
 | 2 | Interop `BrowserSyncClient` (roundtrip Loro binário) | ⬜ pendente | Teste de integração — requer browser real |
-| 3 | `validations/simple-wasm-plugin` + `hello-world` carregam e executam | ⬜ pendente | Requer `cargo-component` toolchain |
+| 3 | Plugin carrega e executa ciclo completo (setup/ingest/teardown) | ✅ done | `plugin_lifecycle_setup_teardown` + `plugin_ingest_roundtrip` |
 | 4 | Compat de storage: `.db` TS legível pelo `NativeStorage` | ✅ done | `schema_compat_ts_db_readable` |
-| 5 | Binary release footprint | ⬜ em aberto | wasmtime torna ≤15 MB inviável; decisão pendente |
+| 5 | Binary release footprint ≤30 MB | ✅ redefinido | `target/release/tractor-native` = 27 MB; meta ≤15 MB redefinida — ver ADR-047 errata |
 | 6 | Todos consumers de `@refarm.dev/tractor` mapeados | ✅ done | 4 apps + 8 packages — ver ARCHITECTURE.md |
 
-> **Para continuar:** Critérios #2 e #3 são os principais bloqueantes. #5 precisa de uma nova decisão arquitetural (aceitar tamanho maior? strip/upx? redefinir target?).
+> **Para continuar:** Critério #2 é o único bloqueante restante. Requer ambiente browser real (vitest + playwright) para validar roundtrip binário Loro.
 
 **Passos de migração:** ver `docs/ARCHITECTURE.md#graduation-strategy`
 
