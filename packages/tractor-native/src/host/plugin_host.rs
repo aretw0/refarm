@@ -20,7 +20,7 @@ use crate::host::instance::PluginInstanceHandle;
 use crate::host::wasi_bridge::TractorNativeBindings;
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
-use crate::trust::TrustManager;
+use crate::trust::{SecurityMode, TrustManager};
 
 // ── WIT Bindings ──────────────────────────────────────────────────────────────
 //
@@ -143,6 +143,17 @@ impl PluginHost {
         let bytes = tokio::fs::read(path).await?;
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
+
+        // Enforce trust in Strict mode: plugin must have an explicit grant.
+        if self.trust.security_mode() == &SecurityMode::Strict
+            && !self.trust.has_valid_grant(&plugin_id, Some(&wasm_hash))
+        {
+            anyhow::bail!(
+                "SecurityMode::Strict: no valid trust grant for plugin '{}' (hash: {})",
+                plugin_id,
+                wasm_hash
+            );
+        }
 
         // Build per-plugin WASI context (isolated stdio, no filesystem preopens).
         let wasi = WasiCtxBuilder::new()

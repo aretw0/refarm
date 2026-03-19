@@ -51,15 +51,36 @@ impl TrustGrant {
 /// Manages plugin trust grants in memory.
 ///
 /// Mirrors `TrustManager` from packages/tractor/src/lib/trust-manager.ts.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct TrustManager {
     /// Key: "{plugin_id}::{wasm_hash}"
     grants: HashMap<String, TrustGrant>,
+    /// Security mode controlling plugin loading enforcement.
+    pub(crate) security_mode: SecurityMode,
+}
+
+impl Default for TrustManager {
+    fn default() -> Self {
+        Self { grants: HashMap::new(), security_mode: SecurityMode::None }
+    }
 }
 
 impl TrustManager {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Create a TrustManager with the given security mode.
+    ///
+    /// `SecurityMode::Strict` requires an explicit trust grant before a plugin
+    /// can be loaded by `PluginHost`.
+    pub fn with_security_mode(mode: SecurityMode) -> Self {
+        Self { grants: HashMap::new(), security_mode: mode }
+    }
+
+    /// Return the current security mode.
+    pub fn security_mode(&self) -> &SecurityMode {
+        &self.security_mode
     }
 
     fn grant_key(plugin_id: &str, wasm_hash: &str) -> String {
