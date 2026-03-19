@@ -56,6 +56,37 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit` 
 - `[lib]` — embeddable in Tauri, CLI, edge agents via `use tractor_native::TractorNative`
 - `[[bin]]` — standalone daemon: `tractor-native --namespace default --port 42000`
 
+### 8. Schema alignment — `crdt_log.id = TEXT PRIMARY KEY`, no `created_at`
+
+**Decision (Phase 8):** Remove `nodes.created_at` and change `crdt_log.id` from
+`INTEGER PRIMARY KEY AUTOINCREMENT` to `TEXT PRIMARY KEY`.
+
+**Rationale:**
+- `created_at` was never part of `PHYSICAL_SCHEMA_V1` in `packages/storage-sqlite`; its presence
+  in the Rust schema caused `NativeStorage::open()` to fail on TS-created `.db` files.
+- `INTEGER AUTOINCREMENT` for `crdt_log.id` creates silent merge conflicts: two peers generate
+  `id=1` for different operations. CRDT IDs carry `peer_id/hlc_time` semantics and are globally
+  unique by construction — `TEXT PRIMARY KEY` is the correct type.
+- If `created_at` is needed in the future, derive it: `MIN(crdt_log.applied_at) WHERE node_id = ?`
+
+**Verified by:** `tests/conformance.rs::schema_compat_ts_db_readable`
+
+### 9. SecurityMode::Strict enforced in `PluginHost::load()`, not just in `TrustManager`
+
+**Decision (Phase 8):** `PluginHost::load()` reads `trust.security_mode()` and rejects plugins
+without a valid grant when `SecurityMode::Strict` is active. The check happens after SHA-256
+hash computation but before wasmtime instantiation.
+
+**Rationale:** Trust enforcement at the data layer (`TrustManager::has_valid_grant`) is
+necessary but not sufficient. Without enforcement at `load()`, a caller with a `Strict`-mode
+`TrustManager` could bypass the intent by constructing a `PluginHost` directly. Layered enforcement
+matches defense-in-depth.
+
+**API:** `TrustManager::with_security_mode(SecurityMode::Strict)` + `trust.grant(id, hash, None)`
+
+**Verified by:** `tests/conformance.rs::security_mode_strict_rejects_untrusted_plugin`
+               `tests/conformance.rs::security_mode_strict_allows_after_grant`
+
 ---
 
 ## TS ↔ Rust Capability Mapping
@@ -93,14 +124,14 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit` 
 
 ### Criteria
 
-| # | Criterion | Verification |
-|---|---|---|
-| 1 | All `cargo test -p tractor-native` pass | CI green |
-| 2 | `BrowserSyncClient` interop (binary Loro roundtrip) | Integration test |
-| 3 | `validations/simple-wasm-plugin` + `hello-world` load + execute | `cargo test` or manual |
-| 4 | Storage compat: TS `.db` readable by `NativeStorage` | Schema test |
-| 5 | Release binary ≤ 15 MB | `ls -lh target/release/tractor-native` |
-| 6 | All consumers of `@refarm.dev/tractor` identified | `grep -r "@refarm.dev/tractor"` audit |
+| # | Criterion | Status | Verification |
+|---|---|---|---|
+| 1 | All `cargo test -p tractor-native` pass | ✅ 49/49 | CI green |
+| 2 | `BrowserSyncClient` interop (binary Loro roundtrip) | ⬜ pending | Integration test — requires browser environment |
+| 3 | `validations/simple-wasm-plugin` + `hello-world` load + execute | ⬜ pending | Requires `cargo-component` toolchain |
+| 4 | Storage compat: TS `.db` readable by `NativeStorage` | ✅ done | `schema_compat_ts_db_readable` |
+| 5 | Release binary footprint | ⬜ open | wasmtime dependency makes ≤15 MB target unrealistic; decision deferred |
+| 6 | All consumers of `@refarm.dev/tractor` identified | ✅ done | 4 apps + 8 packages — see Consumer Map below |
 
 ### Migration Steps
 
@@ -150,6 +181,33 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit` 
 after `boot()` and before `WsServer::start()`. A load failure for one plugin emits
 `WARN` and continues — the daemon does not exit. This follows the isolated-failure
 contract specified in `docs/specs/phase7-public-api.md §1.2`.
+
+---
+
+## Consumer Map — `@refarm.dev/tractor` → `tractor-native`
+
+Packages and apps that will need to migrate when `tractor-native` graduates to `tractor`:
+
+### Apps
+| Consumer | Import | Notes |
+|---|---|---|
+| `apps/dev` | `Tractor` | graph.astro, index.astro, plugins.astro, shed.astro |
+| `apps/farmhand` | `Tractor` | src/index.ts — daemon entrypoint |
+| `apps/me` | `Tractor` | src/pages/index.astro |
+
+### Packages
+| Consumer | Imports | Notes |
+|---|---|---|
+| `packages/cli` | `Tractor` | plugin commands |
+| `packages/homestead` | `Tractor`, `TelemetryEvent`, `TRACTOR_VERSION`, `L8nHost`, `TRACTOR_LOG_PRIORITY`, `SovereignNode` | Firefly, Herald, Shell |
+| `packages/plugin-courier` | `Tractor` | also uses `test-utils` |
+| `packages/plugin-tem` | `Tractor` | — |
+| `packages/scarecrow` | `Tractor`, `SovereignNode` | — |
+| `packages/sower` | `Tractor`, `SovereignNode` | browser + node variants |
+| `packages/storage-rest` | doc reference | no runtime import |
+| `packages/heartwood` | doc reference | WASM artifacts consumer |
+
+Migration path: see [Graduation Strategy](#graduation-strategy).
 
 ---
 
