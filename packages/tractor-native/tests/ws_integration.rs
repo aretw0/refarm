@@ -178,3 +178,120 @@ async fn ws_server_run_twice_no_duplicate_broadcasts() {
 
     assert_eq!(frames.len(), 1, "exactly 1 broadcast expected — got {} (duplicate callbacks accumulating?)", frames.len());
 }
+
+#[tokio::test]
+async fn ws_server_corrupted_bytes_not_relayed() {
+    let sync = make_sync("t-corrupt");
+    let port = start_server(sync).await;
+    let url = format!("ws://127.0.0.1:{port}");
+
+    let (mut ws_a, _) = connect_async(&url).await.unwrap();
+    let (mut ws_b, _) = connect_async(&url).await.unwrap();
+
+    // Discard initial state
+    let _ = ws_a.next().await;
+    let _ = ws_b.next().await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // Client A sends invalid Loro bytes
+    ws_a.send(Message::Binary(b"not-valid-loro-bytes".to_vec().into())).await.unwrap();
+
+    // Client B must NOT receive anything within 300ms
+    let result = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        ws_b.next(),
+    ).await;
+
+    assert!(result.is_err(), "client B must not receive a corrupted frame");
+}
+
+#[tokio::test]
+async fn ws_server_empty_frame_not_relayed() {
+    let sync = make_sync("t-empty");
+    let port = start_server(sync).await;
+    let url = format!("ws://127.0.0.1:{port}");
+
+    let (mut ws_a, _) = connect_async(&url).await.unwrap();
+    let (mut ws_b, _) = connect_async(&url).await.unwrap();
+
+    // Discard initial state
+    let _ = ws_a.next().await;
+    let _ = ws_b.next().await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // Client A sends an empty binary frame
+    ws_a.send(Message::Binary(vec![].into())).await.unwrap();
+
+    // Client B must NOT receive anything within 300ms
+    let result = tokio::time::timeout(
+        std::time::Duration::from_millis(300),
+        ws_b.next(),
+    ).await;
+
+    assert!(result.is_err(), "client B must not receive an empty frame");
+}
+
+#[tokio::test]
+async fn ws_server_sender_does_not_receive_own_relay() {
+    let sync = make_sync("t-no-echo");
+    let port = start_server(sync).await;
+    let url = format!("ws://127.0.0.1:{port}");
+
+    let (mut ws_a, _) = connect_async(&url).await.unwrap();
+    let (mut ws_b, _) = connect_async(&url).await.unwrap();
+
+    // Discard initial state
+    let _ = ws_a.next().await;
+    let _ = ws_b.next().await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    // Client A sends a valid update
+    let sender_sync = make_sync("t-no-echo-sender");
+    sender_sync.store_node("urn:test:echo-1", "Note", None, "{}", None).unwrap();
+    let bytes = sender_sync.get_update().unwrap();
+    ws_a.send(Message::Binary(bytes.into())).await.unwrap();
+
+    // Client B must receive the relay
+    let msg = tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        ws_b.next(),
+    ).await.expect("B must receive relay").unwrap().unwrap();
+    assert!(matches!(msg, Message::Binary(_)), "relay to B must be binary");
+
+    // Client A must NOT receive its own frame back
+    let echo = tokio::time::timeout(
+        std::time::Duration::from_millis(200),
+        ws_a.next(),
+    ).await;
+    assert!(echo.is_err(), "sender must not receive its own relay");
+}
+
+#[tokio::test]
+async fn ws_server_client_disconnect_no_zombie() {
+    let sync = make_sync("t-zombie");
+    let port = start_server(sync.clone()).await;
+    let url = format!("ws://127.0.0.1:{port}");
+
+    // Connect and immediately drop 5 clients
+    for _ in 0..5 {
+        let (ws, _) = connect_async(&url).await.unwrap();
+        drop(ws); // closes the connection
+    }
+
+    // Give cleanup tasks time to remove zombies from the client map
+    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+
+    // Connect one legitimate client
+    let (mut ws, _) = connect_async(&url).await.unwrap();
+    let _ = ws.next().await; // discard initial state
+
+    // Server-side local change → broadcast to remaining clients; no panic from zombies
+    sync.store_node("urn:test:zombie-check", "Note", None, "{}", None).unwrap();
+
+    let msg = tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        ws.next(),
+    ).await.expect("legitimate client must receive broadcast").unwrap().unwrap();
+
+    assert!(matches!(msg, Message::Binary(_)), "broadcast must be binary — no zombie panic");
+}
