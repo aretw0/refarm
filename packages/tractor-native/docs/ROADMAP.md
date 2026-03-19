@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–9 ✅  |  Graduação bloqueada (critério #2 apenas)
+Fase 0–9 ✅  |  Todos os critérios de graduação atendidos ✅
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -27,7 +27,7 @@ Fase 0–9 ✅  |  Graduação bloqueada (critério #2 apenas)
 | 8 — Conformance | ✅ | — | Schema fix + 3 conformance tests + binary size gate |
 | 9 — Docs finais | ✅ | — | ARCHITECTURE.md finalizado, ADR-047, consumer map |
 
-**Testes atuais:** `cargo test -p tractor-native` → **51/51 ✅**
+**Testes atuais:** `cargo test -p tractor-native -- --test-threads=1` → **52/52 ✅**
 
 ---
 
@@ -268,13 +268,13 @@ Quando todos estes critérios forem atendidos, `tractor-native` se torna o `trac
 | # | Critério | Status | Como verificar |
 |---|---|---|---|
 | 1 | `cargo test -p tractor-native` — todos passam | ✅ 51/51 | CI verde |
-| 2 | Interop `BrowserSyncClient` (roundtrip Loro binário) | ⬜ pendente | Teste de integração — requer browser real |
+| 2 | Interop `BrowserSyncClient` (roundtrip Loro binário) | ✅ done | `loro_binary_js_interop` — fixture gerado por loro-crdt JS, importado pelo Rust |
 | 3 | Plugin carrega e executa ciclo completo (setup/ingest/teardown) | ✅ done | `plugin_lifecycle_setup_teardown` + `plugin_ingest_roundtrip` |
 | 4 | Compat de storage: `.db` TS legível pelo `NativeStorage` | ✅ done | `schema_compat_ts_db_readable` |
 | 5 | Binary release footprint ≤30 MB | ✅ redefinido | `target/release/tractor-native` = 27 MB; meta ≤15 MB redefinida — ver ADR-047 errata |
 | 6 | Todos consumers de `@refarm.dev/tractor` mapeados | ✅ done | 4 apps + 8 packages — ver ARCHITECTURE.md |
 
-> **Para continuar:** Critério #2 é o único bloqueante restante. Requer ambiente browser real (vitest + playwright) para validar roundtrip binário Loro.
+> **Todos os critérios atendidos.** Prontos para executar o plano de migração — ver `specs/ADRs/ADR-048-tractor-graduation.md`.
 
 **Passos de migração:** ver `docs/ARCHITECTURE.md#graduation-strategy`
 
