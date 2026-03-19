@@ -405,14 +405,14 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Rust cache (tractor-native)
+      - name: Rust cache (tractor)
         uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
-          workspaces: packages/tractor-native -> target
+          workspaces: packages/tractor -> target
 
       - name: Cargo test
-        run: cargo test
-        working-directory: packages/tractor-native
+        run: cargo test -- --test-threads=1
+        working-directory: packages/tractor
 
 
   summary:
