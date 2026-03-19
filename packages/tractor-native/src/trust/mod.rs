@@ -44,7 +44,7 @@ pub struct TrustGrant {
 
 impl TrustGrant {
     fn is_expired(&self, now_ms: u64) -> bool {
-        self.expires_at.map_or(false, |exp| now_ms >= exp)
+        self.expires_at.is_some_and(|exp| now_ms >= exp)
     }
 }
 
@@ -101,7 +101,7 @@ impl TrustManager {
             let key = Self::grant_key(plugin_id, hash);
             self.grants
                 .get(&key)
-                .map_or(false, |g| !g.is_expired(now))
+                .is_some_and(|g| !g.is_expired(now))
         } else {
             // Any valid grant for this plugin
             self.grants.values().any(|g| {

@@ -4,7 +4,6 @@
 ///   peer-a stores nodes → get_update() → peer-b apply_update() → converge
 ///
 /// Also exercises: on_update subscription, snapshot roundtrip, multi-node convergence.
-
 use tractor_native::{NativeStorage, NativeSync};
 
 fn make_sync(peer: &str) -> NativeSync {
