@@ -88,18 +88,24 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - **Why**: Eliminates JCO transpilation. Directly consumes standard `.wasm` components.
 - **Coordination**: Will share identical SQLite schemas and interface contracts with the TypeScript Tractor, allowing seamless database portability.
 
-**Progress** (Phases 0–5 of 9 complete — commit `8245fd1`):
+**Progress** (Phases 0–8 of 9 complete — 49/49 tests):
 - ✅ Phase 0 — Scaffolding (Cargo.toml, modular structure, session docs)
 - ✅ Phase 1 — `NativeStorage` (rusqlite, schema compat with `storage-sqlite`)
 - ✅ Phase 2 — `TrustManager` (TrustGrant, ExecutionProfile, SecurityMode)
 - ✅ Phase 3 — `TelemetryBus` (broadcast fan-out, RingBuffer, sensitive masking)
-- ✅ Phase 4 — Plugin Host (wasmtime `bindgen!`, WIT bindings, 19/19 tests)
-- ✅ Phase 5 — CRDT Sync (loro-rs + CQRS Projector, 31/31 tests)
-- ⬜ Phase 6 — WebSocket Daemon (replaces farmhand on port 42000)
-- ⬜ Phase 7 — Public API + CLI binary
-- ⬜ Phase 8–9 — Conformance tests + graduation docs
+- ✅ Phase 4 — Plugin Host (wasmtime `bindgen!`, WIT bindings, 7 bridge fns)
+- ✅ Phase 5 — CRDT Sync (loro-rs + CQRS Projector)
+- ✅ Phase 6 — WebSocket Daemon (replaces farmhand on port 42000)
+- ✅ Phase 7 — Public API + CLI binary (`TractorNative::boot()`, `--plugin`)
+- ✅ Phase 8 — Conformance (schema fix, 3 conformance tests, SecurityMode enforcement)
+- ✅ Phase 9 — Final docs (ARCHITECTURE.md, ADR-047, consumer map)
 
-**Graduation plan**: when all phases pass, `tractor-native` → `tractor` (TS archived as `tractor-ts`).
+**Graduation blockers** (criteria #2, #3, #5 — see `packages/tractor-native/docs/ROADMAP.md`):
+- ⬜ Criterion #2: BrowserSyncClient Loro binary interop (needs browser test environment)
+- ⬜ Criterion #3: `simple-wasm-plugin` load in cargo test (needs `cargo-component` toolchain)
+- ⬜ Criterion #5: binary footprint — wasmtime makes ≤15 MB unrealistic; decision needed
+
+**Graduation plan**: when all criteria pass, `tractor-native` → `tractor` (TS archived as `tractor-ts`).
 
 ### 🧠 Kernel-Level Agents
 Cultivating AI directly into the Refarm execution engine ("Tractor").

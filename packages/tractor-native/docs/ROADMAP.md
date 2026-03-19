@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–8 ✅  |  Fase 9 ⬜
+Fase 0–9 ✅  |  Graduação bloqueada (critérios #2, #3, #5)
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -25,7 +25,7 @@ Fase 0–8 ✅  |  Fase 9 ⬜
 | 6 — WS Daemon | ✅ | `3098365` | `WsServer` porta 42000, protocolo binário Loro, 10/10 testes |
 | 7 — API Pública | ✅ | — | `TractorNative::boot()`, `main.rs` CLI + `--plugin`, 5 boot integration tests |
 | 8 — Conformance | ✅ | — | Schema fix + 3 conformance tests + binary size gate |
-| 9 — Docs finais | ⬜ | — | ARCHITECTURE.md finalizado, ADR entry |
+| 9 — Docs finais | ✅ | — | ARCHITECTURE.md finalizado, ADR-047, consumer map |
 
 **Testes atuais:** `cargo test -p tractor-native` → **49/49 ✅**
 
@@ -265,14 +265,16 @@ cargo test -p tractor-native
 
 Quando todos estes critérios forem atendidos, `tractor-native` se torna o `tractor` canônico:
 
-| # | Critério | Como verificar |
-|---|---|---|
-| 1 | `cargo test -p tractor-native` — todos passam | CI verde |
-| 2 | Interop `BrowserSyncClient` (roundtrip Loro binário) | Teste de integração |
-| 3 | `validations/simple-wasm-plugin` + `hello-world` carregam e executam | `cargo test` ou manual |
-| 4 | Compat de storage: `.db` TS legível pelo `NativeStorage` | Teste de schema |
-| 5 | Binary release ≤ 15 MB | `ls -lh target/release/tractor-native` |
-| 6 | Todos consumers de `@refarm.dev/tractor` mapeados | `grep -r "@refarm.dev/tractor" packages/ apps/` |
+| # | Critério | Status | Como verificar |
+|---|---|---|---|
+| 1 | `cargo test -p tractor-native` — todos passam | ✅ 49/49 | CI verde |
+| 2 | Interop `BrowserSyncClient` (roundtrip Loro binário) | ⬜ pendente | Teste de integração — requer browser real |
+| 3 | `validations/simple-wasm-plugin` + `hello-world` carregam e executam | ⬜ pendente | Requer `cargo-component` toolchain |
+| 4 | Compat de storage: `.db` TS legível pelo `NativeStorage` | ✅ done | `schema_compat_ts_db_readable` |
+| 5 | Binary release footprint | ⬜ em aberto | wasmtime torna ≤15 MB inviável; decisão pendente |
+| 6 | Todos consumers de `@refarm.dev/tractor` mapeados | ✅ done | 4 apps + 8 packages — ver ARCHITECTURE.md |
+
+> **Para continuar:** Critérios #2 e #3 são os principais bloqueantes. #5 precisa de uma nova decisão arquitetural (aceitar tamanho maior? strip/upx? redefinir target?).
 
 **Passos de migração:** ver `docs/ARCHITECTURE.md#graduation-strategy`
 
