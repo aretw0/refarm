@@ -147,9 +147,9 @@ async fn ws_server_run_twice_no_duplicate_broadcasts() {
     // cause duplicate broadcasts (stale on_update callbacks accumulating).
     let sync = make_sync("t-dedup");
 
-    // Start a first server, connect a client, then let the server "stop"
-    // by dropping its task handle. We just simulate a restart by starting
-    // a second server on a different port with the SAME sync instance.
+    // Start two servers simultaneously on the same NativeSync (both remain alive —
+    // Tokio does not cancel tasks on JoinHandle drop). The second server's
+    // set_broadcast_callback replaces the first's, so only one callback fires.
     let _port1 = start_server(sync.clone()).await;
     let port2 = start_server(sync.clone()).await;
 
