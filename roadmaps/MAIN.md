@@ -88,7 +88,7 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - **Why**: Eliminates JCO transpilation. Directly consumes standard `.wasm` components.
 - **Coordination**: Will share identical SQLite schemas and interface contracts with the TypeScript Tractor, allowing seamless database portability.
 
-**Progress** (Phases 0–9 complete — 51/51 tests):
+**Progress** (Phases 0–9 complete — 52/52 tests — all graduation criteria ✅):
 - ✅ Phase 0 — Scaffolding (Cargo.toml, modular structure, session docs)
 - ✅ Phase 1 — `NativeStorage` (rusqlite, schema compat with `storage-sqlite`)
 - ✅ Phase 2 — `TrustManager` (TrustGrant, ExecutionProfile, SecurityMode)
@@ -99,13 +99,11 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - ✅ Phase 7 — Public API + CLI binary (`TractorNative::boot()`, `--plugin`)
 - ✅ Phase 8 — Conformance (schema fix, 3 conformance tests, SecurityMode enforcement)
 - ✅ Phase 9 — Final docs (ARCHITECTURE.md, ADR-047, consumer map)
+- ✅ Criterion #2 — Loro binary interop JS↔Rust: fixture from `loro-crdt` JS imported by `loro` Rust (`loro_binary_js_interop`)
 - ✅ Criterion #3 — Plugin lifecycle (setup/ingest/teardown) conformance tests added
 - ✅ Criterion #5 — Binary footprint ≤30 MB: measured 27 MB; target redefined (ADR-047 errata)
 
-**Graduation blockers** (criterion #2 only — see `packages/tractor-native/docs/ROADMAP.md`):
-- ⬜ Criterion #2: BrowserSyncClient Loro binary interop (needs browser test environment)
-
-**Graduation plan**: when all criteria pass, `tractor-native` → `tractor` (TS archived as `tractor-ts`).
+**All 6 graduation criteria satisfied.** Migration plan in `specs/ADRs/ADR-048-tractor-graduation.md`.
 
 ### 🧠 Kernel-Level Agents
 Cultivating AI directly into the Refarm execution engine ("Tractor").

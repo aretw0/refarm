@@ -106,8 +106,8 @@ When all criteria are met, `tractor-native` becomes the canonical `tractor`:
 
 | # | Criterion | Status |
 |---|---|---|
-| 1 | All `cargo test` pass | ✅ 51/51 |
-| 2 | `BrowserSyncClient` Loro binary interop | ⬜ pending |
+| 1 | All `cargo test` pass | ✅ 52/52 |
+| 2 | `BrowserSyncClient` Loro binary interop | ✅ `loro_binary_js_interop` — fixture from loro-crdt JS imported by Rust |
 | 3 | Plugin lifecycle: load / ingest / teardown | ✅ `plugin_lifecycle_setup_teardown` + `plugin_ingest_roundtrip` |
 | 4 | TS `.db` readable by `NativeStorage` | ✅ `schema_compat_ts_db_readable` |
 | 5 | Binary footprint ≤30 MB | ✅ 27 MB (errata: target redefined from ≤15 MB — see note below) |
