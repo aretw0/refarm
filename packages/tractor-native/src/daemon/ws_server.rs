@@ -134,16 +134,19 @@ async fn handle_connection(
         match msg {
             Ok(Message::Binary(bytes)) => {
                 let bytes = bytes.to_vec();
-                // Apply to local CRDT (no on_update fires for imports)
-                if let Err(e) = sync.apply_update(&bytes) {
-                    tracing::error!("apply_update failed: {e}");
-                }
-                // Relay to all OTHER connected clients
-                let guard = clients.lock().await;
-                for (&id, tx) in guard.iter() {
-                    if id != client_id {
-                        let _ = tx.send(bytes.clone());
+                // Apply to local CRDT (no on_update fires for imports).
+                // Only relay to other clients if the frame was valid — a corrupted
+                // frame must not cascade to other peers.
+                match sync.apply_update(&bytes) {
+                    Ok(()) => {
+                        let guard = clients.lock().await;
+                        for (&id, tx) in guard.iter() {
+                            if id != client_id {
+                                let _ = tx.send(bytes.clone());
+                            }
+                        }
                     }
+                    Err(e) => tracing::warn!("apply_update failed (frame discarded, not relayed): {e}"),
                 }
             }
             Ok(Message::Close(_)) | Err(_) => break,
