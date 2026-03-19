@@ -1,5 +1,4 @@
 /// Phase 6 integration tests — WebSocket daemon.
-
 use std::sync::Arc;
 use tractor_native::{NativeStorage, NativeSync, TelemetryBus};
 use tractor_native::daemon::WsServer;
@@ -70,7 +69,7 @@ async fn ws_server_applies_incoming_update() {
 
     // Send client state to server
     let bytes = client_sync.get_update().unwrap();
-    ws.send(Message::Binary(bytes.into())).await.unwrap();
+    ws.send(Message::Binary(bytes)).await.unwrap();
 
     // Poll until the server's read model reflects the update (avoids fixed-sleep flakiness)
     let node = {
@@ -106,7 +105,7 @@ async fn ws_server_broadcasts_to_other_clients() {
     let sender_sync = make_sync("t-broadcast-sender");
     sender_sync.store_node("urn:test:broadcast-1", "Note", None, "{}", None).unwrap();
     let bytes = sender_sync.get_update().unwrap();
-    ws_a.send(Message::Binary(bytes.into())).await.unwrap();
+    ws_a.send(Message::Binary(bytes)).await.unwrap();
 
     // Client B must receive the relayed frame
     let msg = tokio::time::timeout(
@@ -194,7 +193,7 @@ async fn ws_server_corrupted_bytes_not_relayed() {
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     // Client A sends invalid Loro bytes
-    ws_a.send(Message::Binary(b"not-valid-loro-bytes".to_vec().into())).await.unwrap();
+    ws_a.send(Message::Binary(b"not-valid-loro-bytes".to_vec())).await.unwrap();
 
     // Client B must NOT receive anything within 300ms
     let result = tokio::time::timeout(
@@ -220,7 +219,7 @@ async fn ws_server_empty_frame_not_relayed() {
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     // Client A sends an empty binary frame
-    ws_a.send(Message::Binary(vec![].into())).await.unwrap();
+    ws_a.send(Message::Binary(vec![])).await.unwrap();
 
     // Client B must NOT receive anything within 300ms
     let result = tokio::time::timeout(
@@ -249,7 +248,7 @@ async fn ws_server_sender_does_not_receive_own_relay() {
     let sender_sync = make_sync("t-no-echo-sender");
     sender_sync.store_node("urn:test:echo-1", "Note", None, "{}", None).unwrap();
     let bytes = sender_sync.get_update().unwrap();
-    ws_a.send(Message::Binary(bytes.into())).await.unwrap();
+    ws_a.send(Message::Binary(bytes)).await.unwrap();
 
     // Client B must receive the relay
     let msg = tokio::time::timeout(

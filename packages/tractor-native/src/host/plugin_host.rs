@@ -115,7 +115,7 @@ impl PluginHost {
         Ok(Self {
             trust,
             telemetry,
-            engine: engine,
+            engine,
             linker: Arc::new(linker),
         })
     }

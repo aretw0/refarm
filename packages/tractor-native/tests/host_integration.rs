@@ -4,7 +4,6 @@
 /// the pre-compiled null-plugin.wasm fixture (built with cargo-component).
 ///
 /// The null-plugin exports refarm:plugin/integration with all lifecycle stubs.
-
 use std::path::Path;
 use tractor_native::{NativeStorage, NativeSync, TelemetryBus};
 use tractor_native::host::PluginHost;

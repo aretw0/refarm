@@ -113,7 +113,7 @@ async fn handle_connection(
 
     // Send current server state immediately on connect
     let initial = sync.get_update()?;
-    sink.send(Message::Binary(initial.into())).await?;
+    sink.send(Message::Binary(initial)).await?;
 
     // Register client in map for broadcasts
     let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::SeqCst);
@@ -123,7 +123,7 @@ async fn handle_connection(
     // Spawn send task: reads from channel, forwards to websocket sink
     let send_task = tokio::spawn(async move {
         while let Some(bytes) = rx.recv().await {
-            if sink.send(Message::Binary(bytes.into())).await.is_err() {
+            if sink.send(Message::Binary(bytes)).await.is_err() {
                 break;
             }
         }
