@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–5 ✅  |  Fase 6–9 ⬜
+Fase 0–6 ✅  |  Fase 7–9 ⬜
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -22,12 +22,12 @@ Fase 0–5 ✅  |  Fase 6–9 ⬜
 | 3 — Telemetria | ✅ | `337cf98` | `TelemetryBus` broadcast, `RingBuffer`, masking de campos sensíveis |
 | 4 — Plugin Host | ✅ | `aa21e7b` | wasmtime `bindgen!`, `TractorNativeBindings`, 7 bridge fns, 19/19 testes |
 | 5 — CRDT Sync | ✅ | `8245fd1` | `NativeSync` com `loro::LoroDoc`, CQRS Projector, 31/31 testes |
-| 6 — WS Daemon | ⬜ | — | `WsServer` porta 42000, protocolo binário Loro |
+| 6 — WS Daemon | ✅ | `3098365` | `WsServer` porta 42000, protocolo binário Loro, 10/10 testes |
 | 7 — API Pública | ⬜ | — | `TractorNative::boot()`, `main.rs` CLI, release build |
 | 8 — Conformance | ⬜ | — | Portar cenários vitest → `cargo test` |
 | 9 — Docs finais | ⬜ | — | ARCHITECTURE.md finalizado, ADR entry |
 
-**Testes atuais:** `cargo test -p tractor-native` → **31/31 ✅**
+**Testes atuais:** `cargo test -p tractor-native` → **41/41 ✅**
 
 ---
 
@@ -46,7 +46,7 @@ cargo test -p tractor-native
 # 4. Ver próxima fase pendente neste arquivo
 ```
 
-Continuar em: **[Fase 6 — WebSocket Daemon](#fase-6--websocket-daemon-tokio-tungstenite)**
+Continuar em: **[Fase 7 — API Pública](#fase-7--api-pública)**
 
 ---
 
