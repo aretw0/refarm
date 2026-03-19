@@ -4,7 +4,7 @@
 //!   On connect:  server sends sync.get_update() (full state)
 //!                client sends its own getUpdate() immediately after
 //!   On recv:     sync.apply_update(bytes) + broadcast to OTHER clients
-//!   On local:    sync.on_update fires → broadcast to ALL clients
+//!   On local:    sync.set_broadcast_callback fires → broadcast to ALL clients
 //!
 //! Binary-compatible with BrowserSyncClient (packages/sync-loro/src/browser-sync-client.ts).
 //! BrowserSyncClient requires ZERO changes.
