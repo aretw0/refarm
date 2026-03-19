@@ -20,8 +20,8 @@
   },
   "mounts": [
     "source=refarm-npm-cache,target=/home/vscode/.npm,type=volume",
-    "source=refarm-cargo-registry,target=/home/vscode/.cargo/registry,type=volume",
-    "source=refarm-cargo-git,target=/home/vscode/.cargo/git,type=volume"
+    "source=refarm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
+    "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
@@ -39,7 +39,9 @@
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
-        "rust-analyzer.checkOnSave.command": "clippy"
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.checkOnSave": true,
+        "rust-analyzer.linkedProjects": ["./packages/tractor-native/Cargo.toml"]
       }
     }
   }
