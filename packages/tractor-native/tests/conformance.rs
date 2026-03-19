@@ -117,3 +117,52 @@ async fn security_mode_strict_allows_after_grant() {
     assert!(handle.is_ok(), "trusted plugin must load in Strict mode: {:?}", handle.err());
     assert_eq!(handle.unwrap().id, "null-plugin");
 }
+
+// ── Criterion #3: Plugin lifecycle — setup / ingest / teardown ───────────────
+//
+// Verifies the full plugin lifecycle: load() (which calls setup() internally),
+// then ingest(), then teardown() — no panics, no errors.
+//
+// Note: PluginHost::load() already calls setup() as part of the load sequence.
+// After load, we exercise ingest() and teardown() to complete the cycle.
+
+#[tokio::test]
+async fn plugin_lifecycle_setup_teardown() {
+    let bus = TelemetryBus::new(100);
+    let trust = TrustManager::with_security_mode(SecurityMode::None);
+    let host = PluginHost::new(trust, bus).unwrap();
+    let sync = make_sync();
+
+    // load() calls setup() internally — must not error
+    let mut handle = host.load(fixture_path(), &sync).await
+        .expect("plugin must load and setup without error");
+
+    assert_eq!(handle.id, "null-plugin");
+
+    // teardown() — should not panic or error
+    handle.call_teardown().await;
+}
+
+// ── Criterion #3: Plugin ingest roundtrip ────────────────────────────────────
+//
+// Verifies that ingest() can be called after load/setup and returns a valid
+// result. null-plugin returns Ok(0) — no items ingested, but no error either.
+
+#[tokio::test]
+async fn plugin_ingest_roundtrip() {
+    let bus = TelemetryBus::new(100);
+    let trust = TrustManager::with_security_mode(SecurityMode::None);
+    let host = PluginHost::new(trust, bus).unwrap();
+    let sync = make_sync();
+
+    let mut handle = host.load(fixture_path(), &sync).await
+        .expect("plugin must load without error");
+
+    // ingest() — null-plugin returns Ok(0)
+    let count = handle.call_ingest().await
+        .expect("ingest() must not error");
+    assert_eq!(count, 0, "null-plugin ingest must return 0 nodes");
+
+    // teardown() to complete the full lifecycle cycle
+    handle.call_teardown().await;
+}
