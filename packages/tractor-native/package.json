@@ -1,0 +1,11 @@
+{
+  "name": "@refarm.dev/tractor-native",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sovereign native Rust host — binary daemon + embeddable library",
+  "scripts": {
+    "test": "cargo test",
+    "build": "cargo build --release",
+    "clean": "cargo clean"
+  }
+}
