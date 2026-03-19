@@ -14,8 +14,8 @@ export const getAliases = (root: string) => {
   };
 
   const aliases: Record<string, string> = {
-    '@refarm.dev/tractor/test/test-utils': path.resolve(packagesDir, 'tractor/test/test-utils.ts'),
-    '@refarm.dev/tractor': path.resolve(packagesDir, 'tractor', getSuffix('@refarm.dev/tractor')),
+    '@refarm.dev/tractor/test/test-utils': path.resolve(packagesDir, 'tractor-ts/test/test-utils.ts'),
+    '@refarm.dev/tractor': path.resolve(packagesDir, 'tractor-ts', getSuffix('@refarm.dev/tractor')),
     '@refarm.dev/plugin-manifest': path.resolve(packagesDir, 'plugin-manifest', getSuffix('@refarm.dev/plugin-manifest')),
     '@refarm.dev/storage-contract-v1': path.resolve(packagesDir, 'storage-contract-v1', getSuffix('@refarm.dev/storage-contract-v1')),
     '@refarm.dev/sync-contract-v1': path.resolve(packagesDir, 'sync-contract-v1', getSuffix('@refarm.dev/sync-contract-v1')),
