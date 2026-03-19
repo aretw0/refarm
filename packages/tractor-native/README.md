@@ -61,7 +61,7 @@ docs(tractor-native): session checkpoint — phases X-Y complete
 - [x] Phase 2 — Trust: `TrustManager`, `TrustGrant`, `ExecutionProfile`, `SecurityMode`
 - [x] Phase 3 — Telemetry: `TelemetryBus` (broadcast fan-out), `RingBuffer`, sensitive masking
 - [x] Phase 4 — Plugin Host: wasmtime `Component` loading, `bindgen!` WIT bindings, `TractorNativeBindings`
-- [ ] Phase 5 — CRDT Sync: `NativeSync` with `loro::LoroDoc` + CQRS Projector
+- [x] Phase 5 — CRDT Sync: `NativeSync` with `loro::LoroDoc` + CQRS Projector
 - [ ] Phase 6 — WebSocket Daemon: `WsServer` on port 42000 (tokio-tungstenite, binary Loro frames)
 - [ ] Phase 7 — Public API: `TractorNative::boot()`, `main.rs` CLI args, release build
 - [ ] Phase 8 — Conformance Tests: port vitest scenarios to `cargo test`
@@ -69,21 +69,22 @@ docs(tractor-native): session checkpoint — phases X-Y complete
 
 ### Next Session Entry Point
 
-**Continue at: Phase 5 — CRDT Sync**
+**Continue at: Phase 6 — WebSocket Daemon**
 
-Key files to read before starting Phase 5:
-- `src/sync/loro.rs` — stub NativeSync (delegates to storage; Loro not yet wired)
-- `packages/sync-loro/src/loro-crdt-storage.ts` — TS equivalent (CQRS pattern)
+Key files to read before starting Phase 6:
+- `src/daemon/ws_server.rs` — WebSocket listener on port 42000
 - `packages/sync-loro/src/browser-sync-client.ts` — WS binary protocol
+- `src/sync/loro.rs` — completed NativeSync with LoroDoc and Projector
 
-Phase 5 key steps:
-1. Add `loro::LoroDoc` wrapped in `Arc<Mutex<>>` to `NativeSync`
-2. Implement Projector: `doc.subscribe()` → write to rusqlite read model
-3. Wire `store_node()` through LoroDoc (write model) → Projector → rusqlite
-4. `apply_update()` / `get_update()` — binary Loro delta frames (compatible with JS loro-crdt@1.10.7)
-5. Test CRDT roundtrip: two NativeSync instances, exchange updates, verify convergence
+Phase 6 key steps:
+1. Setup `tokio::net::TcpListener` on port 42000
+2. Accept WebSocket connections via `tokio-tungstenite`
+3. Send initial state to each client via `sync.get_update()`
+4. Receive binary Loro frames and apply via `sync.apply_update()`
+5. Broadcast deltas to all connected clients
+6. Graceful shutdown with `tokio::signal::ctrl_c()`
 
-Phase 4 completion state (19/19 tests ✅):
+Phase 5 completion state (31/31 tests ✅):
 - `wit/host/refarm-plugin-host.wit` — host-side world without WASI deps
 - `bindgen!` in `plugin_host.rs` with `path: "wit/host"`, `world: "refarm-plugin-host"`
 - `TractorNativeBindings` implements `refarm::plugin::tractor_bridge::Host` (7 bridge fns)

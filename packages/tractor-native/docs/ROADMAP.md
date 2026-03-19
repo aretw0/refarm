@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–4 ✅  |  Fase 5–9 ⬜
+Fase 0–5 ✅  |  Fase 6–9 ⬜
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -21,13 +21,13 @@ Fase 0–4 ✅  |  Fase 5–9 ⬜
 | 2 — Trust | ✅ | `337cf98` | `TrustManager`, `TrustGrant`, `ExecutionProfile`, `SecurityMode` |
 | 3 — Telemetria | ✅ | `337cf98` | `TelemetryBus` broadcast, `RingBuffer`, masking de campos sensíveis |
 | 4 — Plugin Host | ✅ | `aa21e7b` | wasmtime `bindgen!`, `TractorNativeBindings`, 7 bridge fns, 19/19 testes |
-| 5 — CRDT Sync | ⬜ | — | `NativeSync` com `loro::LoroDoc`, CQRS Projector |
+| 5 — CRDT Sync | ✅ | `8245fd1` | `NativeSync` com `loro::LoroDoc`, CQRS Projector, 31/31 testes |
 | 6 — WS Daemon | ⬜ | — | `WsServer` porta 42000, protocolo binário Loro |
 | 7 — API Pública | ⬜ | — | `TractorNative::boot()`, `main.rs` CLI, release build |
 | 8 — Conformance | ⬜ | — | Portar cenários vitest → `cargo test` |
 | 9 — Docs finais | ⬜ | — | ARCHITECTURE.md finalizado, ADR entry |
 
-**Testes atuais:** `cargo test -p tractor-native` → **19/19 ✅**
+**Testes atuais:** `cargo test -p tractor-native` → **31/31 ✅**
 
 ---
 
@@ -46,7 +46,7 @@ cargo test -p tractor-native
 # 4. Ver próxima fase pendente neste arquivo
 ```
 
-Continuar em: **[Fase 5 — CRDT Sync](#fase-5--crdt-sync-loro-rs--cqrs-projector)**
+Continuar em: **[Fase 6 — WebSocket Daemon](#fase-6--websocket-daemon-tokio-tungstenite)**
 
 ---
 
@@ -140,7 +140,7 @@ cargo test -p tractor-native host
 
 **API pública de `NativeSync`:**
 ```rust
-NativeSync::new(storage: NativeStorage, peer_id: u64) -> Result<Self>
+NativeSync::new(storage: NativeStorage, namespace: &str) -> Result<Self>
 fn store_node(id, type_, context, payload, source_plugin) -> Result<()>
 fn query_nodes(type_: &str) -> Result<Vec<NodeRow>>
 fn apply_update(bytes: &[u8]) -> Result<()>   // doc.import(bytes)
