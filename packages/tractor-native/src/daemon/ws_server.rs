@@ -47,7 +47,7 @@ impl WsServer {
     }
 
     /// Run the server with a pre-bound listener (used directly in tests to avoid TOCTOU).
-    pub(crate) async fn run(&self, listener: TcpListener) -> Result<()> {
+    pub async fn run(&self, listener: TcpListener) -> Result<()> {
         tracing::info!(port = self.port, "WebSocket daemon listening");
 
         self.telemetry.emit_named(
