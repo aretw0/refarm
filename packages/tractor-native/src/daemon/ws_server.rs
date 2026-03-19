@@ -149,8 +149,9 @@ async fn handle_connection(
         }
     }
 
-    // Cleanup
-    clients.lock().await.remove(&client_id);
-    send_task.abort();
+    // Cleanup: close channel (drop tx) so send task drains, then await it
+    let removed_tx = clients.lock().await.remove(&client_id);
+    drop(removed_tx); // closes the mpsc channel
+    let _ = send_task.await; // wait for send task to exit cleanly
     Ok(())
 }
