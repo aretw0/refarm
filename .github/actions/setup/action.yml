@@ -62,3 +62,4 @@ runs:
         workspaces: |
           packages/heartwood -> target
           validations/wasm-plugin/hello-world -> target
+          packages/tractor-native -> target
