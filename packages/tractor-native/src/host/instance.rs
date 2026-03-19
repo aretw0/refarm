@@ -35,7 +35,7 @@ pub struct PluginInstanceHandle {
 }
 
 impl PluginInstanceHandle {
-    pub fn new(id: String, plugin: RefarmPluginHost, store: Store<TractorStore>) -> Self {
+    pub(crate) fn new(id: String, plugin: RefarmPluginHost, store: Store<TractorStore>) -> Self {
         Self {
             id,
             state: PluginState::Idle,
