@@ -138,3 +138,4 @@ deps-report.md
 __pycache__/
 *.pyc
 *.pyo
+.claude/settings.local.json

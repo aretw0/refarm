@@ -1,61 +1,65 @@
 #!/usr/bin/env bash
+# .devcontainer/post-create.sh - Optimized setup for Refarm
 set -euo pipefail
 
-echo "[refarm-devcontainer] Starting post-create setup..."
+echo "[refarm-devcontainer] Starting optimized post-create setup..."
 
-# Fix npm cache permissions if needed
-if [ -d "/home/vscode/.npm" ]; then
-  echo "[refarm-devcontainer] Fixing npm cache permissions..."
-  sudo chown -R vscode:vscode /home/vscode/.npm
-fi
+# 1. Fix permissions for mounted volumes (CRITICAL for rust-analyzer)
+# refarm-npm-cache mounts as root; refarm-cargo-* mount into /usr/local/cargo (rustlang group, vscode is member).
+echo "[refarm-devcontainer] Fixing permissions for mounted npm cache..."
+mkdir -p /home/vscode/.npm
+sudo chown -R vscode:vscode /home/vscode/.npm
 
-# Rust/WASM targets
+# 2. Rust Toolchain setup (fast)
+echo "[refarm-devcontainer] Adding Rust WASM targets..."
 rustup target add wasm32-unknown-unknown
 rustup target add wasm32-wasip1 || true
+rustup component add rust-src
 
-# Cargo tools used in validations
-if ! command -v cargo-component >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing cargo-component..."
-  cargo install cargo-component
-else
-  echo "[refarm-devcontainer] cargo-component already installed"
-fi
+# 3. Tool installation for specialized WASM tooling.
+# BIN_DIR must match CARGO_HOME (set by devcontainer rust feature to /usr/local/cargo).
+BIN_DIR="${CARGO_HOME:-/usr/local/cargo}/bin"
 
+# wasm-tools (v1.245.1) — has prebuilt binaries, installs in seconds.
 if ! command -v wasm-tools >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing wasm-tools..."
-  cargo install wasm-tools
+  echo "[refarm-devcontainer] Installing wasm-tools v1.245.1 via binary..."
+  TEMP_DIR=$(mktemp -d)
+  URL="https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz"
+  curl -fsSL "$URL" | tar -xz -C "$TEMP_DIR"
+  # Archive structure: wasm-tools-1.245.1-x86_64-linux/wasm-tools
+  find "$TEMP_DIR" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} "$BIN_DIR/" \;
+  rm -rf "$TEMP_DIR"
 else
-  echo "[refarm-devcontainer] wasm-tools already installed"
+  echo "[refarm-devcontainer] wasm-tools already present"
 fi
 
-# Workspace dependencies
+# cargo-component (v0.21.1) — no prebuilt binaries published upstream; compiled from source.
+# The cargo registry volume cache (/usr/local/cargo/registry) keeps deps across rebuilds.
+if ! command -v cargo-component >/dev/null 2>&1; then
+  echo "[refarm-devcontainer] Installing cargo-component v0.21.1 via cargo install (first build only)..."
+  cargo install --locked cargo-component@0.21.1
+else
+  echo "[refarm-devcontainer] cargo-component already present"
+fi
+
+# 4. NPM Dependencies (conditional)
 if [ -f package-lock.json ]; then
-  echo "[refarm-devcontainer] Installing npm dependencies (npm ci)..."
+  echo "[refarm-devcontainer] Running npm ci..."
   npm ci
 else
-  echo "[refarm-devcontainer] package-lock.json not found, skipping npm ci"
+  echo "[refarm-devcontainer] No package-lock.json discovered, skipping npm ci."
 fi
 
-# Security: Fix known vulnerabilities
-echo "[refarm-devcontainer] Running security audit fix..."
-npm audit fix --force 2>/dev/null || true
-
-# Install git hooks for pre-push validation
-echo "[refarm-devcontainer] Installing git hooks..."
+# 5. Finalize Environment
+echo "[refarm-devcontainer] Finalizing setup..."
 npm run hooks:install || true
-
-# Install Playwright browser dependencies and Chromium binary
-echo "[refarm-devcontainer] Installing Playwright Chromium..."
 npx playwright install chromium
-echo "[refarm-devcontainer] Installing Playwright system dependencies..."
-cd validations/wasm-plugin/host && sudo npx playwright install-deps && cd - >/dev/null || true
 
 echo "[refarm-devcontainer] Tool versions:"
-node --version
-npm --version
 rustc --version
 cargo --version
 cargo-component --version || true
 wasm-tools --version || true
+node --version
 
 echo "[refarm-devcontainer] Setup complete."
