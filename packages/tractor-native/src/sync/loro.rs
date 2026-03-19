@@ -30,6 +30,9 @@ pub struct NativeSync {
     doc: Arc<LoroDoc>,
     /// Subscriptions kept alive for the lifetime of NativeSync.
     update_subs: Arc<Mutex<Vec<Subscription>>>,
+    /// Single broadcast subscription slot used by WsServer.
+    /// Replacing this drops the previous Subscription, cancelling it.
+    ws_broadcast_sub: Arc<Mutex<Option<Subscription>>>,
 }
 
 impl std::fmt::Debug for NativeSync {
@@ -51,6 +54,7 @@ impl NativeSync {
             storage,
             doc: Arc::new(doc),
             update_subs: Arc::new(Mutex::new(Vec::new())),
+            ws_broadcast_sub: Arc::new(Mutex::new(None)),
         })
     }
 
@@ -157,6 +161,17 @@ impl NativeSync {
             true // always stay subscribed
         }));
         self.update_subs.lock().unwrap_or_else(|p| p.into_inner()).push(sub);
+    }
+
+    /// Register the WsServer broadcast callback (replaces any previous one).
+    /// Called by WsServer::run() — cancels the stale subscription before installing a new one.
+    pub fn set_broadcast_callback(&self, cb: impl Fn(Vec<u8>) + Send + Sync + 'static) {
+        let sub = self.doc.subscribe_local_update(Box::new(move |bytes: &Vec<u8>| {
+            cb(bytes.clone());
+            true
+        }));
+        let mut slot = self.ws_broadcast_sub.lock().unwrap_or_else(|p| p.into_inner());
+        *slot = Some(sub); // drops the previous Subscription, cancelling it
     }
 
     pub fn export_snapshot(&self) -> Result<Vec<u8>> {

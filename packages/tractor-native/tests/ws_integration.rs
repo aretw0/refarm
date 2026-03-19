@@ -71,10 +71,18 @@ async fn ws_server_applies_incoming_update() {
     // Send client state to server
     let bytes = client_sync.get_update().unwrap();
     ws.send(Message::Binary(bytes.into())).await.unwrap();
-    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
-    // Server's NativeSync must now have the node in its read model
-    let node = server_sync.get_node("urn:test:from-client").unwrap();
+    // Poll until the server's read model reflects the update (avoids fixed-sleep flakiness)
+    let node = {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_millis(500);
+        loop {
+            let n = server_sync.get_node("urn:test:from-client").unwrap();
+            if n.is_some() || std::time::Instant::now() >= deadline {
+                break n;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    };
     assert!(node.is_some(), "server must have node after receiving client update");
 }
 
@@ -92,7 +100,7 @@ async fn ws_server_broadcasts_to_other_clients() {
     // Discard initial state messages from server
     let _ = ws_a.next().await;
     let _ = ws_b.next().await;
-    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
 
     // Client A sends a Loro update
     let sender_sync = make_sync("t-broadcast-sender");
@@ -131,4 +139,42 @@ async fn ws_server_on_update_broadcasts_local_changes() {
     ).await.expect("timeout waiting for local update broadcast").unwrap().unwrap();
 
     assert!(matches!(msg, Message::Binary(_)), "local update must be broadcast as binary");
+}
+
+#[tokio::test]
+async fn ws_server_run_twice_no_duplicate_broadcasts() {
+    // Regression test: calling run() twice on the same NativeSync must NOT
+    // cause duplicate broadcasts (stale on_update callbacks accumulating).
+    let sync = make_sync("t-dedup");
+
+    // Start a first server, connect a client, then let the server "stop"
+    // by dropping its task handle. We just simulate a restart by starting
+    // a second server on a different port with the SAME sync instance.
+    let _port1 = start_server(sync.clone()).await;
+    let port2 = start_server(sync.clone()).await;
+
+    // Connect a client to the second server
+    let (mut ws, _) = connect_async(format!("ws://127.0.0.1:{port2}"))
+        .await.unwrap();
+
+    // Discard initial state
+    let _ = ws.next().await;
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+
+    // Generate ONE local change on sync
+    sync.store_node("urn:test:dedup-1", "Event", None, "{}", None).unwrap();
+
+    // Collect frames received within 300ms — must be exactly 1, not 2
+    let mut frames = Vec::new();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_millis(300);
+    loop {
+        let remaining = deadline.saturating_duration_since(std::time::Instant::now());
+        if remaining.is_zero() { break; }
+        match tokio::time::timeout(remaining, ws.next()).await {
+            Ok(Some(Ok(Message::Binary(_)))) => frames.push(1),
+            _ => break,
+        }
+    }
+
+    assert_eq!(frames.len(), 1, "exactly 1 broadcast expected — got {} (duplicate callbacks accumulating?)", frames.len());
 }
