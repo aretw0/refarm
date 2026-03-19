@@ -27,7 +27,7 @@ wasmtime-wasi-http = { version = "26" }
 rusqlite = { version = "0.32", features = ["bundled"] }
 
 # CRDT sync — binary-compatible with loro-crdt JS (loro-crdt@1.10.7)
-loro = "1"
+loro = "~1.10"
 
 # Async runtime + WebSocket daemon
 tokio             = { version = "1", features = ["full"] }

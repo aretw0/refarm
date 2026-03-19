@@ -23,7 +23,7 @@ fn peer_id_from_namespace(namespace: &str) -> u64 {
 
 /// Loro CRDT storage with CQRS read model.
 ///
-/// Clone is O(1): all fields are Arc<T>.
+/// Clone is O(1): all fields are `Arc<T>`.
 #[derive(Clone)]
 pub struct NativeSync {
     storage: NativeStorage,
@@ -156,7 +156,7 @@ impl NativeSync {
             cb(bytes.clone());
             true // always stay subscribed
         }));
-        self.update_subs.lock().unwrap().push(sub);
+        self.update_subs.lock().unwrap_or_else(|p| p.into_inner()).push(sub);
     }
 
     pub fn export_snapshot(&self) -> Result<Vec<u8>> {
@@ -165,6 +165,10 @@ impl NativeSync {
             .map_err(|e| anyhow!("snapshot export: {e:?}"))
     }
 
+    /// Import a full snapshot exported via `export_snapshot()`.
+    /// Note: `loro::LoroDoc::import()` accepts both delta and snapshot bytes — the format
+    /// is self-describing. This method is semantically equivalent to `apply_update()` at
+    /// the loro API level; the distinction is for API clarity only.
     pub fn import_snapshot(&self, bytes: &[u8]) -> Result<()> {
         self.doc
             .import(bytes)
