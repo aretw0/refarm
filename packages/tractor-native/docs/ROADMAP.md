@@ -11,7 +11,7 @@
 ## Estado atual
 
 ```
-Fase 0–7 ✅  |  Fase 8–9 ⬜
+Fase 0–8 ✅  |  Fase 9 ⬜
 ```
 
 | Fase | Status | Commit | Descrição |
@@ -24,10 +24,10 @@ Fase 0–7 ✅  |  Fase 8–9 ⬜
 | 5 — CRDT Sync | ✅ | `8245fd1` | `NativeSync` com `loro::LoroDoc`, CQRS Projector, 31/31 testes |
 | 6 — WS Daemon | ✅ | `3098365` | `WsServer` porta 42000, protocolo binário Loro, 10/10 testes |
 | 7 — API Pública | ✅ | — | `TractorNative::boot()`, `main.rs` CLI + `--plugin`, 5 boot integration tests |
-| 8 — Conformance | ⬜ | — | Portar cenários vitest → `cargo test` |
+| 8 — Conformance | ✅ | — | Schema fix + 3 conformance tests + binary size gate |
 | 9 — Docs finais | ⬜ | — | ARCHITECTURE.md finalizado, ADR entry |
 
-**Testes atuais:** `cargo test -p tractor-native` → **46/46 ✅**
+**Testes atuais:** `cargo test -p tractor-native` → **49/49 ✅**
 
 ---
 
@@ -46,7 +46,7 @@ cargo test -p tractor-native
 # 4. Ver próxima fase pendente neste arquivo
 ```
 
-Continuar em: **[Fase 7 — API Pública](#fase-7--api-pública)**
+Continuar em: **[Fase 9 — Documentação Final](#fase-9--documentação-final)**
 
 ---
 
