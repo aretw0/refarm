@@ -58,10 +58,12 @@ impl WsServer {
 
         let clients: ClientMap = Arc::new(Mutex::new(HashMap::new()));
 
-        // Wire sync.on_update → broadcast to ALL connected clients
+        // Wire sync.set_broadcast_callback → broadcast to ALL connected clients
         // (fires only for local changes, e.g. from plugins calling store_node)
+        // Using set_broadcast_callback replaces any previous subscription, preventing
+        // duplicate broadcasts if run() is called more than once on the same NativeSync.
         let clients_for_on_update = clients.clone();
-        self.sync.on_update(move |bytes| {
+        self.sync.set_broadcast_callback(move |bytes| {
             let clients = clients_for_on_update.clone();
             let bytes = bytes.clone();
             // on_update fires synchronously on doc.commit(); spawn to avoid blocking
