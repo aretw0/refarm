@@ -160,13 +160,16 @@ impl NativeSync {
     }
 
     pub fn export_snapshot(&self) -> Result<Vec<u8>> {
-        tracing::warn!("export_snapshot: stub");
-        Ok(vec![])
+        self.doc
+            .export(ExportMode::Snapshot)
+            .map_err(|e| anyhow!("snapshot export: {e:?}"))
     }
 
-    pub fn import_snapshot(&self, _bytes: &[u8]) -> Result<()> {
-        tracing::warn!("import_snapshot: stub");
-        Ok(())
+    pub fn import_snapshot(&self, bytes: &[u8]) -> Result<()> {
+        self.doc
+            .import(bytes)
+            .map_err(|e| anyhow!("snapshot import: {e:?}"))?;
+        self.project_all()
     }
 }
 
@@ -246,5 +249,33 @@ mod tests {
         let rows = sync_b.query_nodes("Task").unwrap();
         assert_eq!(rows.len(), 1, "queryNodes should return 1 Task");
         assert_eq!(rows[0].id, "urn:test:conv-1");
+    }
+
+    #[test]
+    fn snapshot_roundtrip() {
+        let sync_a = {
+            let st = NativeStorage::open(":memory:").unwrap();
+            NativeSync::new(st, "snap-a").unwrap()
+        };
+        sync_a.store_node("urn:test:snap-1", "Article", None, r#"{"title":"test"}"#, None).unwrap();
+
+        // Export snapshot from A
+        let snap = sync_a.export_snapshot().unwrap();
+        assert!(!snap.is_empty(), "snapshot must be non-empty");
+
+        // Import into fresh B instance
+        let sync_b = {
+            let st = NativeStorage::open(":memory:").unwrap();
+            NativeSync::new(st, "snap-b").unwrap()
+        };
+        sync_b.import_snapshot(&snap).unwrap();
+
+        // Read model on B must have the node
+        let node = sync_b.get_node("urn:test:snap-1").unwrap();
+        assert!(node.is_some(), "node must be present after import_snapshot");
+
+        // Query by type must also work
+        let rows = sync_b.query_nodes("Article").unwrap();
+        assert_eq!(rows.len(), 1);
     }
 }
