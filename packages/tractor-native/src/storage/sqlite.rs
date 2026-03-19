@@ -29,18 +29,18 @@ CREATE TABLE IF NOT EXISTS nodes (
     context       TEXT,
     payload       TEXT NOT NULL,
     source_plugin TEXT,
-    created_at    TEXT NOT NULL DEFAULT (datetime('now')),
     updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS crdt_log (
-    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    id         TEXT PRIMARY KEY,
     node_id    TEXT NOT NULL,
     field      TEXT NOT NULL,
     value      TEXT,
     peer_id    TEXT NOT NULL,
     hlc_time   TEXT NOT NULL,
-    applied_at TEXT NOT NULL DEFAULT (datetime('now'))
+    applied_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY(node_id) REFERENCES nodes(id)
 );
 
 CREATE INDEX IF NOT EXISTS idx_nodes_type ON nodes(type);
@@ -56,7 +56,6 @@ pub struct NodeRow {
     pub context: Option<String>,
     pub payload: String,
     pub source_plugin: Option<String>,
-    pub created_at: String,
     pub updated_at: String,
 }
 
@@ -69,6 +68,19 @@ pub struct NativeStorage {
 }
 
 impl NativeStorage {
+    /// Open (or create) a database at an explicit file path.
+    ///
+    /// Useful for conformance tests that need to open a pre-existing `.db` file
+    /// created by the TypeScript implementation without going through namespace
+    /// resolution.
+    pub fn open_at(path: &std::path::Path) -> Result<Self> {
+        let conn = Connection::open(path)
+            .with_context(|| format!("open SQLite at {path:?}"))?;
+        let storage = Self { conn: Arc::new(Mutex::new(conn)) };
+        storage.ensure_schema()?;
+        Ok(storage)
+    }
+
     /// Open (or create) a storage database.
     ///
     /// - `:memory:` → ephemeral in-process database
@@ -113,8 +125,8 @@ impl NativeStorage {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             r#"
-            INSERT INTO nodes (id, type, context, payload, source_plugin, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'), datetime('now'))
+            INSERT INTO nodes (id, type, context, payload, source_plugin, updated_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, datetime('now'))
             ON CONFLICT(id) DO UPDATE SET
                 type          = excluded.type,
                 context       = excluded.context,
@@ -149,7 +161,7 @@ impl NativeStorage {
     pub fn query_nodes(&self, type_: &str) -> Result<Vec<NodeRow>> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn
-            .prepare("SELECT id, type, context, payload, source_plugin, created_at, updated_at FROM nodes WHERE type = ?1")
+            .prepare("SELECT id, type, context, payload, source_plugin, updated_at FROM nodes WHERE type = ?1")
             .context("prepare query_nodes")?;
 
         let rows = stmt
@@ -160,8 +172,7 @@ impl NativeStorage {
                     context: row.get(2)?,
                     payload: row.get(3)?,
                     source_plugin: row.get(4)?,
-                    created_at: row.get(5)?,
-                    updated_at: row.get(6)?,
+                    updated_at: row.get(5)?,
                 })
             })
             .context("query_nodes")?
