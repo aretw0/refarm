@@ -114,6 +114,45 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit` 
 
 ---
 
+## CLI & Plugin Startup
+
+### Binary entry point — `src/main.rs`
+
+`tractor-native` is a single-binary daemon produced by the `[[bin]]` target in
+`Cargo.toml`. It parses CLI flags via `clap`, boots `TractorNative`, loads any
+`--plugin` arguments, and then starts `WsServer` on the configured port.
+
+**Startup sequence:**
+
+```
+1. Parse CLI args (clap)
+2. Initialise tracing (log level from --log-level or RUST_LOG)
+3. TractorNative::boot(config)          — opens storage, CRDT, plugin host, trust
+4. for each --plugin <PATH>:            — isolated failure: WARN, continue
+     tractor.load_plugin(path)
+5. WsServer::new(...).start()           — blocks until Ctrl-C or fatal error
+6. tractor.shutdown()                   — flush + close storage
+```
+
+**CLI flags:**
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--namespace <NAME>` | `default` | SQLite path (`~/.local/share/refarm/<NAME>.db`) or `:memory:` |
+| `--port <PORT>` | `42000` | TCP port for the WebSocket daemon |
+| `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
+| `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
+| `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+
+### Plugin loading semantics
+
+`--plugin` may be specified multiple times. Plugins are loaded in declaration order
+after `boot()` and before `WsServer::start()`. A load failure for one plugin emits
+`WARN` and continues — the daemon does not exit. This follows the isolated-failure
+contract specified in `docs/specs/phase7-public-api.md §1.2`.
+
+---
+
 ## Reference Files
 
 | Purpose | Path |
