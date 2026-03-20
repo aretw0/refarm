@@ -1,7 +1,7 @@
 /// Phase 6 integration tests — WebSocket daemon.
 use std::sync::Arc;
-use tractor_native::{NativeStorage, NativeSync, TelemetryBus};
-use tractor_native::daemon::WsServer;
+use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::daemon::WsServer;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
