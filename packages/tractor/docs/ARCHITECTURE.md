@@ -177,7 +177,7 @@ matches defense-in-depth.
 `--plugin` may be specified multiple times. Plugins are loaded in declaration order
 after `boot()` and before `WsServer::start()`. A load failure for one plugin emits
 `WARN` and continues — the daemon does not exit. This follows the isolated-failure
-contract specified in `docs/specs/phase7-public-api.md §1.2`.
+contract specified in `docs/specs/api-reference.md §1.2`.
 
 ---
 
@@ -205,6 +205,41 @@ Packages and apps that import from `@refarm.dev/tractor` (npm name unchanged aft
 | `packages/heartwood` | doc reference | WASM artifacts consumer |
 
 Migration path: see [Graduation Strategy](#graduation-strategy).
+
+---
+
+## Consumer Integration Guide
+
+### Choosing: Lib Crate vs Binary Daemon
+
+| Use case | Recommendation |
+|----------|---------------|
+| Tauri desktop app | `use tractor::TractorNative` (lib crate) — embed directly |
+| CLI agent (no UI) | `use tractor::TractorNative` (lib crate) — or run binary as subprocess |
+| Browser app (tractor-ts consumer) | Connect to the running `tractor` binary via WebSocket on port 42000 |
+| IoT / RPi daemon | Run `tractor` binary standalone — zero Node.js needed |
+| Integration tests | `TractorNativeConfig { namespace: ":memory:", .. }` — isolated, no disk state |
+
+### Connecting via WebSocket (tractor-ts consumers)
+
+The `BrowserSyncClient` in `packages/sync-loro/src/browser-sync-client.ts` connects to the daemon without changes:
+
+```typescript
+// packages/sync-loro — already speaks the binary Loro protocol
+const client = new BrowserSyncClient('ws://localhost:42000');
+await client.connect();
+```
+
+The protocol is raw binary WebSocket frames carrying Loro update bytes. All 7 consumers mapped above can transition from the farmhand daemon to the `tractor` binary with no client-side changes — only the server changes.
+
+### tractor-ts ↔ tractor-rust Relationship
+
+Both runtimes share:
+- **Same WIT contracts** — `wit/refarm-sdk.wit` (plugins run on either without recompilation)
+- **Same SQLite schema** — `PHYSICAL_SCHEMA_V1` (a `.db` from the TS runtime is readable by the Rust daemon; see `schema_compat_ts_db_readable` conformance test)
+- **Same binary Loro format** — `loro-crdt` JS@1.10.7 ↔ `loro` Rust produce interoperable snapshots/deltas
+
+**Migration path**: Any consumer currently using farmhand (the old Node.js daemon) can switch to `tractor` binary by changing the WebSocket endpoint from its previous port to `ws://localhost:42000`.
 
 ---
 
