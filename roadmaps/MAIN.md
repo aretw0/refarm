@@ -79,9 +79,9 @@ To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, 
 
 These tracks run parallel to the core version bumps and represent ongoing Research & Development to push the boundaries of the Sovereign Web.
 
-### 🦀 Rust Tractor (`tractor-native`) 🚧 IN PROGRESS
+### 🦀 Rust Tractor (`tractor`) ✅ GRADUATED (ADR-048, 2026-03-19)
 
-> Roadmap detalhado: [`packages/tractor-native/docs/ROADMAP.md`](../packages/tractor-native/docs/ROADMAP.md)
+> Roadmap detalhado: [`packages/tractor/docs/ROADMAP.md`](../packages/tractor/docs/ROADMAP.md)
 
 Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust footprint (`~27MB`).
 - **Goal**: Enable direct execution on IoT devices (Raspberry Pi Zeros, Android via Termux) without the heavy JS V8 engine layer.
@@ -104,6 +104,17 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - ✅ Criterion #5 — Binary footprint ≤30 MB: measured 27 MB; target redefined (ADR-047 errata)
 
 **All 6 graduation criteria satisfied.** Migration plan in `specs/ADRs/ADR-048-tractor-graduation.md`.
+
+#### Pending Technical Work (Post-Graduation)
+
+These items were discovered during tractor development and require follow-up:
+
+| Item | Priority | Notes |
+|------|----------|-------|
+| Consumer testing with Rust daemon | Medium | 7 consumers tested with `tractor-ts`; end-to-end validation with native Rust daemon in production pending |
+| Schema migration tooling | Medium | No migration script if user has a legacy `.db` from an older schema; `schema_compat_ts_db_readable` passes but no upgrade path documented |
+| Cross-platform CI (Windows/macOS) | Low | CI currently Linux-only; acceptable for edge/IoT focus |
+| Plugin manifest co-signing test | Low | Trust grants verified; co-signing of manifest not end-to-end tested |
 
 ### 🧠 Kernel-Level Agents
 Cultivating AI directly into the Refarm execution engine ("Tractor").
