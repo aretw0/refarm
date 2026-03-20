@@ -36,3 +36,87 @@ O Agente não vive em um chat separado; ele é um **Plugin Soberano** com permis
 
 ---
 > Esta reflexão serve como bússola para os Sprints de 2026, movendo o Refarm de um "Fertile Soil" para um "Autonomous Sovereign Agent".
+
+## Concrete Meaning: "AI as Syscall"
+
+In traditional systems, AI calls are network requests to external APIs (`POST /api/completions`). In the Refarm sovereign vision, AI inference is a **WASI interface** — a capability the tractor host exposes to plugins, the same way it exposes `wasi:filesystem` or `wasi:http`.
+
+This means:
+
+```wit
+// Proposed: ai-inference-contract-v1.wit
+interface inference {
+  record completion-request {
+    prompt: string,
+    max-tokens: u32,
+    temperature: float32,
+  }
+
+  record completion-response {
+    text: string,
+    tokens-used: u32,
+    model-id: string,
+  }
+
+  complete: func(request: completion-request) -> result<completion-response, string>
+  embed: func(text: string) -> result<list<float32>, string>
+}
+
+world ai-capable-plugin {
+  import inference
+  include refarm-plugin
+}
+```
+
+A plugin with `import inference` calls `tractor.infer(prompt)` — no network, no API key, no external dependency. The tractor host routes the call to whatever local model is loaded (WebLLM, ONNX, llama.cpp via Rust).
+
+---
+
+## Contracts Required Before AI Syscalls
+
+These contracts must be stable before the AI inference WIT can be added:
+
+| Contract | Status | Blocks |
+|----------|--------|--------|
+| `refarm-sdk.wit` (base plugin WIT) | ✅ Stable | — |
+| `storage-contract-v1` | ✅ Ready, unpublished | v0.1.0 gate |
+| `sync-contract-v1` | ✅ Ready, unpublished | v0.1.0 gate |
+| `ai-inference-contract-v1` | ❌ Proposed only | Post v0.1.0 |
+| TEM plugin (WASM) | ❌ Blueprint stage | `noveltyScore` primitive |
+
+---
+
+## Dependency Graph
+
+```
+Tractor-Rust Native ✅ (ADR-048, graduated 2026-03-19)
+    └── v0.1.0 contracts published (@refarm.dev scope)
+            └── TEM plugin → WASM (migrate from TS)
+                    └── ai-inference-contract-v1 (WIT interface)
+                            └── WebLLM / ONNX as WASI host primitive
+                                    └── AI Agent Sovereignty (Vision 2026)
+```
+
+---
+
+## Updated Technical Pillars Status
+
+| Pilar | Descrição | Status |
+|---|---|---|
+| **Tractor-Rust Native** | Motor em Rust para edge e dispositivos sem Node.js | ✅ **DONE** (ADR-048) |
+| **WIT Inference Standard** | Interface padronizada para inferência como WASI primitive | 💡 *Proposta* (see `ai-inference-contract-v1` above) |
+| **Hot-WASM Swapping** | Atualizar grafo de plugins sem perda de estado | 🧪 *Pesquisa* |
+| **Sovereign Source-to-Binary** | Plugin que compila TS/Rust → WASM dentro do Refarm | 🔭 *Visão* |
+| **TEM Plugin (WASM)** | Cognitive map como WASM plugin para o tractor host | 🏗️ *Blueprint* (see `packages/plugin-tem/docs/ARCHITECTURE.md`) |
+
+---
+
+## Prerequisites Summary
+
+To make this vision real:
+1. ✅ Dual-runtime tractor (TS + Rust) — **DONE**
+2. Publish v0.1.0 contracts to `@refarm.dev` npm scope
+3. Migrate `plugin-tem` from TypeScript to WASM plugin
+4. Define `ai-inference-contract-v1` WIT interface
+5. Implement WebLLM/ONNX as tractor host provider (Rust: `llama.cpp` bindings via WASI; Browser: WebLLM Worker)
+6. Build the Agentic onboarding flow on top of steps 1–5
