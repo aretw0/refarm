@@ -60,3 +60,10 @@ hex  = "0.4"
 # ─── Dev dependencies ─────────────────────────────────────────────────────────
 [dev-dependencies]
 tempfile = "3"
+
+# ─── Build profiles ───────────────────────────────────────────────────────────
+[profile.dev]
+# Reduz full DWARF (2) para line-tables-only (1).
+# Corta ~40% do uso de RAM do rustc na fase de codegen para wasmtime.
+# Não afeta comportamento em testes — só símbolos de debug.
+debug = 1
