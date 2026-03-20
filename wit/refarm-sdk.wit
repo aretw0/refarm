@@ -156,3 +156,39 @@ world refarm-plugin {
     /// Optional export for HTTP Gateways
     export http-handler;
 }
+
+// ─── Identity Provider ────────────────────────────────────────────────────────
+
+/// Interface for plugins that serve as identity providers.
+/// Implemented by plugins like identity-nostr, identity-opaque-v1.
+interface identity-provider {
+    /// Sign an arbitrary payload using the managed identity.
+    sign: func(payload: list<u8>) -> result<list<u8>, plugin-error>;
+
+    /// Verify a signature against a public key.
+    verify: func(payload: list<u8>, sig: list<u8>, pubkey: list<u8>) -> result<bool, plugin-error>;
+
+    /// Return the current public key managed by this provider.
+    public-key: func() -> result<list<u8>, plugin-error>;
+
+    /// Derive (or unlock) an identity using an externally produced session key.
+    ///
+    /// OPAQUE use: after the host completes an OPAQUE AKE handshake, it passes
+    /// the session-key here. The plugin decrypts its envelope and unlocks skU
+    /// inside the WASM sandbox. The host receives only an opaque handle — it
+    /// can call sign() and verify() but cannot extract the private key.
+    ///
+    /// Also usable for non-OPAQUE providers (WebAuthn assertion token, etc.).
+    derive-from-session: func(session-key: list<u8>) -> result<identity-handle, plugin-error>;
+
+    /// An opaque numeric handle to a live, in-memory identity.
+    /// The private key never leaves the WASM sandbox.
+    type identity-handle = u64;
+}
+
+/// World for identity provider plugins (e.g. identity-nostr, identity-opaque-v1).
+/// Extends refarm-plugin with the identity-provider export.
+world refarm-identity-plugin {
+    include refarm-plugin;
+    export identity-provider;
+}

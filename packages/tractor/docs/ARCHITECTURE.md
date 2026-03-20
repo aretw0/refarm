@@ -47,9 +47,7 @@ Required for the WebSocket daemon and concurrent plugin execution. The host itse
 
 ### 6. WIT bindings — `wasmtime::component::bindgen!` macro
 
-Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit` (copy of `../../wit/refarm-sdk.wit`).
-
-> **Note:** Keep `packages/tractor/wit/refarm-sdk.wit` in sync with `/workspaces/refarm/wit/refarm-sdk.wit`. A future improvement: use a git submodule or build script symlink.
+Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit`, which is a symlink to `../../wit/refarm-sdk.wit` (the canonical source of truth). Changes to the WIT propagate automatically.
 
 ### 7. Deployment forms — lib + binary
 
@@ -247,7 +245,7 @@ Both runtimes share:
 
 | Purpose | Path |
 |---|---|
-| WIT contracts | `wit/refarm-sdk.wit` (copy of `../../wit/refarm-sdk.wit`) |
+| WIT contracts | `wit/refarm-sdk.wit` → symlink → `../../wit/refarm-sdk.wit` |
 | TS plugin host | `packages/tractor/src/lib/plugin-host.ts` |
 | TS WASI bridge | `packages/tractor/src/lib/wasi-imports.ts` |
 | TS trust manager | `packages/tractor/src/lib/trust-manager.ts` |
