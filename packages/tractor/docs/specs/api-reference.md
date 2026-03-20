@@ -1,7 +1,6 @@
-# Phase 7 — Public API Specification (SDD)
+# tractor — Public API Reference
 
-> **SDD (Spec-Driven Development):** this document defines the behavioural contract
-> *before* the implementation. Tests are derived from these invariants.
+This document is the stable API reference for the `tractor` crate. For architecture rationale, see [ARCHITECTURE.md](../ARCHITECTURE.md).
 
 ---
 
@@ -49,7 +48,7 @@ and continues — it does NOT abort the daemon.
 - Idempotent: calling shutdown twice must not panic (second call may return an error)
 
 **Ordering contract:** plugins teardown before storage closes (future: explicit
-`PluginHost::teardown_all()` hook — not yet enforced in Phase 7).
+`PluginHost::teardown_all()` hook).
 
 ---
 
@@ -64,10 +63,10 @@ and continues — it does NOT abort the daemon.
 
 ---
 
-## 3. CLI Flags (`tractor-native` binary)
+## 3. CLI Flags (`tractor` binary)
 
 ```
-tractor-native [OPTIONS]
+tractor [OPTIONS]
 
 Options:
   --namespace <NAME>        Storage namespace [default: default]

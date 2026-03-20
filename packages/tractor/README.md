@@ -10,6 +10,17 @@ Provides full behavioral parity with `@refarm.dev/tractor` (TypeScript), with:
 - **WebSocket daemon** on port 42000 (replaces farmhand — `BrowserSyncClient` unchanged)
 - **Embeddable lib** for Tauri, CLI agents, RPi
 
+---
+
+## Quick Start
+
+```bash
+cargo build --release -p tractor
+./target/release/tractor --namespace default --port 42000
+```
+
+---
+
 ## How to Build
 
 ```bash
@@ -17,6 +28,8 @@ cargo build -p tractor
 cargo test  -p tractor
 cargo build --release -p tractor   # ~27 MB binary
 ```
+
+---
 
 ## Development (inside Dev Container)
 
@@ -39,6 +52,8 @@ cargo clippy -p tractor
 cargo test --all
 ```
 
+---
+
 ## How to Run
 
 ```bash
@@ -51,71 +66,73 @@ cargo test --all
 
 ---
 
+## API
+
+For embedding `tractor` as a library in Tauri apps, CLI agents, or other Rust programs:
+
+```rust
+use tractor::TractorNative;
+
+let config = TractorNativeConfig {
+    namespace: "my-app".to_string(),
+    port: 42000,
+    security_mode: SecurityMode::Strict,
+    telemetry_capacity: 1000,
+};
+let tractor = TractorNative::boot(config).await?;
+// load plugins
+let handle = tractor.load_plugin(Path::new("my-plugin.wasm"))?;
+// ... use daemon via WebSocket on port 42000
+tractor.shutdown().await?;
+```
+
+---
+
+## CLI Flags
+
+| Flag | Default | Effect |
+|---|---|---|
+| `--namespace <NAME>` | `default` | SQLite path (`~/.local/share/refarm/<NAME>.db`) or `:memory:` |
+| `--port <PORT>` | `42000` | TCP port for the WebSocket daemon |
+| `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
+| `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
+| `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+
+---
+
+## When to Use Rust vs TypeScript
+
+| Scenario | Package |
+|---|---|
+| Edge / IoT devices (Raspberry Pi, embedded, no Node.js) | `tractor` (this crate) |
+| CLI agents and production daemons | `tractor` (this crate) |
+| Browser plugins and extensions | `@refarm.dev/tractor` (`packages/tractor-ts`) |
+| Node.js integrations and existing TS projects | `@refarm.dev/tractor` (`packages/tractor-ts`) |
+
+Both implementations share the same WIT contracts, the same SQLite schema, and the same binary
+Loro protocol — they are fully interoperable.
+
+---
+
+## Architecture
+
+Design rationale, module structure, and data-flow diagrams:
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**
+
+---
+
 ## Roadmap
 
-Roadmap detalhado com especificações por fase, desafios conhecidos, e critérios de graduação:
+Roadmap with specifications, known challenges, and graduation criteria:
 **[docs/ROADMAP.md](docs/ROADMAP.md)**
 
-Vinculado ao roadmap principal do projeto: **[roadmaps/MAIN.md](../../roadmaps/MAIN.md)**
+Linked to the project main roadmap: **[roadmaps/MAIN.md](../../roadmaps/MAIN.md)**
 
 ---
 
-## Session Continuity — Phase Checklist
+## Graduation ✅ (ADR-048, 2026-03-19)
 
-**To resume from a new chat / agent:**
-1. Read this file and the phase checklist below
-2. Run `node scripts/reso.mjs status` (verify resolution mode)
-3. Run `cargo check -p tractor` (see compile state)
-4. Read `docs/ARCHITECTURE.md` for design rationale
-5. Continue from the next `[ ]` phase
-
-**At end of each session:** update the checkboxes below and commit:
-
-```
-docs(tractor): session checkpoint — phases X-Y complete
-```
-
-### Phases
-
-- [x] Phase 0 — Scaffolding: Cargo.toml, stub modules, README, ARCHITECTURE.md
-- [x] Phase 1 — Storage: `NativeStorage` (rusqlite + PHYSICAL_SCHEMA_V1)
-- [x] Phase 2 — Trust: `TrustManager`, `TrustGrant`, `ExecutionProfile`, `SecurityMode`
-- [x] Phase 3 — Telemetry: `TelemetryBus` (broadcast fan-out), `RingBuffer`, sensitive masking
-- [x] Phase 4 — Plugin Host: wasmtime `Component` loading, `bindgen!` WIT bindings, `TractorNativeBindings`
-- [x] Phase 5 — CRDT Sync: `NativeSync` with `loro::LoroDoc` + CQRS Projector
-- [ ] Phase 6 — WebSocket Daemon: `WsServer` on port 42000 (tokio-tungstenite, binary Loro frames)
-- [ ] Phase 7 — Public API: `TractorNative::boot()`, `main.rs` CLI args, release build
-- [ ] Phase 8 — Conformance Tests: port vitest scenarios to `cargo test`
-- [ ] Phase 9 — Documentation: `docs/ARCHITECTURE.md` finalized, ADR entry
-
-### Next Session Entry Point
-
-**Continue at: Phase 6 — WebSocket Daemon**
-
-Key files to read before starting Phase 6:
-- `src/daemon/ws_server.rs` — WebSocket listener on port 42000
-- `packages/sync-loro/src/browser-sync-client.ts` — WS binary protocol
-- `src/sync/loro.rs` — completed NativeSync with LoroDoc and Projector
-
-Phase 6 key steps:
-1. Setup `tokio::net::TcpListener` on port 42000
-2. Accept WebSocket connections via `tokio-tungstenite`
-3. Send initial state to each client via `sync.get_update()`
-4. Receive binary Loro frames and apply via `sync.apply_update()`
-5. Broadcast deltas to all connected clients
-6. Graceful shutdown with `tokio::signal::ctrl_c()`
-
-Phase 5 completion state (31/31 tests ✅):
-- `wit/host/refarm-plugin-host.wit` — host-side world without WASI deps
-- `bindgen!` in `plugin_host.rs` with `path: "wit/host"`, `world: "refarm-plugin-host"`
-- `TractorNativeBindings` implements `refarm::plugin::tractor_bridge::Host` (7 bridge fns)
-- `PluginInstanceHandle` holds real `RefarmPluginHost` + `Store<TractorStore>`
-- `tests/fixtures/null-plugin.wasm` — pre-compiled Component fixture
-
----
-
-## Graduation ✅
-
-`tractor-native` graduated to `tractor` (ADR-048, 2026-03-19). All 52 tests pass.
+`tractor-native` graduated to `tractor`. All 52 tests pass.
 - TS package moved to `packages/tractor-ts` (npm name unchanged: `@refarm.dev/tractor`)
 - This crate: `packages/tractor`, crate name `tractor`, binary `tractor`
+- ADR: `specs/ADRs/ADR-048-tractor-graduation.md`
