@@ -1,5 +1,5 @@
 [package]
-name = "tractor-native"
+name = "tractor"
 version = "0.1.0"
 edition = "2021"
 description = "Sovereign WASM plugin host — native Rust implementation of the Refarm Tractor"
@@ -7,12 +7,12 @@ license = "MIT"
 
 # ─── Binary (daemon) ──────────────────────────────────────────────────────────
 [[bin]]
-name = "tractor-native"
+name = "tractor"
 path = "src/main.rs"
 
 # ─── Library (embeddable) ─────────────────────────────────────────────────────
 [lib]
-name = "tractor_native"
+name = "tractor"
 path = "src/lib.rs"
 
 # ─── Dependencies ─────────────────────────────────────────────────────────────

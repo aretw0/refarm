@@ -4,7 +4,7 @@
 ///
 /// Each test maps to a BDD scenario from the SDD; the test name IS the scenario.
 use std::path::Path;
-use tractor_native::{TractorNative, TractorNativeConfig};
+use tractor::{TractorNative, TractorNativeConfig};
 
 fn memory_config() -> TractorNativeConfig {
     TractorNativeConfig {

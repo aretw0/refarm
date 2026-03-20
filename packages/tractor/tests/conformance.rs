@@ -6,9 +6,9 @@
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
-use tractor_native::{NativeStorage, NativeSync, SecurityMode, TelemetryBus};
-use tractor_native::host::PluginHost;
-use tractor_native::trust::TrustManager;
+use tractor::{NativeStorage, NativeSync, SecurityMode, TelemetryBus};
+use tractor::host::PluginHost;
+use tractor::trust::TrustManager;
 
 fn fixture_path() -> &'static Path {
     Path::new("tests/fixtures/null-plugin.wasm")

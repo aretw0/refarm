@@ -5,9 +5,9 @@
 ///
 /// The null-plugin exports refarm:plugin/integration with all lifecycle stubs.
 use std::path::Path;
-use tractor_native::{NativeStorage, NativeSync, TelemetryBus};
-use tractor_native::host::PluginHost;
-use tractor_native::trust::TrustManager;
+use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::host::PluginHost;
+use tractor::trust::TrustManager;
 
 fn fixture_path() -> &'static Path {
     Path::new("tests/fixtures/null-plugin.wasm")
