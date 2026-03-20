@@ -1,0 +1,5 @@
+# Limita paralelismo de compilação para crates pesados (wasmtime).
+# O default (nproc = 16) com 7.6 GB RAM causa OOM.
+# 6 jobs é empírico: headroom para rust-analyzer + linking wasmtime simultâneo.
+[build]
+jobs = 6
