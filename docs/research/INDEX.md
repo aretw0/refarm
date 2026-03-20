@@ -117,6 +117,22 @@ Identifies pure-Rust/WASM utilities for `tractor` plugins, BlockSuite as a poten
 
 ---
 
+### Security & Identity Protocols
+
+#### [OPAQUE aPAKE Strategic Assessment](./opaque-apake-strategic-assessment.md)
+**Date**: 2026-03-20 | **Status**: Research
+
+Strategic analysis of the OPAQUE aPAKE protocol (RFC 9497 / draft-irtf-cfrg-opaque)
+and its fit across the Refarm ecosystem. Maps relevance to each area: Recovery Service
+(ADR-032), refarm.social, Silo master-key protection, and Cloudflare Workers relay (ADR-037).
+Includes a conceptual `identity-contract-v2` WIT sketch for `derive-from-session` —
+the WASM capability-boundary encoding of OPAQUE's zero-knowledge guarantee.
+
+**ADR**: No ADR yet — informs `identity-contract-v2` design (v0.2.0) and recovery
+plugin authentication strategy (v0.3.0).
+
+---
+
 ### Foundational Validations
 
 #### [Critical Validations](./critical-validations.md)
