@@ -18,6 +18,27 @@ cargo test  -p tractor
 cargo build --release -p tractor   # ~27 MB binary
 ```
 
+## Development (inside Dev Container)
+
+**Memory constraints:** The dev container runs with ~7.6 GB RAM (WSL2). `wasmtime v26` is one of
+the heaviest crates in the ecosystem (~1–2 GB RAM per compilation unit). Two mitigations are in
+place:
+
+- `.cargo/config.toml` caps parallel jobs at 6 (default is `nproc = 16`)
+- `[profile.dev] debug = 1` uses line-tables-only DWARF (saves ~40% RAM vs full debug info)
+- `rust-analyzer.check.command` is set to `"check"` (not `"clippy"`) to avoid background recompilation
+
+**Never run these in parallel inside the container:**
+
+```bash
+# Correct — run separately
+cargo test -p tractor -- --test-threads=1
+cargo clippy -p tractor
+
+# Avoid — triggers simultaneous compilation of all targets
+cargo test --all
+```
+
 ## How to Run
 
 ```bash
