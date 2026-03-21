@@ -40,6 +40,8 @@ This contract defines:
 
 ### Plugin Lifecycle
 
+![Plugin Execution Context](./diagrams/plugin-execution-context.svg)
+
 ```
 ┌─────────────┐
 │   setup()   │  Request capabilities (e.g., network access)

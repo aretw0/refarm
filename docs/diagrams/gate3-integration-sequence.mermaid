@@ -1,0 +1,32 @@
+sequenceDiagram
+    participant Browser
+    participant StudioShell
+    participant BrowserSyncClient
+    participant Tractor as Tractor (ws://localhost:42000)
+    participant OPFS
+
+    Browser->>StudioShell: load apps/me (PWA boot)
+    StudioShell->>StudioShell: mount HeraldPlugin slot
+    StudioShell->>StudioShell: mount FireflyPlugin slot
+    StudioShell->>BrowserSyncClient: connect(ws://localhost:42000)
+    BrowserSyncClient->>Tractor: WebSocket handshake
+    Tractor-->>BrowserSyncClient: initial snapshot (Loro state vector)
+    BrowserSyncClient-->>OPFS: persist snapshot
+
+    Note over StudioShell,OPFS: Gate 3a complete — primitives verified
+
+    StudioShell->>OPFS: installPlugin(url, sha256)
+    OPFS-->>StudioShell: verify SHA-256 ✓ / reject ✗
+    StudioShell->>StudioShell: plugin loaded in DOM slot
+
+    Note over Browser,OPFS: Gate 3b — consolidated distro active
+
+    Browser->>StudioShell: user writes data (offline)
+    StudioShell->>OPFS: persist mutation (Loro delta)
+    StudioShell->>BrowserSyncClient: queue delta
+
+    Note over BrowserSyncClient,Tractor: tractor disconnected — offline mode
+
+    BrowserSyncClient->>Tractor: reconnect
+    BrowserSyncClient->>Tractor: replay delta (Loro sync)
+    Tractor-->>BrowserSyncClient: ack + merge
