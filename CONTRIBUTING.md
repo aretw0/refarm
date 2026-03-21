@@ -8,8 +8,8 @@ Thank you for your interest in contributing to Refarm! This guide will help you 
 
 Refarm is a monorepo consisting of:
 
-- **Apps**: Kernel and Studio
-- **Packages**: Core primitives (storage, identity, sync)
+- **Distros** (`apps/`): `refarm.me` (sovereign citizen hub), `refarm.dev` (Studio/IDE), `farmhand` (headless daemon)
+- **Blocks** (`packages/`): Philosophy-neutral primitives assembled by distros — tractor-ts, homestead, storage-sqlite, sync-loro, identity-nostr, etc.
 - **Examples**: Reference implementations
 
 We follow a structured **SDD → BDD → TDD → DDD** workflow with quality gates between phases. See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the complete process.
