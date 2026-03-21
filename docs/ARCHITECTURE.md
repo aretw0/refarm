@@ -42,15 +42,15 @@ the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-r
 
 ## Design Principles
 
-| Principle | Meaning |
-|---|---|
-| **Offline-First** | All data lives in the browser (SQLite via OPFS). Network is optional. |
-| **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. |
-| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays. |
-| **Radical Ejection Right** | Every primitive can be taken out and used in another project. |
-| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. In the browser, WASM is loaded via OPFS-cached ES modules (install-time transpilation). In Node.js, JCO transpiles at plugin load time. |
-| **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). |
-| **Decentralised Discovery**| Pluggable architecture; designed for P2P protocols (e.g. Nostr) for future plugin marketplaces. |
+| Principle | Meaning | Foundational ADR |
+|---|---|---|
+| **Offline-First** | All data lives in the browser (SQLite via OPFS). Network is optional. | [ADR-002](../specs/ADRs/ADR-002-offline-first-architecture.md) |
+| **Sovereign Bootloader** | The UI (Homestead) is a pure SSG/SPA "empty shell". It boots the graph. | [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) |
+| **Edge Connectivity** | Cloudflare Workers/Edge deployed *only* as async mailboxes/KV relays. | [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) |
+| **Radical Ejection Right** | Every primitive can be taken out and used in another project. | [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md) |
+| **Sandboxed Plugins** | Plugins run as WASM components via WIT-defined interfaces. In the browser, WASM is loaded via OPFS-cached ES modules (install-time transpilation). In Node.js, JCO transpiles at plugin load time. | [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md), [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md) |
+| **Sovereign Graph** | Data is normalised to JSON-LD (semantic portability). | [ADR-010](../specs/ADRs/ADR-010-schema-evolution.md) |
+| **Decentralised Discovery** | Pluggable architecture; designed for P2P protocols (e.g. Nostr) for future plugin marketplaces. | [ADR-011](../specs/ADRs/README.md#planned-future-adrs) *(planned)* |
 
 ---
 
@@ -60,15 +60,20 @@ The Refarm vision is executed in stratified phases, evolving from a local "Ferti
 
 ### Phase 1: The Fertile Soil (Stability)
 Focus on the **Sovereign Microkernel** (Tractor) and stable storage. Ensuring that plugins can ingest data into the **Sovereign Graph** with strict capability-based security.
+→ Core ADRs: [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md) (plugin boundary), [ADR-036](../specs/ADRs/ADR-036-sovereign-bootloader-and-strict-ssg.md) (bootloader), [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md) (WASM loading), [ADR-047](../specs/ADRs/ADR-047-tractor-native-rust-host.md)/[ADR-048](../specs/ADRs/ADR-048-tractor-graduation.md) (tractor-native)
 
 ### Phase 2: Hybrid Connectivity (Cognition)
 Introduction of **Hybrid Sync** (Matrix/HTTP/P2P) and local AI (via **WebLLM**). The engine becomes capable of structured JSON generation, transforming raw inputs into semantic nodes automatically.
+→ Core ADRs: [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md) (Loro CRDT), [ADR-012](../specs/ADRs/README.md#planned-future-adrs) *(planned: LLM strategy)*
 
 ### Phase 3: Sovereign Agent (Autonomy)
 Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system transitions from a database to an autonomous assistant (like Claude Code) capable of **Runtime Synthesis**—generating interfaces, plugins, and entire distros on the fly based on natural language. See **[Vision 2026](./proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)**.
+→ Core ADRs: [ADR-011](../specs/ADRs/README.md#planned-future-adrs) *(planned: Plugin Marketplace NIP-89/94)*
 
 ---
 ## Monorepo Map
+
+> Structure formalized in [ADR-001](../specs/ADRs/ADR-001-monorepo-structure.md). Blocks vs Distros composition model in [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md).
 
 ```
 refarm/
@@ -112,12 +117,12 @@ refarm/
 
 ## Primitive Independence
 
-Each package under `packages/` is a **standalone library**:
+Each package under `packages/` is a **standalone library** (see [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md) — Blocks are philosophy-neutral):
 
-- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code.
+- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code. (→ [ADR-031](../specs/ADRs/ADR-031-pluggable-relational-storage.md): pluggable relational storage)
 - **`@refarm.dev/storage-pglite`** — Postgres in the browser via WASM/WebGPU path.
-- **`@refarm.me/identity-nostr`** — Manages Nostr keys. A Transport-specific Identity adapter.
-- **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport.
+- **`@refarm.me/identity-nostr`** — Manages Nostr keys. A Transport-specific Identity adapter. (→ [ADR-034](../specs/ADRs/ADR-034-identity-adoption-conversion.md): identity adoption)
+- **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
 - **`@refarm.dev/plugin-courier`** — The dynamic "Courier/Router". It abstracts the network layer, automatically figuring out if peers are on the same local network (mDNS/WebRTC) or if it needs to bounce signals off Public/Private Relays. Anyone running Refarm can operate their own Relay. It provides location-agnostic peer discovery and transport routing.
 
 **Crucial Distinction on Independence:**
@@ -130,6 +135,7 @@ While the *plugins* you write for Refarm are tightly coupled to the Tractor's WA
 ### How a Plugin Communicates with the Tractor (Microkernel)
 
 Refarm aligns with the **WebAssembly System Interface (WASI)**. Plugins use standard syscalls, gated by Tractor's capability manager.
+(→ [ADR-018](../specs/ADRs/ADR-018-capability-contracts-and-observability-gates.md): capability contracts & gates; [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md): WASM loading strategy)
 
 ```
 Plugin (WASM Component)              Tractor (WASI Host)
@@ -159,6 +165,8 @@ Plugin loading follows different strategies depending on the runtime environment
 The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundles Node.js-only imports (`node:fs`, `node:path`, `@bytecodealliance/jco`). See [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
 
 ### Plugin Distribution (Nostr)
+
+(→ [ADR-032](../specs/ADRs/ADR-032-proton-security-mandatory-signing.md): mandatory signing & SHA-256 verification; [ADR-011](../specs/ADRs/README.md#planned-future-adrs) *(planned)*: NIP-89/94 marketplace)
 
 1. Developer builds plugin → WASM binary
 2. Developer publishes WASM to any URL, creates a **NIP-94 kind:1063** file metadata event with SHA-256 hash
@@ -315,6 +323,8 @@ See [ADR-036: Sovereign Bootloader and Strict SSG](../specs/ADRs/ADR-036-soverei
 ---
 
 ## Data Flow: Plugin → Sovereign Graph
+
+(→ [ADR-010](../specs/ADRs/ADR-010-schema-evolution.md): JSON-LD schema evolution; [ADR-017](../specs/ADRs/ADR-017-studio-micro-kernel-and-plugin-boundary.md): plugin boundary; [ADR-022](../specs/ADRs/ADR-022-policy-declarations-in-plugin-manifests.md): policy declarations in manifests)
 
 ```
 Raw data from plugin         Normaliser            SQLite/OPFS
