@@ -47,16 +47,17 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
   - ✅ Support for pre-transpiled JS bundles (`refarm plugin bundle` -> JCO).
   - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation.
   - 🔄 (Future) Strategy A: Pure Web Worker JCO transpilation prototype.
-- 🚧 **Farmhand Daemon (Local AI & Always-on Node)**
-  - ✅ Boots headless Tractor, connects via WebSocket (`ws://localhost:42000`).
-  - ✅ Loro binary transport.
-  - 🚧 (WIP) Capability auto-loading via `farmhand.config.json` and `FarmhandTask` CRDT delegation.
+- ✅ **Tractor Daemon (graduated ADR-048, 2026-03-19 — replaces `apps/farmhand`)**
+  - ✅ Boots headless, connects via WebSocket (`ws://localhost:42000`).
+  - ✅ Loro binary transport (JS↔Rust interop confirmed by `loro_binary_js_interop`).
+  - 🚧 (WIP) Consumer testing end-to-end with production `.db` (7 consumers validated in isolation; full pairing with Homestead pending — Gate 2/3).
+  - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation (ADR-044).
   - 🔄 (Future) OS daemon installation via `refarm provision` and LAN mDNS discovery.
 
 ### Decision Gate for v0.1.0 Release
 To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, all systems must coordinate:
 1. `Tractor` (Browser) successfully loads pre-transpiled loaded WASM components from OPFS.
-2. `Homestead` successfully pairs with a local `Farmhand` daemon via Loro WebSocket sync.
+2. `apps/me` (refarm.me) boots consolidated with tractor: StudioShell active, sovereign plugins loaded from OPFS, Loro sync roundtrip validated, offline-first confirmed.
 3. 100% test passing on `storage-sqlite`, `sync-loro`, and `tractor`.
 4. Successful migration to the final GitHub/NPM organizational structures.
 
@@ -68,9 +69,14 @@ To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, 
 **Target**: Post-v0.1.0
 
 ### Implementation Focus
+
+**Identity (first deliverable — can start now, no OPAQUE dependency):**
+- [ ] `identity-nostr` WASM adapter — implements `sign/verify/public-key/derive-from-session` from `world refarm-identity-plugin` WIT (commit `07f338b`).
+- [ ] Validation plugin in `validations/identity-nostr-plugin/` (Rust, `cargo-component`).
+
+**Discovery & Graph:**
 - [ ] Implement remote source resolution (fetching plugins via Sovereign Graph from URLs/IPFS).
 - [ ] Connect the `Registry` (identifying plugins in the graph) to `Tractor` (dynamically loading components on demand).
-- [ ] Advance the Identity adoption (`identity-nostr`) and network adapter switching (Relay ↔ P2P).
 - [ ] Enable Tractor to inject dynamic Sovereign Graph configurations into plugins upon activation.
 
 ---
