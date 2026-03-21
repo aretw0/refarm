@@ -13,11 +13,19 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@refarm.dev/storage-contract-v1": ["./packages/storage-contract-v1/src/index.ts"],
-      "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/src/index.ts"],
-      "@refarm.dev/identity-contract-v1": ["./packages/identity-contract-v1/src/index.ts"],
-      "@refarm.dev/plugin-manifest": ["./packages/plugin-manifest/src/index.ts"],
-      "@refarm.dev/tractor": ["./packages/tractor/src/index.ts"],
+      "@refarm.dev/storage-contract-v1": [
+        "./packages/storage-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/sync-contract-v1": [
+        "./packages/sync-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/identity-contract-v1": [
+        "./packages/identity-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/plugin-manifest": [
+        "./packages/plugin-manifest/src/index.ts"
+      ],
+      "@refarm.dev/tractor": ["./packages/tractor-ts/src/index.ts"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index.ts"],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index.ts"],
       "@refarm.dev/locales/*": ["./locales/*"],
