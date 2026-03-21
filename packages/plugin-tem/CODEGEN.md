@@ -4,6 +4,8 @@ Converte um checkpoint PyTorch (`torch_tem`) em pesos TypeScript embebidos no pl
 
 ## Pipeline two-stage
 
+![TEM Codegen Pipeline](../../docs/diagrams/tem-codegen-pipeline.svg)
+
 ```text
 torch_tem checkpoint.pt
   → (Stage 1) tools/export_tem_bundle.py

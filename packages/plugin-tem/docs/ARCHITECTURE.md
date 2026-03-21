@@ -39,6 +39,8 @@ The TypeScript core is the ground truth for all inference logic. The WASM migrat
 
 ## Architecture: Three Streams
 
+![TEM Architecture](../../../docs/diagrams/tem-architecture.svg)
+
 TEM separates **where** from **what** using three parallel neural streams:
 
 ### G-stream — Abstract Location (Grid Cells / MEC)

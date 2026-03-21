@@ -35,6 +35,12 @@ validated by `loro_binary_js_interop`.
 
 ---
 
+## Integration Sequence
+
+![Gate 3 Integration Sequence](./diagrams/gate3-integration-sequence.svg)
+
+---
+
 ## Gate 3a: Technical Primitives (Prerequisite)
 
 These 3 tests must pass first. They are necessary but not sufficient for Gate 3.

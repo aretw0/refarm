@@ -1,0 +1,36 @@
+stateDiagram-v2
+    [*] --> Bootstrap: first boot
+
+    state Bootstrap {
+        direction TB
+        RepoSeed: Repo Seed\n(shell plugins as npm deps)
+        ExplicitPlugins: Explicit plugin URLs\n+ SHA-256 hardcoded
+        EmptyOPFS: OPFS empty\n(no user graph yet)
+
+        RepoSeed --> ExplicitPlugins
+        ExplicitPlugins --> EmptyOPFS
+    }
+
+    Bootstrap --> Inflexion: first refarm:PluginRegistry\nnode confirmed in OPFS
+
+    state Inflexion {
+        direction TB
+        note: Tractor sync writes\nPluginRegistry node → OPFS.\nDistro detects it and shifts\nto graph-driven config.
+    }
+
+    Inflexion --> Sovereign: graph-driven mode active
+
+    state Sovereign {
+        direction TB
+        GraphDiscovery: Plugin discovery\nvia refarm:PluginRegistry
+        GraphConfig: Distro config\nread from graph
+        FullOPFS: OPFS has user's\ncomplete sovereign graph
+
+        GraphDiscovery --> GraphConfig
+        GraphConfig --> FullOPFS
+    }
+
+    Sovereign --> [*]: user can export, fork or migrate
+
+    note right of Bootstrap: Everything comes from the repo.\nTractor syncs an empty graph.
+    note right of Sovereign: Shell plugins (Herald, Firefly)\nstill come from repo.\nContent plugins + config\ncome from the graph.
