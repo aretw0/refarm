@@ -29,3 +29,10 @@ During active development within the monorepo, we sometimes point to `src` or us
 - [ ] Align `@refarm.dev/sower` to point to `dist/index.js`.
 - [ ] Ensure all new `packages/*` implement a `build` script.
 - [ ] Update `task.md` to track distribution hardening.
+
+---
+
+## Related ADRs
+
+- **[ADR-001 — Monorepo Structure](../specs/ADRs/ADR-001-monorepo-structure.md)** — Workspace boundaries and package independence contract.
+- **[ADR-019 — npm Scope and Namespace Strategy](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md)** — Decision rationale for `@refarm.dev` scope and publish hygiene.

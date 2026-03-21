@@ -28,3 +28,10 @@ Decouple Refarm from specific identity protocols (like Nostr) while providing a 
 1. **[Sower]**: Update onboarding UI to talk about "Sovereign Keys" instead of protocols.
 2. **[Silo]**: Add support for generating and storing a "Project Root Key".
 3. **[Windmill]**: Add capability to sync the Public Key to DNS or the repository as a security metadata file.
+
+---
+
+## Related ADRs
+
+- **[ADR-034 — Identity Adoption Conversion](../specs/ADRs/ADR-034-identity-adoption-conversion.md)** — How users move from anonymous/guest sessions to permanent sovereign identity (Ed25519 keypair lifecycle).
+- **[ADR-035 — Device Verification & Cross-Signing](../specs/ADRs/ADR-035-device-verification-cross-signing.md)** — Multi-device trust model built on top of the Master Key strategy described here.
