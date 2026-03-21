@@ -1,7 +1,10 @@
-# Studio - Roadmap
+# refarm.dev — Studio Roadmap
 
-**Current Version**: v0.0.1-dev  
-**Parent**: [Main Roadmap](../../roadmaps/MAIN.md)  
+**App**: `apps/dev` (refarm.dev)
+**Role**: Sovereign IDE — web-based management interface and developer tooling
+**Current Version**: v0.0.1-dev
+**Parent**: [Main Roadmap](../../roadmaps/MAIN.md)
+**Evolution model**: [docs/distro-evolution-model.md](../../docs/distro-evolution-model.md)
 **Process**: SDD → BDD → TDD → DDD ([Workflow Guide](../../docs/WORKFLOW.md))
 
 ---
@@ -25,48 +28,60 @@
 
 ---
 
-## v0.1.0 - Foundation (Skip - Kernel Focus)
-**Status**: Deferred  
-**Reason**: v0.1.0 focuses on kernel, storage, sync (headless)
+## Bootstrap Phases
 
-Studio development begins in v0.5.0 after core backend is stable.
+> How `apps/dev` (refarm.dev) evolves from a static repo seed to a sovereign IDE.
+> See [distro-evolution-model.md](../../docs/distro-evolution-model.md) for the full model.
+
+### Bootstrap (pre-v0.5.0)
+
+`refarm.dev` does not exist yet as a user-facing app. This phase is kernel/tractor focus.
+
+- Shell plugins (Herald, Firefly) are defined but not yet wired to a Studio UI
+- IDE plugins (sower, scarecrow, dsl-headless) exist as packages, not in a distro
+- Tractor graduated (ADR-048) and Gate 3 validates end-to-end sync via `apps/me`
+- **What loads from the repo**: `apps/me` is the reference distro during this phase
+
+### Sovereign IDE (v0.5.0+)
+
+Studio first ships. The architecture is graph-aware from the start — not bolted on later.
+
+- Shell plugins as npm dependencies (Herald, Firefly)
+- IDE plugins baked-in: sower, scarecrow, dsl-headless
+- BrowserSyncClient connects to tractor (`ws://localhost:42000`) — sovereign graph in OPFS
+- Plugin marketplace reads `refarm:PluginRegistry` from the developer's graph
+- **What loads from the repo**: shell + base IDE plugins + layout
+- **What loads from the graph**: developer's plugin registry, project configurations
+
+### Graph Visualization (v0.7.0 → v1.0.0)
+
+The developer can see and inspect their sovereign graph directly within Studio.
+
+- v0.7.0: interactive graph visualization (d3/cytoscape, pan/zoom, node inspection)
+- v1.0.0: production-quality graph browser; inspect `refarm:PluginRegistry` nodes,
+  project nodes, and identity nodes as first-class UI
+- **What loads from the graph**: same as Sovereign IDE, plus graph visualization data
 
 ---
 
-## v0.2.0 - Foundation (Skip - Identity/Network Focus)
-**Status**: Deferred  
-**Reason**: v0.2.0 focuses on identity and network layers (backend only)
+## v0.5.0 — Studio: Sovereign IDE MVP
 
----
-
-## v0.3.0 - Foundation (Skip - AI Focus)
-**Status**: Deferred  
-**Reason**: v0.3.0 focuses on AI inference (backend only)
-
----
-
-## v0.4.0 - Foundation (Skip - Plugin Focus)
-**Status**: Deferred  
-**Reason**: v0.4.0 focuses on plugin runtime (backend only)
-
----
-
-## v0.5.0 - Studio MVP
-**Scope**: Initial Studio UI with core management features  
-**Depends on**: `kernel` v0.4.0 (plugin system ready)
+**Scope**: Initial Studio UI with core management features, graph-aware from day one
+**Status**: Deferred (begins after Gate 3)
+**Depends on**: Gate 3 complete (`apps/me` pairing with tractor validated)
 
 ### SDD (Spec Driven)
 
-**Goal**: Define Studio architecture and UI components  
+**Goal**: Define Studio architecture and UI components
 **Gate**: Specs complete, peer reviewed, no TODOs
 
 - [ ] ADR-014: Studio architecture (Astro + Lit)
 - [ ] ADR-015: State management (Lit reactive controllers)
 - [ ] ADR-016: Routing strategy (Astro file-based + client-side)
-- [ ] Spec: Studio ↔ Kernel IPC protocol
-  - [ ] Command pattern (Studio → Kernel)
-  - [ ] Query pattern (Studio ← Kernel)
-  - [ ] State sync (real-time updates)
+- [ ] Spec: Studio ↔ tractor integration
+  - [ ] BrowserSyncClient wiring (sovereign graph → OPFS → Studio state)
+  - [ ] Query pattern (read from OPFS-backed SQLite)
+  - [ ] Real-time updates (Loro deltas → reactive Lit components)
 - [ ] Spec: Component library
   - [ ] Layout components (header, sidebar, main)
   - [ ] Data display (JSON-LD viewer, tables, cards)
@@ -80,24 +95,24 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 ### BDD (Behaviour Driven)
 
-**Goal**: Write integration tests that describe expected behavior (FAILING)  
+**Goal**: Write integration tests that describe expected behavior (FAILING)
 **Gate**: Tests written (🔴 RED), peer reviewed
 
 - [ ] E2E: User opens Studio, sees dashboard
 - [ ] E2E: User navigates between pages (keyboard + mouse)
-- [ ] E2E: Studio connects to kernel via IPC
-- [ ] E2E: User installs plugin via UI
-- [ ] E2E: User browses JSON-LD data
+- [ ] E2E: Studio connects to tractor, sovereign graph loaded
+- [ ] E2E: User installs plugin via UI (URL + SHA-256)
+- [ ] E2E: User browses JSON-LD data from OPFS
 - [ ] E2E: All interactions are keyboard-accessible
 - [ ] Acceptance: Studio provides full Refarm management capability
 
 ### TDD (Test Driven)
 
-**Goal**: Write unit tests for contracts (FAILING)  
+**Goal**: Write unit tests for contracts (FAILING)
 **Gate**: Tests written (🔴 RED), coverage ≥80%
 
 - [ ] Unit: Lit component rendering
-- [ ] Unit: IPC message validation
+- [ ] Unit: OPFS data access (via storage-sqlite)
 - [ ] Unit: Route generation (Astro)
 - [ ] Unit: State management (reactive controllers)
 - [ ] Unit: Form validation
@@ -105,13 +120,13 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 ### DDD (Domain Implementation)
 
-**Goal**: Implement code until all tests PASS  
+**Goal**: Implement code until all tests PASS
 **Gate**: Tests GREEN (🟢), coverage met, changeset created
 
 - [ ] Domain: Astro pages (index, plugins, data, settings)
 - [ ] Domain: Lit component library (30+ components)
-- [ ] Domain: IPC bridge (Studio ↔ Kernel)
-- [ ] Domain: State management layer
+- [ ] Domain: BrowserSyncClient integration (Studio ↔ tractor)
+- [ ] Domain: State management layer (graph-reactive)
 - [ ] Infra: Astro configuration (SSG, i18n, routes)
 - [ ] Infra: Lit Element integration
 - [ ] Infra: astro-i18next (pt-BR, en, es)
@@ -123,30 +138,31 @@ Studio development begins in v0.5.0 after core backend is stable.
 ## [0.5.0] - YYYY-MM-DD
 ### Added
 - Studio MVP with core management UI
-- Plugin management interface
-- JSON-LD data browser
-- Kernel IPC integration
+- Plugin management interface (install by URL + SHA-256)
+- JSON-LD data browser (reads from OPFS sovereign graph)
+- tractor WebSocket integration (BrowserSyncClient)
 - WCAG 2.2 AA accessibility
 - i18n support (pt-BR, en, es)
 ```
 
 ---
 
-## v0.6.0 - Observability Dashboard
-**Scope**: Dev tools and telemetry visualization  
-**Depends on**: `kernel` v0.6.0 (observability primitives)
+## v0.6.0 — Observability Dashboard
+
+**Scope**: Dev tools and telemetry visualization
+**Depends on**: tractor TelemetryBus (v0.6.0 primitives)
 
 ### SDD (Spec Driven)
 
 - [ ] Spec: Observability dashboard UI
-  - [ ] Real-time event stream
+  - [ ] Real-time event stream (from tractor TelemetryBus)
   - [ ] Metrics charts (time series)
   - [ ] Trace viewer (spans, flamegraphs)
   - [ ] Log viewer (filterable, searchable)
   - [ ] Dump browser (error dumps)
-- [ ] Spec: Dashboard ↔ Kernel telemetry bridge
-  - [ ] Subscribe to kernel events
-  - [ ] Query historical telemetry
+- [ ] Spec: Dashboard ↔ tractor telemetry bridge
+  - [ ] Subscribe to tractor events (WebSocket)
+  - [ ] Query historical telemetry (OPFS)
   - [ ] Export dumps/logs
 
 ### BDD (Behaviour Driven)
@@ -170,9 +186,9 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 - [ ] Domain: Dev Tools page (/dev)
 - [ ] Domain: Observability components (event viewer, metrics, traces)
-- [ ] Domain: Telemetry bridge (real-time subscriptions)
+- [ ] Domain: Telemetry bridge (real-time subscriptions via tractor WS)
 - [ ] Infra: Chart library (Chart.js or D3.js)
-- [ ] Infra: WebSocket/postMessage for real-time
+- [ ] Infra: WebSocket subscription for real-time events
 
 ### CHANGELOG
 
@@ -180,7 +196,7 @@ Studio development begins in v0.5.0 after core backend is stable.
 ## [0.6.0] - YYYY-MM-DD
 ### Added
 - Observability dashboard (Dev Tools)
-- Real-time event stream viewer
+- Real-time event stream from tractor TelemetryBus
 - Metrics charts (memory, CPU, operations)
 - Trace viewer for debugging
 - Log viewer with filtering
@@ -189,23 +205,24 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 ---
 
-## v0.7.0 - Graph Visualization
-**Scope**: Visual sovereign graph browser  
-**Depends on**: `kernel` v0.6.0 (data stable)
+## v0.7.0 — Graph Visualization
+
+**Scope**: Interactive sovereign graph browser
+**Depends on**: tractor sync stable (data model settled)
 
 ### SDD (Spec Driven)
 
 - [ ] Spec: Graph visualization UI
-  - [ ] Node rendering (entities: Person, Message, etc.)
+  - [ ] Node rendering (entities: Person, Message, PluginRegistry, etc.)
   - [ ] Edge rendering (relationships)
   - [ ] Layout algorithms (force-directed, hierarchical)
   - [ ] Pan/zoom controls
   - [ ] Node selection and inspection
   - [ ] Search/filter nodes
 - [ ] Spec: Graph data fetching
-  - [ ] Query kernel for graph subset
+  - [ ] Query OPFS SQLite for graph subset
   - [ ] Lazy loading (viewport-based)
-  - [ ] Real-time updates (CRDT changes)
+  - [ ] Real-time updates (Loro deltas → graph refresh)
 
 ### BDD (Behaviour Driven)
 
@@ -213,7 +230,7 @@ Studio development begins in v0.5.0 after core backend is stable.
 - [ ] E2E: User pans/zooms graph
 - [ ] E2E: User clicks node, sees details sidebar
 - [ ] E2E: User searches for entity, graph highlights it
-- [ ] E2E: Graph updates in real-time as data changes
+- [ ] E2E: Graph updates in real-time as tractor delivers deltas
 - [ ] Acceptance: User visually explores sovereign graph
 
 ### TDD (Test Driven)
@@ -228,7 +245,7 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 - [ ] Domain: Graph page (/graph)
 - [ ] Domain: Graph visualization component (Lit + D3/Cytoscape)
-- [ ] Domain: Graph query bridge
+- [ ] Domain: Graph query bridge (OPFS SQLite → viz layer)
 - [ ] Infra: D3.js or Cytoscape.js integration
 - [ ] Infra: Canvas rendering for performance
 
@@ -241,41 +258,42 @@ Studio development begins in v0.5.0 after core backend is stable.
 - Pan/zoom controls
 - Node selection and inspection
 - Search and filter nodes
-- Real-time graph updates
+- Real-time graph updates from tractor Loro deltas
 ```
 
 ---
 
-## v0.8.0 - Advanced Plugin Management
-**Scope**: Plugin marketplace UI, discovery, ratings  
-**Depends on**: `kernel` v0.4.0 (plugin system), external plugin registry
+## v0.8.0 — Sovereign Plugin Marketplace
+
+**Scope**: Graph-driven plugin discovery, marketplace UI, and registry management
+**Depends on**: v0.5.0 (Studio), `refarm:PluginRegistry` graph schema stable
 
 ### SDD (Spec Driven)
 
 - [ ] Spec: Plugin marketplace UI
-  - [ ] Browse plugins (categories, search, filters)
+  - [ ] Browse plugins (from `refarm:PluginRegistry` nodes in graph)
   - [ ] Plugin detail page (description, permissions, reviews)
-  - [ ] Install/uninstall workflow
+  - [ ] Install/uninstall workflow (via `installPlugin()` + SHA-256)
   - [ ] Plugin configuration UI
   - [ ] Plugin updates (version management)
-- [ ] Spec: Plugin registry integration
-  - [ ] Fetch plugin manifests
-  - [ ] Check signatures (security)
-  - [ ] Download WASM bundles
+- [ ] Spec: Graph registry integration
+  - [ ] Query `refarm:PluginRegistry` nodes from OPFS
+  - [ ] Verify SHA-256 signatures via `installPlugin()`
+  - [ ] Publish user's own plugins to their graph (personal registry)
 
 ### BDD (Behaviour Driven)
 
-- [ ] E2E: User browses plugin marketplace
-- [ ] E2E: User installs plugin from UI
+- [ ] E2E: User browses plugin marketplace (graph-sourced catalog)
+- [ ] E2E: User installs plugin from marketplace
 - [ ] E2E: User configures plugin settings
 - [ ] E2E: User uninstalls plugin
 - [ ] E2E: User updates plugin to new version
-- [ ] Acceptance: Non-technical users extend Refarm via Studio
+- [ ] Acceptance: Developer extends Refarm via graph-driven marketplace
 
 ### TDD (Test Driven)
 
-- [ ] Unit: Plugin list rendering
-- [ ] Unit: Install workflow logic
+- [ ] Unit: Plugin list rendering (from graph nodes)
+- [ ] Unit: Install workflow logic (installPlugin + SHA-256)
 - [ ] Unit: Manifest validation
 - [ ] Unit: Configuration form generation
 - [ ] Coverage: >80%
@@ -285,24 +303,25 @@ Studio development begins in v0.5.0 after core backend is stable.
 - [ ] Domain: Plugin marketplace page (/plugins/marketplace)
 - [ ] Domain: Plugin detail components
 - [ ] Domain: Install/config wizards
-- [ ] Infra: Plugin registry API client
+- [ ] Infra: `refarm:PluginRegistry` graph query client
 
 ### CHANGELOG
 
 ```
 ## [0.8.0] - YYYY-MM-DD
 ### Added
-- Plugin marketplace UI
-- Plugin discovery and search
-- One-click plugin installation
+- Sovereign plugin marketplace (graph-driven, reads refarm:PluginRegistry)
+- Plugin discovery from developer's sovereign graph
+- Install/uninstall via installPlugin() with SHA-256 validation
 - Plugin configuration interface
 - Plugin update management
 ```
 
 ---
 
-## v1.0.0 - Production Polish
-**Scope**: UI polish, performance, mobile responsive  
+## v1.0.0 — Production Polish
+
+**Scope**: UI polish, performance, mobile responsive, graph browser maturity
 **Depends on**: All features stable
 
 ### Quality Criteria
@@ -326,12 +345,17 @@ Studio development begins in v0.5.0 after core backend is stable.
   - [ ] Breakpoints (mobile, tablet, desktop)
   - [ ] Touch-friendly controls
   - [ ] Adaptive layouts
+- [ ] Spec: Production graph browser
+  - [ ] Inspect `refarm:PluginRegistry` nodes as first-class UI
+  - [ ] Inspect project nodes, identity nodes
+  - [ ] Bootstrap vs sovereign mode indicator (visible to developer)
 
 ### BDD (Behaviour Driven)
 
 - [ ] E2E: Studio loads in <2s on 3G
 - [ ] E2E: All pages work on mobile (iOS Safari, Chrome Android)
 - [ ] E2E: Touch gestures work (swipe, pinch-zoom on graph)
+- [ ] E2E: Developer can inspect their sovereign graph nodes directly
 - [ ] Acceptance: Studio is delightful to use
 
 ### TDD (Test Driven)
@@ -359,6 +383,7 @@ Studio development begins in v0.5.0 after core backend is stable.
 - Mobile responsive design (all pages)
 - Improved loading states and error handling
 - Enhanced visual design and animations
+- Production-quality sovereign graph browser
 
 ### Fixed
 - [All known UI bugs addressed]
@@ -368,8 +393,9 @@ Studio development begins in v0.5.0 after core backend is stable.
 
 ## Notes
 
-- **Development Order**: Studio starts in v0.5.0 (after kernel mature)
-- **Dependencies**: Studio depends on stable kernel IPC
+- **Development Order**: Studio starts at v0.5.0 (after Gate 3 — tractor pairing stable)
+- **Graph awareness**: every Studio feature that touches plugins or config reads from the sovereign graph (OPFS) — never from a hardcoded URL
+- **Shell plugins**: Herald and Firefly are always npm dependencies — not discovered from graph
 - **Testing**: E2E tests critical (Playwright with visual regression)
 - **Accessibility**: WCAG 2.2 AA non-negotiable for all features
 - **Performance**: Astro SSG keeps initial load fast despite rich UI
