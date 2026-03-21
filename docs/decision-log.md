@@ -124,8 +124,7 @@ provider ecosystem), Rust-core correctness.
 | JSON-LD schema evolution strategy | ADR-010 | 2026-03-06 | Lens-based upcasting and compatibility guarantees documented |
 | Testing strategy (unit/integration/e2e) | ADR-013 | 2026-03-06 | Vitest + Playwright + Changesets strategy documented |
 | SQLite engine choice (wa-sqlite vs sql.js) | ADR-015 | 2026-03-13 | Accepted; WASM+WIT lifecycle and Node bench verified |
-| Quality gate baseline alignment | ADR-013 | 2026-03-06 | Root scripts and CI jobs aligned; smoke-test baseline seeded in critical workspaces |
-| Native browser permissions as proxy capabilities | ADR-024 | 2026-03-07 | Capabilities as superset of browser native permissions |
+| Native browser permissions as proxy capabilities | ADR-029 | 2026-03-07 | Capabilities as superset of browser native permissions |
 | Astro type-checking in pre-push hooks | (inline) | 2026-03-09 | Added `astro check` to homestead lint/type-check; tsc does not verify `.astro` files |
 | Rust WASM plugin compilation in CI | (inline) | 2026-03-09 | Added Rust toolchain + WASM build steps to test.yml and granular-tests.yml; JCO integration tests require pre-compiled plugin binary |
 

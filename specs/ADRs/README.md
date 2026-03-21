@@ -43,10 +43,9 @@ Architecture Decision Records for Refarm.
 | [044](ADR-044-wasm-plugin-loading-browser-strategy.md) | WASM Plugin Loading Browser Strategy | Accepted | 2026-03-15 |
 | [045](ADR-045-loro-crdt-adoption.md) | Loro CRDT Adoption | Accepted | 2026-03-17 |
 | [046](ADR-046-refarm-composition-model.md) | Refarm Composition Model (Blocks and Distros) | Accepted | 2026-03-17 |
-
-## Planned (Future ADRs)
-
----
+| [047](ADR-047-tractor-native-rust-host.md) | tractor-native — Native Rust Plugin Host | Accepted | 2026-03-19 |
+| [048](ADR-048-tractor-graduation.md) | Tractor Graduation (tractor-native becomes canonical tractor) | Accepted | 2026-03-19 |
+| [049](ADR-049-post-graduation-horizon.md) | Post-Graduation Horizon (tractor Rust roadmap) | Accepted | 2026-03-19 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
@@ -70,6 +69,8 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 | 011 | Plugin Marketplace (NIP-89/94) | v0.4.0 | Planned |
 | 012 | LLM Execution Strategy (WebLLM) | v0.3.0 | Planned |
 | 014 | Model Selection Criteria (size, performance, licensing) | v0.3.0 | Planned |
+| 038 | Number reserved — scope TBD | — | Reserved |
+| 039 | Number reserved — scope TBD | — | Reserved |
 
 **Note**: Planned ADRs are reserved numbers for upcoming decisions. They will be created when their milestone begins.  
 **Priority**: Keep planned ADRs aligned with milestones and avoid duplicating accepted ADR numbers.

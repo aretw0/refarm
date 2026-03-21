@@ -4,6 +4,7 @@
 **Date**: 2026-03-19
 **Deciders**: Core Team
 **Implements**: [ADR-044 — WASM Plugin Loading Browser Strategy](ADR-044-wasm-plugin-loading-browser-strategy.md)
+**Superseded by**: [ADR-048 — Tractor Graduation](ADR-048-tractor-graduation.md) (graduation criteria and canonical naming)
 **Related**: [ADR-045 — Loro CRDT Adoption](ADR-045-loro-crdt-adoption.md), [ADR-015 — SQLite Engine Decision](ADR-015-sqlite-engine-decision.md)
 
 ---
