@@ -10,6 +10,19 @@ This file defines how diagram styling is centralized in Refarm.
 
 All SVG generation runs through `scripts/check-diagrams.mjs`, which applies the global config automatically.
 
+## Canonical vs Legacy Scripts
+
+| Command | Script | Theme | Status |
+|---------|--------|-------|--------|
+| `npm run diagrams:fix` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | **Canonical — use this** |
+| `npm run diagrams:check` | `scripts/check-diagrams.mjs` | `mermaid.config.json` (branded) | CI verification |
+| `npm run diagrams:generate` | `scripts/ci/generate-diagrams.mjs` | "neutral" (Mermaid default) | **Legacy — do not use for new diagrams** |
+| `npm run diagrams:watch` | `scripts/ci/generate-diagrams.mjs` | "neutral" | **Legacy** |
+
+> `diagrams:generate` / `diagrams:watch` predate the design system and apply the Mermaid "neutral"
+> theme instead of the branded token set. Do not use them for new diagrams. They remain in
+> `package.json` for backwards-compatibility only.
+
 ## Design Tokens (Current)
 
 - Primary surface: blue (`primaryColor` / `primaryBorderColor`)
