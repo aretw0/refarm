@@ -7,7 +7,7 @@
  *
  *   doc.getMap("nodes").set(id, JSON.stringify({ id, type, context, payload, sourcePlugin, updatedAt }))
  *
- * Output: packages/tractor-native/tests/fixtures/loro-js-update.bin
+ * Output: packages/tractor/tests/fixtures/loro-js-update.bin
  *
  * Used by the Rust conformance test `loro_binary_js_interop` (criterion #2)
  * to prove binary format compatibility between loro-crdt JS and loro Rust.
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const OUTPUT = resolve(__dirname, '../../tractor-native/tests/fixtures/loro-js-update.bin');
+const OUTPUT = resolve(__dirname, '../../tractor/tests/fixtures/loro-js-update.bin');
 
 const doc = new LoroDoc();
 // Use a fixed peer ID for deterministic output
@@ -44,7 +44,7 @@ doc.commit();
 
 const bytes = doc.export({ mode: 'update' });
 
-mkdirSync(resolve(__dirname, '../../tractor-native/tests/fixtures'), { recursive: true });
+mkdirSync(resolve(__dirname, '../../tractor/tests/fixtures'), { recursive: true });
 writeFileSync(OUTPUT, Buffer.from(bytes));
 
 console.log(`Written ${bytes.length} bytes → ${OUTPUT}`);
