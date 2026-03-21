@@ -6,11 +6,13 @@
 > establishes the shared model.
 
 **Applies to**: `apps/me` (refarm.me), `apps/dev` (refarm.dev), and any future distro.
-**Related**: [ADR-021](../specs/ADRs/ADR-021-l0-repo-seed.md), [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md), [ADR-020](../specs/ADRs/ADR-020-graph-versioning.md)
+**Related ADRs**: [ADR-046 — Composition Model](../specs/ADRs/ADR-046-refarm-composition-model.md) (Blocks vs Distros), [ADR-044 — WASM Plugin Loading](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md) (OPFS install-time), [ADR-021 — Self-Healing & Plugin Citizenship](../specs/ADRs/ADR-021-self-healing-and-plugin-citizenship.md) (plugin lifecycle), [ADR-020 — Sovereign Graph Versioning](../specs/ADRs/ADR-020-sovereign-graph-versioning.md) (graph commit model)
 
 ---
 
 ## The Model in Two Phases
+
+![Bootstrap → Sovereign Lifecycle](./diagrams/bootstrap-sovereign-lifecycle.svg)
 
 ### Phase 1 — Bootstrap (repo seed)
 
