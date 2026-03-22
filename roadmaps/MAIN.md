@@ -51,7 +51,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
   - ✅ Boots headless, connects via WebSocket (`ws://localhost:42000`).
   - ✅ Loro binary transport (JS↔Rust interop confirmed by `loro_binary_js_interop`).
   - 🚧 (WIP) Consumer testing end-to-end with production `.db` (7 consumers validated in isolation; full pairing with Homestead pending — Gate 2/3).
-  - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation (ADR-044).
+  - 🚧 (WIP) `installPlugin()` OPFS cache and SHA-256 validation (ADR-044) — delegated to **Barn** (`packages/barn`).
   - 🔄 (Future) OS daemon installation via `refarm provision` and LAN mDNS discovery.
 
 ### Decision Gate for v0.1.0 Release
@@ -110,6 +110,16 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 - ✅ Criterion #5 — Binary footprint ≤30 MB: measured 27 MB; target redefined (ADR-047 errata)
 
 **All 6 graduation criteria satisfied.** Migration plan in `specs/ADRs/ADR-048-tractor-graduation.md`.
+
+#### Core Infrastructure Plugins (Groundwork)
+
+The following core plugins provide the infrastructure for development and management within the Refarm ecosystem:
+
+| Plugin | Purpose | Status |
+|--------|---------|--------|
+| **Barn (O Celeiro)** | Machinery Manager (Plugin lifecycle, OPFS cache, SHA-256) | 🚧 In Progress (SDD/BDD) |
+| **Surveyor (Agrimensor)** | Sovereign Graph Explorer (Visualizing nodes and connections) | 🔄 Planned |
+| **Creek (O Riacho)** | Telemetry & Pulse Monitor (Streaming events and logs) | 🔄 Planned |
 
 #### Pending Technical Work (Post-Graduation)
 

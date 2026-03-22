@@ -25,7 +25,11 @@
       "@refarm.dev/plugin-manifest": [
         "./packages/plugin-manifest/src/index.ts"
       ],
+      "@refarm.dev/barn": [
+        "./packages/barn/src/index.ts"
+      ],
       "@refarm.dev/tractor": ["./packages/tractor-ts/src/index.ts"],
+      "@refarm.dev/tractor/test/test-utils": ["./packages/tractor-ts/test/test-utils.ts"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index.ts"],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index.ts"],
       "@refarm.dev/locales/*": ["./locales/*"],

@@ -1,0 +1,36 @@
+package refarm:barn@0.1.0;
+
+interface types {
+    use refarm:plugin/types.{json-ld-node, node-id, plugin-error, plugin-metadata};
+
+    record plugin-entry {
+        id: node-id,
+        name: string,
+        version: string,
+        status: string, // e.g., "installed", "pending", "error"
+        manifest: plugin-metadata,
+        installed-at: u64,
+    }
+}
+
+interface manager {
+    use types.{plugin-entry};
+    use refarm:plugin/types.{node-id, plugin-error};
+
+    /// Instala um plugin a partir de uma URL e verifica sua integridade.
+    install-plugin: func(url: string, integrity: string) -> result<plugin-entry, plugin-error>;
+
+    /// Lista todos os plugins instalados no Barn.
+    list-plugins: func() -> result<list<plugin-entry>, plugin-error>;
+
+    /// Obtém detalhes de um plugin específico.
+    get-plugin: func(id: node-id) -> result<plugin-entry, plugin-error>;
+
+    /// Desinstala um plugin.
+    uninstall-plugin: func(id: node-id) -> result<_, plugin-error>;
+}
+
+world barn {
+    import refarm:plugin/tractor-bridge;
+    export manager;
+}

@@ -31,7 +31,8 @@ These rules are not arbitrary — they derive from a unified cognitive model:
   - Run `node scripts/reso.mjs status` to see the current resolution state.
   - Use `node scripts/reso.mjs src` to toggle to local development or `dist` for production validation.
 - **Git Discipline**: Large, sweeping changes should be avoided. Prefer atomic, logical commits.
-- **Health first**: Always run `refarm health` (once available in `@refarm.dev/cli`) after significant refactors.
+  - Health first: Always run `refarm health` (once available in `@refarm.dev/cli`) after significant refactors.
+  - Plugin Integrity: Leverage the `Barn` (`@refarm.dev/barn`) for managing plugin lifecycles and ensuring their integrity (SHA-256 validation) before deployment.
 
 > *Active Inference*: `reso.mjs status` calibrates precision — it tells you how reliable the current environment signal is before you act on it.
 
