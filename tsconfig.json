@@ -1,6 +1,7 @@
 {
   "extends": "./packages/tsconfig/dom.json",
   "compilerOptions": {
+    "noEmit": true,
     "baseUrl": ".",
     "paths": {
       "@refarm.dev/locales/*": [
