@@ -1,5 +1,5 @@
+import { createTractorMock } from "@refarm.dev/tractor/test/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
-import { createTractorMock } from "../../tractor-ts/test/test-utils";
 import { ScarecrowPlugin } from "./index";
 
 describe("ScarecrowPlugin", () => {
