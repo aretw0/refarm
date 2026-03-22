@@ -10,73 +10,74 @@
         "./packages/*/src"
       ],
       "@refarm.dev/barn": [
-        "./packages/barn/src/index.ts"
+        "./packages/barn/src/index"
       ],
       "@refarm.dev/cli": [
-        "./packages/cli/src/index.ts"
+        "./packages/cli/src/index"
       ],
       "@refarm.dev/config": [
-        "./packages/config/src/index.ts"
+        "./packages/config/src/index"
+      ],
+      "@refarm.dev/vtconfig": [
+        "./packages/vtconfig/src/index"
       ],
       "@refarm.dev/dsl-headless": [
-        "./packages/dsl-headless/src/index.ts"
+        "./packages/dsl-headless/src/index"
       ],
       "@refarm.dev/homestead/sdk": [
-        "./packages/homestead/src/sdk/index.ts"
+        "./packages/homestead/src/sdk/index"
       ],
       "@refarm.dev/homestead/ui": [
-        "./packages/homestead/src/ui/index.ts"
+        "./packages/homestead/src/ui/index"
       ],
       "@refarm.dev/identity-contract-v1": [
-        "./packages/identity-contract-v1/src/index.ts"
+        "./packages/identity-contract-v1/src/index"
       ],
       "@refarm.dev/plugin-courier": [
-        "./packages/plugin-courier/src/index.ts"
+        "./packages/plugin-courier/src/index"
       ],
-      "@refarm.dev/plugin-manifest": [
-        "./packages/plugin-manifest/src/index.ts"
-      ],
+      "@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index"],
       "@refarm.dev/plugin-tem": [
-        "./packages/plugin-tem/src/index.ts"
+        "./packages/plugin-tem/src/index"
       ],
       "@refarm.dev/registry": [
-        "./packages/registry/src/index.ts"
+        "./packages/registry/src/index"
       ],
       "@refarm.dev/scarecrow": [
-        "./packages/scarecrow/src/index.ts"
+        "./packages/scarecrow/src/index"
       ],
       "@refarm.dev/silo": [
-        "./packages/silo/src/index.ts"
+        "./packages/silo/src/index"
       ],
       "@refarm.dev/sower": [
-        "./packages/sower/src/index.ts"
+        "./packages/sower/src/index"
       ],
       "@refarm.dev/storage-contract-v1": [
-        "./packages/storage-contract-v1/src/index.ts"
+        "./packages/storage-contract-v1/src/index"
       ],
       "@refarm.dev/storage-rest": [
-        "./packages/storage-rest/src/index.ts"
+        "./packages/storage-rest/src/index"
       ],
       "@refarm.dev/storage-sqlite": [
-        "./packages/storage-sqlite/src/index.ts"
+        "./packages/storage-sqlite/src/index"
       ],
       "@refarm.dev/sync-contract-v1": [
-        "./packages/sync-contract-v1/src/index.ts"
+        "./packages/sync-contract-v1/src/index"
       ],
       "@refarm.dev/sync-crdt": [
-        "./packages/sync-crdt/src/index.ts"
+        "./packages/sync-crdt/src/index"
       ],
       "@refarm.dev/sync-loro": [
-        "./packages/sync-loro/src/index.ts"
+        "./packages/sync-loro/src/index"
       ],
       "@refarm.dev/terminal-plugin": [
-        "./packages/terminal-plugin/src/index.ts"
+        "./packages/terminal-plugin/src/index"
       ],
       "@refarm.dev/tractor": [
-        "./packages/tractor-ts/src/index.ts"
+        "./packages/tractor-ts/src/index"
       ],
       "@refarm.dev/tractor/test/test-utils": [
-        "./packages/tractor-ts/test/test-utils.ts"
+        "./packages/tractor-ts/test/test-utils"
       ]
     }
   },
