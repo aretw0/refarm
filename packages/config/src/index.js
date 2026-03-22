@@ -6,6 +6,9 @@ import path from "node:path";
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
 
+/**
+ * Helper to find the root directory of the monorepo.
+ */
 export function findRefarmRoot(startDir = process.cwd()) {
     let currentDir = startDir;
     while (true) {
@@ -20,6 +23,9 @@ export function findRefarmRoot(startDir = process.cwd()) {
 
 /**
  * Deep merge utility for configuration objects
+ * @param {object} target
+ * @param {object} source
+ * @returns {object}
  */
 function deepMerge(target, source) {
     if (!source) return target;
@@ -38,6 +44,9 @@ function deepMerge(target, source) {
 /**
  * Simple interpolation resolver for config properties.
  * Supports {{path.to.prop}} and {{env.VAR_NAME}}.
+ * @param {object} config
+ * @param {object} current
+ * @returns {object}
  */
 function resolveInterpolation(config, current = config) {
     if (typeof current === "string") {
@@ -123,7 +132,7 @@ const RemoteSource = {
      */
     async load(root, endpoint) {
         if (!endpoint) return {};
-        
+
         const token = process.env.REFARM_REMOTE_TOKEN;
         const headers = {
             "Accept": "application/json",
@@ -137,12 +146,12 @@ const RemoteSource = {
         try {
             console.log(`📡 [refarm/config] Fetching remote config from ${endpoint}...`);
             const res = await fetch(endpoint, { headers });
-            
+
             if (!res.ok) {
                 console.warn(`[refarm/config] Remote source failed: ${res.status} ${res.statusText}`);
                 return {};
             }
-            
+
             const data = await res.json();
             return data?.config || data; // Support both wrapped and direct JSON
         } catch (e) {
@@ -155,6 +164,8 @@ const RemoteSource = {
 /**
  * STRATEGIC BOOTSTRAP
  * Decides the activation strategy based on signals.
+ * @param {string} root
+ * @returns {object}
  */
 function bootstrapIntent(root) {
     const json = JsonSource.loadSync(root);
