@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/storage-memory",
   "version": "0.1.0",
-  "description": "Volatile in-memory storage primitive for Refarm — perfect for testing and ephemeral sessions",
+  "description": "Volatile in-memory storage primitive for Refarm \u2014 perfect for testing and ephemeral sessions",
   "type": "module",
   "repository": {
     "type": "git",
@@ -17,10 +17,6 @@
   },
   "dependencies": {
     "@refarm.dev/storage-contract-v1": "*"
-  },
-  "devDependencies": {
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
   },
   "license": "MIT",
   "publishConfig": {

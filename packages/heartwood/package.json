@@ -9,7 +9,7 @@
   ],
   "main": "./pkg/heartwood.js",
   "module": "./pkg/heartwood.js",
-  "types": "./pkg/heartwood.d.ts",
+  "types": "./pkg/heartwood.js",
   "scripts": {
     "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release",
     "build:transpile": "npx jco transpile target/wasm32-wasip1/release/refarm_heartwood.wasm -o pkg --name heartwood",

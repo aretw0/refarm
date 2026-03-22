@@ -22,8 +22,8 @@
       "types": "./dist/index.d.ts"
     },
     "./test/test-utils": {
-      "types": "./test/test-utils.d.ts",
-      "default": "./test/test-utils.js"
+      "types": "./dist/test/test-utils.d.ts",
+      "default": "./dist/test/test-utils.js"
     }
   },
   "scripts": {
@@ -51,9 +51,7 @@
   },
   "devDependencies": {
     "@refarm.dev/tsconfig": "*",
-    "nostr-tools": "^2.23.3",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
+    "nostr-tools": "^2.23.3"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

@@ -36,8 +36,5 @@
     "decentralized",
     "sovereign"
   ],
-  "license": "MIT",
-  "devDependencies": {
-    "typescript": "^5.7.3"
-  }
+  "license": "MIT"
 }
