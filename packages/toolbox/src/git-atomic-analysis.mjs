@@ -42,12 +42,13 @@ export function extractSignals(path, diff) {
 
   // 1. Path-based Breadcrumbs (Scope)
   const pathParts = path.split("/");
-  if (pathParts.includes("packages") || pathParts.includes("apps") || pathParts.includes("validations")) {
-    const scope = pathParts[pathParts.indexOf("packages") + 1] || 
-                  pathParts[pathParts.indexOf("apps") + 1] ||
-                  pathParts[pathParts.indexOf("validations") + 1];
-    if (scope) signals.add(`scope:${scope}`);
-  }
+  const pIdx = pathParts.indexOf("packages");
+  const aIdx = pathParts.indexOf("apps");
+  const vIdx = pathParts.indexOf("validations");
+  const scope = (pIdx !== -1 ? pathParts[pIdx + 1] : null) || 
+                (aIdx !== -1 ? pathParts[aIdx + 1] : null) ||
+                (vIdx !== -1 ? pathParts[vIdx + 1] : null);
+  if (scope) signals.add(`scope:${scope}`);
 
   // 2. Package.json Dependency Extraction
   if (path.endsWith("package.json")) {
@@ -81,16 +82,27 @@ export function extractSignals(path, diff) {
   if (d.includes("getPluginApi") || d.includes("findByApi")) signals.add("plugin-api-rename");
   if (d.includes("vi.mock") || d.includes("vi.fn") || d.includes("vitest")) signals.add("test-mock");
   if (d.includes("bench(") || d.includes("describe(") || d.includes("it(")) signals.add("test-suite");
-  if (d.includes("overrides") || d.includes("flatted") || d.includes("audit")) signals.add("security");
+  if (path.endsWith("package.json") && (d.includes("overrides") || d.includes("flatted") || d.includes("audit"))) signals.add("security");
 
   // Barn / plugin lifecycle
   if (d.includes("installPlugin") || d.includes("uninstallPlugin") || d.includes("listPlugins")) signals.add("barn-api");
   if (d.includes("integrity") || d.includes("sha256") || d.includes("SHA-256")) signals.add("barn-integrity");
   if (d.includes("PluginEntry") || d.includes("PluginCatalog")) signals.add("barn-types");
 
-  // Path-based flags
+  // 4. Path-based flags
   if (path.includes(".test.") || path.includes(".bench.")) signals.add("test-file");
   if (path.endsWith(".md")) signals.add("docs");
+
+  // 5. Infrastructure Signals
+  if (path.startsWith(".github/")) signals.add("infra:github");
+  if (path.includes(".github/workflows")) signals.add("infra:workflows");
+  if (path.includes(".github/actions")) signals.add("infra:actions");
+  if (path === "turbo.json") signals.add("infra:turbo");
+  if (path === "tsconfig.json" || path.endsWith("tsconfig.build.json")) {
+    if (path.includes("/")) signals.add("tsconfig-local");
+    else signals.add("infra:tsconfig");
+  }
+  if (path.includes("vitest.config")) signals.add("infra:vitest");
 
   return signals;
 }
@@ -161,13 +173,58 @@ export function deriveCommitMessage(groupId, items) {
       return `chore${scopePart}: update configuration files`;
     }
 
+    case "infra_github": {
+      const parts = [];
+      if (allSignals.has("infra:workflows")) parts.push("workflows");
+      if (allSignals.has("infra:actions")) parts.push("custom actions");
+      return `chore(ci): update GitHub ${parts.join(" and ") || "configuration"}`;
+    }
+
+    case "infra_configs": {
+      const parts = [];
+      if (allSignals.has("infra:turbo")) parts.push("turbo");
+      if (allSignals.has("infra:tsconfig")) parts.push("root tsconfig");
+      if (allSignals.has("infra:vitest")) parts.push("vitest");
+      return `chore: update repository configuration (${parts.join(", ")})`;
+    }
+
     default: {
       if (groupId.startsWith("scope:")) {
         const scope = groupId.replace("scope:", "");
         const deps = getDeps();
         const exports = getExports();
-        if (deps.length > 0) return `chore(${scope}): update ${deps.join(", ")}`;
-        if (exports.length > 0) return `feat(${scope}): implement ${exports.join(", ")}`;
+        const parts = [];
+        let type = "chore";
+
+        // Collect intents
+        if (allSignals.has("homestead-subpath") || allSignals.has("tsconfig-local")) {
+          parts.push("update module resolution paths");
+          type = "fix";
+        }
+        if (allSignals.has("test-file")) {
+          parts.push(`clean up tests ${exports.length > 0 ? `for ${exports.join(", ")}` : ""}`.trim());
+          type = "fix";
+        }
+        if (allSignals.has("barn-api")) {
+          parts.push(`implement plugin lifecycle management (${exports.join(", ") || "barn"})`);
+          type = "feat";
+        }
+        if (allSignals.has("docs")) {
+          parts.push("update documentation");
+          if (type === "chore") type = "docs";
+        }
+        if (exports.length > 0 && !allSignals.has("barn-api")) {
+          parts.push(`implement ${exports.join(", ")}`);
+          type = "feat";
+        }
+        if (deps.length > 0) {
+          parts.push(`update dependencies (${deps.join(", ")})`);
+        }
+
+        if (parts.length > 0) {
+          return `${type}(${scope}): ${parts.join("; ")}`;
+        }
+        
         const files = items.map(i => i.path.split("/").pop()).filter(Boolean);
         return `chore(${scope}): update ${files.join(", ") || "package"}`;
       }
@@ -211,27 +268,29 @@ export function groupChanges(changes, getDiffFn = getFileDiff) {
     // Priority Classification
     if (path.includes("git-atomic") || path.includes("git-commit") || path.includes("toolbox/src/") || path.includes("toolbox/test/")) {
       groups.toolbox.items.push(item);
-    } else if (signals.has("security")) {
-      groups.security.items.push(item);
-    } else if (signals.has("homestead-subpath") && path.includes("tsconfig")) {
-      groups.typecheck_fix.items.push(item);
-    } else if (signals.has("barn-api") || signals.has("barn-integrity") || (signals.has("scope:barn") && signals.has("test-file"))) {
-      groups.barn_impl.items.push(item);
-    } else if (path.includes("barn") && (path.endsWith(".md") || path.includes("docs/"))) {
-      groups.barn_specs.items.push(item);
-    } else if (signals.has("plugin-api-rename") || signals.has("test-file")) {
-      groups.test_cleanup.items.push(item);
-    } else if (path.endsWith(".md") || path.includes("docs/")) {
-      groups.docs.items.push(item);
     } else if (primaryScope) {
-      // If it has a clear scope, create or use a dynamic group for that scope
+      // Favor scope for package changes
       const gid = `scope:${primaryScope}`;
       if (!dynamicGroups.has(gid)) {
         dynamicGroups.set(gid, { id: gid, title: `📦 Package: ${primaryScope}`, items: [] });
       }
       dynamicGroups.get(gid).items.push(item);
-    } else if (path.includes("package.json") || path.includes("tsconfig") || path.includes("turbo.json")) {
-      groups.pkg_updates.items.push(item);
+    } else if (signals.has("infra:github")) {
+      const gid = "infra_github";
+      if (!dynamicGroups.has(gid)) {
+        dynamicGroups.set(gid, { id: gid, title: "🚀 Infrastructure: GitHub CI/CD", items: [] });
+      }
+      dynamicGroups.get(gid).items.push(item);
+    } else if (signals.has("infra:turbo") || signals.has("infra:tsconfig") || signals.has("infra:vitest")) {
+      const gid = "infra_configs";
+      if (!dynamicGroups.has(gid)) {
+        dynamicGroups.set(gid, { id: gid, title: "📦 Configuration: Repository-wide", items: [] });
+      }
+      dynamicGroups.get(gid).items.push(item);
+    } else if (signals.has("security")) {
+      groups.security.items.push(item);
+    } else if (path.endsWith(".md") || path.includes("docs/")) {
+      groups.docs.items.push(item);
     } else {
       groups.other.items.push(item);
     }

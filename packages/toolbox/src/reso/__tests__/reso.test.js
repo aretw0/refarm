@@ -19,12 +19,12 @@ vi.mock("node:fs", async () => {
 
 vi.mock("chalk", () => ({
   default: {
-    blue: (s: string) => s,
-    green: (s: string) => s,
-    yellow: (s: string) => s,
-    gray: (s: string) => s,
-    bold: (s: string) => s,
-    dim: (s: string) => s,
+    blue: (s) => s,
+    green: (s) => s,
+    yellow: (s) => s,
+    gray: (s) => s,
+    bold: (s) => s,
+    dim: (s) => s,
   },
 }));
 

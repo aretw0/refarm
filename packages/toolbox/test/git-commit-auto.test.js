@@ -5,7 +5,7 @@ import { processCommits } from "../src/git-commit-auto.mjs";
 // The message is derived dynamically by deriveCommitMessage(group.id, group.items).
 // We use a known group id ("pkg_updates") with a simple item so the derived message is predictable.
 
-const makeGroup = (id: string, path: string, signals: string[] = []) => ({
+const makeGroup = (id, path, signals = []) => ({
   id,
   title: "Test Group",
   items: [{ status: "M", path, signals: new Set(signals) }]
@@ -22,11 +22,11 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     await processCommits(mockGroups, {
       execFn,
-      readlineInterface: mockRl as any
+      readlineInterface: mockRl
     });
 
     expect(execFn).toHaveBeenCalledOnce();
-    const cmd = execFn.mock.calls[0][0] as string;
+    const cmd = execFn.mock.calls[0][0];
     expect(cmd).toContain("git add file.txt");
     expect(cmd).toContain("git commit -m");
     expect(cmd).not.toContain('"undefined"');
@@ -42,7 +42,7 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     await processCommits(mockGroups, {
       execFn,
-      readlineInterface: mockRl as any
+      readlineInterface: mockRl
     });
 
     expect(execFn).not.toHaveBeenCalled();
@@ -60,7 +60,7 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     await processCommits(mockGroups, {
       execFn,
-      readlineInterface: mockRl as any
+      readlineInterface: mockRl
     });
 
     expect(execFn).toHaveBeenCalledWith('git add file.txt && git commit -m "feat: custom message"');
@@ -79,7 +79,7 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     await processCommits(mockGroups, {
       execFn,
-      readlineInterface: mockRl as any
+      readlineInterface: mockRl
     });
 
     expect(execFn).not.toHaveBeenCalled();
@@ -104,10 +104,10 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     await processCommits(mockGroups, {
       execFn,
-      readlineInterface: mockRl as any
+      readlineInterface: mockRl
     });
 
-    const cmd = execFn.mock.calls[0][0] as string;
+    const cmd = execFn.mock.calls[0][0];
     expect(cmd).toContain("fix(types):");
     expect(cmd).toContain("homestead");
   });
