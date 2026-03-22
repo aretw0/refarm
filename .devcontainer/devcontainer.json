@@ -26,7 +26,8 @@
     "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume",
     "source=refarm-cargo-bin,target=/usr/local/cargo/bin,type=volume",
     "source=refarm-rustup,target=/usr/local/rustup,type=volume",
-    "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume"
+    "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume",
+    "source=refarm-playwright-cache,target=/home/vscode/.cache/ms-playwright,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
