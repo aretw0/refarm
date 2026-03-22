@@ -6,15 +6,15 @@
 
 ## What Is This?
 
-**Barn** is the dedicated manager for plugin lifecycles within Refarm. In the "Fertile Soil" (Solo Fértil) metaphor, if the **Tractor** is the engine that orchestrates work, the **Barn** is where your tools (WASM plugins) are kept safe, organized, and ready for use.
+**Barn** is the dedicated manager for plugin lifecycles within Refarm. Following the **Headless-First** philosophy, it provides the core logic for plugin inventory and integrity, while allowing the UI to be composed by specialized plugins or interactive 3D representations in the Studio. In the "Fertile Soil" (Solo Fértil) metaphor, if the **Tractor** is the engine that orchestrates work, the **Barn** is where your tools (WASM plugins) are kept safe, organized, and ready for use.
 
 It handles the complexities of fetching, verifying, and caching plugin binaries, ensuring that every "implement" attached to your Tractor is authentic and compatible.
 
 ### Core Responsibilities:
-- 📦 **Inventory Management**: Maintains a catalog of all installed and available plugins.
-- 🔐 **Integrity Verification**: Enforces SHA-256 checks on all WASM binaries before they enter the soil.
-- 💾 **Sovereign Caching**: Manages local persistence of plugins using **OPFS** (Origin Private File System), ensuring offline availability.
-- 🗺️ **Graph Integration**: Represents plugins as `SovereignNodes` in the graph, making them discoverable by the **Surveyor** (Agrimensor).
+- 📦 **Inventory Management**: Maintains a unified catalog of plugins (Remote, Local-Dev, Synthetic, or Graph-Synced).
+- 🔐 **Integrity & Access Control**: Enforces SHA-256 checks and fine-grained access control to specific graph branches (e.g., preventing access to `main`).
+- 💾 **Sovereign Caching & Sync**: Manages persistence in **OPFS** and synchronization of private plugins via the Sovereign Graph (CRDT).
+- 🗺️ **Graph-First Orchestration**: Every plugin is a `SovereignNode`, allowing the system to build itself through plugin composition.
 
 ---
 
