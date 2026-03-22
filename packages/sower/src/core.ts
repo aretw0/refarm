@@ -97,8 +97,7 @@ export class SowerCore {
 
     // Hydrate files if targetDir is provided
     if (options.targetDir) {
-        const rootDir = process.cwd(); // Assuming run from monorepo root for now
-        const templatePath = path.join(rootDir, "templates", templateId, templateSubPath);
+        const templatePath = path.resolve(__dirname, "../../../templates", templateId, templateSubPath);
         
         if (fs.existsSync(templatePath)) {
             console.log(`[sower-core] Hydrating from ${templatePath} to ${options.targetDir}...`);
