@@ -1,19 +1,23 @@
 import {
   REQUIRED_TELEMETRY_HOOKS,
-  type ManifestValidationResult,
-  type PluginManifest,
 } from "./types.js";
 
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/;
 
-function hasDuplicates(values: string[]): boolean {
+/**
+ * @param {string[]} values
+ * @returns {boolean}
+ */
+function hasDuplicates(values) {
   return new Set(values).size !== values.length;
 }
 
-export function validatePluginManifest(
-  manifest: PluginManifest,
-): ManifestValidationResult {
-  const errors: string[] = [];
+/**
+ * @param {import('./types.js').PluginManifest} manifest
+ * @returns {import('./types.js').ManifestValidationResult}
+ */
+export function validatePluginManifest(manifest) {
+  const errors = [];
 
   if (!manifest.id || !manifest.id.startsWith("@")) {
     errors.push("id must be a non-empty scoped package name (e.g. @vendor/plugin)");
@@ -119,7 +123,11 @@ export function validatePluginManifest(
   };
 }
 
-export function assertValidPluginManifest(manifest: PluginManifest): void {
+/**
+ * @param {import('./types.js').PluginManifest} manifest
+ * @returns {void}
+ */
+export function assertValidPluginManifest(manifest) {
   const result = validatePluginManifest(manifest);
   if (!result.valid) {
     throw new Error(`Invalid plugin manifest: ${result.errors.join("; ")}`);

@@ -1,12 +1,14 @@
-import type { PluginManifest, TelemetryHook } from "./types.js";
-
-const DEFAULT_HOOKS: TelemetryHook[] = ["onLoad", "onInit", "onRequest", "onError", "onTeardown"];
+import { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 
 /**
  * Creates a valid PluginManifest for testing purposes.
  * Overrides can be passed to test specific scenarios.
  */
-export function createMockManifest(overrides: Partial<PluginManifest> = {}): PluginManifest {
+/**
+ * @param {Partial<import('./types.js').PluginManifest>} [overrides={}]
+ * @returns {import('./types.js').PluginManifest}
+ */
+export function createMockManifest(overrides = {}) {
   return {
     id: "@refarm.dev/test-plugin",
     name: "Test Plugin",
@@ -20,7 +22,7 @@ export function createMockManifest(overrides: Partial<PluginManifest> = {}): Plu
     },
     permissions: [],
     observability: {
-      hooks: [...DEFAULT_HOOKS],
+      hooks: [...REQUIRED_TELEMETRY_HOOKS],
     },
     targets: ["browser", "server"],
     ui: {
