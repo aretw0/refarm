@@ -22,8 +22,8 @@
       "types": "./dist/index.d.ts"
     },
     "./test/test-utils": {
-      "types": "./dist/test/test-utils.d.ts",
-      "default": "./dist/test/test-utils.js"
+      "types": "./test/test-utils.d.ts",
+      "default": "./test/test-utils.js"
     }
   },
   "scripts": {
