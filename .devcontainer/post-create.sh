@@ -7,8 +7,8 @@ echo "[refarm-devcontainer] Starting optimized post-create setup..."
 # 1. Fix permissions for mounted volumes (CRITICAL for rust-analyzer)
 # refarm-npm-cache mounts as root; refarm-cargo-* mount into /usr/local/cargo (rustlang group, vscode is member).
 echo "[refarm-devcontainer] Fixing permissions for mounted caches..."
-mkdir -p /home/vscode/.npm /home/vscode/.turbo
-sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo
+mkdir -p /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright
+sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright
 # Rust/Cargo volumes mount as root/rustlang; ensure vscode can write to bin and rustup if needed
 sudo chown -R vscode:rustlang /usr/local/cargo /usr/local/rustup
 chmod -R g+w /usr/local/cargo /usr/local/rustup
