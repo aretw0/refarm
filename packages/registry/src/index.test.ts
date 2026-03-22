@@ -1,6 +1,22 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SovereignRegistry } from "./index.js";
 import { KeyManager } from "../../silo/src/key-manager.js";
+
+// Explicit mock for heartwood in this test suite to avoid environment issues
+vi.mock("@refarm.dev/heartwood", () => {
+  const mock = {
+    generateKeypair: vi.fn().mockReturnValue({
+      secretKey: new Uint8Array(32),
+      publicKey: new Uint8Array(32)
+    }),
+    sign: vi.fn().mockReturnValue(new Uint8Array(64)),
+    verify: vi.fn().mockReturnValue(true)
+  };
+  return {
+    ...mock,
+    default: mock
+  };
+});
 import { Buffer } from "node:buffer";
 
 describe("SovereignRegistry", () => {
