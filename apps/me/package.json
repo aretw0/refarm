@@ -9,7 +9,9 @@
     "preview": "astro preview",
     "astro:check": "astro check",
     "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit"
+    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
+    "test:unit": "vitest run --passWithNoTests",
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@refarm.dev/homestead": "*",
