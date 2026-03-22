@@ -129,7 +129,7 @@ describe("trust profile validation", () => {
       },
     });
 
-    (manifest.trust as any).profile = "unsafe";
+    manifest.trust.profile = "unsafe";
 
     const result = validatePluginManifest(manifest);
     expect(result.errors).toContain(
