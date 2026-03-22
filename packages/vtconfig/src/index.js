@@ -2,7 +2,7 @@ import path from 'node:path'
 import fs from 'node:fs'
 
 /**
- * @typedef {import('vite').UserConfig & { test?: any }} UserConfig
+ * @typedef {import('vitest/config').UserConfig} UserConfig
  */
 
 /**
