@@ -61,19 +61,19 @@ describe("Compositional Performance (Stress Load)", () => {
 
     bench("API Discovery: 10 plugins (x100k)", async () => {
         for (let i = 0; i < ITERATIONS; i++) {
-            await tractor10.getPluginApi("MyApi");
+            await tractor10.plugins.findByApi("MyApi");
         }
     });
 
     bench("API Discovery: 1000 plugins (Last) (x100k)", async () => {
         for (let i = 0; i < ITERATIONS; i++) {
-            await tractor1000Last.getPluginApi("MyApi");
+            await tractor1000Last.plugins.findByApi("MyApi");
         }
     });
 
     bench("API Discovery: 1000 plugins (Middle) (x100k)", async () => {
         for (let i = 0; i < ITERATIONS; i++) {
-            await tractor1000Random.getPluginApi("Api500");
+            await tractor1000Random.plugins.findByApi("Api500");
         }
     });
 });
