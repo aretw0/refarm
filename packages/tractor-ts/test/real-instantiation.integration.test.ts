@@ -48,7 +48,6 @@ describe("Real WASM Instantiation Integration", () => {
     const imports = (tractor.plugins as any).getWasiImports(manifest, "strict");
 
     // Instantiate with fixture logic
-    // @ts-expect-error - JCO generates dynamic exports that are not typed in this fixture
     const componentInstance = await heartwoodFixture.instantiate((name: string) => {
         const baseName = name.endsWith(".wasm") ? name.slice(0, -5) : name;
         const p = path.join(fixtureWasmDir, `${baseName}.wasm`);
