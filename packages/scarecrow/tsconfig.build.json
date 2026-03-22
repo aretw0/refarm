@@ -1,8 +1,17 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "rootDir": "src",
+    "outDir": "dist",
     "noEmit": false,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "paths": {
+      "@refarm.dev/tractor": ["packages/tractor-ts/dist/index.d.ts"]
+    }
   },
+  "include": ["src/**/*"],
   "exclude": ["src/**/*.test.ts", "node_modules", "dist"]
 }
