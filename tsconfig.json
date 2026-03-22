@@ -3,7 +3,11 @@
     "target": "ES2022",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -13,28 +17,85 @@
     "sourceMap": true,
     "baseUrl": ".",
     "paths": {
-      "@refarm.dev/storage-contract-v1": [
-        "./packages/storage-contract-v1/src/index.ts"
+      "@refarm.dev/locales/*": [
+        "./locales/*"
       ],
-      "@refarm.dev/sync-contract-v1": [
-        "./packages/sync-contract-v1/src/index.ts"
-      ],
-      "@refarm.dev/identity-contract-v1": [
-        "./packages/identity-contract-v1/src/index.ts"
-      ],
-      "@refarm.dev/plugin-manifest": [
-        "./packages/plugin-manifest/src/index.ts"
+      "@refarm.dev/*": [
+        "./packages/*/src"
       ],
       "@refarm.dev/barn": [
         "./packages/barn/src/index.ts"
       ],
-      "@refarm.dev/tractor": ["./packages/tractor-ts/src/index.ts"],
-      "@refarm.dev/tractor/test/test-utils": ["./packages/tractor-ts/test/test-utils.ts"],
-      "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index.ts"],
-      "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index.ts"],
-      "@refarm.dev/locales/*": ["./locales/*"],
-      "@refarm.dev/*": ["./packages/*/src"]
+      "@refarm.dev/cli": [
+        "./packages/cli/src/index.ts"
+      ],
+      "@refarm.dev/config": [
+        "./packages/config/src/index.ts"
+      ],
+      "@refarm.dev/dsl-headless": [
+        "./packages/dsl-headless/src/index.ts"
+      ],
+      "@refarm.dev/homestead/sdk": [
+        "./packages/homestead/src/sdk/index.ts"
+      ],
+      "@refarm.dev/homestead/ui": [
+        "./packages/homestead/src/ui/index.ts"
+      ],
+      "@refarm.dev/identity-contract-v1": [
+        "./packages/identity-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/plugin-courier": [
+        "./packages/plugin-courier/src/index.ts"
+      ],
+      "@refarm.dev/plugin-manifest": [
+        "./packages/plugin-manifest/src/index.ts"
+      ],
+      "@refarm.dev/plugin-tem": [
+        "./packages/plugin-tem/src/index.ts"
+      ],
+      "@refarm.dev/registry": [
+        "./packages/registry/src/index.ts"
+      ],
+      "@refarm.dev/scarecrow": [
+        "./packages/scarecrow/src/index.ts"
+      ],
+      "@refarm.dev/sower": [
+        "./packages/sower/src/index.ts"
+      ],
+      "@refarm.dev/storage-contract-v1": [
+        "./packages/storage-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/storage-rest": [
+        "./packages/storage-rest/src/index.ts"
+      ],
+      "@refarm.dev/storage-sqlite": [
+        "./packages/storage-sqlite/src/index.ts"
+      ],
+      "@refarm.dev/sync-contract-v1": [
+        "./packages/sync-contract-v1/src/index.ts"
+      ],
+      "@refarm.dev/sync-crdt": [
+        "./packages/sync-crdt/src/index.ts"
+      ],
+      "@refarm.dev/sync-loro": [
+        "./packages/sync-loro/src/index.ts"
+      ],
+      "@refarm.dev/terminal-plugin": [
+        "./packages/terminal-plugin/src/index.ts"
+      ],
+      "@refarm.dev/tractor": [
+        "./packages/tractor-ts/src/index.ts"
+      ],
+      "@refarm.dev/tractor/test/test-utils": [
+        "./packages/tractor-ts/test/test-utils.ts"
+      ]
     }
   },
-  "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "build",
+    "pkg",
+    "**/*.test.ts"
+  ]
 }
