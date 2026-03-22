@@ -16,7 +16,6 @@
     "build-storybook": "storybook build"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
     "storybook": "^8.0.0",
     "@storybook/html": "^8.0.0",
     "@storybook/html-vite": "^8.0.0",

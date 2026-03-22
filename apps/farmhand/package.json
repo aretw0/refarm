@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
   "scripts": {
     "start": "node --experimental-strip-types src/index.ts",
     "dev": "node --watch --experimental-strip-types src/index.ts",

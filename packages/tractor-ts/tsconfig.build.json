@@ -5,7 +5,7 @@
     "declaration": true,
     "declarationMap": true,
     "noEmit": false,
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
     "paths": {
       "@refarm.dev/storage-contract-v1": ["./packages/storage-contract-v1/dist/index.d.ts"],
@@ -15,5 +15,5 @@
       "@refarm.dev/registry": ["./packages/registry/dist/index.d.ts"]
     }
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*", "test/test-utils.ts"]
 }

@@ -11,8 +11,5 @@
     "@refarm.dev/plugin-manifest": "*",
     "@refarm.dev/dsl-headless": "*"
   },
-  "devDependencies": {
-    "typescript": "^5.7.3"
-  },
   "license": "MIT"
 }

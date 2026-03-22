@@ -42,8 +42,6 @@
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/tsconfig": "*",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
+    "@refarm.dev/tsconfig": "*"
   }
 }

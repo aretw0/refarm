@@ -27,9 +27,7 @@
     "@refarm.dev/storage-contract-v1": "*"
   },
   "devDependencies": {
-    "@refarm.dev/tsconfig": "*",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
+    "@refarm.dev/tsconfig": "*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

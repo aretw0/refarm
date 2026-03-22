@@ -26,6 +26,16 @@ async function run() {
             case 'sync-labels':
                 await import('./sync-labels.mjs');
                 break;
+            case 'reso':
+                const { switchResolution } = await import('./reso.mjs');
+                const mode = process.argv[3];
+                const debug = process.argv.includes('--debug');
+                if (mode !== 'src' && mode !== 'dist' && mode !== 'status' && mode !== 'sync-tsconfig') {
+                    console.error("Usage: refarm-task reso <src|dist|status|sync-tsconfig> [--debug]");
+                    process.exit(1);
+                }
+                await switchResolution(mode, { debug });
+                break;
             default:
                 console.log("🚜 Refarm Developer Toolbox");
                 console.log("Usage: refarm-task <command>");
@@ -35,6 +45,7 @@ async function run() {
                 console.log("  finish      - Complete a task, verify, and open a PR");
                 console.log("  rebrand     - Emergency global refactoring protocol");
                 console.log("  sync-labels - Create/Update GitHub phase labels");
+                console.log("  reso        - Toggle between Local (src) and Published (dist) resolution");
                 process.exit(1);
         }
     } catch (err) {
