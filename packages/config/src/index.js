@@ -6,7 +6,7 @@ import path from "node:path";
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
 
-export function findRefarmRoot(startDir = process.cwd()): string {
+export function findRefarmRoot(startDir = process.cwd()) {
     let currentDir = startDir;
     while (true) {
         const configPath = path.join(currentDir, "refarm.config.json");
@@ -21,7 +21,7 @@ export function findRefarmRoot(startDir = process.cwd()): string {
 /**
  * Deep merge utility for configuration objects
  */
-function deepMerge(target: any, source: any): any {
+function deepMerge(target, source) {
     if (!source) return target;
     const output = { ...target };
 
@@ -39,7 +39,7 @@ function deepMerge(target: any, source: any): any {
  * Simple interpolation resolver for config properties.
  * Supports {{path.to.prop}} and {{env.VAR_NAME}}.
  */
-function resolveInterpolation(config: any, current: any = config): any {
+function resolveInterpolation(config, current = config) {
     if (typeof current === "string") {
         return current.replace(/\{\{([\w\.]+)\}\}/g, (match, pathStr) => {
             if (pathStr.startsWith("env.")) {
@@ -64,7 +64,7 @@ function resolveInterpolation(config: any, current: any = config): any {
     }
 
     if (current !== null && typeof current === "object") {
-        const resolved: any = {};
+        const resolved = {};
         for (const [key, value] of Object.entries(current)) {
             resolved[key] = resolveInterpolation(config, value);
         }
@@ -78,7 +78,7 @@ function resolveInterpolation(config: any, current: any = config): any {
 
 const JsonSource = {
     name: "json",
-    loadSync(root: string): any {
+    loadSync(root) {
         const configPath = path.join(root, "refarm.config.json");
         if (!fs.existsSync(configPath)) return {};
         try {
@@ -92,9 +92,9 @@ const JsonSource = {
 
 const EnvSource = {
     name: "env",
-    loadSync(): any {
+    loadSync() {
         // Map common REFARM_ envs to the config structure
-        const config: any = {};
+        const config = {};
         if (process.env.REFARM_SITE_URL || process.env.REFARM_REPO_URL) {
             config.brand = { urls: {} };
             if (process.env.REFARM_SITE_URL) config.brand.urls.site = process.env.REFARM_SITE_URL;
@@ -121,11 +121,11 @@ const RemoteSource = {
     /**
      * Implement full Sovereign Graph / External API resolution.
      */
-    async load(root: string, endpoint: string): Promise<any> {
+    async load(root, endpoint) {
         if (!endpoint) return {};
         
         const token = process.env.REFARM_REMOTE_TOKEN;
-        const headers: Record<string, string> = {
+        const headers = {
             "Accept": "application/json",
             "X-Refarm-Client": "config-loader"
         };
@@ -143,9 +143,9 @@ const RemoteSource = {
                 return {};
             }
             
-            const data: any = await res.json();
+            const data = await res.json();
             return data?.config || data; // Support both wrapped and direct JSON
-        } catch (e: any) {
+        } catch (e) {
             console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
             return {};
         }
@@ -156,7 +156,7 @@ const RemoteSource = {
  * STRATEGIC BOOTSTRAP
  * Decides the activation strategy based on signals.
  */
-function bootstrapIntent(root: string): any {
+function bootstrapIntent(root) {
     const json = JsonSource.loadSync(root);
     const env = EnvSource.loadSync();
 
@@ -186,11 +186,11 @@ function bootstrapIntent(root: string): any {
 /**
  * Synchronous loader (JSON + ENV)
  */
-export function loadConfig(root: string = findRefarmRoot()): any {
+export function loadConfig(root = findRefarmRoot()) {
     const { precedence } = bootstrapIntent(root);
-    let config: any = {};
+    let config = {};
 
-    const sources: Record<string, () => any> = {
+    const sources = {
         json: () => JsonSource.loadSync(root),
         env: () => EnvSource.loadSync()
     };
@@ -207,11 +207,11 @@ export function loadConfig(root: string = findRefarmRoot()): any {
 /**
  * Asynchronous loader (Full Sovereignty)
  */
-export async function loadConfigAsync(root: string = findRefarmRoot()): Promise<any> {
+export async function loadConfigAsync(root = findRefarmRoot()) {
     const { endpoint, precedence } = bootstrapIntent(root);
-    let config: any = {};
+    let config = {};
 
-    const sources: Record<string, () => any | Promise<any>> = {
+    const sources = {
         json: () => JsonSource.loadSync(root),
         env: () => EnvSource.loadSync(),
         remote: async () => endpoint ? await RemoteSource.load(root, endpoint) : {}
