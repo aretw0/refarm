@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
-  "main": "./dist/index.mjs",
-  "types": "./dist/index.d.mts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.mjs",
-      "types": "./dist/index.d.mts"
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
     },
-    "./astro": "./dist/astro.mjs"
+    "./astro": "./dist/astro.js"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",

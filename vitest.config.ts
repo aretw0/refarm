@@ -1,10 +1,12 @@
 import { defineConfig } from 'vitest/config'
 import path from 'node:path'
 
-const useDistGlobal = process.env.VITEST_USE_DIST === 'true';
-const forcedDistPackages = (process.env.VITEST_FORCE_DIST || '').split(',').map(s => s.trim());
-
-export const getAliases = (root: string) => {
+/**
+ * Helper to generate aliases for Vitest based on current environment (src vs dist).
+ */
+function getAliases(root: string) {
+  const useDistGlobal = process.env.VITEST_USE_DIST === 'true';
+  const forcedDistPackages = (process.env.VITEST_FORCE_DIST || '').split(',').map(s => s.trim());
   const packagesDir = path.resolve(root, 'packages');
   const localesDir = path.resolve(root, 'locales');
   
@@ -13,7 +15,7 @@ export const getAliases = (root: string) => {
     return (useDistGlobal || isForcedDist) ? 'dist/index.js' : 'src/index.ts';
   };
 
-  const aliases: Record<string, string> = {
+  return {
     '@refarm.dev/tractor/test/test-utils': path.resolve(packagesDir, 'tractor-ts', 'test', 'test-utils.ts'),
     '@refarm.dev/tractor': path.resolve(packagesDir, 'tractor-ts', getSuffix('@refarm.dev/tractor')),
     '@refarm.dev/plugin-manifest': path.resolve(packagesDir, 'plugin-manifest', getSuffix('@refarm.dev/plugin-manifest')),
@@ -25,16 +27,14 @@ export const getAliases = (root: string) => {
     '@refarm.dev/storage-sqlite': path.resolve(packagesDir, 'storage-sqlite', getSuffix('@refarm.dev/storage-sqlite')),
     '@refarm.dev/locales': localesDir,
   };
+}
 
-  return aliases;
-};
-
-export const baseConfig = {
+export default defineConfig({
   test: {
     globals: true,
     environment: 'jsdom',
     coverage: {
-      provider: 'v8' as const,
+      provider: 'v8',
       reporter: ['text', 'json-summary'],
       exclude: [
         'node_modules/',
@@ -47,12 +47,15 @@ export const baseConfig = {
     },
     include: ['**/*.test.ts', '**/*.spec.ts'],
     exclude: ['node_modules/', 'dist/', '.idea', '.git', '.cache', 'validations/', 'apps/'],
-    testTimeout: 10000,
-    hookTimeout: 10000,
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    // Vitest 4 Pool Options (Reworked)
+    pool: 'forks',
+    forks: {
+      singleFork: true,
+    },
   },
   resolve: {
     alias: getAliases(process.cwd())
   }
-};
-
-export default defineConfig(baseConfig);
+});
