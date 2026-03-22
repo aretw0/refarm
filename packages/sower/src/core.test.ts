@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { SowerCore } from "./core.js";
 import * as fs from "node:fs";
-import * as path from "node:path";
 import * as os from "node:os";
+import * as path from "node:path";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { SowerCore } from "./core";
 
 describe("SowerCore Scaffolding (Isolated)", () => {
     let tempDir: string;
@@ -10,6 +10,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
     beforeEach(() => {
         // Create a unique temporary directory for each test
         tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-sower-test-"));
+        vi.stubEnv("REFARM_SITE_URL", "https://aretw0.github.io/refarm");
     });
 
     afterEach(() => {
@@ -17,6 +18,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         if (fs.existsSync(tempDir)) {
             fs.rmSync(tempDir, { recursive: true, force: true });
         }
+        vi.unstubAllEnvs();
     });
 
     it("should hydrate the 'courier' template correctly", async () => {
