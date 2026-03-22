@@ -7,7 +7,7 @@
     "build": "turbo build",
     "dev": "turbo dev",
     "lint": "turbo lint",
-    "test": "vitest run",
+    "test": "turbo run test",
     "test:watch": "vitest --watch",
     "git-atomic": "node packages/toolbox/src/git-atomic-analysis.mjs",
     "git-commit-auto": "node packages/toolbox/src/git-commit-auto.mjs",
