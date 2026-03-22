@@ -1,4 +1,4 @@
-import * as heartwood from "@refarm.dev/heartwood";
+// heartwood is loaded dynamically inside methods to avoid premature WASM loading in tests
 
 /**
  * KeyManager: Handles cryptographic identity and key storage.
@@ -14,8 +14,10 @@ export class KeyManager {
      * Returns keys as Hex strings for sovereign portability.
      */
     async generateMasterKey() {
+        const mod = await import("@refarm.dev/heartwood");
+        const heartwood = mod.default || mod;
         // use heartwood to generate raw bytes in WASM sandbox
-        const keypair = heartwood.generateKeypair();
+        const keypair = await heartwood.generateKeypair();
 
         return {
             privateKey: Buffer.from(keypair.secretKey).toString("hex"),
@@ -34,10 +36,12 @@ export class KeyManager {
      * Signs a message using the hardened WASM engine.
      */
     async sign(payload, privateKeyHex) {
+        const mod = await import("@refarm.dev/heartwood");
+        const heartwood = mod.default || mod;
         const secretKey = Uint8Array.from(Buffer.from(privateKeyHex, "hex"));
         const data = typeof payload === "string" ? Buffer.from(payload) : payload;
         
-        const signature = heartwood.sign(new Uint8Array(data), secretKey);
+        const signature = await heartwood.sign(new Uint8Array(data), secretKey);
         return Buffer.from(signature).toString("hex");
     }
 }
