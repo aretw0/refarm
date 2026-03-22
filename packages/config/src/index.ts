@@ -6,7 +6,7 @@ import path from "node:path";
  * Implements a pluggable source system with Strategic Bootstrap and prioritized merging.
  */
 
-export function findRefarmRoot(startDir = process.cwd()) {
+export function findRefarmRoot(startDir = process.cwd()): string {
     let currentDir = startDir;
     while (true) {
         const configPath = path.join(currentDir, "refarm.config.json");
@@ -21,7 +21,7 @@ export function findRefarmRoot(startDir = process.cwd()) {
 /**
  * Deep merge utility for configuration objects
  */
-function deepMerge(target, source) {
+function deepMerge(target: any, source: any): any {
     if (!source) return target;
     const output = { ...target };
 
@@ -39,16 +39,16 @@ function deepMerge(target, source) {
  * Simple interpolation resolver for config properties.
  * Supports {{path.to.prop}} and {{env.VAR_NAME}}.
  */
-function resolveInterpolation(config, current = config) {
+function resolveInterpolation(config: any, current: any = config): any {
     if (typeof current === "string") {
-        return current.replace(/\{\{([\w\.]+)\}\}/g, (match, path) => {
-            if (path.startsWith("env.")) {
-                const envVar = path.slice(4);
+        return current.replace(/\{\{([\w\.]+)\}\}/g, (match, pathStr) => {
+            if (pathStr.startsWith("env.")) {
+                const envVar = pathStr.slice(4);
                 return process.env[envVar] || match;
             }
 
             // Traverse config
-            const parts = path.split(".");
+            const parts = pathStr.split(".");
             let val = config;
             for (const part of parts) {
                 val = val?.[part];
@@ -64,7 +64,7 @@ function resolveInterpolation(config, current = config) {
     }
 
     if (current !== null && typeof current === "object") {
-        const resolved = {};
+        const resolved: any = {};
         for (const [key, value] of Object.entries(current)) {
             resolved[key] = resolveInterpolation(config, value);
         }
@@ -78,7 +78,7 @@ function resolveInterpolation(config, current = config) {
 
 const JsonSource = {
     name: "json",
-    loadSync(root) {
+    loadSync(root: string): any {
         const configPath = path.join(root, "refarm.config.json");
         if (!fs.existsSync(configPath)) return {};
         try {
@@ -92,9 +92,9 @@ const JsonSource = {
 
 const EnvSource = {
     name: "env",
-    loadSync() {
+    loadSync(): any {
         // Map common REFARM_ envs to the config structure
-        const config = {};
+        const config: any = {};
         if (process.env.REFARM_SITE_URL || process.env.REFARM_REPO_URL) {
             config.brand = { urls: {} };
             if (process.env.REFARM_SITE_URL) config.brand.urls.site = process.env.REFARM_SITE_URL;
@@ -121,11 +121,11 @@ const RemoteSource = {
     /**
      * Implement full Sovereign Graph / External API resolution.
      */
-    async load(root, endpoint) {
+    async load(root: string, endpoint: string): Promise<any> {
         if (!endpoint) return {};
         
         const token = process.env.REFARM_REMOTE_TOKEN;
-        const headers = {
+        const headers: Record<string, string> = {
             "Accept": "application/json",
             "X-Refarm-Client": "config-loader"
         };
@@ -143,9 +143,9 @@ const RemoteSource = {
                 return {};
             }
             
-            const data = await res.json();
+            const data: any = await res.json();
             return data?.config || data; // Support both wrapped and direct JSON
-        } catch (e) {
+        } catch (e: any) {
             console.warn(`[refarm/config] Remote source error at ${endpoint}: ${e.message}`);
             return {};
         }
@@ -156,7 +156,7 @@ const RemoteSource = {
  * STRATEGIC BOOTSTRAP
  * Decides the activation strategy based on signals.
  */
-function bootstrapIntent(root) {
+function bootstrapIntent(root: string): any {
     const json = JsonSource.loadSync(root);
     const env = EnvSource.loadSync();
 
@@ -186,11 +186,11 @@ function bootstrapIntent(root) {
 /**
  * Synchronous loader (JSON + ENV)
  */
-export function loadConfig(root = findRefarmRoot()) {
-    const { strategy, precedence } = bootstrapIntent(root);
-    let config = {};
+export function loadConfig(root: string = findRefarmRoot()): any {
+    const { precedence } = bootstrapIntent(root);
+    let config: any = {};
 
-    const sources = {
+    const sources: Record<string, () => any> = {
         json: () => JsonSource.loadSync(root),
         env: () => EnvSource.loadSync()
     };
@@ -207,11 +207,11 @@ export function loadConfig(root = findRefarmRoot()) {
 /**
  * Asynchronous loader (Full Sovereignty)
  */
-export async function loadConfigAsync(root = findRefarmRoot()) {
-    const { strategy, endpoint, precedence } = bootstrapIntent(root);
-    let config = {};
+export async function loadConfigAsync(root: string = findRefarmRoot()): Promise<any> {
+    const { endpoint, precedence } = bootstrapIntent(root);
+    let config: any = {};
 
-    const sources = {
+    const sources: Record<string, () => any | Promise<any>> = {
         json: () => JsonSource.loadSync(root),
         env: () => EnvSource.loadSync(),
         remote: async () => endpoint ? await RemoteSource.load(root, endpoint) : {}
