@@ -1,9 +1,5 @@
-import path from 'node:path'
-import fs from 'node:fs'
-
-/**
- * @typedef {import('vitest/config').UserConfig} UserConfig
- */
+import fs from 'node:fs';
+import path from 'node:path';
 
 /**
  * Helper to generate aliases for Vitest based on current environment (src vs dist).
@@ -14,21 +10,21 @@ export function getAliases(root) {
   const forcedDistPackages = (process.env.VITEST_FORCE_DIST || '').split(',').map(s => s.trim());
   const packagesDir = path.resolve(root, 'packages');
   const localesDir = path.resolve(root, 'locales');
-  
+
   const getSuffix = (pkgName) => {
     const isForcedDist = forcedDistPackages.includes(pkgName);
     if (useDistGlobal || isForcedDist) return 'dist/index.js';
-    
+
     // Check if package is JS-Atomic or TS-Strict
-    const pkgRelativePath = pkgName.includes('@refarm.dev/') 
+    const pkgRelativePath = pkgName.includes('@refarm.dev/')
       ? pkgName.replace('@refarm.dev/', '')
       : pkgName;
-      
+
     // Handle tractor-ts specifically if needed, or rely on fs check
     const pkgDir = path.resolve(packagesDir, pkgRelativePath === 'tractor' ? 'tractor-ts' : pkgRelativePath);
-    
+
     if (fs.existsSync(path.resolve(pkgDir, 'src', 'index.ts'))) {
-        return 'src/index.ts';
+      return 'src/index.ts';
     }
     return 'src/index.js';
   };
@@ -51,7 +47,7 @@ export function getAliases(root) {
 
 /**
  * Shared base configuration imported by per-package vitest.config.ts files.
- * @type {UserConfig}
+ * @type {baseConfig}
  */
 export const baseConfig = {
   test: {
