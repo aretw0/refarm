@@ -3,19 +3,15 @@
   "version": "0.1.0",
   "description": "Centralized configuration wrapper for Refarm applications",
   "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./src/index.js",
   "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    },
-    "./astro": "./dist/astro.js"
+    ".": "./src/index.js",
+    "./astro": "./src/astro.js"
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",
     "test": "vitest run",
-    "build": "tsc --project tsconfig.build.json"
+    "build": "true"
   },
   "repository": {
     "type": "git",

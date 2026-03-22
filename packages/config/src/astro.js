@@ -1,16 +1,15 @@
 import { defineConfig as defineAstroConfig } from "astro/config";
-import fs from "node:fs";
 import path from "node:path";
 import wasm from "vite-plugin-wasm";
 
-import { findRefarmRoot, loadConfig } from "./index.mjs";
+import { findRefarmRoot, loadConfig } from "./index.js";
 
 /**
  * Wraps the standard Astro defineConfig with Refarm's monorepo defaults.
  * It automatically reads `refarm.config.json` and injects required headers for WebContainers.
  */
-export function defineConfig(userConfig: any = {}) {
-    const root = findRefarmRoot();
+export function defineConfig(userConfig = {}) {
+    const root = findRefarmRoot(); 
     const refarmConfig = loadConfig(root);
 
     // Base path configuration for Pages deployment
@@ -18,16 +17,16 @@ export function defineConfig(userConfig: any = {}) {
     const base = process.env.ASTRO_BASE || (process.env.NODE_ENV === 'production' && refarmConfig?.brand?.slug ? `/${refarmConfig.brand.slug}/` : '/');
 
     // Manually define core aliases for robust resolution in monorepo
-    const coreAliases: Record<string, string> = {
+    const coreAliases = {
         "@refarm.dev/homestead/sdk": path.resolve(root, "packages/homestead/src/sdk/index.ts"),
         "@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
         "@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.ts"),
-        "@refarm.dev/config": path.resolve(root, "packages/config/src/index.ts"),
+        "@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
         "@refarm.dev/locales": path.resolve(root, "locales")
     };
 
     // Safely merge configurations
-    const mergedConfig: any = {
+    const mergedConfig = {
         site,
         base,
         output: "static",

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findRefarmRoot, loadConfig, loadConfigAsync } from "./index";
+import { findRefarmRoot, loadConfig, loadConfigAsync } from "./index.js";
 
 describe("@refarm.dev/config Deterministic Tests", () => {
     const root = findRefarmRoot();
