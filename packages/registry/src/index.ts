@@ -1,4 +1,3 @@
-import * as heartwood from "@refarm.dev/heartwood";
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 
 export interface RegistryPersistenceOptions {
@@ -144,7 +143,9 @@ export class SovereignRegistry {
             const publicKey = Uint8Array.from(Buffer.from(publicKeyHex, "hex"));
             const manifestData = new TextEncoder().encode(JSON.stringify(plugin.manifest));
 
-            const isValid = heartwood.verify(manifestData, signature, publicKey);
+            const mod = await import("@refarm.dev/heartwood");
+            const heartwood = mod.default || mod;
+            const isValid = await heartwood.verify(manifestData, signature, publicKey);
             
             if (isValid) {
                 plugin.status = "validated";
