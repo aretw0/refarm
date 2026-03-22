@@ -9,7 +9,7 @@
     "noEmit": false,
     "skipLibCheck": true,
     "paths": {
-      "@refarm.dev/tractor": ["packages/tractor-ts/dist/index.d.ts"]
+      "@refarm.dev/tractor": ["packages/tractor-ts/dist/src/index.d.ts"]
     }
   },
   "include": ["src/**/*"],
