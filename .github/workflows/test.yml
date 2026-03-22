@@ -34,42 +34,11 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
-      - name: Lint
-        run: npm run lint
+      - name: Verify (Full Turbo)
+        run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
 
-      - name: Type check
-        run: npm run type-check
-
-      # - name: Build storage contract declarations
-      #   run: npm --prefix packages/storage-contract-v1 run build
-      #
-      # - name: Storage capability conformance
-      #   run: npm --prefix packages/storage-sqlite run test:conformance
-
-      - name: Pre-test build (Turbo)
-        run: npx turbo build --filter=@refarm.dev/storage-contract-v1 --filter=@refarm.dev/storage-sqlite
-
-      - name: Build WASM plugin for tests
-        run: |
-          cd validations/wasm-plugin/hello-world
-          cargo component build --release
-
-      # - name: Unit tests
-      #   if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-      #   run: npm run test:unit -- --coverage
-      #
-      # - name: Integration tests
-      #   if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-      #   run: npm run test:integration
-
-      - name: Run Tests (Turbo)
-        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-        run: npx turbo run test:coverage test:unit test:integration
-
-      - name: Tractor Real WASM Instantiation
-        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-        run: npx vitest run packages/tractor/test/real-instantiation.integration.test.ts --run --reporter tap
-
+      # Specialized gates for Tractor (Performance & Coverage)
+      # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
         run: |
@@ -285,67 +254,6 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Get Playwright version
-        id: playwright_version
-        if: steps.e2e_check.outputs.enabled == 'true'
-        run: |
-          PW_VERSION=$(node -p "require('./validations/wasm-plugin/host/package-lock.json').packages['node_modules/@playwright/test'].version")
-          echo "version=${PW_VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Cache Playwright browsers
-        id: playwright_cache
-        if: steps.e2e_check.outputs.enabled == 'true'
-        uses: ./.github/actions/cache-playwright
-        with:
-          key: ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}-chromium-firefox-webkit
-          restore-keys: |
-            ${{ runner.os }}-playwright-${{ steps.playwright_version.outputs.version }}-
-            ${{ runner.os }}-playwright-
-
-      - name: Install E2E host dependencies
-        if: steps.e2e_check.outputs.enabled == 'true'
-        run: npm --prefix validations/wasm-plugin/host ci
-
-      - name: Cache WASM plugin build
-        id: wasm_cache
-        if: steps.e2e_check.outputs.enabled == 'true'
-        uses: ./.github/actions/cache
-        with:
-          path: |
-            validations/wasm-plugin/hello-world/target
-            validations/wasm-plugin/host/public/hello-world-plugin.wasm
-            validations/wasm-plugin/host/src/generated
-          key: ${{ runner.os }}-wasm-plugin-${{ hashFiles('validations/wasm-plugin/hello-world/Cargo.toml', 'validations/wasm-plugin/hello-world/Cargo.lock', 'validations/wasm-plugin/hello-world/src/**', 'validations/wasm-plugin/hello-world/wit/**', 'validations/wasm-plugin/host/package.json', 'validations/wasm-plugin/host/src/kernel-bridge.js') }}
-          restore-keys: |
-            ${{ runner.os }}-wasm-plugin-
-
-      - name: Build hello-world WASM plugin
-        if: steps.e2e_check.outputs.enabled == 'true' && steps.wasm_cache.outputs.cache-hit != 'true'
-        run: |
-          cd validations/wasm-plugin/hello-world
-          cargo component build --release
-
-      - name: Copy WASM plugin to host
-        if: steps.e2e_check.outputs.enabled == 'true' && steps.wasm_cache.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p validations/wasm-plugin/host/public
-          cp validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm validations/wasm-plugin/host/public/hello-world-plugin.wasm
-
-      - name: Transpile WASM to JavaScript
-        if: steps.e2e_check.outputs.enabled == 'true'
-        run: |
-          if [ ! -f validations/wasm-plugin/host/src/generated/hello-world.js ]; then
-            npm --prefix validations/wasm-plugin/host run build:wasm
-          else
-            echo "Transpiled artifacts restored from cache"
-          fi
-
-      - name: Install Playwright browsers (from cache or fresh)
-        if: steps.e2e_check.outputs.enabled == 'true'
-        run: |
-          cd validations/wasm-plugin/host
-          npx playwright install --with-deps chromium firefox webkit
-
       - name: Download build artifacts
         if: steps.e2e_check.outputs.enabled == 'true'
         uses: ./.github/actions/download-artifact
@@ -353,9 +261,9 @@ jobs:
           name: workspace-build
           path: .
 
-      - name: Run E2E tests
+      - name: Run E2E Tests (Full Turbo)
         if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-        run: npm run test:e2e
+        run: npx turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
         if: always() && steps.e2e_check.outputs.enabled == 'true'
