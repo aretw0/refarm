@@ -16,11 +16,15 @@
     },
     "test": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "*.config.*"]
-    },
-    "test:unit": {
-      "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "*.config.*"]
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
     },
     "test:coverage": {
       "dependsOn": ["^build"],

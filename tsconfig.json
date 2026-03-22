@@ -1,20 +1,6 @@
 {
+  "extends": "./packages/tsconfig/dom.json",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "strict": true,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
     "baseUrl": ".",
     "paths": {
       "@refarm.dev/locales/*": [
@@ -58,6 +44,9 @@
       ],
       "@refarm.dev/scarecrow": [
         "./packages/scarecrow/src/index.ts"
+      ],
+      "@refarm.dev/silo": [
+        "./packages/silo/src/index.ts"
       ],
       "@refarm.dev/sower": [
         "./packages/sower/src/index.ts"
