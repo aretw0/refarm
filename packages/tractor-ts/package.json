@@ -12,14 +12,14 @@
     "url": "https://github.com/refarm-dev/refarm/issues"
   },
   "homepage": "https://refarm.dev.br",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
   "exports": {
     ".": {
-      "node": "./dist/index.js",
-      "browser": "./dist/index.browser.js",
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "node": "./dist/src/index.js",
+      "browser": "./dist/src/index.browser.js",
+      "import": "./dist/src/index.js",
+      "types": "./dist/src/index.d.ts"
     },
     "./test/test-utils": {
       "types": "./dist/test/test-utils.d.ts",
