@@ -20,9 +20,17 @@ vi.mock("@refarm.dev/registry", () => ({
   }),
 }));
 
-vi.mock("node:child_process", () => ({
-  execFileSync: mockExecFileSync,
-}));
+vi.mock("node:child_process", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    execFileSync: mockExecFileSync,
+    default: {
+      ...actual.default,
+      execFileSync: mockExecFileSync,
+    }
+  };
+});
 
 import { pluginCommand } from "./plugin.js";
 

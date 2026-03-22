@@ -28,9 +28,7 @@
     "inquirer": "^9.2.14"
   },
   "devDependencies": {
-    "@types/inquirer": "^9.0.9",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
+    "@types/inquirer": "^9.0.9"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

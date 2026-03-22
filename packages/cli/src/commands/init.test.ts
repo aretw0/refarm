@@ -32,11 +32,21 @@ vi.mock("@refarm.dev/silo", () => ({
   SiloCore: vi.fn().mockImplementation(function () { return { bootstrapIdentity: mockBootstrapIdentity }; }),
 }));
 
-vi.mock("node:fs", () => ({
-  existsSync: mockExistsSync,
-  mkdirSync: mockMkdirSync,
-  writeFileSync: mockWriteFileSync,
-}));
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal() as any;
+  return {
+    ...actual,
+    existsSync: mockExistsSync,
+    mkdirSync: mockMkdirSync,
+    writeFileSync: mockWriteFileSync,
+    default: {
+      ...actual.default,
+      existsSync: mockExistsSync,
+      mkdirSync: mockMkdirSync,
+      writeFileSync: mockWriteFileSync,
+    }
+  };
+});
 
 import { initCommand } from "./init.js";
 
