@@ -12,5 +12,11 @@
     }
   },
   "exclude": ["node_modules", "dist"],
-  "include": ["src/**/*", ".astro/types.d.ts"]
+  "include": ["src/**/*", ".astro/types.d.ts"],
+  "references": [
+    { "path": "../../packages/identity-contract-v1" },
+    { "path": "../../packages/storage-contract-v1" },
+    { "path": "../../packages/sync-contract-v1" },
+    { "path": "../../packages/tractor-ts/tsconfig.build.json" }
+  ]
 }
