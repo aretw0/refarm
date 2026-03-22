@@ -18,13 +18,18 @@ Representa uma entrada no catálogo de plugins do Barn. É um tipo de `Sovereign
   "installUrl": "https://example.com/plugin.wasm",
   "sha256Integrity": "sha256-<base64-encoded-hash>",
   "datePublished": "2026-03-21T12:00:00Z",
-  "refarm:status": "installed", // ou "pending", "error", "available"
+  "refarm:status": "installed", // ou "pending", "error", "available", "development"
   "refarm:installedAt": "2026-03-21T12:05:00Z",
+  "refarm:sourceType": "remote", // ou "local-dev", "synthetic", "graph-synced"
+  "refarm:accessControl": {
+    "refarm:allowedBranches": ["dev", "experimental"],
+    "refarm:deniedBranches": ["main"]
+  },
   "refarm:manifest": { /* Conteúdo completo do PluginManifest */ }
 }
 ```
 
-### Propriedades:
+### Propriedades Expandidas:
 
 *   `@context`: `https://schema.org/`
 *   `@type`: `SoftwareApplication` (tipo base para softwares)
@@ -33,12 +38,16 @@ Representa uma entrada no catálogo de plugins do Barn. É um tipo de `Sovereign
 *   `description`: Descrição curta do que o plugin faz.
 *   `softwareVersion`: Versão semântica do plugin.
 *   `applicationCategory`: Sempre "Plugin" para identificação.
-*   `installUrl`: URL de onde o binário WASM do plugin pode ser baixado.
-*   `sha256Integrity`: Hash SHA-256 para verificação de integridade do binário WASM. Essencial para segurança.
-*   `datePublished`: Data de publicação/disponibilização do plugin.
-*   `refarm:status`: Status atual do plugin no Barn (e.g., `installed`, `pending`, `error`, `available`).
-*   `refarm:installedAt`: Timestamp da instalação do plugin (se aplicável).
-*   `refarm:manifest`: Objeto contendo o `PluginManifest` completo, conforme definido em `packages/plugin-manifest/src/types.ts`.
+*   `installUrl`: URL de instalação. Pode ser `https://`, `file://` (para dev local) ou `urn:refarm:blob:` (para plugins no grafo).
+*   `sha256Integrity`: Hash SHA-256 para verificação. Obrigatório para todos os tipos de fonte.
+*   `refarm:status`: Status atual (e.g., `installed`, `development`, `synthetic`).
+*   `refarm:sourceType`: Origem do plugin:
+    *   `remote`: Baixado de uma URL pública (Registry/Nostr).
+    *   `local-dev`: Link para um projeto local em desenvolvimento (Terminal/Devcontainer).
+    *   `synthetic`: Gerado dinamicamente via UI (Low-Code/No-Code).
+    *   `graph-synced`: Plugin privado do usuário sincronizado via CRDT entre dispositivos.
+*   `refarm:accessControl`: **Controle Fino de Grafo**. Define em quais branches do Sovereign Graph o plugin pode ler/escrever. O padrão para novos plugins deve ser restrito (ex: apenas branch `experimental`).
+*   `refarm:manifest`: Objeto contendo o `PluginManifest` completo.
 
 ## Relação com o `refarm:plugin/types.wit`
 
