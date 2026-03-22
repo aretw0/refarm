@@ -16,7 +16,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "test": "npx vitest run src/key-manager.test.ts --root . --environment node"
+    "test": "vitest run"
   },
   "dependencies": {
     "@noble/ed25519": "^3.0.0",
