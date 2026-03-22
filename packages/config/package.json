@@ -14,7 +14,7 @@
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",
-    "test": "echo \"No tests yet\"",
+    "test": "vitest run",
     "build": "tsc --project tsconfig.build.json"
   },
   "repository": {
