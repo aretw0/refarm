@@ -4,6 +4,7 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
+  "runArgs": ["--memory=4g", "--cpus=2"],
   "features": {
     "ghcr.io/devcontainers/features/rust:1": {
       "version": "stable",
@@ -39,6 +40,7 @@
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
+        "rust-analyzer.lru.capacity": 44,
         "rust-analyzer.check.command": "check",
         "rust-analyzer.checkOnSave": true,
         "rust-analyzer.linkedProjects": ["./packages/tractor/Cargo.toml"]
