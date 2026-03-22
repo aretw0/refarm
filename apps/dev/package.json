@@ -8,7 +8,7 @@
     "build": "astro build",
     "preview": "astro preview",
     "astro:check": "astro check",
-    "lint": "npm run astro:check && tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/plugin-manifest/tsconfig.json ../../packages/tractor-ts/tsconfig.build.json --force && tsc --noEmit",
+    "lint": "npm run astro:check && tsc --build ../../packages/identity-contract-v1/tsconfig.json ../../packages/storage-contract-v1/tsconfig.json ../../packages/sync-contract-v1/tsconfig.json ../../packages/tractor-ts/tsconfig.build.json --force && tsc --noEmit",
     "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
     "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run --passWithNoTests",
