@@ -1,60 +1,56 @@
 import { describe, it, expect, vi } from "vitest";
 import { processCommits } from "../src/git-commit-auto.mjs";
 
+// In v7.0, groups no longer have a static `msg` field.
+// The message is derived dynamically by deriveCommitMessage(group.id, group.items).
+// We use a known group id ("pkg_updates") with a simple item so the derived message is predictable.
+
+const makeGroup = (id: string, path: string, signals: string[] = []) => ({
+  id,
+  title: "Test Group",
+  items: [{ status: "M", path, signals: new Set(signals) }]
+});
+
 describe("Git Commit Automator Logic (Pure Function)", () => {
   it("should execute command when user answers 'y'", async () => {
-    const mockGroups = [
-      {
-        title: "Test Group",
-        msg: "feat: test",
-        items: [{ status: "M", path: "file.txt" }]
-      }
-    ];
-    
+    const mockGroups = [makeGroup("pkg_updates", "file.txt")];
+
     const execFn = vi.fn();
     const mockRl = {
       question: vi.fn().mockImplementation((_q, cb) => cb("y"))
     };
 
-    await processCommits(mockGroups, { 
-      execFn, 
-      readlineInterface: mockRl as any 
+    await processCommits(mockGroups, {
+      execFn,
+      readlineInterface: mockRl as any
     });
 
-    expect(execFn).toHaveBeenCalledWith('git add file.txt && git commit -m "feat: test"');
+    expect(execFn).toHaveBeenCalledOnce();
+    const cmd = execFn.mock.calls[0][0] as string;
+    expect(cmd).toContain("git add file.txt");
+    expect(cmd).toContain("git commit -m");
+    expect(cmd).not.toContain('"undefined"');
   });
 
   it("should skip command when user answers 'n'", async () => {
-    const mockGroups = [
-      {
-        title: "Test Group",
-        msg: "feat: test",
-        items: [{ status: "M", path: "file.txt" }]
-      }
-    ];
-    
+    const mockGroups = [makeGroup("pkg_updates", "file.txt")];
+
     const execFn = vi.fn();
     const mockRl = {
       question: vi.fn().mockImplementation((_q, cb) => cb("n"))
     };
 
-    await processCommits(mockGroups, { 
-      execFn, 
-      readlineInterface: mockRl as any 
+    await processCommits(mockGroups, {
+      execFn,
+      readlineInterface: mockRl as any
     });
 
     expect(execFn).not.toHaveBeenCalled();
   });
 
   it("should allow editing message when user answers 'e'", async () => {
-    const mockGroups = [
-      {
-        title: "Test Group",
-        msg: "feat: test",
-        items: [{ status: "M", path: "file.txt" }]
-      }
-    ];
-    
+    const mockGroups = [makeGroup("pkg_updates", "file.txt")];
+
     const execFn = vi.fn();
     const mockRl = {
       question: vi.fn()
@@ -62,9 +58,9 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
         .mockImplementationOnce((_q, cb) => cb("feat: custom message"))
     };
 
-    await processCommits(mockGroups, { 
-      execFn, 
-      readlineInterface: mockRl as any 
+    await processCommits(mockGroups, {
+      execFn,
+      readlineInterface: mockRl as any
     });
 
     expect(execFn).toHaveBeenCalledWith('git add file.txt && git commit -m "feat: custom message"');
@@ -72,21 +68,47 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
   it("should stop processing when user answers 'q'", async () => {
     const mockGroups = [
-      { title: "G1", msg: "m1", items: [{ status: "M", path: "f1.txt" }] },
-      { title: "G2", msg: "m2", items: [{ status: "M", path: "f2.txt" }] }
+      makeGroup("pkg_updates", "f1.txt"),
+      makeGroup("pkg_updates", "f2.txt")
     ];
-    
+
     const execFn = vi.fn();
     const mockRl = {
       question: vi.fn().mockImplementation((_q, cb) => cb("q"))
     };
 
-    await processCommits(mockGroups, { 
-      execFn, 
-      readlineInterface: mockRl as any 
+    await processCommits(mockGroups, {
+      execFn,
+      readlineInterface: mockRl as any
     });
 
     expect(execFn).not.toHaveBeenCalled();
     expect(mockRl.question).toHaveBeenCalledTimes(1);
+  });
+
+  it("should generate a semantic message for typecheck_fix group", async () => {
+    const mockGroups = [{
+      id: "typecheck_fix",
+      title: "🔧 Fix: TypeScript Module Resolution",
+      items: [{
+        status: "M",
+        path: "apps/me/tsconfig.json",
+        signals: new Set(["homestead-subpath", "tsconfig-paths", "tsconfig-file", "app"])
+      }]
+    }];
+
+    const execFn = vi.fn();
+    const mockRl = {
+      question: vi.fn().mockImplementation((_q, cb) => cb("y"))
+    };
+
+    await processCommits(mockGroups, {
+      execFn,
+      readlineInterface: mockRl as any
+    });
+
+    const cmd = execFn.mock.calls[0][0] as string;
+    expect(cmd).toContain("fix(types):");
+    expect(cmd).toContain("homestead");
   });
 });

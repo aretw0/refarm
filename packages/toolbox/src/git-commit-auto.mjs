@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
 import readline from "node:readline";
-import { groupChanges } from "./git-atomic-analysis.mjs";
+import { groupChanges, deriveCommitMessage } from "./git-atomic-analysis.mjs";
 
 /**
  * Refarm Git Atomic Automator v1.1 (Testable & Interactive)
@@ -23,7 +23,7 @@ export async function processCommits(activeGroups, options = {}) {
     group.items.forEach(c => console.log(`  [${c.status}] ${c.path}`));
     
     const paths = group.items.map(c => c.path).join(" ");
-    let commitMsg = group.msg;
+    let commitMsg = deriveCommitMessage(group.id, group.items);
     const fullCommand = `git add ${paths} && git commit -m "${commitMsg}"`;
 
     console.log(`\nProposed Command:\n  ${fullCommand}`);
