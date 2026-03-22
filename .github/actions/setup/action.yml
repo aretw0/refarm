@@ -31,6 +31,14 @@ runs:
           npm install
         fi
 
+    - name: Cache Turbo
+      uses: ./.github/actions/cache
+      with:
+        path: .turbo
+        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-turbo-
+
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}
       uses: dtolnay/rust-toolchain@stable
