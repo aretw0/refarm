@@ -5,7 +5,9 @@
     "outDir": "dist",
     "paths": {
       "@refarm.dev/tractor": ["../../packages/tractor/dist/index.d.ts"],
-      "@refarm.dev/homestead": ["../../packages/homestead/dist/index.d.ts"]
+      "@refarm.dev/homestead": ["../../packages/homestead/dist/index.d.ts"],
+      "@refarm.dev/homestead/ui": ["../../packages/homestead/dist/ui/index.d.ts"],
+      "@refarm.dev/homestead/sdk": ["../../packages/homestead/dist/sdk/index.d.ts"]
     }
   },
   "include": ["src/**/*", ".astro/types.d.ts"]
