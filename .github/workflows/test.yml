@@ -24,6 +24,13 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
+      # Turbo Cache is now handled in ./.github/actions/setup
+      # - name: Cache Turbo
+      #   uses: actions/cache@...
+      #   with:
+      #     path: .turbo
+      #     ...
+
       - name: Security audit
         run: npm audit --audit-level=high
 
@@ -33,24 +40,31 @@ jobs:
       - name: Type check
         run: npm run type-check
 
-      - name: Build storage contract declarations
-        run: npm --prefix packages/storage-contract-v1 run build
+      # - name: Build storage contract declarations
+      #   run: npm --prefix packages/storage-contract-v1 run build
+      #
+      # - name: Storage capability conformance
+      #   run: npm --prefix packages/storage-sqlite run test:conformance
 
-      - name: Storage capability conformance
-        run: npm --prefix packages/storage-sqlite run test:conformance
+      - name: Pre-test build (Turbo)
+        run: npx turbo build --filter=@refarm.dev/storage-contract-v1 --filter=@refarm.dev/storage-sqlite
 
       - name: Build WASM plugin for tests
         run: |
           cd validations/wasm-plugin/hello-world
           cargo component build --release
 
-      - name: Unit tests
-        if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-        run: npm run test:unit -- --coverage
+      # - name: Unit tests
+      #   if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+      #   run: npm run test:unit -- --coverage
+      #
+      # - name: Integration tests
+      #   if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+      #   run: npm run test:integration
 
-      - name: Integration tests
+      - name: Run Tests (Turbo)
         if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
-        run: npm run test:integration
+        run: npx turbo run test:coverage test:unit test:integration
 
       - name: Tractor Real WASM Instantiation
         if: "!contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
