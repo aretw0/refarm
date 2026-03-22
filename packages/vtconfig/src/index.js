@@ -1,18 +1,36 @@
 import path from 'node:path'
-import type { UserConfig } from 'vitest/config'
+import fs from 'node:fs'
+
+/**
+ * @typedef {import('vite').UserConfig & { test?: any }} UserConfig
+ */
 
 /**
  * Helper to generate aliases for Vitest based on current environment (src vs dist).
+ * @param {string} root - The root directory of the monorepo.
  */
-export function getAliases(root: string) {
+export function getAliases(root) {
   const useDistGlobal = process.env.VITEST_USE_DIST === 'true';
   const forcedDistPackages = (process.env.VITEST_FORCE_DIST || '').split(',').map(s => s.trim());
   const packagesDir = path.resolve(root, 'packages');
   const localesDir = path.resolve(root, 'locales');
   
-  const getSuffix = (pkgName: string) => {
+  const getSuffix = (pkgName) => {
     const isForcedDist = forcedDistPackages.includes(pkgName);
-    return (useDistGlobal || isForcedDist) ? 'dist/index.js' : 'src/index.ts';
+    if (useDistGlobal || isForcedDist) return 'dist/index.js';
+    
+    // Check if package is JS-Atomic or TS-Strict
+    const pkgRelativePath = pkgName.includes('@refarm.dev/') 
+      ? pkgName.replace('@refarm.dev/', '')
+      : pkgName;
+      
+    // Handle tractor-ts specifically if needed, or rely on fs check
+    const pkgDir = path.resolve(packagesDir, pkgRelativePath === 'tractor' ? 'tractor-ts' : pkgRelativePath);
+    
+    if (fs.existsSync(path.resolve(pkgDir, 'src', 'index.ts'))) {
+        return 'src/index.ts';
+    }
+    return 'src/index.js';
   };
 
   return {
@@ -23,6 +41,8 @@ export function getAliases(root: string) {
     '@refarm.dev/storage-contract-v1': path.resolve(packagesDir, 'storage-contract-v1', getSuffix('@refarm.dev/storage-contract-v1')),
     '@refarm.dev/sync-contract-v1': path.resolve(packagesDir, 'sync-contract-v1', getSuffix('@refarm.dev/sync-contract-v1')),
     '@refarm.dev/identity-contract-v1': path.resolve(packagesDir, 'identity-contract-v1', getSuffix('@refarm.dev/identity-contract-v1')),
+    '@refarm.dev/config': path.resolve(packagesDir, 'config', getSuffix('@refarm.dev/config')),
+    '@refarm.dev/vtconfig': path.resolve(packagesDir, 'vtconfig', getSuffix('@refarm.dev/vtconfig')),
     '@refarm.dev/toolbox': path.resolve(packagesDir, 'toolbox', getSuffix('@refarm.dev/toolbox')),
     '@refarm.dev/storage-sqlite': path.resolve(packagesDir, 'storage-sqlite', getSuffix('@refarm.dev/storage-sqlite')),
     '@refarm.dev/locales': localesDir,
@@ -31,11 +51,12 @@ export function getAliases(root: string) {
 
 /**
  * Shared base configuration imported by per-package vitest.config.ts files.
+ * @type {UserConfig}
  */
-export const baseConfig: UserConfig = {
+export const baseConfig = {
   test: {
     globals: true,
-    environment: 'jsdom',
+    environment: 'node',
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json-summary'],
@@ -44,12 +65,14 @@ export const baseConfig: UserConfig = {
         'dist/',
         '**/*.test.ts',
         '**/*.spec.ts',
+        '**/*.test.js',
+        '**/*.spec.js',
         '**/test/**',
         '**/src/transpiled/**'
       ],
     },
-    include: ['**/*.test.ts', '**/*.spec.ts'],
-    exclude: ['node_modules/', 'dist/', '.idea', '.git', '.cache', 'validations/'],
+    include: ['**/*.test.ts', '**/*.spec.ts', '**/*.test.js', '**/*.spec.js'],
+    exclude: ['node_modules/', '**/dist/**', '.idea', '.git', '.cache', 'validations/'],
     testTimeout: 15000,
     hookTimeout: 15000,
   },
