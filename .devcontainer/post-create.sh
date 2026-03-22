@@ -6,9 +6,9 @@ echo "[refarm-devcontainer] Starting optimized post-create setup..."
 
 # 1. Fix permissions for mounted volumes (CRITICAL for rust-analyzer)
 # refarm-npm-cache mounts as root; refarm-cargo-* mount into /usr/local/cargo (rustlang group, vscode is member).
-echo "[refarm-devcontainer] Fixing permissions for mounted npm cache..."
-mkdir -p /home/vscode/.npm
-sudo chown -R vscode:vscode /home/vscode/.npm
+echo "[refarm-devcontainer] Fixing permissions for mounted npm and turbo caches..."
+mkdir -p /home/vscode/.npm /home/vscode/.turbo
+sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo
 
 # 2. Rust Toolchain setup (fast)
 echo "[refarm-devcontainer] Adding Rust WASM targets..."
