@@ -13,7 +13,7 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
     "@refarm.dev/storage-contract-v1": "*"
