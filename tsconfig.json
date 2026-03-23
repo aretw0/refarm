@@ -10,7 +10,7 @@
       "@refarm.dev/cli": ["./packages/cli/src/index"],
       "@refarm.dev/config": ["./packages/config/src/index"],
       "@refarm.dev/vtconfig": ["./packages/vtconfig/src/index"],
-      "@refarm.dev/dsl-headless": ["./packages/dsl-headless/src/index"],
+      "@refarm.dev/dsl": ["./packages/dsl/src/index"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
       "@refarm.dev/identity-contract-v1": [
