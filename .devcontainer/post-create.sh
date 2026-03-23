@@ -15,6 +15,7 @@ chmod -R g+w /usr/local/cargo /usr/local/rustup
 
 # 2. Rust Toolchain setup (fast)
 echo "[refarm-devcontainer] Adding Rust WASM targets..."
+rustup default stable
 rustup target add wasm32-unknown-unknown
 rustup target add wasm32-wasip1 || true
 rustup component add rust-src
