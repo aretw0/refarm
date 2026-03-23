@@ -70,7 +70,7 @@ To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, 
 
 ### Implementation Focus
 
-**Identity (first deliverable — can start now, no OPAQUE dependency):**
+**Identity (first deliverable — can start now, see [Identity Roadmap](./OPAQUE.md)):**
 - [ ] `identity-nostr` WASM adapter — implements `sign/verify/public-key/derive-from-session` from `world refarm-identity-plugin` WIT (commit `07f338b`).
 - [ ] Validation plugin in `validations/identity-nostr-plugin/` (Rust, `cargo-component`).
 
@@ -78,6 +78,22 @@ To bump to version `0.1.0` and begin publishing to the `@refarm.dev` npm scope, 
 - [ ] Implement remote source resolution (fetching plugins via Sovereign Graph from URLs/IPFS).
 - [ ] Connect the `Registry` (identifying plugins in the graph) to `Tractor` (dynamically loading components on demand).
 - [ ] Enable Tractor to inject dynamic Sovereign Graph configurations into plugins upon activation.
+
+---
+
+## Strategic R&D Tracks
+
+These tracks run parallel to the core version bumps and represent ongoing Research & Development to push the boundaries of the Sovereign Web.
+
+### 🛡️ Opaque Protocol (Identity)
+Strategic roadmap for RFC-grade password-based authentication.
+> Roadmap detalhado: [`packages/tractor/docs/OPAQUE.md`](../packages/tractor/docs/OPAQUE.md)
+
+### 🌀 Spin Synergy (Runtime)
+Aligning Refarm with Spin v3's modular "Factors" and component composition.
+> Roadmap detalhado: [`packages/tractor/docs/SPIN_SYNERGY.md`](../packages/tractor/docs/SPIN_SYNERGY.md)
+
+
 
 ---
 
@@ -115,11 +131,12 @@ Porting the `wasmtime`, `tokio`, and `rusqlite` stack to a pure native Rust foot
 
 The following core plugins provide the infrastructure for development and management within the Refarm ecosystem:
 
-| Plugin | Purpose | Status |
-|--------|---------|--------|
-| **Barn (O Celeiro)** | Machinery Manager (Plugin lifecycle, OPFS cache, SHA-256) | 🚧 In Progress (SDD/BDD) |
-| **Surveyor (Agrimensor)** | Sovereign Graph Explorer (Visualizing nodes and connections) | 🔄 Planned |
-| **Creek (O Riacho)** | Telemetry & Pulse Monitor (Streaming events and logs) | 🔄 Planned |
+| Plugin | Purpose | Roadmap | Status |
+|--------|---------|---------|--------|
+| **Barn (O Celeiro)** | Machinery Manager (Plugin lifecycle, OPFS cache, SHA-256) | [`packages/barn/ROADMAP.md`](../packages/barn/ROADMAP.md) | 🚧 In Progress (SDD/BDD) |
+| **Surveyor (Agrimensor)** | Sovereign Graph Explorer (Visualizing nodes and connections) | — | 🔄 Planned |
+| **Creek (O Riacho)** | Telemetry & Pulse Monitor (Streaming events and logs) | — | 🔄 Planned |
+
 
 #### Pending Technical Work (Post-Graduation)
 
