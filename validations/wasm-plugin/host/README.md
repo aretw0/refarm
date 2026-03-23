@@ -7,7 +7,7 @@ Host TypeScript que carrega o plugin `hello-world-plugin.wasm` e valida comunica
 ```bash
 npm install
 # Copy WASM plugin to public folder
-cp ../hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm public/hello-world-plugin.wasm
+cp ../hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm public/hello-world-plugin.wasm
 # Transpile WASM Component to JavaScript using jco
 npm run build:wasm
 ```

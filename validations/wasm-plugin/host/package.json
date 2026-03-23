@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:wasm": "mkdir -p public && (cp ../hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm public/hello-world-plugin.wasm || echo 'Using existing WASM in public') && npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
+    "build:wasm": "mkdir -p public && cp ../hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm public/hello-world-plugin.wasm && npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
     "build": "npm run build:wasm && (vite build || echo 'Skipping production build: Generated JS missing')",
     "preview": "vite preview",
     "preview:test": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
