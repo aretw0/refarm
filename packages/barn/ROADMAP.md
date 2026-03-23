@@ -35,26 +35,32 @@ The Barn enforces a strict integrity check on every "implement" (plugin) before 
 
 ---
 
-## v0.1.0 - Plugin Lifecycle & Persistence (CURRENT)
+## v0.1.0 - Plugin Machinery Stability (CURRENT)
 
-**Scope**: Bootstrap Barn with plugin installation, SHA-256 verification, and OPFS caching.
+**Scope**: Establish the core plugin loading, caching, and validation engine.  
+**Depends on**: `tractor` (WASM Host), `storage-sqlite` (OPFS mapping)
 
-### SDD (Spec Driven) ✅
+### SDD (Spec Driven)
 
+- [x] ADR-044: WASM Plugin Loading (Browser Strategy)
 - [x] Spec: Barn WIT interface definitions (`refarm-barn.wit`)
 - [x] Spec: JSON-LD Schema for `PluginCatalogEntry` (`docs/SCHEMA.md`)
 - [x] Spec: OPFS storage layout and naming convention (`docs/STORAGE_LAYOUT.md`)
 - [x] Spec: Headless-First plugin design principles (`README.md`)
 - [x] Spec: Graph-based Access Control & Branching (`docs/SCHEMA.md`)
+- [ ] Spec: `BarnManager` public interface for `installPlugin()` and `loadPlugin()`.
+- [ ] Spec: SHA-256 integrity check contract.
 
-### BDD (Behaviour Driven) 🚧
+### BDD (Behaviour Driven)
 
 - [x] Integration: Install a new plugin with valid metadata (PASSING - Mock)
 - [x] Integration: List installed plugins in the inventory (PASSING - Mock)
-- [ ] Integration: Verify SHA-256 integrity during installation (BDD phase)
-- [ ] Integration: Persist and retrieve plugin binary from OPFS
-- [ ] Integration: Uninstall a plugin and cleanup OPFS
-- [ ] Integration: Enforce branch-level access control (e.g., block write to `main`)
+- [ ] Integration: `installPlugin()` correctly downloads and caches in OPFS.
+- [ ] Integration: `loadPlugin()` verifies SHA-256 before delivery to `tractor`.
+- [ ] Integration: Fails gracefully on checksum mismatch.
+- [ ] Integration: Uninstall a plugin and cleanup OPFS.
+- [ ] Integration: Enforce branch-level access control (e.g., block write to `main`).
+
 
 ### TDD (Test Driven) 🔄
 
