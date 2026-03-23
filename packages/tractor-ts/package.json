@@ -50,6 +50,7 @@
     "@refarm.dev/sync-contract-v1": "*"
   },
   "devDependencies": {
+    "@refarm.dev/hello-world-plugin": "*",
     "@refarm.dev/tsconfig": "*",
     "nostr-tools": "^2.23.3"
   },

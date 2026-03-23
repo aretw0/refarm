@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 describe("JCO Integration", () => {
   const wasmPath = path.resolve(
     __dirname,
-    "../../../validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm",
+    "../../../validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm",
   );
 
   let wasmBuffer: Buffer;
@@ -28,7 +28,7 @@ describe("JCO Integration", () => {
     // Load the compiled WASM plugin binary
     if (!fs.existsSync(wasmPath)) {
       throw new Error(
-        `WASM plugin not found at ${wasmPath}. Run: cd validations/simple-wasm-plugin && cargo build --target wasm32-unknown-unknown --release`,
+        `WASM plugin not found at ${wasmPath}. Run: cd validations/wasm-plugin/hello-world && npm run build`,
       );
     }
     wasmBuffer = fs.readFileSync(wasmPath);
