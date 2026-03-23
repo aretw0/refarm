@@ -33,7 +33,7 @@ the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-r
 ┌──────────────────────▼──────────────────────────────────┐
 │                      BLOCKS (packages/)                 │
 │  tractor · storage-rest · storage-sqlite · sync-loro    │
-│  identity-nostr · dsl-headless · heartwood · …          │
+│  identity-nostr · ds · heartwood · …                    │
 │  philosophy-neutral — any combination is valid          │
 └─────────────────────────────────────────────────────────┘
 ```

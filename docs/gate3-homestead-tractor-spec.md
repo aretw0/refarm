@@ -85,7 +85,7 @@ installPlugin("urn:plugin:test-echo") with valid SHA-256
 `apps/me` (refarm.me) is the sovereign citizen hub — the smallest meaningful distro:
 
 - **Footprint**: homestead + sync-loro + tractor + storage-sqlite
-- **No optional complexity**: no sower, no scarecrow, no dsl-headless
+- **No optional complexity**: no sower, no scarecrow, no ds
 - **Represents the core case**: a person pairing their browser with their local tractor
 
 This makes it the ideal reference distro: minimal surface area, maximum real-world
