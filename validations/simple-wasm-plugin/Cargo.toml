@@ -2,13 +2,15 @@
 name = "refarm-simple-wasm-plugin"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-wit-bindgen = "0.21"
+wit-bindgen = "0.41.0"
+wit-bindgen-rt = "0.41.0"
 
 [profile.release]
 opt-level = "z"
@@ -16,5 +18,8 @@ lto = true
 strip = true
 
 [package.metadata.component]
+package = "refarm:plugin"
+
+[package.metadata.component.target]
 path = "wit"
 world = "refarm-plugin"

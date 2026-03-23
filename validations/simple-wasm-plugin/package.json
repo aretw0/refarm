@@ -1,0 +1,12 @@
+{
+  "name": "@refarm.dev/simple-wasm-plugin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release",
+    "test": "RUSTUP_TOOLCHAIN=stable cargo test",
+    "lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
+    "test:unit": "echo 'Skipping: No tests configured for simple-wasm plugin'",
+    "test:integration": "echo 'No integration tests for this crate'"
+  }
+}
