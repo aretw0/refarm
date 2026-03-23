@@ -12,13 +12,13 @@
     "test": "vitest run"
   },
   "peerDependencies": {
-    "vite": "^5.0.0",
+    "vite": "^8.0.1",
     "vitest": "^4.1.0"
   },
   "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
     "typescript": "^5.7.3",
-    "vite": "^5.0.0",
-    "vitest": "^4.1.0",
-    "@refarm.dev/tsconfig": "*"
+    "vite": "^8.0.1",
+    "vitest": "^4.1.0"
   }
 }
