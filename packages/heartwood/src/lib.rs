@@ -51,3 +51,20 @@ impl Guest for Sentinel {
 }
 
 bindings::export!(Sentinel with_types_in bindings);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sign_verify() {
+        let payload = b"hello refarm".to_vec();
+        let keypair = Sentinel::generate_keypair();
+        
+        let signature = Sentinel::sign(payload.clone(), keypair.secret_key.clone())
+            .expect("Signing failed");
+            
+        let is_valid = Sentinel::verify(payload, signature, keypair.public_key);
+        assert!(is_valid, "Signature verification failed");
+    }
+}
