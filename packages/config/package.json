@@ -10,8 +10,7 @@
   },
   "scripts": {
     "lint": "echo \"Nothing to lint\"",
-    "test": "vitest run",
-    "build": "true"
+    "test": "vitest run"
   },
   "repository": {
     "type": "git",
