@@ -70,4 +70,6 @@ runs:
         workspaces: |
           packages/heartwood -> target
           validations/wasm-plugin/hello-world -> target
-          packages/tractor-native -> target
+          validations/simple-wasm-plugin -> target
+          templates/rust-plugin -> target
+          packages/tractor -> target
