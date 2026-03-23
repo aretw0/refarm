@@ -4,89 +4,39 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@refarm.dev/locales/*": [
-        "./locales/*"
-      ],
-      "@refarm.dev/*": [
-        "./packages/*/src"
-      ],
-      "@refarm.dev/barn": [
-        "./packages/barn/src/index"
-      ],
-      "@refarm.dev/cli": [
-        "./packages/cli/src/index"
-      ],
-      "@refarm.dev/config": [
-        "./packages/config/src/index"
-      ],
-      "@refarm.dev/vtconfig": [
-        "./packages/vtconfig/src/index"
-      ],
-      "@refarm.dev/dsl-headless": [
-        "./packages/dsl-headless/src/index"
-      ],
-      "@refarm.dev/homestead/sdk": [
-        "./packages/homestead/src/sdk/index"
-      ],
-      "@refarm.dev/homestead/ui": [
-        "./packages/homestead/src/ui/index"
-      ],
+      "@refarm.dev/locales/*": ["./locales/*"],
+      "@refarm.dev/*": ["./packages/*/src"],
+      "@refarm.dev/barn": ["./packages/barn/src/index"],
+      "@refarm.dev/cli": ["./packages/cli/src/index"],
+      "@refarm.dev/config": ["./packages/config/src/index"],
+      "@refarm.dev/vtconfig": ["./packages/vtconfig/src/index"],
+      "@refarm.dev/dsl-headless": ["./packages/dsl-headless/src/index"],
+      "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
+      "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
       "@refarm.dev/identity-contract-v1": [
         "./packages/identity-contract-v1/src/index"
       ],
-      "@refarm.dev/plugin-courier": [
-        "./packages/plugin-courier/src/index"
-      ],
+      "@refarm.dev/plugin-courier": ["./packages/plugin-courier/src/index"],
       "@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index"],
-      "@refarm.dev/plugin-tem": [
-        "./packages/plugin-tem/src/index"
-      ],
-      "@refarm.dev/registry": [
-        "./packages/registry/src/index"
-      ],
-      "@refarm.dev/scarecrow": [
-        "./packages/scarecrow/src/index"
-      ],
-      "@refarm.dev/silo": [
-        "./packages/silo/src/index"
-      ],
-      "@refarm.dev/sower": [
-        "./packages/sower/src/index"
-      ],
+      "@refarm.dev/plugin-tem": ["./packages/plugin-tem/src/index"],
+      "@refarm.dev/registry": ["./packages/registry/src/index"],
+      "@refarm.dev/scarecrow": ["./packages/scarecrow/src/index"],
+      "@refarm.dev/silo": ["./packages/silo/src/index"],
+      "@refarm.dev/sower": ["./packages/sower/src/index"],
       "@refarm.dev/storage-contract-v1": [
         "./packages/storage-contract-v1/src/index"
       ],
-      "@refarm.dev/storage-rest": [
-        "./packages/storage-rest/src/index"
-      ],
-      "@refarm.dev/storage-sqlite": [
-        "./packages/storage-sqlite/src/index"
-      ],
-      "@refarm.dev/sync-contract-v1": [
-        "./packages/sync-contract-v1/src/index"
-      ],
-      "@refarm.dev/sync-crdt": [
-        "./packages/sync-crdt/src/index"
-      ],
-      "@refarm.dev/sync-loro": [
-        "./packages/sync-loro/src/index"
-      ],
-      "@refarm.dev/terminal-plugin": [
-        "./packages/terminal-plugin/src/index"
-      ],
-      "@refarm.dev/tractor": [
-        "./packages/tractor-ts/src/index"
-      ],
+      "@refarm.dev/storage-rest": ["./packages/storage-rest/src/index"],
+      "@refarm.dev/storage-sqlite": ["./packages/storage-sqlite/src/index"],
+      "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/src/index"],
+      "@refarm.dev/sync-crdt": ["./packages/sync-crdt/src/index"],
+      "@refarm.dev/sync-loro": ["./packages/sync-loro/src/index"],
+      "@refarm.dev/terminal-plugin": ["./packages/terminal-plugin/src/index"],
+      "@refarm.dev/tractor": ["./packages/tractor-ts/src/index"],
       "@refarm.dev/tractor/test/test-utils": [
         "./packages/tractor-ts/test/test-utils"
       ]
     }
   },
-  "exclude": [
-    "node_modules",
-    "dist",
-    "build",
-    "pkg",
-    "**/*.test.ts"
-  ]
+  "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]
 }
