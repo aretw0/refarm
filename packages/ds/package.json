@@ -1,0 +1,32 @@
+{
+  "name": "@refarm.dev/ds",
+  "version": "0.1.0",
+  "description": "Refarm Design System — Shared Styles and Tokens",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./styles/*": "./src/*"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "test": "vitest run --passWithNoTests",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build"
+  },
+  "devDependencies": {
+    "storybook": "^8.0.0",
+    "@storybook/html": "^8.0.0",
+    "@storybook/html-vite": "^8.0.0",
+    "@storybook/addon-essentials": "^8.0.0",
+    "@storybook/addon-interactions": "^8.0.0",
+    "@storybook/addon-links": "^8.0.0",
+    "@storybook/addon-a11y": "^8.0.0"
+  },
+  "license": "MIT"
+}
