@@ -1,0 +1,27 @@
+package refarm:plugin@0.1.0;
+
+interface plugin {
+  record plugin-metadata {
+    name: string,
+    version: string,
+    description: string,
+    supported-types: list<string>,
+    required-capabilities: list<string>,
+  }
+
+  setup: func() -> result<_, string>;
+  ingest: func() -> result<u32, string>;
+  push: func(payload: string) -> result<_, string>;
+  teardown: func();
+  get-help-nodes: func() -> result<list<string>, string>;
+  metadata: func() -> plugin-metadata;
+  on-event: func(event: string, payload: option<string>);
+}
+
+world refarm-plugin {
+  export plugin;
+}
+
+
+
+

@@ -1,0 +1,3 @@
+# Limita paralelismo de compilação para evitar OOM no Dev Container.
+[build]
+jobs = 6
