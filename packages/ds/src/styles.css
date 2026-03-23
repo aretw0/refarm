@@ -1,0 +1,99 @@
+@import "./tokens.css";
+
+/* 
+ * Refarm Design System — Utility Classes 
+ *
+ * These classes are designed to be "headless" — they provide the 
+ * essential structure and theme-linking, but can be overridden 
+ * by the host or the user's custom CSS.
+ */
+
+/* Layout Primitives */
+.refarm-shell-bg {
+    background: var(--refarm-bg-primary);
+    min-height: 100dvh;
+}
+
+.refarm-grid {
+    display: grid;
+    gap: 1.5rem;
+}
+
+/* Glassmorphism Surface */
+.refarm-glass {
+    background: var(--refarm-glass-bg);
+    backdrop-filter: var(--refarm-glass-blur);
+    -webkit-backdrop-filter: var(--refarm-glass-blur);
+    border: 1px solid var(--refarm-border-default);
+    box-shadow: var(--refarm-shadow-md);
+}
+
+/* Interactive Components */
+.refarm-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    border-radius: var(--refarm-radius-md);
+    border: 1px solid var(--refarm-border-default);
+    background: var(--refarm-bg-secondary);
+    color: var(--refarm-text-primary);
+    font-family: var(--refarm-font-sans);
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    text-decoration: none;
+    outline: none;
+    /* Controlled by :focus-visible */
+}
+
+.refarm-btn:focus-visible {
+    box-shadow: var(--refarm-focus-ring);
+    border-color: var(--refarm-accent-primary);
+}
+
+.refarm-btn:hover {
+    background: var(--refarm-bg-elevated);
+    border-color: var(--refarm-text-secondary);
+    transform: translateY(-1px);
+}
+
+.refarm-btn-primary {
+    background: var(--refarm-accent-primary);
+    border-color: var(--refarm-accent-secondary);
+    color: white;
+}
+
+.refarm-btn-primary:hover {
+    background: var(--refarm-accent-secondary);
+}
+
+/* Data Display */
+.refarm-tag {
+    display: inline-flex;
+    padding: 0.2rem 0.5rem;
+    border-radius: var(--refarm-radius-sm);
+    background: var(--refarm-bg-elevated);
+    border: 1px solid var(--refarm-border-muted);
+    font-family: var(--refarm-font-mono);
+    font-size: 0.75rem;
+    color: var(--refarm-accent-primary);
+}
+
+.refarm-input {
+    background: var(--refarm-bg-primary);
+    border: 1px solid var(--refarm-border-default);
+    border-radius: var(--refarm-radius-sm);
+    padding: 0.75rem;
+    color: var(--refarm-text-primary);
+    font-family: var(--refarm-font-mono);
+    outline: none;
+    width: 100%;
+}
+
+.refarm-input:focus {
+    border-color: var(--refarm-accent-primary);
+    box-shadow: 0 0 0 2px var(--refarm-accent-muted);
+}
