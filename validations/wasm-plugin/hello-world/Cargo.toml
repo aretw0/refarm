@@ -1,7 +1,11 @@
 [package]
-name = "hello-world-plugin"
+name = "refarm-hello-world-plugin"
 version = "0.1.0"
 edition = "2021"
+description = "Example WASM plugin for the Refarm ecosystem"
+license = "AGPL-3.0-only"
+repository = "https://github.com/refarm-dev/refarm"
+homepage = "https://refarm.dev"
 
 [lib]
 crate-type = ["cdylib"]
