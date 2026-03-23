@@ -19,6 +19,7 @@ This document is a tribute to the "Greats" we've learned from.
 - **[Wasmtime / Bytecode Alliance](https://bytecodealliance.org)**: For the WASM Component Model and the "Componentize" vision. Their work on WASI and WIT is what makes our `Heartwood` security kernel and untrusted plugin sandboxing possible.
 - **[Vim](https://www.vim.org)**: For teaching the world that the keyboard is the fastest interface for the human mind. Refarm's intent-centric navigation aims to bring that "flow state" to every digital task.
 - **[SilverBullet](https://silverbullet.md/)**: For the concept of a "Self-Extending" workspace built entirely on Markdown. Their architecture of **"Plugs"** (plugins that run anywhere) communicating with the host via **"Syscalls"**, combined with programmable notes via Lua, is a huge inspiration. It proves that an application can be dynamically extended by the user on the fly without breaking the core engine.
+- **[Spin (Fermyon)](https://spinframework.dev/)**: For its "Component-First" approach to WebAssembly. Spin v3's work on **Spin Factors** and cross-language component dependencies mirrors our vision for `tractor`. They are setting the standard for how high-level capabilities should be exposed to sandboxed Wasm components.
 
 ### 🌐 The Lineage of the Sovereign Graph
 
