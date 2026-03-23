@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/dsl-headless": "*"
+    "@refarm.dev/dsl": "*"
   },
   "license": "MIT"
 }
