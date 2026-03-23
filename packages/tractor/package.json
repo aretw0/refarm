@@ -1,0 +1,12 @@
+{
+  "name": "@refarm.dev/tractor-rs",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build": "RUSTUP_TOOLCHAIN=stable cargo build --release",
+    "test": "RUSTUP_TOOLCHAIN=stable cargo test",
+    "lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
+    "test:unit": "npm run test",
+    "test:integration": "echo 'No integration tests for this crate'"
+  }
+}

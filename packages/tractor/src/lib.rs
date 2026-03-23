@@ -72,6 +72,7 @@ pub struct TractorNative {
     pub plugins: host::PluginHost,
     pub trust: TrustManager,
     pub telemetry: TelemetryBus,
+    #[allow(dead_code)]
     config: TractorNativeConfig,
 }
 
