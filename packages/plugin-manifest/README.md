@@ -132,6 +132,14 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 6. No duplicates in provides/requires/permissions
 7. All required telemetry hooks must be declared
 
+---
+
+## Role in the Sovereign Farm
+
+This package defines the formal "Contract" for plugin citizenship within Refarm. It ensures every plugin is well-behaved, traceable, and secure.
+
+See [ROADMAP.md](./ROADMAP.md) for its evolution.
+
 ## License
 
 MIT
