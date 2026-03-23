@@ -23,7 +23,7 @@
     "@refarm.dev/tractor": "*",
     "@refarm.me/identity-nostr": "*",
     "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/dsl-headless": "*",
+    "@refarm.dev/ds": "*",
     "@refarm.dev/homestead": "*",
     "astro": "^5.3.0"
   },
