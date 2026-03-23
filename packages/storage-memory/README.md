@@ -2,6 +2,10 @@
 
 This is a formal in-memory implementation of the `StorageProvider` (storage:v1) contract. It serves as both a reference implementation for plugin developers and a volatile storage primitive for testing and ephemeral sessions.
 
+## Role
+
+It implements the `@refarm.dev/storage-contract-v1` and provides a zero-latency, transient storage engine for the microkernel.
+
 ## Features
 
 - **Volatile**: Data is lost when the process terminates.
@@ -31,7 +35,7 @@ await storage.put({ id: "note:1", type: "Note", data: { content: "Hello Memory!"
 npm run build
 ```
 
-### 3. Running Conformance Tests
+### 4. Running Conformance Tests
 
 This package is validated against the official `storage:v1` contract.
 
