@@ -38,7 +38,7 @@
 `refarm.dev` does not exist yet as a user-facing app. This phase is kernel/tractor focus.
 
 - Shell plugins (Herald, Firefly) are defined but not yet wired to a Studio UI
-- IDE plugins (sower, scarecrow, dsl-headless) exist as packages, not in a distro
+- IDE plugins (sower, scarecrow, ds) exist as packages, not in a distro
 - Tractor graduated (ADR-048) and Gate 3 validates end-to-end sync via `apps/me`
 - **What loads from the repo**: `apps/me` is the reference distro during this phase
 
@@ -47,7 +47,7 @@
 Studio first ships. The architecture is graph-aware from the start — not bolted on later.
 
 - Shell plugins as npm dependencies (Herald, Firefly)
-- IDE plugins baked-in: sower, scarecrow, dsl-headless
+- IDE plugins baked-in: sower, scarecrow, ds
 - BrowserSyncClient connects to tractor (`ws://localhost:42000`) — sovereign graph in OPFS
 - Plugin marketplace reads `refarm:PluginRegistry` from the developer's graph
 - **What loads from the repo**: shell + base IDE plugins + layout
