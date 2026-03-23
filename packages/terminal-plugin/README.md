@@ -2,6 +2,12 @@
 
 Refarm Terminal is a core system plugin that provides a standardized `OutputApi` for text-based logging and interaction within the Refarm ecosystem.
 
+## Role
+
+It serves as the "Sovereign Command Line", allowing the user to interact with the microkernel via a familiar terminal interface.
+
+See [roadmaps/MAIN.md](../../roadmaps/MAIN.md) for its integration into the broader ecosystem.
+
 ## Quick Start
 
 In a "Pure Shell" environment like Homestead, the Terminal plugin is discovered and mounted automatically if it's in the plugin directory.
