@@ -17,6 +17,9 @@ No packages will advance to `v1.0` or even `v0.1` until:
 
 Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../docs/WORKFLOW.md))
 
+- **Current Strategy**: [Strategic Research](./STRATEGIC_RESEARCH.md) (OPAQUE, Spin, TEM).
+- **Tooling Hygiene**: [VTConfig](../packages/vtconfig/ROADMAP.md) (Atomic Resolution Matrix).
+
 ---
 
 ## v0.1.0 - Sovereign Foundations
@@ -134,8 +137,51 @@ The following core plugins provide the infrastructure for development and manage
 | Plugin | Purpose | Roadmap | Status |
 |--------|---------|---------|--------|
 | **Barn (O Celeiro)** | Machinery Manager (Plugin lifecycle, OPFS cache, SHA-256) | [`packages/barn/ROADMAP.md`](../packages/barn/ROADMAP.md) | 🚧 In Progress (SDD/BDD) |
-| **Surveyor (Agrimensor)** | Sovereign Graph Explorer (Visualizing nodes and connections) | — | 🔄 Planned |
-| **Creek (O Riacho)** | Telemetry & Pulse Monitor (Streaming events and logs) | — | 🔄 Planned |
+| **Surveyor (Agrimensor)** | Sovereign Graph Explorer (Visualizing nodes and connections) | [`packages/surveyor/ROADMAP.md`](../packages/surveyor/ROADMAP.md) | 🔄 Planned |
+| **Creek (O Riacho)** | Telemetry & Pulse Monitor (Streaming events and logs) | [`packages/creek/ROADMAP.md`](../packages/creek/ROADMAP.md) | 🔄 Planned |
+| **Registry** | Plugin Discovery & Validation | [`packages/registry/ROADMAP.md`](../packages/registry/ROADMAP.md) | ✅ Foundation |
+| **Silo** | Context & Secret Provisioner | [`packages/silo/ROADMAP.md`](../packages/silo/ROADMAP.md) | ✅ Foundation |
+| **Plugin-TEM** | AI/Reasoning Engine | [`packages/plugin-tem/ROADMAP.md`](../packages/plugin-tem/ROADMAP.md) | 🚧 In Progress |
+| **Windmill** | Automation & Workflows | [`packages/windmill/ROADMAP.md`](../packages/windmill/ROADMAP.md) | 🚧 In Progress |
+| **Sower/Thresher** | Seed & Harvest (ETL) | [`packages/sower/ROADMAP.md`](../packages/sower/ROADMAP.md) | 🚧 In Progress |
+
+---
+
+### Tooling & Infrastructure
+
+| Component | Purpose | Roadmap |
+|-----------|---------|---------|
+| **CLI** | Refarm Developer Tool (`refarm` command) | [`packages/cli/ROADMAP.md`](../packages/cli/ROADMAP.md) |
+| **Plugin-Manifest** | Plugin Metadata Contract | [`packages/plugin-manifest/ROADMAP.md`](../packages/plugin-manifest/ROADMAP.md) |
+| **Toolbox** | Common utilities and build tools | [`packages/toolbox/ROADMAP.md`](../packages/toolbox/ROADMAP.md) |
+| **Config** | Sovereign Settings Manager | [`packages/config/ROADMAP.md`](../packages/config/ROADMAP.md) |
+
+---
+
+### Security & Health Utilities
+
+| Component | Purpose | Roadmap |
+|-----------|---------|---------|
+| **Fence** | Sandboxing & Capability Gating | [`packages/fence/ROADMAP.md`](../packages/fence/ROADMAP.md) |
+| **Health** | System Diagnostics | [`packages/health/ROADMAP.md`](../packages/health/ROADMAP.md) |
+| **Scarecrow** | Policy & Validation | [`packages/scarecrow/ROADMAP.md`](../packages/scarecrow/ROADMAP.md) |
+| **Plugin-Courier** | Broadcast & Materializer (Antenna) | [`packages/plugin-courier/ROADMAP.md`](../packages/plugin-courier/ROADMAP.md) |
+| **DS** | Design System & Tokens | [`packages/ds/ROADMAP.md`](../packages/ds/ROADMAP.md) |
+| **VTConfig** | Vitest Configuration & Aliases | [`packages/vtconfig/ROADMAP.md`](../packages/vtconfig/ROADMAP.md) |
+
+---
+
+### Foundational Layers
+
+These packages form the core bedrock of Refarm's architecture.
+
+| Layer | Purpose | Roadmap |
+|-------|---------|---------|
+| **Heartwood** | Security Kernel (WASM Crypto) | [`packages/heartwood/ROADMAP.md`](../packages/heartwood/ROADMAP.md) |
+| **Homestead** | Browser environment (SDK/IDE) | [`packages/homestead/ROADMAP.md`](../packages/homestead/ROADMAP.md) |
+| **Sync-Loro** | CRDT Sync Engine | [`packages/sync-loro/ROADMAP.md`](../packages/sync-loro/ROADMAP.md) |
+| **Tractor** | Microkernel (Native Host) | [`packages/tractor/docs/SPIN_SYNERGY.md`](../packages/tractor/docs/SPIN_SYNERGY.md) |
+
 
 
 #### Pending Technical Work (Post-Graduation)
