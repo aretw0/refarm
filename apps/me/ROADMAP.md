@@ -21,7 +21,7 @@ BrowserSyncClient (packages/sync-loro/) — WebSocket → tractor → OPFS
 installPlugin()    (packages/tractor-ts/) — SHA-256 + OPFS cache
 ```
 
-**No optional dependencies**: no sower, no scarecrow, no dsl-headless.
+**No optional dependencies**: no sower, no scarecrow, no ds.
 This is intentional — `apps/me` represents the sovereign citizen, not the developer.
 
 ---
