@@ -3,11 +3,10 @@ import { execSync } from "node:child_process";
 import { statSync, existsSync } from "node:fs";
 
 /**
- * Refarm Git Atomic Architect v7.0 (Semantic Diff-Aware)
+ * Refarm Git Atomic Architect v8.1 (Rust & Release Aware)
  *
- * Generates commit messages from the actual diff content of each file,
- * not from static pre-written strings. Groups are derived from intent,
- * not from historical session context.
+ * Generates commit messages from the actual diff content of each file.
+ * Now with full support for Rust crates, Changesets, and Templates.
  */
 
 // ---------------------------------------------------------------------------
@@ -45,9 +44,11 @@ export function extractSignals(path, diff) {
   const pIdx = pathParts.indexOf("packages");
   const aIdx = pathParts.indexOf("apps");
   const vIdx = pathParts.indexOf("validations");
+  const tIdx = pathParts.indexOf("templates");
   const scope = (pIdx !== -1 ? pathParts[pIdx + 1] : null) || 
                 (aIdx !== -1 ? pathParts[aIdx + 1] : null) ||
-                (vIdx !== -1 ? pathParts[vIdx + 1] : null);
+                (vIdx !== -1 ? pathParts[vIdx + 1] : null) ||
+                (tIdx !== -1 ? pathParts[tIdx + 1] : null);
   if (scope) signals.add(`scope:${scope}`);
 
   // 2. Package.json Dependency Extraction
@@ -103,6 +104,27 @@ export function extractSignals(path, diff) {
     else signals.add("infra:tsconfig");
   }
   if (path.includes("vitest.config")) signals.add("infra:vitest");
+  if (path.includes(".devcontainer/")) signals.add("infra:devcontainer");
+  if (!scope && (path === "package-lock.json" || path === "package.json")) signals.add("infra:root-pkg");
+
+  // 6. Rust & WASM Signals
+  if (path.endsWith(".rs")) signals.add("rust-src");
+  if (path.endsWith("Cargo.toml")) {
+    signals.add("rust-config");
+    if (d.includes("license =")) signals.add("rust-license");
+    if (d.includes("publish =")) signals.add("rust-publish");
+    if (d.includes("repository =") || d.includes("homepage =")) signals.add("rust-metadata");
+  }
+  if (path.endsWith("Cargo.lock")) signals.add("rust-lock");
+  if (path.endsWith(".wit") || path.includes("/wit/")) signals.add("wit-bindings");
+  if (d.includes("wasm32-wasip1")) signals.add("wasm-target");
+  if (d.includes("cargo-component")) signals.add("cargo-component");
+
+  // 7. Release & Changeset Signals
+  if (path.startsWith(".changeset/")) {
+    signals.add("release-automation");
+    if (path.endsWith(".md") && path !== ".changeset/README.md") signals.add("changeset-item");
+  }
 
   return signals;
 }
@@ -233,6 +255,42 @@ export function deriveCommitMessage(groupId, items) {
       const files = items.map(i => i.path.split("/").pop()).filter(Boolean);
       return `chore${scopePrefix}: update ${files.join(", ") || "various files"}`;
     }
+
+    case "release_automation": {
+      const isConfig = items.some(i => i.path.endsWith("config.json"));
+      if (isConfig) return `chore(release): update changeset configuration`;
+      return `docs(release): add changesets for versioning`;
+    }
+
+    case "infra_general": {
+      const parts = [];
+      if (allSignals.has("infra:devcontainer")) parts.push("devcontainer");
+      if (allSignals.has("infra:root-pkg")) parts.push("root dependencies");
+      return `chore(infra): update ${parts.join(" and ") || "environment configuration"}`;
+    }
+
+    case "scope_rust_crate": {
+      const scope = groupId.replace("scope_rust_crate:", "");
+      const parts = [];
+      let type = "chore";
+
+      if (allSignals.has("rust-src")) {
+        type = items.some(i => i.status === "??") ? "feat" : "refactor";
+        parts.push("update core logic");
+      }
+      if (allSignals.has("rust-license") || allSignals.has("rust-metadata")) {
+        parts.push("align crate metadata and licensing");
+      }
+      if (items.some(i => i.path.endsWith("package.json") && i.status === "??")) {
+        parts.push("add Turborepo integration");
+        type = "feat";
+      }
+      if (allSignals.has("wit-bindings")) parts.push("update WIT bindings");
+      if (allSignals.has("test-unit") || allSignals.has("test-suite")) parts.push("update tests");
+
+      const detail = parts.join("; ");
+      return `${type}(${scope}): ${detail || "update Rust crate"}`;
+    }
   }
 }
 
@@ -249,30 +307,51 @@ export function groupChanges(changes, getDiffFn = getFileDiff) {
     barn_specs:   { id: "barn_specs",   title: "🧺 Docs: Barn Specifications",            items: [] },
     toolbox:      { id: "toolbox",      title: "🧰 Feat: Toolbox Improvements",           items: [] },
     docs:         { id: "docs",         title: "📚 Docs: Documentation Updates",          items: [] },
-    pkg_updates:  { id: "pkg_updates",  title: "📦 Chore: Package & Config Updates",      items: [] },
+    release:      { id: "release_automation", title: "🚀 Release: Changesets & Automation", items: [] },
+    infra_configs:{ id: "infra_configs", title: "📦 Configuration: Repository-wide",      items: [] },
+    infra_general:{ id: "infra_general", title: "🛠️ Infrastructure: Environment",         items: [] },
     other:        { id: "other",        title: "📦 Misc: General Updates",                items: [] },
   };
 
   const dynamicGroups = new Map();
 
-  for (const change of changes) {
+  const preprocessed = changes.map(change => {
     const status = change.slice(0, 2).trim();
     const path = change.slice(3).trim();
     const diff = getDiffFn(path);
     const signals = extractSignals(path, diff);
-    const item = { status, path, signals, diff };
-
     const scopes = [...signals].filter(s => s.startsWith("scope:")).map(s => s.replace("scope:", ""));
-    const primaryScope = scopes[0];
+    return { status, path, signals, diff, scope: scopes[0] };
+  });
+
+  // Aggregate signals per scope
+  const scopeSignals = new Map();
+  for (const item of preprocessed) {
+    if (!item.scope) continue;
+    if (!scopeSignals.has(item.scope)) scopeSignals.set(item.scope, new Set());
+    const set = scopeSignals.get(item.scope);
+    item.signals.forEach(s => set.add(s));
+  }
+
+  for (const item of preprocessed) {
+    const { path, signals, scope } = item;
+    const allScopeSignals = scope ? scopeSignals.get(scope) : signals;
 
     // Priority Classification
     if (path.includes("git-atomic") || path.includes("git-commit") || path.includes("toolbox/src/") || path.includes("toolbox/test/")) {
       groups.toolbox.items.push(item);
-    } else if (primaryScope) {
-      // Favor scope for package changes
-      const gid = `scope:${primaryScope}`;
+    } else if (signals.has("release-automation")) {
+      groups.release.items.push(item);
+    } else if (scope) {
+      const isRust = allScopeSignals.has("rust-config") || allScopeSignals.has("rust-src") || 
+                     allScopeSignals.has("rust-lock") || allScopeSignals.has("wasm-target") || 
+                     allScopeSignals.has("wit-bindings");
+      
+      const gid = isRust ? `scope_rust_crate:${scope}` : `scope:${scope}`;
+      
       if (!dynamicGroups.has(gid)) {
-        dynamicGroups.set(gid, { id: gid, title: `📦 Package: ${primaryScope}`, items: [] });
+        const title = isRust ? `🦀 Rust Crate: ${scope}` : `📦 Package: ${scope}`;
+        dynamicGroups.set(gid, { id: gid, title, items: [] });
       }
       dynamicGroups.get(gid).items.push(item);
     } else if (signals.has("infra:github")) {
@@ -282,11 +361,9 @@ export function groupChanges(changes, getDiffFn = getFileDiff) {
       }
       dynamicGroups.get(gid).items.push(item);
     } else if (signals.has("infra:turbo") || signals.has("infra:tsconfig") || signals.has("infra:vitest")) {
-      const gid = "infra_configs";
-      if (!dynamicGroups.has(gid)) {
-        dynamicGroups.set(gid, { id: gid, title: "📦 Configuration: Repository-wide", items: [] });
-      }
-      dynamicGroups.get(gid).items.push(item);
+      groups.infra_configs.items.push(item);
+    } else if (signals.has("infra:devcontainer") || signals.has("infra:root-pkg")) {
+      groups.infra_general.items.push(item);
     } else if (signals.has("security")) {
       groups.security.items.push(item);
     } else if (path.endsWith(".md") || path.includes("docs/")) {
