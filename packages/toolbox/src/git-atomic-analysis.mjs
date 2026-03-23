@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { execSync } from "node:child_process";
-import { statSync, existsSync } from "node:fs";
+import { statSync, existsSync, readFileSync } from "node:fs";
 
 /**
  * Refarm Git Atomic Architect v8.1 (Rust & Release Aware)
@@ -22,7 +22,7 @@ export function getFileDiff(path) {
     const isNew = statusLine.startsWith("??") || statusLine.startsWith("A ");
 
     const raw = isNew
-      ? execSync(`head -n 80 "${path}"`, { encoding: "utf-8" })
+      ? readFileSync(path, { encoding: "utf-8" }).split("\n").slice(0, 80).join("\n")
       : execSync(`git diff HEAD -- "${path}"`, { encoding: "utf-8" });
 
     return { raw, isNew, isDeleted: false };
@@ -40,7 +40,7 @@ export function extractSignals(path, diff) {
   const d = diff.raw || "";
 
   // 1. Path-based Breadcrumbs (Scope)
-  const pathParts = path.split("/");
+  const pathParts = path.split(/[/\\]/);
   const pIdx = pathParts.indexOf("packages");
   const aIdx = pathParts.indexOf("apps");
   const vIdx = pathParts.indexOf("validations");
@@ -362,10 +362,10 @@ export function groupChanges(changes, getDiffFn = getFileDiff) {
       dynamicGroups.get(gid).items.push(item);
     } else if (signals.has("infra:turbo") || signals.has("infra:tsconfig") || signals.has("infra:vitest")) {
       groups.infra_configs.items.push(item);
-    } else if (signals.has("infra:devcontainer") || signals.has("infra:root-pkg")) {
-      groups.infra_general.items.push(item);
     } else if (signals.has("security")) {
       groups.security.items.push(item);
+    } else if (signals.has("infra:devcontainer") || signals.has("infra:root-pkg")) {
+      groups.infra_general.items.push(item);
     } else if (path.endsWith(".md") || path.includes("docs/")) {
       groups.docs.items.push(item);
     } else {
