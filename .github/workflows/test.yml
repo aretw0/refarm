@@ -2,7 +2,7 @@ name: Test & Quality
 
 on:
   push:
-    branches: [main, develop]
+    branches: [develop]
   pull_request:
     branches: [main, develop]
 
@@ -47,14 +47,15 @@ jobs:
           
           # Generate baseline from main
           git fetch origin main || true
-          git checkout origin/main || git checkout main || true
+          # Use -f to ensure we can switch branches even if npm ci modified tracked files
+          git checkout -f origin/main || git checkout -f main || true
           npm ci
           cd packages/tractor
           npm run bench:save
           cd ../..
           
           # Return to PR commit and test
-          git checkout $CURRENT_BRANCH
+          git checkout -f $CURRENT_BRANCH
           npm ci
           cd packages/tractor
           npm run bench:check
