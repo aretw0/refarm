@@ -22,5 +22,8 @@ export default defineConfig({
     command: 'npm run preview:test',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: !process.env.CI,
+    timeout: 120000,
+    stderr: 'pipe',
+    stdout: 'pipe',
   },
 });
