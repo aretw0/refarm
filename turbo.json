@@ -28,23 +28,53 @@
     },
     "test:coverage": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "tests/**", "*.config.*", "**/*.rs", "Cargo.toml", "Cargo.lock"],
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ],
       "outputs": ["coverage/**"]
     },
     "test:unit": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "tests/**", "*.config.*", "**/*.rs", "Cargo.toml", "Cargo.lock"]
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
     },
     "test:integration": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "test/**", "tests/**", "*.config.*", "**/*.rs", "Cargo.toml", "Cargo.lock"]
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "**/*.rs",
+        "Cargo.toml",
+        "Cargo.lock"
+      ]
     },
     "test:e2e:setup": {
-      "outputs": ["node_modules/.cache/playwright/**"]
+      "outputs": ["~/.cache/ms-playwright/**"]
     },
     "test:e2e": {
       "dependsOn": ["^build", "test:e2e:setup"],
-      "inputs": ["src/**", "test/**", "tests/**", "*.config.*", "playwright.config.*"]
+      "inputs": [
+        "src/**",
+        "test/**",
+        "tests/**",
+        "*.config.*",
+        "playwright.config.*"
+      ]
     },
     "build:ci": {
       "dependsOn": ["^build:ci"],
