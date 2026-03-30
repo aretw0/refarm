@@ -93,7 +93,7 @@ Strategic roadmap for RFC-grade password-based authentication.
 > Roadmap detalhado: [`packages/tractor/docs/OPAQUE.md`](../packages/tractor/docs/OPAQUE.md)
 
 ### 🌀 Spin Synergy (Runtime)
-Aligning Refarm with Spin v3's modular "Factors" and component composition.
+Aligning Refarm with Spin v3's modular "Factors" and component composition, com foco na padronização de interfaces (WIT/WASI) para convergência incremental.
 > Roadmap detalhado: [`packages/tractor/docs/SPIN_SYNERGY.md`](../packages/tractor/docs/SPIN_SYNERGY.md)
 
 
