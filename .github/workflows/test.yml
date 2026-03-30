@@ -44,7 +44,7 @@ jobs:
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
-          
+
           # Generate baseline from main
           git fetch origin main || true
           # Use -f to ensure we can switch branches even if npm ci modified tracked files
@@ -53,7 +53,7 @@ jobs:
           cd packages/tractor
           npm run bench:save
           cd ../..
-          
+
           # Return to PR commit and test
           git checkout -f $CURRENT_BRANCH
           npm ci
@@ -77,20 +77,20 @@ jobs:
           script: |
             const diff = parseFloat('${{ steps.benchmark.outputs.diff }}');
             const threshold = parseFloat('${{ steps.benchmark.outputs.threshold }}');
-            
+
             // Fetch existing comments from the bot
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
+
             const botComments = comments.filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('🚀 Tractor Performance Increased!'));
-            
+
             // Find the high-water mark from previous comments
             let highWaterMark = threshold;
             const regex = /\+\*\*([0-9.]+)\%\*\* Average Improvement/;
-            
+
             for (const comment of botComments) {
               const match = comment.body.match(regex);
               if (match && match[1]) {
@@ -100,7 +100,7 @@ jobs:
                 }
               }
             }
-            
+
             // Only comment if the current performance strictly beats the highest water mark
             if (diff > highWaterMark) {
               let body = `### 🚀 Tractor Performance Increased!\n\n`;
@@ -125,7 +125,7 @@ jobs:
         run: |
           cd packages/tractor
           npm run coverage:check
-          
+
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "coverage/gha-payload.json" ]; then
             IMPROVED=$(jq -r '.improved' coverage/gha-payload.json)
@@ -146,20 +146,20 @@ jobs:
             const currentCoverage = parseFloat('${{ steps.coverage.outputs.current }}');
             const previousCoverage = parseFloat('${{ steps.coverage.outputs.previous }}');
             const diff = '${{ steps.coverage.outputs.diff }}';
-            
+
             // Fetch existing comments from the bot
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
             });
-            
+
             const botComments = comments.filter(c => c.user.login === 'github-actions[bot]' && c.body.includes('🚀 Tractor Coverage Increased!'));
-            
+
             // Find the high-water mark from previous comments
             let highWaterMark = previousCoverage;
             const regex = /Current High Score: \*\*([0-9.]+)\%\*\*/;
-            
+
             for (const comment of botComments) {
               const match = comment.body.match(regex);
               if (match && match[1]) {
@@ -169,7 +169,7 @@ jobs:
                 }
               }
             }
-            
+
             // Only comment if the current coverage strictly beats the highest water mark
             if (currentCoverage > highWaterMark) {
               let body = `### 🚀 Tractor Coverage Increased!\n\n`;
@@ -241,6 +241,8 @@ jobs:
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
+        with:
+          playwright-setup: "true"
 
       - name: Check E2E script status
         id: e2e_check

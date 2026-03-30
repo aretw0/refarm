@@ -6,6 +6,10 @@ inputs:
     description: "Node.js version"
     required: false
     default: "22"
+  playwright-setup:
+    description: "Whether to setup Playwright browsers"
+    required: false
+    default: "false"
   rust-target:
     description: "Rust targets install (e.g. wasm32-wasip1). Multiple targets can be separated by commas."
     required: false
@@ -20,6 +24,14 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: "npm"
 
+    - name: Cache Turbo
+      uses: ./.github/actions/cache
+      with:
+        path: .turbo
+        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-turbo-
+
     - name: Install dependencies
       shell: bash
       run: |
@@ -31,13 +43,25 @@ runs:
           npm install
         fi
 
-    - name: Cache Turbo
-      uses: ./.github/actions/cache
+    - name: Cache Playwright browsers
+      if: ${{ inputs.playwright-setup == 'true' }}
+      id: cache-playwright
+      uses: ./.github/actions/cache-playwright
       with:
-        path: .turbo
-        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        key: ${{ runner.os }}-playwright-browsers-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-turbo-
+          ${{ runner.os }}-playwright-browsers-
+
+    - name: Setup Playwright browsers
+      if: ${{ inputs.playwright-setup == 'true' }}
+      shell: bash
+      run: |
+        if [ -d ~/.cache/ms-playwright ]; then
+          echo "Playwright browsers cache found, skipping installation..."
+        else
+          echo "Installing Playwright browsers..."
+          playwright install --with-deps
+        fi
 
     - name: Setup Rust toolchain
       if: ${{ inputs.rust-target != '' }}
@@ -48,7 +72,7 @@ runs:
     - name: Cache cargo-component
       if: ${{ inputs.rust-target != '' }}
       id: cache-cargo-component
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+      uses: ./.github/actions/cache
       with:
         path: ~/.cargo/bin/cargo-component
         key: ${{ runner.os }}-cargo-component-0.21.1

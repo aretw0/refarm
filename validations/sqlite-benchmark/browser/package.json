@@ -9,7 +9,7 @@
     "build": "npm run setup:wasm && tsc && vite build",
     "preview": "vite preview",
     "preview:test": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
-    "test:e2e:setup": "playwright install --with-deps",
+    "preview:static": "npm run build && serve dist -l 4174",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
     "test:e2e:chromium": "playwright test --project=chromium",
