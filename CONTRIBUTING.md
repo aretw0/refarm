@@ -378,4 +378,4 @@ npm run lint      # Type check & linting
 
 ## License
 
-By contributing to Refarm, you agree that your contributions will be licensed under the [AGPL-3.0 License](LICENSE).
+By contributing to Refarm, you agree that your contributions will be licensed under the [AGPL-3.0 License](LICENSE), with additional brand protection and namespace protection clauses detailed in the license itself.
