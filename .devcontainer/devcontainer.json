@@ -41,7 +41,8 @@
         "nhoizey.gremlins",
         "arr.marksman",
         "MermaidChart.vscode-mermaid-chart",
-        "DavidAnson.vscode-markdownlint"
+        "DavidAnson.vscode-markdownlint",
+        "ms-playwright.playwright"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
