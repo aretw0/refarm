@@ -7,9 +7,9 @@ inputs:
     required: false
     default: "22"
   rust-target:
-    description: "Rust target to install (e.g. wasm32-wasip1)"
+    description: "Rust targets install (e.g. wasm32-wasip1). Multiple targets can be separated by commas."
     required: false
-    default: "wasm32-wasip1"
+    default: "wasm32-wasip1,x86_64-unknown-linux-gnu"
 
 runs:
   using: "composite"
