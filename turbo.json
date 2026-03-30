@@ -63,11 +63,8 @@
         "Cargo.lock"
       ]
     },
-    "test:e2e:setup": {
-      "outputs": ["~/.cache/ms-playwright/**"]
-    },
     "test:e2e": {
-      "dependsOn": ["^build", "test:e2e:setup"],
+      "dependsOn": ["^build"],
       "inputs": [
         "src/**",
         "test/**",

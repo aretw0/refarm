@@ -14,17 +14,12 @@ inputs:
     required: false
     default: ""
 
-outputs:
-  cache-hit:
-    description: "Whether cache hit occurred"
-    value: ${{ steps.cache.outputs.cache-hit }}
-
 runs:
   using: "composite"
   steps:
     - name: Cache Playwright browsers
       id: cache
-      uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4 (stable)
+      uses: ./.github/actions/cache
       with:
         path: ${{ inputs.path }}
         key: ${{ inputs.key }}
