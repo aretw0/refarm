@@ -8,8 +8,8 @@ echo "[refarm-devcontainer] Starting optimized post-create setup..."
 # Ensure vscode user owns the npm, turbo, and playwright cache directories.
 echo "[refarm-devcontainer] Fixing permissions for mounted caches..."
 sudo chown -R vscode:vscode /home/vscode
-mkdir -p /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
-sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
+mkdir -p /home/vscode/.npm /home/vscode/.npm-global/bin /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
+sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.npm-global /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
 # Rust/Cargo volumes mount as root/rustlang; ensure vscode can write to bin and rustup if needed
 sudo chown -R vscode:rustlang /usr/local/cargo /usr/local/rustup
 chmod -R g+w /usr/local/cargo /usr/local/rustup
