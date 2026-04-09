@@ -39,14 +39,9 @@ npm run build
 
 # Only JCO transpile (if WASM binary already exists in target/)
 npm run build:transpile
-
-# CI-safe: transpiles if WASM binary exists, skips gracefully otherwise
-npm run build:ci
 ```
 
 ## CI
-
-In standard CI (without Rust toolchain), `npm run build:ci` prints a skip message and exits successfully — the pre-compiled `pkg/` artifacts are used as-is.
 
 When heartwood's Rust source changes and a rebuild is required, use the reusable workflow:
 
