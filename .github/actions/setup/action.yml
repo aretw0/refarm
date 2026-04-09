@@ -97,3 +97,4 @@ runs:
           validations/simple-wasm-plugin -> target
           templates/rust-plugin -> target
           packages/tractor -> target
+          packages/tractor/tests/fixtures/null-plugin -> target
