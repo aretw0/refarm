@@ -1,26 +1,41 @@
 #!/usr/bin/env bash
-# .devcontainer/post-create.sh - Optimized setup for Refarm
+# .devcontainer/post-create.sh - Optimized setup for Refarm using Turborepo
 set -euo pipefail
 
 echo "[refarm-devcontainer] Starting optimized post-create setup..."
 
-# 1. Fix permissions for mounted volumes (CRITICAL for rust-analyzer)
-# refarm-npm-cache mounts as root; refarm-cargo-* mount into /usr/local/cargo (rustlang group, vscode is member).
+# 1. Fix permissions for mounted volumes
+# Ensure vscode user owns the npm, turbo, and playwright cache directories.
 echo "[refarm-devcontainer] Fixing permissions for mounted caches..."
-mkdir -p /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright
-sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright
+sudo chown -R vscode:vscode /home/vscode
+mkdir -p /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
+sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
 # Rust/Cargo volumes mount as root/rustlang; ensure vscode can write to bin and rustup if needed
 sudo chown -R vscode:rustlang /usr/local/cargo /usr/local/rustup
 chmod -R g+w /usr/local/cargo /usr/local/rustup
 
-# 2. Rust Toolchain setup (fast)
-echo "[refarm-devcontainer] Adding Rust WASM targets..."
+# 2. NPM Dependencies
+# npm ci is still run here to ensure node_modules are installed for the current project.
+# The Turborepo cache for node_modules is not as effective as npm's own cache.
+if [ -f package-lock.json ]; then
+  echo "[refarm-devcontainer] Running npm ci..."
+  npm ci
+else
+  echo "[refarm-devcontainer] No package-lock.json discovered, running npm install..."
+  npm install
+fi
+
+# 3. Rust tooling.
+echo "[refarm-devcontainer] Setting up Rust toolchain and specialized WASM tooling..."
 rustup default stable
+rustup target add x86_64-unknown-linux-gnu
 rustup target add wasm32-unknown-unknown
 rustup target add wasm32-wasip1 || true
+rustup target add wasm32-wasip2 || true
+# TODO: wasm32-wasip3 is currently not available on stable, but we can add it when it is. For now, we can rely on the fact that the rustup component for rust-src will allow us to build against the latest nightly toolchain if needed.
+# rustup target add wasm32-wasip3 || true
 rustup component add rust-src
 
-# 3. Tool installation for specialized WASM tooling.
 # BIN_DIR must match CARGO_HOME (set by devcontainer rust feature to /usr/local/cargo).
 BIN_DIR="${CARGO_HOME:-/usr/local/cargo}/bin"
 
@@ -46,24 +61,20 @@ else
   echo "[refarm-devcontainer] cargo-component already present"
 fi
 
-# 4. NPM Dependencies (conditional)
-if [ -f package-lock.json ]; then
-  echo "[refarm-devcontainer] Running npm ci..."
-  npm ci
-else
-  echo "[refarm-devcontainer] No package-lock.json discovered, skipping npm ci."
-fi
+# 4. Install Playwright browsers
+echo "[refarm-devcontainer] Installing Playwright browsers..."
+npx playwright install --with-deps
 
 # 5. Finalize Environment
 echo "[refarm-devcontainer] Finalizing setup..."
-npm run hooks:install || true
-npx playwright install chromium
+npm run hooks:install
 
 echo "[refarm-devcontainer] Tool versions:"
+node --version
 rustc --version
 cargo --version
-cargo-component --version || true
-wasm-tools --version || true
-node --version
+cargo-component --version
+wasm-tools --version
+npx playwright --version
 
 echo "[refarm-devcontainer] Setup complete."

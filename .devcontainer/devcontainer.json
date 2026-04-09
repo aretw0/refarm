@@ -49,7 +49,11 @@
         "rust-analyzer.lru.capacity": 44,
         "rust-analyzer.check.command": "check",
         "rust-analyzer.checkOnSave": true,
-        "rust-analyzer.linkedProjects": ["./packages/tractor/Cargo.toml"]
+        "rust-analyzer.linkedProjects": [
+          "./packages/heartwood/Cargo.toml",
+          "./packages/tractor/Cargo.toml",
+          "./packages/tractor/tests/fixtures/null-plugin/Cargo.toml"
+        ]
       }
     }
   }
