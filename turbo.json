@@ -12,10 +12,10 @@
       "persistent": true
     },
     "lint": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["build"]
     },
     "test": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": [
         "src/**",
         "test/**",
@@ -27,7 +27,7 @@
       ]
     },
     "test:coverage": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": [
         "src/**",
         "test/**",
@@ -40,7 +40,7 @@
       "outputs": ["coverage/**"]
     },
     "test:unit": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": [
         "src/**",
         "test/**",
@@ -52,7 +52,7 @@
       ]
     },
     "test:integration": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": [
         "src/**",
         "test/**",
@@ -64,28 +64,25 @@
       ]
     },
     "test:e2e": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["build"],
       "inputs": [
         "src/**",
         "test/**",
         "tests/**",
         "*.config.*",
-        "playwright.config.*"
-      ]
-    },
-    "build:ci": {
-      "dependsOn": ["^build:ci"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", ".astro/**", "pkg/**"]
+        "playwright.config.*",
+        "public/**"
+      ],
+      "outputs": ["test-results/**"]
     },
     "clean": {
       "cache": false
     },
     "type-check": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["build"]
     },
     "type-check:dist": {
-      "dependsOn": ["^build"]
+      "dependsOn": ["build"]
     }
   }
 }
