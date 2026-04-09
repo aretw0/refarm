@@ -70,6 +70,16 @@ jobs:
           search-query: ${{ inputs.issue-search-query }}
           labels: ${{ inputs.issue-labels }}
 
+      - name: Close security issue when audit passes
+        if: always() && steps.audit_report.outcome == 'success' && steps.audit_gate.outcome != 'failure'
+        uses: ./.github/actions/manage-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          operation: close
+          title: ${{ inputs.issue-title }}
+          search-query: ${{ inputs.issue-search-query }}
+
       - name: Upload audit artifact
         if: always()
         uses: ./.github/actions/upload-artifact

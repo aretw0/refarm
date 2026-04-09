@@ -105,6 +105,16 @@ jobs:
             echo "📦 Updates discovered, preparing issue and PR."
           fi
 
+      - name: Close dependency issue when no updates are needed
+        if: steps.check.outputs.has_updates != 'true'
+        uses: ./.github/actions/manage-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          operation: close
+          title: ${{ inputs.issue-title }}
+          search-query: ${{ inputs.issue-search-query }}
+
       - name: Apply updates
         if: steps.check.outputs.has_updates == 'true'
         shell: bash

@@ -122,6 +122,16 @@ jobs:
           search-query: ${{ inputs.issue-search-query }}
           labels: ${{ inputs.issue-labels }}
 
+      - name: Close release health issue when healthy
+        if: steps.health.outputs.has_failure != 'true' && inputs.open-issue-on-failure
+        uses: ./.github/actions/manage-issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          operation: close
+          title: ${{ inputs.issue-title }}
+          search-query: ${{ inputs.issue-search-query }}
+
       - name: Upload release health artifact
         if: always()
         uses: ./.github/actions/upload-artifact

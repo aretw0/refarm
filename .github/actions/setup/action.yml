@@ -56,11 +56,11 @@ runs:
       if: ${{ inputs.playwright-setup == 'true' }}
       shell: bash
       run: |
-        if [ -d ~/.cache/ms-playwright ]; then
-          echo "Playwright browsers cache found, skipping installation..."
+        if npx playwright install --list | grep -Eq '/(chromium|firefox|webkit)-'; then
+          echo "Playwright browsers already available, skipping installation..."
         else
           echo "Installing Playwright browsers..."
-          playwright install --with-deps
+          npx playwright install --with-deps
         fi
 
     - name: Setup Rust toolchain
