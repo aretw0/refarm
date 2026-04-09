@@ -63,7 +63,6 @@ sequenceDiagram
 | **Node.js** (dev/server) | `jco.transpile()` at runtime | `PluginHost.load()` | `.jco-dist/<pluginId>/` on disk |
 | **Browser** (install) | `installPlugin()` + JCO | First use of a plugin | OPFS-cached ES modules |
 | **Browser** (runtime) | `dynamic import()` | `PluginHost.load()` from OPFS | Plugin instance in memory |
-| **CI** (no Rust toolchain) | `pkg/` pre-compiled artifacts | `npm run build:ci` | Skips rebuild, uses committed `pkg/` |
 | **CI** (with Rust toolchain) | `reusable-build-wasm-plugin.yml` | Rust source changes | Refreshed `pkg/` artifacts |
 
 ## WASI Stubs & Versioning
@@ -81,7 +80,7 @@ To ensure high-fidelity verification without bloating CI runners:
 - **Fixtures**: Stable components (like Heartwood) are pre-transpiled into `__fixtures__` within tests. This bypasses the need for full Rust toolchains during every CI run for package-level tests.
 - **WASM Tracking**: Specific test fixtures are explicitly allowed in git via `.gitignore` exceptions.
 - **`pkg/` as stable reference**: `packages/heartwood/pkg/` contains the JCO-transpiled artifacts committed to the repository. They are the source of truth for all consumers in standard CI runs.
-- **`build:ci` script**: `heartwood` exposes a `build:ci` npm script that checks for `target/wasm32-wasip1/release/refarm_heartwood.wasm`. If the binary is absent (no Rust toolchain), it exits successfully and logs a skip message — `pkg/` is used as-is. If the binary is present, it re-runs `jco transpile` to refresh `pkg/`.
+— `pkg/` is used as-is. If the binary is present, it re-runs `jco transpile` to refresh `pkg/`.
 - **Reusable rebuild workflow**: When Heartwood's Rust source changes and a full rebuild is required, use `.github/workflows/reusable-build-wasm-plugin.yml`. This workflow installs the Rust toolchain, compiles, transpiles, and uploads `pkg/` as an artifact. External plugin authors can call this workflow from their own repos via `uses: refarm-dev/refarm/.github/workflows/reusable-build-wasm-plugin.yml@main`.
 
 ### Toolchain Provisioning in CI
