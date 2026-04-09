@@ -2,12 +2,16 @@ name: "Manage Issue"
 description: "Create or update an issue based on a body file"
 
 inputs:
+  operation:
+    description: "Operation to perform: upsert or close"
+    required: false
+    default: "upsert"
   title:
     description: "Issue title"
     required: true
   body-file:
     description: "Path to issue body markdown file"
-    required: true
+    required: false
   search-query:
     description: "GitHub issue search query"
     required: true
@@ -31,6 +35,7 @@ runs:
       id: manage
       shell: bash
       env:
+        OPERATION: ${{ inputs.operation }}
         TITLE: ${{ inputs.title }}
         BODY_FILE: ${{ inputs.body-file }}
         SEARCH_QUERY: ${{ inputs.search-query }}
@@ -47,6 +52,25 @@ runs:
         fi
 
         ISSUE_URL=$(gh issue list --state open --search "$SEARCH_QUERY" --json url --jq '.[0].url')
+
+        if [ "$OPERATION" = "close" ]; then
+          if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
+            echo "Closing open issue: $ISSUE_URL"
+            gh issue close "$ISSUE_URL" --reason completed
+          else
+            echo "No open issue found to close."
+            ISSUE_URL=""
+          fi
+
+          echo "proceed=false" >> "$GITHUB_OUTPUT"
+          echo "issue_url=$ISSUE_URL" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [ -z "$BODY_FILE" ]; then
+          echo "body-file is required when operation=upsert" >&2
+          exit 1
+        fi
 
         if [ -n "$ISSUE_URL" ] && [ "$ISSUE_URL" != "null" ]; then
           echo "Found open issue: $ISSUE_URL"
