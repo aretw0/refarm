@@ -1,5 +1,5 @@
 # .github/workflows/deploy-dev.yml
-# 
+#
 # Refarm.dev Homestead Deployment — "Residency in Grand Style"
 #
 # This workflow automates the deployment of the Dev Homestead app to GitHub Pages and beyound.
@@ -10,11 +10,11 @@ name: Deploy to Refarm.dev
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
     paths:
-      - 'apps/dev/**'
-      - 'packages/**'
-      - '.github/workflows/deploy-dev.yml'
+      - "apps/dev/**"
+      - "packages/**"
+      - ".github/workflows/deploy-dev.yml"
   workflow_dispatch:
 
 permissions:
@@ -38,12 +38,8 @@ jobs:
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
 
-      - name: Restore Distribution Resolution (dist)
-        run: node scripts/reso.mjs dist
-
       - name: Build Refarm.dev App
-        # Compositional build via turbo, filtering for the app using the dynamic scope
-        run: npx turbo build --filter="$REFARM_SCOPE_DEV/app"
+        run: npm --workspace @refarm.dev/app run build
 
       - name: Upload artifact
         uses: ./.github/actions/upload-pages
