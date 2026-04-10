@@ -1,20 +1,10 @@
 import { defineConfig } from "vite";
+import { withWasmBrowserConfig } from "@refarm.dev/vtconfig";
 
-export default defineConfig({
-  assetsInclude: ["**/*.wasm"],
-  server: {
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
+export default withWasmBrowserConfig(
+  defineConfig({
+    optimizeDeps: {
+      exclude: ["@sqlite.org/sqlite-wasm"],
     },
-  },
-  preview: {
-    headers: {
-      "Cross-Origin-Opener-Policy": "same-origin",
-      "Cross-Origin-Embedder-Policy": "require-corp",
-    },
-  },
-  optimizeDeps: {
-    exclude: ["@sqlite.org/sqlite-wasm"],
-  },
-});
+  }),
+);
