@@ -38,6 +38,9 @@ jobs:
       - name: Setup Refarm Environment
         run: node scripts/ci/setup-env.mjs
 
+      - name: Build Heartwood WASM Package
+        run: npm --workspace @refarm.dev/heartwood run build
+
       - name: Build Refarm.dev App
         run: npm --workspace @refarm.dev/app run build
 
