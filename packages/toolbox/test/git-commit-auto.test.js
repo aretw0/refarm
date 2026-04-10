@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { processCommits } from "../src/git-commit-auto.mjs";
+import { buildCommitCommand, processCommits } from "../src/git-commit-auto.mjs";
 
 // In v7.0, groups no longer have a static `msg` field.
 // The message is derived dynamically by deriveCommitMessage(group.id, group.items).
@@ -12,6 +12,12 @@ const makeGroup = (id, path, signals = []) => ({
 });
 
 describe("Git Commit Automator Logic (Pure Function)", () => {
+  it("should quote paths and commit message safely when building commands", () => {
+    const command = buildCommitCommand(["docs/space name.md", "packages/toolbox/src/cli.mjs"], 'docs: update "resolution" notes');
+    expect(command).toContain('git add "docs/space name.md" "packages/toolbox/src/cli.mjs"');
+    expect(command).toContain('git commit -m "docs: update \\\"resolution\\\" notes"');
+  });
+
   it("should execute command when user answers 'y'", async () => {
     const mockGroups = [makeGroup("pkg_updates", "file.txt")];
 
@@ -27,7 +33,7 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
 
     expect(execFn).toHaveBeenCalledOnce();
     const cmd = execFn.mock.calls[0][0];
-    expect(cmd).toContain("git add file.txt");
+    expect(cmd).toContain('git add "file.txt"');
     expect(cmd).toContain("git commit -m");
     expect(cmd).not.toContain('"undefined"');
   });
@@ -63,7 +69,7 @@ describe("Git Commit Automator Logic (Pure Function)", () => {
       readlineInterface: mockRl
     });
 
-    expect(execFn).toHaveBeenCalledWith('git add file.txt && git commit -m "feat: custom message"');
+    expect(execFn).toHaveBeenCalledWith('git add "file.txt" && git commit -m "feat: custom message"');
   });
 
   it("should stop processing when user answers 'q'", async () => {

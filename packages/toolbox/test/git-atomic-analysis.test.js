@@ -11,6 +11,10 @@ const mockGetDiff = (path) => {
   if (path.includes("barn/src/index.ts")) return { raw: '+ export function installPlugin(url: string, integrity: string) {}\n+ export function listPlugins() {}\n+ export function uninstallPlugin(id: string) {}\nsha256\nPluginEntry', isNew: false, isDeleted: false };
   if (path.includes("barn/tests")) return { raw: '+ describe("Barn", () => {\n+  it("should allow installing", async () => {', isNew: false, isDeleted: false };
   if (path.includes("barn/README.md")) return { raw: '# Barn', isNew: false, isDeleted: false };
+  if (path.includes("sqlite-benchmark/browser/package.json")) return { raw: '+ "@refarm.dev/vtconfig": "*"', isNew: false, isDeleted: false };
+  if (path.includes("sqlite-benchmark/browser/src/main.ts")) return { raw: '+ function localHelper() {}\n+ export function createSqliteWorkerClient() {}\n+ const workerClient = createSqliteWorkerClient();', isNew: false, isDeleted: false };
+  if (path.includes("sqlite-benchmark/browser/src/runner.ts")) return { raw: '+ function localHelper() {}\n+ const workerClient = createSqliteWorkerClient();', isNew: false, isDeleted: false };
+  if (path.includes("docs/DEVELOPMENT_RESOLUTION.md")) return { raw: 'This doc mentions vitest and homestead/ui in prose only.', isNew: false, isDeleted: false };
   if (path.includes("git-atomic")) return { raw: 'Refarm Git Atomic Architect v7.0', isNew: false, isDeleted: false };
   return { raw: "", isNew: false, isDeleted: false };
 };
@@ -47,6 +51,23 @@ describe("Git Atomic Analysis v7.0 — extractSignals", () => {
     const diff = mockGetDiff("package.json");
     const signals = extractSignals("package.json", diff);
     expect(signals.has("security")).toBe(true);
+  });
+
+  it("should only extract explicitly exported symbols from code diffs", () => {
+    const diff = mockGetDiff("validations/sqlite-benchmark/browser/src/main.ts");
+    const signals = extractSignals("validations/sqlite-benchmark/browser/src/main.ts", diff);
+    expect(signals.has("export:createSqliteWorkerClient")).toBe(true);
+    expect(signals.has("export:localHelper")).toBe(false);
+    expect(signals.has("export:workerClient")).toBe(false);
+  });
+
+  it("should not infer code-like signals from markdown prose", () => {
+    const diff = mockGetDiff("docs/DEVELOPMENT_RESOLUTION.md");
+    const signals = extractSignals("docs/DEVELOPMENT_RESOLUTION.md", diff);
+    expect(signals.has("docs")).toBe(true);
+    expect(signals.has("test-mock")).toBe(false);
+    expect(signals.has("homestead-subpath")).toBe(false);
+    expect(signals.has("tsconfig-paths")).toBe(false);
   });
 });
 
@@ -127,6 +148,14 @@ describe("Git Atomic Analysis v7.0 — deriveCommitMessage", () => {
     const groups = groupChanges(changes, mockGetDiff);
     const msg = deriveCommitMessage("security", groups.security.items);
     expect(msg).toContain("fix(security):");
+  });
+
+  it("should mention implementation updates when source files change without exported symbols", () => {
+    const changes = ["M  validations/sqlite-benchmark/browser/src/runner.ts", "M  validations/sqlite-benchmark/browser/package.json"];
+    const groups = groupChanges(changes, mockGetDiff);
+    const msg = deriveCommitMessage("scope:sqlite-benchmark", groups["scope:sqlite-benchmark"].items);
+    expect(msg).toContain("refactor(sqlite-benchmark): update implementation");
+    expect(msg).toContain("update dependencies (vtconfig)");
   });
 });
 describe("Git Atomic Analysis v7.0 — Mixed Context & Scoping", () => {

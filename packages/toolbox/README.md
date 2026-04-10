@@ -5,6 +5,7 @@ The Refarm Toolbox is a collection of shared developer utilities, build tools, a
 ## Features
 
 - **`git-commit-auto`**: Refarm's atomic git commit automator.
+- **`task:finish` atomic-first flow**: the finish workflow now offers atomic commit grouping before falling back to a single branch-based commit.
 - **Shared Build Scripts**: Standardized bundling and transpilation logic.
 - **WASM Component Tools**: Utilities for working with the WASM Component Model and JCO.
 
