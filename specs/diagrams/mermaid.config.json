@@ -1,4 +1,8 @@
 {
+  "look": "classic",
+  "handDrawnSeed": 42,
+  "deterministicIds": true,
+  "deterministicIDSeed": "refarm-diagrams",
   "theme": "base",
   "fontFamily": "'IBM Plex Sans', 'Segoe UI', sans-serif",
   "themeVariables": {
