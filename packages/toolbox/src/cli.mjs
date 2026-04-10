@@ -46,6 +46,7 @@ async function run() {
                 console.log("  rebrand     - Emergency global refactoring protocol");
                 console.log("  sync-labels - Create/Update GitHub phase labels");
                 console.log("  reso        - Toggle between Local (src) and Published (dist) resolution");
+                console.log("\nResolution docs: docs/DEVELOPMENT_RESOLUTION.md and docs/RESOLUTION_MATRIX.md");
                 process.exit(1);
         }
     } catch (err) {

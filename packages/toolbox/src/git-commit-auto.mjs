@@ -11,6 +11,11 @@ export function askQuestion(query, rlInterface) {
   return new Promise((resolve) => rlInterface.question(query, resolve));
 }
 
+export function buildCommitCommand(paths, commitMsg) {
+  const quotedPaths = paths.map((path) => JSON.stringify(path)).join(" ");
+  return `git add ${quotedPaths} && git commit -m ${JSON.stringify(commitMsg)}`;
+}
+
 export async function processCommits(activeGroups, options = {}) {
   const {
     execFn = (cmd) => execSync(cmd, { stdio: "inherit" }),
@@ -22,9 +27,9 @@ export async function processCommits(activeGroups, options = {}) {
     console.log(`\n📦 Group: ${group.title}`);
     group.items.forEach(c => console.log(`  [${c.status}] ${c.path}`));
     
-    const paths = group.items.map(c => c.path).join(" ");
+    const paths = group.items.map(c => c.path);
     let commitMsg = deriveCommitMessage(group.id, group.items);
-    const fullCommand = `git add ${paths} && git commit -m "${commitMsg}"`;
+    const fullCommand = buildCommitCommand(paths, commitMsg);
 
     console.log(`\nProposed Command:\n  ${fullCommand}`);
 
@@ -39,7 +44,7 @@ export async function processCommits(activeGroups, options = {}) {
     if (answer === "e") {
       const newMsg = await askQuestion("Enter new commit message: ", readlineInterface);
       commitMsg = newMsg || commitMsg;
-      const updatedCommand = `git add ${paths} && git commit -m "${commitMsg}"`;
+      const updatedCommand = buildCommitCommand(paths, commitMsg);
       console.log(`Executing: ${updatedCommand}`);
       execFn(updatedCommand);
     } else if (answer === "y") {

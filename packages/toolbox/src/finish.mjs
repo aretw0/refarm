@@ -1,7 +1,14 @@
 import { execSync } from 'node:child_process';
+import path from 'node:path';
 import process from 'node:process';
 import readline from 'node:readline';
+import { fileURLToPath } from 'node:url';
 import { gitUrlAdapter } from './git-adapter.mjs';
+import { groupChanges } from './git-atomic-analysis.mjs';
+import { processCommits } from './git-commit-auto.mjs';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const rl = readline.createInterface({
     input: process.stdin,
@@ -20,6 +27,11 @@ function runCommand(command, throwOnError = true, silent = false) {
         }
         return null;
     }
+}
+
+function getStatusLines() {
+    const status = runCommand('git status --porcelain', false, true);
+    return status ? status.split('\n').filter((line) => line.trim().length > 0) : [];
 }
 
 async function main() {
@@ -66,16 +78,35 @@ async function main() {
 
     // 5. Commit all changes automatically if not committed
     if (status && status.length > 0) {
-        const autoCommit = await question("\n💻 You have unstaged changes. Commit and Push? (Y/n): ");
-        if (autoCommit.trim().toLowerCase() !== 'n') {
-            const branchParts = currentBranch.split('/');
-            const type = branchParts[0] || 'feat';
-            const desc = branchParts[1] ? branchParts[1].replace(/-/g, ' ').replace(/^\d+-/, '') : 'updates';
+        const useAtomicFlow = await question("\n💻 You have unstaged changes. Run atomic commit flow first? (Y/n): ");
+        if (useAtomicFlow.trim().toLowerCase() !== 'n') {
+            const activeGroups = Object.values(groupChanges(getStatusLines())).filter((group) => group.items.length > 0);
+            await processCommits(activeGroups, {
+                readlineInterface: rl,
+                execFn: (command) => runCommand(command)
+            });
+        } else {
+            const autoCommit = await question("\n💻 Fall back to a single branch-based commit? (Y/n): ");
+            if (autoCommit.trim().toLowerCase() !== 'n') {
+                const branchParts = currentBranch.split('/');
+                const type = branchParts[0] || 'feat';
+                const desc = branchParts[1] ? branchParts[1].replace(/-/g, ' ').replace(/^\d+-/, '') : 'updates';
 
-            const commitMsg = `${type}: finish ${desc}`;
-            console.log(`\n💾 Committing changes: "${commitMsg}"`);
-            runCommand('git add .');
-            runCommand(`git commit -m "${commitMsg}"`, false);
+                const commitMsg = `${type}: finish ${desc}`;
+                console.log(`\n💾 Committing changes: "${commitMsg}"`);
+                runCommand('git add .');
+                runCommand(`git commit -m "${commitMsg}"`, false);
+            }
+        }
+
+        const remainingStatus = getStatusLines();
+        if (remainingStatus.length > 0) {
+            const continueWithDirtyTree = await question("\n⚠️ There are still local changes after the commit flow. Continue and push only committed work? (y/N): ");
+            if (continueWithDirtyTree.trim().toLowerCase() !== 'y') {
+                console.log("🛑 Finish aborted. Commit or discard the remaining changes before pushing.");
+                rl.close();
+                process.exit(1);
+            }
         }
     }
 

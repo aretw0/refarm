@@ -51,6 +51,13 @@ export function extractSignals(path, diff) {
                 (tIdx !== -1 ? pathParts[tIdx + 1] : null);
   if (scope) signals.add(`scope:${scope}`);
 
+  // Markdown files are grouped semantically as docs, but their prose should not
+  // leak code-like signals such as test mocks or subpath references.
+  if (path.endsWith(".md")) {
+    signals.add("docs");
+    return signals;
+  }
+
   // 2. Package.json Dependency Extraction
   if (path.endsWith("package.json")) {
     const depRegex = /^[+-]\s+"(@?[\w\.-]+(?:\/[\w\.-]+)?)":\s+"([^"]+)"/gm;
@@ -71,18 +78,16 @@ export function extractSignals(path, diff) {
   if (d.includes('"paths"') || d.includes("paths:") || d.includes("homestead/") || d.includes("tractor/")) signals.add("tsconfig-paths");
   if (d.includes("homestead/ui") || d.includes("homestead/sdk")) signals.add("homestead-subpath");
   
-  const exportRegex = /^\+\s*(?:export\s+)?(?:const|function|class|type|interface|enum)\s+(\w+)/gm;
+  const exportRegex = /^\+\s*export\s+(?:async\s+)?(?:const|function|class|type|interface|enum)\s+(\w+)/gm;
   let expMatch;
   while ((expMatch = exportRegex.exec(d)) !== null) {
-    if (!["const", "function", "class", "type", "interface", "enum"].includes(expMatch[1])) {
-      signals.add(`export:${expMatch[1]}`);
-    }
+    signals.add(`export:${expMatch[1]}`);
   }
 
   // Legacy signals preserved for compatibility / tests
   if (d.includes("getPluginApi") || d.includes("findByApi")) signals.add("plugin-api-rename");
-  if (d.includes("vi.mock") || d.includes("vi.fn") || d.includes("vitest")) signals.add("test-mock");
-  if (d.includes("bench(") || d.includes("describe(") || d.includes("it(")) signals.add("test-suite");
+  if (/\bvi\.(?:mock|fn|spyOn|doMock)\s*\(/.test(d) || /from\s+["']vitest["']/.test(d)) signals.add("test-mock");
+  if (/^\+\s*(?:describe|it|test|bench)\s*\(/m.test(d)) signals.add("test-suite");
   if (path.endsWith("package.json") && (d.includes("overrides") || d.includes("flatted") || d.includes("audit"))) signals.add("security");
 
   // Barn / plugin lifecycle
@@ -217,6 +222,7 @@ export function deriveCommitMessage(groupId, items) {
         const exports = getExports();
         const parts = [];
         let type = "chore";
+        const hasSourceChanges = items.some((item) => item.path.includes("/src/") && !item.path.includes(".test.") && !item.path.includes(".bench."));
 
         // Collect intents
         if (allSignals.has("homestead-subpath") || allSignals.has("tsconfig-local")) {
@@ -238,6 +244,10 @@ export function deriveCommitMessage(groupId, items) {
         if (exports.length > 0 && !allSignals.has("barn-api")) {
           parts.push(`implement ${exports.join(", ")}`);
           type = "feat";
+        }
+        if (hasSourceChanges && exports.length === 0 && !allSignals.has("barn-api")) {
+          parts.push("update implementation");
+          if (type === "chore") type = "refactor";
         }
         if (deps.length > 0) {
           parts.push(`update dependencies (${deps.join(", ")})`);
