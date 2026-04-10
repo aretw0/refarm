@@ -22,6 +22,8 @@ export function defineConfig(userConfig = {}) {
         "@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
         "@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.ts"),
         "@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
+        "@refarm.dev/ds/styles/tokens.css": path.resolve(root, "packages/ds/src/tokens.css"),
+        "@refarm.dev/ds/styles/styles.css": path.resolve(root, "packages/ds/src/styles.css"),
         "@refarm.dev/locales": path.resolve(root, "locales")
     };
 
