@@ -147,24 +147,64 @@ const postCheckoutHookContent = `#!/bin/sh
 # Post-checkout hook: warns/generates tractor baselines when switching branches
 # Installed by: npm run hooks:install
 
+# Keep branch changes non-blocking even when optional baselines are not implemented yet.
+cleanup_transient_artifacts() {
+  rm -f benchmarks/gha-payload.json coverage/gha-payload.json
+}
+
+has_npm_script() {
+  script_name="$1"
+  node -e 'const fs = require("fs"); const pkg = JSON.parse(fs.readFileSync("package.json", "utf8")); process.exit(pkg.scripts && pkg.scripts[process.argv[1]] ? 0 : 1)' "$script_name"
+}
+
+try_generate_baseline() {
+  target_file="$1"
+  script_name="$2"
+  missing_message="$3"
+  success_message="$4"
+
+  if [ -f "$target_file" ]; then
+    echo "$success_message"
+    return 0
+  fi
+
+  echo "$missing_message"
+
+  if ! has_npm_script "$script_name"; then
+    echo "⚠️  Script '$script_name' is unavailable for this package. Skipping."
+    cleanup_transient_artifacts
+    return 0
+  fi
+
+  if npm run "$script_name"; then
+    if [ -f "$target_file" ]; then
+      echo "✅ Baseline generated: $target_file"
+    else
+      echo "⚠️  Script '$script_name' did not produce $target_file. Skipping for this package."
+      cleanup_transient_artifacts
+    fi
+  else
+    echo "⚠️  Script '$script_name' is unavailable or failed. Skipping for this package."
+    cleanup_transient_artifacts
+  fi
+}
+
 # Only trigger when switching branches, not when checking out files
 if [ "$3" = "1" ]; then
   echo "🌱 [Refarm] Branch changed. Validating Tractor Baselines..."
-  cd packages/tractor
-  
-  if [ ! -f "benchmarks/baseline.json" ]; then
-    echo "⚠️  No benchmark baseline found. Generating one now..."
-    npm run bench:save
-  else
-    echo "✅ Benchmark baseline present. (Run 'npm run bench:save' manually to refresh)"
-  fi
-  
-  if [ ! -f "benchmarks/coverage-baseline.json" ]; then
-    echo "⚠️  No coverage baseline found. Generating one now..."
-    npm run coverage:save
-  else
-    echo "✅ Coverage baseline present. (Run 'npm run coverage:save' manually to refresh)"
-  fi
+  cd packages/tractor || exit 0
+
+  try_generate_baseline \
+    "benchmarks/baseline.json" \
+    "bench:save" \
+    "⚠️  No benchmark baseline found. Generating one now..." \
+    "✅ Benchmark baseline present. (Run 'npm run bench:save' manually to refresh)"
+
+  try_generate_baseline \
+    "benchmarks/coverage-baseline.json" \
+    "coverage:save" \
+    "⚠️  No coverage baseline found. Generating one now..." \
+    "✅ Coverage baseline present. (Run 'npm run coverage:save' manually to refresh)"
 fi
 `;
 

@@ -123,6 +123,7 @@ deps-report.md
 
 # ─── Benchmarks ───────────────────────────────────────────────────────────────
 # Keep baseline.json versioned, ignore temporary outputs
+**/benchmarks/gha-payload.json
 **/benchmarks/current.json
 **/benchmarks/report.md
 
