@@ -181,6 +181,19 @@ export async function switchResolution(mode, options = {}) {
       }
     }
 
+    // 1.1 Module
+    if (mode === 'src') {
+      if (pkgJson.module?.includes('dist/') || pkgJson.module?.includes('pkg/')) {
+        const srcMatch = resolveToSrc(pkg.path, pkgJson.module);
+        if (srcMatch) { pkgJson.module = srcMatch; changes++; }
+      }
+    } else {
+      if (pkgJson.module && !pkgJson.module.includes('dist/') && !pkgJson.module.includes('pkg/')) {
+        pkgJson.module = safeResolveToDist(pkgJson.module);
+        changes++;
+      }
+    }
+
     // 2. Types
     if (mode === 'src') {
       if (pkgJson.types?.includes('dist/') || pkgJson.types?.includes('pkg/')) {
