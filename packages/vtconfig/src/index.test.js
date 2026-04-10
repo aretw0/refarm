@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { getAliases, baseConfig } from "./index.js";
+import { getAliases, baseConfig, withWasmBrowserConfig } from "./index.js";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -38,5 +38,18 @@ describe("@refarm.dev/vtconfig Deterministic Verifications", () => {
 
     it("should default to node environment for performance", () => {
         expect(baseConfig.test.environment).toBe("node");
+    });
+
+    it("should merge shared browser wasm vite defaults", () => {
+        const config = withWasmBrowserConfig({
+            optimizeDeps: {
+                exclude: ["example-wasm-package"],
+            },
+        });
+
+        expect(config.assetsInclude).toContain("**/*.wasm");
+        expect(config.server.headers["Cross-Origin-Embedder-Policy"]).toBe("require-corp");
+        expect(config.preview.headers["Cross-Origin-Opener-Policy"]).toBe("same-origin");
+        expect(config.optimizeDeps.exclude).toContain("example-wasm-package");
     });
 });

@@ -1,5 +1,25 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { mergeConfig } from 'vite';
+
+export const wasmBrowserHeaders = {
+  'Cross-Origin-Opener-Policy': 'same-origin',
+  'Cross-Origin-Embedder-Policy': 'require-corp',
+};
+
+export const wasmBrowserBaseConfig = {
+  assetsInclude: ['**/*.wasm'],
+  server: {
+    headers: wasmBrowserHeaders,
+  },
+  preview: {
+    headers: wasmBrowserHeaders,
+  },
+};
+
+export function withWasmBrowserConfig(overrides = {}) {
+  return mergeConfig(wasmBrowserBaseConfig, overrides);
+}
 
 /**
  * Helper to generate aliases for Vitest based on current environment (src vs dist).
