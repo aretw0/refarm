@@ -140,4 +140,40 @@ describe("switchResolution", () => {
     );
     consoleSpy.mockRestore();
   });
+
+  it("should rewrite module to src when switching resolution to src", async () => {
+    const pkgJsonPath = "/mock/root/packages/test-pkg/package.json";
+    const mockPkgJson = JSON.stringify({
+      name: "@refarm.dev/test-pkg",
+      main: "./dist/index.js",
+      module: "./dist/index.js",
+      types: "./dist/index.d.ts",
+    });
+
+    vi.mocked(fs.readdirSync).mockImplementation((p) => {
+      if (p.toString() === "/mock/root/packages") return ["test-pkg"];
+      if (p.toString() === "/mock/root/apps") return [];
+      return [];
+    });
+    vi.mocked(fs.existsSync).mockImplementation((p) => {
+      const value = p.toString();
+      return [
+        "/mock/root/packages",
+        "/mock/root/apps",
+        pkgJsonPath,
+        "/mock/root/packages/test-pkg/src/index.ts",
+      ].includes(value);
+    });
+    vi.mocked(fs.readFileSync).mockImplementation((p) => {
+      if (p.toString() === pkgJsonPath) return mockPkgJson;
+      return "{}";
+    });
+
+    await switchResolution("src", { rootDir: "/mock/root" });
+
+    expect(fs.writeFileSync).toHaveBeenCalledWith(
+      pkgJsonPath,
+      expect.stringContaining('"module": "./src/index.ts"'),
+    );
+  });
 });
