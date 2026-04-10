@@ -1,108 +1,305 @@
-# Resolução de Módulos no Refarm: `src` vs `dist`
+# Resolucao de Modulos no Refarm: src, dist e raiz do pacote
 
-Este documento descreve a estratégia de resolução de módulos no monorepo Refarm, o papel da ferramenta `reso` (integrada ao `@refarm.dev/toolbox`) e como gerenciar a alternância entre o consumo de código-fonte (`src`) e artefatos compilados (`dist`).
+Este documento define como o monorepo Refarm resolve modulos internos durante desenvolvimento, validacao e futura publicacao. O objetivo e reduzir ambiguidade sobre quando um pacote deve apontar para src, quando deve apontar para dist e quando um alias pode apontar para a raiz do pacote.
 
----
+Ele deve ser lido em conjunto com:
 
-## 1. O Mecanismo de Resolução (`reso`)
-
-A ferramenta `reso` automatiza a modificação dos campos `main`, `types` e `exports` nos arquivos `package.json` de todos os pacotes do monorepo. Isso permite que o ecossistema TypeScript/Node.js enxergue as dependências internas de duas formas:
-
-*   **Modo `src` (Local)**: Aponta para os arquivos `.ts` ou `.mts` dentro da pasta `src/`. Ideal para desenvolvimento ativo com feedback instantâneo e navegação de código precisa no VS Code.
-*   **Modo `dist` (Publicado)**: Aponta para os arquivos compilados `.js` ou `.mjs` dentro da pasta `dist/`. Essencial para validar o build final, rodar testes de integração fiéis e preparar para publicação.
-
-### Comandos Disponíveis:
-
-| Comando | Ação | Uso Recomendado |
-|---|---|---|
-| `node scripts/reso.mjs src` | Alterna todos os pacotes compatíveis para `src/`. | Fluxo de desenvolvimento diário. |
-| `node scripts/reso.mjs dist` | Alterna todos os pacotes para `dist/`. | Pré-commit, CI/CD e validação de build. |
-| `node scripts/reso.mjs status` | Exibe o estado atual de cada pacote. | Diagnóstico de ambiente. |
+- docs/STRATIFICATION.md para entender a diferenca entre TS-Strict e JS-Atomic.
+- docs/TYPESCRIPT_INFRASTRUCTURE.md para entender o papel do tsconfig.json raiz e dos paths.
+- docs/DISTRIBUTION_STRATEGY.md para entender a superficie alvo de distribuicao.
+- docs/RESOLUTION_MATRIX.md para ver o snapshot operacional atual.
 
 ---
 
-## 2. Exceções e Comportamentos Específicos
+## 1. As tres camadas de resolucao
 
-Nem todos os pacotes no monorepo seguem o ciclo de vida padrão de `src` para `dist`. Algumas exceções são fundamentais para a estabilidade da infraestrutura:
+No Refarm, a resolucao de modulos internos nao depende de um unico mecanismo. Hoje existem tres camadas complementares:
 
-### Pacotes que Não Chaveiam (Sempre `PUBLISHED`)
+1. tsconfig.json raiz
+   - Controla a experiencia de desenvolvimento no editor e a resolucao TypeScript em tempo de compilacao.
+   - Define aliases como @refarm.dev/tractor, @refarm.dev/homestead/sdk e @refarm.dev/vtconfig.
 
-Alguns pacotes são marcados permanentemente como `PUBLISHED (dist)` pela lógica do `reso` por motivos técnicos:
+2. @refarm.dev/vtconfig
+   - Controla a resolucao usada pelos testes Vitest e por alguns apps Vite.
+   - Seu helper getAliases() pode alternar entre src e dist com VITEST_USE_DIST e VITEST_FORCE_DIST.
 
-*   **`@refarm.dev/tsconfig`**: É um pacote de configuração pura. Não possui lógica `src` para ser chaveada; ele fornece a base para todos os outros `tsconfig.json`.
-*   **`@refarm.dev/heartwood`**: Um núcleo criptográfico baseado em **WASM**. Sua interface JS é gerada no diretório `pkg/`. Como o `reso` identifica `pkg/` como um artefato de saída (similar ao `dist/`), ele permanece em modo publicado para garantir que o host consuma o WASM transpilado.
-*   **`@refarm.dev/homestead`**: Atualmente focado em definições e contratos que servem de base estável para o `tractor`.
-*   **`@refarm.dev/storage-memory`**: Frequentemente mantido em `dist` para servir como uma implementação de referência estável durante testes de outros plugins.
+3. reso
+   - Altera persistentemente main, types e exports nos package.json dos pacotes do monorepo.
+   - E o mecanismo operacional para trocar o workspace entre uma leitura local, centrada em src, e uma leitura mais fiel ao estado publicado, centrada em dist.
 
-### Apps (Distros)
+Essas camadas nao competem; elas atuam em momentos diferentes.
 
-Os pacotes no diretório `apps/` (como `dev`, `me`, `farmhand`) são considerados **"bootloaders"**. Eles não são consumidos como bibliotecas por outros pacotes, portanto, o `reso` não altera seus `package.json`. Eles sempre operam em modo `LOCAL (src)` internamente.
-
----
-
-## 3. Padronização de Estrutura
-
-Para que um pacote seja compatível com o chaveamento automático do `reso`, ele deve seguir a estrutura:
-1.  Código-fonte em `src/`.
-2.  `package.json` com campos `main`, `types` e `exports` apontando para caminhos relativos.
-3.  `tsconfig.json` configurado com `rootDir: "src"` e `outDir: "dist"`.
-
-> **Nota sobre o pacote `config`**: Este pacote foi recentemente refatorado para seguir este padrão, movendo seus arquivos `.mjs` para `src/` e renomeando-os para `.ts`, garantindo que ele agora participe plenamente do ciclo de resolução.
+| Camada | Escopo | Momento | Fonte de verdade |
+| --- | --- | --- | --- |
+| tsconfig paths | Editor e compilacao TypeScript | Desenvolvimento diario | tsconfig.json |
+| vtconfig/getAliases | Testes Vitest e alguns fluxos Vite | Validacao local e de CI | packages/vtconfig |
+| reso | package.json de packages | Troca global de modo src/dist | packages/toolbox/src/reso.mjs |
 
 ---
 
-## 4. Diagnóstico e Resolução de Problemas (Troubleshooting)
+## 2. O mecanismo reso
 
-### 4.1 Erros de Build no Astro/Vite (Resolução de Aliases)
+O comando reso vive em packages/toolbox/src/reso.mjs e possui um wrapper de compatibilidade em scripts/reso.mjs.
 
-Em monorepos complexos, o Astro/Vite pode falhar ao resolver imports de pacotes internos (ex: `@refarm.dev/homestead/ui`) mesmo com o `tsconfig.json` correto. 
+### Comandos disponiveis
 
-**Causa**: O Vite trata pacotes locais como externos por padrão, tentando buscar arquivos no `dist/` (que podem não existir no modo `src`).
+| Comando | Acao | Uso recomendado |
+| --- | --- | --- |
+| node scripts/reso.mjs src | Move pacotes compativeis para superficies locais em src/test quando possivel. | Desenvolvimento ativo no monorepo. |
+| node scripts/reso.mjs dist | Move pacotes compativeis para superficies em dist/pkg. | Validacao pre-publicacao, integracao e CI. |
+| node scripts/reso.mjs status | Mostra o estado operacional atual dos pacotes e apps. | Diagnostico de ambiente. |
+| node scripts/reso.mjs sync-tsconfig | Regenera os paths do tsconfig.json raiz a partir da estrutura dos pacotes. | Quando a topologia de aliases do monorepo muda. |
 
-**Solução (Implementada no `@refarm.dev/config/astro`)**:
-1.  **`noExternal`**: Force a inclusão do pacote no bundle do Vite para que os fontes (`.ts`, `.astro`) sejam processados em tempo real.
-2.  **Aliases Manuais**: Em casos de sub-rotas complexas (ex: `/ui`, `/sdk`), defina aliases explícitos no `vite.resolve.alias` apontando para o arquivo `index.ts` na `src/`.
-3.  **Extensões**: Certifique-se de que `.astro` está na lista de `resolve.extensions` do Vite se você exporta componentes Astro através de arquivos TypeScript.
+### O que o reso altera
 
-### 4.2 Erros de `rootDir` no TypeScript
+O reso opera sobre:
 
-**Erro**: `File '...' is not under 'rootDir' '...'. 'rootDir' is expected to contain all source files.`
+- main
+- types
+- exports
 
-**Causa**: Arquivos de configuração (como `vitest.config.ts`) ou artefatos de build antigos na raiz do pacote sendo incluídos acidentalmente no `tsconfig.build.json`.
+Ele nao substitui o tsconfig.json raiz automaticamente quando voce troca para src ou dist. O ajuste dos paths do tsconfig e uma acao separada, feita por sync-tsconfig.
 
-**Solução**:
-1.  Garanta que o `tsconfig.build.json` tenha um `include` restrito à pasta `src/`.
-2.  Exclua explicitamente arquivos de configuração da raiz no campo `exclude`.
-3.  Limpe artefatos residuais (`.js`, `.d.ts`, `.map`) que possam ter sido gerados na raiz por builds mal configurados anteriormente.
+### Como o status é calculado
 
-### 4.3 Gestão de Vulnerabilidades (npm audit)
+O modo status considera um pacote como LOCAL (src) quando sua superfície principal aponta para src, test, .ts ou .mts, desde que não aponte para dist ou pkg. Caso contrário, ele o considera PUBLISHED (dist).
 
-Em monorepos, o `npm audit fix` pode não ser suficiente para dependências profundas.
-
-**Solução**: Use o campo `overrides` no `package.json` da raiz para forçar versões seguras de bibliotecas problemáticas (ex: `flatted` para corrigir Prototype Pollution) em toda a árvore de dependências.
-
-### 4.4 Erros de Teste (Vitest 4 & WASM)
-
-Se os testes falharem com `Segmentation fault` ou erros de `generateKeypair is not a function`:
-
-1.  **Isolamento de Processo**: O Vitest 4 com WASM (Heartwood) exige isolamento de memória estável. Use `pool: 'forks'` com `singleFork: true` no `vitest.config.ts`.
-2.  **Vazamento de Mocks**: Um `vi.mock` global em qualquer arquivo de teste pode sequestrar o módulo para o processo inteiro. Use mocks completos (incluindo `default: mock`) ou prefira `vi.doMock` dentro de cada teste para evitar poluição entre pacotes.
-3.  **Carga Dinâmica (Lazy Loading)**: Módulos criptográficos (como Heartwood) devem ser carregados via `await import()` dentro dos métodos que os utilizam, e não no topo do arquivo. Isso evita que o motor WASM seja instanciado prematuramente durante a importação de suítes de teste que não o utilizam.
-4.  **Resolução de Caminhos WASM**: O loader do Heartwood (`pkg/heartwood.js`) foi corrigido para usar `fileURLToPath` em ambiente Node.js, garantindo que arquivos locais sejam lidos via `fs.readFile` em vez de `fetch`, evitando erros de `ERR_INVALID_URL_SCHEME`.
+Para apps, o status é LOCAL (src) se a app possui pasta src, porque apps não são consumidos como bibliotecas internas do mesmo modo que packages.
 
 ---
 
-## 5. Lições Aprendidas na Estabilização (Março 2026)
+## 3. Taxonomia de resolução do monorepo
 
-Durante a grande faxina de estabilização, consolidamos que:
-*   **Headless-First exige Resolução Robusta**: Plugins que exportam UI precisam de uma infraestrutura de config que entenda a dualidade `src/dist`.
-*   **Menos é Mais**: Evite múltiplos arquivos `vitest.config.*` na raiz dos pacotes; mantenha apenas o `.ts` canônico.
-*   **Turbo é Sensível**: Se um pacote falha, o cache do Turbo pode esconder erros subsequentes. Sempre limpe ou use `--force` ao debugar infraestrutura.
+Para reduzir carga cognitiva, os pacotes devem ser lidos por classe, nao caso a caso.
+
+### 3.1 TS-Strict com chaveamento src/dist
+
+Pacotes TS-Strict normalmente possuem tsconfig.build.json e uma superficie publicada em dist. Sao o caso mais proximo do fluxo esperado para npm.
+
+Exemplos:
+
+- @refarm.dev/barn
+- @refarm.dev/tractor
+- @refarm.dev/storage-sqlite
+- @refarm.dev/sync-contract-v1
+
+Regra operacional:
+
+- Em desenvolvimento, podem ser inspecionados por aliases locais do tsconfig.
+- Para validacao de distribuicao, o objetivo e que a superficie publicada esteja em dist.
+
+### 3.2 JS-Atomic com source em src
+
+Pacotes JS-Atomic usam .js ou .mjs em src como fonte de verdade. Neles, src nao e artefato intermediario; e o proprio produto-fonte.
+
+Exemplos atuais:
+
+- @refarm.dev/config
+- @refarm.dev/plugin-manifest
+- @refarm.dev/toolbox
+- @refarm.dev/vtconfig
+
+Regra operacional:
+
+- Eles podem permanecer LOCAL (src) sem que isso seja, por si so, um erro.
+- O criterio correto nao e perguntar se estao em src, mas se a superficie publica ja esta endurecida o bastante para consumo externo e para publish.
+
+### 3.3 Pacotes root-resolved
+
+Um pacote e root-resolved quando o alias do tsconfig aponta para a raiz do diretorio do pacote, e nao diretamente para src/index.
+
+Exemplo atual:
+
+- @refarm.dev/vtconfig -> ./packages/vtconfig
+
+Isso so e desejavel quando a raiz do pacote ja expoe uma superficie coerente de importacao e tipagem, tipicamente com:
+
+- package.json com types consistente
+- package.json com exports coerente
+- um index.d.ts na raiz, se necessario, reexportando a superficie publica
+
+Sem isso, o editor pode enxergar um subconjunto errado dos exports nomeados, como ocorreu com vtconfig antes do ajuste recente.
+
+### 3.4 Pacotes com subpaths
+
+Alguns pacotes expoem subpaths que nao se encaixam no alias padrao para src/index.
+
+Exemplos:
+
+- @refarm.dev/homestead/sdk
+- @refarm.dev/homestead/ui
+- @refarm.dev/tractor/test/test-utils
+
+Nesses casos, a politica de resolucao precisa considerar cada subpath explicitamente. Isso vale tanto para tsconfig paths quanto para exports publicados.
+
+### 3.5 Pacotes sempre published ou com superficie especial
+
+Alguns pacotes ficam intencionalmente ancorados em dist ou pkg porque sua superficie de consumo nao deve oscilar livremente.
+
+Exemplos documentados:
+
+- @refarm.dev/tsconfig
+- @refarm.dev/heartwood
+- @refarm.dev/storage-memory
+- partes de @refarm.dev/homestead
+
+O motivo varia: configuracao pura, artefatos WASM, contrato estavel ou superficie multientry em dist.
+
+### 3.6 Apps
+
+Apps em apps/ nao sao tratados como bibliotecas internas pelo reso. Elas permanecem em fluxo local, normalmente com src como superficie de desenvolvimento.
+
+Exemplos:
+
+- apps/dev
+- apps/farmhand
+- apps/me
 
 ---
 
-## Referências
+## 4. Como escolher o tipo de alias no tsconfig
 
-[1] [TypeScript Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
-[2] [Refarm Architecture - Stratification](./STRATIFICATION.md)
-[3] [TypeScript Infrastructure in Refarm](./TYPESCRIPT_INFRASTRUCTURE.md)
+### 4.1 Regra padrao: alias direto para src/index
+
+Esta e a escolha mais segura quando:
+
+- o pacote ainda esta em endurecimento de superficie publica
+- a raiz do pacote nao representa fielmente sua API de tipos
+- o objetivo principal e DX local e navegacao direta ao codigo-fonte
+
+Exemplos atuais:
+
+- @refarm.dev/config -> ./packages/config/src/index
+- @refarm.dev/barn -> ./packages/barn/src/index
+
+### 4.2 Regra excepcional e reproduzivel: alias para a raiz do pacote
+
+Use alias para a raiz do pacote somente quando a raiz do pacote ja representa corretamente a interface publica esperada pelo editor.
+
+Checklist minimo:
+
+1. package.json com exports coerente para o entrypoint raiz.
+2. package.json com types apontando para a declaracao correta.
+3. Se necessario, index.d.ts na raiz para reexportar a superficie publica.
+4. O editor precisa enxergar os mesmos exports que o runtime enxergaria ao importar o pacote.
+
+O caso de referencia hoje e:
+
+- @refarm.dev/vtconfig -> ./packages/vtconfig
+
+Isso nao significa que todo pacote deve migrar automaticamente para esse modelo. Significa apenas que, quando um pacote precisar ser consumido pela raiz com fidelidade de exports e types, esse e o padrao a seguir.
+
+---
+
+## 5. Papel do vtconfig
+
+O vtconfig e importante porque ele prova que resolucao e tipagem publica nao sao preocupacoes separadas.
+
+Hoje ele cumpre tres papeis:
+
+1. Compartilha configuracao Vitest para o monorepo.
+2. Compartilha helpers de Vite para apps com WASM e headers de isolamento.
+3. Funciona como exemplo de pacote root-resolved, com types e exports alinhados pela raiz.
+
+### Variaveis de ambiente relevantes
+
+| Variavel | Efeito |
+| --- | --- |
+| VITEST_USE_DIST=true | Faz getAliases() preferir dist para os pacotes que suportam esse fluxo. |
+| VITEST_FORCE_DIST=pkg1,pkg2 | Forca pacotes especificos para dist, mesmo sem trocar o workspace inteiro. |
+
+Essas variaveis sao uteis quando voce quer validar uma combinacao mais proxima de publish sem alterar permanentemente todos os package.json via reso.
+
+---
+
+## 6. Snapshot operacional atual
+
+O snapshot detalhado fica em docs/RESOLUTION_MATRIX.md.
+
+Resumo operacional observado em 2026-04-09 via node scripts/reso.mjs status:
+
+- LOCAL (src): config, plugin-manifest, toolbox, vtconfig e apps.
+- PUBLISHED (dist): a maior parte dos pacotes TS-Strict, incluindo barn, cli, ds, fence, tractor, storage-sqlite, sync-* e afins.
+- PUBLISHED (dist) com particularidades: heartwood, homestead, storage-memory, tsconfig.
+
+Leitura correta desse snapshot:
+
+- Ele nao significa que todo pacote em LOCAL esta pronto para publish a partir de src.
+- Ele nao significa que todo pacote em PUBLISHED ja esta completamente endurecido para npm.
+- Ele registra apenas a superficie operacional atual do workspace.
+
+---
+
+## 7. Relacao com a futura publicacao no npm
+
+Hoje o monorepo ainda nao depende de publish real no npm para operar internamente, mas a documentacao deve preparar esse salto para ser barato cognitivamente.
+
+A regra de destino continua sendo:
+
+- bibliotecas publicadas devem ter superficie estavel em dist ou artefato equivalente controlado
+- exports e types devem refletir essa superficie
+- o tsconfig do monorepo pode continuar usando aliases locais para DX, desde que isso esteja documentado e nao esconda divergencias reais
+
+O papel da matriz de resolucao e justamente mostrar, pacote por pacote, onde estamos hoje e qual deve ser a superficie alvo quando o publish passar a ser parte do fluxo normal.
+
+---
+
+## 8. Troubleshooting
+
+### 8.1 O editor enxerga menos exports do que o runtime
+
+Causa comum:
+
+- alias do tsconfig apontando para um diretorio de pacote cuja raiz ainda nao expoe corretamente types/exports
+
+Mitigacao:
+
+- voltar temporariamente para src/index no alias, ou
+- alinhar a raiz do pacote com package.json types/exports e um index.d.ts de reexportacao
+
+### 8.2 O pacote funciona no build, mas nao nos testes
+
+Causa comum:
+
+- tsconfig paths e vtconfig/getAliases estao apontando para superficies diferentes
+
+Mitigacao:
+
+- validar o estado atual com node scripts/reso.mjs status
+- revisar VITEST_USE_DIST e VITEST_FORCE_DIST
+- confirmar se o pacote esta sendo lido por src, dist ou raiz do pacote em cada camada
+
+### 8.3 O alias do tsconfig nao acompanha a reorganizacao dos pacotes
+
+Mitigacao:
+
+- rodar node scripts/reso.mjs sync-tsconfig
+- revisar manualmente os casos especiais, como homestead, tractor test-utils e root-resolved packages
+
+### 8.4 O Vite/Astro falha em subpaths internos
+
+Mitigacao:
+
+- criar aliases explicitos para subpaths como /sdk e /ui
+- garantir que os exports publicados do pacote espelham o mesmo desenho
+
+---
+
+## 9. Regras praticas
+
+1. Nao chute para onde um pacote esta apontando; rode node scripts/reso.mjs status.
+2. Use alias para src/index como padrao local.
+3. Use alias para a raiz do pacote apenas quando a raiz ja for uma superficie publica coerente.
+4. Trate vtconfig como um exemplo de criterio reproduzivel, nao como excecao arbitraria.
+5. Quando um pacote ganhar subpaths ou endurecimento para publish, atualize a matriz de resolucao junto com o codigo.
+
+---
+
+## Referencias
+
+- docs/STRATIFICATION.md
+- docs/TYPESCRIPT_INFRASTRUCTURE.md
+- docs/DISTRIBUTION_STRATEGY.md
+- docs/RESOLUTION_MATRIX.md
+- packages/toolbox/src/reso.mjs
+- packages/vtconfig/src/index.js

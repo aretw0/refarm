@@ -1,130 +1,185 @@
 # Infraestrutura TypeScript no Refarm
 
-Este documento esclarece a arquitetura da configuração TypeScript no monorepo Refarm, detalhando a função do `tsconfig.json` da raiz e do pacote `@refarm.dev/tsconfig`.
+Este documento esclarece a arquitetura da configuracao TypeScript no monorepo Refarm, detalhando a funcao do tsconfig.json da raiz, do pacote @refarm.dev/tsconfig e da politica de aliases usada para resolver os pacotes internos.
 
 ---
 
-## 1. O `tsconfig.json` da Raiz (Global)
+## 1. O tsconfig.json da raiz
 
-O arquivo `tsconfig.json` localizado na raiz do monorepo (`/tsconfig.json`) serve como a **configuração TypeScript global e unificada** para todo o projeto. Ele define as opções de compilador que são comuns e essenciais para todos os pacotes TypeScript, garantindo consistência e interoperabilidade.
+O arquivo tsconfig.json na raiz do monorepo define a configuracao TypeScript global e unificada para o workspace.
 
-### Propósito Principal:
+Ele cumpre tres papeis:
 
-*   **Configurações Comuns**: Define `compilerOptions` como `target`, `module`, `strict`, `esModuleInterop`, `skipLibCheck`, etc., que devem ser aplicadas a todos os projetos TypeScript no monorepo.
-*   **Mapeamento de Caminhos (`paths`)**: É o local central onde os aliases de módulos são definidos. Isso permite que os pacotes importem outros pacotes do monorepo usando nomes curtos e consistentes (ex: `@refarm.dev/tractor`) em vez de caminhos relativos complexos (`../../packages/tractor-ts/src`). Isso é crucial para a experiência de desenvolvimento (VS Code) e para a resolução de módulos em tempo de compilação.
-*   **Exclusões Globais**: Define diretórios e arquivos que devem ser excluídos da compilação em todo o monorepo (ex: `node_modules`, `dist`, `build`).
+1. define opcoes comuns de compilacao
+2. define exclusoes globais
+3. define o mapa de aliases do monorepo em compilerOptions.paths
 
-### Exemplo de `paths`:
+Esse terceiro papel e o mais importante para a resolucao de modulos internos.
+
+---
+
+## 2. O pacote @refarm.dev/tsconfig
+
+O pacote packages/tsconfig fornece bases reutilizaveis para diferentes ambientes.
+
+Arquivos principais:
+
+- base.json
+- node.json
+- dom.json
+
+Eles servem como camadas de configuracao reutilizaveis. O tsconfig raiz e os tsconfig dos pacotes continuam sendo os pontos que de fato orquestram a resolucao local do monorepo.
+
+---
+
+## 3. O papel real dos paths
+
+No Refarm, os paths do tsconfig nao sao apenas atalhos ergonomicos. Eles materializam uma politica de resolucao local.
+
+Esses aliases respondem perguntas como:
+
+- o editor deve abrir a fonte local ou a superficie publica do pacote?
+- este pacote deve ser consumido por src/index ou pela raiz do pacote?
+- este pacote tem subpaths explicitos, como /sdk, /ui ou /test/test-utils?
+
+Por isso, mudar um path nao e apenas reorganizar DX; e ajustar o contrato operacional do monorepo.
+
+---
+
+## 4. Dois formatos de alias
+
+### 4.1 Alias direto para src/index
+
+Este e o formato predominante no monorepo.
+
+Exemplos:
 
 ```json
-// tsconfig.json (raiz)
-{
-  "compilerOptions": {
-    "baseUrl": ".",
-    "paths": {
-      "@refarm.dev/tractor": ["./packages/tractor-ts/src/index.ts"],
-      "@refarm.dev/barn": ["./packages/barn/src/index.ts"],
-      "@refarm.dev/tractor/test/test-utils": ["./packages/tractor-ts/test/test-utils.ts"]
-      // ... outros aliases
-    }
-  },
-  "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]
-}
+"@refarm.dev/config": ["./packages/config/src/index"],
+"@refarm.dev/barn": ["./packages/barn/src/index"],
+"@refarm.dev/cli": ["./packages/cli/src/index"]
 ```
 
----
+Quando usar:
 
-## 2. O Pacote `@refarm.dev/tsconfig` (Bases Reutilizáveis)
+- o pacote ainda esta em desenvolvimento ativo de sua superficie publica
+- queremos navegacao direta para a fonte local
+- a raiz do pacote ainda nao representa fielmente os exports e types publicos
 
-O pacote `@refarm.dev/tsconfig` (`packages/tsconfig`) é uma biblioteca interna que fornece **conjuntos de configurações TypeScript reutilizáveis**. Ele não é uma configuração global em si, mas sim um conjunto de bases que outros `tsconfig.json` podem estender.
+### 4.2 Alias para a raiz do pacote
 
-### Propósito Principal:
+Este formato deve ser usado somente quando a raiz do pacote ja representa corretamente sua superficie publica.
 
-*   **Consistência e Redução de Duplicação**: Evita que cada pacote precise redefinir opções de compilador que são comuns a um determinado ambiente (Node.js, Browser).
-*   **Contextos Específicos**: Oferece configurações baseadas em cenários de uso:
-    *   `base.json`: Configurações fundamentais que se aplicam a qualquer projeto TypeScript.
-    *   `node.json`: Estende `base.json` e adiciona `lib` específicas para ambientes Node.js.
-    *   `dom.json`: Estende `base.json` e adiciona `lib` específicas para ambientes de navegador (DOM).
-
-### Exemplo de `base.json`:
+Exemplo atual:
 
 ```json
-// packages/tsconfig/base.json
-{
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "display": "Refarm Base",
-  "compilerOptions": {
-    "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
-    "lib": ["ES2022"],
-    "strict": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
-    "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
-  }
-}
+"@refarm.dev/vtconfig": ["./packages/vtconfig"]
 ```
 
+Quando isso faz sentido:
+
+- package.json exports esta coerente
+- package.json types esta coerente
+- existe entrada de tipos suficiente na raiz do pacote, se necessario
+- o editor deve enxergar a mesma interface publica que um import da raiz enxerga
+
+No vtconfig, isso exigiu uma entrada de tipos na raiz do pacote, para que exports nomeados como withWasmBrowserConfig fossem reconhecidos corretamente pelo editor.
+
 ---
 
-## 3. A Relação: Como os Pacotes se Conectam
+## 5. Subpaths e aliases especiais
 
-Os `tsconfig.json` dos pacotes individuais (`packages/barn/tsconfig.json`, `packages/tractor-ts/tsconfig.json`) são os que realmente orquestram a compilação. Eles `extend`em as configurações da raiz e/ou do `@refarm.dev/tsconfig` para construir sua configuração final.
+Nem todo pacote cabe no padrao src/index.
 
-### Padrão Comum para Pacotes:
-
-Um `tsconfig.json` típico de um pacote TypeScript no Refarm se parece com isto:
+Exemplos atuais:
 
 ```json
-// packages/meu-pacote/tsconfig.json
+"@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
+"@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
+"@refarm.dev/tractor/test/test-utils": ["./packages/tractor-ts/test/test-utils"]
+```
+
+Esses casos existem porque certos pacotes expoem multiplos entrypoints locais e publicados. Quando um pacote ganha esse desenho, os paths do tsconfig precisam ser tratados como parte do contrato do pacote, nao como detalhe incidental.
+
+---
+
+## 6. Relacao com vtconfig e reso
+
+O tsconfig raiz nao atua sozinho.
+
+### vtconfig
+
+O pacote @refarm.dev/vtconfig adiciona uma camada de resolucao para Vitest e alguns fluxos Vite. Seu helper getAliases() consegue alternar entre src e dist usando:
+
+- VITEST_USE_DIST=true
+- VITEST_FORCE_DIST=pkg1,pkg2
+
+### reso
+
+O comando reso altera package.json dos pacotes e oferece um ponto de observacao global com:
+
+- node scripts/reso.mjs src
+- node scripts/reso.mjs dist
+- node scripts/reso.mjs status
+- node scripts/reso.mjs sync-tsconfig
+
+Em resumo:
+
+- tsconfig controla a resolucao local do editor e do TypeScript
+- vtconfig controla a resolucao de testes e alguns apps Vite
+- reso controla a superficie declarada nos package.json
+
+---
+
+## 7. Padrao para tsconfig dos pacotes
+
+Um tsconfig de pacote costuma estender o tsconfig raiz para verificacao de tipos, enquanto um tsconfig.build.json assume a emissao.
+
+Exemplo conceitual:
+
+```json
 {
-  "extends": "../../tsconfig.json", // Estende a configuração global da raiz
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "noEmit": true, // Não emite arquivos JS/D.TS neste tsconfig (apenas para verificação de tipos)
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
+    "noEmit": true,
     "outDir": "./dist",
-    "baseUrl": "../.." // Importante para resolver caminhos relativos dentro do monorepo
+    "baseUrl": "../.."
   },
-  "include": ["src/**/*", "tests/**/*"], // Inclui o código-fonte e os testes
+  "include": ["src/**/*", "tests/**/*"],
   "exclude": ["node_modules", "dist"]
 }
 ```
 
-E um `tsconfig.build.json` para o processo de build:
+E para build:
 
 ```json
-// packages/meu-pacote/tsconfig.build.json
 {
-  "extends": "./tsconfig.json", // Estende o tsconfig.json local
+  "extends": "./tsconfig.json",
   "compilerOptions": {
-    "noEmit": false, // Permite a emissão de arquivos JS/D.TS
-    "declaration": true, // Gera arquivos .d.ts
-    "declarationMap": true,
-    "emitDeclarationOnly": false // Emite JS e D.TS
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true
   },
-  "include": ["src/**/*"] // Apenas o código-fonte para o build
+  "include": ["src/**/*"]
 }
 ```
 
-### Em Resumo:
+---
 
-*   O **`tsconfig.json` da raiz** define o **padrão global** e os **aliases de módulos** para todo o monorepo.
-*   O **`@refarm.dev/tsconfig`** fornece **bases reutilizáveis** para diferentes ambientes.
-*   Os **`tsconfig.json` dos pacotes** estendem essas configurações para definir seu comportamento específico de verificação de tipos e build.
+## 8. Regras praticas
 
-Essa estratificação permite que o Refarm mantenha a consistência, aproveite a herança de configurações e otimize o processo de build e desenvolvimento para cada pacote, ao mesmo tempo em que oferece uma experiência de desenvolvimento coesa no VS Code.
+1. Trate compilerOptions.paths como politica de resolucao, nao so como conforto de import.
+2. Use alias para src/index como padrao.
+3. Promova um pacote para alias por diretorio apenas quando sua raiz estiver endurecida para types e exports.
+4. Trate subpaths como contratos explicitos do pacote.
+5. Quando a estrutura de aliases mudar, atualize tambem docs/DEVELOPMENT_RESOLUTION.md e docs/RESOLUTION_MATRIX.md.
 
 ---
 
-## Referências
+## Referencias
 
-[1] [TypeScript Handbook - Project References](https://www.typescriptlang.org/docs/handbook/project-references.html)
-[2] [TypeScript Handbook - `extends` in `tsconfig.json`](https://www.typescriptlang.org/docs/handbook/tsconfig-json.html#extends)
-[3] [Refarm `docs/STRATIFICATION.md`](./STRATIFICATION.md) - Sovereign Stratification: Hybrid Management Policy (JS/TS)
+- docs/DEVELOPMENT_RESOLUTION.md
+- docs/DISTRIBUTION_STRATEGY.md
+- docs/STRATIFICATION.md
+- tsconfig.json
+- packages/vtconfig/package.json
