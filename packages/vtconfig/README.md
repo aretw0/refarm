@@ -1,10 +1,10 @@
 # @refarm.dev/vtconfig
 
-Centralized Vitest configuration for the Refarm monorepo.
+Centralized Vitest and Vite configuration helpers for the Refarm monorepo.
 
 ## Design Philosophy
 
-This package provides a shared base configuration and alias resolution logic for all Vitest suites in the monorepo.
+This package provides shared configuration helpers for Vitest suites and browser-facing Vite apps in the monorepo.
 
 ### Dependency Cohesion
 
@@ -26,4 +26,15 @@ import { baseConfig } from '@refarm.dev/vtconfig'
 export default mergeConfig(baseConfig, {
   // your overrides here
 })
+```
+
+For Vite apps that need browser WASM support and cross-origin isolation headers:
+
+```typescript
+import { defineConfig } from 'vite'
+import { withWasmBrowserConfig } from '@refarm.dev/vtconfig'
+
+export default withWasmBrowserConfig(defineConfig({
+  // your overrides here
+}))
 ```

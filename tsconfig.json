@@ -2,6 +2,7 @@
   "extends": "./packages/tsconfig/dom.json",
   "compilerOptions": {
     "noEmit": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "types": ["node"],
     "paths": {
@@ -10,7 +11,7 @@
       "@refarm.dev/barn": ["./packages/barn/src/index"],
       "@refarm.dev/cli": ["./packages/cli/src/index"],
       "@refarm.dev/config": ["./packages/config/src/index"],
-      "@refarm.dev/vtconfig": ["./packages/vtconfig/src/index"],
+      "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
