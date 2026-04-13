@@ -4,6 +4,28 @@ Central register for high-impact technical decisions that are pending or recentl
 
 ---
 
+## Daemon Runtime Role: Tractor Node is Canonical, Farmhand is Transitional
+
+**Date**: 2026-04-13
+**Status**: Accepted
+**References**: [ADR-048](../specs/ADRs/ADR-048-tractor-graduation.md), [ADR-049](../specs/ADRs/ADR-049-post-graduation-horizon.md)
+
+**Decision**: The canonical daemon runtime is the `tractor` node (`ws://localhost:42000`).
+`apps/farmhand` remains only as a transitional compatibility layer until CLI, docs, and plugin routing
+are fully converged on Tractor terminology and flows.
+
+**What this means now**:
+- User-facing docs and commands should reference "Tractor node" as the default daemon.
+- `apps/farmhand` can remain in-repo temporarily to preserve migration continuity.
+- No deprecation note is required in the main README; track migration via internal docs and ADR lineage.
+
+**Exit criteria to retire Farmhand**:
+- CLI commands and messages no longer reference Farmhand.
+- Release/docs flows are fully aligned with Tractor node and Pi node language.
+- Plugin lifecycle paths (discover, load, route, execute) validated end-to-end under Tractor runtime.
+
+---
+
 ## Composition Model: Blocks and Distros
 
 **Date**: 2026-03-17

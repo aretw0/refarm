@@ -51,7 +51,7 @@ pluginCommand
       console.log(chalk.green(`✅ Plugin ${chalk.bold(id)} resolved and registered.`));
       console.log(chalk.gray(`   Version: ${entry.manifest.version}`));
       console.log(chalk.gray(`   Status: ${entry.status}`));
-      console.log(chalk.yellow(`ℹ️  To activate, start the Farmhand daemon: farmhand start`));
+      console.log(chalk.yellow(`ℹ️  To activate, start a Tractor node (e.g. refarm tractor start)`));
     } catch (e: any) {
       console.error(chalk.red(`❌ Installation failed: ${e.message}`));
       process.exitCode = 1;
@@ -85,7 +85,7 @@ pluginCommand
   .description("Search for plugins in the Sovereign Graph")
   .action(async (query: string) => {
     console.log(chalk.blue(`🔍 Searching for '${query}' in the Sovereign Graph...`));
-    console.log(chalk.gray("(Search requires Farmhand daemon — coming soon)"));
+    console.log(chalk.gray("(Search requires a Tractor node — coming soon)"));
   });
 
 pluginCommand
