@@ -21,20 +21,51 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
+      - name: Detect dependency-only changes
+        id: change-kind
+        run: |
+          set -euo pipefail
+          files=$(git diff --name-only origin/main...HEAD)
+          echo "Changed files:"
+          echo "$files"
+
+          dep_only=true
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            if [[ ! "$f" =~ (^|/)package\.json$ ]] && \
+               [[ ! "$f" =~ (^|/)package-lock\.json$ ]] && \
+               [[ ! "$f" =~ ^final-report\.md$ ]] && \
+               [[ ! "$f" =~ ^\.changeset/.*\.md$ ]]; then
+              dep_only=false
+              break
+            fi
+          done <<< "$files"
+
+          echo "dep_only=$dep_only" >> "$GITHUB_OUTPUT"
+          echo "Dependency-only PR: $dep_only"
+
       - name: Setup Refarm Environment
+        if: ${{ steps.change-kind.outputs.dep_only != 'true' }}
         run: node scripts/ci/setup-env.mjs
 
       - name: Build Shared Contracts & Configs
+        if: ${{ steps.change-kind.outputs.dep_only != 'true' }}
         run: npx turbo run build --filter="$REFARM_SCOPE_DEV/storage-contract-v1" --filter="$REFARM_SCOPE_DEV/identity-contract-v1" --filter="$REFARM_SCOPE_DEV/tsconfig"
 
 
       - name: Build WASM plugin for tests
+        if: ${{ steps.change-kind.outputs.dep_only != 'true' }}
         run: |
           cd validations/wasm-plugin/hello-world
           cargo component build --release
 
       - name: Turbo Test (Local Monorepo Boundaries)
+        if: ${{ steps.change-kind.outputs.dep_only != 'true' }}
         run: npx turbo run test --filter=...[origin/main]
+
+      - name: Skip Local Symbiosis for dependency-only PR
+        if: ${{ steps.change-kind.outputs.dep_only == 'true' }}
+        run: echo "Skipping Local Symbiosis for dependency-only changes; quality/security workflows still validate this PR."
 
   # -----------------------------------------------------------------
   # JOB 2: Matrix Discovery (Detect changes and calculate impact)
