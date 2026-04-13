@@ -46,7 +46,10 @@
     "task:verify": "refarm-task verify",
     "task:finish": "refarm-task finish",
     "task:rebrand": "refarm-task rebrand",
-    "task:sync-labels": "refarm-task sync-labels"
+    "task:sync-labels": "refarm-task sync-labels",
+    "scope:status": "node packages/toolbox/src/cli.mjs scope status",
+    "scope:to:personal": "node packages/toolbox/src/cli.mjs scope apply --profile personal --set-active",
+    "scope:to:organization": "node packages/toolbox/src/cli.mjs scope apply --profile organization --set-active"
   },
   "repository": {
     "type": "git",
