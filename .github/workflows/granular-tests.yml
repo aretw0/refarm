@@ -35,7 +35,9 @@ jobs:
             if [[ ! "$f" =~ (^|/)package\.json$ ]] && \
                [[ ! "$f" =~ (^|/)package-lock\.json$ ]] && \
                [[ ! "$f" =~ ^final-report\.md$ ]] && \
-               [[ ! "$f" =~ ^\.changeset/.*\.md$ ]]; then
+               [[ ! "$f" =~ ^\.changeset/.*\.md$ ]] && \
+               [[ ! "$f" =~ ^\.github/workflows/granular-tests\.yml$ ]] && \
+               [[ ! "$f" =~ ^scripts/ci/github-matrix-builder\.mjs$ ]]; then
               dep_only=false
               break
             fi

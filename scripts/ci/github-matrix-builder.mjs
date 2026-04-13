@@ -50,6 +50,8 @@ function isDependencyOnlyChange(files) {
         /(^|\/)package-lock\.json$/,
         /^final-report\.md$/,
         /^\.changeset\/.*\.md$/,
+        /^\.github\/workflows\/granular-tests\.yml$/,
+        /^scripts\/ci\/github-matrix-builder\.mjs$/,
     ];
 
     return files.every(file => allowed.some(pattern => pattern.test(file)));
