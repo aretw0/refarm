@@ -1,8 +1,134 @@
-# User Story: "A Day in the Life of a Refarm User"
+# User Stories: Refarm in Practice
 
 > **Purpose**: Validate that the Refarm roadmap delivers a complete, compelling end-to-end experience.
 > **Audience**: Product managers, developers, community feedback.
-> **Format**: Narrative walkthrough of first-time user journey.
+> **Format**: Narrative walkthroughs of real user journeys.
+
+---
+
+## Primary User: You (The Creator)
+
+**Context**: Refarm is designed first and foremost as your **personal sovereign workspace**. You are the daily user validating architecture, UX, and velocity.
+
+### Your Needs
+
+- **Unified workspace** — Tasks, notes, projects, research, decision logs in one place (replaces GitHub issues + Notion + notes)
+- **Ownership** — All data encrypted locally; complete recovery control via mnemonic
+- **Offline-first** — Works completely without cloud sync; seamless reconnect when online
+- **Knowledge graph** — Interconnected nodes queryable by you, not owned by Notion/Confluence
+- **Automation** — Personal workflows: reminders, batch operations, scheduled tasks
+- **Portability** — Run on laptop, Raspberry Pi, browser; sync via P2P or personal relay
+- **Cryptographic identity** — Your work is signed by you; portable across devices
+- **Intelligence** — Local AI queries over your graph using Claude or local models
+
+### Act 0: Your First Day with Refarm
+
+**Your action**: Launch `apps/me` locally, connect to `tractor` daemon.
+
+```
+[apps/me starts]
+  ✓ Tractor daemon connected (ws://localhost:42000)
+  ✓ Browser OPFS: 1.2 GB available
+  ✓ SQLite database loaded (production .db)
+  ✓ Your identity recognized from Nostr key
+  ✓ Last 7 nodes displayed
+
+  [Inbox]  [Work]  [Research]  [Automation]  [Settings]
+```
+
+**You click [Inbox]** — Your daily unprocessed items:
+
+```
+📌 3 new items from tractor daemon logs
+📧 1 Courier message (Matrix bridge synced)
+🔗 5 bookmarks from web clipper plugin
+🤖 1 action delegated from yesterday's workflow
+```
+
+**You click [Work]** — Project graph:
+
+```
+Tasks (38)
+├── Refarm (11)
+│   ├── Fix Gate 3: tractor sync (urgent)
+│   ├── Plugin validation in Barn (next)
+│   └── ...
+├── Personal (8)
+│   └── ...
+└── Community (19)
+    └── ...
+```
+
+**You click [Research]** — Your knowledge graph:
+
+```
+Articles (127) | Papers (43) | Decisions (12)
+
+Recent clusters:
+  • OPAQUE protocol (3 articles, 2 decisions, 5 bookmarks)
+  • Loro CRDT internals (7 articles, ADR-045)
+  • Nostr ecosystem (12 articles, 1 personal note)
+
+[Graph View]  [Timeline]  [Full-Text Search]
+```
+
+**You click [Automation]** — Your personal scripts:
+
+```
+Workflows (14)
+  ✓ Daily standup (triggered 09:00)
+  ✓ Weekly review (triggered Fridays 17:00)
+  ✓ Sync bookmarks to Refarm (triggered on save)
+  ✓ Archive completed tasks (triggered daily 23:00)
+  ⏸ Notarize decisions (paused)
+
+[+ New Workflow]
+```
+
+**You click [Settings]** — Your sovereign control:
+
+```
+Identity
+  ✓ Keypair: nostr:npub1abc...
+  📋 Mnemonic: [Backup]  [Restore]
+
+Storage
+  ✓ SQLite in OPFS (1.2 GB / 10 GB)
+  ✓ Backup location: ~/refarm-backups/
+  📥 [Restore from Backup]
+
+Devices
+  ✓ Laptop (this device)
+  ○ Phone (awaiting sync code)
+  ○ Tablet (paired, last sync 2h ago)
+  
+  [+ Add Device]  [Recovery Code]
+```
+
+### What Makes This Real
+
+**You've been using Refarm for 3 months:**
+
+- All GitHub issues initially migrated to `/work/refarm` project
+- All personal notes moved from Notion to `/research`
+- Weekly review workflow automated
+- 3 personal plugins loaded (web clipper, Courier bridge, task scheduler)
+- 0 data loss events, 0 sync conflicts resolved
+- **Result**: Refarm is now your "source of truth" for work/life; GitHub/Notion act as mirrors
+
+**You discover a plugin need**: "I want to batch-rename all my Refarm tasks to include priorities."
+
+- Write a small WASM plugin (Rust + `cargo-component`)
+- Load into `packages/plugins/personal/` for testing
+- Test in `apps/me` against production `.db` (no risk; fully recoverable)
+- Once stable, publish as `@aretw0/refarm-plugin-task-prioritizer` to npm + Nostr
+- Other users can install and validate it
+
+---
+
+## Secondary User: Alice (The Federation User)
+
+**Context**: Eventually, Refarm will support collaborative boards and federation via Nostr relays. Alice represents that future.
 
 ---
 
