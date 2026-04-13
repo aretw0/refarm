@@ -16,21 +16,21 @@
     "clean": "rm -rf dist .astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.2",
-    "@refarm.dev/sower": "*",
+    "@astrojs/check": "0.9.2",
+    "@refarm.dev/ds": "*",
+    "@refarm.dev/homestead": "*",
     "@refarm.dev/scarecrow": "*",
+    "@refarm.dev/sower": "*",
+    "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
     "@refarm.me/identity-nostr": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/ds": "*",
-    "@refarm.dev/homestead": "*",
     "astro": "^5.3.0"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
-    "typescript": "^5.7.3",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/tsconfig": "*",
+    "typescript": "^5.7.3"
   },
   "license": "MIT"
 }

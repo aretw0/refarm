@@ -15,16 +15,16 @@
   },
   "dependencies": {
     "@refarm.dev/homestead": "*",
+    "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
-    "@refarm.dev/storage-sqlite": "*",
     "astro": "^5.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "0.9.2",
     "@refarm.dev/config": "*",
-    "typescript": "^5.7.3",
     "@refarm.dev/tsconfig": "*",
-    "@astrojs/check": "^0.9.4"
+    "typescript": "^5.7.3"
   },
   "license": "MIT"
 }
