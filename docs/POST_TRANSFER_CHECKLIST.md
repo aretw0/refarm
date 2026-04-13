@@ -1,6 +1,6 @@
 # Post-Transfer Checklist
 
-Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `refarm-dev/refarm` → `refarm-dev/refarm`.
+Este documento contém as ações **obrigatórias** que devem ser executadas **imediatamente** após a transferência do repositório `aretw0/refarm` → `refarm-dev/refarm`.
 
 ---
 
@@ -49,12 +49,17 @@ Este documento contém as ações **obrigatórias** que devem ser executadas **i
 # Nome: RELEASE_AUTOMATION
 # Valor: true
 # Scope: Repository variables
+
+# Opcional (lock de owner)
+# Nome: RELEASE_OWNER
+# Valor: refarm-dev
+# Scope: Repository variables
 ```
 
 **⚠️ CRITICAL**: Os workflows só executarão publicações quando:
 
-- `github.repository_owner == 'refarm-dev'` (automático após transfer)
 - `vars.RELEASE_AUTOMATION == 'true'` (configurado manualmente)
+- e, se `RELEASE_OWNER` estiver preenchido, `github.repository_owner == vars.RELEASE_OWNER`
 
 ---
 
@@ -107,22 +112,24 @@ git push origin main
 
 cd /workspaces/refarm
 
-# Storage contract
-git tag @refarm.dev/storage-contract-v1@0.1.0
-git push origin @refarm.dev/storage-contract-v1@0.1.0
+# Storage contract (scope do profile ativo)
+git tag @aretw0/storage-contract-v1@0.1.0
+git push origin @aretw0/storage-contract-v1@0.1.0
 
 # Sync contract
-git tag @refarm.dev/sync-contract-v1@0.1.0
-git push origin @refarm.dev/sync-contract-v1@0.1.0
+git tag @aretw0/sync-contract-v1@0.1.0
+git push origin @aretw0/sync-contract-v1@0.1.0
 
 # Identity contract
-git tag @refarm.dev/identity-contract-v1@0.1.0
-git push origin @refarm.dev/identity-contract-v1@0.1.0
+git tag @aretw0/identity-contract-v1@0.1.0
+git push origin @aretw0/identity-contract-v1@0.1.0
 
 # Plugin manifest
-git tag @refarm.dev/plugin-manifest@0.1.0
-git push origin @refarm.dev/plugin-manifest@0.1.0
+git tag @aretw0/plugin-manifest@0.1.0
+git push origin @aretw0/plugin-manifest@0.1.0
 ```
+
+> Em ambiente de organização, use as tags no scope da organização (ex.: `@refarm.dev/...`).
 
 **Desvantagem**: Menos elegante, requer criação manual de tags para cada pacote.
 
@@ -136,10 +143,10 @@ Após merge do PR (Estratégia A) ou push das tags (Estratégia B):
 
 ```bash
 # Verificar cada pacote foi publicado
-npm info @refarm.dev/storage-contract-v1
-npm info @refarm.dev/sync-contract-v1
-npm info @refarm.dev/identity-contract-v1
-npm info @refarm.dev/plugin-manifest
+npm info @aretw0/storage-contract-v1
+npm info @aretw0/sync-contract-v1
+npm info @aretw0/identity-contract-v1
+npm info @aretw0/plugin-manifest
 
 # Todos devem retornar versão 0.1.0
 ```
@@ -157,11 +164,11 @@ npm info @refarm.dev/plugin-manifest
 # Em outro diretório (fora do monorepo)
 mkdir test-refarm-install && cd test-refarm-install
 npm init -y
-npm install @refarm.dev/storage-contract-v1 @refarm.dev/plugin-manifest
+npm install @aretw0/storage-contract-v1 @aretw0/plugin-manifest
 
 # Criar teste rápido
 cat > test.js << 'EOF'
-import { runStorageV1Conformance } from '@refarm.dev/storage-contract-v1';
+import { runStorageV1Conformance } from '@aretw0/storage-contract-v1';
 console.log('✅ Imports funcionando!');
 EOF
 

@@ -91,6 +91,13 @@ No novo org (`github.com/refarm-dev`), configurar os secrets necessários:
 
 **Settings → Secrets and variables → Actions → New repository secret**
 
+Variables recomendadas (repository variables):
+
+| Variable | Valor sugerido | Para quê |
+|---|---|---|
+| `RELEASE_AUTOMATION` | `true` | Habilita jobs de publicação |
+| `RELEASE_OWNER` | `refarm-dev` | Lock opcional por owner (evita publish em forks) |
+
 ---
 
 ## Step 5 — Configure Branch Protection
@@ -128,6 +135,8 @@ npm view @refarm.dev/identity-contract-v1
 npm view @refarm.dev/sync-contract-v1
 npm view @refarm.dev/plugin-manifest
 ```
+
+> Se o profile ativo de scope estiver em namespace pessoal, substitua os exemplos acima pelo scope correspondente (ex.: `@aretw0/...`).
 
 Se a publicação automática via CI não funcionar, publicar manualmente:
 

@@ -47,7 +47,7 @@ Detailed planning for the following tracks is now consolidated in the **[Evoluti
 
 ## Release Planning
 
-Checklists e guias para a migração v0.1.0 → org `refarm-dev`:
+Checklists e guias para release v0.1.0 com suporte dual (scope pessoal agora, org depois):
 
 - **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Gate checklist (3a: technical primitives + 3b: apps/me consolidated)
 - **[Gate 3 Spec](gate3-homestead-tractor-spec.md)** — Homestead × Tractor integration spec (POC vs consolidated distro)
@@ -56,12 +56,12 @@ Checklists e guias para a migração v0.1.0 → org `refarm-dev`:
 
 ## Distribution & Publishing
 
-Guias para transferência organizacional e distribuição pública de pacotes:
+Guias para distribuição pública e transferência organizacional:
 
-- **[Pre-Migration Cleanup Checklist](PRE_MIGRATION_CLEANUP_CHECKLIST.md)** — O que preparar antes da migração para `refarm-dev`
-- **[Repository Migration Guide](REPOSITORY_MIGRATION_GUIDE.md)** — Playbook completo de org transfer (será deletado pós-migração)
-- **[Post-Transfer Checklist](POST_TRANSFER_CHECKLIST.md)** — Immediate actions after org transfer (npm setup, CI/CD, final cleanup)
-- **[ADR-019: npm Scope Strategy](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md)** — Decision rationale for `@refarm.dev` (includes caveats)
+- **[Pre-Migration Cleanup Checklist](PRE_MIGRATION_CLEANUP_CHECKLIST.md)** — Preparação para migração de owner/org sem bloquear publicação no scope ativo
+- **[Repository Migration Guide](REPOSITORY_MIGRATION_GUIDE.md)** — Playbook de org transfer (quando aplicável)
+- **[Post-Transfer Checklist](POST_TRANSFER_CHECKLIST.md)** — Ações imediatas pós-transfer (release gates, npm setup, CI/CD)
+- **[ADR-019: npm Scope Strategy](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md)** — Rationale do scope alvo da organização
 - **[Distribution Status](../packages/DISTRIBUTION_STATUS.md)** — Current state of publishable packages
 
 ---
