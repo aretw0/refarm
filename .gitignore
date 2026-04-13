@@ -139,4 +139,7 @@ deps-report.md
 __pycache__/
 *.pyc
 *.pyo
+
+# Coding Agents
 .claude/settings.local.json
+.pi*
