@@ -29,39 +29,44 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Fast-forward develop → main
+      - name: Rebase develop onto main
         id: sync
         run: |
           git checkout develop
-          if git merge --ff-only origin/main; then
-            git push origin develop
+          if git rebase origin/main; then
+            git push -f origin develop
+            NEW_HEAD=$(git rev-parse --short HEAD)
             echo "status=synced" >> "$GITHUB_OUTPUT"
-            echo "✅ develop fast-forwarded to $(git rev-parse --short HEAD)"
+            echo "✅ develop rebased onto main ($NEW_HEAD)"
           else
-            echo "status=diverged" >> "$GITHUB_OUTPUT"
-            echo "⚠️  Fast-forward failed — develop has diverged from main."
+            echo "status=conflicted" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Rebase encountered conflicts — manual intervention needed."
+            git rebase --abort
           fi
 
-      - name: Open maintenance issue if diverged
-        if: steps.sync.outputs.status == 'diverged'
+      - name: Open issue on rebase conflict
+        if: steps.sync.outputs.status == 'conflicted'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh issue create \
-            --title "⚠️ develop divergiu de main — rebase manual necessário" \
-            --body "## Sync automático falhou
+            --title "⚠️ develop: rebase conflict com main — manual fix" \
+            --body "## Sync automático encontrou conflitos
 
-O fast-forward de \`develop\` para \`main\` não foi possível após o commit \`${{ github.sha }}\`.
+O rebase de \`develop\` sobre \`origin/main\` falhou após o commit \`${{ github.sha }}\`.
 
-Isso ocorre quando a estratégia de merge introduz commits em \`main\` que **não** são ancestrais diretos de \`develop\` (e.g., squash merge ou rebase merge).
+Isso pode ocorrer se novas commits entram em \`develop\` durante o mesmo push em \`main\`, ou se há conflitos genuínos de merge.
 
 ### Fix manual
 
 \`\`\`bash
 git fetch origin
 git checkout develop
-git merge origin/main --no-edit
-git push origin develop
+git rebase origin/main
+
+# Resolver conflitos se houver, depois:
+git rebase --continue
+git push -f origin develop
 \`\`\`
 
 > Feche este issue após o sync manual." \

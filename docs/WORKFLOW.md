@@ -590,9 +590,9 @@ specs/ADRs/
 ```
 feature/xyz ──┐
 feature/abc ──┤──► develop ──► main ──► (packages published)
-fix/yyy ───────┘       ▲
-                       │
-              [auto-sync após merge]
+fix/yyy ───────┘       ▲                      │
+                       │                      │
+                       └──── auto-rebase ◄────┘
 ```
 
 - **`main`** — produção, protegido. Nunca recebe push direto.
@@ -610,38 +610,45 @@ git checkout -b feature/minha-feature
 git push origin feature/minha-feature
 
 # 3. Abrir PR → develop  (CI: testes, lint, type-check, changeset)
-# 4. Merge em develop
+# 4. Merge em develop (qualquer estratégia funciona)
 
 # 5. Quando develop estiver pronto para release:
-#    Abrir PR: develop → main  (mesmos gates + validate-changeset)
-# 6. Aprovar e mergear (estratégia: "Create a merge commit")
+#    Abrir PR: develop → main  
+# 6. Aprovar e mergear (estratégia: "Rebase and merge" para timeline linear)
 
-# 7. ✅ O workflow sync-develop.yml faz fast-forward de develop automaticamente.
+# 7. ✅ O workflow sync-develop.yml faz rebase automático de develop.
 #    Não é necessário nenhuma ação manual.
 ```
 
-### Por que "Create a merge commit" (não squash/rebase)?
+### Estratégia de merge
 
-O fast-forward automático de `develop` **só funciona** quando o commit de merge em `main` tem `develop` como ancestral direto — o que acontece com *merge commit*. Squash e rebase criam SHAs novos que fazem os branches divergirem.
-
-> Configure isso nas branch protection rules de `main`: **"Allow merge commits" ✅ / "Allow squash merging" ❌ / "Allow rebase merging" ❌**.
+- **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit)
+- **Em `main`**: prefira **rebase** para manter timeline linear
+- O workflow `sync-develop.yml` automaticamente rebasa `develop` sobre `main` após qualquer push em `main`, independente da estratégia usada
 
 ### Release via Changesets
 
 1. Changesets acumulam em `develop` durante o sprint (arquivo em `.changeset/`).
 2. Após o merge `develop → main`, o workflow `release-changesets.yml` cria automaticamente um PR de versão (`chore(release): version packages`) no `main`.
-3. Após esse PR ser aprovado e mesclado, os pacotes são publicados no npm/crates.io.
-4. O `sync-develop.yml` volta a fast-forward `develop` para esse novo head de `main`.
+3. Após esse PR ser aprovado, mergear com **rebase** também para manter linear.
+4. Os pacotes são publicados no npm/crates.io.
+5. O `sync-develop.yml` rebasa `develop` novamente.
 
 ### Sync automático falhou?
 
-Se `develop` divergiu (ex: alguém usou squash merge), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:
+Se há conflitos no rebase (commits simultâneas em `develop` e `main` com mudanças na mesma região), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:
 
 ```bash
 git fetch origin
 git checkout develop
-git merge origin/main --no-edit
-git push origin develop
+git rebase origin/main
+
+# Resolver conflitos (editor abre automaticamente)
+# ...editar, depois:
+git add .
+git rebase --continue
+
+git push -f origin develop
 ```
 
 ---
