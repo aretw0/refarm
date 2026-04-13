@@ -85,6 +85,22 @@ These are the **reference implementations** and personal tools. Publish after yo
    - Needs 6 months of daily use to stabilize UX
    - **Publish later** as `@aretw0/refarm-personal` (reference implementation for solo users)
 
+### Operating Model: dev-first, me-stable, social-later
+
+To converge fast without burning your daily workflow:
+
+- **`refarm.dev`** is the experimentation lab: new capabilities, Pi integrations, risky plugin prototypes.
+- **`refarm.me`** is your personal product: only receives features after they pass promotion criteria.
+- **`refarm.social`** is ecosystem-facing and comes last, after patterns are proven in `dev` and lived in `me`.
+
+Promotion rule:
+
+1. Build and break in `dev`.
+2. Promote to `me` only after reliability gates pass.
+3. Promote to `social` only after repeatable value is demonstrated.
+
+This keeps velocity high in `dev` while protecting your daily-driver reliability in `me`.
+
 #### Plugin Architecture — Critical Path for v0.2.0
 
 **`@aretw0/plugin-manifest` — DEFERRED to v0.2.0 (after Pi layer)**
