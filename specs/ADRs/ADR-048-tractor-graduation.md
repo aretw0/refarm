@@ -97,7 +97,7 @@ while the native host is fixed.
 ### Positive
 - Single canonical `@refarm.dev/tractor` — no longer split between `tractor` (TS) and
   `tractor-native` (Rust) in documentation and tooling
-- IoT / Tauri targets get a first-class package name
+- IoT / Electron targets get a first-class package name
 - `BrowserSyncClient` and all consumers that speak the Loro wire protocol require zero changes
 
 ### Negative / trade-offs

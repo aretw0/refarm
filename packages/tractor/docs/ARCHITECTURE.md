@@ -51,7 +51,7 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit`,
 
 ### 7. Deployment forms — lib + binary
 
-- `[lib]` — embeddable in Tauri, CLI, edge agents via `use tractor::TractorNative`
+- `[lib]` — embeddable in Electron, CLI, edge agents via `use tractor::TractorNative`
 - `[[bin]]` — standalone daemon: `tractor --namespace default --port 42000`
 
 ### 8. Schema alignment — `crdt_log.id = TEXT PRIMARY KEY`, no `created_at`
@@ -184,6 +184,7 @@ contract specified in `docs/specs/api-reference.md §1.2`.
 Packages and apps that import from `@refarm.dev/tractor` (npm name unchanged after graduation):
 
 ### Apps
+
 | Consumer | Import | Notes |
 |---|---|---|
 | `apps/dev` | `Tractor` | graph.astro, index.astro, plugins.astro, shed.astro |
@@ -191,6 +192,7 @@ Packages and apps that import from `@refarm.dev/tractor` (npm name unchanged aft
 | `apps/me` | `Tractor` | src/pages/index.astro |
 
 ### Packages
+
 | Consumer | Imports | Notes |
 |---|---|---|
 | `packages/cli` | `Tractor` | plugin commands |
@@ -212,7 +214,7 @@ Migration path: see [Graduation Strategy](#graduation-strategy).
 
 | Use case | Recommendation |
 |----------|---------------|
-| Tauri desktop app | `use tractor::TractorNative` (lib crate) — embed directly |
+| Electron desktop app | `use tractor::TractorNative` (lib crate) — embed directly |
 | CLI agent (no UI) | `use tractor::TractorNative` (lib crate) — or run binary as subprocess |
 | Browser app (tractor-ts consumer) | Connect to the running `tractor` binary via WebSocket on port 42000 |
 | IoT / RPi daemon | Run `tractor` binary standalone — zero Node.js needed |

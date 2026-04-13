@@ -8,7 +8,7 @@ Provides full behavioral parity with `@refarm.dev/tractor` (TypeScript), with:
 - **rusqlite** with the same schema as `packages/storage-sqlite`
 - **loro** Rust CRDT engine (binary-compatible with `loro-crdt` JS)
 - **WebSocket daemon** on port 42000 (replaces farmhand — `BrowserSyncClient` unchanged)
-- **Embeddable lib** for Tauri, CLI agents, RPi
+- **Embeddable lib** for Electron, CLI agents, RPi
 
 ---
 
@@ -68,7 +68,7 @@ cargo test --all
 
 ## API
 
-For embedding `tractor` as a library in Tauri apps, CLI agents, or other Rust programs:
+For embedding `tractor` as a library in Electron apps, CLI agents, or other Rust programs:
 
 ```rust
 use tractor::TractorNative;

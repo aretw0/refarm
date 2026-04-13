@@ -1,6 +1,6 @@
 # Refarm Release & Versioning Policy
 
-As the Refarm ecosystem expands across multiple domains (`@refarm.dev`, `@refarm.me`, `@refarm.social`), the pace of development must reflect the critical nature of sovereignty and security.
+As the Refarm ecosystem expands across multiple domains and scope profiles (personal/org), the pace of development must reflect the critical nature of sovereignty and security.
 
 This policy defines the cadence, security, and velocity for different layers of the ecosystem.
 
@@ -16,14 +16,14 @@ The Tractor, Heartwood, and base Contracts (`-contract-v1`) are the foundation o
   - They **never** publish directly. They create a signed Git tag.
   - The actual NPM/Registry publish happens exclusively via GitHub Actions CI/CD after manual approval and passing all matrix tests.
 
-## 2. Official Apps (`@refarm.me/*`, `@refarm.social/*`)
+## 2. Official Apps (active scope profile)
 **Velocity Strategy: Measured & User-Centric.**
 
 Apps like Homestead or Antenna are the user interfaces. They move faster than the kernel but must maintain unbreakable trust.
 
 - **Cadence**: Sprint-based (e.g., bi-weekly or monthly).
 - **Versioning**: Uses `Changesets`. Every PR must contain a changeset explicitly detailing what visual or behavioral change occurred.
-- **Release Security**: Automated deployments (Vercel/Netlify for Web, Tauri pipelines for Desktop) triggered by `main` branch tags.
+- **Release Security**: Automated deployments (Vercel/Netlify for Web, Electron pipelines for Desktop) triggered by `main` branch tags.
 
 ## 3. Plugins (The Ecosystem)
 **Velocity Strategy: Move Fast and Break Things (Safely).**

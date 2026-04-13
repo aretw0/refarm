@@ -2,7 +2,7 @@
 //!
 //! Native Rust implementation of the Refarm Tractor. Designed for:
 //!   - Edge / RPi agents (~10 MB binary, no Node.js/V8)
-//!   - Tauri desktop applications (embedded library)
+//!   - Electron desktop applications (embedded library)
 //!   - Server-side plugin orchestration
 //!
 //! Provides full behavioral parity with `@refarm.dev/tractor` (TypeScript).
