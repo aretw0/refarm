@@ -40,7 +40,7 @@
 ### 🚀 Future Tracks (See Roadmap)
 Detailed planning for the following tracks is now consolidated in the **[Evolutionary Roadmap](../roadmaps/MAIN.md)**:
 - 🦀 **Tractor-Rust Native**: The `wasmtime` port of Tractor for 10MB memory-constrained edge devices. See [ADR-047](../specs/ADRs/ADR-047-tractor-native-rust-host.md) and [ADR-049](../specs/ADRs/ADR-049-post-graduation-horizon.md).
-- 🚜 **Farmhand Daemons**: Headless, background Tractor instances for offline CRDT task completion.
+- 🚜 **Tractor Nodes**: Headless background runtime for offline CRDT sync, plugin routing, and task completion.
 - 🧠 **Tractor-Embedded Agents**: Incorporating local AI models directly into the Tractor WASM sandbox execution.
 
 ---
@@ -98,7 +98,7 @@ Wiki de fundamentação técnica - consultar quando necessário:
 
 ```
 refarm/
-├── apps/           Distros (apps/me · apps/dev · apps/farmhand)
+├── apps/           Distros (apps/me · apps/dev · apps/farmhand [transitional])
 ├── packages/       Packages reutilizáveis (storage, sync, identity)
 ├── docs/           Esta pasta - documentação & pesquisa técnica
 ├── roadmaps/       Planejamento versionado (semver)

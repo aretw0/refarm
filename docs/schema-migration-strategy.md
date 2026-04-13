@@ -4,7 +4,7 @@
 > upgrade path. Migrating silently or destructively would violate Sovereign principles.
 
 **Status**: Groundwork documented — `refarm migrate` command exists, contract below.
-**Related**: [Gate 2](v0.1.0-release-gate.md#gate-2-farmhand--tractor-daemon-transition),
+**Related**: [Track B Gate 1](v0.1.0-release-gate.md#gate-1-tractor--homestead-integration--in-progress-gate-3-in-original),
 [ADR-048](../specs/ADRs/ADR-048-tractor-graduation.md),
 [`packages/tractor/docs/ARCHITECTURE.md`](../packages/tractor/docs/ARCHITECTURE.md)
 

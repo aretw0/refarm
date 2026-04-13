@@ -62,29 +62,28 @@ fundamental: o browser só acessa arquivos que o usuário escolhe explicitamente
 picker) ou que estão no OPFS (um filesystem virtual interno ao browser — não o disco real).
 
 Para integrar o sistema de arquivos local de forma automática e contínua, Marco precisa de
-um processo com acesso real ao disco: o **Farmhand** — o Tractor rodando em Node.js,
-fora do browser.
+um processo com acesso real ao disco: um **Tractor Node** rodando fora do browser.
 
 ### O que Marco faz
 
 **1. Inicia o daemon no laptop:**
 
 ```bash
-npx @refarm.dev/farmhand
-# Farmhand rodando em localhost:42000
+refarm tractor start
+# Tractor Node rodando em ws://localhost:42000
 # Escaneando ~/.refarm/plugins/...
 ```
 
-**2. O Studio detecta o Farmhand automaticamente:**
+**2. O Studio detecta o Tractor Node automaticamente:**
 
 ```
 [Novo dispositivo detectado]
-  🖥️  Marco's Laptop — Farmhand
+  🖥️  Marco's Laptop — Tractor Node
 
   [Sincronizar como novo dispositivo]  [Ignorar]
 ```
 
-Marco clica "Sincronizar". O Farmhand agora é um **peer CRDT** do browser Refarm — igual a
+Marco clica "Sincronizar". O Tractor Node agora é um **peer CRDT** do browser Refarm — igual a
 um segundo celular ou laptop sincronizando a mesma conta.
 
 **3. Marco escreve o plugin em Rust:**
@@ -115,14 +114,14 @@ impl plugin::Guest for Plugin {
 ```bash
 cargo component build --release
 
-# Copia o .wasm e o manifest para a pasta do Farmhand
+# Copia o .wasm e o manifest para a pasta do Tractor Node
 cp target/wasm32-wasip1/release/obsidian_bridge.wasm \
    ~/.refarm/plugins/obsidian-bridge.wasm
 cp obsidian-bridge.manifest.json \
    ~/.refarm/plugins/obsidian-bridge.manifest.json
 ```
 
-O Farmhand escaneia `~/.refarm/plugins/` na inicialização e ao detectar novos arquivos.
+O Tractor Node escaneia `~/.refarm/plugins/` na inicialização e ao detectar novos arquivos.
 Nenhum código adicional necessário.
 
 O manifest aponta para o arquivo local:
@@ -150,44 +149,44 @@ O manifest aponta para o arquivo local:
 }
 ```
 
-**5. Farmhand descobre o plugin e Studio exibe a UI de roteamento:**
+**5. Tractor Node descobre o plugin e Studio exibe a UI de roteamento:**
 
 ```
-[Studio — Farmhand Devices]
-  🖥️  Marco's Laptop — Farmhand
+[Studio — Tractor Nodes]
+  🖥️  Marco's Laptop — Tractor Node
      Discovered plugins:
        📦 Obsidian Bridge v1.0.0  (found in ~/.refarm/plugins/)
            [Load on this device]  [Load on RPi]
 ```
 
 Marco clica **"Load on this device"**. Studio escreve um nó `PluginRoute` no grafo.
-O Farmhand detecta o nó e carrega o plugin.
+O Tractor Node detecta o nó e carrega o plugin.
 
-**6. O plugin roda no Farmhand, com acesso ao filesystem:**
+**6. O plugin roda no Tractor Node, com acesso ao filesystem:**
 
-- Farmhand tem WASI filesystem preopens → lê `~/obsidian/vault/*.md`
+- Tractor Node tem WASI filesystem preopens → lê `~/obsidian/vault/*.md`
 - Normaliza cada nota para um nó JSON-LD
-- Armazena no grafo local do Farmhand (SQLite)
+- Armazena no grafo local do Tractor Node (SQLite)
 
 **7. O browser sincroniza automaticamente:**
 
 ```
 [Studio]
   ✓ 42 notas importadas do Obsidian
-  Origem: Marco's Laptop — Farmhand
+  Origem: Marco's Laptop — Tractor Node
 ```
 
 Marco vê suas notas no browser **sem o browser ter tocado em nenhum arquivo local**.
 
 > **Por que isso é simples:** Marco não precisa escrever TypeScript nem chamar nenhuma API.
-> Basta colocar o `.wasm` + manifest em `~/.refarm/plugins/` — o Farmhand descobre sozinho.
+> Basta colocar o `.wasm` + manifest em `~/.refarm/plugins/` — o Tractor Node descobre sozinho.
 
-> **Mecanismo:** `entry: "file://..."` funciona **apenas no Farmhand** (Node.js Tractor).
+> **Mecanismo:** `entry: "file://..."` funciona **apenas no Tractor Node** (runtime local).
 > No browser, `file://` é inválido — use `https://` ou OPFS cache.
 > O manifest do Marco declara `"targets": ["server"]` por exatamente essa razão —
 > os botões de roteamento para browser ficam desativados no Studio.
 
-🖥️ **Roda em: Farmhand local** (Node.js Tractor no laptop ou Raspberry Pi do Marco)
+🖥️ **Roda em: Tractor Node local** (laptop ou Raspberry Pi do Marco)
 
 ---
 
@@ -528,7 +527,7 @@ O `PluginManifest` é o que o usuário vê antes de instalar. Cada campo é uma 
 | Nostr NIP-94 + NIP-89 | 🔭 Próximo passo | Integração com `identity-nostr` |
 | Self-hosted relay Nostr | 🔭 Planejado | Relay próprio + NIP-89 |
 | IPFS / Arweave | 💡 Possível | URL de conteúdo permanente |
-| Farmhand (VPS/RPi/laptop) | 🔭 ADR-037 Fase 3 | Node.js sempre-on com Tractor (`@refarm.dev/farmhand`) |
+| Tractor Node (VPS/RPi/laptop) | 🔭 ADR-037 Fase 3 | Runtime sempre-on com Tractor em `ws://localhost:42000` |
 | Server-side plugins (SSR) | 💡 Conceitual | ADR-037 Fase 4+ |
 
 ---

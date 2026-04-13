@@ -12,7 +12,7 @@ Refarm is intentionally being held in `< 0.1.x` during this architectural stabil
 
 No packages will advance to `v1.0` or even `v0.1` until:
 1. All core building blocks (`sync-loro`, `storage-sqlite`, `tractor`, etc) are independently stable and universally composable.
-2. The headless daemon (`Farmhand`) and browser execution contexts (`Studio/Homestead`) are fully synchronized.
+2. The headless runtime (`Tractor Node`) and browser execution contexts (`Studio/Homestead`) are fully synchronized.
 3. The project is fully structurally migrated to the new `refarm-dev` organization.
 
 Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../docs/WORKFLOW.md))
@@ -24,7 +24,7 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 
 ## v0.1.0 - Sovereign Foundations
 
-**Milestone**: The culmination of Phase 1 through Phase 6. A stable, offline-first execution engine (`Tractor`) capable of hosting capability-isolated WASM plugins, bidirectionally synchronizing via Loro CRDTs, and orchestrating work across local daemons (`Farmhand`).
+**Milestone**: The culmination of Phase 1 through Phase 6. A stable, offline-first execution engine (`Tractor`) capable of hosting capability-isolated WASM plugins, bidirectionally synchronizing via Loro CRDTs, and orchestrating work across local Tractor Nodes.
 
 **Status**: In Progress (Phase 6 Finalization)
 
