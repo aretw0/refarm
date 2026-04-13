@@ -13,8 +13,9 @@ permissions:
 
 jobs:
   release:
-    # Safety gate: only run publish automation in the org repo and when explicitly enabled.
-    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    # Safety gate: publish automation must be explicitly enabled.
+    # Optional owner lock via RELEASE_OWNER.
+    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
