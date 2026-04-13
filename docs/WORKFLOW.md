@@ -583,7 +583,70 @@ specs/ADRs/
 
 ---
 
-## 🏗 Source Sovereignty & Hygiene
+## � Branch & Release Flow
+
+### Branch Model
+
+```
+feature/xyz ──┐
+feature/abc ──┤──► develop ──► main ──► (packages published)
+fix/yyy ───────┘       ▲
+                       │
+              [auto-sync após merge]
+```
+
+- **`main`** — produção, protegido. Nunca recebe push direto.
+- **`develop`** — integração contínua. Base para todas as feature branches.
+- **`feature/*`, `fix/*`, `docs/*`** — ramificam de `develop`, voltam para `develop` via PR.
+
+### Ciclo completo de uma feature
+
+```bash
+# 1. Criar branch a partir de develop
+git checkout develop && git pull origin develop
+git checkout -b feature/minha-feature
+
+# 2. Trabalhar, commitar, push
+git push origin feature/minha-feature
+
+# 3. Abrir PR → develop  (CI: testes, lint, type-check, changeset)
+# 4. Merge em develop
+
+# 5. Quando develop estiver pronto para release:
+#    Abrir PR: develop → main  (mesmos gates + validate-changeset)
+# 6. Aprovar e mergear (estratégia: "Create a merge commit")
+
+# 7. ✅ O workflow sync-develop.yml faz fast-forward de develop automaticamente.
+#    Não é necessário nenhuma ação manual.
+```
+
+### Por que "Create a merge commit" (não squash/rebase)?
+
+O fast-forward automático de `develop` **só funciona** quando o commit de merge em `main` tem `develop` como ancestral direto — o que acontece com *merge commit*. Squash e rebase criam SHAs novos que fazem os branches divergirem.
+
+> Configure isso nas branch protection rules de `main`: **"Allow merge commits" ✅ / "Allow squash merging" ❌ / "Allow rebase merging" ❌**.
+
+### Release via Changesets
+
+1. Changesets acumulam em `develop` durante o sprint (arquivo em `.changeset/`).
+2. Após o merge `develop → main`, o workflow `release-changesets.yml` cria automaticamente um PR de versão (`chore(release): version packages`) no `main`.
+3. Após esse PR ser aprovado e mesclado, os pacotes são publicados no npm/crates.io.
+4. O `sync-develop.yml` volta a fast-forward `develop` para esse novo head de `main`.
+
+### Sync automático falhou?
+
+Se `develop` divergiu (ex: alguém usou squash merge), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:
+
+```bash
+git fetch origin
+git checkout develop
+git merge origin/main --no-edit
+git push origin develop
+```
+
+---
+
+## �🏗 Source Sovereignty & Hygiene
 
 ### 1. Tracking Policy: Source vs. Derivatives
 To avoid repository bloating and ensure reproducibility:

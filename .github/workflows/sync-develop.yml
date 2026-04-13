@@ -1,0 +1,69 @@
+name: Sync develop ← main
+
+# Triggered every time main receives a push (PR merged, version bump, hotfix).
+# Attempts a fast-forward of develop to main so the next sprint starts clean.
+# If fast-forward is impossible (diverged history), opens a maintenance issue.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    name: Fast-forward develop to main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fast-forward develop → main
+        id: sync
+        run: |
+          git checkout develop
+          if git merge --ff-only origin/main; then
+            git push origin develop
+            echo "status=synced" >> "$GITHUB_OUTPUT"
+            echo "✅ develop fast-forwarded to $(git rev-parse --short HEAD)"
+          else
+            echo "status=diverged" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Fast-forward failed — develop has diverged from main."
+          fi
+
+      - name: Open maintenance issue if diverged
+        if: steps.sync.outputs.status == 'diverged'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue create \
+            --title "⚠️ develop divergiu de main — rebase manual necessário" \
+            --body "## Sync automático falhou
+
+O fast-forward de \`develop\` para \`main\` não foi possível após o commit \`${{ github.sha }}\`.
+
+Isso ocorre quando a estratégia de merge introduz commits em \`main\` que **não** são ancestrais diretos de \`develop\` (e.g., squash merge ou rebase merge).
+
+### Fix manual
+
+\`\`\`bash
+git fetch origin
+git checkout develop
+git merge origin/main --no-edit
+git push origin develop
+\`\`\`
+
+> Feche este issue após o sync manual." \
+            --label "maintenance" \
+            --repo "${{ github.repository }}"
