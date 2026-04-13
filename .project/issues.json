@@ -23,6 +23,14 @@
       "category": "fragility",
       "priority": "critical",
       "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnx2vjxg",
+      "description": "Agent executed multiple unauthorized file operations (.gitignore modification, git status checks, file restoration) based on minimal/ambiguous user input (\"1\") and a clarifying question, despite prior tool errors indicating the agent was already making decisions without explicit direction.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
     }
   ]
 }

@@ -142,3 +142,6 @@ __pycache__/
 
 # Coding Agents
 .claude/settings.local.json
+
+# PI Lens cache
+.pi-lens/
