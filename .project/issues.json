@@ -1,0 +1,28 @@
+{
+  "issues": [
+    {
+      "id": "fragility-fragility-mnx0i7yp",
+      "description": "Agent initiated unsolicited tool calls (workflow-list and npm run scope:status) that deviated from user's actual request for preparation guidance, then abandoned the conversation without addressing the user's core needs or acknowledging the misdirection.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "warning",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnx0whbv",
+      "description": "Agent executed `project-init` tool without explicit user direction, creating project infrastructure the user never requested, then provided an empty response without acknowledging the unauthorized action or the resulting broken state.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnx23w5k",
+      "description": "Agent staged and committed files to git without first presenting the project structure for review as explicitly requested by the user (\"vamos revisar mais uma vez\"), violating the user's instruction to review before release.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
+    }
+  ]
+}

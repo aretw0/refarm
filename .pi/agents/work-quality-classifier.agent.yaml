@@ -1,0 +1,11 @@
+name: work-quality-classifier
+role: sensor
+description: Classifies work quality issues in agent output
+model: github-copilot/claude-haiku-4.5
+thinking: "off"
+output:
+  format: json
+  schema: ../schemas/verdict.schema.json
+prompt:
+  task:
+    template: work-quality/classify.md

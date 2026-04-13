@@ -142,4 +142,3 @@ __pycache__/
 
 # Coding Agents
 .claude/settings.local.json
-.pi*
