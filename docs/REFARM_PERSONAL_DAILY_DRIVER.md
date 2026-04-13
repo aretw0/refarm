@@ -57,11 +57,9 @@ These packages form the **substrate** that others can build on. They answer: "Wh
    - Nostr, OPAQUE, or custom identity stacks can implement
    - Stability: **IMMUTABLE**
 
-4. **`@aretw0/plugin-manifest`** — WASM plugin descriptor schema
-   - Used to validate and load plugins
-   - Stability: **IMMUTABLE**
+**Rationale**: These are **foundational contracts**, not implementations. They're small, stable, and let the ecosystem answer: "How can I build for Refarm?"
 
-**Rationale**: These are **contracts**, not implementations. They're small, stable, and let the ecosystem answer: "How can I build for Refarm?"
+> **Deferred: `@aretw0/plugin-manifest`** — See TIER 2 below. Publishing this now would lock us into WASM-only plugins, when the vision is cross-layer extensibility (Pi, Tractor, Frontend, Desktop, Automation). Defer to v0.2.0 after plugin architecture is proven.
 
 ### TIER 2: Keep Private (Mature in Closed, Then Open-Source)
 
@@ -69,26 +67,70 @@ These are the **reference implementations** and personal tools. Publish after yo
 
 **Keep in `/workspaces/refarm` (private monorepo)**:
 
-1. **`apps/me` (Homestead + Studio)** — Your personal distro
-   - Gate 3 still in progress
-   - Needs 6 months of daily use to stabilize UX
-   - **Publish later** as `@aretw0/refarm-personal` (reference implementation for solo users)
+#### Core Infrastructure (Publish v0.2.0+)
 
-2. **`packages/tractor`** (Rust daemon)
+1. **`packages/tractor`** (Rust daemon)
    - ✅ Technically ready (52/52 tests, ADR-048 graduated)
    - **BUT**: Consumer testing still WIP (Gate 2/3)
    - **Publish after** Gate 3 finishes (when Homestead ↔ Tractor integration proven)
    - Target: **mid-late April 2026** (next sprint)
 
-3. **`packages/silo`** (Secret provisioning)
-   - Your personal secret manager
-   - Not a generic library; tailored to your threat model
-   - **Publish later** if others adopt the pattern
-
-4. **`packages/barn`** (Plugin lifecycle, OPFS, SHA-256)
+2. **`packages/barn`** (Plugin lifecycle, OPFS, SHA-256)
    - Mature this in your daily workflow first
    - Needed for `installPlugin()` to be rock-solid
    - **Publish after** you've hot-swapped plugins dozens of times
+
+3. **`apps/me` (Homestead + Studio)** — Your personal distro
+   - Gate 3 still in progress
+   - Needs 6 months of daily use to stabilize UX
+   - **Publish later** as `@aretw0/refarm-personal` (reference implementation for solo users)
+
+#### Plugin Architecture — Critical Path for v0.2.0
+
+**`@aretw0/plugin-manifest` — DEFERRED to v0.2.0 (after Pi layer)**
+
+The current `plugin-manifest` is **WASM-only**. But Refarm's real power comes from **extensibility across every layer**:
+
+**Multi-Layer Plugin Vision**:
+- **Pi layer** (local automaton) — scripts, cron jobs, hardware interaction, local data processing
+- **Tractor layer** (serverside logic) — custom storage backends, indexing, business logic, resource management
+- **Homestead/Frontend layer** (UI/UX) — widgets, sidebars, content editors, custom visualizations
+- **Electron/Desktop layer** (OS integration) — file system extensions, native modules, system integration
+- **Windmill/Automation layer** (user workflows) — workflow steps, custom actions, conditional logic
+
+If we publish `plugin-manifest` now, we lock the ecosystem into **WASM-only thinking**. Instead, you must:
+
+**Blockers to Publishing**:
+- [ ] **Pi Layer Design**: How do you describe a Pi plugin (Rust binary? Python? Shell script?)
+- [ ] **Manifest Generalization**: Single schema that describes plugins across all 5 layers
+- [ ] **Inter-Layer Composition**: Can a Pi plugin trigger a Homestead widget? Can a workflow step call a Tractor backend?
+- [ ] **Ecosystem Examples**: At least 3 working plugins across different layers (1 WASM, 1 Pi, 1 Frontend)
+- [ ] **Discovery & Loading**: How does Refarm discover, validate, and load plugins from Nostr and local sources across layers?
+
+**Expected Outcome**:
+```
+v0.1.0-contracts: (3 contracts)
+  @aretw0/storage-contract-v1
+  @aretw0/sync-contract-v1
+  @aretw0/identity-contract-v1
+
+v0.2.0-core: (includes plugin ecosystem)
+  @aretw0/tractor (Rust daemon)
+  @aretw0/barn (Plugin lifecycle mgr)
+  @aretw0/plugin-manifest (generalized, multi-layer)
+  @aretw0/plugin-example-wasm
+  @aretw0/plugin-example-pi
+  @aretw0/plugin-example-frontend
+```
+
+**Target**: Publish v0.2.0 with complete plugin ecosystem (July+ 2026).
+
+#### Personal Tools (Keep Private, Genericize Later)
+
+4. **`packages/silo`** (Secret provisioning)
+   - Your personal secret manager
+   - Not a generic library; tailored to your threat model
+   - **Publish later** if others adopt the pattern
 
 5. **`packages/creek`** (Telemetry, logging)
    - Your observability into Refarm's own health
@@ -109,17 +151,22 @@ These are the **reference implementations** and personal tools. Publish after yo
 ## API Stability Tiers
 
 ```
-TIER 1 (npm, v0.1.0)          TIER 2 (Private, Gate 3) → TIER 1 (npm v0.2.0)
-─────────────────────────────────────────────────────────────────────────
-✅ Contracts (Immutable)        🚧 Reference Implementations (Evolving)
-   • storage-contract-v1           • tractor (Rust)
-   • sync-contract-v1             • apps/me (Homestead)
-   • identity-contract-v1         • barn (Plugin mgmt)
-   • plugin-manifest              • silo (Secrets)
-                                  • creek (Telemetry)
-                                  • plugin-tem (AI)
-                                  • windmill (Automation)
+TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
+─────────────────────────────────────────────────────────────────────────────
+✅ Foundational Contracts      🚧 Reference Implementations & Ecosystem
+   • storage-contract-v1          • tractor (Rust) — publish late Apr
+   • sync-contract-v1            • barn (Plugin mgmt) — after v0.2.0 decision
+   • identity-contract-v1        • plugin-manifest (multi-layer) — July+
+                                • apps/me (Homestead) — v0.2.0+
+                                • plugin examples (WASM, Pi, Frontend)
+                                • silo, creek, plugin-tem, windmill
 ```
+
+**Why `plugin-manifest` is deferred**:
+- v0.1.0 publishes **foundational contracts** (storage, sync, identity)
+- `plugin-manifest` encompasses too much architectural decisions about Pi, extensibility, and discovery
+- Premature publication locks the ecosystem into WASM-only; must generalize across all layers first
+- v0.2.0 will present a complete, cohesive **plugin ecosystem** with examples
 
 ---
 
@@ -165,20 +212,19 @@ TIER 1 (npm, v0.1.0)          TIER 2 (Private, Gate 3) → TIER 1 (npm v0.2.0)
 - [ ] **Gate 1**: Set `RELEASE_AUTOMATION=true` in GitHub repo settings
 - [ ] **Gate 1**: Set `RELEASE_OWNER=aretw0` to prevent accidental publishes
 - [ ] **Gate 1**: Ensure `NPM_TOKEN` has publish access to `@aretw0` scope
-- [ ] **Contracts**: Update all 4 contract `package.json` with `"version": "0.1.0"`
+- [ ] **Contracts**: Update **3 contract** `package.json` with `"version": "0.1.0"` (storage, sync, identity)
 - [ ] **Contracts**: Run `npm run type-check` + `npm run test` for each
 - [ ] **Contracts**: Validate `npm publish --dry-run` for each
 
 ### Publish (After Gate 1)
 
 ```bash
-# In order, publish the 4 contracts
+# In order, publish the 3 foundational contracts
 git tag @aretw0/storage-contract-v1@0.1.0 && git push origin @aretw0/storage-contract-v1@0.1.0
 git tag @aretw0/sync-contract-v1@0.1.0 && git push origin @aretw0/sync-contract-v1@0.1.0
 git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-contract-v1@0.1.0
-git tag @aretw0/plugin-manifest@0.1.0 && git push origin @aretw0/plugin-manifest@0.1.0
 
-# CI runs: publish-packages.yml triggers, publishes all 4 to npm
+# CI runs: publish-packages.yml triggers, publishes all 3 to npm
 ```
 
 ### Post-Publish (Immediately After)
@@ -188,8 +234,9 @@ git tag @aretw0/plugin-manifest@0.1.0 && git push origin @aretw0/plugin-manifest
 - [ ] Create GitHub Release for `v0.1.0-contracts` with changelog
 - [ ] Announce (optional): Twitter, Matrix, personal network
 
-### Defer (To v0.2.0 or Later)
+### Defer to v0.2.0 (Late 2026)
 
+- [ ] `@aretw0/plugin-manifest` — held until Pi + multi-layer plugin architecture proven
 - [ ] `tractor` (Rust) — publish only after 6+ weeks daily use
 - [ ] `apps/me` — publish as "example personal distro" reference, not mandatory
 - [ ] All infrastructure plugins — keep private until you need external contributions
