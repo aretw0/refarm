@@ -1,3 +1,59 @@
 {
-	"rationales": []
+  "rationales": [
+    {
+      "id": "RAT-001",
+      "title": "Por que estruturar o .project antes de escalar colônia",
+      "narrative": "Execução paralela sem backlog estruturado aumenta colisão, retrabalho e perda de contexto. O .project cria trilha de rastreabilidade entre intenção, execução e validação.",
+      "related_decisions": [
+        "DEC-001",
+        "DEC-002",
+        "DEC-003"
+      ],
+      "phase": "P0-Setup",
+      "context": "Preparar fábrica de software com vários workers."
+    },
+    {
+      "id": "RAT-002",
+      "title": "Por que adotar tasks atômicas",
+      "narrative": "Diffs pequenos reduzem surpresa, simplificam revisão e permitem rollback seletivo quando uma frente falha.",
+      "related_decisions": [
+        "DEC-002",
+        "DEC-005"
+      ],
+      "phase": "P3-Planning",
+      "context": "Monorepo com múltiplos domínios acoplados."
+    },
+    {
+      "id": "RAT-003",
+      "title": "Por que priorizar baseline de ambiente",
+      "narrative": "Sem ambiente estável, gargalos de setup dominam o throughput e mascaram problemas reais de código.",
+      "related_decisions": [
+        "DEC-006"
+      ],
+      "phase": "P1-Environment",
+      "context": "Falha Rust manifest identificada em execução anterior."
+    },
+    {
+      "id": "RAT-004",
+      "title": "Por que manter Source Sovereignty rígida",
+      "narrative": "Editar artefatos gerados cria falsas correções e quebra reprodutibilidade entre máquinas/CI.",
+      "related_decisions": [
+        "DEC-004",
+        "DEC-007"
+      ],
+      "phase": "P0-Setup",
+      "context": "Regra de engajamento central do projeto."
+    },
+    {
+      "id": "RAT-005",
+      "title": "Por que exigir evidência de verificação por task",
+      "narrative": "A fábrica precisa distinguir trabalho concluído de trabalho apenas alterado. Evidence vincula critérios a resultados observáveis.",
+      "related_decisions": [
+        "DEC-003",
+        "DEC-008"
+      ],
+      "phase": "P8-Governance",
+      "context": "Consolidação segura de lotes da colônia."
+    }
+  ]
 }

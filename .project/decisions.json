@@ -1,3 +1,68 @@
 {
-	"decisions": []
+  "decisions": [
+    {
+      "id": "DEC-001",
+      "decision": "Adotar .project como fonte oficial de planejamento operacional para execução por colônia.",
+      "rationale": "Centraliza requisitos, tarefas, verificação e decisões em estrutura validável por schema.",
+      "status": "decided",
+      "phase": "P0-Setup",
+      "context": "Necessidade de paralelizar trabalho com rastreabilidade."
+    },
+    {
+      "id": "DEC-002",
+      "decision": "Executar trabalho em tarefas atômicas com regra 1 task = 1 branch = 1 PR.",
+      "rationale": "Reduz risco de regressão e facilita revisão incremental.",
+      "status": "decided",
+      "phase": "P3-Planning",
+      "context": "Evitar colisão entre workers em monorepo grande."
+    },
+    {
+      "id": "DEC-003",
+      "decision": "Estabelecer gates de validação em dois níveis: smoke e full.",
+      "rationale": "Balanceia velocidade durante execução paralela e segurança na consolidação.",
+      "status": "decided",
+      "phase": "P2-Pipeline",
+      "context": "Necessidade de throughput sem perder confiabilidade."
+    },
+    {
+      "id": "DEC-004",
+      "decision": "Tratar Source Sovereignty como regra operacional obrigatória para humanos e agentes.",
+      "rationale": "Evita correções efêmeras em artefatos e mantém reprodução via fonte.",
+      "status": "decided",
+      "phase": "P0-Setup",
+      "context": "Diretriz central de AGENTS.md."
+    },
+    {
+      "id": "DEC-005",
+      "decision": "Serializar mudanças em pacotes de alto acoplamento quando houver conflito de escopo.",
+      "rationale": "Nem toda frente pode ser paralelizada sem custo de merge e retrabalho.",
+      "status": "decided",
+      "phase": "P3-Planning",
+      "context": "Pacotes runtime/contracts compartilham superfícies críticas."
+    },
+    {
+      "id": "DEC-006",
+      "decision": "Tratar erro de toolchain Rust como bloqueador de fábrica até estabilização.",
+      "rationale": "Sem baseline de ambiente, workers desperdiçam ciclos em falhas de setup.",
+      "status": "decided",
+      "phase": "P1-Environment",
+      "context": "Falha observada em type-check/build com tractor-rs."
+    },
+    {
+      "id": "DEC-007",
+      "decision": "Usar reso src para desenvolvimento e reso dist para validação final.",
+      "rationale": "Mantém DX rápida sem perder verificação de artefato distribuível.",
+      "status": "decided",
+      "phase": "P1-Environment",
+      "context": "Monorepo híbrido com pacotes local/dist."
+    },
+    {
+      "id": "DEC-008",
+      "decision": "Registrar bloqueios recorrentes como issues com prioridade e pacote alvo.",
+      "rationale": "Transforma fricção operacional em trabalho planejável.",
+      "status": "decided",
+      "phase": "P8-Governance",
+      "context": "Fechar loop entre execução, risco e melhoria contínua."
+    }
+  ]
 }

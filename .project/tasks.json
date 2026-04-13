@@ -1,3 +1,773 @@
 {
-	"tasks": []
+  "tasks": [
+    {
+      "id": "T-ENV-01",
+      "description": "Corrigir erro de toolchain Rust (missing manifest stable) no ambiente atual.",
+      "status": "planned",
+      "phase": "P1-Environment",
+      "files": [
+        "docs/DEVOPS.md",
+        ".devcontainer/post-create.sh",
+        "packages/tractor/**"
+      ],
+      "acceptance_criteria": [
+        "rustc -V executa sem erro",
+        "cargo -V executa sem erro",
+        "Erro de manifest não reaparece em build Rust"
+      ],
+      "assigned_agent": "worker-env"
+    },
+    {
+      "id": "T-ENV-02",
+      "description": "Instalar e validar targets Rust/WASM obrigatórios no ambiente de desenvolvimento.",
+      "status": "planned",
+      "phase": "P1-Environment",
+      "files": [
+        "docs/DEVOPS.md",
+        ".devcontainer/post-create.sh"
+      ],
+      "acceptance_criteria": [
+        "wasm32-wasip1 instalado",
+        "wasm32-unknown-unknown instalado",
+        "Comandos de validação documentados"
+      ],
+      "depends_on": [
+        "T-ENV-01"
+      ],
+      "assigned_agent": "worker-env"
+    },
+    {
+      "id": "T-ENV-03",
+      "description": "Criar checklist de preflight de ambiente antes de executar colônia.",
+      "status": "planned",
+      "phase": "P1-Environment",
+      "files": [
+        "docs/DEVOPS.md",
+        "docs/WORKFLOW.md"
+      ],
+      "acceptance_criteria": [
+        "Checklist com comandos mínimos",
+        "Checklist diferencia preflight rápido e completo",
+        "Checklist inclui critério go/no-go"
+      ],
+      "depends_on": [
+        "T-ENV-02"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-ENV-04",
+      "description": "Formalizar política de uso de reso src/dist para desenvolvimento e validação.",
+      "status": "planned",
+      "phase": "P1-Environment",
+      "files": [
+        "docs/WORKFLOW.md",
+        "scripts/reso.mjs"
+      ],
+      "acceptance_criteria": [
+        "Fluxo src definido para iteração",
+        "Fluxo dist definido para verificação release",
+        "Comando status exigido antes de merge"
+      ],
+      "assigned_agent": "worker-core"
+    },
+    {
+      "id": "T-PIPE-01",
+      "description": "Mapear pacotes que falham no type-check baseline e registrar ordem de ataque.",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "package.json",
+        "turbo.json",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Relatório de falhas por pacote",
+        "Priorização por impacto",
+        "Backlog de correções gerado"
+      ],
+      "depends_on": [
+        "T-ENV-03"
+      ],
+      "assigned_agent": "worker-core"
+    },
+    {
+      "id": "T-PIPE-02",
+      "description": "Estabilizar type-check dos pacotes Foundation (config/toolbox/vtconfig/cli).",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "packages/config/src/**",
+        "packages/toolbox/src/**",
+        "packages/vtconfig/src/**",
+        "packages/cli/src/**"
+      ],
+      "acceptance_criteria": [
+        "Type-check passa nos pacotes Foundation",
+        "Sem regressão nos testes locais",
+        "Mudanças atômicas por pacote"
+      ],
+      "depends_on": [
+        "T-PIPE-01"
+      ],
+      "assigned_agent": "worker-foundation"
+    },
+    {
+      "id": "T-PIPE-03",
+      "description": "Mapear baseline de build por domínio (runtime/contracts/storage/docs).",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "package.json",
+        "turbo.json",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Matriz de build por domínio criada",
+        "Dependências entre domínios documentadas",
+        "Pacotes bloqueadores destacados"
+      ],
+      "depends_on": [
+        "T-PIPE-01"
+      ],
+      "assigned_agent": "worker-core"
+    },
+    {
+      "id": "T-PIPE-04",
+      "description": "Estabilizar build de runtime (tractor-rs/tractor-ts) com foco em previsibilidade de ambiente.",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "packages/tractor/**",
+        "packages/tractor-ts/**",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Build runtime executa no ambiente padrão",
+        "Falhas remanescentes registradas como issues",
+        "Sem alterações em artefatos gerados"
+      ],
+      "depends_on": [
+        "T-ENV-02",
+        "T-PIPE-03"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-PIPE-05",
+      "description": "Estabilizar build dos pacotes de contrato e storage/sync prioritários.",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "packages/storage-contract-v1/**",
+        "packages/sync-contract-v1/**",
+        "packages/identity-contract-v1/**",
+        "packages/storage-sqlite/**",
+        "packages/sync-loro/**"
+      ],
+      "acceptance_criteria": [
+        "Build passa para pacotes prioritários",
+        "Conformance não regride",
+        "Bloqueios viram tasks dedicadas"
+      ],
+      "depends_on": [
+        "T-PIPE-03"
+      ],
+      "assigned_agent": "worker-contracts"
+    },
+    {
+      "id": "T-PIPE-06",
+      "description": "Definir gate final de integração da colônia (smoke + full).",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "docs/WORKFLOW.md",
+        "CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "Gate smoke definido para cada PR",
+        "Gate full definido para consolidação",
+        "Checklist de reviewer publicado"
+      ],
+      "depends_on": [
+        "T-PIPE-02",
+        "T-PIPE-05"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-PLAN-01",
+      "description": "Separar backlog por macro-domínios independentes para paralelização segura.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        ".project/tasks.json",
+        ".project/requirements.json"
+      ],
+      "acceptance_criteria": [
+        "Domínios claros com ownership",
+        "Dependências interdomínio explícitas",
+        "Capacidade de rodar 3-4 workers simultâneos"
+      ],
+      "depends_on": [
+        "T-PIPE-01"
+      ],
+      "assigned_agent": "planner"
+    },
+    {
+      "id": "T-PLAN-02",
+      "description": "Definir granularidade padrão de task para manter PRs pequenos e revisáveis.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        "docs/WORKFLOW.md",
+        "docs/PR_QUALITY_GOVERNANCE.md"
+      ],
+      "acceptance_criteria": [
+        "Regra de tamanho de diff definida",
+        "Template de acceptance_criteria padronizado",
+        "Regra de branch por task documentada"
+      ],
+      "depends_on": [
+        "T-PLAN-01"
+      ],
+      "assigned_agent": "planner"
+    },
+    {
+      "id": "T-PLAN-03",
+      "description": "Criar fila de execução inicial com ordem de dependência e paralelização.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        ".project/tasks.json"
+      ],
+      "acceptance_criteria": [
+        "Fila de 2 semanas mapeada",
+        "Bloqueadores upfront priorizados",
+        "Tasks prontas para atribuição"
+      ],
+      "depends_on": [
+        "T-PLAN-01",
+        "T-PLAN-02"
+      ],
+      "assigned_agent": "planner"
+    },
+    {
+      "id": "T-PLAN-04",
+      "description": "Definir políticas de anti-colisão para arquivos/pacotes críticos.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        "docs/WORKFLOW.md",
+        ".project/decisions.json"
+      ],
+      "acceptance_criteria": [
+        "Pacotes serializados listados",
+        "Política de lock por domínio definida",
+        "Procedimento de handoff entre workers"
+      ],
+      "depends_on": [
+        "T-PLAN-01"
+      ],
+      "assigned_agent": "planner"
+    },
+    {
+      "id": "T-PLAN-05",
+      "description": "Definir modelo de branch naming e commit atômico para colônia.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        "CONTRIBUTING.md",
+        "docs/WORKFLOW.md"
+      ],
+      "acceptance_criteria": [
+        "Padrão branch por task aprovado",
+        "Padrão de commit aplicado",
+        "Reviewer rastreia task->commit"
+      ],
+      "depends_on": [
+        "T-PLAN-02"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-PLAN-06",
+      "description": "Definir limite inicial de concorrência e critérios para escalar número de workers.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        ".project/decisions.json",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Concorrência inicial definida",
+        "Métricas para subir/descer concorrência",
+        "Regra de parada em caso de regressão"
+      ],
+      "depends_on": [
+        "T-PLAN-03"
+      ],
+      "assigned_agent": "planner"
+    },
+    {
+      "id": "T-PLAN-07",
+      "description": "Padronizar prompt de entrada para workers da colônia.",
+      "status": "planned",
+      "phase": "P3-Planning",
+      "files": [
+        "docs/superpowers/**",
+        "docs/WORKFLOW.md"
+      ],
+      "acceptance_criteria": [
+        "Prompt inclui objetivo, escopo, restrições e validação",
+        "Prompt inclui formato de resposta esperado",
+        "Prompt inclui critério de escalonamento"
+      ],
+      "depends_on": [
+        "T-PLAN-02"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-RUNTIME-01",
+      "description": "Mapear fluxo de boot do runtime Tractor e pontos de falha conhecidos.",
+      "status": "planned",
+      "phase": "P4-Runtime",
+      "files": [
+        "packages/tractor/**",
+        "packages/tractor-ts/**",
+        "docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "Fluxo de boot documentado",
+        "Falhas classificadas por severidade",
+        "Tasks de correção derivadas"
+      ],
+      "depends_on": [
+        "T-PIPE-04"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-02",
+      "description": "Criar smoke test de daemon/ws para confirmar ciclo básico de inicialização.",
+      "status": "planned",
+      "phase": "P4-Runtime",
+      "files": [
+        "packages/tractor/**",
+        "validations/**"
+      ],
+      "acceptance_criteria": [
+        "Smoke test executa localmente",
+        "Conexão ws validada",
+        "Falhas reportadas com logs acionáveis"
+      ],
+      "depends_on": [
+        "T-RUNTIME-01"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-03",
+      "description": "Mapear lifecycle de plugin no runtime (setup/ingest/teardown) e gaps.",
+      "status": "planned",
+      "phase": "P4-Runtime",
+      "files": [
+        "packages/tractor/**",
+        "packages/plugin-manifest/**"
+      ],
+      "acceptance_criteria": [
+        "Fluxo lifecycle documentado",
+        "Gaps mapeados com prioridade",
+        "Tasks de hardening criadas"
+      ],
+      "depends_on": [
+        "T-RUNTIME-01"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-04",
+      "description": "Validar roundtrip de sync entre runtime e storage em cenário controlado.",
+      "status": "planned",
+      "phase": "P4-Runtime",
+      "files": [
+        "packages/sync-loro/**",
+        "packages/storage-sqlite/**",
+        "packages/tractor/**"
+      ],
+      "acceptance_criteria": [
+        "Roundtrip executa sem perda",
+        "Cenário offline-first validado",
+        "Resultado documentado"
+      ],
+      "depends_on": [
+        "T-RUNTIME-02",
+        "T-CONTRACT-03"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-CONTRACT-01",
+      "description": "Inventariar suites de conformance existentes por contrato v1.",
+      "status": "planned",
+      "phase": "P5-Contracts",
+      "files": [
+        "packages/storage-contract-v1/**",
+        "packages/sync-contract-v1/**",
+        "packages/identity-contract-v1/**",
+        "packages/plugin-manifest/**"
+      ],
+      "acceptance_criteria": [
+        "Inventário completo por pacote",
+        "Lacunas de teste identificadas",
+        "Plano de cobertura priorizado"
+      ],
+      "depends_on": [
+        "T-PIPE-05"
+      ],
+      "assigned_agent": "worker-contracts"
+    },
+    {
+      "id": "T-CONTRACT-02",
+      "description": "Adicionar/ajustar testes de conformance para storage-contract-v1.",
+      "status": "planned",
+      "phase": "P5-Contracts",
+      "files": [
+        "packages/storage-contract-v1/**",
+        "packages/storage-sqlite/**"
+      ],
+      "acceptance_criteria": [
+        "Conformance storage executa",
+        "Falhas apontam comportamento esperado",
+        "Cobertura de cenários básicos + erro"
+      ],
+      "depends_on": [
+        "T-CONTRACT-01"
+      ],
+      "assigned_agent": "worker-storage"
+    },
+    {
+      "id": "T-CONTRACT-03",
+      "description": "Adicionar/ajustar testes de conformance para sync-contract-v1 e sync-loro.",
+      "status": "planned",
+      "phase": "P5-Contracts",
+      "files": [
+        "packages/sync-contract-v1/**",
+        "packages/sync-loro/**"
+      ],
+      "acceptance_criteria": [
+        "Conformance sync executa",
+        "Cenários de conflito mapeados",
+        "Resultados documentados"
+      ],
+      "depends_on": [
+        "T-CONTRACT-01"
+      ],
+      "assigned_agent": "worker-sync"
+    },
+    {
+      "id": "T-CONTRACT-04",
+      "description": "Adicionar/ajustar testes de conformance para identity-contract-v1 e plugin-manifest.",
+      "status": "planned",
+      "phase": "P5-Contracts",
+      "files": [
+        "packages/identity-contract-v1/**",
+        "packages/plugin-manifest/**",
+        "packages/identity-nostr/**"
+      ],
+      "acceptance_criteria": [
+        "Conformance identity/manifest executa",
+        "Regras mínimas de contrato validadas",
+        "Lacunas viram novas tasks"
+      ],
+      "depends_on": [
+        "T-CONTRACT-01"
+      ],
+      "assigned_agent": "worker-identity"
+    },
+    {
+      "id": "T-PLUGIN-01",
+      "description": "Mapear fluxo installPlugin com cache OPFS e validação de integridade.",
+      "status": "planned",
+      "phase": "P6-Plugin-Integrity",
+      "files": [
+        "packages/barn/**",
+        "packages/tractor/**",
+        "docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "Fluxo install/cache/verify documentado",
+        "Pontos de risco identificados",
+        "Plano de hardening gerado"
+      ],
+      "depends_on": [
+        "T-RUNTIME-03"
+      ],
+      "assigned_agent": "worker-plugin"
+    },
+    {
+      "id": "T-PLUGIN-02",
+      "description": "Implementar verificação de hash SHA-256 no pipeline de instalação de plugin.",
+      "status": "planned",
+      "phase": "P6-Plugin-Integrity",
+      "files": [
+        "packages/barn/src/**",
+        "packages/plugin-manifest/src/**"
+      ],
+      "acceptance_criteria": [
+        "Hash calculado e comparado",
+        "Falhas de integridade bloqueiam instalação",
+        "Teste cobrindo caso válido e inválido"
+      ],
+      "depends_on": [
+        "T-PLUGIN-01"
+      ],
+      "assigned_agent": "worker-plugin"
+    },
+    {
+      "id": "T-PLUGIN-03",
+      "description": "Criar teste de regressão para installPlugin cobrindo cache hit/miss.",
+      "status": "planned",
+      "phase": "P6-Plugin-Integrity",
+      "files": [
+        "packages/barn/**",
+        "validations/**"
+      ],
+      "acceptance_criteria": [
+        "Teste cobre cache miss",
+        "Teste cobre cache hit",
+        "Teste valida hash no caminho de cache"
+      ],
+      "depends_on": [
+        "T-PLUGIN-02"
+      ],
+      "assigned_agent": "worker-plugin"
+    },
+    {
+      "id": "T-DOC-01",
+      "description": "Criar playbook operacional da colônia para o Refarm.",
+      "status": "planned",
+      "phase": "P7-Operations-Docs",
+      "files": [
+        "docs/WORKFLOW.md",
+        "docs/DEVOPS.md",
+        "docs/superpowers/**"
+      ],
+      "acceptance_criteria": [
+        "Playbook com preflight, execução e consolidação",
+        "Fluxo de escalonamento de bloqueio definido",
+        "Exemplos de atribuição por task"
+      ],
+      "depends_on": [
+        "T-PLAN-03"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-DOC-02",
+      "description": "Documentar estratégia src/dist e quando alternar o modo de resolução.",
+      "status": "planned",
+      "phase": "P7-Operations-Docs",
+      "files": [
+        "docs/WORKFLOW.md",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Critérios de alternância documentados",
+        "Exemplos prontos para operadores",
+        "Comando reso status incluído no checklist"
+      ],
+      "depends_on": [
+        "T-ENV-04"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-DOC-03",
+      "description": "Criar checklist de reviewer para consolidação de lotes vindos da colônia.",
+      "status": "planned",
+      "phase": "P7-Operations-Docs",
+      "files": [
+        "docs/PR_QUALITY_GOVERNANCE.md",
+        "CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "Checklist smoke + full",
+        "Checklist de Source Sovereignty",
+        "Checklist de rastreabilidade task->verificação"
+      ],
+      "depends_on": [
+        "T-PIPE-06"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-DOC-04",
+      "description": "Publicar templates de prompt e reporte final para workers da colônia.",
+      "status": "planned",
+      "phase": "P7-Operations-Docs",
+      "files": [
+        "docs/templates/**",
+        "docs/superpowers/**"
+      ],
+      "acceptance_criteria": [
+        "Template de prompt por task publicado",
+        "Template de resposta com evidências publicado",
+        "Template de handoff para reviewer publicado"
+      ],
+      "depends_on": [
+        "T-PLAN-07"
+      ],
+      "assigned_agent": "worker-docs"
+    },
+    {
+      "id": "T-OPS-01",
+      "description": "Definir formato padrão de evidência em verification para tasks finalizadas.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        ".project/verification.json",
+        ".project/schemas/verification.schema.json"
+      ],
+      "acceptance_criteria": [
+        "Campos obrigatórios definidos",
+        "Exemplos de verificação incluídos",
+        "Compatibilidade com complete-task mantida"
+      ],
+      "depends_on": [
+        "T-DOC-03"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-OPS-02",
+      "description": "Criar rotina semanal de triagem de tasks bloqueadas e replanejamento.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        ".project/tasks.json",
+        "docs/WORKFLOW.md"
+      ],
+      "acceptance_criteria": [
+        "Ritual semanal definido",
+        "Critérios de desbloqueio documentados",
+        "Fluxo de reassign para agentes pronto"
+      ],
+      "depends_on": [
+        "T-PLAN-03"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-OPS-03",
+      "description": "Definir guardrails para evitar alterações não autorizadas por agentes.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        ".pi/monitors/**",
+        "AGENTS.md"
+      ],
+      "acceptance_criteria": [
+        "Regras de monitor revisadas",
+        "Padrões de ação bloqueada documentados",
+        "Fluxo de confirmação explícita publicado"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-OPS-04",
+      "description": "Estabelecer política de merge para lotes de PRs da colônia.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        "docs/PR_QUALITY_GOVERNANCE.md",
+        "CONTRIBUTING.md"
+      ],
+      "acceptance_criteria": [
+        "Critérios para merge em lote definidos",
+        "Regra de rollback por lote definida",
+        "Responsabilidades de reviewer explicitadas"
+      ],
+      "depends_on": [
+        "T-DOC-03"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-OPS-05",
+      "description": "Definir estratégia de escalonamento de bloqueios para tasks de colônia.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        "docs/WORKFLOW.md",
+        ".project/issues.json"
+      ],
+      "acceptance_criteria": [
+        "Quando escalar para humano definido",
+        "Quando abrir issue definido",
+        "Quando cancelar task definido"
+      ],
+      "depends_on": [
+        "T-PLAN-07"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-DEC-01",
+      "description": "Sincronizar decisões arquiteturais do .project com ADRs e roadmap ativo.",
+      "status": "planned",
+      "phase": "P9-Alignment",
+      "files": [
+        ".project/decisions.json",
+        "specs/ADRs/**",
+        "roadmaps/MAIN.md"
+      ],
+      "acceptance_criteria": [
+        "Decisões do .project sem contradição com ADRs",
+        "Itens em revisit marcados",
+        "Links para docs principais adicionados"
+      ],
+      "assigned_agent": "worker-architecture"
+    },
+    {
+      "id": "T-DEC-02",
+      "description": "Atualizar domain/rationale com conhecimento operacional para novos workers.",
+      "status": "planned",
+      "phase": "P9-Alignment",
+      "files": [
+        ".project/domain.json",
+        ".project/rationale.json"
+      ],
+      "acceptance_criteria": [
+        "Principais regras do domínio registradas",
+        "Tradeoffs explícitos para paralelização",
+        "Referências para docs existentes"
+      ],
+      "depends_on": [
+        "T-DEC-01"
+      ],
+      "assigned_agent": "worker-architecture"
+    },
+    {
+      "id": "T-DEC-03",
+      "description": "Montar snapshot quinzenal de progresso da fábrica no .project.",
+      "status": "planned",
+      "phase": "P9-Alignment",
+      "files": [
+        ".project/project.json",
+        ".project/tasks.json",
+        ".project/verification.json"
+      ],
+      "acceptance_criteria": [
+        "Snapshot com tasks planned/in-progress/completed",
+        "Riscos e próximos passos documentados",
+        "Dados prontos para handoff"
+      ],
+      "depends_on": [
+        "T-OPS-02"
+      ],
+      "assigned_agent": "worker-pm"
+    }
+  ]
 }

@@ -1,43 +1,131 @@
 {
   "issues": [
     {
-      "id": "fragility-fragility-mnx0i7yp",
-      "description": "Agent initiated unsolicited tool calls (workflow-list and npm run scope:status) that deviated from user's actual request for preparation guidance, then abandoned the conversation without addressing the user's core needs or acknowledging the misdirection.",
+      "id": "ISS-001",
+      "title": "Corrigir bloqueio de toolchain Rust no build do runtime",
+      "body": "Foi observado erro `Missing manifest in toolchain stable-x86_64-unknown-linux-gnu` durante type-check/build envolvendo `packages/tractor`. Sem corrigir o ambiente, workers da colônia perdem ciclos com falhas de setup.",
+      "location": "packages/tractor:1",
+      "status": "open",
+      "category": "issue",
+      "priority": "critical",
+      "package": "tractor",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-002",
+      "title": "Definir preflight obrigatório antes de soltar a colônia",
+      "body": "Falta checklist operacional mínimo para validar ambiente, modo de resolução (src/dist) e smoke gate antes de iniciar lote paralelo.",
+      "location": "docs/WORKFLOW.md:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "high",
+      "package": "docs",
+      "source": "human"
+    },
+    {
+      "id": "ISS-003",
+      "title": "Padronizar autorização explícita para escritas em lote",
+      "body": "Houve fricção de autorização durante a sessão. É necessário documentar padrão de confirmação textual para operações de escrita em lote.",
+      "location": "docs/WORKFLOW.md:1",
+      "status": "open",
+      "category": "cleanup",
+      "priority": "high",
+      "package": "governance",
+      "source": "monitor"
+    },
+    {
+      "id": "ISS-004",
+      "title": "Publicar gate smoke/full para consolidação de PRs da colônia",
+      "body": "A fábrica precisa de dois níveis de validação: smoke por task e full para integração de lote, com checklist de reviewer.",
+      "location": "docs/PR_QUALITY_GOVERNANCE.md:1",
+      "status": "open",
+      "category": "composition",
+      "priority": "high",
+      "package": "project-governance",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-005",
+      "title": "Mapear lacunas de integridade no installPlugin (hash/cache)",
+      "body": "Pipeline de plugin precisa consolidar validação SHA-256 e cobertura para cache hit/miss para reduzir risco de integridade.",
+      "location": "packages/barn:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "medium",
+      "package": "barn",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-006",
+      "title": "Ignorar cache da pasta .pi-lens no versionamento",
+      "body": "Arquivos de cache volumosos (ex.: `.pi-lens/index.json`) não devem ser versionados. Revisar `.gitignore` e remover tracking legado.",
+      "location": ".gitignore:1",
+      "status": "open",
+      "category": "cleanup",
+      "priority": "high",
+      "package": "repository",
+      "source": "human"
+    },
+    {
+      "id": "ISS-007",
+      "title": "Definir rotina semanal de triagem de tasks bloqueadas",
+      "body": "Criar ritual recorrente para revisar tasks `blocked`, replanejar dependências e escalonar quando necessário.",
+      "location": ".project/tasks.json:1",
+      "status": "open",
+      "category": "composition",
+      "priority": "medium",
+      "package": "project-management",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-008",
+      "title": "Validar consistência entre blocos do .project",
+      "body": "Com aumento do conteúdo, é necessário validar referências cruzadas requirements -> tasks -> verification em rotina contínua.",
+      "location": ".project:1",
+      "status": "open",
+      "category": "primitive",
+      "priority": "medium",
+      "package": "project-governance",
+      "source": "agent"
+    },
+    {
+      "id": "fragility-fragility-mnxbpwaw",
+      "description": "Agent acknowledged ambiguous user authorization (\"pode executar esse plano\") and noted the pattern of unauthorized writes in session history, but proceeded anyway without clarifying scope or obtaining explicit consent for the specific actions requested.",
       "status": "open",
       "category": "fragility",
       "priority": "warning",
       "source": "monitor"
     },
     {
-      "id": "fragility-fragility-mnx0whbv",
-      "description": "Agent executed `project-init` tool without explicit user direction, creating project infrastructure the user never requested, then provided an empty response without acknowledging the unauthorized action or the resulting broken state.",
-      "status": "open",
-      "category": "fragility",
-      "priority": "critical",
-      "source": "monitor"
-    },
-    {
-      "id": "fragility-fragility-mnx23w5k",
-      "description": "Agent staged and committed files to git without first presenting the project structure for review as explicitly requested by the user (\"vamos revisar mais uma vez\"), violating the user's instruction to review before release.",
-      "status": "open",
-      "category": "fragility",
-      "priority": "critical",
-      "source": "monitor"
-    },
-    {
-      "id": "fragility-fragility-mnx2vjxg",
-      "description": "Agent executed multiple unauthorized file operations (.gitignore modification, git status checks, file restoration) based on minimal/ambiguous user input (\"1\") and a clarifying question, despite prior tool errors indicating the agent was already making decisions without explicit direction.",
-      "status": "open",
-      "category": "fragility",
-      "priority": "critical",
-      "source": "monitor"
-    },
-    {
-      "id": "fragility-fragility-mnx30u3q",
-      "description": "Agent initialized project scaffolding with empty core metadata (name, description, core_value) and empty task/requirement lists, leaving the repository in incomplete state without acknowledging or addressing these missing foundational values that the user explicitly needed for organizing work around macro goals.",
+      "id": "fragility-fragility-mnxbt730",
+      "description": "Agent received a user redirect (\"Prossiga para o ponto 3 citado\") and executed unrelated read-only git commands without clarifying what point 3 refers to or confirming whether those commands are necessary to proceed, leaving ambiguity about intent unresolved.",
       "status": "open",
       "category": "fragility",
       "priority": "warning",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnxdzge4",
+      "description": "Agent ignored explicit user directive to review and rewrite git history to remove improperly tracked files, instead attempting to commit those files and then executing investigative commands without acknowledging or addressing the core request, leaving the cleanup task unstarted and the broken state unresolved.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnxe541k",
+      "description": "Agent abandoned the user's explicit request for git history cleanup and rewriting after 8 prior steers, providing only an empty response without acknowledgment, concrete plan, or any action—leaving the core unresolved fragility of improperly tracked files in git history that the user asked to be removed.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnxe991a",
+      "description": "Agent provided empty response after 9 prior steers requesting git history cleanup and review; this silent deflection leaves the core request unaddressed and known fragility (improperly tracked .project/* files in git history) deliberately unresolved.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
       "source": "monitor"
     }
   ]

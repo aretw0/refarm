@@ -1,3 +1,74 @@
 {
-	"verifications": []
+  "verifications": [
+    {
+      "id": "VER-INIT-001",
+      "target": "G-01",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "inspect",
+      "evidence": "Baseline inicial preparado: blocos centrais do .project foram semeados. Ainda há verificação técnica pendente de ambiente/runtime.",
+      "criteria_results": [
+        {
+          "criterion": "Blocos project/requirements/tasks preenchidos",
+          "status": "passed",
+          "evidence": "Conteúdo inserido nos blocos correspondentes."
+        },
+        {
+          "criterion": "Issues e verification inicializados",
+          "status": "passed",
+          "evidence": "Blocos issues e verification criados com schema válido."
+        },
+        {
+          "criterion": "Type-check/build baseline verde",
+          "status": "failed",
+          "evidence": "Persistem bloqueios de ambiente Rust mapeados em ISS-001."
+        }
+      ]
+    },
+    {
+      "id": "VER-INIT-002",
+      "target": "REQ-WORK-001",
+      "target_type": "requirement",
+      "status": "partial",
+      "method": "inspect",
+      "evidence": "Backlog foi expandido com tarefas atômicas e critérios de aceite, mas execução prática das tasks ainda não iniciou.",
+      "criteria_results": [
+        {
+          "criterion": "Tarefas atômicas com acceptance_criteria",
+          "status": "passed",
+          "evidence": "`tasks` contém conjunto amplo de tasks planejadas."
+        },
+        {
+          "criterion": "Dependências entre tarefas definidas",
+          "status": "passed",
+          "evidence": "Diversas tasks possuem `depends_on` explícito."
+        },
+        {
+          "criterion": "Evidência de execução real",
+          "status": "skipped",
+          "evidence": "Sem execução de tasks nesta etapa."
+        }
+      ]
+    },
+    {
+      "id": "VER-INIT-003",
+      "target": "ISS-006",
+      "target_type": "task",
+      "status": "skipped",
+      "method": "inspect",
+      "evidence": "Issue criada para revisar .gitignore e tracking de `.pi-lens`. Ação de correção será feita em etapa dedicada com aprovação explícita.",
+      "criteria_results": [
+        {
+          "criterion": "Issue de gitignore registrada",
+          "status": "passed",
+          "evidence": "ISS-006 aberta com prioridade alta."
+        },
+        {
+          "criterion": "Correção aplicada no .gitignore",
+          "status": "skipped",
+          "evidence": "Ainda não executada nesta etapa."
+        }
+      ]
+    }
+  ]
 }
