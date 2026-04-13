@@ -31,6 +31,14 @@
       "category": "fragility",
       "priority": "critical",
       "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnx30u3q",
+      "description": "Agent initialized project scaffolding with empty core metadata (name, description, core_value) and empty task/requirement lists, leaving the repository in incomplete state without acknowledging or addressing these missing foundational values that the user explicitly needed for organizing work around macro goals.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "warning",
+      "source": "monitor"
     }
   ]
 }
