@@ -123,10 +123,6 @@ git push origin @aretw0/sync-contract-v1@0.1.0
 # Identity contract
 git tag @aretw0/identity-contract-v1@0.1.0
 git push origin @aretw0/identity-contract-v1@0.1.0
-
-# Plugin manifest
-git tag @aretw0/plugin-manifest@0.1.0
-git push origin @aretw0/plugin-manifest@0.1.0
 ```
 
 > Em ambiente de organização, use as tags no scope da organização (ex.: `@refarm.dev/...`).
@@ -146,7 +142,6 @@ Após merge do PR (Estratégia A) ou push das tags (Estratégia B):
 npm info @aretw0/storage-contract-v1
 npm info @aretw0/sync-contract-v1
 npm info @aretw0/identity-contract-v1
-npm info @aretw0/plugin-manifest
 
 # Todos devem retornar versão 0.1.0
 ```
@@ -155,7 +150,7 @@ npm info @aretw0/plugin-manifest
 
 ```bash
 # Via web: https://github.com/refarm-dev/refarm/releases
-# Devem existir 4 releases (um por pacote)
+# Devem existir 3 releases (um por pacote)
 ```
 
 ### 8. Teste de instalação em projeto externo
@@ -164,7 +159,7 @@ npm info @aretw0/plugin-manifest
 # Em outro diretório (fora do monorepo)
 mkdir test-refarm-install && cd test-refarm-install
 npm init -y
-npm install @aretw0/storage-contract-v1 @aretw0/plugin-manifest
+npm install @aretw0/storage-contract-v1 @aretw0/sync-contract-v1 @aretw0/identity-contract-v1
 
 # Criar teste rápido
 cat > test.js << 'EOF'

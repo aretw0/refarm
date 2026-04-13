@@ -174,7 +174,7 @@ TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
 
 ### For Publishing (TIER 1 Contracts)
 
-- [x] 4 contracts have conformance tests
+- [x] 3 contracts have conformance tests
 - [x] Contract documentation with examples
 - [ ] **NEW**: Gateway credentials configured (@aretw0 npm scope)
 - [ ] First publish workflow tested (dry-run → actual)
