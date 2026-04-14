@@ -79,7 +79,8 @@
     "vitest": "^4.1.0"
   },
   "overrides": {
-    "flatted": "3.4.2"
+    "flatted": "3.4.2",
+    "basic-ftp": "5.2.2"
   },
   "//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
   "packageManager": "npm@10.9.2",

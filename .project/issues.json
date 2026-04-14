@@ -127,6 +127,22 @@
       "category": "fragility",
       "priority": "critical",
       "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnxey39k",
+      "description": "Agent encountered an explicit error (bash ERROR) indicating authorization mismatch and ambiguous user direction but responded with empty output, leaving the known fragility unaddressed rather than communicating the issue back to the user.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
+    },
+    {
+      "id": "fragility-fragility-mnxezib3",
+      "description": "Agent provided empty response after pre-push validation flagged security vulnerabilities and test coverage gaps, offering no acknowledgment, plan, or action to address the known issues before proceeding with git push.",
+      "status": "open",
+      "category": "fragility",
+      "priority": "critical",
+      "source": "monitor"
     }
   ]
 }
