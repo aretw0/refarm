@@ -24,7 +24,7 @@ Refarm uses **VS Code Dev Containers** to provide a consistent, reproducible dev
 
 - **Base:** Debian GNU/Linux 12 (bookworm)
 - **Node.js:** v22.16.0
-- **npm:** 10.9.2 (auto-updated to latest during post-create)
+- **npm:** 10.9.2 (pinned via `packageManager` in `package.json`)
 - **Rust:** 1.94.0
 - **Cargo:** 1.94.0
 
@@ -34,12 +34,16 @@ When opening the workspace in VS Code with the Remote Containers extension:
 
 1. **Container Build** — Docker builds the image from `.devcontainer/devcontainer.json`
 2. **Post-Create Hook** — Executes `.devcontainer/post-create.sh`:
-   - Fixes npm cache permissions (prevents EACCES errors)
-   - Updates npm to latest stable version
+   - Fixes cache/toolchain permissions for mounted volumes
    - Installs Rust WASM targets (`wasm32-unknown-unknown`, `wasm32-wasip1`)
    - Installs cargo tools: `cargo-component`, `wasm-tools`
    - Runs `npm ci` to install workspace dependencies
-   - Runs `npm audit fix --force` to remediate known vulnerabilities
+   - Installs Playwright browsers (`npx playwright install --with-deps`)
+   - Runs `npm run hooks:install`
+   - Runs `npm run factory:preflight` for deterministic readiness checks
+3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
+   - Re-validates Rust toolchain health (`stable` + required targets)
+   - Reinstalls git hooks when missing
 
 ### Devcontainer Image Baseline (Tracked)
 
@@ -92,7 +96,7 @@ npm run test:unit
 **Issue: `npm error EACCES` in post-create**
 
 - **Cause:** npm cache contains root-owned files
-- **Fix:** Already handled in `post-create.sh` (runs `sudo chown -R 1001:1001 /home/vscode/.npm`)
+- **Fix:** Already handled in `post-create.sh` (targets cache/toolchain directories and repairs ownership safely)
 - **Manual workaround:** `rm -rf ~/.npm && npm cache clean --force`
 
 **Issue: Package installation failures**
@@ -229,6 +233,7 @@ npm run test:unit
 
 - **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
 - **Rust Target Provisioning:** The `./.github/actions/setup` action accepts a `rust-target` input (default: `wasm32-wasip1`) to ensure WASM compilation works without duplicating `rustup` logic across workflows.
+- **Turbo env passthrough:** `turbo.json` forwards `RUSTUP_HOME`, `CARGO_HOME`, and `RUSTUP_TOOLCHAIN` to avoid Rust manifest drift in parallel Turbo tasks.
 - **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it instead of rebuilding.
 - **Playwright browser cache:** `e2e` caches `~/.cache/ms-playwright` using key `${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}`.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
@@ -453,9 +458,9 @@ If **any** acceptance criteria fails:
 
 ### Security Best Practices
 
-- ✅ **Automatic Audits** — `npm audit fix --force` runs in post-create
+- ✅ **Automated Visibility** — Security audit workflows run in CI and publish artifacts
 - ✅ **Lock Files** — Always commit `package-lock.json`
-- ✅ **Regular Updates** — npm is auto-updated in post-create hook
+- ✅ **Deterministic Tooling** — Use pinned `packageManager` + `rust-toolchain.toml`
 - 🔍 **Monitor PRs** — GitHub dependabot can alert us to new vulnerabilities
 
 For responsible disclosure and reporting policy, see `SECURITY.md`.
@@ -471,6 +476,11 @@ Current strategy uses two layers:
   - Manual run via `workflow_dispatch`
   - Weekly run via `schedule` (Monday, 09:00 UTC)
   - Generates full JSON audit artifact for tracking moderate issues
+
+Repository baseline for bot automation (required by dependency update workflow):
+
+- Actions workflow permissions: **Read and write permissions**
+- Allow GitHub Actions to create/approve pull requests: **enabled**
 
 To run the dedicated workflow manually:
 
@@ -542,27 +552,18 @@ Branch behavior summary:
 Run this command to confirm everything is set up correctly:
 
 ```bash
-echo "=== Environment Validation ===" && \
-node --version && \
-npm --version && \
-rustc --version && \
-cargo --version && \
-cargo-component --version && \
-wasm-tools --version && \
-echo "✅ All tools ready!"
+npm run factory:preflight
 ```
 
 **Expected Output:**
 
 ```
-=== Environment Validation ===
-v22.16.0
-v11.x.x (or higher)
-rustc 1.94.0 ...
-cargo 1.94.0 ...
-cargo-component 0.21.1
-wasm-tools 1.245.1
-✅ All tools ready!
+🧪 Refarm Factory Preflight
+...
+Summary
+- failures: 0
+- warnings: 0
+Factory is ready for swarm execution.
 ```
 
 ### Workspace Health Check
@@ -624,9 +625,10 @@ docker debug <container-id>
 If you update this guide or the dev container configuration:
 
 1. **Update `.devcontainer/post-create.sh`** for automation changes
-2. **Update `.devcontainer/devcontainer.json`** for container spec changes
-3. **Update This File** (`docs/DEVOPS.md`) with any new information
-4. **Commit** all changes together in a single PR
+2. **Update `.devcontainer/post-start.sh`** for runtime sanity/self-healing changes
+3. **Update `.devcontainer/devcontainer.json`** for container spec changes
+4. **Update This File** (`docs/DEVOPS.md`) with any new information
+5. **Commit** all changes together in a single PR
 
 ---
 
@@ -635,8 +637,9 @@ If you update this guide or the dev container configuration:
 | Task | Command |
 |------|---------|
 | Rebuild container | `Dev Containers: Rebuild Container` (VS Code) |
+| Factory readiness check | `npm run factory:preflight` |
 | Run security audit | `npm audit` |
-| Fix vulnerabilities | `npm audit fix --force` |
+| Attempt non-breaking vulnerability fixes | `npm audit fix` |
 | Clean npm cache | `rm -rf ~/.npm && npm cache clean --force` |
 | Verify tools | See [Environment Validation](#environment-validation) |
 | View container logs | `docker logs <container-id>` |
@@ -644,6 +647,6 @@ If you update this guide or the dev container configuration:
 
 ---
 
-**Last Updated:** March 6, 2026  
+**Last Updated:** April 14, 2026  
 **Maintained By:** Refarm Team  
 **Next Review:** Q2 2026 (security check)

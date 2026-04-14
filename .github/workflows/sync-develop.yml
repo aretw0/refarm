@@ -8,6 +8,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -49,26 +50,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          cat >/tmp/sync-develop-conflict.md <<'EOF'
+          ## Sync automático encontrou conflitos
+
+          O rebase de `develop` sobre `origin/main` falhou após o commit `${{ github.sha }}`.
+
+          Isso pode ocorrer se novas commits entram em `develop` durante o mesmo push em `main`,
+          ou se há conflitos genuínos de merge.
+
+          ### Fix manual
+
+          ```bash
+          git fetch origin
+          git checkout develop
+          git rebase origin/main
+
+          # Resolver conflitos se houver, depois:
+          git rebase --continue
+          git push -f origin develop
+          ```
+
+          > Feche este issue após o sync manual.
+          EOF
+
           gh issue create \
             --title "⚠️ develop: rebase conflict com main — manual fix" \
-            --body "## Sync automático encontrou conflitos
-
-O rebase de \`develop\` sobre \`origin/main\` falhou após o commit \`${{ github.sha }}\`.
-
-Isso pode ocorrer se novas commits entram em \`develop\` durante o mesmo push em \`main\`, ou se há conflitos genuínos de merge.
-
-### Fix manual
-
-\`\`\`bash
-git fetch origin
-git checkout develop
-git rebase origin/main
-
-# Resolver conflitos se houver, depois:
-git rebase --continue
-git push -f origin develop
-\`\`\`
-
-> Feche este issue após o sync manual." \
+            --body-file /tmp/sync-develop-conflict.md \
             --label "maintenance" \
             --repo "${{ github.repository }}"

@@ -1,80 +1,135 @@
 #!/usr/bin/env bash
-# .devcontainer/post-create.sh - Optimized setup for Refarm using Turborepo
+# .devcontainer/post-create.sh - deterministic bootstrap for Refarm devcontainers
 set -euo pipefail
 
-echo "[refarm-devcontainer] Starting optimized post-create setup..."
+log() {
+  echo "[refarm-devcontainer] $*"
+}
 
-# 1. Fix permissions for mounted volumes
-# Ensure vscode user owns the npm, turbo, and playwright cache directories.
-echo "[refarm-devcontainer] Fixing permissions for mounted caches..."
-sudo chown -R vscode:vscode /home/vscode
-mkdir -p /home/vscode/.npm /home/vscode/.npm-global/bin /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
-sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.npm-global /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
-# Rust/Cargo volumes mount as root/rustlang; ensure vscode can write to bin and rustup if needed
-sudo chown -R vscode:rustlang /usr/local/cargo /usr/local/rustup
-chmod -R g+w /usr/local/cargo /usr/local/rustup
+warn() {
+  echo "[refarm-devcontainer][warn] $*"
+}
 
-# 2. NPM Dependencies
-# npm ci is still run here to ensure node_modules are installed for the current project.
-# The Turborepo cache for node_modules is not as effective as npm's own cache.
+retry() {
+  local attempts="$1"
+  shift
+
+  local current=1
+  until "$@"; do
+    if [ "$current" -ge "$attempts" ]; then
+      return 1
+    fi
+    current=$((current + 1))
+    sleep 2
+  done
+}
+
+ensure_wasm_tools() {
+  local bin_dir="$1"
+  local temp_dir
+  temp_dir=$(mktemp -d)
+  local url="https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz"
+
+  curl -fsSL "$url" | tar -xz -C "$temp_dir"
+  find "$temp_dir" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} "$bin_dir/" \;
+  rm -rf "$temp_dir"
+}
+
+log "Starting post-create setup..."
+
+# 1) Cache and tool directories (only targeted directories, no broad chown on /home/vscode)
+log "Preparing cache directories and permissions..."
+for dir in \
+  /home/vscode/.npm \
+  /home/vscode/.npm-global \
+  /home/vscode/.npm-global/bin \
+  /home/vscode/.turbo \
+  /home/vscode/.cache/ms-playwright \
+  /home/vscode/.cache/puppeteer
+  do
+  mkdir -p "$dir"
+  sudo chown -R vscode:vscode "$dir"
+done
+
+# Rust volumes may be mounted as root; keep writable for vscode user
+sudo chown -R vscode:vscode /usr/local/cargo /usr/local/rustup || true
+chmod -R u+rwX,g+rwX /usr/local/cargo /usr/local/rustup || true
+
+# 2) Node dependencies
 if [ -f package-lock.json ]; then
-  echo "[refarm-devcontainer] Running npm ci..."
+  log "Running npm ci..."
   npm ci
 else
-  echo "[refarm-devcontainer] No package-lock.json discovered, running npm install..."
+  log "No package-lock.json found, running npm install..."
   npm install
 fi
 
-# 3. Rust tooling.
-echo "[refarm-devcontainer] Setting up Rust toolchain and specialized WASM tooling..."
-rustup default stable
-rustup target add x86_64-unknown-linux-gnu
-rustup target add wasm32-unknown-unknown
-rustup target add wasm32-wasip1 || true
-rustup target add wasm32-wasip2 || true
-# TODO: wasm32-wasip3 is currently not available on stable, but we can add it when it is. For now, we can rely on the fact that the rustup component for rust-src will allow us to build against the latest nightly toolchain if needed.
-# rustup target add wasm32-wasip3 || true
-rustup component add rust-src
+# 3) Rust toolchain sanity (self-healing)
+log "Validating Rust toolchain..."
+if ! rustup toolchain list | grep -q '^stable'; then
+  log "Stable toolchain missing. Installing..."
+  retry 3 rustup toolchain install stable --profile minimal
+fi
 
-# BIN_DIR must match CARGO_HOME (set by devcontainer rust feature to /usr/local/cargo).
-BIN_DIR="${CARGO_HOME:-/usr/local/cargo}/bin"
+retry 3 rustup default stable
 
-# wasm-tools (v1.245.1) — has prebuilt binaries, installs in seconds.
+if ! rustup show active-toolchain >/dev/null 2>&1; then
+  warn "Active toolchain state is unhealthy. Reinstalling stable..."
+  retry 3 rustup toolchain install stable --profile minimal
+  retry 3 rustup default stable
+fi
+
+if ! RUSTUP_TOOLCHAIN=stable rustc -vV >/dev/null 2>&1; then
+  warn "RUSTUP_TOOLCHAIN=stable failed (manifest drift). Reinstalling stable alias..."
+  retry 3 rustup toolchain install stable --profile minimal
+fi
+
+for target in x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1; do
+  retry 3 rustup target add "$target" || warn "Could not install Rust target: $target"
+done
+
+retry 3 rustup component add rust-src || warn "Could not install rust-src component"
+
+# 4) WASM tools
+bin_dir="${CARGO_HOME:-/usr/local/cargo}/bin"
+mkdir -p "$bin_dir"
+
 if ! command -v wasm-tools >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing wasm-tools v1.245.1 via binary..."
-  TEMP_DIR=$(mktemp -d)
-  URL="https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz"
-  curl -fsSL "$URL" | tar -xz -C "$TEMP_DIR"
-  # Archive structure: wasm-tools-1.245.1-x86_64-linux/wasm-tools
-  find "$TEMP_DIR" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} "$BIN_DIR/" \;
-  rm -rf "$TEMP_DIR"
+  log "Installing wasm-tools v1.245.1..."
+  retry 3 ensure_wasm_tools "$bin_dir" || warn "Failed to install wasm-tools"
 else
-  echo "[refarm-devcontainer] wasm-tools already present"
+  log "wasm-tools already present"
 fi
 
-# cargo-component (v0.21.1) — no prebuilt binaries published upstream; compiled from source.
-# The cargo registry volume cache (/usr/local/cargo/registry) keeps deps across rebuilds.
 if ! command -v cargo-component >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing cargo-component v0.21.1 via cargo install (first build only)..."
-  cargo install --locked cargo-component@0.21.1
+  log "Installing cargo-component v0.21.1 (first build can take a while)..."
+  retry 2 cargo install --locked cargo-component@0.21.1 || warn "Failed to install cargo-component"
 else
-  echo "[refarm-devcontainer] cargo-component already present"
+  log "cargo-component already present"
 fi
 
-# 4. Install Playwright browsers
-echo "[refarm-devcontainer] Installing Playwright browsers..."
-npx playwright install --with-deps
+# 5) Playwright browsers (non-fatal, often network-sensitive)
+log "Installing Playwright browsers..."
+if ! retry 2 npx playwright install --with-deps; then
+  warn "Playwright browser installation failed. You can retry with: npx playwright install --with-deps"
+fi
 
-# 5. Finalize Environment
-echo "[refarm-devcontainer] Finalizing setup..."
-npm run hooks:install
+# 6) Finalize
+log "Installing git hooks..."
+npm run hooks:install || warn "Could not install git hooks automatically"
 
-echo "[refarm-devcontainer] Tool versions:"
-node --version
-rustc --version
-cargo --version
-cargo-component --version
-wasm-tools --version
-npx playwright --version
+if [ -f scripts/factory-preflight.mjs ]; then
+  log "Running factory preflight..."
+  node scripts/factory-preflight.mjs || warn "Factory preflight reported issues. Review output above."
+fi
 
-echo "[refarm-devcontainer] Setup complete."
+log "Tool versions:"
+node --version || true
+npm --version || true
+rustc --version || true
+cargo --version || true
+cargo-component --version || true
+wasm-tools --version || true
+npx playwright --version || true
+
+log "Post-create setup complete."

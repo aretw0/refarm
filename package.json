@@ -41,6 +41,7 @@
     "diagrams:watch": "node scripts/ci/generate-diagrams.mjs --watch",
     "diagrams:check": "node scripts/check-diagrams.mjs",
     "diagrams:fix": "node scripts/check-diagrams.mjs --fix",
+    "factory:preflight": "node scripts/factory-preflight.mjs",
     "hooks:install": "node scripts/install-git-hooks.mjs",
     "task:start": "refarm-task start",
     "task:verify": "refarm-task verify",

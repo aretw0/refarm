@@ -39,6 +39,26 @@ CURRENT_BRANCH=\$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 echo "📌 Current branch: \$CURRENT_BRANCH"
 echo ""
 
+# Fast-path: skip heavy validation for delete-only pushes (branch cleanup)
+HAS_REFS=0
+DELETE_ONLY_PUSH=1
+ZERO_SHA="0000000000000000000000000000000000000000"
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  [ -z "\$local_ref" ] && continue
+  HAS_REFS=1
+  if [ "\$local_ref" != "(delete)" ] && [ "\$local_sha" != "\$ZERO_SHA" ]; then
+    DELETE_ONLY_PUSH=0
+  fi
+done
+
+if [ \$HAS_REFS -eq 1 ] && [ \$DELETE_ONLY_PUSH -eq 1 ]; then
+  echo "🧹 Delete-only push detected. Skipping local validation."
+  exit 0
+fi
+echo ""
+
 # Check if we are in a protected branch (main or develop)
 IS_PROTECTED_BRANCH=0
 case "\$CURRENT_BRANCH" in
