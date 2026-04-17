@@ -140,7 +140,23 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
         match prov.complete(SYSTEM, prompt) {
             Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
                       r.tokens_cached, r.tokens_reasoning, model, r.usage_raw),
-            Err(e) => (format!("[pi-agent erro] {e}"), serde_json::json!([]), 0, 0, 0, 0, model, "{}".to_owned()),
+            Err(primary_err) => {
+                if let Ok(fallback_name) = std::env::var("LLM_FALLBACK_PROVIDER") {
+                    // Override LLM_PROVIDER for fallback resolution
+                    std::env::set_var("LLM_PROVIDER", &fallback_name);
+                    let fb = provider::Provider::from_env();
+                    std::env::set_var("LLM_PROVIDER", prov.model()); // restore (best-effort)
+                    let fb_model = fb.model().to_owned();
+                    match fb.complete(SYSTEM, prompt) {
+                        Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
+                                  r.tokens_cached, r.tokens_reasoning, fb_model, r.usage_raw),
+                        Err(e) => (format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
+                                   serde_json::json!([]), 0, 0, 0, 0, fb_model, "{}".to_owned()),
+                    }
+                } else {
+                    (format!("[pi-agent erro] {primary_err}"), serde_json::json!([]), 0, 0, 0, 0, model, "{}".to_owned())
+                }
+            }
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
