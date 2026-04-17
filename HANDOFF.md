@@ -17,7 +17,8 @@
 | 2B.5 — ws_server JSON routing | ✅ | `packages/tractor/src/daemon/ws_server.rs` |
 | 2C — `pi-agent` scaffold | ✅ | `packages/pi-agent/` |
 | **2C.1 — Multi-provider LLM via wasi:http** | ✅ | `packages/pi-agent/src/lib.rs` |
-| 2D — Budget envelopes / cost governance | ⬜ próximo | `packages/pi-agent/` |
+| **2D — UsageRecord audit + cache pricing** | ✅ | `packages/pi-agent/src/lib.rs` |
+| 2E — Budget check + provider fallback | ⬜ próximo | `packages/pi-agent/` |
 | 3 — Pi-Nano host em Zig | ⬜ sprint seguinte | |
 
 ---
@@ -138,8 +139,8 @@ Inspirado em `aretw0/agents-lab`. Idéia central: soberania sobre custos, modelo
 | `tractor` ws_server | 5 | Routing JSON 2B.5: happy path, agente desconhecido, JSON malformado, type errado, frame CRDT inicial |
 | `tractor` agent_tools_bridge | 13 | agent-fs (read/write/edit), agent-shell (echo, exit code, argv, timeout, stdin, env) |
 | `tractor` storage / sync / telemetry / trust | 18 | Camadas de base |
-| `pi-agent` | 5 | Schema AgentResponse (todos os campos canário), unicidade de ID, react_stub; todos nativos (provider gateado em wasm32) |
-| **Total** | **41** | |
+| `pi-agent` | 9 | Schema AgentResponse + UsageRecord (canários), pricing math + cache discount, react stub; todos nativos |
+| **Total** | **45** | |
 
 Para rodar tudo:
 ```bash
