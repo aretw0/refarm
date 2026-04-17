@@ -142,7 +142,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
                       r.tokens_cached, r.tokens_reasoning, model, r.usage_raw),
             Err(primary_err) => {
                 if let Ok(fallback_name) = std::env::var("LLM_FALLBACK_PROVIDER") {
-                    let original_provider = std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".into());
+                    let original_provider = provider_name_from_env();
                     std::env::set_var("LLM_PROVIDER", &fallback_name);
                     let fb = provider::Provider::from_env();
                     std::env::set_var("LLM_PROVIDER", original_provider);
@@ -166,6 +166,12 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
 }
 
 // ── Provider abstraction (WASM-only) ─────────────────────────────────────────
+
+/// Sovereign default: Ollama (local, free). Anthropic only when explicitly requested.
+/// Exposed outside the wasm32 cfg so it can be tested on native targets.
+fn provider_name_from_env() -> String {
+    std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".into())
+}
 
 #[cfg(target_arch = "wasm32")]
 mod provider {
@@ -191,22 +197,22 @@ mod provider {
         /// Build provider from env vars injected by the tractor host.
         pub fn from_env() -> Self {
             let model = std::env::var("LLM_MODEL").unwrap_or_default();
-            match std::env::var("LLM_PROVIDER").as_deref() {
-                Ok("ollama") => Provider::OpenAiCompat {
-                    base_url: std::env::var("LLM_BASE_URL")
-                        .unwrap_or_else(|_| "http://localhost:11434".into()),
-                    api_key: String::new(), // Ollama needs no key
-                    model: if model.is_empty() { "llama3.2".into() } else { model },
+            match super::provider_name_from_env().as_str() {
+                "anthropic" => Provider::Anthropic {
+                    api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
+                    model: if model.is_empty() { "claude-sonnet-4-6".into() } else { model },
                 },
-                Ok("openai") => Provider::OpenAiCompat {
+                "openai" => Provider::OpenAiCompat {
                     base_url: std::env::var("LLM_BASE_URL")
                         .unwrap_or_else(|_| "https://api.openai.com".into()),
                     api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
                     model: if model.is_empty() { "gpt-4o-mini".into() } else { model },
                 },
-                _ => Provider::Anthropic {
-                    api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
-                    model: if model.is_empty() { "claude-sonnet-4-6".into() } else { model },
+                _ => Provider::OpenAiCompat { // ollama is the sovereign default
+                    base_url: std::env::var("LLM_BASE_URL")
+                        .unwrap_or_else(|_| "http://localhost:11434".into()),
+                    api_key: String::new(),
+                    model: if model.is_empty() { "llama3.2".into() } else { model },
                 },
             }
         }
@@ -473,6 +479,27 @@ mod tests {
     #[test]
     fn now_ns_is_non_zero() {
         assert!(now_ns() > 0);
+    }
+
+    #[test]
+    fn default_provider_is_ollama_not_anthropic() {
+        std::env::remove_var("LLM_PROVIDER");
+        assert_eq!(provider_name_from_env(), "ollama",
+            "soberania: default deve ser local (ollama), não pago (anthropic)");
+    }
+
+    #[test]
+    fn explicit_anthropic_is_respected() {
+        std::env::set_var("LLM_PROVIDER", "anthropic");
+        assert_eq!(provider_name_from_env(), "anthropic");
+        std::env::remove_var("LLM_PROVIDER");
+    }
+
+    #[test]
+    fn unknown_provider_falls_back_to_ollama() {
+        std::env::set_var("LLM_PROVIDER", "groq");
+        assert_eq!(provider_name_from_env(), "groq"); // passes through; from_env() routes to ollama path
+        std::env::remove_var("LLM_PROVIDER");
     }
 
     #[test]
