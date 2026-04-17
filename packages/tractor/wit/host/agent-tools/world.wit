@@ -1,0 +1,61 @@
+/// Host-side WIT for loading agent-tools.wasm.
+///
+/// tractor (host)           agent-tools.wasm (component)
+///   provides host-spawn  →  component imports host-spawn (to exec processes)
+///   calls agent-fs       ←  component exports agent-fs
+///   calls agent-shell    ←  component exports agent-shell
+///
+/// The `agent-tools-host` world is the mirror of `agent-tools-provider`
+/// (in packages/agent-tools/wit/world.wit) from the tractor's perspective.
+/// wasmtime::component::bindgen! generates AgentToolsHost from this world.
+
+package refarm:agent-tools@0.1.0;
+
+// ─── Interfaces (mirrored from packages/agent-tools/wit/world.wit) ───────────
+
+interface agent-fs {
+    read:  func(path: string)                    -> result<list<u8>, string>;
+    write: func(path: string, content: list<u8>) -> result<_, string>;
+    edit:  func(path: string, diff: string)      -> result<_, string>;
+}
+
+interface agent-shell {
+    record spawn-request {
+        argv:       list<string>,
+        env:        list<tuple<string, string>>,
+        cwd:        option<string>,
+        timeout-ms: u32,
+        stdin:      option<list<u8>>,
+    }
+    record spawn-result {
+        stdout:    list<u8>,
+        stderr:    list<u8>,
+        exit-code: s32,
+        timed-out: bool,
+    }
+    spawn: func(req: spawn-request) -> result<spawn-result, string>;
+}
+
+/// Host-provided process spawn primitive.
+/// WASM cannot fork/exec natively; agent-tools.wasm calls this to delegate
+/// the actual OS syscall to the tractor host.
+interface host-spawn {
+    do-spawn: func(
+        argv:       list<string>,
+        env:        list<tuple<string, string>>,
+        cwd:        option<string>,
+        timeout-ms: u32,
+        stdin:      option<list<u8>>,
+    ) -> result<tuple<list<u8>, list<u8>, s32, bool>, string>;
+}
+
+// ─── Host-side world ─────────────────────────────────────────────────────────
+
+world agent-tools-host {
+    /// Tractor implements this; agent-tools.wasm calls it for OS process spawn.
+    import host-spawn;
+
+    /// Tractor calls these on agent-tools.wasm to compose with pi-agent.
+    export agent-fs;
+    export agent-shell;
+}
