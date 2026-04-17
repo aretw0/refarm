@@ -167,10 +167,14 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
 
 // ── Provider abstraction (WASM-only) ─────────────────────────────────────────
 
-/// Sovereign default: Ollama (local, free). Anthropic only when explicitly requested.
-/// Exposed outside the wasm32 cfg so it can be tested on native targets.
+/// Resolves the active provider name with full user control:
+///   LLM_PROVIDER          — explicit choice for this run
+///   LLM_DEFAULT_PROVIDER  — user's personal sovereign default (fallback when LLM_PROVIDER unset)
+///   hardcoded "ollama"    — last resort: local, free, no key needed
 fn provider_name_from_env() -> String {
-    std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "ollama".into())
+    std::env::var("LLM_PROVIDER")
+        .or_else(|_| std::env::var("LLM_DEFAULT_PROVIDER"))
+        .unwrap_or_else(|_| "ollama".into())
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -482,10 +486,28 @@ mod tests {
     }
 
     #[test]
-    fn default_provider_is_ollama_not_anthropic() {
+    fn default_provider_is_ollama_when_nothing_set() {
         std::env::remove_var("LLM_PROVIDER");
+        std::env::remove_var("LLM_DEFAULT_PROVIDER");
         assert_eq!(provider_name_from_env(), "ollama",
-            "soberania: default deve ser local (ollama), não pago (anthropic)");
+            "last-resort default deve ser local, não pago");
+    }
+
+    #[test]
+    fn llm_default_provider_overrides_hardcoded_ollama() {
+        std::env::remove_var("LLM_PROVIDER");
+        std::env::set_var("LLM_DEFAULT_PROVIDER", "anthropic");
+        assert_eq!(provider_name_from_env(), "anthropic");
+        std::env::remove_var("LLM_DEFAULT_PROVIDER");
+    }
+
+    #[test]
+    fn llm_provider_takes_precedence_over_default() {
+        std::env::set_var("LLM_DEFAULT_PROVIDER", "anthropic");
+        std::env::set_var("LLM_PROVIDER", "openai");
+        assert_eq!(provider_name_from_env(), "openai");
+        std::env::remove_var("LLM_PROVIDER");
+        std::env::remove_var("LLM_DEFAULT_PROVIDER");
     }
 
     #[test]
@@ -496,9 +518,9 @@ mod tests {
     }
 
     #[test]
-    fn unknown_provider_falls_back_to_ollama() {
+    fn unknown_provider_passes_through_to_compat_path() {
         std::env::set_var("LLM_PROVIDER", "groq");
-        assert_eq!(provider_name_from_env(), "groq"); // passes through; from_env() routes to ollama path
+        assert_eq!(provider_name_from_env(), "groq");
         std::env::remove_var("LLM_PROVIDER");
     }
 
