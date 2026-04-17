@@ -23,6 +23,7 @@
   "containerEnv": {
     "CARGO_TERM_COLOR": "always",
     "TURBO_CACHE_DIR": "/home/vscode/.turbo",
+    "CARGO_BUILD_JOBS": "2",
     "LANG": "C.UTF-8",
     "LC_ALL": "C.UTF-8",
     "LANGUAGE": "en_US:en",

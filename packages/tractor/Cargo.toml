@@ -76,3 +76,6 @@ hex  = "0.4"
 # Corta ~40% do uso de RAM do rustc na fase de codegen para wasmtime.
 # Não afeta comportamento em testes — só símbolos de debug.
 debug = 1
+# Serializa o codegen dentro de cada crate — troca velocidade por RAM.
+# Crítico no devcontainer (4 GB hard cap): cranelift usa ~1.5 GB/codegen-unit.
+codegen-units = 1
