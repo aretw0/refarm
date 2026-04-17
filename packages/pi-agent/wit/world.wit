@@ -1,0 +1,12 @@
+package refarm:plugin@0.1.0;
+
+// pi-agent world — same package as refarm-plugin-host.wit so the exported
+// interface is `refarm:plugin/integration@0.1.0`, matching the tractor linker.
+// TODO(2C.1): add `import wasi:http/outgoing-handler@0.2.0` once
+//             wasmtime-wasi-http is wired into the PluginHost linker.
+world pi-agent {
+    import tractor-bridge;
+    import agent-fs;
+    import agent-shell;
+    export integration;
+}

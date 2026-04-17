@@ -160,7 +160,10 @@ impl PluginHost {
             );
         }
 
-        let wasi = WasiCtxBuilder::new().inherit_stderr().build();
+        let wasi = WasiCtxBuilder::new()
+            .inherit_stderr()
+            .inherit_env()  // passes LLM_PROVIDER, LLM_MODEL, *_API_KEY etc. to plugin
+            .build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
