@@ -117,6 +117,19 @@ fn handle_prompt(prompt: String) {
 
 /// Returns: (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model_id, usage_raw)
 fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String, String) {
+    // Rough estimate: 1 token ≈ 4 chars. Guard fires before any API call.
+    let estimated_tokens = (prompt.len() / 4).max(1) as u32;
+    let max_tokens = std::env::var("LLM_MAX_CONTEXT_TOKENS")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(u32::MAX);
+    if estimated_tokens > max_tokens {
+        return (
+            format!("[pi-agent] prompt excede LLM_MAX_CONTEXT_TOKENS ({estimated_tokens} > {max_tokens} tokens estimados)"),
+            serde_json::json!([]), 0, 0, 0, 0, "blocked".to_owned(), "{}".to_owned(),
+        );
+    }
+
     #[cfg(target_arch = "wasm32")]
     {
         let prov = provider::Provider::from_env();
@@ -444,6 +457,16 @@ mod tests {
     #[test]
     fn now_ns_is_non_zero() {
         assert!(now_ns() > 0);
+    }
+
+    #[test]
+    fn react_blocks_prompt_over_context_limit() {
+        std::env::set_var("LLM_MAX_CONTEXT_TOKENS", "1");
+        let (content, _, tokens_in, _, _, _, model, _) = react("este prompt tem muitos tokens");
+        assert!(content.contains("LLM_MAX_CONTEXT_TOKENS"), "deve mencionar o guard: {content}");
+        assert_eq!(tokens_in, 0);
+        assert_eq!(model, "blocked");
+        std::env::remove_var("LLM_MAX_CONTEXT_TOKENS");
     }
 
     #[test]
