@@ -90,6 +90,26 @@ fn handle_prompt(prompt: String) {
     });
 
     let _ = tractor_bridge::store_node(&response.to_string());
+
+    let provider_name = {
+        #[cfg(target_arch = "wasm32")]
+        { std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".into()) }
+        #[cfg(not(target_arch = "wasm32"))]
+        { "stub".to_owned() }
+    };
+    let usage = serde_json::json!({
+        "@type":         "UsageRecord",
+        "@id":           format!("urn:pi-agent:usage-{}", new_id()),
+        "prompt_ref":    prompt_ref,
+        "provider":      provider_name,
+        "model":         model,
+        "tokens_in":     tokens_in,
+        "tokens_out":    tokens_out,
+        "estimated_usd": estimate_usd(&model, tokens_in, tokens_out),
+        "duration_ms":   duration_ms,
+        "timestamp_ns":  now_ns(),
+    });
+    let _ = tractor_bridge::store_node(&usage.to_string());
 }
 
 /// Dispatch to the configured LLM provider (WASM) or return a stub (native/tests).
@@ -306,6 +326,27 @@ mod provider {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
+/// Estimate cost in USD based on public pricing (per-million-token rates, 2025).
+/// Returns 0.0 for local/unknown models — no cost for sovereign infra.
+fn estimate_usd(model: &str, tokens_in: u32, tokens_out: u32) -> f64 {
+    // (input_usd_per_1m, output_usd_per_1m)
+    let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
+        (15.0, 75.0)
+    } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
+        (3.0, 15.0)
+    } else if model.contains("claude-haiku") {
+        (0.8, 4.0)
+    } else if model.contains("gpt-4o") && !model.contains("mini") {
+        (2.5, 10.0)
+    } else if model.contains("gpt-4o-mini") {
+        (0.15, 0.6)
+    } else {
+        return 0.0; // ollama, llama*, local models — free
+    };
+    (tokens_in as f64 / 1_000_000.0) * rate_in
+        + (tokens_out as f64 / 1_000_000.0) * rate_out
+}
+
 static SEQ: AtomicU64 = AtomicU64::new(0);
 
 fn new_id() -> String {
@@ -381,5 +422,42 @@ mod tests {
     #[test]
     fn now_ns_is_non_zero() {
         assert!(now_ns() > 0);
+    }
+
+    #[test]
+    fn estimate_usd_sonnet_is_nonzero() {
+        let cost = estimate_usd("claude-sonnet-4-6", 1000, 500);
+        assert!(cost > 0.0, "sonnet should have a cost");
+        // 1000 in @ $3/1M + 500 out @ $15/1M = $0.003 + $0.0075 = $0.0105
+        let expected = (1000.0 / 1_000_000.0) * 3.0 + (500.0 / 1_000_000.0) * 15.0;
+        assert!((cost - expected).abs() < 1e-10);
+    }
+
+    #[test]
+    fn estimate_usd_ollama_is_zero() {
+        assert_eq!(estimate_usd("llama3.2", 10000, 5000), 0.0);
+        assert_eq!(estimate_usd("mistral", 1000, 1000), 0.0);
+    }
+
+    #[test]
+    fn usage_record_schema_has_required_fields() {
+        let (_, _, tokens_in, tokens_out, model) = react("hello");
+        let node = serde_json::json!({
+            "@type":         "UsageRecord",
+            "@id":           "urn:pi-agent:usage-test",
+            "prompt_ref":    "urn:pi-agent:prompt-test",
+            "provider":      "stub",
+            "model":         model,
+            "tokens_in":     tokens_in,
+            "tokens_out":    tokens_out,
+            "estimated_usd": estimate_usd(&model, tokens_in, tokens_out),
+            "duration_ms":   0u64,
+            "timestamp_ns":  now_ns(),
+        });
+        for field in ["@type", "@id", "prompt_ref", "provider", "model",
+                      "tokens_in", "tokens_out", "estimated_usd", "duration_ms", "timestamp_ns"] {
+            assert!(node.get(field).is_some(), "UsageRecord missing field: {field}");
+        }
+        assert_eq!(node["@type"], "UsageRecord");
     }
 }
