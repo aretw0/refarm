@@ -22,11 +22,19 @@
   "remoteUser": "vscode",
   "containerEnv": {
     "CARGO_TERM_COLOR": "always",
-    "TURBO_CACHE_DIR": "/home/vscode/.turbo"
+    "TURBO_CACHE_DIR": "/home/vscode/.turbo",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LANGUAGE": "en_US:en",
+    "TERM_PROGRAM": "vscode"
   },
   "remoteEnv": {
     "NPM_CONFIG_PREFIX": "/home/vscode/.npm-global",
-    "PATH": "/home/vscode/.npm-global/bin:${containerEnv:PATH}"
+    "PATH": "/home/vscode/.npm-global/bin:${containerEnv:PATH}",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LANGUAGE": "en_US:en",
+    "TERM_PROGRAM": "vscode"
   },
   "mounts": [
     "source=refarm-npm-cache,target=/home/vscode/.npm,type=volume",

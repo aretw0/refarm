@@ -44,6 +44,7 @@ for dir in \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
   /home/vscode/.turbo \
+  /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
   /home/vscode/.cache/puppeteer
   do
