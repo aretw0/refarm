@@ -124,6 +124,33 @@ if [ -f scripts/factory-preflight.mjs ]; then
   node scripts/factory-preflight.mjs || warn "Factory preflight reported issues. Review output above."
 fi
 
+# 7) AI agent tooling
+# Pi coding agent (badlogic/pi-mono) — extensible terminal-first AI agent
+if ! command -v pi >/dev/null 2>&1; then
+  log "Installing Pi coding agent..."
+  retry 2 npm install -g @mariozechner/pi-coding-agent || warn "Pi install failed. Run: npm install -g @mariozechner/pi-coding-agent"
+else
+  log "Pi already present: $(pi --version 2>/dev/null || echo 'version unknown')"
+fi
+
+# pi-stack (aretw0/agents-lab) — curated skill bundle for Pi (git, web, lab skills)
+# Runs non-interactively; safe to re-run (idempotent skill installs).
+if command -v pi >/dev/null 2>&1; then
+  log "Installing pi-stack skills..."
+  retry 2 npx @aretw0/pi-stack || warn "pi-stack install failed. Run: npx @aretw0/pi-stack"
+else
+  warn "Skipping pi-stack: Pi not installed."
+fi
+
+# Claude Code (Anthropic) — AI coding agent, Claude-powered
+# Requires ANTHROPIC_API_KEY at runtime (not stored here).
+if ! command -v claude >/dev/null 2>&1; then
+  log "Installing Claude Code..."
+  retry 2 npm install -g @anthropic-ai/claude-code || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
+else
+  log "Claude Code already present: $(claude --version 2>/dev/null || echo 'version unknown')"
+fi
+
 log "Tool versions:"
 node --version || true
 npm --version || true
@@ -132,5 +159,8 @@ cargo --version || true
 cargo-component --version || true
 wasm-tools --version || true
 npx playwright --version || true
+gh --version 2>/dev/null | head -1 || true
+pi --version 2>/dev/null || true
+claude --version 2>/dev/null || true
 
 log "Post-create setup complete."
