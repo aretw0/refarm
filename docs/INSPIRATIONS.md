@@ -20,6 +20,8 @@ This document is a tribute to the "Greats" we've learned from.
 - **[Vim](https://www.vim.org)**: For teaching the world that the keyboard is the fastest interface for the human mind. Refarm's intent-centric navigation aims to bring that "flow state" to every digital task.
 - **[SilverBullet](https://silverbullet.md/)**: For the concept of a "Self-Extending" workspace built entirely on Markdown. Their architecture of **"Plugs"** (plugins that run anywhere) communicating with the host via **"Syscalls"**, combined with programmable notes via Lua, is a huge inspiration. It proves that an application can be dynamically extended by the user on the fly without breaking the core engine.
 - **[Spin (Fermyon)](https://spinframework.dev/)**: For its "Component-First" approach to WebAssembly. Spin v3's work on **Spin Factors** and cross-language component dependencies mirrors our vision for `tractor`. They are setting the standard for how high-level capabilities should be exposed to sandboxed Wasm components.
+- **[zwasm (ClojureWasm)](https://github.com/clojurewasm/zwasm)**: A production-ready (~1.2 MB) WebAssembly Component Model runtime written in Zig. Full WASI P2 + WIT support, 100% spec conformance (62k tests). The technical foundation for the Refarm **Pi-Nano** host — our lightweight Zig-based tractor for edge and resource-constrained environments. Proves that the Component Model doesn't require a heavy JIT runtime.
+- **[nullclaw](https://github.com/nullclaw/nullclaw)**: An AI assistant infrastructure framework written in Zig — 678 KB static binary, <2ms boot, 50+ AI providers, pluggable channels and memory backends. The closest thing to "Pi agent written in Zig." A direct reference for how the Refarm sovereign CLI agent should be designed: minimal footprint, fast startup, provider-agnostic.
 
 ### 🌐 The Lineage of the Sovereign Graph
 
@@ -36,6 +38,20 @@ O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a cu
 - **[Obsidian](https://obsidian.md)**: Por provar que "Local-First" e arquivos baseados em markdown são o alicerce da soberania digital.
 - **[Logseq](https://logseq.com)**: Pelo compromisso com grafos open-source e outliners focados em privacidade.
 - **[Toeverything / AFFiNE](https://github.com/toeverything)**: Por liderarem a fronteira de CRDTs, Rust e WASM na construção de arquiteturas "Local-First". Projetos como OctoBase e os utilitários descentralizados em Rust mostram como construir motores sólidos e performáticos que servem de forte inspiração para o pacote `tractor` e `sync-loro` do Refarm.
+
+### 🤖 Agente Soberano & Runtime Mínimo
+
+Inspirações que moldaram a visão do **Pi Agent** e da arquitetura de ferramentas atômicas (read, write, edit, bash) dentro do ecossistema Refarm.
+
+- **[Claude Code (Anthropic)](https://www.anthropic.com/claude-code)**: Pelo design minimalista de um coding agent orientado a terminal que expõe exatamente 4 ferramentas atômicas ao LLM — `read`, `write`, `edit`, `bash`. Esta filosofia de composição sobre ferramenta única é a pedra angular do **Pi Agent** do Refarm. A demonstração de que ferramentas estruturadas (argv[], sem interpolação de shell) e sandboxing de capabilities podem coexistir com produtividade máxima é o modelo que nos guia.
+
+- **[Zig Language](https://ziglang.org)**: Pela visão de um sistema de controle de memória explícito sem GC, com footprint binário mínimo (~KB vs MB) e compilação cruzada de primeira classe. O princípio "No hidden control flow" do Zig é o que buscamos no host Pi-Nano: nada acontece que o programador não pediu explicitamente. Inspiração para a estratégia de runtime ultra-leve para dispositivos onde wasmtime (~27 MB) não cabe.
+
+- **[Babashka / Clojure no JVM & WASM](https://babashka.org)**: Por provar que Clojure pode rodar como script rápido sem startup do JVM. A trajetória Babashka → ClojureScript → WASM (via WasmGC) é o caminho que enxergamos para a lógica reflexiva e funcional do Pi Agent guest. A semântica imutável do Clojure é ideal para processamento de dados no sandbox — o guest nunca muta estado externo, apenas retorna resultados.
+
+- **[zwasm / ClojureWasm](https://github.com/babashka/babashka)**: Pela pesquisa em compilar ClojureScript para WASM via WasmGC, abrindo a possibilidade de um guest com semântica funcional pura e reflexão de macros em tempo de execução. Nossa estratégia de bridge JSON-over-streams (enquanto WasmGC madurece) é diretamente informada pelo estado atual desta fronteira.
+
+- **[Capability-based Security (WASI)](https://github.com/WebAssembly/WASI)**: Pelo modelo de capability-based security que elimina ambient authority. Toda permissão do Pi Agent — `read-fs`, `write-fs`, `spawn-shell` — é declarada no manifest e concedida explicitamente pelo TrustManager. Nenhum plugin tem acesso a recursos não declarados. O WASI é o sandbox que torna o Pi Agent seguro por construção.
 
 ### 🚜 Personal Lineage
 
