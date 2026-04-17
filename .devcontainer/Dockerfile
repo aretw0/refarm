@@ -56,14 +56,16 @@ RUN tmpdir=$(mktemp -d) \
   && find "$tmpdir" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} /usr/local/cargo/bin/ \; \
   && rm -rf "$tmpdir"
 
-# ── cargo-component (compiled once; BuildKit cache persists crate registry) ───
-# --mount=type=cache survives even docker build --no-cache, avoiding re-downloads
-RUN --mount=type=cache,target=/usr/local/cargo/registry \
-    --mount=type=cache,target=/usr/local/cargo/git/db \
-    cargo install --locked cargo-component@0.21.1
+# ── cargo-component via pre-built binary (no compilation, same pattern as wasm-tools) ──
+# cargo-binstall is bootstrapped, used, then removed to keep the image lean
+RUN curl -L --proto '=https' --tlsv1.2 -sSf \
+      "https://github.com/cargo-bins/cargo-binstall/releases/latest/download/cargo-binstall-x86_64-unknown-linux-musl.tgz" \
+    | tar -xz -C /usr/local/cargo/bin \
+  && cargo binstall --no-confirm --no-symlinks cargo-component@0.21.1 \
+  && rm /usr/local/cargo/bin/cargo-binstall
 
-# ── Ownership: vscode user can write to cargo/rustup (project builds, rustup update) ──
-RUN chown -R vscode:vscode /usr/local/cargo /usr/local/rustup
+# ── Ownership: UID 1000 = vscode (assigned by common-utils feature at runtime) ──
+RUN chown -R 1000:1000 /usr/local/cargo /usr/local/rustup
 
 # ── Root alias for Docker Desktop terminal ────────────────────────────────────
 RUN echo 'alias refarm="su vscode -s /bin/bash -c \"cd /workspaces/refarm && exec bash -i\""' >> /root/.bashrc
