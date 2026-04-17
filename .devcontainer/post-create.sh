@@ -44,6 +44,20 @@ done
 # Cargo registry volumes mount as root; ensure vscode can write crate cache
 sudo chown -R vscode:vscode /usr/local/cargo/registry /usr/local/cargo/git 2>/dev/null || true
 
+# SSH keepalive: prevents GitHub from closing the connection during slow pre-push hooks
+log "Configuring SSH keepalive for GitHub..."
+mkdir -p /home/vscode/.ssh
+chmod 700 /home/vscode/.ssh
+if ! grep -q "# refarm-keepalive" /home/vscode/.ssh/config 2>/dev/null; then
+  cat >> /home/vscode/.ssh/config << 'EOF'
+# refarm-keepalive
+Host github.com
+  ServerAliveInterval 30
+  ServerAliveCountMax 10
+EOF
+  chmod 600 /home/vscode/.ssh/config
+fi
+
 # 2) Node dependencies
 if [ -f package-lock.json ]; then
   log "Running npm ci..."
