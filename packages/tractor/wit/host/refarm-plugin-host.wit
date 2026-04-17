@@ -66,11 +66,57 @@ interface integration {
     on-event:       func(event: string, payload: option<string>);
 }
 
+// ─── Agent Tool Interfaces (host provides, plugin imports) ───────────────────
+
+/// Filesystem primitives for Pi Agent tools: read, write, edit.
+/// All paths are absolute. Capability gating via TrustManager before dispatch.
+interface agent-fs {
+    /// Read file contents from an absolute path.
+    read: func(path: string) -> result<list<u8>, string>;
+
+    /// Write bytes to a path atomically (tmp → fsync → rename).
+    write: func(path: string, content: list<u8>) -> result<_, string>;
+
+    /// Apply a unified diff string to an existing file, atomically.
+    /// Returns error if the diff context does not match current file state.
+    edit: func(path: string, diff: string) -> result<_, string>;
+}
+
+/// Shell primitive for Pi Agent bash tool.
+/// The host never interpolates through a shell — structured argv only.
+interface agent-shell {
+    record spawn-request {
+        /// Structured argv. argv[0] is the binary name (no shell expansion).
+        argv: list<string>,
+        /// Environment key-value pairs to forward (explicit allowlist).
+        env: list<tuple<string, string>>,
+        /// Working directory (absolute path). Defaults to tractor data dir.
+        cwd: option<string>,
+        /// Hard timeout in milliseconds; process is killed after this.
+        timeout-ms: u32,
+        /// Optional stdin bytes fed into the process.
+        stdin: option<list<u8>>,
+    }
+
+    record spawn-result {
+        stdout: list<u8>,
+        stderr: list<u8>,
+        exit-code: s32,
+        /// True if the process was killed due to timeout expiry.
+        timed-out: bool,
+    }
+
+    /// Spawn a subprocess with structured argv (no shell interpolation).
+    spawn: func(req: spawn-request) -> result<spawn-result, string>;
+}
+
 // ─── Host-side World ─────────────────────────────────────────────────────────
 
 /// Minimal world for host-side bindgen! (tractor-native).
 /// Use world "refarm-plugin" in refarm-sdk.wit for plugin authors.
 world refarm-plugin-host {
     import tractor-bridge;
+    import agent-fs;
+    import agent-shell;
     export integration;
 }

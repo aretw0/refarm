@@ -52,6 +52,12 @@ serde_json = "1"
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
+# Diff/patch — used by agent-fs `edit` tool
+diffy = "0.3"
+
+# Atomic file write — used by agent-fs write/edit (tmp → rename)
+tempfile = "3"
+
 # Utilities
 anyhow    = "1"
 thiserror = "1"
@@ -63,7 +69,6 @@ hex  = "0.4"
 
 # ─── Dev dependencies ─────────────────────────────────────────────────────────
 [dev-dependencies]
-tempfile = "3"
 
 # ─── Build profiles ───────────────────────────────────────────────────────────
 [profile.dev]
