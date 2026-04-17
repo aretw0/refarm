@@ -1,7 +1,8 @@
+# syntax=docker/dockerfile:1
 FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 
-# System dependencies required by Mermaid CLI (mmdc) and headless Chromium
-# so `npm run diagrams:fix` works out-of-the-box in fresh containers.
+# ── System dependencies ────────────────────────────────────────────────────────
+# Mermaid CLI (mmdc) / headless Chromium + Playwright runtime libraries
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
     locales \
@@ -26,3 +27,43 @@ RUN apt-get update \
   && locale-gen pt_BR.UTF-8 \
   && update-locale LANG=pt_BR.UTF-8 LC_ALL=pt_BR.UTF-8 LANGUAGE=pt_BR:pt:en \
   && rm -rf /var/lib/apt/lists/*
+
+# ── GitHub CLI ─────────────────────────────────────────────────────────────────
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+      | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg \
+  && chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg \
+  && echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends gh \
+  && rm -rf /var/lib/apt/lists/*
+
+# ── Rust toolchain (system-wide, accessible to vscode user) ───────────────────
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo
+ENV PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+      | sh -s -- --default-toolchain stable --profile minimal --no-modify-path -y \
+  && rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1 \
+  && rustup component add rust-src
+
+# ── wasm-tools (pre-built binary, no compilation needed) ──────────────────────
+RUN tmpdir=$(mktemp -d) \
+  && curl -fsSL \
+      "https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz" \
+     | tar -xz -C "$tmpdir" \
+  && find "$tmpdir" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} /usr/local/cargo/bin/ \; \
+  && rm -rf "$tmpdir"
+
+# ── cargo-component (compiled once; BuildKit cache persists crate registry) ───
+# --mount=type=cache survives even docker build --no-cache, avoiding re-downloads
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git/db \
+    cargo install --locked cargo-component@0.21.1
+
+# ── Ownership: vscode user can write to cargo/rustup (project builds, rustup update) ──
+RUN chown -R vscode:vscode /usr/local/cargo /usr/local/rustup
+
+# ── Root alias for Docker Desktop terminal ────────────────────────────────────
+RUN echo 'alias refarm="su vscode -s /bin/bash -c \"cd /workspaces/refarm && exec bash -i\""' >> /root/.bashrc
