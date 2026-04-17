@@ -10,11 +10,6 @@
     "memory": "8gb"
   },
   "features": {
-    "ghcr.io/devcontainers/features/rust:1": {
-      "version": "stable",
-      "profile": "minimal"
-    },
-    "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": false,
       "username": "vscode"
@@ -22,6 +17,8 @@
   },
   "remoteUser": "vscode",
   "containerEnv": {
+    "RUSTUP_HOME": "/usr/local/rustup",
+    "CARGO_HOME": "/usr/local/cargo",
     "CARGO_TERM_COLOR": "always",
     "TURBO_CACHE_DIR": "/home/vscode/.turbo",
     "CARGO_BUILD_JOBS": "2",
@@ -43,8 +40,6 @@
     "source=refarm-npm-global,target=/home/vscode/.npm-global,type=volume",
     "source=refarm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume",
-    "source=refarm-cargo-bin,target=/usr/local/cargo/bin,type=volume",
-    "source=refarm-rustup,target=/usr/local/rustup,type=volume",
     "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume",
     "source=refarm-playwright-cache,target=/home/vscode/.cache/ms-playwright,type=volume"
   ],
