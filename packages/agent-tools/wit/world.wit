@@ -1,0 +1,85 @@
+/// agent-tools-provider world
+///
+/// This component EXPORTS agent-fs and agent-shell to be composed with pi-agent.
+/// It IMPORTS host-spawn because WASM has no native process-spawn capability —
+/// the WASM sandbox enforces policy (argv validation, timeout cap) while the
+/// tractor host executes the actual OS fork/exec via this import.
+///
+/// Composition target:
+///   tractor host
+///   ├── loads agent-tools.wasm   ← exports: agent-fs, agent-shell
+///   ├── loads pi-agent.wasm      ← imports: agent-fs, agent-shell
+///   └── wires them via Component Model linker
+package refarm:agent-tools@0.1.0;
+
+// ─── Filesystem Tools ─────────────────────────────────────────────────────────
+
+interface agent-fs {
+    /// Read file contents from an absolute path.
+    read: func(path: string) -> result<list<u8>, string>;
+
+    /// Write bytes to a path (atomic: write tmp → rename).
+    write: func(path: string, content: list<u8>) -> result<_, string>;
+
+    /// Apply a unified diff to an existing file (atomic).
+    /// Returns error if the diff context does not match current file state.
+    edit: func(path: string, diff: string) -> result<_, string>;
+}
+
+// ─── Shell Tool ───────────────────────────────────────────────────────────────
+
+interface agent-shell {
+    record spawn-request {
+        /// Structured argv — never interpolated through a shell.
+        argv: list<string>,
+        /// Explicit allowlist env vars; host adds nothing else.
+        env: list<tuple<string, string>>,
+        /// Working directory (absolute path).
+        cwd: option<string>,
+        /// Hard timeout in milliseconds; process is killed after this.
+        timeout-ms: u32,
+        /// Stdin bytes to pipe into the process.
+        stdin: option<list<u8>>,
+    }
+
+    record spawn-result {
+        stdout: list<u8>,
+        stderr: list<u8>,
+        exit-code: s32,
+        /// True if the process was killed due to timeout.
+        timed-out: bool,
+    }
+
+    /// Spawn a subprocess with structured argv.
+    spawn: func(req: spawn-request) -> result<spawn-result, string>;
+}
+
+// ─── Host-provided primitive ───────────────────────────────────────────────────
+//
+// WASM cannot spawn processes natively (no `wasi:process` in Preview 2).
+// The agent-tools component delegates the actual OS fork/exec to the host
+// through this import. The component remains the policy layer: it validates
+// argv, caps timeouts, and enforces allowlists before calling do-spawn.
+
+interface host-spawn {
+    /// Flat-args version avoids cross-interface type sharing complexity in WIT.
+    /// agent-shell::spawn validates policy then forwards here.
+    do-spawn: func(
+        argv: list<string>,
+        env: list<tuple<string, string>>,
+        cwd: option<string>,
+        timeout-ms: u32,
+        stdin: option<list<u8>>,
+    ) -> result<tuple<list<u8>, list<u8>, s32, bool>, string>;
+}
+
+// ─── World ────────────────────────────────────────────────────────────────────
+
+world agent-tools-provider {
+    /// Host provides the actual OS process spawn mechanism.
+    import host-spawn;
+
+    /// This component provides filesystem and shell tools to agent plugins.
+    export agent-fs;
+    export agent-shell;
+}
