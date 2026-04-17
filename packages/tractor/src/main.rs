@@ -66,10 +66,15 @@ async fn main() -> Result<()> {
 
     let tractor = TractorNative::boot(config.clone()).await?;
 
-    // Load plugins — isolated failures log WARN but do not abort the daemon
+    // Load plugins — isolated failures log WARN but do not abort the daemon.
+    // register_for_events spins up a dedicated !Send thread per plugin and
+    // registers its mpsc sender in agent_channels for WebSocket prompt routing.
     for path in &cli.plugin {
         match tractor.load_plugin(path).await {
-            Ok(_) => tracing::info!(path = %path.display(), "plugin loaded"),
+            Ok(handle) => {
+                tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
+                tractor.register_for_events(handle);
+            }
             Err(e) => tracing::warn!(path = %path.display(), "plugin load failed: {e}"),
         }
     }
@@ -79,6 +84,7 @@ async fn main() -> Result<()> {
         std::sync::Arc::new(tractor.sync.clone()),
         config.port,
         tractor.telemetry.clone(),
+        tractor.agent_channels.clone(),
     )
     .start()
     .await?;

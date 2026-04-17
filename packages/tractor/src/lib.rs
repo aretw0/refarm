@@ -31,12 +31,26 @@ pub mod telemetry;
 pub mod trust;
 
 use anyhow::Result;
+use std::collections::HashMap;
 use std::path::Path;
+use std::sync::{Arc, RwLock};
+
+use tokio::sync::mpsc;
 
 pub use storage::NativeStorage;
 pub use sync::NativeSync;
 pub use telemetry::TelemetryBus;
 pub use trust::{ExecutionProfile, SecurityMode, TrustManager};
+
+/// A message routed from the WebSocket daemon to a loaded agent plugin.
+#[derive(Debug)]
+pub struct AgentMessage {
+    pub event: String,
+    pub payload: Option<String>,
+}
+
+/// Keyed by plugin_id — each sender reaches the plugin's dedicated runner thread.
+pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentMessage>>>>;
 
 /// Top-level configuration for booting a TractorNative instance.
 #[derive(Debug, Clone)]
@@ -72,6 +86,9 @@ pub struct TractorNative {
     pub plugins: host::PluginHost,
     pub trust: TrustManager,
     pub telemetry: TelemetryBus,
+    /// mpsc senders to plugin runner threads, keyed by plugin_id.
+    /// Populated by `register_for_events`; read by WsServer for prompt routing.
+    pub agent_channels: AgentChannels,
     #[allow(dead_code)]
     config: TractorNativeConfig,
 }
@@ -98,6 +115,7 @@ impl TractorNative {
             plugins,
             trust,
             telemetry,
+            agent_channels: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
     }
@@ -105,6 +123,40 @@ impl TractorNative {
     /// Load and instantiate a WASM plugin from a file path.
     pub async fn load_plugin(&self, path: &Path) -> Result<host::PluginInstanceHandle> {
         self.plugins.load(path, &self.sync).await
+    }
+
+    /// Move a loaded plugin handle into a dedicated runner thread and register
+    /// its mpsc sender in `agent_channels` for WebSocket prompt routing.
+    ///
+    /// `PluginInstanceHandle` is `!Send` (wasmtime Store). Each plugin gets its
+    /// own thread + single-threaded tokio runtime so the `!Send` constraint is
+    /// satisfied without unsafe code.
+    pub fn register_for_events(&self, handle: host::PluginInstanceHandle) {
+        let plugin_id = handle.id.clone();
+        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+
+        let id_for_thread = plugin_id.clone();
+        std::thread::spawn(move || {
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("plugin runner rt");
+            let local = tokio::task::LocalSet::new();
+            local.block_on(&rt, async move {
+                let mut h = handle;
+                while let Some(msg) = rx.recv().await {
+                    if let Err(e) = h.call_on_event(&msg.event, msg.payload.as_deref()).await {
+                        tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
+                    }
+                }
+                tracing::debug!(plugin_id = %id_for_thread, "plugin runner exiting");
+            });
+        });
+
+        self.agent_channels
+            .write()
+            .expect("agent_channels poisoned")
+            .insert(plugin_id, tx);
     }
 
     /// Shut down all plugins and close storage.

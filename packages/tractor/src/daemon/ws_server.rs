@@ -1,13 +1,16 @@
 //! WebSocket daemon — replaces farmhand on port 42000.
 //!
-//! Protocol (binary Loro frames — no JSON, no wrapper):
+//! Protocol:
+//!   Binary frames: Loro CRDT sync (BrowserSyncClient-compatible, unchanged)
+//!   Text frames:   JSON agent messages `{ "type": "user:prompt", "agent": "<id>", "payload": "..." }`
+//!
 //!   On connect:  server sends sync.get_update() (full state)
 //!                client sends its own getUpdate() immediately after
-//!   On recv:     sync.apply_update(bytes) + broadcast to OTHER clients
+//!   On recv binary: sync.apply_update(bytes) + broadcast to OTHER clients
+//!   On recv text:   route to plugin runner thread via AgentChannels mpsc
 //!   On local:    sync.set_broadcast_callback fires → broadcast to ALL clients
 //!
-//! Binary-compatible with BrowserSyncClient (packages/sync-loro/src/browser-sync-client.ts).
-//! BrowserSyncClient requires ZERO changes.
+//! Binary path is unchanged and BrowserSyncClient requires ZERO changes.
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -21,6 +24,7 @@ use tokio_tungstenite::{accept_async, tungstenite::Message};
 
 use crate::sync::NativeSync;
 use crate::telemetry::TelemetryBus;
+use crate::{AgentChannels, AgentMessage};
 
 type ClientId = usize;
 type ClientMap = Arc<Mutex<HashMap<ClientId, mpsc::UnboundedSender<Vec<u8>>>>>;
@@ -32,11 +36,12 @@ pub struct WsServer {
     sync: Arc<NativeSync>,
     port: u16,
     telemetry: TelemetryBus,
+    agent_channels: AgentChannels,
 }
 
 impl WsServer {
-    pub fn new(sync: Arc<NativeSync>, port: u16, telemetry: TelemetryBus) -> Self {
-        Self { sync, port, telemetry }
+    pub fn new(sync: Arc<NativeSync>, port: u16, telemetry: TelemetryBus, agent_channels: AgentChannels) -> Self {
+        Self { sync, port, telemetry, agent_channels }
     }
 
     /// Start the WebSocket server and block until Ctrl-C.
@@ -82,8 +87,9 @@ impl WsServer {
                         tracing::debug!(%addr, "new connection");
                         let sync = self.sync.clone();
                         let clients = clients.clone();
+                        let agent_channels = self.agent_channels.clone();
                         tokio::spawn(async move {
-                            if let Err(e) = handle_connection(tcp_stream, sync, clients).await {
+                            if let Err(e) = handle_connection(tcp_stream, sync, clients, agent_channels).await {
                                 tracing::warn!("connection error: {e}");
                             }
                         });
@@ -107,6 +113,7 @@ async fn handle_connection(
     tcp_stream: tokio::net::TcpStream,
     sync: Arc<NativeSync>,
     clients: ClientMap,
+    agent_channels: AgentChannels,
 ) -> Result<()> {
     let ws = accept_async(tcp_stream).await?;
     let (mut sink, mut stream) = ws.split();
@@ -149,8 +156,21 @@ async fn handle_connection(
                     Err(e) => tracing::warn!("apply_update failed (frame discarded, not relayed): {e}"),
                 }
             }
+            Ok(Message::Text(json)) => {
+                if let Ok(msg) = serde_json::from_str::<serde_json::Value>(&json) {
+                    if msg.get("type").and_then(|v| v.as_str()) == Some("user:prompt") {
+                        let agent = msg.get("agent").and_then(|v| v.as_str()).unwrap_or("").to_owned();
+                        let payload = msg.get("payload").and_then(|v| v.as_str()).map(str::to_owned);
+                        let guard = agent_channels.read().expect("agent_channels poisoned");
+                        match guard.get(&agent) {
+                            Some(tx) => { let _ = tx.send(AgentMessage { event: "user:prompt".into(), payload }); }
+                            None => tracing::warn!(agent, "user:prompt: no plugin registered for agent"),
+                        }
+                    }
+                }
+            }
             Ok(Message::Close(_)) | Err(_) => break,
-            _ => {} // ignore ping/pong/text
+            _ => {} // ignore ping/pong
         }
     }
 
@@ -159,4 +179,132 @@ async fn handle_connection(
     drop(removed_tx); // closes the mpsc channel
     let _ = send_task.await; // wait for send task to exit cleanly
     Ok(())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+    use std::sync::{Arc, RwLock};
+    use std::time::Duration;
+
+    use futures_util::{SinkExt, StreamExt};
+    use tokio::net::TcpListener;
+    use tokio::sync::mpsc;
+    use tokio::time::timeout;
+    use tokio_tungstenite::{connect_async, tungstenite::Message};
+
+    use crate::{AgentMessage, NativeStorage, NativeSync, TelemetryBus};
+
+    fn make_sync() -> Arc<NativeSync> {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        Arc::new(NativeSync::new(storage, ":memory:").unwrap())
+    }
+
+    /// Bind on an ephemeral port, start the server in a background task.
+    /// Returns the `ws://` address so tests can connect immediately.
+    async fn spawn_server(channels: AgentChannels) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let server = WsServer::new(make_sync(), 0, TelemetryBus::new(10), channels);
+        tokio::spawn(async move { let _ = server.run(listener).await; });
+        format!("ws://{addr}")
+    }
+
+    // ── happy path ────────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn json_prompt_routes_to_registered_agent() {
+        let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+        channels.write().unwrap().insert("pi-agent".to_string(), tx);
+
+        let addr = spawn_server(channels).await;
+        let (ws, _) = connect_async(&addr).await.unwrap();
+        let (mut sink, mut stream) = ws.split();
+        stream.next().await; // drain initial state
+
+        sink.send(Message::Text(
+            r#"{"type":"user:prompt","agent":"pi-agent","payload":"olá pi"}"#.to_string(),
+        ))
+        .await
+        .unwrap();
+
+        let msg = timeout(Duration::from_millis(500), rx.recv())
+            .await
+            .expect("timed out waiting for agent message")
+            .expect("channel closed");
+
+        assert_eq!(msg.event, "user:prompt");
+        assert_eq!(msg.payload.as_deref(), Some("olá pi"));
+    }
+
+    #[tokio::test]
+    async fn initial_state_frame_is_binary() {
+        let addr = spawn_server(Arc::new(RwLock::new(HashMap::new()))).await;
+        let (ws, _) = connect_async(&addr).await.unwrap();
+        let (_sink, mut stream) = ws.split();
+        let first = stream.next().await.unwrap().unwrap();
+        assert!(matches!(first, Message::Binary(_)), "expected Binary CRDT frame on connect");
+    }
+
+    // ── resilience ───────────────────────────────────────────────────────────
+
+    #[tokio::test]
+    async fn json_prompt_unknown_agent_ignored_no_crash() {
+        let addr = spawn_server(Arc::new(RwLock::new(HashMap::new()))).await;
+        let (ws, _) = connect_async(&addr).await.unwrap();
+        let (mut sink, mut stream) = ws.split();
+        stream.next().await; // drain initial state
+
+        // Unknown agent — server must warn and continue, not crash.
+        sink.send(Message::Text(
+            r#"{"type":"user:prompt","agent":"nobody","payload":"x"}"#.to_string(),
+        ))
+        .await
+        .unwrap();
+
+        // Second message proves the connection and server are still alive.
+        sink.send(Message::Text(
+            r#"{"type":"user:prompt","agent":"nobody","payload":"y"}"#.to_string(),
+        ))
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn malformed_json_silently_ignored() {
+        let addr = spawn_server(Arc::new(RwLock::new(HashMap::new()))).await;
+        let (ws, _) = connect_async(&addr).await.unwrap();
+        let (mut sink, mut stream) = ws.split();
+        stream.next().await; // drain initial state
+
+        sink.send(Message::Text("not json !!!".to_string())).await.unwrap();
+        sink.send(Message::Text("{}".to_string())).await.unwrap();
+        // no panic, no error — test passes by reaching this line
+    }
+
+    #[tokio::test]
+    async fn wrong_type_field_not_routed() {
+        let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+        let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
+        channels.write().unwrap().insert("pi-agent".to_string(), tx);
+
+        let addr = spawn_server(channels).await;
+        let (ws, _) = connect_async(&addr).await.unwrap();
+        let (mut sink, mut stream) = ws.split();
+        stream.next().await; // drain initial state
+
+        // Different "type" value — must NOT route to the agent.
+        sink.send(Message::Text(
+            r#"{"type":"some:other","agent":"pi-agent","payload":"ignored"}"#.to_string(),
+        ))
+        .await
+        .unwrap();
+
+        let result = timeout(Duration::from_millis(100), rx.recv()).await;
+        assert!(result.is_err(), "non-prompt type must not route to agent channel");
+    }
 }
