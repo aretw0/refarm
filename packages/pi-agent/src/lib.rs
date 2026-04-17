@@ -70,7 +70,7 @@ fn handle_prompt(prompt: String) {
     }
 
     let t0 = now_ns();
-    let (content, tool_calls, tokens_in, tokens_out, model) = react(&prompt);
+    let (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model, usage_raw) = react(&prompt);
     let duration_ms = now_ns().saturating_sub(t0) / 1_000_000;
 
     let response = serde_json::json!({
@@ -105,16 +105,18 @@ fn handle_prompt(prompt: String) {
         "model":         model,
         "tokens_in":     tokens_in,
         "tokens_out":    tokens_out,
-        "estimated_usd": estimate_usd(&model, tokens_in, tokens_out),
-        "duration_ms":   duration_ms,
-        "timestamp_ns":  now_ns(),
+        "estimated_usd":    estimate_usd(&model, tokens_in, tokens_out, tokens_cached),
+        "tokens_cached":    tokens_cached,
+        "tokens_reasoning": tokens_reasoning,
+        "usage_raw":        usage_raw,
+        "duration_ms":      duration_ms,
+        "timestamp_ns":     now_ns(),
     });
     let _ = tractor_bridge::store_node(&usage.to_string());
 }
 
-/// Dispatch to the configured LLM provider (WASM) or return a stub (native/tests).
-/// Returns: (content, tool_calls, tokens_in, tokens_out, model_id)
-fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, String) {
+/// Returns: (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model_id, usage_raw)
+fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String, String) {
     #[cfg(target_arch = "wasm32")]
     {
         let prov = provider::Provider::from_env();
@@ -123,13 +125,14 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, String) {
             "You are pi-agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
         match prov.complete(SYSTEM, prompt) {
-            Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out, model),
-            Err(e) => (format!("[pi-agent erro] {e}"), serde_json::json!([]), 0, 0, model),
+            Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
+                      r.tokens_cached, r.tokens_reasoning, model, r.usage_raw),
+            Err(e) => (format!("[pi-agent erro] {e}"), serde_json::json!([]), 0, 0, 0, 0, model, "{}".to_owned()),
         }
     }
     #[cfg(not(target_arch = "wasm32"))]
     {
-        (format!("[pi-agent stub] {prompt}"), serde_json::json!([]), 0, 0, "stub".to_owned())
+        (format!("[pi-agent stub] {prompt}"), serde_json::json!([]), 0, 0, 0, 0, "stub".to_owned(), "{}".to_owned())
     }
 }
 
@@ -145,6 +148,9 @@ mod provider {
         pub content: String,
         pub tokens_in: u32,
         pub tokens_out: u32,
+        pub tokens_cached: u32,
+        pub tokens_reasoning: u32,
+        pub usage_raw: String,
     }
 
     pub enum Provider {
@@ -214,10 +220,15 @@ mod provider {
         let content = v["content"][0]["text"].as_str()
             .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("unexpected").to_owned())?
             .to_owned();
+        let usage = &v["usage"];
         Ok(CompletionResult {
             content,
-            tokens_in:  v["usage"]["input_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_out: v["usage"]["output_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_in:        usage["input_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_out:       usage["output_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_cached:    (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
+                              + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0)) as u32,
+            tokens_reasoning: 0,
+            usage_raw:        usage.to_string(),
         })
     }
 
@@ -239,10 +250,14 @@ mod provider {
         let content = v["choices"][0]["message"]["content"].as_str()
             .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("unexpected").to_owned())?
             .to_owned();
+        let usage = &v["usage"];
         Ok(CompletionResult {
             content,
-            tokens_in:  v["usage"]["prompt_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_out: v["usage"]["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_in:        usage["prompt_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_out:       usage["completion_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_cached:    usage["prompt_tokens_details"]["cached_tokens"].as_u64().unwrap_or(0) as u32,
+            tokens_reasoning: usage["completion_tokens_details"]["reasoning_tokens"].as_u64().unwrap_or(0) as u32,
+            usage_raw:        usage.to_string(),
         })
     }
 
@@ -326,10 +341,11 @@ mod provider {
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
-/// Estimate cost in USD based on public pricing (per-million-token rates, 2025).
-/// Returns 0.0 for local/unknown models — no cost for sovereign infra.
-fn estimate_usd(model: &str, tokens_in: u32, tokens_out: u32) -> f64 {
-    // (input_usd_per_1m, output_usd_per_1m)
+/// Estimate cost in USD using public 2025 per-million-token rates.
+/// Cached tokens are billed at ~10% of normal input rate (Anthropic/OpenAI prompt caching).
+/// Returns 0.0 for local/unknown models — sovereign infra is free.
+fn estimate_usd(model: &str, tokens_in: u32, tokens_out: u32, tokens_cached: u32) -> f64 {
+    // (input_per_1m, output_per_1m)
     let (rate_in, rate_out): (f64, f64) = if model.contains("claude-opus-4") {
         (15.0, 75.0)
     } else if model.contains("claude-sonnet-4") || model.contains("claude-sonnet-3-7") {
@@ -343,7 +359,10 @@ fn estimate_usd(model: &str, tokens_in: u32, tokens_out: u32) -> f64 {
     } else {
         return 0.0; // ollama, llama*, local models — free
     };
-    (tokens_in as f64 / 1_000_000.0) * rate_in
+    let uncached = tokens_in.saturating_sub(tokens_cached) as f64;
+    let cached   = tokens_cached as f64;
+    (uncached / 1_000_000.0) * rate_in
+        + (cached / 1_000_000.0) * rate_in * 0.1   // cache hit discount
         + (tokens_out as f64 / 1_000_000.0) * rate_out
 }
 
@@ -371,18 +390,21 @@ mod tests {
 
     #[test]
     fn react_returns_stub_on_native() {
-        let (content, tool_calls, tokens_in, tokens_out, model) = react("meu prompt");
+        let (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model, usage_raw) = react("meu prompt");
         assert!(!content.is_empty());
         assert!(tool_calls.is_array());
         assert_eq!(tool_calls.as_array().unwrap().len(), 0);
         assert_eq!(tokens_in, 0, "stub has no token count");
         assert_eq!(tokens_out, 0);
+        assert_eq!(tokens_cached, 0);
+        assert_eq!(tokens_reasoning, 0);
         assert!(!model.is_empty(), "model must be non-empty");
+        assert!(!usage_raw.is_empty());
     }
 
     #[test]
     fn agent_response_schema_has_required_fields() {
-        let (content, tool_calls, tokens_in, tokens_out, model) = react("hello");
+        let (content, tool_calls, tokens_in, tokens_out, _tokens_cached, _tokens_reasoning, model, _usage_raw) = react("hello");
         let node = serde_json::json!({
             "@type":      "AgentResponse",
             "@id":        "urn:pi-agent:resp-test",
@@ -425,37 +447,51 @@ mod tests {
     }
 
     #[test]
-    fn estimate_usd_sonnet_is_nonzero() {
-        let cost = estimate_usd("claude-sonnet-4-6", 1000, 500);
-        assert!(cost > 0.0, "sonnet should have a cost");
-        // 1000 in @ $3/1M + 500 out @ $15/1M = $0.003 + $0.0075 = $0.0105
+    fn estimate_usd_sonnet_no_cache() {
+        // 1000 in (uncached) @ $3/1M + 500 out @ $15/1M = $0.003 + $0.0075 = $0.0105
+        let cost = estimate_usd("claude-sonnet-4-6", 1000, 500, 0);
         let expected = (1000.0 / 1_000_000.0) * 3.0 + (500.0 / 1_000_000.0) * 15.0;
         assert!((cost - expected).abs() < 1e-10);
     }
 
     #[test]
+    fn estimate_usd_sonnet_with_cache_discount() {
+        // 800 uncached + 200 cached; cached at 10% rate
+        let cost = estimate_usd("claude-sonnet-4-6", 1000, 500, 200);
+        let expected = (800.0 / 1_000_000.0) * 3.0
+            + (200.0 / 1_000_000.0) * 3.0 * 0.1
+            + (500.0 / 1_000_000.0) * 15.0;
+        assert!((cost - expected).abs() < 1e-10);
+        assert!(cost < estimate_usd("claude-sonnet-4-6", 1000, 500, 0));
+    }
+
+    #[test]
     fn estimate_usd_ollama_is_zero() {
-        assert_eq!(estimate_usd("llama3.2", 10000, 5000), 0.0);
-        assert_eq!(estimate_usd("mistral", 1000, 1000), 0.0);
+        assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
+        assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);
     }
 
     #[test]
     fn usage_record_schema_has_required_fields() {
-        let (_, _, tokens_in, tokens_out, model) = react("hello");
+        let (_, _, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model, usage_raw) = react("hello");
         let node = serde_json::json!({
-            "@type":         "UsageRecord",
-            "@id":           "urn:pi-agent:usage-test",
-            "prompt_ref":    "urn:pi-agent:prompt-test",
-            "provider":      "stub",
-            "model":         model,
-            "tokens_in":     tokens_in,
-            "tokens_out":    tokens_out,
-            "estimated_usd": estimate_usd(&model, tokens_in, tokens_out),
-            "duration_ms":   0u64,
-            "timestamp_ns":  now_ns(),
+            "@type":            "UsageRecord",
+            "@id":              "urn:pi-agent:usage-test",
+            "prompt_ref":       "urn:pi-agent:prompt-test",
+            "provider":         "stub",
+            "model":            model,
+            "tokens_in":        tokens_in,
+            "tokens_out":       tokens_out,
+            "tokens_cached":    tokens_cached,
+            "tokens_reasoning": tokens_reasoning,
+            "estimated_usd":    estimate_usd(&model, tokens_in, tokens_out, tokens_cached),
+            "usage_raw":        usage_raw,
+            "duration_ms":      0u64,
+            "timestamp_ns":     now_ns(),
         });
-        for field in ["@type", "@id", "prompt_ref", "provider", "model",
-                      "tokens_in", "tokens_out", "estimated_usd", "duration_ms", "timestamp_ns"] {
+        for field in ["@type", "@id", "prompt_ref", "provider", "model", "tokens_in",
+                      "tokens_out", "tokens_cached", "tokens_reasoning", "estimated_usd",
+                      "usage_raw", "duration_ms", "timestamp_ns"] {
             assert!(node.get(field).is_some(), "UsageRecord missing field: {field}");
         }
         assert_eq!(node["@type"], "UsageRecord");
