@@ -10,6 +10,7 @@
     "memory": "8gb"
   },
   "features": {
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": false,
       "username": "vscode"
@@ -17,6 +18,8 @@
   },
   "remoteUser": "vscode",
   "containerEnv": {
+    "UV_SYSTEM_PYTHON": "true",
+    "UV_LINK_MODE": "copy",
     "RUSTUP_HOME": "/usr/local/rustup",
     "CARGO_HOME": "/usr/local/cargo",
     "CARGO_TERM_COLOR": "always",

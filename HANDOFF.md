@@ -8,159 +8,157 @@
 
 ---
 
-## O que foi construído nesta sessão
+## Estado atual do sprint
 
-### Commits entregues (em ordem)
+| Tarefa | Status | Arquivos-chave |
+|--------|--------|----------------|
+| 2A — `agent-tools` WASM | ✅ | `packages/agent-tools/` |
+| 2B — tractor linker + composition | ✅ | `packages/tractor/src/host/` |
+| 2B.5 — ws_server JSON routing | ✅ | `packages/tractor/src/daemon/ws_server.rs` |
+| 2C — `pi-agent` scaffold | ✅ | `packages/pi-agent/` |
+| **2C.1 — Multi-provider LLM via wasi:http** | ✅ | `packages/pi-agent/src/lib.rs` |
+| 2D — Budget envelopes / cost governance | ⬜ próximo | `packages/pi-agent/` |
+| 3 — Pi-Nano host em Zig | ⬜ sprint seguinte | |
+
+---
+
+## Commits entregues (todas as sessões)
 
 ```
-1e6181c  docs: Pi Agent decomposition, ADR-050, and agentic inspirations
-eaf3017  feat(tractor): add agent-tool WIT interfaces and host bridge for Pi Agent
-190afb5  chore(devcontainer): harden Rust build against 4 GB memory cap
+d8950ef  feat(tractor): Tarefa 2B — agent-tools linker and composition pipeline
+806b9cc  feat(agent-tools): scaffold agent-tools WASM component (Tarefa 2A)
 ```
 
-### Artefatos criados
+*(2B.5, 2C e testes foram implementados na mesma sessão sem commit separado — committar antes de iniciar 2C.1)*
+
+---
+
+## Artefatos criados / modificados (sessão atual)
 
 | Arquivo | O que é |
 |---------|---------|
-| `specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md` | Decisão arquitetural: Zig/zwasm host (Pi-Nano) + análise host vs. guest |
-| `docs/proposals/PI_AGENT_TOOL_DECOMPOSITION.md` | Requisitos e plano de fases para as 4 ferramentas do Pi Agent |
-| `wit/agent-tool-contract-v1.wit` | WIT das 4 ferramentas: `agent-fs` (read/write/edit) + `agent-shell` (spawn) |
-| `packages/tractor/wit/host/refarm-plugin-host.wit` | Atualizado com `agent-fs` e `agent-shell` como imports do world |
-| `packages/tractor/src/host/agent_tools_bridge.rs` | Implementação Rust das 4 ferramentas + 10 testes unitários |
-| `packages/tractor/src/host/mod.rs` | +`mod agent_tools_bridge` |
-| `packages/tractor/Cargo.toml` | +`diffy`, +`tempfile`, +`codegen-units=1` no profile dev |
-| `.devcontainer/devcontainer.json` | +`CARGO_BUILD_JOBS=2` para proteger o container de 4 GB |
-| `docs/INSPIRATIONS.md` | Nova seção "Agente Soberano": Claude Code, Zig, Babashka, zwasm, nullclaw |
+| `packages/tractor/src/lib.rs` | `AgentMessage`, `AgentChannels`, `register_for_events` |
+| `packages/tractor/src/daemon/ws_server.rs` | Branch `Message::Text` → roteamento JSON de prompt; 5 testes |
+| `packages/tractor/src/main.rs` | `Ok(handle) => register_for_events`; passa `agent_channels` ao WsServer |
+| `packages/tractor/src/host/plugin_host.rs` | `.inherit_env()` no `WasiCtxBuilder` — LLM_PROVIDER etc chegam ao plugin |
+| `packages/pi-agent/Cargo.toml` | cargo-component, wit-bindgen, serde_json, wasi |
+| `packages/pi-agent/wit/world.wit` | World `pi-agent` em `refarm:plugin@0.1.0` |
+| `packages/pi-agent/wit/refarm-plugin-host.wit` | Symlink → `packages/tractor/wit/host/refarm-plugin-host.wit` |
+| `packages/pi-agent/src/lib.rs` | Pipeline completo + `mod provider` (Anthropic/Ollama/OpenAI-compat via wasi:http); 5 testes |
 
 ---
 
-## Decisões arquiteturais tomadas (NÃO reverter sem discussão)
+## Decisões arquiteturais (não reverter sem discussão)
 
-### 1. Pi-Nano: Zig + zwasm (Caminho B confirmado)
+### (Todas as decisões anteriores mantidas — ver sessão anterior)
 
-O próximo host WASM do refarm é escrito em **Zig** usando **zwasm** como runtime do Component Model.
+### 6. wasi:http já está no host (Tarefa 2B)
 
-- **zwasm** (https://github.com/clojurewasm/zwasm): runtime WASM em Zig, v1.7.0, ~1.2 MB, 100% Component Model spec (62k testes). Produção-ready.
-- **nullclaw** (https://github.com/nullclaw/nullclaw): framework de AI assistant em Zig, 678 KB, <2ms boot. Referência de design para o CLI agêntico.
-- O host Rust/wasmtime (`packages/tractor`) **não é substituído** — é o daemon primário. O host Zig é o Pi-Nano para edge/constrained.
-- Plugins `.wasm` compilados para Component Model rodam nos dois hosts sem recompilação.
+`wasmtime_wasi_http::add_only_http_to_linker_async` é chamado em
+`plugin_host.rs:112` e `TractorStore` já implementa `WasiHttpView`.
+**Zero mudança necessária no tractor para 2C.1.** Só o plugin precisa ser modificado.
 
-### 2. Agent tools: plugin, não primitiva do host
+### 7. WIT multi-arquivo: apenas o primeiro arquivo com `package` pode ter `///` doc comment
 
-**A implementação atual em `agent_tools_bridge.rs` está correta como Fase 1 (bridge de desenvolvimento), mas a arquitetura alvo é:**
+O wit-parser trata qualquer comentário (`//` ou `///`) imediatamente antes de `package` como
+doc-comment do pacote. Quando dois arquivos no mesmo diretório declaram o mesmo pacote
+e ambos têm comentário antes de `package`, o parser rejeita com "found doc comments on multiple
+package items". Solução: apenas o arquivo "principal" tem `///`; o `world.wit` abre direto com
+`package` sem comentário anterior.
 
+### 8. `refarm-sdk.wit` tem `type` no nível de pacote — inválido em wit-parser moderno
+
+`refarm-sdk.wit` declara `type json-ld-node = string;` fora de qualquer interface.
+Isso funcionava em versões antigas do wit-parser mas falha em wit-bindgen 0.36.
+**Não usar `refarm-sdk.wit` como dep de WIT diretamente.** Usar `refarm-plugin-host.wit`
+(packages/tractor/wit/host/) que encapsula os tipos dentro de `interface types { }`.
+
+---
+
+## Tarefa concluída: 2C.1 — Multi-provider LLM via wasi:http
+
+### O que foi implementado
+
+`packages/pi-agent/src/lib.rs` — `#[cfg(target_arch = "wasm32")] mod provider`:
+
+| Provider | Env vars | Endpoint | Default model |
+|----------|----------|----------|---------------|
+| `anthropic` (default) | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/messages` | `claude-sonnet-4-6` |
+| `ollama` | nenhuma | `http://localhost:11434/v1/chat/completions` | `llama3.2` |
+| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1/chat/completions` | `gpt-4o-mini` |
+
+Variáveis de controle: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` (override de URL).
+
+O host (tractor) usa `.inherit_env()` no `WasiCtxBuilder` — todos os env vars do processo chegam ao plugin sem enumeração manual.
+
+### Validação de fumaça (browser dev console)
+```javascript
+const ws = new WebSocket('ws://localhost:42000');
+ws.onmessage = e => {
+  try { const n = JSON.parse(new TextDecoder().decode(e.data)); if (n?.['@type']==='AgentResponse') console.log('RESPONSE:', n) }
+  catch { console.log('[crdt frame]') }
+};
+const ask = msg => ws.send(JSON.stringify({ type: 'user:prompt', agent: 'pi-agent', payload: msg }));
+// ask('olá, quem és tu?')
+// LLM_PROVIDER=ollama LLM_MODEL=llama3.2 cargo run -p tractor
 ```
-tractor host (árbitro de composição)
-├── carrega agent-tools.wasm  ← EXPORTA: agent-fs, agent-shell
-├── carrega pi-agent.wasm     ← IMPORTA: agent-fs, agent-shell
-└── conecta em tempo de carga via Component Model composition
-```
 
-Motivação: usuário soberano pode substituir `agent-tools.wasm` por implementação própria sem recompilar o agente. Mesmo padrão do Pi (MCP servers = tool plugins).
+---
 
-**O WIT está correto** (`wit/agent-tool-contract-v1.wit`). Só quem implementa muda (host → plugin).
+## Próxima tarefa: 2D — Budget envelopes / cost governance
 
-### 3. Ferramentas de build — regras de sobrevivência do devcontainer
+Inspirado em `aretw0/agents-lab`. Idéia central: soberania sobre custos, modelo e janela de contexto.
 
-O container tem **4 GB hard cap** (`--memory=4g`). Cranelift usa ~1.5 GB/job.
+### O que fazer
 
+1. **Envelope de orçamento** — limite mensal por provedor (env var ou config):
+   ```
+   LLM_BUDGET_ANTHROPIC_USD=5.00   # máximo USD/mês
+   LLM_BUDGET_OLLAMA_USD=0         # grátis (local)
+   ```
+
+2. **Registro de uso** — após cada `react()`, armazenar um nó `UsageRecord`:
+   ```json
+   { "@type": "UsageRecord", "provider": "anthropic", "model": "claude-sonnet-4-6",
+     "tokens_in": 42, "tokens_out": 128, "estimated_usd": 0.00045, "timestamp_ns": ... }
+   ```
+
+3. **Verificação pré-requisição** — antes de chamar o provider, verificar se o orçamento do período (30 dias) ainda tem saldo. Se não, retornar erro amigável.
+
+4. **Fallback automático** — se Anthropic atingir budget, tentar Ollama local. Configurável via `LLM_FALLBACK_PROVIDER`.
+
+5. **Janela de contexto** — `LLM_MAX_CONTEXT_TOKENS` como guard antes de enviar prompts longos (truncar ou resumir).
+
+---
+
+## Cobertura de testes atual
+
+| Pacote / módulo | Testes | O que garante |
+|-----------------|--------|---------------|
+| `tractor` ws_server | 5 | Routing JSON 2B.5: happy path, agente desconhecido, JSON malformado, type errado, frame CRDT inicial |
+| `tractor` agent_tools_bridge | 13 | agent-fs (read/write/edit), agent-shell (echo, exit code, argv, timeout, stdin, env) |
+| `tractor` storage / sync / telemetry / trust | 18 | Camadas de base |
+| `pi-agent` | 5 | Schema AgentResponse (todos os campos canário), unicidade de ID, react_stub; todos nativos (provider gateado em wasm32) |
+| **Total** | **41** | |
+
+Para rodar tudo:
 ```bash
-# ✅ SEMPRE usar:
-cargo check                        # valida sem codegen (~300 MB)
-cargo test --test <arquivo>        # um arquivo de teste por vez
-
-# ❌ NUNCA usar sem aviso explícito ao Arthur:
-cargo build                        # codegen completo → OOM risco
-cargo test                         # suite completo → OOM risco
+cargo test --manifest-path packages/tractor/Cargo.toml --lib
+cargo test --manifest-path packages/pi-agent/Cargo.toml
 ```
-
-`CARGO_BUILD_JOBS=2` está em `devcontainer.json` — entra em vigor no próximo **Rebuild Container**.
-
----
-
-## Próximo sprint: o que fazer
-
-### Tarefa 2A — `packages/agent-tools/` (plugin que exporta as 4 ferramentas)
-
-Mover a lógica de `packages/tractor/src/host/agent_tools_bridge.rs` para um plugin cargo-component standalone.
-
-```
-packages/agent-tools/
-├── Cargo.toml          (cargo-component, wasm32-wasip2 target)
-├── wit/
-│   └── world.wit       (importa wasi:filesystem, wasi:cli; exporta agent-fs + agent-shell)
-└── src/
-    └── lib.rs          (implementação — mesma lógica do agent_tools_bridge.rs atual)
-```
-
-O WIT de exportação já existe em `wit/agent-tool-contract-v1.wit`. Adaptar para world de plugin.
-
-### Tarefa 2B — Tractor aprende a compor plugins
-
-Quando carregar um plugin que importa `agent-fs`, o tractor deve:
-1. Verificar se há um plugin carregado que exporta `agent-fs`
-2. Fazer a fiação via `Linker` (wasmtime já suporta isso)
-3. Fallback para host primitive se não houver plugin de ferramentas
-
-O `get-plugin-api` em `tractor-bridge` (WIT) é o embrião desta descoberta.
-
-### Tarefa 2C — `packages/pi-agent/` (o agente em si)
-
-Plugin cargo-component que:
-- Importa `agent-fs`, `agent-shell` (do world de composição)
-- Importa `tractor-bridge` (acesso ao grafo soberano)
-- Exporta `integration` (lifecycle do tractor: setup/ingest/on-event)
-- Recebe prompts via `on-event("user:prompt", payload)` e responde via tool calls
-
-### Tarefa 3 — Pi-Nano host em Zig (sprint seguinte)
-
-Scaffold de `packages/tractor-zig/` usando zwasm:
-- Não é substituto do Rust tractor — é o segundo runtime do ADR-049
-- Implementa o mesmo protocolo WebSocket (porta 42000, frames Loro binários)
-- Mesmo `PHYSICAL_SCHEMA_V1` SQLite
-- Muito mais leve para desenvolver (sem cranelift)
 
 ---
 
 ## Referências críticas
 
-| Recurso | URL / Path | Por quê importa |
-|---------|-----------|-----------------|
-| zwasm | https://github.com/clojurewasm/zwasm | Runtime WASM em Zig para Pi-Nano |
-| nullclaw | https://github.com/nullclaw/nullclaw | Design do CLI agêntico em Zig |
-| ADR-050 | `specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md` | Decisões Zig/zwasm + decomposição Pi tools |
-| PI decomposition | `docs/proposals/PI_AGENT_TOOL_DECOMPOSITION.md` | Requisitos e fases |
-| WIT contrato | `wit/agent-tool-contract-v1.wit` | Interfaces das 4 ferramentas |
-| Host WIT | `packages/tractor/wit/host/refarm-plugin-host.wit` | World que o host Rust/Zig implementa |
-| Agent tools bridge | `packages/tractor/src/host/agent_tools_bridge.rs` | Fase 1 (host primitive, migrar para plugin) |
-| ADR-047/048/049 | `specs/ADRs/` | Contexto do Rust tractor graduado |
-| VISION 2026 | `docs/proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md` | Estrela do norte: AI como WASI syscall |
-
----
-
-## Perguntas abertas (Arthur decide)
-
-1. **Sequência das tarefas 2A/2B/2C**: fazer em paralelo ou sequencial? Sugestão: 2A → 2B → 2C.
-2. **CLI agêntico**: aproveitar Anthropic SDK (Claude API) como LLM backend? Ou agnóstico de provider desde o início? nullclaw é agnóstico — pode ser o modelo.
-3. **Devcontainer rebuild**: quando fazer? O `CARGO_BUILD_JOBS=2` só entra em vigor após rebuild. Pode fazer no início do próximo sprint.
-
----
-
-## Estado do repositório ao fechar a sessão
-
-```bash
-git log --oneline -5
-# 190afb5 chore(devcontainer): harden Rust build against 4 GB memory cap
-# eaf3017 feat(tractor): add agent-tool WIT interfaces and host bridge for Pi Agent
-# 1e6181c docs: Pi Agent decomposition, ADR-050, and agentic inspirations
-# 853be7c chore(devcontainer): adicionar suporte a configurações de localidade e cache
-# a679389 chore(factory): harden devcontainer and swarm preflight
-
-git status
-# nothing to commit, working tree clean
-```
-
-`cargo check` em `packages/tractor` — zero erros, zero warnings.
+| Recurso | Path | Por quê importa |
+|---------|------|-----------------|
+| Plugin host linker | `packages/tractor/src/host/plugin_host.rs:102-132` | wasi:http no linker (linha 112); `.inherit_env()` (linha 163) |
+| WsServer JSON path | `packages/tractor/src/daemon/ws_server.rs:154-170` | Roteamento de prompt 2B.5 |
+| Pi-agent pipeline | `packages/pi-agent/src/lib.rs:60-98` | handle_prompt + AgentResponse |
+| Provider abstraction | `packages/pi-agent/src/lib.rs:118-305` | Anthropic/Ollama/OpenAI-compat via wasi:http |
+| WIT válido (host) | `packages/tractor/wit/host/refarm-plugin-host.wit` | Usar este, não refarm-sdk.wit |
+| ADR-050 | `specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md` | Decisões Zig/zwasm + Pi-Nano |
 
 ---
 
@@ -168,7 +166,7 @@ git status
 
 Cole no início da conversa:
 
-> "Estou retomando o sprint do Pi Agent do refarm. Leia o HANDOFF.md na raiz do projeto e me diga o que está pronto, o que está pendente, e o que precisamos fazer agora."
+> "Estou retomando o sprint do Pi Agent do refarm. Leia o HANDOFF.md na raiz e me diga o que está pronto, o que está pendente, e o que precisamos fazer agora."
 
 ---
 
