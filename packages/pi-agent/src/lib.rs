@@ -11,6 +11,7 @@
 //!   LLM_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
 //!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
 //!   LLM_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
+//!   LLM_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
 //!
 //! Ollama: no key needed; defaults to http://localhost:11434
 //!
@@ -155,7 +156,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
             prov.complete(SYSTEM, &messages)
         };
         match primary_result {
-            Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
+            Ok(r) => (r.content, r.tool_calls, r.tokens_in, r.tokens_out,
                       r.tokens_cached, r.tokens_reasoning, model, r.usage_raw),
             Err(primary_err) => {
                 if let Ok(fallback_name) = std::env::var("LLM_FALLBACK_PROVIDER") {
@@ -165,7 +166,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
                     std::env::set_var("LLM_PROVIDER", original_provider);
                     let fb_model = fb.model().to_owned();
                     match fb.complete(SYSTEM, &messages) {
-                        Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
+                        Ok(r) => (r.content, r.tool_calls, r.tokens_in, r.tokens_out,
                                   r.tokens_cached, r.tokens_reasoning, fb_model, r.usage_raw),
                         Err(e) => (format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
                                    serde_json::json!([]), 0, 0, 0, 0, fb_model, "{}".to_owned()),
@@ -267,11 +268,80 @@ mod provider {
 
     pub struct CompletionResult {
         pub content: String,
+        /// Normalized log of tool calls executed during the agentic loop: [{name, input, result}]
+        pub tool_calls: serde_json::Value,
         pub tokens_in: u32,
         pub tokens_out: u32,
         pub tokens_cached: u32,
         pub tokens_reasoning: u32,
         pub usage_raw: String,
+    }
+
+    // ── Tool definitions ──────────────────────────────────────────────────────
+
+    fn tools_anthropic() -> serde_json::Value {
+        serde_json::json!([
+            {"name":"read_file","description":"Read the contents of a file at an absolute path.",
+             "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"}},"required":["path"]}},
+            {"name":"write_file","description":"Write UTF-8 content to a file atomically.",
+             "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
+            {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
+             "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
+        ])
+    }
+
+    fn tools_openai() -> serde_json::Value {
+        serde_json::json!([
+            {"type":"function","function":{"name":"read_file","description":"Read file at absolute path.",
+             "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
+            {"type":"function","function":{"name":"write_file","description":"Write UTF-8 content to file atomically.",
+             "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
+            {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
+             "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
+        ])
+    }
+
+    // ── Tool dispatch (wasm32: calls agent_fs / agent_shell WIT imports) ──────
+
+    pub fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
+        use crate::refarm::plugin::{agent_fs, agent_shell};
+        match name {
+            "read_file" => {
+                let path = input["path"].as_str().unwrap_or("");
+                match agent_fs::read(path) {
+                    Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+                    Err(e)    => format!("[error reading {path}] {e}"),
+                }
+            }
+            "write_file" => {
+                let path    = input["path"].as_str().unwrap_or("");
+                let content = input["content"].as_str().unwrap_or("");
+                match agent_fs::write(path, content.as_bytes()) {
+                    Ok(())  => format!("wrote {} bytes to {path}", content.len()),
+                    Err(e)  => format!("[error writing {path}] {e}"),
+                }
+            }
+            "bash" => {
+                let argv: Vec<String> = input["argv"].as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                    .unwrap_or_default();
+                if argv.is_empty() { return "[error] bash requires argv".into(); }
+                let cwd        = input["cwd"].as_str().map(String::from);
+                let timeout_ms = input["timeout_ms"].as_u64().unwrap_or(30_000) as u32;
+                let req = agent_shell::SpawnRequest { argv, env: vec![], cwd, timeout_ms, stdin: None };
+                match agent_shell::spawn(&req) {
+                    Ok(r) => {
+                        let out = String::from_utf8_lossy(&r.stdout);
+                        let err = String::from_utf8_lossy(&r.stderr);
+                        if r.timed_out           { format!("[timeout {timeout_ms}ms]\n{out}\n{err}") }
+                        else if r.exit_code != 0 { format!("[exit {}]\n{out}\n{err}", r.exit_code) }
+                        else                     { out.into_owned() }
+                    }
+                    Err(e) => format!("[spawn error] {e}"),
+                }
+            }
+            other => format!("[error] unknown tool: {other}"),
+        }
     }
 
     pub enum Provider {
@@ -327,66 +397,155 @@ mod provider {
     // ── Anthropic wire format ─────────────────────────────────────────────────
 
     fn anthropic(api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
-        let msgs: Vec<_> = messages.iter()
+        let hdrs = [("content-type", "application/json"), ("x-api-key", api_key),
+                    ("anthropic-version", "2023-06-01")];
+        let max_iter = std::env::var("LLM_TOOL_CALL_MAX_ITER")
+            .ok().and_then(|v| v.parse::<u32>().ok()).unwrap_or(5);
+
+        // In-flight messages: start from CRDT history, grow with tool call/result turns.
+        let mut wire_msgs: Vec<serde_json::Value> = messages.iter()
             .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
             .collect();
-        let body = serde_json::json!({
-            "model": model, "max_tokens": 1024, "system": system,
-            "messages": msgs,
-        }).to_string();
 
-        let bytes = http_post(
-            "https://api.anthropic.com", "/v1/messages",
-            &[("content-type", "application/json"), ("x-api-key", api_key),
-              ("anthropic-version", "2023-06-01")],
-            body.as_bytes(),
-        )?;
+        let mut tokens_in = 0u32;
+        let mut tokens_out = 0u32;
+        let mut tokens_cached = 0u32;
+        let mut last_usage_raw = "{}".to_string();
+        let mut executed_calls: Vec<serde_json::Value> = Vec::new();
 
-        let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
-        let content = v["content"][0]["text"].as_str()
-            .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("unexpected").to_owned())?
-            .to_owned();
-        let usage = &v["usage"];
-        Ok(CompletionResult {
-            content,
-            tokens_in:        usage["input_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_out:       usage["output_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_cached:    (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
-                              + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0)) as u32,
-            tokens_reasoning: 0,
-            usage_raw:        usage.to_string(),
-        })
+        for _iter in 0..=max_iter {
+            let body = serde_json::json!({
+                "model": model, "max_tokens": 1024, "system": system,
+                "tools": tools_anthropic(),
+                "messages": wire_msgs,
+            }).to_string();
+
+            let bytes = http_post("https://api.anthropic.com", "/v1/messages", &hdrs, body.as_bytes())?;
+            let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
+
+            let usage = &v["usage"];
+            tokens_in     += usage["input_tokens"].as_u64().unwrap_or(0) as u32;
+            tokens_out    += usage["output_tokens"].as_u64().unwrap_or(0) as u32;
+            tokens_cached += (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
+                            + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0)) as u32;
+            last_usage_raw = usage.to_string();
+
+            // Collect tool_use blocks from content array.
+            let content_arr = v["content"].as_array().cloned().unwrap_or_default();
+            let tool_uses: Vec<&serde_json::Value> = content_arr.iter()
+                .filter(|c| c["type"] == "tool_use")
+                .collect();
+
+            if tool_uses.is_empty() || _iter == max_iter {
+                // Final text response.
+                let text = content_arr.iter()
+                    .find(|c| c["type"] == "text")
+                    .and_then(|c| c["text"].as_str())
+                    .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("no text in response").to_owned())?
+                    .to_owned();
+                return Ok(CompletionResult {
+                    content: text,
+                    tool_calls: serde_json::Value::Array(executed_calls),
+                    tokens_in, tokens_out, tokens_cached,
+                    tokens_reasoning: 0,
+                    usage_raw: last_usage_raw,
+                });
+            }
+
+            // Inject assistant turn (with tool_use blocks) into wire messages.
+            wire_msgs.push(serde_json::json!({"role": "assistant", "content": content_arr}));
+
+            // Dispatch each tool and collect results.
+            let tool_results: Vec<serde_json::Value> = tool_uses.iter().map(|tc| {
+                let name  = tc["name"].as_str().unwrap_or("");
+                let input = &tc["input"];
+                let id    = tc["id"].as_str().unwrap_or("");
+                let result = dispatch_tool(name, input);
+                executed_calls.push(serde_json::json!({"name": name, "input": input, "result": result}));
+                serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result})
+            }).collect();
+
+            wire_msgs.push(serde_json::json!({"role": "user", "content": tool_results}));
+        }
+        unreachable!()
     }
 
     // ── OpenAI-compatible wire format (covers Ollama, OpenAI, Groq, etc.) ─────
 
     fn openai_compat(base_url: &str, api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
-        let mut msgs = vec![serde_json::json!({"role": "system", "content": system})];
-        msgs.extend(messages.iter().map(|(role, content)| serde_json::json!({"role": role, "content": content})));
-        let body = serde_json::json!({
-            "model": model, "max_tokens": 1024,
-            "messages": msgs,
-        }).to_string();
-
         let auth = if !api_key.is_empty() { format!("Bearer {api_key}") } else { String::new() };
-        let mut hdrs: Vec<(&str, &str)> = vec![("content-type", "application/json")];
-        if !auth.is_empty() { hdrs.push(("authorization", &auth)); }
+        let mut base_hdrs: Vec<(&str, &str)> = vec![("content-type", "application/json")];
+        if !auth.is_empty() { base_hdrs.push(("authorization", &auth)); }
 
-        let bytes = http_post(base_url, "/v1/chat/completions", &hdrs, body.as_bytes())?;
+        let max_iter = std::env::var("LLM_TOOL_CALL_MAX_ITER")
+            .ok().and_then(|v| v.parse::<u32>().ok()).unwrap_or(5);
 
-        let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
-        let content = v["choices"][0]["message"]["content"].as_str()
-            .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("unexpected").to_owned())?
-            .to_owned();
-        let usage = &v["usage"];
-        Ok(CompletionResult {
-            content,
-            tokens_in:        usage["prompt_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_out:       usage["completion_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_cached:    usage["prompt_tokens_details"]["cached_tokens"].as_u64().unwrap_or(0) as u32,
-            tokens_reasoning: usage["completion_tokens_details"]["reasoning_tokens"].as_u64().unwrap_or(0) as u32,
-            usage_raw:        usage.to_string(),
-        })
+        let mut wire_msgs: Vec<serde_json::Value> = {
+            let mut v = vec![serde_json::json!({"role": "system", "content": system})];
+            v.extend(messages.iter().map(|(r, c)| serde_json::json!({"role": r, "content": c})));
+            v
+        };
+
+        let mut tokens_in = 0u32;
+        let mut tokens_out = 0u32;
+        let mut tokens_cached = 0u32;
+        let mut tokens_reasoning = 0u32;
+        let mut last_usage_raw = "{}".to_string();
+        let mut executed_calls: Vec<serde_json::Value> = Vec::new();
+
+        for _iter in 0..=max_iter {
+            let body = serde_json::json!({
+                "model": model, "max_tokens": 1024,
+                "tools": tools_openai(),
+                "messages": wire_msgs,
+            }).to_string();
+
+            let bytes = http_post(base_url, "/v1/chat/completions", &base_hdrs, body.as_bytes())?;
+            let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
+
+            let usage = &v["usage"];
+            tokens_in       += usage["prompt_tokens"].as_u64().unwrap_or(0) as u32;
+            tokens_out      += usage["completion_tokens"].as_u64().unwrap_or(0) as u32;
+            tokens_cached   += usage["prompt_tokens_details"]["cached_tokens"].as_u64().unwrap_or(0) as u32;
+            tokens_reasoning += usage["completion_tokens_details"]["reasoning_tokens"].as_u64().unwrap_or(0) as u32;
+            last_usage_raw   = usage.to_string();
+
+            let msg = &v["choices"][0]["message"];
+            let tool_calls_json = msg["tool_calls"].as_array().cloned().unwrap_or_default();
+
+            if tool_calls_json.is_empty() || _iter == max_iter {
+                let content = msg["content"].as_str()
+                    .ok_or_else(|| v["error"]["message"].as_str().unwrap_or("no content").to_owned())?
+                    .to_owned();
+                return Ok(CompletionResult {
+                    content,
+                    tool_calls: serde_json::Value::Array(executed_calls),
+                    tokens_in, tokens_out, tokens_cached, tokens_reasoning,
+                    usage_raw: last_usage_raw,
+                });
+            }
+
+            // Inject assistant turn with tool_calls into wire messages.
+            wire_msgs.push(serde_json::json!({
+                "role": "assistant",
+                "content": msg["content"],
+                "tool_calls": tool_calls_json,
+            }));
+
+            // Dispatch each tool and append result messages.
+            for tc in &tool_calls_json {
+                let fn_obj = &tc["function"];
+                let name   = fn_obj["name"].as_str().unwrap_or("");
+                let input: serde_json::Value = serde_json::from_str(
+                    fn_obj["arguments"].as_str().unwrap_or("{}")
+                ).unwrap_or(serde_json::json!({}));
+                let id     = tc["id"].as_str().unwrap_or("");
+                let result = dispatch_tool(name, &input);
+                executed_calls.push(serde_json::json!({"name": name, "input": input, "result": &result}));
+                wire_msgs.push(serde_json::json!({"role": "tool", "tool_call_id": id, "content": result}));
+            }
+        }
+        unreachable!()
     }
 
     // ── HTTP primitives ───────────────────────────────────────────────────────
