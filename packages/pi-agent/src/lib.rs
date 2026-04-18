@@ -10,6 +10,7 @@
 //!   LLM_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
 //!   LLM_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
 //!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
+//!   LLM_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!
 //! Ollama: no key needed; defaults to http://localhost:11434
 //!
@@ -141,8 +142,8 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
         const SYSTEM: &str =
             "You are pi-agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
-        // Assemble conversation history from CRDT, append current prompt as final user turn.
-        let mut messages = query_history(10);
+        // Assemble conversation history from CRDT (opt-in via LLM_HISTORY_TURNS).
+        let mut messages = query_history();
         messages.push(("user".to_owned(), prompt.to_owned()));
 
         let primary_result = if budget_exceeded_for_provider(&primary_name) {
@@ -230,10 +231,16 @@ fn history_from_nodes(nodes: &[String], max_turns: usize) -> Vec<(String, String
         .collect()
 }
 
-/// Fetch recent conversation history from the CRDT store (wasm32 only).
-/// Returns up to `max_turns` (role, content) pairs, oldest first.
+/// Fetch conversation history from the CRDT store (wasm32 only).
+/// Controlled by LLM_HISTORY_TURNS env var (default: 0 = disabled).
+/// Returns up to that many (role, content) pairs, oldest first.
 #[cfg(target_arch = "wasm32")]
-fn query_history(max_turns: usize) -> Vec<(String, String)> {
+fn query_history() -> Vec<(String, String)> {
+    let max_turns = std::env::var("LLM_HISTORY_TURNS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+    if max_turns == 0 { return vec![]; }
     let limit = (max_turns * 2) as u32; // fetch 2× to cover interleaved user/assistant
     let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
     nodes.extend(tractor_bridge::query_nodes("AgentResponse", limit).unwrap_or_default());
@@ -683,6 +690,18 @@ mod tests {
     fn history_from_nodes_returns_empty_for_empty_input() {
         let h = history_from_nodes(&[], 10);
         assert!(h.is_empty());
+    }
+
+    #[test]
+    fn history_disabled_by_default_when_env_unset() {
+        // LLM_HISTORY_TURNS defaults to 0 — no history injected without opt-in.
+        // history_from_nodes with max_turns=0 must return empty regardless of records.
+        let now = now_ns();
+        let nodes = vec![
+            serde_json::json!({"@type":"UserPrompt","content":"q","timestamp_ns":now}).to_string(),
+        ];
+        let h = history_from_nodes(&nodes, 0);
+        assert!(h.is_empty(), "max_turns=0 must produce empty history");
     }
 
     #[test]
