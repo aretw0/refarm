@@ -1,19 +1,25 @@
 //! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
 //!
 //! # Provider selection (env vars)
-//!   LLM_PROVIDER=anthropic|ollama|openai  (default: anthropic)
+//!   LLM_PROVIDER=anthropic|ollama|openai  (default: last-resort ollama)
+//!   LLM_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
 //!   LLM_MODEL=<model-id>                   (provider-specific default if unset)
 //!   LLM_BASE_URL=<url>                     (optional override; required for openai-compat)
 //!   ANTHROPIC_API_KEY=sk-ant-...
 //!   OPENAI_API_KEY=sk-...                  (also used for any OpenAI-compat provider)
+//!   LLM_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
+//!   LLM_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
+//!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
 //!
-//! Ollama: LLM_PROVIDER=ollama (no key needed; defaults to http://localhost:11434)
+//! Ollama: no key needed; defaults to http://localhost:11434
 //!
 //! # Pipeline
 //!   on-event("user:prompt", prompt)
-//!     → store UserPrompt node
-//!     → provider::react()  — dispatches to Anthropic or OpenAI-compat wire format
-//!     → store AgentResponse node (triggers reactive CRDT push to all WS clients)
+//!     → guard: LLM_MAX_CONTEXT_TOKENS
+//!     → guard: LLM_BUDGET_<PROVIDER>_USD (reads UsageRecord CRDT nodes)
+//!     → provider::complete()  — dispatches to Anthropic or OpenAI-compat wire format
+//!     → on error/budget block: retry via LLM_FALLBACK_PROVIDER
+//!     → store AgentResponse + UsageRecord nodes (triggers reactive CRDT push)
 
 wit_bindgen::generate!({
     world: "pi-agent",
@@ -91,12 +97,7 @@ fn handle_prompt(prompt: String) {
 
     let _ = tractor_bridge::store_node(&response.to_string());
 
-    let provider_name = {
-        #[cfg(target_arch = "wasm32")]
-        { std::env::var("LLM_PROVIDER").unwrap_or_else(|_| "anthropic".into()) }
-        #[cfg(not(target_arch = "wasm32"))]
-        { "stub".to_owned() }
-    };
+    let provider_name = provider_name_from_env();
     let usage = serde_json::json!({
         "@type":         "UsageRecord",
         "@id":           format!("urn:pi-agent:usage-{}", new_id()),
@@ -132,12 +133,21 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
 
     #[cfg(target_arch = "wasm32")]
     {
+        let primary_name = provider_name_from_env();
         let prov = provider::Provider::from_env();
         let model = prov.model().to_owned();
         const SYSTEM: &str =
             "You are pi-agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
-        match prov.complete(SYSTEM, prompt) {
+        let primary_result = if budget_exceeded_for_provider(&primary_name) {
+            Err(format!(
+                "[budget] LLM_BUDGET_{}_USD exceeded — primary provider blocked",
+                primary_name.to_uppercase()
+            ))
+        } else {
+            prov.complete(SYSTEM, prompt)
+        };
+        match primary_result {
             Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
                       r.tokens_cached, r.tokens_reasoning, model, r.usage_raw),
             Err(primary_err) => {
@@ -175,6 +185,31 @@ fn provider_name_from_env() -> String {
     std::env::var("LLM_PROVIDER")
         .or_else(|_| std::env::var("LLM_DEFAULT_PROVIDER"))
         .unwrap_or_else(|_| "ollama".into())
+}
+
+/// Sum `estimated_usd` from UsageRecord JSON payloads for `provider`
+/// within a rolling window ending at `now_ns`. Records older than the window are excluded.
+fn sum_provider_spend_usd(records: &[String], provider: &str, now_ns: u64, window_ns: u64) -> f64 {
+    let cutoff = now_ns.saturating_sub(window_ns);
+    records.iter().fold(0.0_f64, |acc, raw| {
+        let Ok(v) = serde_json::from_str::<serde_json::Value>(raw) else { return acc; };
+        if v["provider"].as_str() != Some(provider) { return acc; }
+        let ts = v["timestamp_ns"].as_u64().unwrap_or(0);
+        if ts < cutoff { return acc; }
+        acc + v["estimated_usd"].as_f64().unwrap_or(0.0)
+    })
+}
+
+/// Returns true when `LLM_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
+/// spend for `provider_name` (read from CRDT UsageRecord nodes) meets or exceeds it.
+#[cfg(target_arch = "wasm32")]
+fn budget_exceeded_for_provider(provider_name: &str) -> bool {
+    let budget_key = format!("LLM_BUDGET_{}_USD", provider_name.to_uppercase());
+    let Ok(budget_str) = std::env::var(&budget_key) else { return false; };
+    let Ok(budget) = budget_str.parse::<f64>() else { return false; };
+    let records = tractor_bridge::query_nodes("UsageRecord", 10_000).unwrap_or_default();
+    const WINDOW_30D_NS: u64 = 30 * 24 * 3600 * 1_000_000_000;
+    sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -557,6 +592,48 @@ mod tests {
     fn estimate_usd_ollama_is_zero() {
         assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
         assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);
+    }
+
+    #[test]
+    fn budget_sum_filters_by_provider_and_window() {
+        let now = now_ns();
+        let window = 30u64 * 24 * 3600 * 1_000_000_000;
+        let recent = now - 1_000_000_000; // 1s ago — inside window
+        let records = vec![
+            serde_json::json!({"provider":"anthropic","estimated_usd":1.5,"timestamp_ns":recent}).to_string(),
+            serde_json::json!({"provider":"openai","estimated_usd":0.5,"timestamp_ns":recent}).to_string(),
+            serde_json::json!({"provider":"anthropic","estimated_usd":0.3,"timestamp_ns":recent}).to_string(),
+        ];
+        let spend = sum_provider_spend_usd(&records, "anthropic", now, window);
+        assert!((spend - 1.8).abs() < 1e-10, "anthropic spend should be 1.8, got {spend}");
+        let openai_spend = sum_provider_spend_usd(&records, "openai", now, window);
+        assert!((openai_spend - 0.5).abs() < 1e-10, "openai spend should be 0.5, got {openai_spend}");
+    }
+
+    #[test]
+    fn budget_sum_excludes_records_outside_window() {
+        let now = now_ns();
+        let window = 30u64 * 24 * 3600 * 1_000_000_000;
+        let stale_ts = now.saturating_sub(window + 1_000_000_000); // 1s beyond 30d
+        let records = vec![
+            serde_json::json!({"provider":"anthropic","estimated_usd":100.0,"timestamp_ns":stale_ts}).to_string(),
+            serde_json::json!({"provider":"anthropic","estimated_usd":2.0,"timestamp_ns":now - 1_000_000_000}).to_string(),
+        ];
+        let spend = sum_provider_spend_usd(&records, "anthropic", now, window);
+        assert!((spend - 2.0).abs() < 1e-10, "stale record must be excluded: {spend}");
+    }
+
+    #[test]
+    fn budget_sum_returns_zero_for_empty_records() {
+        let spend = sum_provider_spend_usd(&[], "anthropic", now_ns(), 30 * 24 * 3600 * 1_000_000_000);
+        assert_eq!(spend, 0.0);
+    }
+
+    #[test]
+    fn budget_sum_ignores_malformed_records() {
+        let records = vec!["not-json".to_string(), "{}".to_string()];
+        let spend = sum_provider_spend_usd(&records, "anthropic", now_ns(), 30 * 24 * 3600 * 1_000_000_000);
+        assert_eq!(spend, 0.0, "malformed records must not panic or contribute spend");
     }
 
     #[test]
