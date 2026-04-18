@@ -67,9 +67,10 @@ fn handle_prompt(prompt: String) {
     let prompt_ref = format!("urn:pi-agent:prompt-{}", new_id());
 
     let prompt_node = serde_json::json!({
-        "@type": "UserPrompt",
-        "@id":   prompt_ref,
-        "content": prompt.clone(),
+        "@type":        "UserPrompt",
+        "@id":          prompt_ref,
+        "content":      prompt.clone(),
+        "timestamp_ns": now_ns(),
     });
     if tractor_bridge::store_node(&prompt_node.to_string()).is_err() {
         return;
@@ -80,13 +81,14 @@ fn handle_prompt(prompt: String) {
     let duration_ms = now_ns().saturating_sub(t0) / 1_000_000;
 
     let response = serde_json::json!({
-        "@type":      "AgentResponse",
-        "@id":        format!("urn:pi-agent:resp-{}", new_id()),
-        "prompt_ref": prompt_ref,
-        "content":    content,
-        "sequence":   0,
-        "is_final":   true,
-        "tool_calls": tool_calls,
+        "@type":        "AgentResponse",
+        "@id":          format!("urn:pi-agent:resp-{}", new_id()),
+        "prompt_ref":   prompt_ref,
+        "content":      content,
+        "sequence":     0,
+        "is_final":     true,
+        "tool_calls":   tool_calls,
+        "timestamp_ns": now_ns(),
         "llm": {
             "model":       model,
             "tokens_in":   tokens_in,
@@ -139,13 +141,17 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
         const SYSTEM: &str =
             "You are pi-agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
+        // Assemble conversation history from CRDT, append current prompt as final user turn.
+        let mut messages = query_history(10);
+        messages.push(("user".to_owned(), prompt.to_owned()));
+
         let primary_result = if budget_exceeded_for_provider(&primary_name) {
             Err(format!(
                 "[budget] LLM_BUDGET_{}_USD exceeded — primary provider blocked",
                 primary_name.to_uppercase()
             ))
         } else {
-            prov.complete(SYSTEM, prompt)
+            prov.complete(SYSTEM, &messages)
         };
         match primary_result {
             Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
@@ -157,7 +163,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
                     let fb = provider::Provider::from_env();
                     std::env::set_var("LLM_PROVIDER", original_provider);
                     let fb_model = fb.model().to_owned();
-                    match fb.complete(SYSTEM, prompt) {
+                    match fb.complete(SYSTEM, &messages) {
                         Ok(r) => (r.content, serde_json::json!([]), r.tokens_in, r.tokens_out,
                                   r.tokens_cached, r.tokens_reasoning, fb_model, r.usage_raw),
                         Err(e) => (format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
@@ -198,6 +204,40 @@ fn sum_provider_spend_usd(records: &[String], provider: &str, now_ns: u64, windo
         if ts < cutoff { return acc; }
         acc + v["estimated_usd"].as_f64().unwrap_or(0.0)
     })
+}
+
+/// Build conversation messages from raw UserPrompt + AgentResponse JSON payloads.
+/// Sorted by timestamp_ns ascending; capped at `max_turns` most recent entries.
+/// Returns (role, content) pairs ready to pass to Provider::complete.
+fn history_from_nodes(nodes: &[String], max_turns: usize) -> Vec<(String, String)> {
+    let mut entries: Vec<(u64, &'static str, String)> = nodes.iter()
+        .filter_map(|raw| {
+            let v = serde_json::from_str::<serde_json::Value>(raw).ok()?;
+            let ts = v["timestamp_ns"].as_u64().unwrap_or(0);
+            let role = match v["@type"].as_str()? {
+                "UserPrompt"    => "user",
+                "AgentResponse" => "assistant",
+                _ => return None,
+            };
+            let content = v["content"].as_str()?.to_owned();
+            Some((ts, role, content))
+        })
+        .collect();
+    entries.sort_by_key(|(ts, _, _)| *ts);
+    let start = entries.len().saturating_sub(max_turns);
+    entries[start..].iter()
+        .map(|(_, role, content)| (role.to_string(), content.clone()))
+        .collect()
+}
+
+/// Fetch recent conversation history from the CRDT store (wasm32 only).
+/// Returns up to `max_turns` (role, content) pairs, oldest first.
+#[cfg(target_arch = "wasm32")]
+fn query_history(max_turns: usize) -> Vec<(String, String)> {
+    let limit = (max_turns * 2) as u32; // fetch 2× to cover interleaved user/assistant
+    let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
+    nodes.extend(tractor_bridge::query_nodes("AgentResponse", limit).unwrap_or_default());
+    history_from_nodes(&nodes, max_turns)
 }
 
 /// Returns true when `LLM_BUDGET_<PROVIDER>_USD` is set and the rolling 30-day
@@ -260,16 +300,18 @@ mod provider {
             match self { Provider::Anthropic { model, .. } | Provider::OpenAiCompat { model, .. } => model }
         }
 
-        pub fn complete(&self, system: &str, prompt: &str) -> Result<CompletionResult, String> {
+        /// `messages` is an ordered slice of (role, content) pairs, oldest first.
+        /// The caller is responsible for appending the current user turn as the last entry.
+        pub fn complete(&self, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
             match self {
                 Provider::Anthropic { api_key, model } => {
                     if api_key.is_empty() {
                         return Err("ANTHROPIC_API_KEY not set".into());
                     }
-                    anthropic(api_key, model, system, prompt)
+                    anthropic(api_key, model, system, messages)
                 }
                 Provider::OpenAiCompat { base_url, api_key, model } => {
-                    openai_compat(base_url, api_key, model, system, prompt)
+                    openai_compat(base_url, api_key, model, system, messages)
                 }
             }
         }
@@ -277,10 +319,13 @@ mod provider {
 
     // ── Anthropic wire format ─────────────────────────────────────────────────
 
-    fn anthropic(api_key: &str, model: &str, system: &str, prompt: &str) -> Result<CompletionResult, String> {
+    fn anthropic(api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
+        let msgs: Vec<_> = messages.iter()
+            .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
+            .collect();
         let body = serde_json::json!({
             "model": model, "max_tokens": 1024, "system": system,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": msgs,
         }).to_string();
 
         let bytes = http_post(
@@ -308,10 +353,12 @@ mod provider {
 
     // ── OpenAI-compatible wire format (covers Ollama, OpenAI, Groq, etc.) ─────
 
-    fn openai_compat(base_url: &str, api_key: &str, model: &str, system: &str, prompt: &str) -> Result<CompletionResult, String> {
+    fn openai_compat(base_url: &str, api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
+        let mut msgs = vec![serde_json::json!({"role": "system", "content": system})];
+        msgs.extend(messages.iter().map(|(role, content)| serde_json::json!({"role": role, "content": content})));
         let body = serde_json::json!({
             "model": model, "max_tokens": 1024,
-            "messages": [{"role": "system", "content": system}, {"role": "user", "content": prompt}],
+            "messages": msgs,
         }).to_string();
 
         let auth = if !api_key.is_empty() { format!("Bearer {api_key}") } else { String::new() };
@@ -592,6 +639,50 @@ mod tests {
     fn estimate_usd_ollama_is_zero() {
         assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
         assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);
+    }
+
+    #[test]
+    fn history_from_nodes_sorts_by_timestamp_and_caps_turns() {
+        let now = now_ns();
+        let nodes = vec![
+            serde_json::json!({"@type":"AgentResponse","content":"resp1","timestamp_ns":now+200}).to_string(),
+            serde_json::json!({"@type":"UserPrompt",   "content":"q2",   "timestamp_ns":now+100}).to_string(),
+            serde_json::json!({"@type":"UserPrompt",   "content":"q1",   "timestamp_ns":now+10 }).to_string(),
+        ];
+        let h = history_from_nodes(&nodes, 10);
+        assert_eq!(h.len(), 3);
+        assert_eq!(h[0], ("user".into(),      "q1".into()));
+        assert_eq!(h[1], ("user".into(),      "q2".into()));
+        assert_eq!(h[2], ("assistant".into(), "resp1".into()));
+    }
+
+    #[test]
+    fn history_from_nodes_caps_at_max_turns() {
+        let now = now_ns();
+        let nodes: Vec<String> = (0..8u64).map(|i| {
+            serde_json::json!({"@type":"UserPrompt","content":format!("q{i}"),"timestamp_ns":now+i}).to_string()
+        }).collect();
+        let h = history_from_nodes(&nodes, 3);
+        assert_eq!(h.len(), 3);
+        assert_eq!(h[2].1, "q7"); // most recent
+    }
+
+    #[test]
+    fn history_from_nodes_skips_unknown_types() {
+        let now = now_ns();
+        let nodes = vec![
+            serde_json::json!({"@type":"UsageRecord","content":"ignored","timestamp_ns":now}).to_string(),
+            serde_json::json!({"@type":"UserPrompt", "content":"ok",     "timestamp_ns":now+1}).to_string(),
+        ];
+        let h = history_from_nodes(&nodes, 10);
+        assert_eq!(h.len(), 1);
+        assert_eq!(h[0].1, "ok");
+    }
+
+    #[test]
+    fn history_from_nodes_returns_empty_for_empty_input() {
+        let h = history_from_nodes(&[], 10);
+        assert!(h.is_empty());
     }
 
     #[test]
