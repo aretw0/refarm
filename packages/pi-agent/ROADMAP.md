@@ -90,10 +90,10 @@ Context engineering follows the pi-test-harness model:
 - [ ] Requires host-side streaming support in tractor WebSocket bridge
 
 ### `.refarm/` project convention
-- [ ] Read `.refarm/config.json` in tractor before spawning plugin — maps to env vars
-- [ ] `config.json` fields: `provider`, `model`, `budgets`, `trusted_plugins`
+- [x] Read `.refarm/config.json` in tractor before spawning plugin — maps to env vars
+- [x] `config.json` fields: `provider`, `model`, `default_provider`, `budgets`
+- [x] Implementation seam: `refarm_config_env_vars_from()` → `WasiCtxBuilder::envs()` — zero new architecture; config overrides process env
 - [ ] CRDT-backed: config itself is a node — collaborative, auditable, self-hosting capable
-- [ ] Implementation seam: `.refarm/config.json` → env vars before `WasiCtxBuilder` — zero new architecture
 
 ### Expanded tools
 - [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, curated in agents-lab); ambiguity guard; pure WASM, no host changes

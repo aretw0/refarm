@@ -99,6 +99,39 @@ pub struct PluginHost {
     agent_tools_linker: Arc<Linker<TractorStore>>,
 }
 
+/// Read `.refarm/config.json` from CWD and return env var pairs for the plugin sandbox.
+///
+/// Config fields map to LLM_* env vars. Missing file is silently ignored (opt-in).
+/// Config vars overlay process env — project config takes precedence over shell env.
+fn refarm_config_env_vars() -> Vec<(String, String)> {
+    let base = std::env::current_dir().unwrap_or_default();
+    refarm_config_env_vars_from(&base)
+}
+
+fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
+    let path = base.join(".refarm/config.json");
+    let Ok(bytes) = std::fs::read(&path) else { return vec![]; };
+    let Ok(cfg) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
+        tracing::warn!(".refarm/config.json is not valid JSON — ignoring");
+        return vec![];
+    };
+    let mut vars: Vec<(String, String)> = Vec::new();
+    if let Some(v) = cfg["provider"].as_str() { vars.push(("LLM_PROVIDER".into(), v.into())); }
+    if let Some(v) = cfg["model"].as_str()    { vars.push(("LLM_MODEL".into(), v.into())); }
+    if let Some(v) = cfg["default_provider"].as_str() {
+        vars.push(("LLM_DEFAULT_PROVIDER".into(), v.into()));
+    }
+    if let Some(budgets) = cfg["budgets"].as_object() {
+        for (provider, amount) in budgets {
+            if let Some(usd) = amount.as_f64() {
+                let key = format!("LLM_BUDGET_{}_USD", provider.to_uppercase());
+                vars.push((key, usd.to_string()));
+            }
+        }
+    }
+    vars
+}
+
 impl PluginHost {
     pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Result<Self> {
         let mut config = Config::new();
@@ -160,10 +193,13 @@ impl PluginHost {
             );
         }
 
-        let wasi = WasiCtxBuilder::new()
-            .inherit_stderr()
-            .inherit_env()  // passes LLM_PROVIDER, LLM_MODEL, *_API_KEY etc. to plugin
-            .build();
+        let config_vars = refarm_config_env_vars();
+        let mut wasi_builder = WasiCtxBuilder::new();
+        wasi_builder.inherit_stderr().inherit_env();
+        for (k, v) in &config_vars {
+            wasi_builder.env(k, v);
+        }
+        let wasi = wasi_builder.build();
         let table = ResourceTable::new();
         let http = wasmtime_wasi_http::WasiHttpCtx::new();
         let bindings = TractorNativeBindings::new(&plugin_id, sync.clone(), self.telemetry.clone());
@@ -230,5 +266,53 @@ impl PluginHost {
 
         tracing::info!(wasm_hash = %wasm_hash, "agent-tools.wasm loaded");
         Ok(AgentToolsHandle::new(plugin_id, agent_tools, store))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn refarm_config_env_vars_returns_empty_when_no_file() {
+        // CWD in test environment has no .refarm/config.json — must not panic.
+        let vars = refarm_config_env_vars();
+        // Can't assert empty (dev machine might have a config), but must not error.
+        let _ = vars;
+    }
+
+    #[test]
+    fn refarm_config_env_vars_maps_fields_correctly() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"anthropic","model":"claude-opus-4-7","default_provider":"ollama","budgets":{"anthropic":5.0,"openai":2.5}}"#,
+        ).unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+        assert_eq!(map["LLM_PROVIDER"], "anthropic");
+        assert_eq!(map["LLM_MODEL"], "claude-opus-4-7");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert_eq!(map["LLM_BUDGET_ANTHROPIC_USD"], "5");
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_invalid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), b"not json").unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn refarm_config_env_vars_empty_when_no_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        assert!(vars.is_empty());
     }
 }
