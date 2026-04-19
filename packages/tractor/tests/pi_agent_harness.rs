@@ -130,7 +130,7 @@ fn clean_llm_env() {
     for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
-                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES"] {
+                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM"] {
         std::env::remove_var(var);
     }
 }
@@ -394,6 +394,52 @@ async fn harness_multi_turn_history_included_in_request() {
         all_content.contains("second question") || all_content.contains("ok"),
         "prior turn content must appear in request body: {all_content}"
     );
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_refarm_config_json_injects_provider() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    // Write .refarm/config.json in a temp dir; CWD change makes tractor pick it up.
+    let dir = tempfile::tempdir().unwrap();
+    let refarm_dir = dir.path().join(".refarm");
+    std::fs::create_dir_all(&refarm_dir).unwrap();
+    std::fs::write(
+        refarm_dir.join("config.json"),
+        r#"{"provider":"ollama","model":"llama3.2"}"#,
+    ).unwrap();
+
+    // Set up mock before changing CWD (mock server uses process networking, not FS).
+    let port = mock_llm_server(openai_response("config injetado", 8, 4)).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    // Intentionally do NOT set LLM_PROVIDER — it must come from config.json.
+
+    let original_dir = std::env::current_dir().unwrap();
+    std::env::set_current_dir(dir.path()).unwrap();
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("test config injection")).await.expect("on_event");
+
+    std::env::set_current_dir(original_dir).unwrap();
+
+    // AgentResponse must exist — proves the plugin reached the mock LLM successfully,
+    // which means config.json's provider="ollama" was injected into the WASM env.
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty(), "AgentResponse must be stored — config.json provider must have been injected");
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    assert_eq!(v["content"], "config injetado",
+        "response content must match mock — plugin must have used ollama from config.json");
 
     clean_llm_env();
 }
