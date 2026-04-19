@@ -67,5 +67,31 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
 # ── Ownership: UID 1000 = vscode (assigned by common-utils feature at runtime) ──
 RUN chown -R 1000:1000 /usr/local/cargo /usr/local/rustup
 
-# ── Root alias for Docker Desktop terminal ────────────────────────────────────
-RUN echo 'alias refarm="su vscode -s /bin/bash -c \"cd /workspaces/refarm && exec bash -i\""' >> /root/.bashrc
+# ── farm: enter as dev user from Docker Desktop root terminal ────────────────
+# Usage: farm [user] [project-dir]
+#   farm                           → vscode @ /workspaces/refarm
+#   farm vscode /workspaces/other  → vscode @ /workspaces/other
+RUN cat > /usr/local/bin/farm << 'SCRIPT'
+#!/bin/bash
+# farm — enter the container as the dev user, fully set up
+# Usage: farm [user] [project-dir]
+TARGET_USER="${1:-vscode}"
+PROJECT="${2:-/workspaces/refarm}"
+
+INIT=$(mktemp /tmp/farm.XXXXXX.sh)
+cat > "$INIT" << INITEOF
+[ -f /home/${TARGET_USER}/.bashrc ] && source /home/${TARGET_USER}/.bashrc
+export HOME=/home/${TARGET_USER}
+export USER=${TARGET_USER}
+export NPM_CONFIG_PREFIX=/home/${TARGET_USER}/.npm-global
+export PATH=/home/${TARGET_USER}/.npm-global/bin:/home/${TARGET_USER}/.cargo-local/bin:/home/${TARGET_USER}/.local/bin:/usr/local/cargo/bin:\${PATH}
+export CARGO_HOME=/usr/local/cargo
+export RUSTUP_HOME=/usr/local/rustup
+export CARGO_TERM_COLOR=always
+cd '${PROJECT}'
+rm -f '${INIT}'
+INITEOF
+
+exec su -s /bin/bash "$TARGET_USER" -- --init-file "$INIT"
+SCRIPT
+RUN chmod +x /usr/local/bin/farm
