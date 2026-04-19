@@ -8,7 +8,7 @@
   [![Website](https://img.shields.io/badge/Website-refarm.dev-000000?style=flat-square&logo=google-chrome&logoColor=white)](https://refarm.dev)
   [![Patreon](https://img.shields.io/badge/Support_our_Hackerspace-Patreon-FF424D?style=flat-square&logo=patreon)](https://www.patreon.com/cw/refarm88)
   [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?style=flat-square&logo=github)](https://github.com/sponsors/aretw0)
-  [![License](https://img.shields.io/github/license/refarm-dev/refarm.svg?color=red)](LICENSE)
+  [![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE)
 </div>
 
 > **Personal Operating System for Sovereign Data**
