@@ -24,6 +24,7 @@ on-event("user:prompt", prompt)
     → agentic tool loop (up to LLM_TOOL_CALL_MAX_ITER)
       → read_file / write_file (agent-fs)
       → bash (agent-shell, structured argv — no shell injection)
+      → compress_tool_output() (opt-in via LLM_TOOL_OUTPUT_MAX_LINES)
   → on error / budget block: LLM_FALLBACK_PROVIDER
   → store AgentResponse node  (content, tool_calls, timestamp_ns)
   → store UsageRecord node    (tokens, estimated_usd, usage_raw, provider)
@@ -35,6 +36,7 @@ on-event("user:prompt", prompt)
 
 All variables are passed via `inherit_env()` in the tractor host — no config files needed.
 
+<!-- {=env_vars} -->
 | Variable | Default | Description |
 |---|---|---|
 | `LLM_PROVIDER` | — | `anthropic` \| `ollama` \| `openai` \| any OpenAI-compat name |
@@ -48,6 +50,8 @@ All variables are passed via `inherit_env()` in the tractor host — no config f
 | `LLM_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `LLM_BUDGET_ANTHROPIC_USD=5.0` |
 | `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
 | `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
+| `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM |
+<!-- {/env_vars} -->
 
 **Provider resolution order** (first wins):
 1. `LLM_PROVIDER` — explicit per-run choice

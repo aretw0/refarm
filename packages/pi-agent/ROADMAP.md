@@ -98,7 +98,10 @@ Context engineering follows the pi-test-harness model:
 ### Expanded tools
 - [ ] `edit_file` — unified diff apply via `agent_fs::edit`
 - [ ] `list_dir` — directory listing (needs new WIT primitive or `bash ls` workaround)
-- [ ] Tool result size limiting — prevent oversized file reads from flooding context
+- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — opt-in truncation with a [truncated: N lines → M shown] header (squeez-inspired)
+- [x] ANSI stripping — CSI sequences removed before dedup so color codes don't block line collapse
+- [x] Consecutive line dedup — repeated runs of ≥2 identical lines collapsed to `line [×N]`
+- [x] Cross-call dedup — FNV-1a hash per tool result; duplicates within a single agentic turn replaced with `[duplicate: ...]`
 
 ### Harness expansion
 - [ ] Tool use scenario: mock LLM returns `tool_use` block, assert tool was dispatched and result fed back
@@ -131,9 +134,13 @@ Context engineering follows the pi-test-harness model:
 ## Tooling notes
 
 ### mdt (documentation sync)
-[mdt](https://github.com/ifiokjr/mdt) — template-based markdown sync with `mdt check` for CI.  
-Candidate for managing shared content (env var tables, architecture diagrams) that appears
-in multiple READMEs across the monorepo. Evaluate before v0.2.0 ships.
+[mdt](https://github.com/ifiokjr/mdt) — template-based markdown sync with `mdt check` for CI.
+
+- [x] `.templates/template.t.md` — `env_vars` block is the canonical source for the LLM_* table
+- [x] `mdt.toml` scaffolded in `packages/pi-agent/`
+- [x] `README.md` wired with `<!-- {=env_vars} -->` markers
+- [x] `mdt check` added to CI — `.github/workflows/validate-mdt.yml`, cached `mdt_cli`, scheduled weekly
+- [ ] Expand to monorepo root when a second consumer of `env_vars` exists (e.g. `.refarm/config.json` docs)
 
 ### Diagram library
 Keep architecture diagrams in sync with implementation. When significant structural changes
