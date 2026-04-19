@@ -345,8 +345,8 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"}},"required":["path"]}},
         {"name":"write_file","description":"Write UTF-8 content to a file atomically.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
-        {"name":"edit_file","description":"Apply a unified diff (patch) to a file. Diff must use --- a/path and +++ b/path headers.",
-         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"diff":{"type":"string","description":"Unified diff to apply"}},"required":["path","diff"]}},
+        {"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]},"description":"Ordered list of replacements to apply"}},"required":["path","edits"]}},
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
     ])
@@ -358,8 +358,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
          "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
         {"type":"function","function":{"name":"write_file","description":"Write UTF-8 content to file atomically.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
-        {"type":"function","function":{"name":"edit_file","description":"Apply a unified diff (patch) to a file. Diff must use --- a/path and +++ b/path headers.",
-         "parameters":{"type":"object","properties":{"path":{"type":"string"},"diff":{"type":"string"}},"required":["path","diff"]}}},
+        {"type":"function","function":{"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]}}},"required":["path","edits"]}}},
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
     ])
@@ -404,10 +404,26 @@ mod provider {
             }
             "edit_file" => {
                 let path = input["path"].as_str().unwrap_or("");
-                let diff = input["diff"].as_str().unwrap_or("");
-                match agent_fs::edit(path, diff) {
-                    Ok(())  => format!("applied diff to {path}"),
-                    Err(e)  => format!("[error editing {path}] {e}"),
+                let edits = match input["edits"].as_array() {
+                    Some(a) => a,
+                    None    => return "[error] edit_file requires edits array".into(),
+                };
+                let bytes = match agent_fs::read(path) {
+                    Ok(b)  => b,
+                    Err(e) => return format!("[error reading {path}] {e}"),
+                };
+                let mut content = String::from_utf8_lossy(&bytes).into_owned();
+                for (i, edit) in edits.iter().enumerate() {
+                    let old = edit["old_str"].as_str().unwrap_or("");
+                    let new = edit["new_str"].as_str().unwrap_or("");
+                    let count = content.matches(old).count();
+                    if count == 0 { return format!("[error] edit {i}: old_str not found in {path}"); }
+                    if count > 1  { return format!("[error] edit {i}: old_str matches {count} times in {path} — be more specific"); }
+                    content = content.replacen(old, new, 1);
+                }
+                match agent_fs::write(path, content.as_bytes()) {
+                    Ok(())  => format!("applied {} edit(s) to {path}", edits.len()),
+                    Err(e)  => format!("[error writing {path}] {e}"),
                 }
             }
             "bash" => {
@@ -1099,19 +1115,26 @@ mod tests {
     }
 
     #[test]
-    fn tools_anthropic_includes_edit_file() {
+    fn tools_anthropic_includes_edit_file_with_edits_schema() {
         let tools = tools_anthropic();
-        let names: Vec<&str> = tools.as_array().unwrap()
-            .iter().filter_map(|t| t["name"].as_str()).collect();
-        assert!(names.contains(&"edit_file"), "edit_file must be in anthropic tools: {names:?}");
+        let edit = tools.as_array().unwrap().iter()
+            .find(|t| t["name"] == "edit_file")
+            .expect("edit_file must be in anthropic tools");
+        let props = &edit["input_schema"]["properties"];
+        assert!(props.get("path").is_some(), "schema must have path");
+        assert!(props.get("edits").is_some(), "schema must have edits array, not diff");
+        assert!(props.get("diff").is_none(), "unified diff schema must be removed");
     }
 
     #[test]
-    fn tools_openai_includes_edit_file() {
+    fn tools_openai_includes_edit_file_with_edits_schema() {
         let tools = tools_openai();
-        let names: Vec<&str> = tools.as_array().unwrap()
-            .iter().filter_map(|t| t["function"]["name"].as_str()).collect();
-        assert!(names.contains(&"edit_file"), "edit_file must be in openai tools: {names:?}");
+        let edit = tools.as_array().unwrap().iter()
+            .find(|t| t["function"]["name"] == "edit_file")
+            .expect("edit_file must be in openai tools");
+        let props = &edit["function"]["parameters"]["properties"];
+        assert!(props.get("edits").is_some(), "schema must have edits array, not diff");
+        assert!(props.get("diff").is_none(), "unified diff schema must be removed");
     }
 
     #[test]
