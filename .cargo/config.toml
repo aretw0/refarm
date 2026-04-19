@@ -1,0 +1,18 @@
+[build]
+# Limit parallel codegen units to avoid OOM on 8GB host machines.
+# 16 jobs default on this 16-core container exhausts RAM during heavy
+# Rust builds (each unit peaks ~400MB). 4 keeps peak under ~2GB.
+jobs = 4
+
+[profile.dev]
+# Reduce per-crate memory during dev/test builds.
+# 16 codegen units (default) parallelises within a crate; 4 halves peak RSS.
+codegen-units = 4
+
+[profile.test]
+inherits = "dev"
+codegen-units = 4
+
+[profile.release]
+# WASM component builds: single codegen unit = smaller binary + lower peak RAM.
+codegen-units = 1
