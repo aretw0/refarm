@@ -104,9 +104,9 @@ Context engineering follows the pi-test-harness model:
 - [x] Cross-call dedup — FNV-1a hash per tool result; duplicates within a single agentic turn replaced with `[duplicate: ...]`
 
 ### Harness expansion
-- [ ] Tool use scenario: mock LLM returns `tool_use` block, assert tool was dispatched and result fed back
-- [ ] Fallback scenario: primary provider fails, fallback serves the response
-- [ ] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, assert prior turns appear in request
+- [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged in AgentResponse
+- [x] Fallback scenario: anthropic (no key) fails, ollama mock serves — asserts content from fallback
+- [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns appear in request body
 
 ---
 

@@ -71,12 +71,66 @@ fn openai_response(content: &str, tokens_in: u32, tokens_out: u32) -> serde_json
     })
 }
 
+/// Serve a sequence of responses in order; repeats the last one once exhausted.
+async fn mock_llm_server_sequence(bodies: Vec<serde_json::Value>) -> u16 {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let strings: Vec<String> = bodies.iter().map(|v| v.to_string()).collect();
+    tokio::spawn(async move {
+        let mut idx = 0usize;
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let body = strings.get(idx).or_else(|| strings.last()).unwrap().clone();
+            idx = (idx + 1).min(strings.len().saturating_sub(1) + 1);
+            let mut buf = vec![0u8; 8192];
+            let _ = stream.read(&mut buf).await;
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            let _ = stream.write_all(resp.as_bytes()).await;
+        }
+    });
+    port
+}
+
+/// Serve responses in sequence AND send each parsed JSON request body to a channel.
+/// Lets tests inspect what the plugin sent to the mock LLM.
+async fn mock_llm_server_capturing(
+    bodies: Vec<serde_json::Value>,
+) -> (u16, tokio::sync::mpsc::UnboundedReceiver<serde_json::Value>) {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let strings: Vec<String> = bodies.iter().map(|v| v.to_string()).collect();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        let mut idx = 0usize;
+        while let Ok((mut stream, _)) = listener.accept().await {
+            let body = strings.get(idx).or_else(|| strings.last()).unwrap().clone();
+            idx = (idx + 1).min(strings.len().saturating_sub(1) + 1);
+            let mut buf = vec![0u8; 65536];
+            let n = stream.read(&mut buf).await.unwrap_or(0);
+            // Extract JSON body that follows the HTTP header separator.
+            if let Some(sep) = buf[..n].windows(4).position(|w| w == b"\r\n\r\n") {
+                if let Ok(v) = serde_json::from_slice(&buf[sep + 4..n]) {
+                    let _ = tx.send(v);
+                }
+            }
+            let resp = format!(
+                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                body.len(), body
+            );
+            let _ = stream.write_all(resp.as_bytes()).await;
+        }
+    });
+    (port, rx)
+}
+
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
 fn clean_llm_env() {
     for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
-                "LLM_TOOL_CALL_MAX_ITER"] {
+                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES"] {
         std::env::remove_var(var);
     }
 }
@@ -199,6 +253,147 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     let content = v["content"].as_str().unwrap_or("");
     assert!(content.contains("budget") || content.contains("erro"),
         "budget block content must describe the block: {content}");
+
+    clean_llm_env();
+}
+
+// ── Harness expansion ─────────────────────────────────────────────────────────
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_tool_use_dispatched_and_result_fed_back() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    // First LLM response: request a bash tool call (echo).
+    // Second LLM response: final text after tool result is fed back.
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-tool",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_echo",
+                    "type": "function",
+                    "function": {
+                        "name": "bash",
+                        "arguments": r#"{"argv":["echo","sovereign"]}"#
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("tool executed", 20, 6);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("run echo")).await.expect("on_event");
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty());
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    assert_eq!(v["content"], "tool executed",
+        "final LLM text must be stored after tool loop");
+
+    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
+    assert!(!tool_calls.is_empty(), "at least one tool call must be logged in AgentResponse");
+    assert_eq!(tool_calls[0]["name"], "bash", "tool name must match what LLM requested");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_fallback_serves_response_on_primary_failure() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    // Primary: anthropic with no API key — fails before any HTTP call.
+    // Fallback: ollama pointing to working mock.
+    let port = mock_llm_server(openai_response("fallback respondeu", 10, 4)).await;
+    std::env::set_var("LLM_PROVIDER", "anthropic");
+    std::env::set_var("LLM_FALLBACK_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("test fallback")).await.expect("on_event");
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty());
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    assert_eq!(v["content"], "fallback respondeu",
+        "fallback must serve valid response when primary fails: {:?}", v["content"]);
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_multi_turn_history_included_in_request() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+    std::env::set_var("LLM_PROVIDER", "ollama");
+
+    // One mock server handles all three on_event calls and captures every request body.
+    let resp = openai_response("ok", 5, 3);
+    let (port, mut captured) = mock_llm_server_capturing(vec![resp.clone(), resp.clone(), resp]).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    // Turns 1 and 2: history disabled — build CRDT state only.
+    handle.call_on_event("user:prompt", Some("first question")).await.expect("on_event 1");
+    let _req1 = captured.recv().await.expect("mock must receive request 1");
+
+    handle.call_on_event("user:prompt", Some("second question")).await.expect("on_event 2");
+    let _req2 = captured.recv().await.expect("mock must receive request 2");
+
+    // Turn 3: opt-in history — prior turns must appear in the outgoing request.
+    std::env::set_var("LLM_HISTORY_TURNS", "2");
+    handle.call_on_event("user:prompt", Some("third question")).await.expect("on_event 3");
+    let req3 = captured.recv().await.expect("mock must receive request 3");
+
+    let messages = req3["messages"].as_array().expect("request must have messages array");
+    // With history: system + ≥1 prior turn + current = at least 3 messages.
+    assert!(messages.len() >= 3,
+        "LLM_HISTORY_TURNS=2 must inject prior turns into request, got {} messages", messages.len());
+
+    // Prior content from the CRDT must appear somewhere in the request.
+    let all_content: String = messages.iter()
+        .filter_map(|m| m["content"].as_str())
+        .collect::<Vec<_>>()
+        .join(" ");
+    assert!(
+        all_content.contains("second question") || all_content.contains("ok"),
+        "prior turn content must appear in request body: {all_content}"
+    );
 
     clean_llm_env();
 }
