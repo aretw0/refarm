@@ -35,4 +35,5 @@
 | `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
 | `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
 | `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
+| `LLM_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
 <!-- {/env_vars} -->

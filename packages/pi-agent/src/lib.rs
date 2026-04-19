@@ -13,6 +13,7 @@
 //!   LLM_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   LLM_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
 //!   LLM_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
+//!   LLM_SYSTEM=<string>                    (system prompt override; distros inject persona/role here)
 //!                                           pipeline: strip ANSI → dedup repeated lines → truncate
 //!
 //! Ollama: no key needed; defaults to http://localhost:11434
@@ -142,9 +143,10 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
         let primary_name = provider_name_from_env();
         let prov = provider::Provider::from_env();
         let model = prov.model().to_owned();
-        const SYSTEM: &str =
-            "You are pi-agent, a sovereign AI assistant for a Refarm node. \
+        let default_system = "You are pi-agent, a sovereign AI assistant for a Refarm node. \
              Help with local tasks, files, and shell commands. Be concise.";
+        let system_owned = std::env::var("LLM_SYSTEM").unwrap_or_else(|_| default_system.to_owned());
+        let system = system_owned.as_str();
         // Assemble conversation history from CRDT (opt-in via LLM_HISTORY_TURNS).
         let mut messages = query_history();
         messages.push(("user".to_owned(), prompt.to_owned()));
@@ -155,7 +157,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
                 primary_name.to_uppercase()
             ))
         } else {
-            prov.complete(SYSTEM, &messages)
+            prov.complete(system, &messages)
         };
         match primary_result {
             Ok(r) => (r.content, r.tool_calls, r.tokens_in, r.tokens_out,
@@ -167,7 +169,7 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
                     let fb = provider::Provider::from_env();
                     std::env::set_var("LLM_PROVIDER", original_provider);
                     let fb_model = fb.model().to_owned();
-                    match fb.complete(SYSTEM, &messages) {
+                    match fb.complete(system, &messages) {
                         Ok(r) => (r.content, r.tool_calls, r.tokens_in, r.tokens_out,
                                   r.tokens_cached, r.tokens_reasoning, fb_model, r.usage_raw),
                         Err(e) => (format!("[pi-agent erro] primary: {primary_err}; fallback: {e}"),
@@ -1178,6 +1180,22 @@ mod tests {
     }
 
     #[test]
+    fn llm_system_env_var_is_readable() {
+        std::env::set_var("LLM_SYSTEM", "You are a test agent.");
+        let val = std::env::var("LLM_SYSTEM").unwrap();
+        assert_eq!(val, "You are a test agent.");
+        std::env::remove_var("LLM_SYSTEM");
+    }
+
+    #[test]
+    fn llm_system_absent_does_not_panic() {
+        std::env::remove_var("LLM_SYSTEM");
+        // react() uses default system prompt when LLM_SYSTEM is unset — must not panic on native stub
+        let (content, _, _, _, _, _, _, _) = react("ping");
+        assert!(!content.is_empty());
+    }
+
+    #[test]
     fn apply_edits_basic_replacement() {
         let result = apply_edits("hello world".into(), &[("world", "rust")]).unwrap();
         assert_eq!(result, "hello rust");
@@ -1339,6 +1357,7 @@ mod extensibility_contract {
         std::env::remove_var("LLM_MAX_CONTEXT_TOKENS");
         std::env::remove_var("LLM_FALLBACK_PROVIDER");
         std::env::remove_var("LLM_HISTORY_TURNS");
+        std::env::remove_var("LLM_SYSTEM");
         let (content, _, _, _, _, _, _, _) = react("hello");
         assert!(!content.is_empty(), "zero-config boot must produce a non-empty response");
     }

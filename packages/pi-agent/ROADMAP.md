@@ -132,8 +132,7 @@ Context engineering follows the pi-test-harness model:
 - [ ] `refarm-stack` package in `aretw0/agents-lab` uses farmhand as engine
 - [ ] Porting pi-stack behaviors to Refarm CRDT primitives with minimal friction
 - [ ] Validate that distros (`.dev`, `.me`, `.social`) can compose farmhand without core changes
-- [ ] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
-  - [ ] Add `LLM_SYSTEM` env var support in `handle_prompt` — injected as system message before user turn
+- [x] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
 
 ### Multi-agent (swarm)
 - [ ] Multiple farmhand instances in the same tractor process
