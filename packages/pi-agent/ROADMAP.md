@@ -77,57 +77,79 @@ Context engineering follows the pi-test-harness model:
 
 ## v0.2.0 — Farmhand graduation
 
-**Scope**: Rename, streaming, project-level config, expanded tooling.
+**Scope**: Rename, streaming, project-level config, expanded tooling, daily-driver CLI.
 
 ### Naming
 - [ ] Rename package `pi-agent` → `farmhand`
 - [ ] Update `Cargo.toml`, `wit/world.wit` world name, tractor fixture references
 - [ ] Update README, this ROADMAP, and any cross-package references
 
+### Daily-driver CLI
+> Inspired by Pi CLI and Claude Code: invoke the agent from a terminal without a WebSocket client.
+- [ ] `tractor-native prompt --agent pi-agent "do something"` subcommand
+  - Connects to a running daemon on `--port 42000`, sends `user:prompt`, streams back `AgentResponse` content
+  - Implementation: `tokio-tungstenite` client in `main.rs` behind `clap` subcommand
+  - If no daemon running: start ephemeral tractor in same process, load plugin, respond, exit
+- [ ] `tractor-native watch` — interactive REPL loop: reads stdin line-by-line, prints responses
+  - Same ephemeral-or-connect logic as `prompt`
+  - Stateful: CRDT accumulates across turns → conversational memory works without extra config
+
 ### Streaming token output
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
-- [ ] Requires host-side streaming support in tractor WebSocket bridge
+- [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
+- [ ] Wire format: server-sent events in `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
 - [x] Read `.refarm/config.json` in tractor before spawning plugin — maps to env vars
 - [x] `config.json` fields: `provider`, `model`, `default_provider`, `budgets`
-- [x] Implementation seam: `refarm_config_env_vars_from()` → `WasiCtxBuilder::envs()` — zero new architecture; config overrides process env
-- [ ] CRDT-backed: config itself is a node — collaborative, auditable, self-hosting capable
+- [x] Implementation seam: `refarm_config_env_vars_from()` → `WasiCtxBuilder::envs()` — config overrides process env
+- [ ] CRDT-backed: config itself is a `RefarmConfig` node — auditable, collaborative
+  - `tractor_bridge::store_node` on load; `query_nodes("RefarmConfig", 1)` to read back
+  - Zero new architecture: same store/query primitives already used by UsageRecord
 
 ### Expanded tools
-- [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, curated in agents-lab); ambiguity guard; pure WASM, no host changes
-- [x] `list_dir` — directory listing via `bash ls -1` (no new WIT primitive needed)
-- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — opt-in truncation with a [truncated: N lines → M shown] header (squeez-inspired)
-- [x] ANSI stripping — CSI sequences removed before dedup so color codes don't block line collapse
-- [x] Consecutive line dedup — repeated runs of ≥2 identical lines collapsed to `line [×N]`
-- [x] Cross-call dedup — FNV-1a hash per tool result; duplicates within a single agentic turn replaced with `[duplicate: ...]`
+- [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, agents-lab curated)
+- [x] `list_dir` — directory listing via `bash ls -1`
+- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeez pipeline: strip ANSI → dedup → truncate
+- [x] ANSI stripping, consecutive line dedup, cross-call FNV-1a dedup
+- [ ] `search_files` — grep equivalent: `{pattern, path, glob?}` → matching lines with file:line prefix
+  - Implementation: `bash ["grep", "-rn", "--include=glob", pattern, path]` + compress_tool_output
+  - Makes the agent useful for codebase navigation (daily driver need)
+- [ ] `LLM_TOOL_OUTPUT_MAX_LINES` harness scenario: assert truncation header in AgentResponse tool_calls
 
 ### Harness expansion
-- [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged in AgentResponse
-- [x] Fallback scenario: anthropic (no key) fails, ollama mock serves — asserts content from fallback
-- [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns appear in request body
+- [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged
+- [x] Fallback scenario: anthropic fails → ollama mock serves
+- [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
+- [ ] `.refarm/config.json` scenario: write config to temp dir, assert `LLM_PROVIDER` injected into plugin
 
 ---
 
 ## v0.3.0 — Ecosystem integration
 
-**Scope**: refarm-stack compatibility, distro enablement, multi-agent.
+**Scope**: refarm-stack compatibility, distro enablement, multi-agent coordination.
 
 ### refarm-stack (agents-lab)
 - [ ] `refarm-stack` package in `aretw0/agents-lab` uses farmhand as engine
 - [ ] Porting pi-stack behaviors to Refarm CRDT primitives with minimal friction
 - [ ] Validate that distros (`.dev`, `.me`, `.social`) can compose farmhand without core changes
+- [ ] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
+  - [ ] Add `LLM_SYSTEM` env var support in `handle_prompt` — injected as system message before user turn
 
 ### Multi-agent (swarm)
 - [ ] Multiple farmhand instances in the same tractor process
-- [ ] Cross-agent coordination via CRDT (read peer's `AgentResponse` nodes)
-- [ ] `LLM_AGENT_ID` for namespacing nodes per agent instance
+- [ ] Cross-agent coordination via CRDT: agent B reads agent A's `AgentResponse` nodes
+- [ ] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:resp-<seq>`)
+  - Implementation: prefix `new_id()` namespace; `query_nodes` filter by `@id` prefix
+- [ ] Swarm harness scenario: two plugins, agent B queries agent A's output
 
 ### Zig Pi-Nano host
 - [ ] Minimal Zig host that loads `farmhand.wasm` — no Rust runtime
 - [ ] Targets RPi Zero / microcontrollers
 - [ ] WIT subset: `tractor-bridge` (store/query), `agent-fs` — no `agent-shell`
+- [ ] Storage: SQLite via Zig `sqlite` bindings (same schema as tractor's `NativeStorage`)
+- [ ] First milestone: `on_event("user:prompt", "hello")` stores `AgentResponse` — no LLM call needed
 
 ---
 
@@ -136,12 +158,24 @@ Context engineering follows the pi-test-harness model:
 ### mdt (documentation sync)
 [mdt](https://github.com/ifiokjr/mdt) — template-based markdown sync with `mdt check` for CI.
 
-- [x] `.templates/template.t.md` — `env_vars` block is the canonical source for the LLM_* table
-- [x] `mdt.toml` scaffolded in `packages/pi-agent/`
-- [x] `README.md` wired with `<!-- {=env_vars} -->` markers
-- [x] `mdt check` added to CI — `.github/workflows/validate-mdt.yml`, cached `mdt_cli`, scheduled weekly
-- [ ] Expand to monorepo root when a second consumer of `env_vars` exists (e.g. `.refarm/config.json` docs)
+**What to commit vs ignore:**
+- ✅ Commit: `.templates/*.t.md` (providers — canonical source)
+- ✅ Commit: `README.md`, any file with `{=block}` markers (consumers — managed content)
+- ✅ Commit: `mdt.toml` (config)
+- ❌ Ignore: `.mdt/` (scan cache — regenerated on every mdt run, added to `.gitignore`)
+
+**Blocks in this package:**
+- `env_vars` — LLM_* environment variables table → `README.md`
+- `tools` — available agent tools table → `README.md`
+- `config_fields` — `.refarm/config.json` field mapping → `README.md`
+
+- [x] `.templates/template.t.md` — canonical source for `env_vars`, `tools`, `config_fields`
+- [x] `mdt.toml` scaffolded
+- [x] `README.md` wired with all three block markers
+- [x] `mdt check` in CI — `.github/workflows/validate-mdt.yml`, cached `mdt_cli`, scheduled weekly
+- [x] `.mdt/` added to `.gitignore`
+- [ ] Expand to monorepo root when a cross-package consumer exists (e.g. distro docs referencing `env_vars`)
 
 ### Diagram library
 Keep architecture diagrams in sync with implementation. When significant structural changes
-land (e.g., farmhand rename, streaming), update relevant diagrams before closing the milestone.
+land (e.g., farmhand rename, streaming), update diagrams before closing the milestone.

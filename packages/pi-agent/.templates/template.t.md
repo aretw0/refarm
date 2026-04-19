@@ -1,5 +1,24 @@
 <!-- mdt template — run `mdt update` to sync, `mdt check` in CI -->
 
+<!-- {@tools} -->
+| Tool | Source | Description |
+|---|---|---|
+| `read_file` | agent-fs | Read file contents at absolute path |
+| `write_file` | agent-fs | Write UTF-8 content to file atomically |
+| `edit_file` | agent-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
+| `list_dir` | agent-shell (ls) | List files and directories at a path |
+| `bash` | agent-shell | Run command via structured argv — no shell injection |
+<!-- {/tools} -->
+
+<!-- {@config_fields} -->
+| Field | Maps to | Description |
+|---|---|---|
+| `provider` | `LLM_PROVIDER` | Active provider for this project |
+| `model` | `LLM_MODEL` | Model ID override |
+| `default_provider` | `LLM_DEFAULT_PROVIDER` | Sovereign default when provider unset |
+| `budgets.<provider>` | `LLM_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
+<!-- {/config_fields} -->
+
 <!-- {@env_vars} -->
 | Variable | Default | Description |
 |---|---|---|
