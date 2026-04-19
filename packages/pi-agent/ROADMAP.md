@@ -113,9 +113,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `list_dir` — directory listing via `bash ls -1`
 - [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeez pipeline: strip ANSI → dedup → truncate
 - [x] ANSI stripping, consecutive line dedup, cross-call FNV-1a dedup
-- [ ] `search_files` — grep equivalent: `{pattern, path, glob?}` → matching lines with file:line prefix
-  - Implementation: `bash ["grep", "-rn", "--include=glob", pattern, path]` + compress_tool_output
-  - Makes the agent useful for codebase navigation (daily driver need)
+- [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches via `bash grep -rn`; exit 1 with no output → friendly "no matches" message
 - [ ] `LLM_TOOL_OUTPUT_MAX_LINES` harness scenario: assert truncation header in AgentResponse tool_calls
 
 ### Harness expansion

@@ -349,6 +349,8 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]},"description":"Ordered list of replacements to apply"}},"required":["path","edits"]}},
         {"name":"list_dir","description":"List files and directories at a path.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to directory"}},"required":["path"]}},
+        {"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
+         "input_schema":{"type":"object","properties":{"pattern":{"type":"string","description":"Regular expression to search for"},"path":{"type":"string","description":"Absolute path to search in"},"glob":{"type":"string","description":"Optional filename glob filter, e.g. *.rs"}},"required":["pattern","path"]}},
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
     ])
@@ -364,6 +366,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]}}},"required":["path","edits"]}}},
         {"type":"function","function":{"name":"list_dir","description":"List files and directories at a path.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
+        {"type":"function","function":{"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
+         "parameters":{"type":"object","properties":{"pattern":{"type":"string"},"path":{"type":"string"},"glob":{"type":"string"}},"required":["pattern","path"]}}},
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
     ])
@@ -443,6 +447,30 @@ mod provider {
                     Ok(r) => format!("[error listing {path}] exit {}\n{}",
                         r.exit_code, String::from_utf8_lossy(&r.stderr)),
                     Err(e) => format!("[error listing {path}] {e}"),
+                }
+            }
+            "search_files" => {
+                let pattern = input["pattern"].as_str().unwrap_or("");
+                let path    = input["path"].as_str().unwrap_or(".");
+                let mut argv = vec!["grep".into(), "-rn".into(), "--".into(), pattern.into(), path.into()];
+                if let Some(glob) = input["glob"].as_str() {
+                    argv.insert(2, format!("--include={glob}"));
+                }
+                let req = agent_shell::SpawnRequest {
+                    argv, env: vec![], cwd: None, timeout_ms: 15_000, stdin: None,
+                };
+                match agent_shell::spawn(&req) {
+                    Ok(r) => {
+                        let out = String::from_utf8_lossy(&r.stdout);
+                        if r.exit_code == 1 && out.is_empty() {
+                            return format!("[no matches for '{pattern}' in {path}]");
+                        }
+                        if r.exit_code > 1 {
+                            return format!("[grep error]\n{}", String::from_utf8_lossy(&r.stderr));
+                        }
+                        super::compress_tool_output(&out)
+                    }
+                    Err(e) => format!("[spawn error] {e}"),
                 }
             }
             "bash" => {
@@ -1131,6 +1159,22 @@ mod tests {
         let records = vec!["not-json".to_string(), "{}".to_string()];
         let spend = sum_provider_spend_usd(&records, "anthropic", now_ns(), 30 * 24 * 3600 * 1_000_000_000);
         assert_eq!(spend, 0.0, "malformed records must not panic or contribute spend");
+    }
+
+    #[test]
+    fn tools_anthropic_includes_search_files() {
+        let tools = tools_anthropic();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"search_files"), "search_files must be in anthropic tools: {names:?}");
+    }
+
+    #[test]
+    fn tools_openai_includes_search_files() {
+        let tools = tools_openai();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["function"]["name"].as_str()).collect();
+        assert!(names.contains(&"search_files"), "search_files must be in openai tools: {names:?}");
     }
 
     #[test]

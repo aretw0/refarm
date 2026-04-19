@@ -7,6 +7,7 @@
 | `write_file` | agent-fs | Write UTF-8 content to file atomically |
 | `edit_file` | agent-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match required, ambiguous matches rejected |
 | `list_dir` | agent-shell (ls) | List files and directories at a path |
+| `search_files` | agent-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
 | `bash` | agent-shell | Run command via structured argv — no shell injection |
 <!-- {/tools} -->
 
