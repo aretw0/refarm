@@ -400,6 +400,71 @@ async fn harness_multi_turn_history_included_in_request() {
 
 #[tokio::test]
 #[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_tool_output_truncated_when_max_lines_set() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    // Mock: LLM requests `seq 1 10` → produces 10 lines → truncated to 3.
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-trunc",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_seq",
+                    "type": "function",
+                    "function": {
+                        "name": "bash",
+                        "arguments": r#"{"argv":["seq","1","10"]}"#
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("truncation applied", 20, 6);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "3");
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("count to ten")).await.expect("on_event");
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty(), "AgentResponse must be stored");
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
+    assert!(!tool_calls.is_empty(), "tool call must be logged");
+
+    // The result stored in CRDT is what was fed back to the LLM — must be truncated.
+    let result = tool_calls[0]["result"].as_str().unwrap_or("");
+    assert!(
+        result.contains("[truncated:"),
+        "tool output must contain truncation header when LLM_TOOL_OUTPUT_MAX_LINES=3, got: {result}"
+    );
+    // Verify only 3 lines of actual content remain after the header.
+    let content_lines: Vec<&str> = result.lines().skip(1).collect();
+    assert_eq!(content_lines.len(), 3,
+        "exactly 3 content lines must survive truncation, got: {content_lines:?}");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
 async fn harness_refarm_config_json_injects_provider() {
     let _env = ENV_LOCK.lock().unwrap();
     let path = wasm_path();
