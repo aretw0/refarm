@@ -58,6 +58,40 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 > *Active Inference*: pinned hashes and reusable workflows minimize environmental drift — a stable environment produces predictable outcomes and lowers surprise.
 
+## 7. Build Resource Discipline
+
+The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings (`jobs=16`, `codegen-units=16`) will exhaust available memory and crash the container. `.cargo/config.toml` at the repo root enforces safe defaults — do not override them without reason.
+
+### Rust build commands — ordered by RAM cost (cheapest first)
+
+```bash
+# ✅ Unit tests only — ~400MB peak, use during normal development
+cargo test --lib
+
+# ✅ Single integration test suite — run sequentially, not in parallel
+cargo test --test ws_integration
+cargo test --test pi_agent_harness -- --ignored --test-threads=1
+
+# ⚠️  Full test suite — only when preparing a push
+cargo test --lib && cargo test --test ws_integration
+
+# ⚠️  WASM component build — necessary before running harness
+cargo component build --release -p pi-agent
+
+# 🚫 Never run without `--lib` or a specific `--test` in this environment
+cargo test   # compiles ALL test binaries simultaneously → OOM risk
+```
+
+### What `.cargo/config.toml` enforces
+
+| Setting | Default | This repo | Reason |
+|---|---|---|---|
+| `build.jobs` | 16 | 4 | Limits parallel crate compilation |
+| `profile.dev.codegen-units` | 16 | 4 | Limits LLVM threads per crate |
+| `profile.release.codegen-units` | 16 | 1 | Smaller WASM binary + lower peak RAM |
+
+> *Active Inference*: a build that crashes the container produces zero information. Constraining parallelism is not slower — crashing and restarting is slower.
+
 ---
 
 > "We cultivate the code as we cultivate the soil: with patience, honesty, and respect for the cycle."
