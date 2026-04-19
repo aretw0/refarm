@@ -318,141 +318,53 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Current Status
 
-**Last Audit:** March 6, 2026 (Updated)
-**Total Issues Found:** 11 MODERATE vulnerabilities
+**Last Audit:** April 19, 2026
+**Total Issues Found:** 0 vulnerabilities
 **Breakdown:**
 
-- ✅ HIGH: 0 (all fixed)
-- ⚠️ MODERATE: 11 (mostly from Vitest + Lodash chains, non-runtime)
-- 🟢 CRITICAL: 0
+- ✅ HIGH: 0
+- ✅ MODERATE: 0
+- ✅ CRITICAL: 0
 
-### Vulnerability Inventory
+### Remediation Applied
 
-| Package | Severity | Issue | Status | Introduced By | Notes |
-|---------|----------|-------|--------|---------------|-------|
-| **esbuild** | MODERATE | Arbitrary code execution in dev server | ⚠️ TOOLING-ONLY | vitest + @vitest/coverage-v8 | Dev-only dependency; no runtime impact; fix requires Vitest@4.0+ (major upgrade) |
-| **vite** | MODERATE | Depends on vulnerable esbuild | ⚠️ TOOLING-ONLY | vitest → vite-node → vite | Transitive; blocked on esbuild fix |
-| **@vitest/mocker** | MODERATE | Depends on vulnerable vite | ⚠️ TOOLING-ONLY | vitest | Transitive; blocked on vite fix |
-| **Lodash** | MODERATE | Prototype Pollution in `_.unset()` & `_.omit()` | ⚠️ BLOCKED | @astrojs/language-server → yaml-language-server | Indirect; dev tooling only; awaiting upstream Astro team fix |
-| **inflight** | MODERATE | Memory leak (deprecated package) | ⚠️ DEPRECATION | glob (transitive) | No longer maintained; impacts glob v10.5.0; consider upgrades to glob v11+ |
-| **glob** | MODERATE | Uses deprecated inflight | ⚠️ DEPRECATION | node dependencies | Old glob version; npm warns on update |
+The audit noise that was breaking CI was removed with low-risk transitive dependency overrides in the root `package.json`:
 
-### Why These Remain (Rationale & Acceptance)
-
-#### esbuild + Vitest Chain
-
-**Chain:**
-
-```
-esbuild (vulnerable: arbitrary code in dev server)
-  ← vite
-    ← vitest + @vitest/coverage-v8 (NEWLY INSTALLED March 6, 2026)
+```json
+{
+  "overrides": {
+    "basic-ftp": "5.3.0",
+    "yaml-language-server": {
+      "yaml": "2.8.3"
+    }
+  }
+}
 ```
 
-**Decision:** Accept temporarily.
+#### Why this was safe
 
-**Reasoning:**
+1. `basic-ftp` is only pulled transitively by `get-uri` in dev tooling, and `5.3.0` is the upstream patched release for the advisory affecting `<=5.2.2`.
+2. `yaml-language-server` remained on the same package version already required by Astro tooling, but its nested `yaml` dependency was forced to `2.8.3`, which removes the vulnerable `2.7.1` copy without changing the workspace's public API surface.
+3. No app/package source code was changed — only dependency resolution.
 
-1. esbuild vulnerability is **development-only** — no impact on production code or built artifacts
-2. Vitest was installed as part of test infrastructure unification (replacing Jest)
-3. Fix requires upgrading Vitest to v4.0+, which is a breaking change and needs testing
-4. Current version (v2.1.9) is stable and used in production projects
+### Verification Commands
 
-**Timeline:**
-
-- Monitor for Vitest v4 LTS release
-- Plan upgrade alongside other major version bumps
-- Target: Q2 2026 (after v0.1.0 MVP ships)
-
-#### Lodash (Existing)
-
-```
-lodash (vulnerable)
-  ← yaml-language-server
-    ← volar-service-yaml
-      ← @astrojs/language-server
-        ← @astrojs/check
+```bash
+npm audit
+npm audit --audit-level=high
 ```
 
-#### Solutions Available
+Expected result:
 
-1. **Wait for Upstream** — Astro team will update dependencies
-   - Lowest risk, no action needed from us
-   - Monitor <https://github.com/withastro/language-tools/issues>
-
-2. **Pin Safe Version Override** (If needed)
-
-   ```json
-   {
-     "overrides": {
-       "lodash": "^4.17.21-4"
-     }
-   }
-   ```
-
-3. **Monitor Actively**
-
-   ```bash
-   npm audit --audit-level=moderate
-   ```
-
-### Risk Acceptance Policy (All Moderate Issues)
-
-**Core Principle:** Accept MODERATE tooling-dev dependencies if:
-
-1. ✅ Severity ≤ MODERATE (no HIGH/CRITICAL)
-2. ✅ Runtime isolation: dev-only or indirect (no direct code path to production)
-3. ✅ Alternatives exist but have trade-offs (major version bumps, breaking changes, unmaintained upstream)
-4. ✅ CI gate for HIGH/CRITICAL remains enforced
-
-**Tracking & Reviews:**
-
-- **Weekly:** `npm audit` check in security workflow (automated)
-- **Per PR:** CI gate blocks HIGH/CRITICAL (automated)
-- **Manual:** Full audit report generated monthly (`.github/workflows/security-audit.yml`)
-- **Escalation:** If any issue moves to HIGH/CRITICAL, open urgent issue
-
-**Monitoring Dashboard:**
-
-Current snapshot (March 6, 2026):
-
-```
-┌─────────────────────────────────────────┐
-│  Vulnerability Trend                    │
-├─────────────────────────────────────────┤
-│ HIGH/CRITICAL:     0  (target: always 0) │
-│ MODERATE:         11  (from 4 on 3/6)    │
-│ - Vitest (new):    6  (introduced 3/6)  │
-│ - Lodash (old):    1  (since before)     │
-│ - Deprecation:     4  (glob/inflight)    │
-├─────────────────────────────────────────┤
-│ Threshold: Accept if all conditions met  │
-│ Last review: 2026-03-06T16:45:00Z        │
-│ Next target: 2026-03-13 (weekly check)   │
-└─────────────────────────────────────────┘
+```text
+found 0 vulnerabilities
 ```
 
-**Acceptance Criteria (All must remain true):**
+### Ongoing Policy
 
-For **esbuild + Vitest chain**:
-
-- [ ] Severity stays at MODERATE (no escalation to HIGH)
-- [ ] No active exploits reported against Vitest versions we use
-- [ ] Vitest v4 LTS becomes available (planned mid-2026)
-- [ ] Commit esbuild fix to upgrade cycle roadmap
-
-For **Lodash (existing)**:
-
-- [ ] Severity stays at MODERATE
-- [ ] Dependency stays indirect (yaml-language-server → Astro)
-- [ ] No production code uses lodash directly
-- [ ] Monitor Astro/TypeScript tooling updates monthly
-
-If **any** acceptance criteria fails:
-
-- Immediately escalate in #security channel
-- Create blocking issue
-- Plan emergency upgrade or mitigation
+- Keep the CI gate in `.github/workflows/test.yml` blocking `high` and `critical` issues.
+- Keep the scheduled visibility workflow in `.github/workflows/security-audit.yml` generating artifacts for regression tracking.
+- If a future advisory reappears through a transitive dependency, prefer a targeted `overrides` fix before attempting broad major-version upgrades.
 
 ---
 
