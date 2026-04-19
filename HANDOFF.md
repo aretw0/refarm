@@ -16,7 +16,11 @@ Cole no início da conversa:
 
 ---
 
-## Estado do pi-agent v0.1.0 — COMPLETO ✅
+## Estado do pi-agent — Fundação implementada
+
+> Não existe v0.1.0 publicado — versões no ROADMAP são marcadores organizacionais, não releases.
+> O Refarm só "chega" quando for o daily driver do Arthur. O que está abaixo é base construída,
+> não produto entregue.
 
 Tudo abaixo está commitado, testado e funcionando:
 
@@ -61,9 +65,7 @@ cargo test --test pi_agent_harness -p refarm-tractor -- --ignored --test-threads
 
 ---
 
-## Estado v0.2.0 — Em progresso 🔄
-
-### Feito neste sprint
+## O que foi construído neste sprint
 
 - [x] `edit_file` — multi-edit mitsuhiko pattern (`{path, edits:[{old_str,new_str}]}`)
 - [x] `list_dir` — `ls -1` via agent-shell
@@ -74,7 +76,7 @@ cargo test --test pi_agent_harness -p refarm-tractor -- --ignored --test-threads
 - [x] mdt documentation sync (`env_vars`, `tools`, `config_fields` blocks em README)
 - [x] Harness expansion: tool use, fallback, multi-turn, config.json, truncation
 
-### Pendente (prioridade: Segurança → CRDT → CLI)
+## Próximos passos (prioridade: Segurança → CRDT → CLI)
 
 #### 1. Segurança (inspirado em Gondolin — ver `packages/pi-agent/ROADMAP.md#security-roadmap`)
 
