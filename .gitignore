@@ -145,3 +145,6 @@ __pycache__/
 
 # PI Lens cache
 .pi-lens/
+
+# Claude agent settings (keep local overrides, ignore global settings)
+.claude/settings.json
