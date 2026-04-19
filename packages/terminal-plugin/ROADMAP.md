@@ -139,6 +139,27 @@ network allowlisting in micro-VMs; our equivalent lives at the tractor boundary.
 
 ---
 
+## Renderers vs protocol
+
+The terminal-plugin is one **renderer** of a shared protocol. Other renderers exist
+or will exist — they implement the same contract, not the same code:
+
+| Renderer | Package | Surface | Status |
+|---|---|---|---|
+| Browser terminal | `terminal-plugin` (this) | DOM / browser | In progress |
+| TUI | `tractor-native watch` subcommand | crossterm / ratatui | Planned |
+| CLI one-shot | `tractor-native prompt` subcommand | stdout | Planned |
+
+**Shared protocol** (the actual contract between all renderers and tractor):
+- Input: `{"type":"user:shell","agent":"<id>","payload":"<cmd>"}` via WebSocket text frame
+- Output: `ShellOutput` CRDT node broadcast as Loro binary delta via WebSocket
+- Same node schema, same WebSocket connection, same port (42000)
+
+Adding a new renderer — ncurses, native mobile, voice — requires only implementing
+the WebSocket client. The tractor execution engine does not change.
+
+---
+
 ## Architecture invariants (never violate)
 
 1. **No process execution in browser** — terminal-plugin never spawns OS processes.
