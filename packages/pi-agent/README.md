@@ -22,7 +22,8 @@ on-event("user:prompt", prompt)
   → history: LLM_HISTORY_TURNS             — opt-in conversational memory from CRDT
   → provider::complete()                   — Anthropic or OpenAI-compat wire format
     → agentic tool loop (up to LLM_TOOL_CALL_MAX_ITER)
-      → read_file / write_file (agent-fs)
+      → read_file / write_file / edit_file (agent-fs)
+      → list_dir (agent-shell: ls -1)
       → bash (agent-shell, structured argv — no shell injection)
       → compress_tool_output() (opt-in via LLM_TOOL_OUTPUT_MAX_LINES)
   → on error / budget block: LLM_FALLBACK_PROVIDER
@@ -34,7 +35,19 @@ on-event("user:prompt", prompt)
 
 ## Environment variables
 
-All variables are passed via `inherit_env()` in the tractor host — no config files needed.
+Variables are injected via `inherit_env()` in the tractor host. A `.refarm/config.json` file
+at project root can set them declaratively — values there override process env:
+
+```json
+{
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "default_provider": "ollama",
+  "budgets": { "anthropic": 5.0 }
+}
+```
+
+The file is optional — missing file is silently ignored.
 
 <!-- {=env_vars} -->
 | Variable | Default | Description |
@@ -50,7 +63,7 @@ All variables are passed via `inherit_env()` in the tractor host — no config f
 | `LLM_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `LLM_BUDGET_ANTHROPIC_USD=5.0` |
 | `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
 | `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
-| `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM |
+| `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
 <!-- {/env_vars} -->
 
 **Provider resolution order** (first wins):
@@ -131,6 +144,16 @@ Every action writes to the CRDT via `tractor_bridge::store_node`. Nothing is eph
 | `UserPrompt` | Prompt received |
 | `AgentResponse` | LLM response complete (includes `tool_calls` log) |
 | `UsageRecord` | After every response (tokens, cost, provider, `usage_raw`) |
+
+### Available tools
+
+| Tool | Source | Description |
+|---|---|---|
+| `read_file` | agent-fs | Read file contents |
+| `write_file` | agent-fs | Write file atomically |
+| `edit_file` | agent-fs read+write | Multi-edit: `{path, edits:[{old_str,new_str}]}` — exact match, ambiguity guard |
+| `list_dir` | agent-shell (ls) | Directory listing |
+| `bash` | agent-shell | Structured argv, no shell injection |
 
 `query_nodes("UsageRecord", limit)` powers the rolling budget check.
 `query_nodes("UserPrompt" / "AgentResponse", limit)` powers conversational history.
