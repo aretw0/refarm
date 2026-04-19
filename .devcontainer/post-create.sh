@@ -78,8 +78,10 @@ CLAUDE_PID=$!
 
 (
   retry 2 npm install -g @mariozechner/pi-coding-agent || { warn "Pi install failed. Run: npm install -g @mariozechner/pi-coding-agent"; exit 0; }
+  retry 2 npm install -g @aretw0/pi-stack || { warn "pi-stack install failed. Run: npm install -g @aretw0/pi-stack"; exit 0; }
   if command -v pi >/dev/null 2>&1; then
-    retry 2 npx @aretw0/pi-stack || warn "pi-stack install failed. Run: npx @aretw0/pi-stack"
+    # Run install.mjs directly to avoid IS_MAIN=false when invoked via bin symlink
+    node "$(npm root -g)/@aretw0/pi-stack/install.mjs" || warn "pi-stack setup failed. Run: node \$(npm root -g)/@aretw0/pi-stack/install.mjs"
   fi
 ) &
 PI_PID=$!
