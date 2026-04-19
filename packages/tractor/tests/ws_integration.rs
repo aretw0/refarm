@@ -1,6 +1,6 @@
 /// Phase 6 integration tests — WebSocket daemon.
 use std::sync::Arc;
-use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
 use tractor::daemon::WsServer;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
@@ -12,7 +12,8 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let telemetry = TelemetryBus::new(100);
-    let server = WsServer::new(sync, port, telemetry);
+    let agent_channels: AgentChannels = Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let server = WsServer::new(sync, port, telemetry, agent_channels);
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     port
