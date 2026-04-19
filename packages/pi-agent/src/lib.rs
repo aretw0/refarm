@@ -12,6 +12,8 @@
 //!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
 //!   LLM_HISTORY_TURNS=<usize>              (conversational memory depth, default 0 = disabled)
 //!   LLM_TOOL_CALL_MAX_ITER=<u32>           (max agentic tool loop iterations, default 5)
+//!   LLM_TOOL_OUTPUT_MAX_LINES=<usize>      (truncate tool output fed back to LLM, default unlimited)
+//!                                           pipeline: strip ANSI → dedup repeated lines → truncate
 //!
 //! Ollama: no key needed; defaults to http://localhost:11434
 //!
@@ -183,6 +185,81 @@ fn react(prompt: &str) -> (String, serde_json::Value, u32, u32, u32, u32, String
     }
 }
 
+// ── Tool output compression & deduplication ──────────────────────────────────
+
+/// FNV-1a 64-bit hash — no external dep, O(n) in input size.
+/// Used for cross-call exact deduplication within a single agentic turn.
+fn fnv1a_hash(s: &str) -> u64 {
+    const BASIS: u64 = 14695981039346656037;
+    const PRIME: u64 = 1099511628211;
+    s.bytes().fold(BASIS, |h, b| h.wrapping_mul(PRIME) ^ b as u64)
+}
+
+// ── Tool output compression ───────────────────────────────────────────────────
+
+/// Strip ANSI escape sequences (CSI: ESC [ ... letter) so dedup can match
+/// lines that differ only by color codes. No external dep required.
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' && chars.peek() == Some(&'[') {
+            chars.next(); // consume '['
+            for nc in chars.by_ref() {
+                if nc >= '@' && nc <= '~' { break; } // final byte ends the sequence
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
+/// Collapse consecutive identical lines that repeat ≥ 2 times into one entry
+/// annotated `[×N]`. Inspired by squeez (claudioemmanuel/squeez).
+fn dedup_lines(lines: &[&str]) -> Vec<String> {
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut i = 0;
+    while i < lines.len() {
+        let cur = lines[i];
+        let mut run = 1;
+        while i + run < lines.len() && lines[i + run] == cur { run += 1; }
+        if run >= 2 {
+            out.push(format!("{cur} [×{run}]"));
+        } else {
+            out.push(cur.to_string());
+        }
+        i += run;
+    }
+    out
+}
+
+/// Pipeline: strip ANSI → dedup repeated lines → truncate to LLM_TOOL_OUTPUT_MAX_LINES.
+/// Inspired by squeez (claudioemmanuel/squeez). Default: unlimited, fully opt-in.
+/// The truncation header tells the LLM how much was hidden so it can request more.
+fn compress_tool_output(output: &str) -> String {
+    let max_lines = std::env::var("LLM_TOOL_OUTPUT_MAX_LINES")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(usize::MAX);
+    let stripped = strip_ansi(output);
+    let raw_lines: Vec<&str> = stripped.lines().collect();
+    let lines = dedup_lines(&raw_lines);
+    // Fast path: nothing changed and under limit
+    if lines.len() == raw_lines.len() && stripped == output && lines.len() <= max_lines {
+        return output.to_owned();
+    }
+    if lines.len() <= max_lines {
+        return lines.join("\n");
+    }
+    format!(
+        "[truncated: {} lines → first {} shown]\n{}",
+        lines.len(),
+        max_lines,
+        lines[..max_lines].join("\n")
+    )
+}
+
 // ── Provider abstraction (WASM-only) ─────────────────────────────────────────
 
 /// Resolves the active provider name with full user control:
@@ -309,7 +386,7 @@ mod provider {
             "read_file" => {
                 let path = input["path"].as_str().unwrap_or("");
                 match agent_fs::read(path) {
-                    Ok(bytes) => String::from_utf8_lossy(&bytes).into_owned(),
+                    Ok(bytes) => super::compress_tool_output(&String::from_utf8_lossy(&bytes)),
                     Err(e)    => format!("[error reading {path}] {e}"),
                 }
             }
@@ -333,9 +410,10 @@ mod provider {
                     Ok(r) => {
                         let out = String::from_utf8_lossy(&r.stdout);
                         let err = String::from_utf8_lossy(&r.stderr);
-                        if r.timed_out           { format!("[timeout {timeout_ms}ms]\n{out}\n{err}") }
-                        else if r.exit_code != 0 { format!("[exit {}]\n{out}\n{err}", r.exit_code) }
-                        else                     { out.into_owned() }
+                        let raw = if r.timed_out           { format!("[timeout {timeout_ms}ms]\n{out}\n{err}") }
+                                  else if r.exit_code != 0 { format!("[exit {}]\n{out}\n{err}", r.exit_code) }
+                                  else                     { out.into_owned() };
+                        super::compress_tool_output(&raw)
                     }
                     Err(e) => format!("[spawn error] {e}"),
                 }
@@ -412,6 +490,7 @@ mod provider {
         let mut tokens_cached = 0u32;
         let mut last_usage_raw = "{}".to_string();
         let mut executed_calls: Vec<serde_json::Value> = Vec::new();
+        let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
         for _iter in 0..=max_iter {
             let body = serde_json::json!({
@@ -455,16 +534,21 @@ mod provider {
             // Inject assistant turn (with tool_use blocks) into wire messages.
             wire_msgs.push(serde_json::json!({"role": "assistant", "content": content_arr}));
 
-            // Dispatch each tool and collect results.
-            let tool_results: Vec<serde_json::Value> = tool_uses.iter().map(|tc| {
+            // Dispatch each tool, deduplicate repeated outputs, collect results.
+            let mut tool_results = Vec::with_capacity(tool_uses.len());
+            for tc in &tool_uses {
                 let name  = tc["name"].as_str().unwrap_or("");
                 let input = &tc["input"];
                 let id    = tc["id"].as_str().unwrap_or("");
-                let result = dispatch_tool(name, input);
+                let raw   = dispatch_tool(name, input);
+                let result = if seen_hashes.insert(super::fnv1a_hash(&raw)) {
+                    raw
+                } else {
+                    "[duplicate: same output already in this context — ask for specifics if needed]".to_string()
+                };
                 executed_calls.push(serde_json::json!({"name": name, "input": input, "result": result}));
-                serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result})
-            }).collect();
-
+                tool_results.push(serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result}));
+            }
             wire_msgs.push(serde_json::json!({"role": "user", "content": tool_results}));
         }
         unreachable!()
@@ -492,6 +576,7 @@ mod provider {
         let mut tokens_reasoning = 0u32;
         let mut last_usage_raw = "{}".to_string();
         let mut executed_calls: Vec<serde_json::Value> = Vec::new();
+        let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
         for _iter in 0..=max_iter {
             let body = serde_json::json!({
@@ -532,7 +617,7 @@ mod provider {
                 "tool_calls": tool_calls_json,
             }));
 
-            // Dispatch each tool and append result messages.
+            // Dispatch each tool, deduplicate repeated outputs, append result messages.
             for tc in &tool_calls_json {
                 let fn_obj = &tc["function"];
                 let name   = fn_obj["name"].as_str().unwrap_or("");
@@ -540,7 +625,12 @@ mod provider {
                     fn_obj["arguments"].as_str().unwrap_or("{}")
                 ).unwrap_or(serde_json::json!({}));
                 let id     = tc["id"].as_str().unwrap_or("");
-                let result = dispatch_tool(name, &input);
+                let raw    = dispatch_tool(name, &input);
+                let result = if seen_hashes.insert(super::fnv1a_hash(&raw)) {
+                    raw
+                } else {
+                    "[duplicate: same output already in this context — ask for specifics if needed]".to_string()
+                };
                 executed_calls.push(serde_json::json!({"name": name, "input": input, "result": &result}));
                 wire_msgs.push(serde_json::json!({"role": "tool", "tool_call_id": id, "content": result}));
             }
@@ -674,6 +764,97 @@ export!(PiAgent);
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn fnv1a_hash_same_input_same_output() {
+        assert_eq!(fnv1a_hash("hello"), fnv1a_hash("hello"));
+    }
+
+    #[test]
+    fn fnv1a_hash_different_inputs_differ() {
+        assert_ne!(fnv1a_hash("a"), fnv1a_hash("b"));
+        assert_ne!(fnv1a_hash(""), fnv1a_hash("x"));
+    }
+
+    #[test]
+    fn strip_ansi_removes_color_codes() {
+        let colored = "\x1b[32mgreen\x1b[0m normal";
+        assert_eq!(strip_ansi(colored), "green normal");
+    }
+
+    #[test]
+    fn strip_ansi_passthrough_plain() {
+        let plain = "no escape codes here";
+        assert_eq!(strip_ansi(plain), plain);
+    }
+
+    #[test]
+    fn dedup_lines_collapses_consecutive_repeats() {
+        let lines = vec!["warn", "warn", "warn", "ok"];
+        let result = dedup_lines(&lines);
+        assert_eq!(result, vec!["warn [×3]", "ok"]);
+    }
+
+    #[test]
+    fn dedup_lines_passthrough_unique() {
+        let lines = vec!["a", "b", "a"]; // non-consecutive, must not collapse
+        let result = dedup_lines(&lines);
+        assert_eq!(result, vec!["a", "b", "a"]);
+    }
+
+    #[test]
+    fn dedup_lines_collapses_run_of_two() {
+        let lines = vec!["x", "x"];
+        let result = dedup_lines(&lines);
+        assert_eq!(result, vec!["x [×2]"]);
+    }
+
+    #[test]
+    fn compress_tool_output_passthrough_when_under_limit() {
+        std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "100");
+        let output = "line1\nline2\nline3";
+        assert_eq!(compress_tool_output(output), output);
+        std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    }
+
+    #[test]
+    fn compress_tool_output_truncates_with_header() {
+        std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "2");
+        let output = "a\nb\nfoo\nbar";
+        let result = compress_tool_output(output);
+        assert!(result.starts_with("[truncated: 4 lines → first 2 shown]"),
+            "header missing: {result}");
+        assert!(result.contains("a"), "kept lines must appear: {result}");
+        std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    }
+
+    #[test]
+    fn compress_tool_output_dedup_reduces_before_truncation() {
+        std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "5");
+        // 10 identical lines → deduped to 1 → well under limit
+        let output = "warn: something\n".repeat(10).trim_end().to_string();
+        let result = compress_tool_output(&output);
+        assert!(!result.starts_with("[truncated"), "dedup must prevent truncation: {result}");
+        assert!(result.contains("[×10]"), "dedup annotation must appear: {result}");
+        std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    }
+
+    #[test]
+    fn compress_tool_output_strips_ansi_before_dedup() {
+        std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+        let output = "\x1b[31mERROR\x1b[0m\n\x1b[31mERROR\x1b[0m\nok";
+        let result = compress_tool_output(output);
+        assert!(result.contains("[×2]"), "ANSI-stripped lines must dedup: {result}");
+        assert!(!result.contains("\x1b"), "ANSI codes must be stripped: {result}");
+    }
+
+    #[test]
+    fn compress_tool_output_unlimited_by_default() {
+        std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+        let big = (0..1000).map(|i| i.to_string()).collect::<Vec<_>>().join("\n");
+        let result = compress_tool_output(&big);
+        assert_eq!(result, big, "without env var, output must be unchanged");
+    }
 
     #[test]
     fn react_returns_stub_on_native() {
