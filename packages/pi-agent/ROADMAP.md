@@ -96,7 +96,7 @@ Context engineering follows the pi-test-harness model:
 - [ ] Implementation seam: `.refarm/config.json` → env vars before `WasiCtxBuilder` — zero new architecture
 
 ### Expanded tools
-- [ ] `edit_file` — unified diff apply via `agent_fs::edit`
+- [x] `edit_file` — unified diff apply via `agent_fs::edit`; tool schemas extracted to module level for native testability
 - [ ] `list_dir` — directory listing (needs new WIT primitive or `bash ls` workaround)
 - [x] `LLM_TOOL_OUTPUT_MAX_LINES` — opt-in truncation with a [truncated: N lines → M shown] header (squeez-inspired)
 - [x] ANSI stripping — CSI sequences removed before dedup so color codes don't block line collapse

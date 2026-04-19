@@ -337,6 +337,34 @@ fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
 }
 
+// ── Tool schemas (pure JSON — no WASM deps, testable on native) ──────────────
+
+pub(crate) fn tools_anthropic() -> serde_json::Value {
+    serde_json::json!([
+        {"name":"read_file","description":"Read the contents of a file at an absolute path.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"}},"required":["path"]}},
+        {"name":"write_file","description":"Write UTF-8 content to a file atomically.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
+        {"name":"edit_file","description":"Apply a unified diff (patch) to a file. Diff must use --- a/path and +++ b/path headers.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"diff":{"type":"string","description":"Unified diff to apply"}},"required":["path","diff"]}},
+        {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
+         "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
+    ])
+}
+
+pub(crate) fn tools_openai() -> serde_json::Value {
+    serde_json::json!([
+        {"type":"function","function":{"name":"read_file","description":"Read file at absolute path.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
+        {"type":"function","function":{"name":"write_file","description":"Write UTF-8 content to file atomically.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
+        {"type":"function","function":{"name":"edit_file","description":"Apply a unified diff (patch) to a file. Diff must use --- a/path and +++ b/path headers.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"diff":{"type":"string"}},"required":["path","diff"]}}},
+        {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
+         "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
+    ])
+}
+
 #[cfg(target_arch = "wasm32")]
 mod provider {
     use wasi::http::outgoing_handler;
@@ -352,30 +380,6 @@ mod provider {
         pub tokens_cached: u32,
         pub tokens_reasoning: u32,
         pub usage_raw: String,
-    }
-
-    // ── Tool definitions ──────────────────────────────────────────────────────
-
-    fn tools_anthropic() -> serde_json::Value {
-        serde_json::json!([
-            {"name":"read_file","description":"Read the contents of a file at an absolute path.",
-             "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"}},"required":["path"]}},
-            {"name":"write_file","description":"Write UTF-8 content to a file atomically.",
-             "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
-            {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
-             "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
-        ])
-    }
-
-    fn tools_openai() -> serde_json::Value {
-        serde_json::json!([
-            {"type":"function","function":{"name":"read_file","description":"Read file at absolute path.",
-             "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
-            {"type":"function","function":{"name":"write_file","description":"Write UTF-8 content to file atomically.",
-             "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
-            {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
-             "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
-        ])
     }
 
     // ── Tool dispatch (wasm32: calls agent_fs / agent_shell WIT imports) ──────
@@ -396,6 +400,14 @@ mod provider {
                 match agent_fs::write(path, content.as_bytes()) {
                     Ok(())  => format!("wrote {} bytes to {path}", content.len()),
                     Err(e)  => format!("[error writing {path}] {e}"),
+                }
+            }
+            "edit_file" => {
+                let path = input["path"].as_str().unwrap_or("");
+                let diff = input["diff"].as_str().unwrap_or("");
+                match agent_fs::edit(path, diff) {
+                    Ok(())  => format!("applied diff to {path}"),
+                    Err(e)  => format!("[error editing {path}] {e}"),
                 }
             }
             "bash" => {
@@ -495,7 +507,7 @@ mod provider {
         for _iter in 0..=max_iter {
             let body = serde_json::json!({
                 "model": model, "max_tokens": 1024, "system": system,
-                "tools": tools_anthropic(),
+                "tools": super::tools_anthropic(),
                 "messages": wire_msgs,
             }).to_string();
 
@@ -581,7 +593,7 @@ mod provider {
         for _iter in 0..=max_iter {
             let body = serde_json::json!({
                 "model": model, "max_tokens": 1024,
-                "tools": tools_openai(),
+                "tools": super::tools_openai(),
                 "messages": wire_msgs,
             }).to_string();
 
@@ -1084,6 +1096,22 @@ mod tests {
         let records = vec!["not-json".to_string(), "{}".to_string()];
         let spend = sum_provider_spend_usd(&records, "anthropic", now_ns(), 30 * 24 * 3600 * 1_000_000_000);
         assert_eq!(spend, 0.0, "malformed records must not panic or contribute spend");
+    }
+
+    #[test]
+    fn tools_anthropic_includes_edit_file() {
+        let tools = tools_anthropic();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"edit_file"), "edit_file must be in anthropic tools: {names:?}");
+    }
+
+    #[test]
+    fn tools_openai_includes_edit_file() {
+        let tools = tools_openai();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["function"]["name"].as_str()).collect();
+        assert!(names.contains(&"edit_file"), "edit_file must be in openai tools: {names:?}");
     }
 
     #[test]
