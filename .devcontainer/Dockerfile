@@ -68,30 +68,8 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
 RUN chown -R 1000:1000 /usr/local/cargo /usr/local/rustup
 
 # ── farm: enter as dev user from Docker Desktop root terminal ────────────────
-# Usage: farm [user] [project-dir]
-#   farm                           → vscode @ /workspaces/refarm
-#   farm vscode /workspaces/other  → vscode @ /workspaces/other
-RUN cat > /usr/local/bin/farm << 'SCRIPT'
-#!/bin/bash
-# farm — enter the container as the dev user, fully set up
-# Usage: farm [user] [project-dir]
-TARGET_USER="${1:-vscode}"
-PROJECT="${2:-/workspaces/refarm}"
-
-INIT=$(mktemp /tmp/farm.XXXXXX.sh)
-cat > "$INIT" << INITEOF
-[ -f /home/${TARGET_USER}/.bashrc ] && source /home/${TARGET_USER}/.bashrc
-export HOME=/home/${TARGET_USER}
-export USER=${TARGET_USER}
-export NPM_CONFIG_PREFIX=/home/${TARGET_USER}/.npm-global
-export PATH=/home/${TARGET_USER}/.npm-global/bin:/home/${TARGET_USER}/.cargo-local/bin:/home/${TARGET_USER}/.local/bin:/usr/local/cargo/bin:\${PATH}
-export CARGO_HOME=/usr/local/cargo
-export RUSTUP_HOME=/usr/local/rustup
-export CARGO_TERM_COLOR=always
-cd '${PROJECT}'
-rm -f '${INIT}'
-INITEOF
-
-exec su -s /bin/bash "$TARGET_USER" -- --init-file "$INIT"
-SCRIPT
-RUN chmod +x /usr/local/bin/farm
+# Usage: farm [user] [project-dir]  →  farm vscode /workspaces/refarm
+# Base64-encoded to avoid heredoc quoting issues in Dockerfile RUN layers.
+RUN echo IyEvYmluL2Jhc2gKVD0iJHsxOi12c2NvZGV9IjsgUD0iJHsyOi0vd29ya3NwYWNlcy9yZWZhcm19IgpJPSQobWt0ZW1wIC90bXAvZmFybS5YWFhYWFguc2gpOyBjaG1vZCA2NDQgIiRJIgpwcmludGYgJ1sgLWYgL2hvbWUvJXMvLmJhc2hyYyBdJiYuIC9ob21lLyVzLy5iYXNocmNcbmV4cG9ydCBIT01FPS9ob21lLyVzIFVTRVI9JXNcbmV4cG9ydCBOUE1fQ09ORklHX1BSRUZJWD0vaG9tZS8lcy8ubnBtLWdsb2JhbFxuZXhwb3J0IFBBVEg9L2hvbWUvJXMvLm5wbS1nbG9iYWwvYmluOi9ob21lLyVzLy5jYXJnby1sb2NhbC9iaW46L2hvbWUvJXMvLmxvY2FsL2JpbjovdXNyL2xvY2FsL2NhcmdvL2JpbjokUEFUSFxuZXhwb3J0IENBUkdPX0hPTUU9L3Vzci9sb2NhbC9jYXJnbyBSVVNUVVBfSE9NRT0vdXNyL2xvY2FsL3J1c3R1cCBDQVJHT19URVJNX0NPTE9SPWFsd2F5c1xuY2QgJXM7cm0gLWYgJXNcbicgXAogICIkVCIgIiRUIiAiJFQiICIkVCIgIiRUIiAiJFQiICIkVCIgIiRUIiAiJFAiICIkSSIgPiAiJEkiCmV4ZWMgc3UgLXMgL2Jpbi9iYXNoICIkVCIgLS0gLS1pbml0LWZpbGUgIiRJIgo= \
+    | base64 -d > /usr/local/bin/farm \
+  && chmod +x /usr/local/bin/farm
