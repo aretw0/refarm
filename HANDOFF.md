@@ -4,162 +4,7 @@
 > leia este arquivo inteiro antes de escrever qualquer código.
 > Se você é Arthur: cole este arquivo no início da próxima sessão.
 
-**Data:** 2026-04-17 | **Branch:** `develop` | **Autor da sessão:** Arthur + Claude Sonnet 4.6
-
----
-
-## Estado atual do sprint
-
-| Tarefa | Status | Arquivos-chave |
-|--------|--------|----------------|
-| 2A — `agent-tools` WASM | ✅ | `packages/agent-tools/` |
-| 2B — tractor linker + composition | ✅ | `packages/tractor/src/host/` |
-| 2B.5 — ws_server JSON routing | ✅ | `packages/tractor/src/daemon/ws_server.rs` |
-| 2C — `pi-agent` scaffold | ✅ | `packages/pi-agent/` |
-| **2C.1 — Multi-provider LLM via wasi:http** | ✅ | `packages/pi-agent/src/lib.rs` |
-| **2D — UsageRecord audit + cache pricing** | ✅ | `packages/pi-agent/src/lib.rs` |
-| 2E — Budget check + provider fallback | ⬜ próximo | `packages/pi-agent/` |
-| 3 — Pi-Nano host em Zig | ⬜ sprint seguinte | |
-
----
-
-## Commits entregues (todas as sessões)
-
-```
-d8950ef  feat(tractor): Tarefa 2B — agent-tools linker and composition pipeline
-806b9cc  feat(agent-tools): scaffold agent-tools WASM component (Tarefa 2A)
-```
-
-*(2B.5, 2C e testes foram implementados na mesma sessão sem commit separado — committar antes de iniciar 2C.1)*
-
----
-
-## Artefatos criados / modificados (sessão atual)
-
-| Arquivo | O que é |
-|---------|---------|
-| `packages/tractor/src/lib.rs` | `AgentMessage`, `AgentChannels`, `register_for_events` |
-| `packages/tractor/src/daemon/ws_server.rs` | Branch `Message::Text` → roteamento JSON de prompt; 5 testes |
-| `packages/tractor/src/main.rs` | `Ok(handle) => register_for_events`; passa `agent_channels` ao WsServer |
-| `packages/tractor/src/host/plugin_host.rs` | `.inherit_env()` no `WasiCtxBuilder` — LLM_PROVIDER etc chegam ao plugin |
-| `packages/pi-agent/Cargo.toml` | cargo-component, wit-bindgen, serde_json, wasi |
-| `packages/pi-agent/wit/world.wit` | World `pi-agent` em `refarm:plugin@0.1.0` |
-| `packages/pi-agent/wit/refarm-plugin-host.wit` | Symlink → `packages/tractor/wit/host/refarm-plugin-host.wit` |
-| `packages/pi-agent/src/lib.rs` | Pipeline completo + `mod provider` (Anthropic/Ollama/OpenAI-compat via wasi:http); 5 testes |
-
----
-
-## Decisões arquiteturais (não reverter sem discussão)
-
-### (Todas as decisões anteriores mantidas — ver sessão anterior)
-
-### 6. wasi:http já está no host (Tarefa 2B)
-
-`wasmtime_wasi_http::add_only_http_to_linker_async` é chamado em
-`plugin_host.rs:112` e `TractorStore` já implementa `WasiHttpView`.
-**Zero mudança necessária no tractor para 2C.1.** Só o plugin precisa ser modificado.
-
-### 7. WIT multi-arquivo: apenas o primeiro arquivo com `package` pode ter `///` doc comment
-
-O wit-parser trata qualquer comentário (`//` ou `///`) imediatamente antes de `package` como
-doc-comment do pacote. Quando dois arquivos no mesmo diretório declaram o mesmo pacote
-e ambos têm comentário antes de `package`, o parser rejeita com "found doc comments on multiple
-package items". Solução: apenas o arquivo "principal" tem `///`; o `world.wit` abre direto com
-`package` sem comentário anterior.
-
-### 8. `refarm-sdk.wit` tem `type` no nível de pacote — inválido em wit-parser moderno
-
-`refarm-sdk.wit` declara `type json-ld-node = string;` fora de qualquer interface.
-Isso funcionava em versões antigas do wit-parser mas falha em wit-bindgen 0.36.
-**Não usar `refarm-sdk.wit` como dep de WIT diretamente.** Usar `refarm-plugin-host.wit`
-(packages/tractor/wit/host/) que encapsula os tipos dentro de `interface types { }`.
-
----
-
-## Tarefa concluída: 2C.1 — Multi-provider LLM via wasi:http
-
-### O que foi implementado
-
-`packages/pi-agent/src/lib.rs` — `#[cfg(target_arch = "wasm32")] mod provider`:
-
-| Provider | Env vars | Endpoint | Default model |
-|----------|----------|----------|---------------|
-| `anthropic` (default) | `ANTHROPIC_API_KEY` | `https://api.anthropic.com/v1/messages` | `claude-sonnet-4-6` |
-| `ollama` | nenhuma | `http://localhost:11434/v1/chat/completions` | `llama3.2` |
-| `openai` | `OPENAI_API_KEY` | `https://api.openai.com/v1/chat/completions` | `gpt-4o-mini` |
-
-Variáveis de controle: `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` (override de URL).
-
-O host (tractor) usa `.inherit_env()` no `WasiCtxBuilder` — todos os env vars do processo chegam ao plugin sem enumeração manual.
-
-### Validação de fumaça (browser dev console)
-```javascript
-const ws = new WebSocket('ws://localhost:42000');
-ws.onmessage = e => {
-  try { const n = JSON.parse(new TextDecoder().decode(e.data)); if (n?.['@type']==='AgentResponse') console.log('RESPONSE:', n) }
-  catch { console.log('[crdt frame]') }
-};
-const ask = msg => ws.send(JSON.stringify({ type: 'user:prompt', agent: 'pi-agent', payload: msg }));
-// ask('olá, quem és tu?')
-// LLM_PROVIDER=ollama LLM_MODEL=llama3.2 cargo run -p tractor
-```
-
----
-
-## Próxima tarefa: 2D — Budget envelopes / cost governance
-
-Inspirado em `aretw0/agents-lab`. Idéia central: soberania sobre custos, modelo e janela de contexto.
-
-### O que fazer
-
-1. **Envelope de orçamento** — limite mensal por provedor (env var ou config):
-   ```
-   LLM_BUDGET_ANTHROPIC_USD=5.00   # máximo USD/mês
-   LLM_BUDGET_OLLAMA_USD=0         # grátis (local)
-   ```
-
-2. **Registro de uso** — após cada `react()`, armazenar um nó `UsageRecord`:
-   ```json
-   { "@type": "UsageRecord", "provider": "anthropic", "model": "claude-sonnet-4-6",
-     "tokens_in": 42, "tokens_out": 128, "estimated_usd": 0.00045, "timestamp_ns": ... }
-   ```
-
-3. **Verificação pré-requisição** — antes de chamar o provider, verificar se o orçamento do período (30 dias) ainda tem saldo. Se não, retornar erro amigável.
-
-4. **Fallback automático** — se Anthropic atingir budget, tentar Ollama local. Configurável via `LLM_FALLBACK_PROVIDER`.
-
-5. **Janela de contexto** — `LLM_MAX_CONTEXT_TOKENS` como guard antes de enviar prompts longos (truncar ou resumir).
-
----
-
-## Cobertura de testes atual
-
-| Pacote / módulo | Testes | O que garante |
-|-----------------|--------|---------------|
-| `tractor` ws_server | 5 | Routing JSON 2B.5: happy path, agente desconhecido, JSON malformado, type errado, frame CRDT inicial |
-| `tractor` agent_tools_bridge | 13 | agent-fs (read/write/edit), agent-shell (echo, exit code, argv, timeout, stdin, env) |
-| `tractor` storage / sync / telemetry / trust | 18 | Camadas de base |
-| `pi-agent` | 9 | Schema AgentResponse + UsageRecord (canários), pricing math + cache discount, react stub; todos nativos |
-| **Total** | **45** | |
-
-Para rodar tudo:
-```bash
-cargo test --manifest-path packages/tractor/Cargo.toml --lib
-cargo test --manifest-path packages/pi-agent/Cargo.toml
-```
-
----
-
-## Referências críticas
-
-| Recurso | Path | Por quê importa |
-|---------|------|-----------------|
-| Plugin host linker | `packages/tractor/src/host/plugin_host.rs:102-132` | wasi:http no linker (linha 112); `.inherit_env()` (linha 163) |
-| WsServer JSON path | `packages/tractor/src/daemon/ws_server.rs:154-170` | Roteamento de prompt 2B.5 |
-| Pi-agent pipeline | `packages/pi-agent/src/lib.rs:60-98` | handle_prompt + AgentResponse |
-| Provider abstraction | `packages/pi-agent/src/lib.rs:118-305` | Anthropic/Ollama/OpenAI-compat via wasi:http |
-| WIT válido (host) | `packages/tractor/wit/host/refarm-plugin-host.wit` | Usar este, não refarm-sdk.wit |
-| ADR-050 | `specs/ADRs/ADR-050-zig-wasm-agent-tool-host.md` | Decisões Zig/zwasm + Pi-Nano |
+**Data:** 2026-04-19 | **Branch:** `develop` | **Autor da sessão:** Arthur + Claude Sonnet 4.6
 
 ---
 
@@ -168,6 +13,162 @@ cargo test --manifest-path packages/pi-agent/Cargo.toml
 Cole no início da conversa:
 
 > "Estou retomando o sprint do Pi Agent do refarm. Leia o HANDOFF.md na raiz e me diga o que está pronto, o que está pendente, e o que precisamos fazer agora."
+
+---
+
+## Estado do pi-agent v0.1.0 — COMPLETO ✅
+
+Tudo abaixo está commitado, testado e funcionando:
+
+| Feature | Env vars | Status |
+|---|---|---|
+| Multi-provider LLM (Anthropic/OpenAI-compat/Ollama) | `LLM_PROVIDER`, `LLM_MODEL`, `LLM_BASE_URL` | ✅ |
+| Soberania de provider (Ollama como último recurso) | `LLM_DEFAULT_PROVIDER` | ✅ |
+| UsageRecord CRDT (tokens, custo, cache discount, `usage_raw`) | — | ✅ |
+| Budget check rolling 30d por provider | `LLM_BUDGET_<PROVIDER>_USD` | ✅ |
+| Context guard | `LLM_MAX_CONTEXT_TOKENS` | ✅ |
+| Fallback automático | `LLM_FALLBACK_PROVIDER` | ✅ |
+| Conversational memory (CRDT-backed) | `LLM_HISTORY_TURNS` | ✅ |
+| Agentic tool loop (até N iters) | `LLM_TOOL_CALL_MAX_ITER` | ✅ |
+| Tool: `read_file` / `write_file` | — | ✅ |
+| Tool: `edit_file` (multi-edit mitsuhiko pattern) | — | ✅ |
+| Tool: `list_dir` (bash ls) | — | ✅ |
+| Tool: `search_files` (grep -rn, optional glob) | — | ✅ |
+| Tool: `bash` (structured argv, no shell injection) | — | ✅ |
+| Tool output squeez pipeline (ANSI strip → dedup → truncate) | `LLM_TOOL_OUTPUT_MAX_LINES` | ✅ |
+| System prompt override | `LLM_SYSTEM` | ✅ |
+| `.refarm/config.json` → env vars injetados no plugin | — | ✅ |
+| Extensibility axioms A1–A4 (testes executáveis) | — | ✅ |
+
+### Cobertura de testes atual
+
+| Pacote | Testes nativos | O que garante |
+|---|---|---|
+| `pi-agent` | 54 | apply_edits, compress_tool_output, tools schema, providers, axioms A1-A4, usage math |
+| `tractor` lib | 40 | ws_server routing, agent_tools_bridge, storage/sync/telemetry/trust, config.json injection |
+| `tractor` harness | 7 (ignored, requerem WASM) | agent response, usage record, context guard, budget block, multi-turn, config.json, truncation |
+
+Para rodar:
+```bash
+# Rápido e seguro (nunca vai OOM):
+cargo test --lib -p pi-agent
+cargo test --lib -p refarm-tractor
+
+# Harness (requer build WASM primeiro):
+cargo component build --release -p pi-agent
+cargo test --test pi_agent_harness -p refarm-tractor -- --ignored --test-threads=1
+```
+
+---
+
+## Estado v0.2.0 — Em progresso 🔄
+
+### Feito neste sprint
+
+- [x] `edit_file` — multi-edit mitsuhiko pattern (`{path, edits:[{old_str,new_str}]}`)
+- [x] `list_dir` — `ls -1` via agent-shell
+- [x] `search_files` — `grep -rn` via agent-shell, optional glob, exit 1 → mensagem amigável
+- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeez pipeline implementado + harness scenario
+- [x] `LLM_SYSTEM` — system prompt injetável por distros
+- [x] `.refarm/config.json` → env vars (`provider`, `model`, `default_provider`, `budgets`)
+- [x] mdt documentation sync (`env_vars`, `tools`, `config_fields` blocks em README)
+- [x] Harness expansion: tool use, fallback, multi-turn, config.json, truncation
+
+### Pendente (prioridade: Segurança → CRDT → CLI)
+
+#### 1. Segurança (inspirado em Gondolin — ver `packages/pi-agent/ROADMAP.md#security-roadmap`)
+
+Os três itens a implementar, em ordem de impacto:
+
+**A. `LLM_SHELL_ALLOWLIST`** — blocklist de comandos no `agent_shell::spawn`
+- Onde: `packages/tractor/src/host/agent_tools_bridge.rs` — função que despacha argv
+- Como: checar `argv[0]` contra lista antes de spawn; retornar `[blocked: <cmd> not in allowlist]`
+- Env: `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` (vazio = tudo bloqueado por default ou tudo permitido?)
+- Decisão pendente: default permissivo (atual) ou default restritivo?
+
+**B. `LLM_FS_ROOT`** — restrição de path no `agent_fs::read/write`
+- Onde: `packages/tractor/src/host/agent_tools_bridge.rs` — funções fs read/write
+- Como: normalizar path, checar prefixo antes de dispatch; rejeitar com `[blocked: path outside LLM_FS_ROOT]`
+- Env: `LLM_FS_ROOT=/workspaces/myproject`
+
+**C. Credential placeholder injection** (mais complexo, requer novo WIT)
+- Hoje: plugin usa `wasi:http` e recebe `ANTHROPIC_API_KEY` via `inherit_env()`
+- Alvo: tractor faz a chamada HTTP em nome do plugin; plugin recebe respostas, nunca a chave
+- Requer: novo WIT `llm-bridge::complete(system, messages[])` em `packages/tractor/wit/host/`
+- Plugin dropa `wasi:http` dependency completamente
+
+#### 2. CRDT-backed RefarmConfig
+
+- Onde: `packages/tractor/src/host/plugin_host.rs` — após `refarm_config_env_vars_from()`
+- Como: `tractor_bridge::store_node("RefarmConfig", payload)` na carga do plugin
+- Zero nova arquitetura — mesmos primitivos store/query já usados por UsageRecord
+- Permite: auditar qual config estava ativa quando cada AgentResponse foi gerada
+
+#### 3. CLI daily-driver (`tractor-native prompt` / `watch`)
+
+- Onde: `packages/tractor/src/main.rs` — novo subcommand via `clap`
+- `prompt`: conecta ao daemon na porta 42000, envia `user:prompt`, imprime `AgentResponse.content`
+- `watch`: REPL loop — lê stdin linha a linha, imprime respostas; stateful via CRDT
+- Se daemon não rodando: iniciar tractor efêmero no mesmo processo, responder, sair
+
+---
+
+## Commits recentes (este sprint)
+
+```
+0e3f182  test(tractor): harness scenario — LLM_TOOL_OUTPUT_MAX_LINES truncates tool result
+5cb4d3f  test(tractor): harness scenario — .refarm/config.json injects LLM_PROVIDER
+1b668dc  docs(terminal-plugin): renderers vs protocol — TUI, CLI, browser share same WS contract
+6a64fa7  docs(terminal-plugin): ROADMAP — display/execution separation, REPL loop, agent transparency
+16b496a  docs(roadmap): security section — lessons from Gondolin micro-VM sandbox
+83aeb66  feat(pi-agent): LLM_SYSTEM env var — distro-injectable system prompt
+f4036b5  docs(agents): build resource discipline — RAM constraints + safe cargo commands
+a21ac1f  chore: .cargo/config.toml — limit build jobs + codegen-units for 8GB host
+1ff4683  fix+refactor: apply_edits pure fn, ws_integration compile fix
+4e6aa7c  feat(pi-agent): search_files tool — grep via agent-shell
+a239bfc  feat(tractor): .refarm/config.json → LLM_* env vars for plugin sandbox
+fdd8e9e  feat(pi-agent): list_dir tool — directory listing via bash ls
+318e468  feat(pi-agent): edit_file — multi-edit pattern (mitsuhiko/agents-lab)
+```
+
+---
+
+## Arquivos críticos para navegar
+
+| Arquivo | O que é |
+|---|---|
+| `packages/pi-agent/src/lib.rs` | Pipeline completo: tools, providers, loop, compress, apply_edits |
+| `packages/pi-agent/ROADMAP.md` | v0.2.0 checklist + security roadmap (Gondolin lessons) |
+| `packages/tractor/src/host/plugin_host.rs` | `refarm_config_env_vars_from()` + WASI sandbox |
+| `packages/tractor/src/host/agent_tools_bridge.rs` | Onde implementar LLM_SHELL_ALLOWLIST e LLM_FS_ROOT |
+| `packages/tractor/tests/pi_agent_harness.rs` | 7 cenários de integração real (WASM + mock LLM) |
+| `packages/terminal-plugin/ROADMAP.md` | Display layer: v0.2.0 WS + ShellOutput CRDT |
+| `.cargo/config.toml` | jobs=4, codegen-units=4 — proteção contra OOM no host 8GB |
+| `AGENTS.md` — seção 7 | Regras de RAM: comandos cargo ordenados por custo de memória |
+
+---
+
+## Decisões arquiteturais (não reverter sem discussão)
+
+1. **Source is Truth** — nunca editar `dist/`, `build/`, `.turbo/`
+2. **`apply_edits` é pura** — extraída para nível de módulo, testável nativamente; dispatch WASM delega a ela
+3. **`tools_anthropic/openai` fora de `#[cfg(wasm32)]`** — mesma razão: testabilidade nativa
+4. **multi-edit pattern (mitsuhiko)** — `{old_str, new_str}` exact-match, rejeita ambiguidade (>1 match)
+5. **`refarm_config_env_vars_from(base: &Path)`** — recebe diretório como parâmetro (não lê `current_dir()` internamente) para testabilidade sem race conditions
+6. **`cargo test --lib` sempre** — nunca `cargo test` bare (OOM em 8GB com 16 codegen-units paralelas)
+7. **`agent-tools.wasm` ≠ `terminal-plugin`** — execução (Rust/WASM/OS) e display (TS/DOM/browser) nunca colapsam em um pacote
+8. **Segurança antes de CLI** — LLM_SHELL_ALLOWLIST/LLM_FS_ROOT protegem o sistema antes de abrir interface de linha de comando
+
+---
+
+## agents-lab (aretw0/agents-lab) — análise concluída
+
+O repo é curadoria de **Pi skills (markdown comportamental)**, não tool schemas executáveis.
+Tudo que os git-skills descrevem já é coberto pelo `bash` tool do pi-agent.
+Alinhamento acontece no nível de **distro** — uma versão "coding farmhand" injeta os skills via `LLM_SYSTEM`.
+Nenhum novo core tool emerge da análise.
+
+Único padrão com potencial futuro: `git-checkout-cache` (cache de repos remotos em `~/.cache/checkouts/<host>/<org>/<repo>`) — candidato a tool `clone_repo` num sprint futuro.
 
 ---
 
