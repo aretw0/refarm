@@ -347,6 +347,8 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
          "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
         {"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]},"description":"Ordered list of replacements to apply"}},"required":["path","edits"]}},
+        {"name":"list_dir","description":"List files and directories at a path.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to directory"}},"required":["path"]}},
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
     ])
@@ -360,6 +362,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
         {"type":"function","function":{"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"edits":{"type":"array","items":{"type":"object","properties":{"old_str":{"type":"string"},"new_str":{"type":"string"}},"required":["old_str","new_str"]}}},"required":["path","edits"]}}},
+        {"type":"function","function":{"name":"list_dir","description":"List files and directories at a path.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
     ])
@@ -424,6 +428,21 @@ mod provider {
                 match agent_fs::write(path, content.as_bytes()) {
                     Ok(())  => format!("applied {} edit(s) to {path}", edits.len()),
                     Err(e)  => format!("[error writing {path}] {e}"),
+                }
+            }
+            "list_dir" => {
+                let path = input["path"].as_str().unwrap_or(".");
+                let req = agent_shell::SpawnRequest {
+                    argv: vec!["ls".into(), "-1".into(), "--".into(), path.into()],
+                    env: vec![], cwd: None, timeout_ms: 5_000, stdin: None,
+                };
+                match agent_shell::spawn(&req) {
+                    Ok(r) if r.exit_code == 0 => {
+                        super::compress_tool_output(&String::from_utf8_lossy(&r.stdout))
+                    }
+                    Ok(r) => format!("[error listing {path}] exit {}\n{}",
+                        r.exit_code, String::from_utf8_lossy(&r.stderr)),
+                    Err(e) => format!("[error listing {path}] {e}"),
                 }
             }
             "bash" => {
@@ -1112,6 +1131,22 @@ mod tests {
         let records = vec!["not-json".to_string(), "{}".to_string()];
         let spend = sum_provider_spend_usd(&records, "anthropic", now_ns(), 30 * 24 * 3600 * 1_000_000_000);
         assert_eq!(spend, 0.0, "malformed records must not panic or contribute spend");
+    }
+
+    #[test]
+    fn tools_anthropic_includes_list_dir() {
+        let tools = tools_anthropic();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["name"].as_str()).collect();
+        assert!(names.contains(&"list_dir"), "list_dir must be in anthropic tools: {names:?}");
+    }
+
+    #[test]
+    fn tools_openai_includes_list_dir() {
+        let tools = tools_openai();
+        let names: Vec<&str> = tools.as_array().unwrap()
+            .iter().filter_map(|t| t["function"]["name"].as_str()).collect();
+        assert!(names.contains(&"list_dir"), "list_dir must be in openai tools: {names:?}");
     }
 
     #[test]

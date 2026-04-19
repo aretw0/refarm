@@ -97,7 +97,7 @@ Context engineering follows the pi-test-harness model:
 
 ### Expanded tools
 - [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, curated in agents-lab); ambiguity guard; pure WASM, no host changes
-- [ ] `list_dir` — directory listing (needs new WIT primitive or `bash ls` workaround)
+- [x] `list_dir` — directory listing via `bash ls -1` (no new WIT primitive needed)
 - [x] `LLM_TOOL_OUTPUT_MAX_LINES` — opt-in truncation with a [truncated: N lines → M shown] header (squeez-inspired)
 - [x] ANSI stripping — CSI sequences removed before dedup so color codes don't block line collapse
 - [x] Consecutive line dedup — repeated runs of ≥2 identical lines collapsed to `line [×N]`
