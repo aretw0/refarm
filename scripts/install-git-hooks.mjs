@@ -74,11 +74,11 @@ do
 
   printf '%s\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
 
-  if echo "$CHANGED_FILES" | grep -Eq '\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_LINT=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_TYPECHECK=1
     NEEDS_UNIT_TESTS=1
   fi
@@ -112,19 +112,12 @@ echo ""
 BLOCKING_FAILED=0
 WARNINGS=0
 
-# 1. Lint (scoped to changed JS/TS files to avoid monorepo-wide stalls)
+# 1. Lint
 echo "📝 Checking lint..."
 if [ $NEEDS_LINT -eq 0 ]; then
-  echo "   ⏭️  Lint skipped (no lint-relevant file changes in push range)"
+  echo "   ⏭️  Lint skipped (no workspace lint-relevant file changes in push range)"
 else
-  LINT_FILES=$(mktemp)
-  grep -E '\\.(ts|tsx|js|jsx|mjs|cjs)$' "$CHANGED_FILES_ALL" | while read -r f; do
-    [ -f "$f" ] && printf '%s\n' "$f"
-  done | sort -u > "$LINT_FILES" || true
-
-  if [ ! -s "$LINT_FILES" ]; then
-    echo "   ⏭️  Lint skipped (no existing changed JS/TS files to lint)"
-  elif timeout 60 xargs -r npx eslint --max-warnings=0 -- < "$LINT_FILES" >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+  if timeout 120 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
     echo "   ✅ Lint passed"
   else
     if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
@@ -136,8 +129,6 @@ else
       WARNINGS=1
     fi
   fi
-
-  rm -f "$LINT_FILES"
 fi
 echo ""
 
