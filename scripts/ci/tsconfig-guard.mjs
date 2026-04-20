@@ -202,6 +202,14 @@ function main() {
 
 		const show = runShowConfig(tsconfigPath);
 		if (!show.ok) {
+			const failureText = `${show.stderr || ""}\n${show.stdout || ""}`;
+			if (/TS18003|No inputs were found in config file/.test(failureText)) {
+				console.log(
+					`TSConfig guard: SKIP (${projectRel}) -- no inputs available for --showConfig yet`,
+				);
+				continue;
+			}
+
 			const detail = show.timedOut
 				? "tsc --showConfig timed out"
 				: (show.stderr || show.stdout || "tsc --showConfig failed")
