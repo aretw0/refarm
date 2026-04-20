@@ -2,7 +2,7 @@
   "extends": "./packages/tsconfig/dom.json",
   "compilerOptions": {
     "noEmit": true,
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "types": ["node"],
     "paths": {
