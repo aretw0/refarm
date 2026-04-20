@@ -17,15 +17,15 @@
     "test:e2e:webkit": "playwright test --project=webkit"
   },
   "dependencies": {
-    "@bytecodealliance/jco": "^1.4.2",
-    "@bytecodealliance/preview2-shim": "^0.17.8"
+    "@bytecodealliance/jco": "^1.18.0",
+    "@bytecodealliance/preview2-shim": "^0.17.9"
   },
   "devDependencies": {
     "@refarm.dev/hello-world-plugin": "*",
     "@refarm.dev/vtconfig": "*",
-    "@playwright/test": "^1.58.2",
-    "serve": "^14.2.4",
-    "typescript": "^5.7.3",
-    "vite": "^8.0.1"
+    "@playwright/test": "^1.59.1",
+    "serve": "^14.2.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
   }
 }

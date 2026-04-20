@@ -19,6 +19,6 @@
     "test:integration": "echo 'No integration tests for this crate'"
   },
   "devDependencies": {
-    "@bytecodealliance/jco": "^1.4.2"
+    "@bytecodealliance/jco": "^1.18.0"
   }
 }

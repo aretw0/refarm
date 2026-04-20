@@ -16,13 +16,13 @@
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
-    "ws": "^8.18.0"
+    "ws": "^8.20.0"
   },
   "devDependencies": {
-    "@types/node": "^22.0.0",
-    "@types/ws": "^8.5.14",
-    "typescript": "^5.7.3",
-    "vitest": "^4.0.18"
+    "@types/node": "^25.6.0",
+    "@types/ws": "^8.18.1",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
   },
   "license": "AGPL-3.0-only"
 }
