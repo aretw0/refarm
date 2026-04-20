@@ -1,22 +1,23 @@
 {
-  "extends": "@refarm.dev/tsconfig/dom.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
-      "@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
-      "@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
-      "@refarm.dev/homestead/sdk": ["../../packages/homestead/src/sdk/index.ts"]
-    }
-  },
-  "exclude": ["node_modules", "dist"],
-  "include": ["src/**/*", ".astro/types.d.ts"],
-  "references": [
-    { "path": "../../packages/identity-contract-v1" },
-    { "path": "../../packages/storage-contract-v1" },
-    { "path": "../../packages/sync-contract-v1" },
-    { "path": "../../packages/tractor-ts/tsconfig.build.json" }
-  ]
+	"extends": "@refarm.dev/tsconfig/dom.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"outDir": "./dist",
+		"baseUrl": ".",
+		"rootDir": "../..",
+		"paths": {
+			"@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
+			"@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
+			"@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
+			"@refarm.dev/homestead/sdk": ["../../packages/homestead/src/sdk/index.ts"]
+		}
+	},
+	"exclude": ["node_modules", "dist"],
+	"include": ["src/**/*", ".astro/types.d.ts"],
+	"references": [
+		{ "path": "../../packages/identity-contract-v1" },
+		{ "path": "../../packages/storage-contract-v1" },
+		{ "path": "../../packages/sync-contract-v1" },
+		{ "path": "../../packages/tractor-ts/tsconfig.build.json" }
+	]
 }
