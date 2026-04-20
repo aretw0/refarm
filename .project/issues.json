@@ -170,33 +170,36 @@
       "title": "Convergir prioridades ativas para .project e reduzir dependência de HANDOFF manual",
       "body": "As prioridades recentes de estabilização CI/TS6 e retomada do sprint Tractor/Pi-Agent estão majoritariamente em contexto de sessão/HANDOFF. Registrar backlog ativo em blocos estruturados (.project) para execução por múltiplos agentes sem perda de continuidade.",
       "location": ".project:1",
-      "status": "open",
+      "status": "resolved",
       "category": "composition",
       "priority": "high",
       "package": "project-governance",
-      "source": "human"
+      "source": "human",
+      "resolved_by": "VER-OPS-06-20260420"
     },
     {
       "id": "ISS-010",
       "title": "Eliminar warnings de ações Node20 forçadas para Node24 no GitHub Actions",
       "body": "Os runs estão verdes, porém persistem anotações de depreciação Node20 em actions pinadas (cache/upload-artifact/github-script). Planejar atualização para reduzir ruído e risco futuro.",
       "location": ".github/workflows/test.yml:1",
-      "status": "open",
+      "status": "resolved",
       "category": "cleanup",
       "priority": "medium",
       "package": "ci",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-PIPE-08-20260420"
     },
     {
       "id": "ISS-011",
       "title": "Criar preflight TS6 para detectar cedo rootDir/types/baseUrl depreciações",
       "body": "A estabilização recente exigiu patches reativos por pacote. Falta guard único (script + check CI) para prevenir regressões TS6 em imports cross-workspace e tipos Node.",
       "location": "scripts/ci:1",
-      "status": "open",
+      "status": "resolved",
       "category": "primitive",
       "priority": "high",
       "package": "typescript",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-PIPE-07-20260420"
     }
   ]
 }
