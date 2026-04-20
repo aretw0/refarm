@@ -63,6 +63,14 @@
       "status": "decided",
       "phase": "P8-Governance",
       "context": "Fechar loop entre execução, risco e melhoria contínua."
+    },
+    {
+      "id": "DEC-009",
+      "decision": "Centralizar estado operacional no .project (issues/tasks/verification) e tratar HANDOFF.md apenas como resumo humano opcional.",
+      "rationale": "Evita duplicação e divergência de contexto entre agentes, melhora execução por hordas e mantém rastreabilidade validável por schema.",
+      "status": "decided",
+      "phase": "P9-Alignment",
+      "context": "Convergência de workflow humano+agente para fonte única de verdade em planejamento/execução."
     }
   ]
 }

@@ -768,6 +768,66 @@
         "T-OPS-02"
       ],
       "assigned_agent": "worker-pm"
+    },
+    {
+      "id": "T-OPS-06",
+      "description": "Migrar prioridades operacionais ativas do HANDOFF para os blocos .project e definir ritual de atualização única.",
+      "status": "planned",
+      "phase": "P8-Governance",
+      "files": [
+        ".project/issues.json",
+        ".project/tasks.json",
+        ".project/decisions.json",
+        "HANDOFF.md"
+      ],
+      "acceptance_criteria": [
+        "Prioridades ativas registradas em issues/tasks do .project",
+        "Decisão de fonte canônica registrada",
+        "HANDOFF tratado apenas como resumo humano opcional"
+      ],
+      "depends_on": [
+        "T-DEC-03"
+      ],
+      "assigned_agent": "worker-governance"
+    },
+    {
+      "id": "T-PIPE-07",
+      "description": "Implementar guard TS6 preflight para detectar depreciações baseUrl/rootDir/types antes do Full Turbo.",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        "scripts/ci/tsconfig-guard.mjs",
+        ".github/workflows/test.yml",
+        "package.json"
+      ],
+      "acceptance_criteria": [
+        "Script falha com mensagem clara por pacote afetado",
+        "Check executa rápido antes de type-check completo",
+        "Documentado como passo de preflight local/CI"
+      ],
+      "depends_on": [
+        "T-PIPE-01"
+      ],
+      "assigned_agent": "worker-core"
+    },
+    {
+      "id": "T-PIPE-08",
+      "description": "Atualizar ações GitHub remanescentes para variantes compatíveis com baseline Node24 e remover warnings recorrentes.",
+      "status": "planned",
+      "phase": "P2-Pipeline",
+      "files": [
+        ".github/workflows/test.yml",
+        ".github/actions/**"
+      ],
+      "acceptance_criteria": [
+        "Sem warnings de Node20 deprecated nos jobs principais",
+        "Pins por SHA mantidos",
+        "Diff de workflow enxuto e auditável"
+      ],
+      "depends_on": [
+        "T-PIPE-07"
+      ],
+      "assigned_agent": "worker-core"
     }
   ]
 }
