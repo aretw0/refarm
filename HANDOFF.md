@@ -128,7 +128,7 @@ Isso **não** foi falha de dependência/audit; foi interrupção do processo de 
 1. Se houver nova regressão de lint/type-check, aplicar fix mínimo e preservar abordagem de commits atômicos.
 2. Continuar roadmap do `tractor`/`pi-agent` em modo auditável (sem dependência de worktrees efêmeras de colônia).
 3. Reavaliar retomada de colônias apenas após correção de retenção/promoção no pi-stack.
-4. Higiene futura de CI: planejar atualização de actions Node20 → Node24 (hoje apenas warning).
+4. Higiene futura de CI: expandir migração Node20 → Node24 para workflows restantes (em `test.yml` já há opt-in via `FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`).
 
 ### Modo operacional pedido pelo usuário
 
