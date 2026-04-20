@@ -4,6 +4,7 @@
     "noEmit": true,
     "outDir": "./dist",
     "baseUrl": "../..",
+    "rootDir": "..",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "composite": false,
     "declaration": false,
