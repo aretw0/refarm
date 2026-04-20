@@ -18,13 +18,13 @@
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
     "@refarm.dev/storage-sqlite": "*",
-    "astro": "^5.3.0"
+    "astro": "^6.1.8"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
-    "typescript": "^5.7.3",
+    "typescript": "^6.0.3",
     "@refarm.dev/tsconfig": "*",
-    "@astrojs/check": "^0.9.4"
+    "@astrojs/check": "^0.9.8"
   },
   "license": "MIT"
 }
