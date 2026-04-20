@@ -104,7 +104,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Read `.refarm/config.json` in tractor before spawning plugin — maps to env vars
 - [x] `config.json` fields: `provider`, `model`, `default_provider`, `budgets`
 - [x] Implementation seam: `refarm_config_env_vars_from()` → `WasiCtxBuilder::envs()` — config overrides process env
-- [ ] CRDT-backed: config itself is a `RefarmConfig` node — auditable, collaborative
+- [x] CRDT-backed: config itself is a `RefarmConfig` node — auditable, collaborative
   - `tractor_bridge::store_node` on load; `query_nodes("RefarmConfig", 1)` to read back
   - Zero new architecture: same store/query primitives already used by UsageRecord
 
@@ -114,13 +114,13 @@ Context engineering follows the pi-test-harness model:
 - [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeez pipeline: strip ANSI → dedup → truncate
 - [x] ANSI stripping, consecutive line dedup, cross-call FNV-1a dedup
 - [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches via `bash grep -rn`; exit 1 with no output → friendly "no matches" message
-- [ ] `LLM_TOOL_OUTPUT_MAX_LINES` harness scenario: assert truncation header in AgentResponse tool_calls
+- [x] `LLM_TOOL_OUTPUT_MAX_LINES` harness scenario: assert truncation header in AgentResponse tool_calls
 
 ### Harness expansion
 - [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged
 - [x] Fallback scenario: anthropic fails → ollama mock serves
 - [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
-- [ ] `.refarm/config.json` scenario: write config to temp dir, assert `LLM_PROVIDER` injected into plugin
+- [x] `.refarm/config.json` scenario: write config to temp dir, assert `LLM_PROVIDER` injected into plugin
 
 ---
 

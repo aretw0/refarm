@@ -60,6 +60,12 @@
 - `npm audit --json` (metadata) → `high: 0`, `critical: 0`, `total: 0`
 - `git status --porcelain` → **limpo**
 - `git status -sb` → `develop...origin/develop` (sem diferenças locais/remotas)
+- CI pós-push (`run 24646812942`) → **success**
+  - `audit-moderate` ✅
+  - `quality` ✅
+  - `build` ✅
+  - `e2e` ✅
+  - `summary` ✅
 
 ### Segurança do Tractor implementada nesta retomada
 
@@ -119,10 +125,10 @@ Isso **não** foi falha de dependência/audit; foi interrupção do processo de 
 
 ### Pendências imediatas para próxima sessão
 
-1. Monitorar CI remoto pós-push e registrar evidência de green/fail por job.
-2. Se houver regressão de lint/type-check, aplicar fix mínimo e preservar abordagem de commits atômicos.
-3. Continuar roadmap do `tractor`/`pi-agent` em modo auditável (sem dependência de worktrees efêmeras de colônia).
-4. Reavaliar retomada de colônias apenas após correção de retenção/promoção no pi-stack.
+1. Se houver nova regressão de lint/type-check, aplicar fix mínimo e preservar abordagem de commits atômicos.
+2. Continuar roadmap do `tractor`/`pi-agent` em modo auditável (sem dependência de worktrees efêmeras de colônia).
+3. Reavaliar retomada de colônias apenas após correção de retenção/promoção no pi-stack.
+4. Higiene futura de CI: planejar atualização de actions Node20 → Node24 (hoje apenas warning).
 
 ### Modo operacional pedido pelo usuário
 
