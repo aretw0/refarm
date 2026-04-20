@@ -86,13 +86,13 @@ Context engineering follows the pi-test-harness model:
 
 ### Daily-driver CLI
 > Inspired by Pi CLI and Claude Code: invoke the agent from a terminal without a WebSocket client.
-- [ ] `tractor-native prompt --agent pi-agent "do something"` subcommand
-  - Connects to a running daemon on `--port 42000`, sends `user:prompt`, streams back `AgentResponse` content
-  - Implementation: `tokio-tungstenite` client in `main.rs` behind `clap` subcommand
-  - If no daemon running: start ephemeral tractor in same process, load plugin, respond, exit
-- [ ] `tractor-native watch` — interactive REPL loop: reads stdin line-by-line, prints responses
-  - Same ephemeral-or-connect logic as `prompt`
-  - Stateful: CRDT accumulates across turns → conversational memory works without extra config
+- [x] `tractor prompt --agent pi-agent "do something"` subcommand
+  - Connects to a running daemon (`--port`, default 42000), sends `user:prompt`, and supports waiting for final `AgentResponse`
+  - Implementado em `packages/tractor/src/main.rs` com subcomando `prompt`
+  - Inclui fallback operacional por storage quando necessário (modo resiliente de sessão)
+- [x] `tractor watch` — loop de observação das respostas do agente
+  - Implementado em `packages/tractor/src/main.rs` com subcomando `watch`
+  - Usa polling de storage SQLite como fallback resiliente para acompanhar `AgentResponse`
 
 ### Streaming token output
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)

@@ -66,6 +66,9 @@
   - `build` ✅
   - `e2e` ✅
   - `summary` ✅
+- CI pós-migração Node24 forçada (`run 24647570815`) → **success**
+  - `quality` ✅, `audit-moderate` ✅, `build` ✅, `e2e` ✅, `summary` ✅
+  - warnings de depreciação Node20 permanecem apenas informativos (ações já executadas em Node24 via env)
 
 ### Segurança do Tractor implementada nesta retomada
 
