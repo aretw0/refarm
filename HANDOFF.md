@@ -34,6 +34,10 @@
   - `f076ced` — `fix(tractor-host): silence dead_code on agent tools handle`
   - `1dd15eb` — `feat(tractor-cli): add prompt/watch commands with storage fallback`
   - `87b7cc5` — `feat(security): enforce host llm bridge and sandbox guards`
+  - `9541319` — `docs(factory-loop): add no-colony fallback and session checkpoints`
+  - `9d9b3a5` — `fix(devcontainer): harden git auth and speed pre-push checks`
+  - `3db1ef2` — `fix(hooks): skip lint for non-workspace changes on push`
+- Push para `origin/develop` concluído com sucesso após ajustes de auth/hook.
 - Validação frugal executada:
   - `cd packages/tractor && cargo check --all-targets` ✅
   - `cd packages/tractor && cargo test --lib` ✅ (56 testes)
@@ -54,8 +58,8 @@
 - `npm audit --audit-level=high` → **0 vulnerabilities**
 - `npm audit --audit-level=high --omit=dev` → **0 vulnerabilities**
 - `npm audit --json` (metadata) → `high: 0`, `critical: 0`, `total: 0`
-- `git status --porcelain` → **não limpo** (mudanças locais de segurança/llm-bridge em progresso)
-- `git status -sb` → `develop...origin/develop`
+- `git status --porcelain` → **limpo**
+- `git status -sb` → `develop...origin/develop` (sem diferenças locais/remotas)
 
 ### Segurança do Tractor implementada nesta retomada
 
@@ -115,11 +119,10 @@ Isso **não** foi falha de dependência/audit; foi interrupção do processo de 
 
 ### Pendências imediatas para próxima sessão
 
-1. Revisar diffs locais e fechar commit atômico de segurança (tractor + pi-agent + docs).
-2. Revalidar CI remoto após push (gates de audit).
-3. Próxima prioridade técnica:
-   - CLI daily-driver (`tractor-native prompt/watch`)
-4. Se não houver artefato de diff da colônia, aplicar patch manual mínimo/atômico com testes focados.
+1. Monitorar CI remoto pós-push e registrar evidência de green/fail por job.
+2. Se houver regressão de lint/type-check, aplicar fix mínimo e preservar abordagem de commits atômicos.
+3. Continuar roadmap do `tractor`/`pi-agent` em modo auditável (sem dependência de worktrees efêmeras de colônia).
+4. Reavaliar retomada de colônias apenas após correção de retenção/promoção no pi-stack.
 
 ### Modo operacional pedido pelo usuário
 
