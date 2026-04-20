@@ -56,11 +56,12 @@ runs:
       if: ${{ inputs.playwright-setup == 'true' }}
       shell: bash
       run: |
-        if npx playwright install --list | grep -Eq '/(chromium|firefox|webkit)-'; then
+        PW_CMD="npm exec --workspace validations/sqlite-benchmark/browser -- playwright"
+        if $PW_CMD install --list | grep -Eq '/(chromium|firefox|webkit)-'; then
           echo "Playwright browsers already available, skipping installation..."
         else
           echo "Installing Playwright browsers..."
-          npx playwright install --with-deps
+          $PW_CMD install --with-deps
         fi
 
     - name: Setup Rust toolchain
