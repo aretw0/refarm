@@ -66,6 +66,31 @@ cargo test --all
 
 ---
 
+## Prompt / Watch CLI (ephemeral fallback)
+
+`tractor` now ships minimal operator commands for the `user:prompt` WS path plus storage-based watching:
+
+```bash
+# Send prompt to a registered plugin (default agent: pi-agent)
+./target/release/tractor prompt \
+  --ws-port 42000 \
+  --namespace default \
+  --agent pi-agent \
+  --payload "resuma o status do nó"
+
+# Fire-and-forget (don't wait for final response)
+./target/release/tractor prompt --payload "oi" --wait-timeout-ms 0
+
+# Watch new AgentResponse nodes from storage
+./target/release/tractor watch --namespace default --agent pi-agent --until-final
+```
+
+Notes:
+- `prompt` sends JSON text frame: `{ "type": "user:prompt", "agent": "...", "payload": "..." }`.
+- Waiting/watching uses SQLite polling (`AgentResponse`) as a resilient fallback path.
+
+---
+
 ## API
 
 For embedding `tractor` as a library in Electron apps, CLI agents, or other Rust programs:
@@ -90,6 +115,8 @@ tractor.shutdown().await?;
 
 ## CLI Flags
 
+Daemon mode (default, no subcommand):
+
 | Flag | Default | Effect |
 |---|---|---|
 | `--namespace <NAME>` | `default` | SQLite path (`~/.local/share/refarm/<NAME>.db`) or `:memory:` |
@@ -97,6 +124,10 @@ tractor.shutdown().await?;
 | `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
 | `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+
+Prompt/watch-specific flags are available via:
+- `tractor prompt --help`
+- `tractor watch --help`
 
 ---
 
