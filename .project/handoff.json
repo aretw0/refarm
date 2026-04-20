@@ -1,21 +1,23 @@
 {
-  "context": "P2 estabilizado: TSConfig preflight e concurrency ativos; limpeza Node20 warnings concluída em T-PIPE-08. Fluxo canônico permanece em .project.",
-  "timestamp": "2026-04-20T23:37:44.234Z",
+  "context": "P2 estabilizado e limpo. ISS-009/010/011 resolvidas no .project; iniciado hardening do sprint de segurança em tractor com testes adicionais de policy do llm-bridge.",
+  "timestamp": "2026-04-20T23:59:05.252Z",
   "current_phase": 2,
-  "current_tasks": [],
+  "current_tasks": [
+    "Security hardening: llm-bridge policy tests"
+  ],
   "blockers": [
     "Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
   ],
   "next_actions": [
-    "Retomar backlog principal Tractor/pi-agent (segurança LLM allowlist/fs-root/bridge/trusted_plugins/config CRDT).",
-    "Manter cadência de commits locais atômicos e push sob autorização.",
-    "Opcional: abrir nova task para revisar dependências restantes de terceiros que ainda possam carregar Node20 fora da pipeline principal."
+    "Continuar frente única de segurança Tractor/Pi-agent: cobertura de LLM_SHELL_ALLOWLIST, LLM_FS_ROOT e trusted_plugins em testes do host.",
+    "Avaliar necessidade de novos testes para auditoria RefarmConfig node (plugin_host) e rotas llm-bridge.",
+    "Push dos commits locais somente sob autorização."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".project/tasks.json",
-    ".project/verification.json",
+    "packages/tractor/src/host/wasi_bridge.rs",
+    ".project/issues.json",
     ".project/handoff.json"
   ]
 }
