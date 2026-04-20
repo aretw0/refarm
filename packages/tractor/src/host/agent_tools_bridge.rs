@@ -8,7 +8,7 @@
 //!   the WASM component enforces policy; `spawn_process` does the actual OS fork/exec.
 
 use std::io::Write as _;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use tokio::io::AsyncWriteExt as _;
 use tokio::process::Command;
@@ -26,18 +26,22 @@ use crate::host::wasi_bridge::TractorNativeBindings;
 #[wasmtime::component::__internal::async_trait]
 impl AgentFsHost for TractorNativeBindings {
     async fn read(&mut self, path: String) -> Result<Vec<u8>, String> {
+        enforce_fs_root(&path)?;
         tokio::fs::read(&path)
             .await
             .map_err(|e| format!("read({path}): {e}"))
     }
 
     async fn write(&mut self, path: String, content: Vec<u8>) -> Result<(), String> {
+        enforce_fs_root(&path)?;
         atomic_write(&path, &content)
             .await
             .map_err(|e| format!("write({path}): {e}"))
     }
 
     async fn edit(&mut self, path: String, diff: String) -> Result<(), String> {
+        enforce_fs_root(&path)?;
+
         let original = tokio::fs::read_to_string(&path)
             .await
             .map_err(|e| format!("edit/read({path}): {e}"))?;
@@ -63,6 +67,7 @@ impl AgentFsHost for TractorNativeBindings {
 #[wasmtime::component::__internal::async_trait]
 impl AgentShellHost for TractorNativeBindings {
     async fn spawn(&mut self, req: SpawnRequest) -> Result<SpawnResult, String> {
+        enforce_trusted_plugin_for_shell(&self.plugin_id)?;
         if req.argv.is_empty() {
             return Err("spawn: argv must be non-empty".into());
         }
@@ -104,6 +109,8 @@ pub(crate) async fn spawn_process(
     stdin: Option<&[u8]>,
 ) -> Result<(Vec<u8>, Vec<u8>, i32, bool), String> {
     debug_assert!(!argv.is_empty(), "spawn_process: argv must be non-empty");
+
+    enforce_shell_allowlist(argv)?;
 
     let binary = &argv[0];
     let args = &argv[1..];
@@ -161,7 +168,7 @@ pub(crate) async fn spawn_process(
         Ok(Ok(status)) => {
             let stdout = stdout_task.await.unwrap_or_default();
             let stderr = stderr_task.await.unwrap_or_default();
-            Ok((stdout, stderr, status.code().unwrap_or(-1) as i32, false))
+            Ok((stdout, stderr, status.code().unwrap_or(-1), false))
         }
         Ok(Err(e)) => Err(format!("spawn/wait: {e}")),
         Err(_) => {
@@ -187,9 +194,179 @@ async fn atomic_write(path: &str, content: &[u8]) -> anyhow::Result<()> {
         f.write_all(content)?;
         f.sync_all()?;
     }
-    tmp.persist(&target)?;
+    tmp.persist(target)?;
     tracing::debug!(path, bytes = content.len(), "atomic_write: ok");
     Ok(())
+}
+
+fn enforce_shell_allowlist(argv: &[String]) -> Result<(), String> {
+    let Some(allowlist) = shell_allowlist_from_env() else {
+        // Backward-compatible default: permissive when env var is not set.
+        return Ok(());
+    };
+    enforce_shell_allowlist_with(argv, Some(&allowlist))
+}
+
+fn enforce_trusted_plugin_for_shell(plugin_id: &str) -> Result<(), String> {
+    let Some(allowed) = trusted_plugins_from_refarm_config()? else {
+        // Backward-compatible default: permissive when trusted_plugins is not configured.
+        return Ok(());
+    };
+    enforce_trusted_plugin_for_shell_with(plugin_id, Some(&allowed))
+}
+
+fn enforce_trusted_plugin_for_shell_with(
+    plugin_id: &str,
+    allowed: Option<&std::collections::HashSet<String>>,
+) -> Result<(), String> {
+    let Some(allowed) = allowed else {
+        return Ok(());
+    };
+    if allowed.contains("*") || allowed.contains(plugin_id) {
+        Ok(())
+    } else {
+        Err(format!("[blocked: plugin '{plugin_id}' not allowed to use agent-shell]"))
+    }
+}
+
+fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
+    let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
+    let path = base.join(".refarm/config.json");
+    let Ok(bytes) = std::fs::read(&path) else {
+        return Ok(None);
+    };
+    let cfg = serde_json::from_slice::<serde_json::Value>(&bytes)
+        .map_err(|e| format!("[blocked: invalid .refarm/config.json: {e}]"))?;
+    parse_trusted_plugins(&cfg)
+}
+
+fn parse_trusted_plugins(
+    cfg: &serde_json::Value,
+) -> Result<Option<std::collections::HashSet<String>>, String> {
+    let Some(raw) = cfg.get("trusted_plugins") else {
+        return Ok(None);
+    };
+    let arr = raw
+        .as_array()
+        .ok_or_else(|| "[blocked: .refarm/config.json trusted_plugins must be an array]".to_string())?;
+    let mut out = std::collections::HashSet::new();
+    for item in arr {
+        let plugin = item
+            .as_str()
+            .ok_or_else(|| "[blocked: .refarm/config.json trusted_plugins must contain only strings]".to_string())?
+            .trim();
+        if !plugin.is_empty() {
+            out.insert(plugin.to_string());
+        }
+    }
+    Ok(Some(out))
+}
+
+fn shell_allowlist_from_env() -> Option<std::collections::HashSet<String>> {
+    let raw = std::env::var("LLM_SHELL_ALLOWLIST").ok()?;
+    Some(parse_shell_allowlist(&raw))
+}
+
+fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
+    raw.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(ToString::to_string)
+        .collect()
+}
+
+fn enforce_shell_allowlist_with(
+    argv: &[String],
+    allowlist: Option<&std::collections::HashSet<String>>,
+) -> Result<(), String> {
+    let Some(allowlist) = allowlist else {
+        return Ok(());
+    };
+    if argv.is_empty() {
+        return Err("spawn: argv must be non-empty".into());
+    }
+    let binary = argv[0].as_str();
+    let cmd = Path::new(binary)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or(binary);
+
+    if allowlist.contains(binary) || allowlist.contains(cmd) {
+        return Ok(());
+    }
+
+    Err(format!("[blocked: {cmd} not in allowlist]"))
+}
+
+fn configured_fs_root() -> Result<Option<PathBuf>, String> {
+    let Ok(raw) = std::env::var("LLM_FS_ROOT") else {
+        return Ok(None);
+    };
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Some(PathBuf::new()));
+    }
+    let root = std::fs::canonicalize(trimmed)
+        .map_err(|e| format!("[blocked: invalid LLM_FS_ROOT '{trimmed}': {e}]"))?;
+    Ok(Some(root))
+}
+
+fn enforce_fs_root(path: &str) -> Result<(), String> {
+    let fs_root = configured_fs_root()?;
+    enforce_fs_root_with(path, fs_root.as_deref())
+}
+
+fn enforce_fs_root_with(path: &str, fs_root: Option<&Path>) -> Result<(), String> {
+    let Some(root) = fs_root else {
+        return Ok(());
+    };
+
+    if root.as_os_str().is_empty() {
+        return Err("[blocked: path outside LLM_FS_ROOT]".into());
+    }
+
+    let resolved = resolve_for_fs_policy(path)?;
+    if resolved.starts_with(root) {
+        Ok(())
+    } else {
+        Err("[blocked: path outside LLM_FS_ROOT]".into())
+    }
+}
+
+fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
+    let candidate = if Path::new(path).is_absolute() {
+        PathBuf::from(path)
+    } else {
+        std::env::current_dir()
+            .map_err(|e| format!("resolve current_dir: {e}"))?
+            .join(path)
+    };
+
+    resolve_existing_ancestor_path(&candidate)
+}
+
+fn resolve_existing_ancestor_path(path: &Path) -> Result<PathBuf, String> {
+    let mut missing: Vec<std::ffi::OsString> = Vec::new();
+    let mut cursor = path;
+
+    loop {
+        if let Ok(mut base) = std::fs::canonicalize(cursor) {
+            for component in missing.iter().rev() {
+                base.push(component);
+            }
+            return Ok(base);
+        }
+
+        let Some(name) = cursor.file_name() else {
+            return Err(format!("resolve path({}): no existing ancestor", path.display()));
+        };
+        missing.push(name.to_os_string());
+
+        let Some(parent) = cursor.parent() else {
+            return Err(format!("resolve path({}): no existing ancestor", path.display()));
+        };
+        cursor = parent;
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -376,5 +553,89 @@ mod tests {
         .unwrap();
         let out = String::from_utf8_lossy(&result.stdout);
         assert!(out.trim() == "ABSENT", "expected no HOME, got: {out}");
+    }
+
+    #[test]
+    fn shell_allowlist_allows_binary_or_basename() {
+        let allowlist = parse_shell_allowlist("ls,grep");
+
+        let direct = vec!["ls".to_string(), "-la".to_string()];
+        assert!(enforce_shell_allowlist_with(&direct, Some(&allowlist)).is_ok());
+
+        let absolute = vec!["/bin/ls".to_string(), "-la".to_string()];
+        assert!(enforce_shell_allowlist_with(&absolute, Some(&allowlist)).is_ok());
+    }
+
+    #[test]
+    fn shell_allowlist_blocks_unknown_command() {
+        let allowlist = parse_shell_allowlist("ls,grep");
+        let argv = vec!["cat".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("not in allowlist"));
+    }
+
+    #[test]
+    fn shell_allowlist_empty_string_blocks_all() {
+        let allowlist = parse_shell_allowlist("   ");
+        let argv = vec!["echo".to_string()];
+        assert!(enforce_shell_allowlist_with(&argv, Some(&allowlist)).is_err());
+    }
+
+    #[test]
+    fn fs_root_allows_paths_inside_root() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(dir.path()).unwrap();
+        let file = root.join("safe.txt");
+
+        let result = enforce_fs_root_with(file.to_string_lossy().as_ref(), Some(&root));
+        assert!(result.is_ok(), "inside path should be allowed: {result:?}");
+    }
+
+    #[test]
+    fn fs_root_blocks_paths_outside_root() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let outside_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let outside = outside_dir.path().join("escape.txt");
+
+        let err = enforce_fs_root_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
+        assert!(err.contains("path outside LLM_FS_ROOT"));
+    }
+
+    #[test]
+    fn trusted_plugins_parse_none_when_unset() {
+        let cfg = serde_json::json!({"provider": "ollama"});
+        let parsed = parse_trusted_plugins(&cfg).unwrap();
+        assert!(parsed.is_none());
+    }
+
+    #[test]
+    fn trusted_plugins_parse_blocks_invalid_type() {
+        let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("trusted_plugins must be an array"));
+    }
+
+    #[test]
+    fn trusted_plugins_parse_allows_only_strings() {
+        let cfg = serde_json::json!({"trusted_plugins": ["pi_agent", "agent-tools", " "]});
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+        assert!(parsed.contains("pi_agent"));
+        assert!(parsed.contains("agent-tools"));
+        assert!(!parsed.contains(""));
+    }
+
+    #[test]
+    fn trusted_plugins_enforcement_blocks_unlisted_plugin() {
+        let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("other_plugin", Some(&allowed)).unwrap_err();
+        assert!(err.contains("not allowed to use agent-shell"));
+    }
+
+    #[test]
+    fn trusted_plugins_enforcement_allows_wildcard() {
+        let allowed = std::collections::HashSet::from(["*".to_string()]);
+        let ok = enforce_trusted_plugin_for_shell_with("any_plugin", Some(&allowed));
+        assert!(ok.is_ok());
     }
 }

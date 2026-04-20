@@ -55,7 +55,11 @@ impl IntegrationGuest for PiAgent {
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: "Sovereign AI agent — runs on edge nodes and Raspberry Pi".to_string(),
             supported_types: vec!["AgentResponse".to_string(), "UserPrompt".to_string()],
-            required_capabilities: vec!["agent-fs".to_string(), "agent-shell".to_string()],
+            required_capabilities: vec![
+                "agent-fs".to_string(),
+                "agent-shell".to_string(),
+                "llm-bridge".to_string(),
+            ],
         }
     }
 
@@ -394,9 +398,7 @@ pub(crate) fn tools_openai() -> serde_json::Value {
 
 #[cfg(target_arch = "wasm32")]
 mod provider {
-    use wasi::http::outgoing_handler;
-    use wasi::http::types::{Fields, IncomingBody, Method, OutgoingBody, OutgoingRequest, Scheme};
-    use wasi::io::streams::StreamError;
+    use crate::refarm::plugin::llm_bridge;
 
     pub struct CompletionResult {
         pub content: String,
@@ -516,8 +518,8 @@ mod provider {
     }
 
     pub enum Provider {
-        Anthropic { api_key: String, model: String },
-        OpenAiCompat { base_url: String, api_key: String, model: String },
+        Anthropic { model: String },
+        OpenAiCompat { provider: String, base_url: String, model: String },
     }
 
     impl Provider {
@@ -526,50 +528,45 @@ mod provider {
             let model = std::env::var("LLM_MODEL").unwrap_or_default();
             match super::provider_name_from_env().as_str() {
                 "anthropic" => Provider::Anthropic {
-                    api_key: std::env::var("ANTHROPIC_API_KEY").unwrap_or_default(),
                     model: if model.is_empty() { "claude-sonnet-4-6".into() } else { model },
                 },
                 "openai" => Provider::OpenAiCompat {
+                    provider: "openai".into(),
                     base_url: std::env::var("LLM_BASE_URL")
                         .unwrap_or_else(|_| "https://api.openai.com".into()),
-                    api_key: std::env::var("OPENAI_API_KEY").unwrap_or_default(),
                     model: if model.is_empty() { "gpt-4o-mini".into() } else { model },
                 },
-                _ => Provider::OpenAiCompat { // ollama is the sovereign default
+                provider => Provider::OpenAiCompat { // ollama is the sovereign default
+                    provider: provider.into(),
                     base_url: std::env::var("LLM_BASE_URL")
                         .unwrap_or_else(|_| "http://localhost:11434".into()),
-                    api_key: String::new(),
                     model: if model.is_empty() { "llama3.2".into() } else { model },
                 },
             }
         }
 
         pub fn model(&self) -> &str {
-            match self { Provider::Anthropic { model, .. } | Provider::OpenAiCompat { model, .. } => model }
+            match self { Provider::Anthropic { model } | Provider::OpenAiCompat { model, .. } => model }
         }
 
         /// `messages` is an ordered slice of (role, content) pairs, oldest first.
         /// The caller is responsible for appending the current user turn as the last entry.
         pub fn complete(&self, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
             match self {
-                Provider::Anthropic { api_key, model } => {
-                    if api_key.is_empty() {
-                        return Err("ANTHROPIC_API_KEY not set".into());
-                    }
-                    anthropic(api_key, model, system, messages)
-                }
-                Provider::OpenAiCompat { base_url, api_key, model } => {
-                    openai_compat(base_url, api_key, model, system, messages)
-                }
+                Provider::Anthropic { model } => anthropic(model, system, messages),
+                Provider::OpenAiCompat { provider, base_url, model } =>
+                    openai_compat(provider, base_url, model, system, messages),
             }
         }
     }
 
     // ── Anthropic wire format ─────────────────────────────────────────────────
 
-    fn anthropic(api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
-        let hdrs = [("content-type", "application/json"), ("x-api-key", api_key),
-                    ("anthropic-version", "2023-06-01")];
+    fn anthropic(model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
+        let hdrs = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("anthropic-version".to_string(), "2023-06-01".to_string()),
+        ];
         let max_iter = std::env::var("LLM_TOOL_CALL_MAX_ITER")
             .ok().and_then(|v| v.parse::<u32>().ok()).unwrap_or(5);
 
@@ -592,7 +589,13 @@ mod provider {
                 "messages": wire_msgs,
             }).to_string();
 
-            let bytes = http_post("https://api.anthropic.com", "/v1/messages", &hdrs, body.as_bytes())?;
+            let bytes = http_post_via_host(
+                "anthropic",
+                "https://api.anthropic.com",
+                "/v1/messages",
+                &hdrs,
+                body.as_bytes(),
+            )?;
             let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
 
             let usage = &v["usage"];
@@ -649,10 +652,16 @@ mod provider {
 
     // ── OpenAI-compatible wire format (covers Ollama, OpenAI, Groq, etc.) ─────
 
-    fn openai_compat(base_url: &str, api_key: &str, model: &str, system: &str, messages: &[(String, String)]) -> Result<CompletionResult, String> {
-        let auth = if !api_key.is_empty() { format!("Bearer {api_key}") } else { String::new() };
-        let mut base_hdrs: Vec<(&str, &str)> = vec![("content-type", "application/json")];
-        if !auth.is_empty() { base_hdrs.push(("authorization", &auth)); }
+    fn openai_compat(
+        provider: &str,
+        base_url: &str,
+        model: &str,
+        system: &str,
+        messages: &[(String, String)],
+    ) -> Result<CompletionResult, String> {
+        let base_hdrs: Vec<(String, String)> = vec![
+            ("content-type".to_string(), "application/json".to_string())
+        ];
 
         let max_iter = std::env::var("LLM_TOOL_CALL_MAX_ITER")
             .ok().and_then(|v| v.parse::<u32>().ok()).unwrap_or(5);
@@ -678,7 +687,13 @@ mod provider {
                 "messages": wire_msgs,
             }).to_string();
 
-            let bytes = http_post(base_url, "/v1/chat/completions", &base_hdrs, body.as_bytes())?;
+            let bytes = http_post_via_host(
+                provider,
+                base_url,
+                "/v1/chat/completions",
+                &base_hdrs,
+                body.as_bytes(),
+            )?;
             let v: serde_json::Value = serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
 
             let usage = &v["usage"];
@@ -731,81 +746,16 @@ mod provider {
         unreachable!()
     }
 
-    // ── HTTP primitives ───────────────────────────────────────────────────────
+    // ── Host-proxied LLM bridge ───────────────────────────────────────────────
 
-    /// POST to `base_url + path`. `base_url` must be "https://host" or "http://host:port".
-    fn http_post(base_url: &str, path: &str, headers: &[(&str, &str)], body: &[u8]) -> Result<Vec<u8>, String> {
-        let (scheme, authority) = parse_base_url(base_url)?;
-
-        let hdrs = Fields::new();
-        for (name, value) in headers {
-            hdrs.append(&name.to_string(), &value.as_bytes().to_vec())
-                .map_err(|e| format!("header '{name}': {e:?}"))?;
-        }
-
-        let req = OutgoingRequest::new(hdrs);
-        req.set_method(&Method::Post).map_err(|_| "set method")?;
-        req.set_scheme(Some(&scheme)).map_err(|_| "set scheme")?;
-        req.set_authority(Some(&authority)).map_err(|_| "set authority")?;
-        req.set_path_with_query(Some(path)).map_err(|_| "set path")?;
-
-        // write body
-        let ob = req.body().map_err(|_| "outgoing body")?;
-        {
-            let stream = ob.write().map_err(|_| "write stream")?;
-            let mut off = 0;
-            while off < body.len() {
-                let n = stream.check_write().map_err(|e| format!("check_write: {e:?}"))? as usize;
-                if n == 0 { stream.subscribe().block(); continue; }
-                let end = std::cmp::min(off + n, body.len());
-                stream.write(&body[off..end]).map_err(|e| format!("write: {e:?}"))?;
-                off = end;
-            }
-            stream.flush().ok();
-            stream.subscribe().block();
-        }
-        OutgoingBody::finish(ob, None).map_err(|e| format!("finish: {e:?}"))?;
-
-        // send
-        let fut = outgoing_handler::handle(req, None).map_err(|e| format!("handle: {e:?}"))?;
-        fut.subscribe().block();
-
-        let incoming = fut.get()
-            .ok_or("no future response")?
-            .map_err(|()| "response already consumed")?
-            .map_err(|e| format!("http error: {e:?}"))?;
-
-        let status = incoming.status();
-        let resp = read_body(incoming.consume().map_err(|_| "consume body")?)?;
-
-        if !(200..300).contains(&status) {
-            return Err(format!("HTTP {status}: {}", String::from_utf8_lossy(&resp)));
-        }
-        Ok(resp)
-    }
-
-    fn read_body(ib: IncomingBody) -> Result<Vec<u8>, String> {
-        let stream = ib.stream().map_err(|_| "incoming body stream")?;
-        let mut buf = Vec::new();
-        loop {
-            stream.subscribe().block();
-            match stream.read(65536) {
-                Ok(chunk) => buf.extend_from_slice(&chunk),
-                Err(StreamError::Closed) => break,
-                Err(StreamError::LastOperationFailed(e)) => return Err(format!("read: {e:?}")),
-            }
-        }
-        Ok(buf)
-    }
-
-    fn parse_base_url(url: &str) -> Result<(Scheme, String), String> {
-        if let Some(rest) = url.strip_prefix("https://") {
-            Ok((Scheme::Https, rest.to_owned()))
-        } else if let Some(rest) = url.strip_prefix("http://") {
-            Ok((Scheme::Http, rest.to_owned()))
-        } else {
-            Err(format!("unsupported URL scheme in: {url}"))
-        }
+    fn http_post_via_host(
+        provider: &str,
+        base_url: &str,
+        path: &str,
+        headers: &[(String, String)],
+        body: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        llm_bridge::complete_http(provider, base_url, path, headers, body)
     }
 }
 

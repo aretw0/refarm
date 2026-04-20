@@ -35,7 +35,7 @@ on-event("user:prompt", prompt)
 
 ## Environment variables
 
-Variables are injected via `inherit_env()` in the tractor host. A `.refarm/config.json` file
+LLM variables are injected by the tractor host (forwarded `LLM_*` only). A `.refarm/config.json` file
 at project root can set them declaratively — values there override process env:
 
 ```json
@@ -43,7 +43,8 @@ at project root can set them declaratively — values there override process env
   "provider": "anthropic",
   "model": "claude-sonnet-4-6",
   "default_provider": "ollama",
-  "budgets": { "anthropic": 5.0 }
+  "budgets": { "anthropic": 5.0 },
+  "trusted_plugins": ["pi_agent"]
 }
 ```
 
@@ -56,6 +57,7 @@ The file is optional — missing file is silently ignored.
 | `model` | `LLM_MODEL` | Model ID override |
 | `default_provider` | `LLM_DEFAULT_PROVIDER` | Sovereign default when provider unset |
 | `budgets.<provider>` | `LLM_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
+| `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
 <!-- {/config_fields} -->
 
 <!-- {=env_vars} -->
@@ -73,6 +75,8 @@ The file is optional — missing file is silently ignored.
 | `LLM_HISTORY_TURNS` | `0` (disabled) | Conversational memory depth from CRDT — opt-in |
 | `LLM_TOOL_CALL_MAX_ITER` | `5` | Max agentic tool loop iterations per prompt |
 | `LLM_TOOL_OUTPUT_MAX_LINES` | unlimited | Truncate tool output at N lines before feeding back to LLM; pipeline: strip ANSI → dedup → truncate |
+| `LLM_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
+| `LLM_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside LLM_FS_ROOT]` |
 | `LLM_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
 <!-- {/env_vars} -->
 

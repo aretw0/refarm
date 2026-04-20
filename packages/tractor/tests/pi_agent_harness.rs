@@ -130,7 +130,8 @@ fn clean_llm_env() {
     for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
-                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM"] {
+                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM",
+                "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
         std::env::remove_var(var);
     }
 }

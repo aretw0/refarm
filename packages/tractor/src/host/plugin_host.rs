@@ -101,13 +101,34 @@ pub struct PluginHost {
     agent_tools_linker: Arc<Linker<TractorStore>>,
 }
 
-/// Read `.refarm/config.json` from CWD and return env var pairs for the plugin sandbox.
+/// Forward only LLM_* vars into plugin WASI env.
 ///
-/// Config fields map to LLM_* env vars. Missing file is silently ignored (opt-in).
-/// Config vars overlay process env — project config takes precedence over shell env.
-fn refarm_config_env_vars() -> Vec<(String, String)> {
-    let base = std::env::current_dir().unwrap_or_default();
-    refarm_config_env_vars_from(&base)
+/// Security: avoids leaking unrelated host environment variables (credentials,
+/// tokens, etc.) into the plugin sandbox.
+fn forwarded_llm_env_vars() -> Vec<(String, String)> {
+    std::env::vars()
+        .filter(|(k, _)| k.starts_with("LLM_"))
+        .collect()
+}
+
+/// Build plugin env vars with project config override semantics:
+/// process LLM_* vars first, then `.refarm/config.json` overwrites them.
+fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
+    merge_plugin_env_vars(forwarded_llm_env_vars(), refarm_config_env_vars_from(base))
+}
+
+fn merge_plugin_env_vars(
+    llm_vars: Vec<(String, String)>,
+    config_vars: Vec<(String, String)>,
+) -> Vec<(String, String)> {
+    let mut merged = std::collections::BTreeMap::<String, String>::new();
+    for (k, v) in llm_vars {
+        merged.insert(k, v);
+    }
+    for (k, v) in config_vars {
+        merged.insert(k, v);
+    }
+    merged.into_iter().collect()
 }
 
 fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
@@ -132,6 +153,59 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
         }
     }
     vars
+}
+
+fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
+    let path = base.join(".refarm/config.json");
+    let Ok(bytes) = std::fs::read(path) else { return None; };
+    serde_json::from_slice::<serde_json::Value>(&bytes).ok()
+}
+
+fn now_ns() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as u64)
+        .unwrap_or(0)
+}
+
+fn refarm_config_node_payload(
+    plugin_id: &str,
+    base: &std::path::Path,
+    env_vars: &[(String, String)],
+    config_json: Option<&serde_json::Value>,
+) -> serde_json::Value {
+    let env_map: serde_json::Map<String, serde_json::Value> = env_vars
+        .iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+        .collect();
+
+    let timestamp_ns = now_ns();
+    serde_json::json!({
+        "@type": "RefarmConfig",
+        "@id": format!("urn:tractor:refarm-config:{plugin_id}:{timestamp_ns}"),
+        "plugin_id": plugin_id,
+        "workspace": base.to_string_lossy(),
+        "config_path": base.join(".refarm/config.json").to_string_lossy(),
+        "timestamp_ns": timestamp_ns,
+        "llm_env": serde_json::Value::Object(env_map),
+        "config_json": config_json.cloned().unwrap_or(serde_json::Value::Null),
+    })
+}
+
+fn store_refarm_config_node(
+    sync: &NativeSync,
+    plugin_id: &str,
+    base: &std::path::Path,
+    env_vars: &[(String, String)],
+    config_json: Option<&serde_json::Value>,
+) -> anyhow::Result<()> {
+    let payload = refarm_config_node_payload(plugin_id, base, env_vars, config_json).to_string();
+    let node: serde_json::Value = serde_json::from_str(&payload)?;
+    let id = node["@id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("RefarmConfig node missing @id"))?;
+    sync.store_node(id, "RefarmConfig", None, &payload, Some("tractor-host"))?;
+    Ok(())
 }
 
 impl PluginHost {
@@ -195,10 +269,12 @@ impl PluginHost {
             );
         }
 
-        let config_vars = refarm_config_env_vars();
+        let base = std::env::current_dir().unwrap_or_default();
+        let env_vars = plugin_env_vars_from(&base);
+        let config_json = refarm_config_json_from(&base);
         let mut wasi_builder = WasiCtxBuilder::new();
-        wasi_builder.inherit_stderr().inherit_env();
-        for (k, v) in &config_vars {
+        wasi_builder.inherit_stderr();
+        for (k, v) in &env_vars {
             wasi_builder.env(k, v);
         }
         let wasi = wasi_builder.build();
@@ -217,6 +293,10 @@ impl PluginHost {
             .call_setup(&mut store)
             .await?
             .map_err(|e| anyhow::anyhow!("Plugin setup() failed: {:?}", e))?;
+
+        if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {
+            tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to store RefarmConfig node");
+        }
 
         self.telemetry.emit_named(
             "plugin:loaded",
@@ -278,7 +358,8 @@ mod tests {
     #[test]
     fn refarm_config_env_vars_returns_empty_when_no_file() {
         // CWD in test environment has no .refarm/config.json — must not panic.
-        let vars = refarm_config_env_vars();
+        let base = std::env::current_dir().unwrap_or_default();
+        let vars = refarm_config_env_vars_from(&base);
         // Can't assert empty (dev machine might have a config), but must not error.
         let _ = vars;
     }
@@ -316,5 +397,42 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let vars = refarm_config_env_vars_from(dir.path());
         assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn merge_plugin_env_vars_config_overrides_llm_vars() {
+        let llm = vec![
+            ("LLM_PROVIDER".to_string(), "openai".to_string()),
+            ("LLM_MODEL".to_string(), "gpt-4o-mini".to_string()),
+        ];
+        let cfg = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_BASE_URL".to_string(), "http://127.0.0.1:11434".to_string()),
+        ];
+
+        let merged = merge_plugin_env_vars(llm, cfg);
+        let map: std::collections::HashMap<_, _> = merged.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "ollama");
+        assert_eq!(map["LLM_MODEL"], "gpt-4o-mini");
+        assert_eq!(map["LLM_BASE_URL"], "http://127.0.0.1:11434");
+    }
+
+    #[test]
+    fn refarm_config_node_payload_contains_expected_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+        ];
+        let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
+
+        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, Some(&cfg));
+
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
+        assert_eq!(payload["config_json"]["model"], "llama3.2");
+        assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:pi_agent:"));
     }
 }
