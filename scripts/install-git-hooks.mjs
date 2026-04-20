@@ -74,11 +74,13 @@ do
 
   printf '%s\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
 
-  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+  # Lint/type-check/unit-tests are triggered by source or build/lint config changes.
+  # Dependency-only manifest bumps (package-lock/package.json) stay CI-driven.
+  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_LINT=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)(package\\.json|turbo\\.json)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*\\.(ts|tsx|js|jsx|mjs|cjs|astro|vue)$|(^|/)turbo\\.json$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     NEEDS_TYPECHECK=1
     NEEDS_UNIT_TESTS=1
   fi
