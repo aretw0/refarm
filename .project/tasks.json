@@ -810,7 +810,7 @@
         "T-PIPE-01"
       ],
       "assigned_agent": "worker-core",
-      "notes": "Guard TS6 registrado; próximo passo é implementar scripts/ci/tsconfig-guard.mjs e check dedicado."
+      "notes": "Guard implementado em scripts/ci/tsconfig-guard.mjs, exposto via npm run tsconfig:guard e integrado ao quality workflow antes do Full Turbo. Aguardando validação em CI."
     },
     {
       "id": "T-PIPE-08",

@@ -38,6 +38,9 @@ jobs:
       - name: Security audit
         run: npm audit --audit-level=high
 
+      - name: TSConfig preflight
+        run: npm run tsconfig:guard
+
       - name: Verify (Full Turbo)
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
 
