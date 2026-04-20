@@ -1,17 +1,17 @@
 {
-  "context": "CI estabilizado com TSConfig preflight ativo e concurrency no workflow. Operação segue canônica em .project; foco atual é T-PIPE-08 para reduzir warnings Node20.",
-  "timestamp": "2026-04-20T22:29:43.959Z",
+  "context": "Checkpoint pré-compact: CI remoto estável (runs 24691871635, 24692109574, 24692319595, 24692488972 todos verdes). Fluxo canônico segue em .project. T-PIPE-08 está em progresso com atualização local de pins para Node24 readiness já commitada, porém ainda sem push por decisão operacional.",
+  "timestamp": "2026-04-20T22:35:00Z",
   "current_phase": 2,
   "current_tasks": [
     "T-PIPE-08"
   ],
   "blockers": [
-    "Mudanças de pins de actions precisam validação de CI antes de push para evitar regressão."
+    "Branch local develop está ahead 2; falta apenas autorização para push e validação final do patch de pins no GHA."
   ],
   "next_actions": [
-    "Revisar diff final de .github/actions e reusable workflow.",
-    "Commit local do patch de pins Node24-friendly.",
-    "Quando autorizado, fazer push e validar redução dos warnings Node20 no run novo."
+    "Após compact, revisar rapidamente os 2 commits locais pendentes (faceb6e, 3c65691).",
+    "Quando autorizado, fazer push e validar redução dos warnings Node20 no run novo.",
+    "Se CI verde, registrar VER para T-PIPE-08 e avançar para próxima otimização incremental."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
@@ -22,6 +22,8 @@
     ".github/actions/setup/action.yml",
     ".github/actions/github-script/action.yml",
     ".github/workflows/reusable-build-wasm-plugin.yml",
-    ".github/workflow-templates/plugin-ci.yml"
+    ".github/workflow-templates/plugin-ci.yml",
+    ".project/handoff.json",
+    ".project/tasks.json"
   ]
 }
