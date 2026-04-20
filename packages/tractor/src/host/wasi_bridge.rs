@@ -367,6 +367,40 @@ mod tests {
     }
 
     #[test]
+    fn enforce_route_blocks_path_mismatch() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/responses",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("path not allowed"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_non_http_base_url() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "file:///tmp/evil",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("base_url must use http(s)"));
+    }
+
+    #[test]
     fn sanitized_headers_drop_sensitive_auth_keys() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
