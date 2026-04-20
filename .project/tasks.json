@@ -832,7 +832,7 @@
         "T-PIPE-07"
       ],
       "assigned_agent": "worker-core",
-      "notes": "Concurrency aplicado (commit 89c752b) e validado sem regressão em CI (run 24692488972 verde). Próximo: remover warnings de Node20 deprecated em actions pinadas."
+      "notes": "Atualização de pins iniciada localmente: cache v5.0.5, upload-artifact v7.0.1, download-artifact v8.0.1, setup-node v6.4.0, github-script v9.0.0. Aguardando validação em CI antes de push."
     },
     {
       "id": "T-OPS-07",

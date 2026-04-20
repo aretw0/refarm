@@ -1,24 +1,27 @@
 {
   "context": "CI estabilizado com TSConfig preflight ativo e concurrency no workflow. Operação segue canônica em .project; foco atual é T-PIPE-08 para reduzir warnings Node20.",
-  "timestamp": "2026-04-20T22:08:58.911Z",
+  "timestamp": "2026-04-20T22:29:43.959Z",
   "current_phase": 2,
   "current_tasks": [
     "T-PIPE-08"
   ],
   "blockers": [
-    "Warnings de Node20 deprecated ainda presentes em ações pinadas (cache/upload-artifact/github-script)."
+    "Mudanças de pins de actions precisam validação de CI antes de push para evitar regressão."
   ],
   "next_actions": [
-    "Mapear ações pinadas que ainda geram warning Node20 em test.yml e composites locais.",
-    "Atualizar pins SHA para variantes compatíveis com Node24 mantendo diffs mínimos.",
-    "Revalidar CI completo após patch (quality/build/e2e/summary)."
+    "Revisar diff final de .github/actions e reusable workflow.",
+    "Commit local do patch de pins Node24-friendly.",
+    "Quando autorizado, fazer push e validar redução dos warnings Node20 no run novo."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".github/workflows/test.yml",
-    ".github/actions/**",
-    ".project/tasks.json",
-    ".project/verification.json"
+    ".github/actions/cache/action.yml",
+    ".github/actions/upload-artifact/action.yml",
+    ".github/actions/download-artifact/action.yml",
+    ".github/actions/setup/action.yml",
+    ".github/actions/github-script/action.yml",
+    ".github/workflows/reusable-build-wasm-plugin.yml",
+    ".github/workflow-templates/plugin-ci.yml"
   ]
 }
