@@ -10,6 +10,35 @@ ensure_hooks() {
   fi
 }
 
+ensure_git_transport() {
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    return
+  fi
+
+  local origin_url
+  origin_url="$(git remote get-url origin 2>/dev/null || true)"
+  if [ -z "$origin_url" ]; then
+    return
+  fi
+
+  # Docker Desktop terminals often lack host SSH agent forwarding. Force HTTPS fallback
+  # for git@github.com remotes so `git push` works via GH token credentials.
+  if [[ "$origin_url" == git@github.com:* ]]; then
+    git config --global url."https://github.com/".insteadOf "git@github.com:"
+
+    if gh auth status -h github.com >/dev/null 2>&1; then
+      gh auth setup-git >/dev/null 2>&1 || true
+      if git ls-remote --heads origin >/dev/null 2>&1; then
+        echo "[refarm-devcontainer] GitHub remote ready (ssh->https fallback active)."
+      else
+        echo "[refarm-devcontainer][warn] GitHub remote still unreachable. Run: gh auth login"
+      fi
+    else
+      echo "[refarm-devcontainer][warn] GitHub auth missing. Run: gh auth login"
+    fi
+  fi
+}
+
 check_agent_env() {
   local missing=()
 
@@ -32,6 +61,7 @@ check_agent_env() {
 }
 
 ensure_hooks
+ensure_git_transport
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

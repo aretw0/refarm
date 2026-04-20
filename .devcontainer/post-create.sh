@@ -58,6 +58,15 @@ EOF
   chmod 600 /home/vscode/.ssh/config
 fi
 
+# Git transport fallback for Docker Desktop terminals:
+# if SSH agent forwarding isn't available, rewrite git@github.com:* to https://github.com/*
+# and rely on GH auth token/credential helper.
+log "Configuring GitHub transport fallback (ssh -> https) for git operations..."
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+if gh auth status -h github.com >/dev/null 2>&1; then
+  gh auth setup-git >/dev/null 2>&1 || true
+fi
+
 # 2) Node dependencies
 if [ -f package-lock.json ]; then
   log "Running npm ci..."
