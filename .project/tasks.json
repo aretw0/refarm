@@ -816,7 +816,7 @@
     {
       "id": "T-PIPE-08",
       "description": "Atualizar ações GitHub remanescentes para variantes compatíveis com baseline Node24 e remover warnings recorrentes.",
-      "status": "planned",
+      "status": "in-progress",
       "phase": 2,
       "files": [
         ".github/workflows/test.yml",
@@ -830,7 +830,8 @@
       "depends_on": [
         "T-PIPE-07"
       ],
-      "assigned_agent": "worker-core"
+      "assigned_agent": "worker-core",
+      "notes": "Iniciado com melhoria de baixo risco: workflow-level concurrency em .github/workflows/test.yml para cancelar runs redundantes na mesma branch."
     },
     {
       "id": "T-OPS-07",
