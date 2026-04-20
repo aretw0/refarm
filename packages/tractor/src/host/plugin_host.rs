@@ -65,8 +65,10 @@ impl wasmtime_wasi_http::WasiHttpView for TractorStore {
 pub struct AgentToolsHandle {
     pub id: String,
     /// Typed caller for agent-fs + agent-shell exports on the component.
+    #[allow(dead_code)]
     pub(crate) component: atb::AgentToolsHost,
     /// Isolated store for agent-tools.wasm (each plugin owns its store).
+    #[allow(dead_code)]
     pub(crate) store: Store<TractorStore>,
 }
 
