@@ -772,7 +772,7 @@
     {
       "id": "T-OPS-06",
       "description": "Migrar prioridades operacionais ativas do HANDOFF para os blocos .project e definir ritual de atualização única.",
-      "status": "in-progress",
+      "status": "completed",
       "phase": 8,
       "files": [
         ".project/issues.json",
@@ -789,7 +789,8 @@
         "T-DEC-03"
       ],
       "assigned_agent": "worker-governance",
-      "notes": "Centralização no .project iniciada (commit c0ef484) e validação estrutural em andamento."
+      "notes": "Concluído: operação diária migrou para blocos .project. HANDOFF.md da raiz deixa de ser mantido como canal agente↔agente.",
+      "verification": "VER-OPS-06-20260420"
     },
     {
       "id": "T-PIPE-07",

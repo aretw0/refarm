@@ -1,5 +1,5 @@
 {
-  "context": "Migração para operação canônica em .project concluída. CI estava verde em 24691163812. Introduzido preflight TS6 (scripts/ci/tsconfig-guard.mjs) no quality workflow; run 24691748854 falhou por TS18003 em apps/me --showConfig sem inputs gerados. Patch aplicado para ignorar TS18003 nesse cenário (commit a897807).",
+  "context": "Operação canônica está centralizada em .project (tasks/issues/decisions/verification/handoff). HANDOFF.md da raiz não será mais mantido para fluxo agente↔agente.",
   "timestamp": "2026-04-20T21:44:00Z",
   "current_phase": 2,
   "current_tasks": [
@@ -10,13 +10,10 @@
     "Aguardar resultado do run 24691871635 para confirmar fix do preflight."
   ],
   "next_actions": [
-    "Verificar conclusão de 24691871635.",
-    "Se verde, atualizar T-PIPE-07 para completed com evidência de run.",
-    "Iniciar T-PIPE-08 (limpeza warnings Node20 nas actions pinadas) em patch mínimo."
+    "Aguardar resultado do run 24692109574.",
+    "Com CI verde, iniciar T-PIPE-08 para remover warnings Node20 em actions pinadas."
   ],
-  "open_questions": [
-    "Descontinuar definitivamente HANDOFF.md na raiz (manter apenas roadmap humano)?"
-  ],
+  "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
     "scripts/ci/tsconfig-guard.mjs",

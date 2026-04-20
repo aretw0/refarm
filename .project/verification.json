@@ -69,6 +69,31 @@
           "evidence": "Ainda não executada nesta etapa."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-06-20260420",
+      "target": "T-OPS-06",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "evidence": "Prioridades operacionais migradas para .project (issues/tasks/decisions), fases estruturadas adicionadas e handoff canônico inicializado em .project/handoff.json. Root HANDOFF.md passa a ser opcional para humanos.",
+      "criteria_results": [
+        {
+          "criterion": "Prioridades ativas registradas em .project",
+          "status": "passed",
+          "evidence": "Commits c0ef484 e 2ce6d48"
+        },
+        {
+          "criterion": "Decisão canônica registrada",
+          "status": "passed",
+          "evidence": "DEC-009 em .project/decisions.json"
+        },
+        {
+          "criterion": "Handoff operacional via bloco davidorex",
+          "status": "passed",
+          "evidence": "Commit 3876a5d cria .project/handoff.json"
+        }
+      ]
     }
   ]
 }
