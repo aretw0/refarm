@@ -1,0 +1,19 @@
+{
+  "number": 6,
+  "name": "Plugin-Integrity",
+  "intent": "Fortalecer integridade e cadeia de confiança de plugins.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P6-Plugin-Integrity registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P6-Plugin-Integrity executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P6-Plugin-Integrity refletidos nos blocos .project"
+  ]
+}

@@ -5,7 +5,7 @@
       "decision": "Adotar .project como fonte oficial de planejamento operacional para execução por colônia.",
       "rationale": "Centraliza requisitos, tarefas, verificação e decisões em estrutura validável por schema.",
       "status": "decided",
-      "phase": "P0-Setup",
+      "phase": 0,
       "context": "Necessidade de paralelizar trabalho com rastreabilidade."
     },
     {
@@ -13,7 +13,7 @@
       "decision": "Executar trabalho em tarefas atômicas com regra 1 task = 1 branch = 1 PR.",
       "rationale": "Reduz risco de regressão e facilita revisão incremental.",
       "status": "decided",
-      "phase": "P3-Planning",
+      "phase": 3,
       "context": "Evitar colisão entre workers em monorepo grande."
     },
     {
@@ -21,7 +21,7 @@
       "decision": "Estabelecer gates de validação em dois níveis: smoke e full.",
       "rationale": "Balanceia velocidade durante execução paralela e segurança na consolidação.",
       "status": "decided",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "context": "Necessidade de throughput sem perder confiabilidade."
     },
     {
@@ -29,7 +29,7 @@
       "decision": "Tratar Source Sovereignty como regra operacional obrigatória para humanos e agentes.",
       "rationale": "Evita correções efêmeras em artefatos e mantém reprodução via fonte.",
       "status": "decided",
-      "phase": "P0-Setup",
+      "phase": 0,
       "context": "Diretriz central de AGENTS.md."
     },
     {
@@ -37,7 +37,7 @@
       "decision": "Serializar mudanças em pacotes de alto acoplamento quando houver conflito de escopo.",
       "rationale": "Nem toda frente pode ser paralelizada sem custo de merge e retrabalho.",
       "status": "decided",
-      "phase": "P3-Planning",
+      "phase": 3,
       "context": "Pacotes runtime/contracts compartilham superfícies críticas."
     },
     {
@@ -45,7 +45,7 @@
       "decision": "Tratar erro de toolchain Rust como bloqueador de fábrica até estabilização.",
       "rationale": "Sem baseline de ambiente, workers desperdiçam ciclos em falhas de setup.",
       "status": "decided",
-      "phase": "P1-Environment",
+      "phase": 1,
       "context": "Falha observada em type-check/build com tractor-rs."
     },
     {
@@ -53,7 +53,7 @@
       "decision": "Usar reso src para desenvolvimento e reso dist para validação final.",
       "rationale": "Mantém DX rápida sem perder verificação de artefato distribuível.",
       "status": "decided",
-      "phase": "P1-Environment",
+      "phase": 1,
       "context": "Monorepo híbrido com pacotes local/dist."
     },
     {
@@ -61,7 +61,7 @@
       "decision": "Registrar bloqueios recorrentes como issues com prioridade e pacote alvo.",
       "rationale": "Transforma fricção operacional em trabalho planejável.",
       "status": "decided",
-      "phase": "P8-Governance",
+      "phase": 8,
       "context": "Fechar loop entre execução, risco e melhoria contínua."
     },
     {
@@ -69,7 +69,7 @@
       "decision": "Centralizar estado operacional no .project (issues/tasks/verification) e tratar HANDOFF.md apenas como resumo humano opcional.",
       "rationale": "Evita duplicação e divergência de contexto entre agentes, melhora execução por hordas e mantém rastreabilidade validável por schema.",
       "status": "decided",
-      "phase": "P9-Alignment",
+      "phase": 9,
       "context": "Convergência de workflow humano+agente para fonte única de verdade em planejamento/execução."
     }
   ]

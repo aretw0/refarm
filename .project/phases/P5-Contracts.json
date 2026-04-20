@@ -1,0 +1,19 @@
+{
+  "number": 5,
+  "name": "Contracts",
+  "intent": "Alinhar contratos e compatibilidade entre pacotes.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P5-Contracts registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P5-Contracts executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P5-Contracts refletidos nos blocos .project"
+  ]
+}

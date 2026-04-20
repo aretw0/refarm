@@ -1,0 +1,19 @@
+{
+  "number": 7,
+  "name": "Operations-Docs",
+  "intent": "Documentar operação, playbooks e checklists.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P7-Operations-Docs registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P7-Operations-Docs executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P7-Operations-Docs refletidos nos blocos .project"
+  ]
+}

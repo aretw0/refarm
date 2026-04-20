@@ -4,7 +4,7 @@
       "id": "T-ENV-01",
       "description": "Corrigir erro de toolchain Rust (missing manifest stable) no ambiente atual.",
       "status": "planned",
-      "phase": "P1-Environment",
+      "phase": 1,
       "files": [
         "docs/DEVOPS.md",
         ".devcontainer/post-create.sh",
@@ -21,7 +21,7 @@
       "id": "T-ENV-02",
       "description": "Instalar e validar targets Rust/WASM obrigatórios no ambiente de desenvolvimento.",
       "status": "planned",
-      "phase": "P1-Environment",
+      "phase": 1,
       "files": [
         "docs/DEVOPS.md",
         ".devcontainer/post-create.sh"
@@ -40,7 +40,7 @@
       "id": "T-ENV-03",
       "description": "Criar checklist de preflight de ambiente antes de executar colônia.",
       "status": "planned",
-      "phase": "P1-Environment",
+      "phase": 1,
       "files": [
         "docs/DEVOPS.md",
         "docs/WORKFLOW.md"
@@ -59,7 +59,7 @@
       "id": "T-ENV-04",
       "description": "Formalizar política de uso de reso src/dist para desenvolvimento e validação.",
       "status": "planned",
-      "phase": "P1-Environment",
+      "phase": 1,
       "files": [
         "docs/WORKFLOW.md",
         "scripts/reso.mjs"
@@ -75,7 +75,7 @@
       "id": "T-PIPE-01",
       "description": "Mapear pacotes que falham no type-check baseline e registrar ordem de ataque.",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "package.json",
         "turbo.json",
@@ -95,7 +95,7 @@
       "id": "T-PIPE-02",
       "description": "Estabilizar type-check dos pacotes Foundation (config/toolbox/vtconfig/cli).",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "packages/config/src/**",
         "packages/toolbox/src/**",
@@ -116,7 +116,7 @@
       "id": "T-PIPE-03",
       "description": "Mapear baseline de build por domínio (runtime/contracts/storage/docs).",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "package.json",
         "turbo.json",
@@ -136,7 +136,7 @@
       "id": "T-PIPE-04",
       "description": "Estabilizar build de runtime (tractor-rs/tractor-ts) com foco em previsibilidade de ambiente.",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "packages/tractor/**",
         "packages/tractor-ts/**",
@@ -157,7 +157,7 @@
       "id": "T-PIPE-05",
       "description": "Estabilizar build dos pacotes de contrato e storage/sync prioritários.",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "packages/storage-contract-v1/**",
         "packages/sync-contract-v1/**",
@@ -179,7 +179,7 @@
       "id": "T-PIPE-06",
       "description": "Definir gate final de integração da colônia (smoke + full).",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         "docs/WORKFLOW.md",
         "CONTRIBUTING.md"
@@ -199,7 +199,7 @@
       "id": "T-PLAN-01",
       "description": "Separar backlog por macro-domínios independentes para paralelização segura.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         ".project/tasks.json",
         ".project/requirements.json"
@@ -218,7 +218,7 @@
       "id": "T-PLAN-02",
       "description": "Definir granularidade padrão de task para manter PRs pequenos e revisáveis.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         "docs/WORKFLOW.md",
         "docs/PR_QUALITY_GOVERNANCE.md"
@@ -237,7 +237,7 @@
       "id": "T-PLAN-03",
       "description": "Criar fila de execução inicial com ordem de dependência e paralelização.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         ".project/tasks.json"
       ],
@@ -256,7 +256,7 @@
       "id": "T-PLAN-04",
       "description": "Definir políticas de anti-colisão para arquivos/pacotes críticos.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         "docs/WORKFLOW.md",
         ".project/decisions.json"
@@ -275,7 +275,7 @@
       "id": "T-PLAN-05",
       "description": "Definir modelo de branch naming e commit atômico para colônia.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         "CONTRIBUTING.md",
         "docs/WORKFLOW.md"
@@ -294,7 +294,7 @@
       "id": "T-PLAN-06",
       "description": "Definir limite inicial de concorrência e critérios para escalar número de workers.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         ".project/decisions.json",
         "docs/DEVOPS.md"
@@ -313,7 +313,7 @@
       "id": "T-PLAN-07",
       "description": "Padronizar prompt de entrada para workers da colônia.",
       "status": "planned",
-      "phase": "P3-Planning",
+      "phase": 3,
       "files": [
         "docs/superpowers/**",
         "docs/WORKFLOW.md"
@@ -332,7 +332,7 @@
       "id": "T-RUNTIME-01",
       "description": "Mapear fluxo de boot do runtime Tractor e pontos de falha conhecidos.",
       "status": "planned",
-      "phase": "P4-Runtime",
+      "phase": 4,
       "files": [
         "packages/tractor/**",
         "packages/tractor-ts/**",
@@ -352,7 +352,7 @@
       "id": "T-RUNTIME-02",
       "description": "Criar smoke test de daemon/ws para confirmar ciclo básico de inicialização.",
       "status": "planned",
-      "phase": "P4-Runtime",
+      "phase": 4,
       "files": [
         "packages/tractor/**",
         "validations/**"
@@ -371,7 +371,7 @@
       "id": "T-RUNTIME-03",
       "description": "Mapear lifecycle de plugin no runtime (setup/ingest/teardown) e gaps.",
       "status": "planned",
-      "phase": "P4-Runtime",
+      "phase": 4,
       "files": [
         "packages/tractor/**",
         "packages/plugin-manifest/**"
@@ -390,7 +390,7 @@
       "id": "T-RUNTIME-04",
       "description": "Validar roundtrip de sync entre runtime e storage em cenário controlado.",
       "status": "planned",
-      "phase": "P4-Runtime",
+      "phase": 4,
       "files": [
         "packages/sync-loro/**",
         "packages/storage-sqlite/**",
@@ -411,7 +411,7 @@
       "id": "T-CONTRACT-01",
       "description": "Inventariar suites de conformance existentes por contrato v1.",
       "status": "planned",
-      "phase": "P5-Contracts",
+      "phase": 5,
       "files": [
         "packages/storage-contract-v1/**",
         "packages/sync-contract-v1/**",
@@ -432,7 +432,7 @@
       "id": "T-CONTRACT-02",
       "description": "Adicionar/ajustar testes de conformance para storage-contract-v1.",
       "status": "planned",
-      "phase": "P5-Contracts",
+      "phase": 5,
       "files": [
         "packages/storage-contract-v1/**",
         "packages/storage-sqlite/**"
@@ -451,7 +451,7 @@
       "id": "T-CONTRACT-03",
       "description": "Adicionar/ajustar testes de conformance para sync-contract-v1 e sync-loro.",
       "status": "planned",
-      "phase": "P5-Contracts",
+      "phase": 5,
       "files": [
         "packages/sync-contract-v1/**",
         "packages/sync-loro/**"
@@ -470,7 +470,7 @@
       "id": "T-CONTRACT-04",
       "description": "Adicionar/ajustar testes de conformance para identity-contract-v1 e plugin-manifest.",
       "status": "planned",
-      "phase": "P5-Contracts",
+      "phase": 5,
       "files": [
         "packages/identity-contract-v1/**",
         "packages/plugin-manifest/**",
@@ -490,7 +490,7 @@
       "id": "T-PLUGIN-01",
       "description": "Mapear fluxo installPlugin com cache OPFS e validação de integridade.",
       "status": "planned",
-      "phase": "P6-Plugin-Integrity",
+      "phase": 6,
       "files": [
         "packages/barn/**",
         "packages/tractor/**",
@@ -510,7 +510,7 @@
       "id": "T-PLUGIN-02",
       "description": "Implementar verificação de hash SHA-256 no pipeline de instalação de plugin.",
       "status": "planned",
-      "phase": "P6-Plugin-Integrity",
+      "phase": 6,
       "files": [
         "packages/barn/src/**",
         "packages/plugin-manifest/src/**"
@@ -529,7 +529,7 @@
       "id": "T-PLUGIN-03",
       "description": "Criar teste de regressão para installPlugin cobrindo cache hit/miss.",
       "status": "planned",
-      "phase": "P6-Plugin-Integrity",
+      "phase": 6,
       "files": [
         "packages/barn/**",
         "validations/**"
@@ -548,7 +548,7 @@
       "id": "T-DOC-01",
       "description": "Criar playbook operacional da colônia para o Refarm.",
       "status": "planned",
-      "phase": "P7-Operations-Docs",
+      "phase": 7,
       "files": [
         "docs/WORKFLOW.md",
         "docs/DEVOPS.md",
@@ -568,7 +568,7 @@
       "id": "T-DOC-02",
       "description": "Documentar estratégia src/dist e quando alternar o modo de resolução.",
       "status": "planned",
-      "phase": "P7-Operations-Docs",
+      "phase": 7,
       "files": [
         "docs/WORKFLOW.md",
         "docs/DEVOPS.md"
@@ -587,7 +587,7 @@
       "id": "T-DOC-03",
       "description": "Criar checklist de reviewer para consolidação de lotes vindos da colônia.",
       "status": "planned",
-      "phase": "P7-Operations-Docs",
+      "phase": 7,
       "files": [
         "docs/PR_QUALITY_GOVERNANCE.md",
         "CONTRIBUTING.md"
@@ -606,7 +606,7 @@
       "id": "T-DOC-04",
       "description": "Publicar templates de prompt e reporte final para workers da colônia.",
       "status": "planned",
-      "phase": "P7-Operations-Docs",
+      "phase": 7,
       "files": [
         "docs/templates/**",
         "docs/superpowers/**"
@@ -625,7 +625,7 @@
       "id": "T-OPS-01",
       "description": "Definir formato padrão de evidência em verification para tasks finalizadas.",
       "status": "planned",
-      "phase": "P8-Governance",
+      "phase": 8,
       "files": [
         ".project/verification.json",
         ".project/schemas/verification.schema.json"
@@ -644,7 +644,7 @@
       "id": "T-OPS-02",
       "description": "Criar rotina semanal de triagem de tasks bloqueadas e replanejamento.",
       "status": "planned",
-      "phase": "P8-Governance",
+      "phase": 8,
       "files": [
         ".project/tasks.json",
         "docs/WORKFLOW.md"
@@ -663,7 +663,7 @@
       "id": "T-OPS-03",
       "description": "Definir guardrails para evitar alterações não autorizadas por agentes.",
       "status": "planned",
-      "phase": "P8-Governance",
+      "phase": 8,
       "files": [
         ".pi/monitors/**",
         "AGENTS.md"
@@ -679,7 +679,7 @@
       "id": "T-OPS-04",
       "description": "Estabelecer política de merge para lotes de PRs da colônia.",
       "status": "planned",
-      "phase": "P8-Governance",
+      "phase": 8,
       "files": [
         "docs/PR_QUALITY_GOVERNANCE.md",
         "CONTRIBUTING.md"
@@ -698,7 +698,7 @@
       "id": "T-OPS-05",
       "description": "Definir estratégia de escalonamento de bloqueios para tasks de colônia.",
       "status": "planned",
-      "phase": "P8-Governance",
+      "phase": 8,
       "files": [
         "docs/WORKFLOW.md",
         ".project/issues.json"
@@ -717,7 +717,7 @@
       "id": "T-DEC-01",
       "description": "Sincronizar decisões arquiteturais do .project com ADRs e roadmap ativo.",
       "status": "planned",
-      "phase": "P9-Alignment",
+      "phase": 9,
       "files": [
         ".project/decisions.json",
         "specs/ADRs/**",
@@ -734,7 +734,7 @@
       "id": "T-DEC-02",
       "description": "Atualizar domain/rationale com conhecimento operacional para novos workers.",
       "status": "planned",
-      "phase": "P9-Alignment",
+      "phase": 9,
       "files": [
         ".project/domain.json",
         ".project/rationale.json"
@@ -753,7 +753,7 @@
       "id": "T-DEC-03",
       "description": "Montar snapshot quinzenal de progresso da fábrica no .project.",
       "status": "planned",
-      "phase": "P9-Alignment",
+      "phase": 9,
       "files": [
         ".project/project.json",
         ".project/tasks.json",
@@ -772,8 +772,8 @@
     {
       "id": "T-OPS-06",
       "description": "Migrar prioridades operacionais ativas do HANDOFF para os blocos .project e definir ritual de atualização única.",
-      "status": "planned",
-      "phase": "P8-Governance",
+      "status": "in-progress",
+      "phase": 8,
       "files": [
         ".project/issues.json",
         ".project/tasks.json",
@@ -788,13 +788,14 @@
       "depends_on": [
         "T-DEC-03"
       ],
-      "assigned_agent": "worker-governance"
+      "assigned_agent": "worker-governance",
+      "notes": "Centralização no .project iniciada (commit c0ef484) e validação estrutural em andamento."
     },
     {
       "id": "T-PIPE-07",
       "description": "Implementar guard TS6 preflight para detectar depreciações baseUrl/rootDir/types antes do Full Turbo.",
-      "status": "planned",
-      "phase": "P2-Pipeline",
+      "status": "in-progress",
+      "phase": 2,
       "files": [
         "scripts/ci/tsconfig-guard.mjs",
         ".github/workflows/test.yml",
@@ -808,13 +809,14 @@
       "depends_on": [
         "T-PIPE-01"
       ],
-      "assigned_agent": "worker-core"
+      "assigned_agent": "worker-core",
+      "notes": "Guard TS6 registrado; próximo passo é implementar scripts/ci/tsconfig-guard.mjs e check dedicado."
     },
     {
       "id": "T-PIPE-08",
       "description": "Atualizar ações GitHub remanescentes para variantes compatíveis com baseline Node24 e remover warnings recorrentes.",
       "status": "planned",
-      "phase": "P2-Pipeline",
+      "phase": 2,
       "files": [
         ".github/workflows/test.yml",
         ".github/actions/**"
@@ -828,6 +830,25 @@
         "T-PIPE-07"
       ],
       "assigned_agent": "worker-core"
+    },
+    {
+      "id": "T-OPS-07",
+      "description": "Corrigir versionamento de cache .pi-lens e fechar pendência de higiene de repositório (ISS-006).",
+      "status": "planned",
+      "phase": 8,
+      "files": [
+        ".gitignore",
+        ".project/issues.json"
+      ],
+      "acceptance_criteria": [
+        "Entradas de cache .pi-lens alinhadas no .gitignore",
+        "Arquivos de cache não aparecem em git status limpo",
+        "ISS-006 atualizado com evidência de resolução"
+      ],
+      "depends_on": [
+        "T-OPS-03"
+      ],
+      "assigned_agent": "worker-governance"
     }
   ]
 }

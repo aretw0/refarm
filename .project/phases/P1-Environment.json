@@ -1,0 +1,19 @@
+{
+  "number": 1,
+  "name": "Environment",
+  "intent": "Garantir ambiente determinístico para execução local/CI.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P1-Environment registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P1-Environment executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P1-Environment refletidos nos blocos .project"
+  ]
+}

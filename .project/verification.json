@@ -2,7 +2,7 @@
   "verifications": [
     {
       "id": "VER-INIT-001",
-      "target": "G-01",
+      "target": "0",
       "target_type": "phase",
       "status": "partial",
       "method": "inspect",
@@ -52,7 +52,7 @@
     },
     {
       "id": "VER-INIT-003",
-      "target": "ISS-006",
+      "target": "T-OPS-07",
       "target_type": "task",
       "status": "skipped",
       "method": "inspect",

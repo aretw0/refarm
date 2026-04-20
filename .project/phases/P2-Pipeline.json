@@ -1,0 +1,19 @@
+{
+  "number": 2,
+  "name": "Pipeline",
+  "intent": "Estabilizar build/type-check/test com gates previsíveis.",
+  "status": "in-progress",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P2-Pipeline registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P2-Pipeline executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P2-Pipeline refletidos nos blocos .project"
+  ]
+}
