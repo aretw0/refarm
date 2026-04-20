@@ -795,7 +795,7 @@
     {
       "id": "T-PIPE-07",
       "description": "Implementar guard TS6 preflight para detectar depreciações baseUrl/rootDir/types antes do Full Turbo.",
-      "status": "in-progress",
+      "status": "completed",
       "phase": 2,
       "files": [
         "scripts/ci/tsconfig-guard.mjs",
@@ -811,7 +811,8 @@
         "T-PIPE-01"
       ],
       "assigned_agent": "worker-core",
-      "notes": "Guard implementado em scripts/ci/tsconfig-guard.mjs, exposto via npm run tsconfig:guard e integrado ao quality workflow antes do Full Turbo. Aguardando validação em CI."
+      "notes": "Concluído com commits abb6981 e a897807. Validado em CI: run 24691871635 (verde) e run 24692488972 (verde).",
+      "verification": "VER-PIPE-07-20260420"
     },
     {
       "id": "T-PIPE-08",
@@ -831,7 +832,7 @@
         "T-PIPE-07"
       ],
       "assigned_agent": "worker-core",
-      "notes": "Iniciado com melhoria de baixo risco: workflow-level concurrency em .github/workflows/test.yml para cancelar runs redundantes na mesma branch."
+      "notes": "Concurrency aplicado (commit 89c752b) e validado sem regressão em CI (run 24692488972 verde). Próximo: remover warnings de Node20 deprecated em actions pinadas."
     },
     {
       "id": "T-OPS-07",

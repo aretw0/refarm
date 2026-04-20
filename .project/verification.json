@@ -94,6 +94,31 @@
           "evidence": "Commit 3876a5d cria .project/handoff.json"
         }
       ]
+    },
+    {
+      "id": "VER-PIPE-07-20260420",
+      "target": "T-PIPE-07",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "evidence": "Guard TS6 implementado e integrado ao workflow quality. Regressão TS18003 corrigida. CI verde com TSConfig preflight ativo.",
+      "criteria_results": [
+        {
+          "criterion": "Script falha com mensagem clara por pacote afetado",
+          "status": "passed",
+          "evidence": "scripts/ci/tsconfig-guard.mjs introduz regras e output estruturado"
+        },
+        {
+          "criterion": "Check executa rápido antes de type-check completo",
+          "status": "passed",
+          "evidence": "Passo TSConfig preflight adicionado antes de Verify (Full Turbo) em .github/workflows/test.yml"
+        },
+        {
+          "criterion": "Documentado como passo de preflight local/CI",
+          "status": "passed",
+          "evidence": "script exposto em package.json como npm run tsconfig:guard; validado no run 24692488972"
+        }
+      ]
     }
   ]
 }

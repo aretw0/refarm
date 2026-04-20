@@ -1,23 +1,24 @@
 {
-  "context": "Operação canônica está centralizada em .project (tasks/issues/decisions/verification/handoff). HANDOFF.md da raiz não será mais mantido para fluxo agente↔agente.",
-  "timestamp": "2026-04-20T21:44:00Z",
+  "context": "CI estabilizado com TSConfig preflight ativo e concurrency no workflow. Operação segue canônica em .project; foco atual é T-PIPE-08 para reduzir warnings Node20.",
+  "timestamp": "2026-04-20T22:08:58.911Z",
   "current_phase": 2,
   "current_tasks": [
-    "T-OPS-06",
-    "T-PIPE-07"
+    "T-PIPE-08"
   ],
   "blockers": [
-    "Aguardar resultado do run 24691871635 para confirmar fix do preflight."
+    "Warnings de Node20 deprecated ainda presentes em ações pinadas (cache/upload-artifact/github-script)."
   ],
   "next_actions": [
-    "Aguardar resultado do run 24692109574.",
-    "Com CI verde, iniciar T-PIPE-08 para remover warnings Node20 em actions pinadas."
+    "Mapear ações pinadas que ainda geram warning Node20 em test.yml e composites locais.",
+    "Atualizar pins SHA para variantes compatíveis com Node24 mantendo diffs mínimos.",
+    "Revalidar CI completo após patch (quality/build/e2e/summary)."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "scripts/ci/tsconfig-guard.mjs",
     ".github/workflows/test.yml",
-    ".project/tasks.json"
+    ".github/actions/**",
+    ".project/tasks.json",
+    ".project/verification.json"
   ]
 }
