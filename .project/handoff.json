@@ -1,17 +1,17 @@
 {
-  "context": "Checkpoint pré-compact: CI remoto estável (runs 24691871635, 24692109574, 24692319595, 24692488972 todos verdes). Fluxo canônico segue em .project. T-PIPE-08 está em progresso com atualização local de pins para Node24 readiness já commitada, porém ainda sem push por decisão operacional.",
-  "timestamp": "2026-04-20T22:35:00Z",
+  "context": "T-PIPE-08 pronto para validação final: pins de actions já estão em versões com runs.using=node24 e branch local está ahead com commits atômicos. CI remoto anterior estável.",
+  "timestamp": "2026-04-20T22:39:58.588Z",
   "current_phase": 2,
   "current_tasks": [
     "T-PIPE-08"
   ],
   "blockers": [
-    "Branch local develop está ahead 2; falta apenas autorização para push e validação final do patch de pins no GHA."
+    "Aguardando autorização para push dos commits locais (faceb6e, 3c65691, bb88a31) e confirmação da redução dos warnings Node20 no próximo run."
   ],
   "next_actions": [
-    "Após compact, revisar rapidamente os 2 commits locais pendentes (faceb6e, 3c65691).",
-    "Quando autorizado, fazer push e validar redução dos warnings Node20 no run novo.",
-    "Se CI verde, registrar VER para T-PIPE-08 e avançar para próxima otimização incremental."
+    "Quando autorizado, push dos 3 commits locais para develop.",
+    "Validar no próximo run do test.yml ausência dos avisos Node20 para cache/upload-artifact/github-script.",
+    "Se verde, registrar VER de T-PIPE-08 e marcar task como completed."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
