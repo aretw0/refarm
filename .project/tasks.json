@@ -817,7 +817,7 @@
     {
       "id": "T-PIPE-08",
       "description": "Atualizar ações GitHub remanescentes para variantes compatíveis com baseline Node24 e remover warnings recorrentes.",
-      "status": "in-progress",
+      "status": "completed",
       "phase": 2,
       "files": [
         ".github/workflows/test.yml",
@@ -832,7 +832,8 @@
         "T-PIPE-07"
       ],
       "assigned_agent": "worker-core",
-      "notes": "Pins atualizados localmente com runtime node24 confirmado via action metadata: cache@27d5ce7, upload-artifact@043fb46, download-artifact@3e5f45b, setup-node@48b55a0, github-script@3a2844b. Falta apenas push autorizado para validação final do warning em CI."
+      "notes": "Concluído. Pins Node24 aplicados + codecov-action atualizado para v6.0.0 (57e3a13). Validação final em CI: run 24694500143 verde sem warning Node20.",
+      "verification": "VER-PIPE-08-20260420"
     },
     {
       "id": "T-OPS-07",

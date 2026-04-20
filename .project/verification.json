@@ -119,6 +119,31 @@
           "evidence": "script exposto em package.json como npm run tsconfig:guard; validado no run 24692488972"
         }
       ]
+    },
+    {
+      "id": "VER-PIPE-08-20260420",
+      "target": "T-PIPE-08",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "evidence": "Actions pinadas atualizadas para variantes Node24 e warning Node20 removido dos jobs principais.",
+      "criteria_results": [
+        {
+          "criterion": "Sem warnings de Node20 deprecated nos jobs principais",
+          "status": "passed",
+          "evidence": "Run 24694500143: anotações contêm apenas audit-moderate; não há aviso Node20."
+        },
+        {
+          "criterion": "Pins por SHA mantidos",
+          "status": "passed",
+          "evidence": "Commits 3c65691 e f1cf6d5 mantêm refs imutáveis por SHA em wrappers/workflows."
+        },
+        {
+          "criterion": "Diff de workflow enxuto e auditável",
+          "status": "passed",
+          "evidence": "Mudanças concentradas em wrappers .github/actions e ajustes pontuais de reusable workflow/template."
+        }
+      ]
     }
   ]
 }

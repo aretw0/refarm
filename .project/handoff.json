@@ -1,29 +1,21 @@
 {
-  "context": "T-PIPE-08 pronto para validação final: pins de actions já estão em versões com runs.using=node24 e branch local está ahead com commits atômicos. CI remoto anterior estável.",
-  "timestamp": "2026-04-20T22:39:58.588Z",
+  "context": "P2 estabilizado: TSConfig preflight e concurrency ativos; limpeza Node20 warnings concluída em T-PIPE-08. Fluxo canônico permanece em .project.",
+  "timestamp": "2026-04-20T23:37:44.234Z",
   "current_phase": 2,
-  "current_tasks": [
-    "T-PIPE-08"
-  ],
+  "current_tasks": [],
   "blockers": [
-    "Aguardando autorização para push dos commits locais (faceb6e, 3c65691, bb88a31) e confirmação da redução dos warnings Node20 no próximo run."
+    "Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
   ],
   "next_actions": [
-    "Quando autorizado, push dos 3 commits locais para develop.",
-    "Validar no próximo run do test.yml ausência dos avisos Node20 para cache/upload-artifact/github-script.",
-    "Se verde, registrar VER de T-PIPE-08 e marcar task como completed."
+    "Retomar backlog principal Tractor/pi-agent (segurança LLM allowlist/fs-root/bridge/trusted_plugins/config CRDT).",
+    "Manter cadência de commits locais atômicos e push sob autorização.",
+    "Opcional: abrir nova task para revisar dependências restantes de terceiros que ainda possam carregar Node20 fora da pipeline principal."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".github/actions/cache/action.yml",
-    ".github/actions/upload-artifact/action.yml",
-    ".github/actions/download-artifact/action.yml",
-    ".github/actions/setup/action.yml",
-    ".github/actions/github-script/action.yml",
-    ".github/workflows/reusable-build-wasm-plugin.yml",
-    ".github/workflow-templates/plugin-ci.yml",
-    ".project/handoff.json",
-    ".project/tasks.json"
+    ".project/tasks.json",
+    ".project/verification.json",
+    ".project/handoff.json"
   ]
 }
