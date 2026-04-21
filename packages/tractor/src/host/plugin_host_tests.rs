@@ -29,6 +29,10 @@
         assert!(!is_forwardable_llm_env_key("LLM_SSH_PRIVATE_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_AWS_ACCESS_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_REQUEST_SIGNING_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_PROXY_AUTH"));
+        assert!(!is_forwardable_llm_env_key("LLM_AUTH_HEADER"));
+        assert!(!is_forwardable_llm_env_key("LLM_AUTHORIZATION"));
+        assert!(!is_forwardable_llm_env_key("LLM_SESSION_BEARER"));
 
         assert!(is_forwardable_llm_env_value("openai"));
         assert!(is_forwardable_llm_env_value("https://api.openai.com/v1"));

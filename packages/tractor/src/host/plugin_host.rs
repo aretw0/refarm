@@ -129,7 +129,11 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_CREDENTIALS")
         || upper.ends_with("_PRIVATE_KEY")
         || upper.ends_with("_ACCESS_KEY")
-        || upper.ends_with("_SIGNING_KEY"))
+        || upper.ends_with("_SIGNING_KEY")
+        || upper.ends_with("_AUTH")
+        || upper.ends_with("_AUTH_HEADER")
+        || upper.ends_with("_AUTHORIZATION")
+        || upper.ends_with("_BEARER"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
