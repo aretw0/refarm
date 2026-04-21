@@ -144,20 +144,45 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
     push_trimmed_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
     if let Some(budgets) = cfg["budgets"].as_object() {
         for (provider, amount) in budgets {
-            let provider = provider.trim();
-            if provider.is_empty() {
+            let Some(provider_token) = sanitize_budget_provider_for_env(provider) else {
                 continue;
-            }
+            };
             if let Some(usd) = amount.as_f64() {
                 if usd < 0.0 {
                     continue;
                 }
-                let key = format!("LLM_BUDGET_{}_USD", provider.to_uppercase());
+                let key = format!("LLM_BUDGET_{}_USD", provider_token);
                 vars.push((key, usd.to_string()));
             }
         }
     }
     vars
+}
+
+fn sanitize_budget_provider_for_env(provider: &str) -> Option<String> {
+    let trimmed = provider.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+
+    let mut out = String::new();
+    let mut prev_underscore = false;
+    for ch in trimmed.chars() {
+        if ch.is_ascii_alphanumeric() {
+            out.push(ch.to_ascii_uppercase());
+            prev_underscore = false;
+        } else if !prev_underscore {
+            out.push('_');
+            prev_underscore = true;
+        }
+    }
+
+    let normalized = out.trim_matches('_').to_string();
+    if normalized.is_empty() {
+        None
+    } else {
+        Some(normalized)
+    }
 }
 
 fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
@@ -449,6 +474,24 @@ mod tests {
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
         assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
+        assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_sanitize_budget_provider_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"openai-codex/v1":2.5,"***":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
         assert!(!map.contains_key("LLM_BUDGET___USD"));
     }
 
