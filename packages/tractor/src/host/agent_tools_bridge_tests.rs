@@ -269,6 +269,33 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_runtime_injection_env_keys() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+
+        let node_opts_err = spawn_process(
+            &argv,
+            &[("NODE_OPTIONS".to_string(), "--require /tmp/pwn.js".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(node_opts_err.contains("blocked env key"));
+
+        let py_path_err = spawn_process(
+            &argv,
+            &[("pythonpath".to_string(), "/tmp/evil-py".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(py_path_err.contains("blocked env key"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_duplicate_env_keys() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![
