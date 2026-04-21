@@ -43,6 +43,9 @@
             "LLM_AUTHORIZATION",
             "LLM_AUTHORIZATION_HEADER",
             "LLM_SESSION_BEARER",
+            "LLM_HTTP_PROXY",
+            "LLM_HTTPS_PROXY_URL",
+            "LLM_NO_PROXY",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");

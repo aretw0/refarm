@@ -176,7 +176,10 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_AUTH_HEADER")
         || upper.ends_with("_AUTHORIZATION")
         || upper.ends_with("_AUTHORIZATION_HEADER")
-        || upper.ends_with("_BEARER"))
+        || upper.ends_with("_BEARER")
+        || upper.ends_with("_PROXY")
+        || upper.ends_with("_PROXY_URL")
+        || upper.ends_with("_NO_PROXY"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
