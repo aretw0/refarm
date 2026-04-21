@@ -228,17 +228,25 @@ fn sanitize_budget_provider_for_env(provider: &str) -> Option<String> {
 }
 
 fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
+    const MAX_CONFIG_ENV_VALUE_LEN: usize = 4096;
     let Some(value) = value else { return; };
     let trimmed = value.trim();
-    if !trimmed.is_empty() && !trimmed.chars().any(|c| c.is_control()) {
+    if !trimmed.is_empty()
+        && trimmed.len() <= MAX_CONFIG_ENV_VALUE_LEN
+        && !trimmed.chars().any(|c| c.is_control())
+    {
         upsert_env_var_vec(vars, key.to_string(), trimmed.to_string());
     }
 }
 
 fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
+    const MAX_CONFIG_ENV_VALUE_LEN: usize = 4096;
     let Some(value) = value else { return; };
     let trimmed = value.trim();
-    if !trimmed.is_empty() && !trimmed.chars().any(|c| c.is_control()) {
+    if !trimmed.is_empty()
+        && trimmed.len() <= MAX_CONFIG_ENV_VALUE_LEN
+        && !trimmed.chars().any(|c| c.is_control())
+    {
         upsert_env_var_vec(vars, key.to_string(), trimmed.to_ascii_lowercase());
     }
 }
@@ -551,6 +559,28 @@ mod tests {
         std::fs::write(
             refarm_dir.join("config.json"),
             r#"{"provider":"open\nai","model":"gpt\u0000x","default_provider":" ollama "}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_PROVIDER"));
+        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_overlong_string_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let long = "a".repeat(4097);
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            format!(
+                r#"{{"provider":"{long}","model":"{long}","default_provider":" ollama "}}"#
+            ),
         )
         .unwrap();
 
