@@ -1335,6 +1335,11 @@
                 "X-CF-Access-Client-Id".to_string(),
                 "cf-access-client-id-evil-2".to_string(),
             ),
+            ("cf-access-aud".to_string(), "aud-evil".to_string()),
+            (
+                "x-cf-access-jwt-assertion".to_string(),
+                "jwt-evil".to_string(),
+            ),
             ("X-AMZN-OIDC-SUB".to_string(), "alice-sub".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);

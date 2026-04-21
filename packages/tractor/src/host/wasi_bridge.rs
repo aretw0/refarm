@@ -601,6 +601,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "cf-access-client-secret"
             || n.starts_with("cf-access-client-")
             || n.starts_with("x-cf-access-client-")
+            || n.starts_with("cf-access-")
+            || n.starts_with("x-cf-access-")
             || n == "x-database-url"
             || n == "x-redis-url"
             || n == "x-mongodb-uri"
