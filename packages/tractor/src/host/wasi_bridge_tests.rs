@@ -599,6 +599,17 @@
     }
 
     #[test]
+    fn sanitized_headers_cap_forwarded_header_count() {
+        let headers: Vec<(String, String)> = (0..80)
+            .map(|i| (format!("x-header-{i}"), "ok".to_string()))
+            .collect();
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 64);
+        assert_eq!(out[0].0, "x-header-0");
+        assert_eq!(out[63].0, "x-header-63");
+    }
+
+    #[test]
     fn join_base_url_and_path_trims_surrounding_whitespace() {
         let url = join_base_url_and_path(" https://api.openai.com/ ", " /v1/chat/completions ");
         assert_eq!(url, "https://api.openai.com/v1/chat/completions");

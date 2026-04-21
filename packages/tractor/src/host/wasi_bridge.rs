@@ -361,6 +361,8 @@ fn normalize_path(path: &str) -> String {
 }
 
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
+    const MAX_FORWARDED_HEADER_COUNT: usize = 64;
+
     headers
         .iter()
         .filter(|(name, _)| {
@@ -382,6 +384,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         })
         .filter(|(_, value)| is_safe_header_value(value))
         .map(|(name, value)| (name.trim(), value.as_str()))
+        .take(MAX_FORWARDED_HEADER_COUNT)
         .collect()
 }
 
