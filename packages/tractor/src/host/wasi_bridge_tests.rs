@@ -1477,8 +1477,16 @@
                 "x-pglite-opfs-path".to_string(),
                 "opfs://evil-db".to_string(),
             ),
+            (
+                "X-Pglite-Wal-Dir".to_string(),
+                "/tmp/evil-pglite/wal".to_string(),
+            ),
             ("X-Opfs-Path".to_string(), "opfs://evil-path".to_string()),
             ("x-opfs-root".to_string(), "opfs://evil-root".to_string()),
+            (
+                "X-Opfs-Snapshot-Path".to_string(),
+                "opfs://evil-snapshot".to_string(),
+            ),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);

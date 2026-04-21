@@ -601,8 +601,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-pglite-data-dir"
             || n == "x-pglite-db-path"
             || n == "x-pglite-opfs-path"
+            || n.starts_with("x-pglite-")
             || n == "x-opfs-path"
             || n == "x-opfs-root"
+            || n.starts_with("x-opfs-")
             || n == "cf-access-jwt-assertion"
             || n == "x-goog-iap-jwt-assertion"
             || n == "x-goog-authenticated-user-email"
