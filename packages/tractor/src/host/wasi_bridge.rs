@@ -333,6 +333,13 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
                 && n != "host"
                 && n != "content-length"
                 && n != "transfer-encoding"
+                && n != "connection"
+                && n != "proxy-authorization"
+                && n != "proxy-authenticate"
+                && n != "te"
+                && n != "trailer"
+                && n != "upgrade"
+                && n != "keep-alive"
                 && is_safe_header_name(name)
         })
         .filter(|(_, value)| is_safe_header_value(value))
@@ -763,6 +770,20 @@ mod tests {
         let headers = vec![
             ("Content-Length".to_string(), "999999".to_string()),
             ("Transfer-Encoding".to_string(), "chunked".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_hop_by_hop_headers() {
+        let headers = vec![
+            ("Connection".to_string(), "keep-alive".to_string()),
+            ("Proxy-Authorization".to_string(), "Basic x".to_string()),
+            ("TE".to_string(), "trailers".to_string()),
+            ("Upgrade".to_string(), "websocket".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
