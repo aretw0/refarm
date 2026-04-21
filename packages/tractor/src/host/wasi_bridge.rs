@@ -283,10 +283,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     headers
         .iter()
         .filter(|(name, _)| {
-            let n = name.to_ascii_lowercase();
+            let n = name.trim().to_ascii_lowercase();
             n != "authorization" && n != "x-api-key"
         })
-        .map(|(name, value)| (name.as_str(), value.as_str()))
+        .map(|(name, value)| (name.trim(), value.as_str()))
         .collect()
 }
 
@@ -470,5 +470,17 @@ mod tests {
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].0, "Content-Type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_sensitive_auth_keys_with_surrounding_spaces() {
+        let headers = vec![
+            (" content-type ".to_string(), "application/json".to_string()),
+            (" authorization ".to_string(), "Bearer fake".to_string()),
+            (" x-api-key ".to_string(), "fake-key".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
     }
 }
