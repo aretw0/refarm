@@ -356,6 +356,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_DATADOG_")
         || upper.contains("_NEW_RELIC_")
         || upper.contains("_HONEYCOMB_")
+        || upper.contains("_LOGDNA_")
         || upper.contains("_ROLLBAR_")
         || upper.contains("_BUGSNAG_")
         || upper.contains("_PAGERDUTY_")

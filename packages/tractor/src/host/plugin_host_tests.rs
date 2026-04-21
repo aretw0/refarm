@@ -106,6 +106,7 @@
             "LLM_DATADOG_SITE",
             "LLM_NEW_RELIC_APP_NAME",
             "LLM_HONEYCOMB_DATASET",
+            "LLM_LOGDNA_HOST",
             "LLM_ROLLBAR_ENVIRONMENT",
             "LLM_BUGSNAG_RELEASE_STAGE",
             "LLM_PAGERDUTY_SERVICE_ID",
