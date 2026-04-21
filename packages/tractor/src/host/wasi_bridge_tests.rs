@@ -638,6 +638,20 @@
     }
 
     #[test]
+    fn sanitized_headers_cap_total_forwarded_bytes() {
+        let headers = vec![
+            ("x-h1".to_string(), "a".repeat(8000)),
+            ("x-h2".to_string(), "a".repeat(8000)),
+            ("x-h3".to_string(), "a".repeat(8000)),
+        ];
+
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].0, "x-h1");
+        assert_eq!(out[1].0, "x-h2");
+    }
+
+    #[test]
     fn join_base_url_and_path_trims_surrounding_whitespace() {
         let url = join_base_url_and_path(" https://api.openai.com/ ", " /v1/chat/completions ");
         assert_eq!(url, "https://api.openai.com/v1/chat/completions");

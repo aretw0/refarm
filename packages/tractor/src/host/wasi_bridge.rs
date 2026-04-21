@@ -371,31 +371,47 @@ fn normalize_path(path: &str) -> String {
 
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_FORWARDED_HEADER_COUNT: usize = 64;
+    const MAX_FORWARDED_HEADER_TOTAL_BYTES: usize = 16 * 1024;
 
-    headers
-        .iter()
-        .filter(|(name, _)| {
-            let n = name.trim().to_ascii_lowercase();
-            !n.is_empty()
-                && n != "authorization"
-                && n != "x-api-key"
-                && n != "host"
-                && n != "content-length"
-                && n != "transfer-encoding"
-                && n != "connection"
-                && n != "proxy-authorization"
-                && n != "proxy-authenticate"
-                && n != "proxy-connection"
-                && n != "te"
-                && n != "trailer"
-                && n != "upgrade"
-                && n != "keep-alive"
-                && is_safe_header_name(name)
-        })
-        .filter(|(_, value)| is_safe_header_value(value))
-        .map(|(name, value)| (name.trim(), value.as_str()))
-        .take(MAX_FORWARDED_HEADER_COUNT)
-        .collect()
+    let mut out = Vec::new();
+    let mut total_bytes = 0usize;
+
+    for (name, value) in headers {
+        if out.len() >= MAX_FORWARDED_HEADER_COUNT {
+            break;
+        }
+
+        let n = name.trim().to_ascii_lowercase();
+        if n.is_empty()
+            || n == "authorization"
+            || n == "x-api-key"
+            || n == "host"
+            || n == "content-length"
+            || n == "transfer-encoding"
+            || n == "connection"
+            || n == "proxy-authorization"
+            || n == "proxy-authenticate"
+            || n == "proxy-connection"
+            || n == "te"
+            || n == "trailer"
+            || n == "upgrade"
+            || n == "keep-alive"
+            || !is_safe_header_name(name)
+            || !is_safe_header_value(value)
+        {
+            continue;
+        }
+
+        let trimmed_name = name.trim();
+        let next_total = total_bytes.saturating_add(trimmed_name.len() + value.len());
+        if next_total > MAX_FORWARDED_HEADER_TOTAL_BYTES {
+            continue;
+        }
+        total_bytes = next_total;
+        out.push((trimmed_name, value.as_str()));
+    }
+
+    out
 }
 
 fn is_safe_header_name(name: &str) -> bool {
