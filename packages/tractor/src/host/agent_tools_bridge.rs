@@ -373,6 +373,15 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("JENKINS_")
         || upper.starts_with("CODECOV_")
         || upper.starts_with("SONAR_")
+        || upper.starts_with("ARGOCD_")
+        || upper.starts_with("TERRAFORM_")
+        || upper.starts_with("PULUMI_")
+        || upper.starts_with("DOPPLER_")
+        || upper.starts_with("INFISICAL_")
+        || upper.starts_with("OP_SERVICE_")
+        || upper.starts_with("SOPS_")
+        || upper.starts_with("SIGSTORE_")
+        || upper.starts_with("COSIGN_")
     {
         return true;
     }
