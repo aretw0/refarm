@@ -797,6 +797,12 @@
             ("x-amzn-oidc-identity".to_string(), "sub".to_string()),
             ("x-amzn-oidc-accesstoken".to_string(), "jwt".to_string()),
             ("x-forwarded-user".to_string(), "alice".to_string()),
+            ("x-forwarded-user-id".to_string(), "alice-id".to_string()),
+            ("x-forwarded-userid".to_string(), "alice-id".to_string()),
+            (
+                "x-forwarded-user-email".to_string(),
+                "alice@example.com".to_string(),
+            ),
             ("x-forwarded-groups".to_string(), "admins".to_string()),
             ("x-remote-user".to_string(), "alice".to_string()),
             ("x-remote-email".to_string(), "alice@example.com".to_string()),
@@ -942,6 +948,12 @@
             ("X-AMZN-OIDC-IDENTITY".to_string(), "sub".to_string()),
             ("X-AMZN-OIDC-ACCESSTOKEN".to_string(), "jwt".to_string()),
             ("X-FORWARDED-USER".to_string(), "alice".to_string()),
+            ("X-FORWARDED-USER-ID".to_string(), "alice-id".to_string()),
+            ("X-FORWARDED-USERID".to_string(), "alice-id".to_string()),
+            (
+                "X-FORWARDED-USER-EMAIL".to_string(),
+                "alice@example.com".to_string(),
+            ),
             ("X-FORWARDED-GROUPS".to_string(), "admins".to_string()),
             ("X-REMOTE-USER".to_string(), "alice".to_string()),
             ("X-REMOTE-EMAIL".to_string(), "alice@example.com".to_string()),
@@ -1087,6 +1099,12 @@
             (" x-amzn-oidc-identity ".to_string(), "sub".to_string()),
             (" x-amzn-oidc-accesstoken ".to_string(), "jwt".to_string()),
             (" x-forwarded-user ".to_string(), "alice".to_string()),
+            (" x-forwarded-user-id ".to_string(), "alice-id".to_string()),
+            (" x-forwarded-userid ".to_string(), "alice-id".to_string()),
+            (
+                " x-forwarded-user-email ".to_string(),
+                "alice@example.com".to_string(),
+            ),
             (" x-forwarded-groups ".to_string(), "admins".to_string()),
             (" x-remote-user ".to_string(), "alice".to_string()),
             (
