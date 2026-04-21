@@ -853,6 +853,13 @@
             ("x-principal".to_string(), "alice".to_string()),
             ("x-principal-id".to_string(), "alice-id".to_string()),
             ("x-principal-name".to_string(), "alice".to_string()),
+            ("x-gitlab-user-id".to_string(), "123".to_string()),
+            ("x-gitlab-username".to_string(), "alice".to_string()),
+            ("x-gitlab-user-login".to_string(), "alice".to_string()),
+            (
+                "x-gitlab-user-email".to_string(),
+                "alice@example.com".to_string(),
+            ),
             ("x-client-verify".to_string(), "SUCCESS".to_string()),
             ("x-client-dn".to_string(), "CN=alice".to_string()),
             (
@@ -971,6 +978,13 @@
             ("X-PRINCIPAL".to_string(), "alice".to_string()),
             ("X-PRINCIPAL-ID".to_string(), "alice-id".to_string()),
             ("X-PRINCIPAL-NAME".to_string(), "alice".to_string()),
+            ("X-GITLAB-USER-ID".to_string(), "123".to_string()),
+            ("X-GITLAB-USERNAME".to_string(), "alice".to_string()),
+            ("X-GITLAB-USER-LOGIN".to_string(), "alice".to_string()),
+            (
+                "X-GITLAB-USER-EMAIL".to_string(),
+                "alice@example.com".to_string(),
+            ),
             ("X-CLIENT-VERIFY".to_string(), "SUCCESS".to_string()),
             ("X-CLIENT-DN".to_string(), "CN=alice".to_string()),
             (
@@ -1101,6 +1115,13 @@
             (" x-principal ".to_string(), "alice".to_string()),
             (" x-principal-id ".to_string(), "alice-id".to_string()),
             (" x-principal-name ".to_string(), "alice".to_string()),
+            (" x-gitlab-user-id ".to_string(), "123".to_string()),
+            (" x-gitlab-username ".to_string(), "alice".to_string()),
+            (" x-gitlab-user-login ".to_string(), "alice".to_string()),
+            (
+                " x-gitlab-user-email ".to_string(),
+                "alice@example.com".to_string(),
+            ),
             (" x-client-verify ".to_string(), "SUCCESS".to_string()),
             (" x-client-dn ".to_string(), "CN=alice".to_string()),
             (
