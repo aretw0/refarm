@@ -424,11 +424,24 @@ fn join_base_url_and_path(base_url: &str, path: &str) -> String {
 }
 
 fn read_response_bytes(resp: ureq::Response) -> Result<Vec<u8>, String> {
-    let mut reader = resp.into_reader();
+    const MAX_LLM_RESPONSE_BODY_LEN: usize = 2 * 1024 * 1024;
+    let reader = resp.into_reader();
+    read_limited_bytes(reader, MAX_LLM_RESPONSE_BODY_LEN, "llm-bridge response body")
+}
+
+fn read_limited_bytes(
+    mut reader: impl std::io::Read,
+    max_len: usize,
+    label: &str,
+) -> Result<Vec<u8>, String> {
     let mut out = Vec::new();
-    reader
+    (&mut reader)
+        .take(max_len as u64 + 1)
         .read_to_end(&mut out)
         .map_err(|e| format!("response read: {e}"))?;
+    if out.len() > max_len {
+        return Err(format!("{label} too large"));
+    }
     Ok(out)
 }
 

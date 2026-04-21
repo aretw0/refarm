@@ -472,6 +472,20 @@
     }
 
     #[test]
+    fn read_limited_bytes_allows_payload_within_limit() {
+        let payload = vec![b'x'; 16];
+        let out = read_limited_bytes(std::io::Cursor::new(payload.clone()), 16, "payload").unwrap();
+        assert_eq!(out, payload);
+    }
+
+    #[test]
+    fn read_limited_bytes_blocks_payload_over_limit() {
+        let payload = vec![b'x'; 17];
+        let err = read_limited_bytes(std::io::Cursor::new(payload), 16, "payload").unwrap_err();
+        assert!(err.contains("payload too large"));
+    }
+
+    #[test]
     fn sanitized_headers_drop_sensitive_auth_keys() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
