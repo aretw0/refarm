@@ -170,7 +170,7 @@ fn llm_complete_http(
 ) -> Result<Vec<u8>, String> {
     let expected = expected_llm_route_from_env();
     enforce_llm_route(provider, base_url, path, &expected)?;
-    let provider = provider.trim();
+    let provider = normalize_provider_name(provider);
 
     let url = join_base_url_and_path(base_url, path);
     let mut req = ureq::post(&url);
@@ -179,11 +179,11 @@ fn llm_complete_http(
         req = req.set(name, value);
     }
 
-    if use_anthropic_auth(provider) {
+    if use_anthropic_auth(&provider) {
         let key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
         req = req.set("x-api-key", &key);
-    } else if use_openai_auth(provider) {
+    } else if use_openai_auth(&provider) {
         if let Ok(key) = std::env::var("OPENAI_API_KEY") {
             if !key.trim().is_empty() {
                 req = req.set("authorization", &format!("Bearer {key}"));
@@ -213,15 +213,19 @@ fn use_openai_auth(provider: &str) -> bool {
 fn provider_name_from_env() -> String {
     std::env::var("LLM_PROVIDER")
         .ok()
-        .map(|v| v.trim().to_string())
+        .map(|v| normalize_provider_name(&v))
         .filter(|v| !v.is_empty())
         .or_else(|| {
             std::env::var("LLM_DEFAULT_PROVIDER")
                 .ok()
-                .map(|v| v.trim().to_string())
+                .map(|v| normalize_provider_name(&v))
                 .filter(|v| !v.is_empty())
         })
         .unwrap_or_else(|| "ollama".to_string())
+}
+
+fn normalize_provider_name(value: &str) -> String {
+    value.trim().to_ascii_lowercase()
 }
 
 fn expected_llm_route_from_env() -> LlmRoute {
@@ -255,11 +259,12 @@ fn enforce_llm_route(
     path: &str,
     expected: &LlmRoute,
 ) -> Result<(), String> {
-    let requested_provider = provider.trim();
-    if requested_provider != expected.provider {
+    let requested_provider = normalize_provider_name(provider);
+    let expected_provider = normalize_provider_name(&expected.provider);
+    if requested_provider != expected_provider {
         return Err(format!(
             "[blocked: llm-bridge provider mismatch: requested '{requested_provider}', expected '{}']",
-            expected.provider
+            expected_provider
         ));
     }
 
@@ -365,6 +370,18 @@ mod tests {
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
         assert_eq!(route.path, "/v1/chat/completions");
+
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_normalizes_provider_case_from_env() {
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "OpenAI");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai");
+        assert_eq!(route.base_url, "https://api.openai.com");
 
         reset_llm_env();
     }
@@ -509,6 +526,22 @@ mod tests {
             " openai ",
             " https://api.openai.com/ ",
             "  v1/chat/completions  ",
+            &expected,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn enforce_route_accepts_mixed_case_provider_name() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let result = enforce_llm_route(
+            "OpenAI",
+            "https://api.openai.com",
+            "/v1/chat/completions",
             &expected,
         );
         assert!(result.is_ok());
