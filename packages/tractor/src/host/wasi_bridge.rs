@@ -309,6 +309,9 @@ fn enforce_llm_route(
     if !path.is_ascii() || !expected.path.is_ascii() {
         return Err("[blocked: llm-bridge path must be ascii]".to_string());
     }
+    if path.trim().is_empty() || expected.path.trim().is_empty() {
+        return Err("[blocked: llm-bridge path must be non-empty]".to_string());
+    }
     if base_url.len() > MAX_BASE_URL_LEN || expected.base_url.len() > MAX_BASE_URL_LEN {
         return Err("[blocked: llm-bridge base_url too long]".to_string());
     }

@@ -243,6 +243,35 @@
     }
 
     #[test]
+    fn enforce_route_blocks_empty_path() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route("openai", "https://api.openai.com", "   ", &expected)
+            .unwrap_err();
+        assert!(err.contains("path must be non-empty"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_empty_expected_path() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: " ".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("path must be non-empty"));
+    }
+
+    #[test]
     fn enforce_route_blocks_path_with_query_or_fragment() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
