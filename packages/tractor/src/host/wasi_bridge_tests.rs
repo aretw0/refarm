@@ -770,7 +770,26 @@
             ("x-gitlab-token".to_string(), "fake-key".to_string()),
             ("x-bitbucket-token".to_string(), "fake-key".to_string()),
             ("x-ci-job-token".to_string(), "fake-key".to_string()),
+            ("x-ci-workflow-id".to_string(), "wf-evil".to_string()),
             ("x-circleci-token".to_string(), "fake-key".to_string()),
+            (
+                "x-circleci-workflow-id".to_string(),
+                "circle-wf-evil".to_string(),
+            ),
+            (
+                "x-buildkite-agent-token".to_string(),
+                "buildkite-token-evil".to_string(),
+            ),
+            ("x-drone-token".to_string(), "drone-token-evil".to_string()),
+            (
+                "x-jenkins-token".to_string(),
+                "jenkins-token-evil".to_string(),
+            ),
+            (
+                "x-codecov-token".to_string(),
+                "codecov-token-evil".to_string(),
+            ),
+            ("x-sonar-token".to_string(), "sonar-token-evil".to_string()),
             ("x-access-token".to_string(), "fake-key".to_string()),
             ("x-session-token".to_string(), "fake-key".to_string()),
             ("x-id-token".to_string(), "fake-key".to_string()),
@@ -1096,7 +1115,26 @@
             (" x-gitlab-token ".to_string(), "fake-key".to_string()),
             (" x-bitbucket-token ".to_string(), "fake-key".to_string()),
             (" x-ci-job-token ".to_string(), "fake-key".to_string()),
+            (" x-ci-workflow-id ".to_string(), "wf-evil".to_string()),
             (" x-circleci-token ".to_string(), "fake-key".to_string()),
+            (
+                " x-circleci-workflow-id ".to_string(),
+                "circle-wf-evil".to_string(),
+            ),
+            (
+                " x-buildkite-agent-token ".to_string(),
+                "buildkite-token-evil".to_string(),
+            ),
+            (" x-drone-token ".to_string(), "drone-token-evil".to_string()),
+            (
+                " x-jenkins-token ".to_string(),
+                "jenkins-token-evil".to_string(),
+            ),
+            (
+                " x-codecov-token ".to_string(),
+                "codecov-token-evil".to_string(),
+            ),
+            (" x-sonar-token ".to_string(), "sonar-token-evil".to_string()),
             (" x-access-token ".to_string(), "fake-key".to_string()),
             (" x-session-token ".to_string(), "fake-key".to_string()),
             (" x-id-token ".to_string(), "fake-key".to_string()),

@@ -607,7 +607,14 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-slack-request-timestamp"
             || n.starts_with("x-slack-")
             || n == "x-ci-job-token"
+            || n.starts_with("x-ci-")
             || n == "x-circleci-token"
+            || n.starts_with("x-circleci-")
+            || n.starts_with("x-buildkite-")
+            || n.starts_with("x-drone-")
+            || n.starts_with("x-jenkins-")
+            || n.starts_with("x-codecov-")
+            || n.starts_with("x-sonar-")
             || n == "x-access-token"
             || n == "x-session-token"
             || n == "x-id-token"
