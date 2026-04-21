@@ -411,6 +411,11 @@ fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), Strin
             return Err("spawn: cwd outside LLM_FS_ROOT".to_string());
         }
     }
+    let metadata = std::fs::metadata(cwd)
+        .map_err(|_| "spawn: cwd must be an existing directory".to_string())?;
+    if !metadata.is_dir() {
+        return Err("spawn: cwd must be a directory".to_string());
+    }
     Ok(())
 }
 

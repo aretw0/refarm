@@ -417,11 +417,35 @@
         assert!(err.contains("cwd must not contain whitespace"));
     }
 
+    #[tokio::test]
+    async fn spawn_rejects_missing_cwd_directory() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let missing = format!("/tmp/refarm-missing-cwd-{}", std::process::id());
+        let err = spawn_process(&argv, &[], Some(&missing), 1000, None)
+            .await
+            .unwrap_err();
+        assert!(err.contains("cwd must be an existing directory"));
+    }
+
+    #[tokio::test]
+    async fn spawn_rejects_file_cwd() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("cwd.txt");
+        std::fs::write(&file, b"not-a-dir").unwrap();
+
+        let err = spawn_process(&argv, &[], Some(file.to_string_lossy().as_ref()), 1000, None)
+            .await
+            .unwrap_err();
+        assert!(err.contains("cwd must be a directory"));
+    }
+
     #[test]
     fn spawn_cwd_within_fs_root_is_allowed() {
         let root_dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(root_dir.path()).unwrap();
         let inside = root.join("subdir");
+        std::fs::create_dir_all(&inside).unwrap();
 
         let ok = enforce_spawn_cwd_with(inside.to_string_lossy().as_ref(), Some(&root));
         assert!(ok.is_ok(), "expected cwd inside root to be allowed: {ok:?}");
@@ -432,7 +456,7 @@
         let root_dir = tempfile::tempdir().unwrap();
         let outside_dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(root_dir.path()).unwrap();
-        let outside = outside_dir.path().join("elsewhere");
+        let outside = outside_dir.path();
 
         let err = enforce_spawn_cwd_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
         assert!(err.contains("cwd outside LLM_FS_ROOT"));
