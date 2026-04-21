@@ -524,6 +524,23 @@
     }
 
     #[test]
+    fn shell_allowlist_parser_limits_input_scan_window() {
+        let mut entries = vec!["bad cmd".to_string(); 512];
+        entries.push("echo".to_string());
+        let raw = entries.join(",");
+
+        let allowlist = parse_shell_allowlist(&raw);
+        assert!(!allowlist.contains("echo"));
+    }
+
+    #[test]
+    fn shell_allowlist_parser_blocks_overlong_raw_input() {
+        let raw = "a".repeat(16 * 1024 + 1);
+        let allowlist = parse_shell_allowlist(&raw);
+        assert!(allowlist.is_empty());
+    }
+
+    #[test]
     fn shell_allowlist_rejects_overlong_binary() {
         let allowlist = parse_shell_allowlist("*");
         let argv = vec!["a".repeat(257)];

@@ -250,6 +250,8 @@ fn effective_spawn_timeout_ms(requested: u32) -> u32 {
 
 const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_SHELL_ALLOWLIST_ENTRIES: usize = 256;
+const MAX_SHELL_ALLOWLIST_SCAN: usize = 512;
+const MAX_SHELL_ALLOWLIST_RAW_LEN: usize = 16 * 1024;
 const MAX_SPAWN_ARGV_COUNT: usize = 128;
 const MAX_SPAWN_ARG_LEN: usize = 4096;
 const MAX_SPAWN_ARGV_TOTAL_BYTES: usize = 64 * 1024;
@@ -457,7 +459,12 @@ fn shell_allowlist_from_env() -> Option<std::collections::HashSet<String>> {
 }
 
 fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
+    if raw.len() > MAX_SHELL_ALLOWLIST_RAW_LEN {
+        return std::collections::HashSet::new();
+    }
+
     raw.split(',')
+        .take(MAX_SHELL_ALLOWLIST_SCAN)
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .filter(|s| !contains_control_chars(s))
