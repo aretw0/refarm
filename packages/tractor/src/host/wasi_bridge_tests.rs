@@ -1076,6 +1076,11 @@
             ("X-Original-Forwarded-For".to_string(), "1.2.3.4".to_string()),
             ("X-Cluster-Client-IP".to_string(), "1.2.3.4".to_string()),
             ("X-Envoy-External-Address".to_string(), "1.2.3.4".to_string()),
+            (
+                "X-Envoy-Peer-Metadata".to_string(),
+                "base64peerdata".to_string(),
+            ),
+            ("X-Envoy-Peer-Metadata-Id".to_string(), "sidecar~id".to_string()),
             ("Fastly-Client-IP".to_string(), "1.2.3.4".to_string()),
             ("X-Forwarded-Client-Cert".to_string(), "By=spiffe://edge".to_string()),
             ("X-Client-Cert".to_string(), "-----BEGIN CERT-----...".to_string()),

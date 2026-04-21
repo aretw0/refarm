@@ -611,6 +611,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-original-forwarded-for"
             || n == "x-cluster-client-ip"
             || n == "x-envoy-external-address"
+            || n == "x-envoy-peer-metadata"
+            || n == "x-envoy-peer-metadata-id"
             || n == "fastly-client-ip"
             || n == "x-forwarded-client-cert"
             || n == "x-client-cert"
