@@ -554,6 +554,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ngrok-authtoken"
             || n == "x-tailscale-authkey"
             || n == "x-telegram-bot-api-secret-token"
+            || n == "x-telegram-api-hash"
+            || n == "x-cloudflare-tunnel-token"
             || n == "x-matrix-access-token"
             || n == "x-discord-token"
             || n == "x-signature-ed25519"

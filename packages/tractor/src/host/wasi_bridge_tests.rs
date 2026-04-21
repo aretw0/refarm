@@ -1355,6 +1355,14 @@
                 "telegram-secret-evil".to_string(),
             ),
             (
+                "X-Telegram-Api-Hash".to_string(),
+                "telegram-api-hash-evil".to_string(),
+            ),
+            (
+                "x-cloudflare-tunnel-token".to_string(),
+                "cf-tunnel-token-evil".to_string(),
+            ),
+            (
                 "X-Matrix-Access-Token".to_string(),
                 "matrix-token-evil".to_string(),
             ),
