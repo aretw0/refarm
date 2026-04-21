@@ -459,6 +459,19 @@
     }
 
     #[test]
+    fn llm_request_body_allows_size_within_limit() {
+        let body = vec![b'a'; 1024 * 1024];
+        assert!(enforce_llm_request_body(&body).is_ok());
+    }
+
+    #[test]
+    fn llm_request_body_blocks_oversized_payload() {
+        let body = vec![b'a'; 1024 * 1024 + 1];
+        let err = enforce_llm_request_body(&body).unwrap_err();
+        assert!(err.contains("body too large"));
+    }
+
+    #[test]
     fn sanitized_headers_drop_sensitive_auth_keys() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),

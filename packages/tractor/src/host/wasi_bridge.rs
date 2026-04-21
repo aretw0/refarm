@@ -170,6 +170,7 @@ fn llm_complete_http(
 ) -> Result<Vec<u8>, String> {
     let expected = expected_llm_route_from_env();
     enforce_llm_route(provider, base_url, path, &expected)?;
+    enforce_llm_request_body(body)?;
     let provider = normalize_provider_name(provider);
 
     let url = join_base_url_and_path(base_url, path);
@@ -203,6 +204,14 @@ fn llm_complete_http(
 
 fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("anthropic")
+}
+
+fn enforce_llm_request_body(body: &[u8]) -> Result<(), String> {
+    const MAX_LLM_REQUEST_BODY_LEN: usize = 1024 * 1024;
+    if body.len() > MAX_LLM_REQUEST_BODY_LEN {
+        return Err("[blocked: llm-bridge body too large]".to_string());
+    }
+    Ok(())
 }
 
 fn is_openai_provider_family(provider: &str) -> bool {
