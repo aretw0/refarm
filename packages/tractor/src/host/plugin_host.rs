@@ -192,7 +192,11 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_JWT")
         || upper.ends_with("_ASSERTION")
         || upper.ends_with("_SESSION")
-        || upper.ends_with("_SESSION_ID"))
+        || upper.ends_with("_SESSION_ID")
+        || upper.ends_with("_OIDC")
+        || upper.ends_with("_OIDC_DATA")
+        || upper.ends_with("_OIDC_IDENTITY")
+        || upper.ends_with("_USERINFO"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {

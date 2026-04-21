@@ -59,6 +59,10 @@
             "LLM_CF_ACCESS_ASSERTION",
             "LLM_SESSION",
             "LLM_SESSION_ID",
+            "LLM_OIDC",
+            "LLM_OIDC_DATA",
+            "LLM_OIDC_IDENTITY",
+            "LLM_USERINFO",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
