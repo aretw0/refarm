@@ -197,6 +197,7 @@
             "LLM_KUBEAPISERVER",
             "LLM_KUBETOKEN",
             "LLM_KUBECAFILE",
+            "LLM_K8S_AWS_ID",
             "LLM_CLIENT_VERIFY",
             "LLM_SSL_CLIENT_VERIFY",
             "LLM_FORWARDED_CLIENT_CERT",

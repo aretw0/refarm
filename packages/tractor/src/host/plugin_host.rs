@@ -334,6 +334,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_KUBEAPISERVER")
         || upper.ends_with("_KUBETOKEN")
         || upper.ends_with("_KUBECAFILE")
+        || upper.ends_with("_K8S_AWS_ID")
         || upper.ends_with("_CLIENT_VERIFY")
         || upper.ends_with("_SSL_CLIENT_VERIFY")
         || upper.ends_with("_FORWARDED_CLIENT_CERT")
