@@ -205,7 +205,13 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_PRINCIPAL_IDP")
         || upper.ends_with("_USER_ID")
         || upper.ends_with("_USER_EMAIL")
-        || upper.ends_with("_GROUPS"))
+        || upper.ends_with("_GROUPS")
+        || upper.ends_with("_FORWARDED_USER")
+        || upper.ends_with("_AUTH_REQUEST_USER")
+        || upper.ends_with("_AUTH_REQUEST_EMAIL")
+        || upper.ends_with("_AUTHENTICATED_USERID")
+        || upper.ends_with("_AUTHENTICATED_USER_EMAIL")
+        || upper.ends_with("_AUTHENTICATED_GROUPS"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
