@@ -72,6 +72,7 @@
             "LLM_CLIENT_PRINCIPAL_ID",
             "LLM_CLIENT_PRINCIPAL_NAME",
             "LLM_CLIENT_PRINCIPAL_IDP",
+            "LLM_MS_TOKEN_AAD_EXPIRES_ON",
             "LLM_PRINCIPAL",
             "LLM_PRINCIPAL_ID",
             "LLM_PRINCIPAL_NAME",
