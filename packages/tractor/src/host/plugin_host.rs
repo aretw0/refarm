@@ -164,6 +164,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_KEY")
         || upper.ends_with("_TOKEN")
         || upper.ends_with("_SECRET")
+        || upper.ends_with("_COOKIE")
         || upper.ends_with("_PASSWORD")
         || upper.ends_with("_CREDENTIALS")
         || upper.ends_with("_CERT")
