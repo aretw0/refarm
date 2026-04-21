@@ -568,6 +568,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gitlab-webhook-token"
             || n == "x-bitbucket-token"
             || n == "x-vault-token"
+            || n.starts_with("x-vault-")
             || n == "x-k8s-aws-id"
             || n == "ngrok-authtoken"
             || n == "x-ngrok-authtoken"
