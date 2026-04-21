@@ -180,6 +180,31 @@
         assert!(out.trim() == "ABSENT", "expected no HOME, got: {out}");
     }
 
+    #[tokio::test]
+    async fn spawn_rejects_invalid_env_key() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![("BAD=KEY".to_string(), "x".to_string())];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("invalid env key"));
+    }
+
+    #[tokio::test]
+    async fn spawn_rejects_env_value_with_control_chars() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![("SAFE_KEY".to_string(), "bad\nvalue".to_string())];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("env value contains control characters"));
+    }
+
+    #[tokio::test]
+    async fn spawn_rejects_cwd_with_control_chars() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let err = spawn_process(&argv, &[], Some("/tmp\nboom"), 1000, None)
+            .await
+            .unwrap_err();
+        assert!(err.contains("cwd contains control characters"));
+    }
+
     #[test]
     fn shell_allowlist_allows_bare_binary_name() {
         let allowlist = parse_shell_allowlist("ls,grep");

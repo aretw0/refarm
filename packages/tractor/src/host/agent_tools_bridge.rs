@@ -111,6 +111,11 @@ pub(crate) async fn spawn_process(
     debug_assert!(!argv.is_empty(), "spawn_process: argv must be non-empty");
 
     enforce_shell_allowlist(argv)?;
+    enforce_spawn_env(env)?;
+
+    if let Some(dir) = cwd {
+        enforce_spawn_cwd(dir)?;
+    }
 
     let binary = &argv[0];
     let args = &argv[1..];
@@ -249,6 +254,58 @@ fn contains_whitespace(value: &str) -> bool {
 
 const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_FS_PATH_LEN: usize = 4096;
+const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
+const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
+const MAX_SPAWN_CWD_LEN: usize = 4096;
+
+fn is_safe_spawn_env_key(key: &str) -> bool {
+    if key.is_empty() || key.len() > MAX_SPAWN_ENV_KEY_LEN {
+        return false;
+    }
+    if contains_control_chars(key) || contains_whitespace(key) {
+        return false;
+    }
+    let mut chars = key.chars();
+    let Some(first) = chars.next() else {
+        return false;
+    };
+    if !(first.is_ascii_alphabetic() || first == '_') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
+fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
+    for (key, value) in env {
+        if !is_safe_spawn_env_key(key) {
+            return Err("spawn: invalid env key".to_string());
+        }
+        if value.len() > MAX_SPAWN_ENV_VALUE_LEN {
+            return Err("spawn: env value exceeds max length".to_string());
+        }
+        if contains_control_chars(value) {
+            return Err("spawn: env value contains control characters".to_string());
+        }
+    }
+    Ok(())
+}
+
+fn enforce_spawn_cwd(cwd: &str) -> Result<(), String> {
+    let trimmed = cwd.trim();
+    if trimmed.is_empty() {
+        return Err("spawn: cwd must be non-empty".to_string());
+    }
+    if trimmed != cwd {
+        return Err("spawn: cwd contains surrounding whitespace".to_string());
+    }
+    if cwd.len() > MAX_SPAWN_CWD_LEN {
+        return Err("spawn: cwd exceeds max length".to_string());
+    }
+    if contains_control_chars(cwd) {
+        return Err("spawn: cwd contains control characters".to_string());
+    }
+    Ok(())
+}
 
 fn is_safe_plugin_id_token(value: &str) -> bool {
     const MAX_PLUGIN_ID_LEN: usize = 128;
