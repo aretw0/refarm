@@ -197,11 +197,10 @@ async fn atomic_write(path: &str, content: &[u8]) -> anyhow::Result<()> {
 }
 
 fn enforce_shell_allowlist(argv: &[String]) -> Result<(), String> {
-    let Some(allowlist) = shell_allowlist_from_env() else {
-        // Backward-compatible default: permissive when env var is not set.
-        return Ok(());
-    };
-    enforce_shell_allowlist_with(argv, Some(&allowlist))
+    let allowlist = shell_allowlist_from_env();
+    // Backward-compatible default remains permissive for command selection when
+    // env var is not set, but structural argv guards must still apply.
+    enforce_shell_allowlist_with(argv, allowlist.as_ref())
 }
 
 fn enforce_trusted_plugin_for_shell(plugin_id: &str) -> Result<(), String> {

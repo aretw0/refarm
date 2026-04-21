@@ -12,6 +12,9 @@
         TractorNativeBindings::new("test-agent", sync, telemetry)
     }
 
+    static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+
     fn spawn_req(argv: &[&str]) -> SpawnRequest {
         SpawnRequest {
             argv: argv.iter().map(|s| s.to_string()).collect(),
@@ -484,6 +487,23 @@
 
         let err = enforce_shell_allowlist_with(&argv, None).unwrap_err();
         assert!(err.contains("too many argv entries"));
+    }
+
+    #[test]
+    fn shell_allowlist_env_unset_wrapper_still_enforces_argv_count_cap() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_SHELL_ALLOWLIST").ok();
+        std::env::remove_var("LLM_SHELL_ALLOWLIST");
+
+        let mut argv = vec!["echo".to_string()];
+        argv.extend((0..128).map(|i| i.to_string()));
+
+        let err = enforce_shell_allowlist(&argv).unwrap_err();
+        assert!(err.contains("too many argv entries"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_SHELL_ALLOWLIST", prev);
+        }
     }
 
     #[test]
