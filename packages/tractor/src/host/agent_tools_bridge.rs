@@ -311,8 +311,12 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     matches!(
         upper.as_str(),
         "PATH"
+            | "IFS"
+            | "SHELLOPTS"
+            | "BASHOPTS"
             | "BASH_ENV"
             | "ENV"
+            | "GCONV_PATH"
             | "NODE_OPTIONS"
             | "NODE_PATH"
             | "CLASSPATH"

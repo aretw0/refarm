@@ -277,6 +277,10 @@
             ("ld_audit", "evil.so"),
             ("DYLD_FRAMEWORK_PATH", "/tmp/pwn-fw"),
             ("DYLD_FALLBACK_LIBRARY_PATH", "/tmp/pwn-dylib"),
+            ("IFS", "/"),
+            ("SHELLOPTS", "igncr"),
+            ("BASHOPTS", "expand_aliases"),
+            ("GCONV_PATH", "/tmp/gconv"),
         ];
 
         for (key, value) in cases {
