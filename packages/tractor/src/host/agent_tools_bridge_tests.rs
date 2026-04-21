@@ -456,6 +456,12 @@
             ("registry_auth_file", "/tmp/evil-registry-auth.json"),
             ("CONTAINERS_AUTH_FILE", "/tmp/evil-containers-auth.json"),
             ("HELM_REGISTRY_CONFIG", "/tmp/evil-helm-registry.json"),
+            ("OCI_CLI_KEY_FILE", "/tmp/evil-oci-key.pem"),
+            (
+                "oci_cli_security_token_file",
+                "/tmp/evil-oci-security-token",
+            ),
+            ("OCI_CLI_AUTH", "security_token"),
             ("NETRC", "/tmp/evil.netrc"),
             ("_NETRC", "1"),
             ("CURL_HOME", "/tmp/evil-curl-home"),
