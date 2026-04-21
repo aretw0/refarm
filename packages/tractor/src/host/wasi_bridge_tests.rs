@@ -779,9 +779,15 @@
             ("x-auth-request-user".to_string(), "alice".to_string()),
             ("x-auth-request-email".to_string(), "alice@example.com".to_string()),
             (
+                "x-auth-request-preferred-username".to_string(),
+                "alice".to_string(),
+            ),
+            ("x-auth-request-groups".to_string(), "admins".to_string()),
+            (
                 "x-auth-request-access-token".to_string(),
                 "jwt".to_string(),
             ),
+            ("x-forwarded-email".to_string(), "alice@example.com".to_string()),
             ("x-forwarded-access-token".to_string(), "jwt".to_string()),
             (
                 "cf-access-authenticated-user-email".to_string(),
@@ -832,9 +838,15 @@
             ("X-AUTH-REQUEST-USER".to_string(), "alice".to_string()),
             ("X-AUTH-REQUEST-EMAIL".to_string(), "alice@example.com".to_string()),
             (
+                "X-AUTH-REQUEST-PREFERRED-USERNAME".to_string(),
+                "alice".to_string(),
+            ),
+            ("X-AUTH-REQUEST-GROUPS".to_string(), "admins".to_string()),
+            (
                 "X-AUTH-REQUEST-ACCESS-TOKEN".to_string(),
                 "jwt".to_string(),
             ),
+            ("X-FORWARDED-EMAIL".to_string(), "alice@example.com".to_string()),
             ("X-FORWARDED-ACCESS-TOKEN".to_string(), "jwt".to_string()),
             (
                 "CF-ACCESS-AUTHENTICATED-USER-EMAIL".to_string(),
@@ -891,9 +903,15 @@
                 "alice@example.com".to_string(),
             ),
             (
+                " x-auth-request-preferred-username ".to_string(),
+                "alice".to_string(),
+            ),
+            (" x-auth-request-groups ".to_string(), "admins".to_string()),
+            (
                 " x-auth-request-access-token ".to_string(),
                 "jwt".to_string(),
             ),
+            (" x-forwarded-email ".to_string(), "alice@example.com".to_string()),
             (" x-forwarded-access-token ".to_string(), "jwt".to_string()),
             (
                 " cf-access-authenticated-user-email ".to_string(),
