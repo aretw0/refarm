@@ -119,7 +119,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
     !(upper.ends_with("_API_KEY")
         || upper.ends_with("_TOKEN")
         || upper.ends_with("_SECRET")
-        || upper.ends_with("_PASSWORD"))
+        || upper.ends_with("_PASSWORD")
+        || upper.ends_with("_CREDENTIALS")
+        || upper.ends_with("_PRIVATE_KEY"))
 }
 
 /// Build plugin env vars with project config override semantics:
@@ -438,6 +440,8 @@ mod tests {
         assert!(!is_forwardable_llm_env_key("LLM_SESSION_TOKEN"));
         assert!(!is_forwardable_llm_env_key("LLM_SHARED_SECRET"));
         assert!(!is_forwardable_llm_env_key("LLM_DB_PASSWORD"));
+        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER_CREDENTIALS"));
+        assert!(!is_forwardable_llm_env_key("LLM_SSH_PRIVATE_KEY"));
     }
 
     #[test]
