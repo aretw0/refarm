@@ -331,6 +331,9 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("MB_DB_")
         || upper.starts_with("MB_JWT_")
         || upper.starts_with("MB_ENCRYPTION_")
+        || upper.starts_with("LIBSQL_")
+        || upper.starts_with("TURSO_")
+        || upper.starts_with("SQLCIPHER_")
     {
         return true;
     }
