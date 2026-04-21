@@ -307,6 +307,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     matches!(
         upper.as_str(),
         "PATH"
+            | "BASH_ENV"
+            | "ENV"
             | "LD_PRELOAD"
             | "LD_LIBRARY_PATH"
             | "DYLD_INSERT_LIBRARIES"

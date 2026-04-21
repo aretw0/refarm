@@ -242,6 +242,33 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_shell_startup_env_override() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+
+        let bash_env_err = spawn_process(
+            &argv,
+            &[("BASH_ENV".to_string(), "/tmp/evil-rc".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(bash_env_err.contains("blocked env key"));
+
+        let sh_env_err = spawn_process(
+            &argv,
+            &[("env".to_string(), "/tmp/evil-rc".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(sh_env_err.contains("blocked env key"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_duplicate_env_keys() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![
