@@ -288,15 +288,22 @@
         ];
 
         for (key, value) in cases {
-            let err = spawn_process(
+            let result = spawn_process(
                 &argv,
                 &[(key.to_string(), value.to_string())],
                 None,
                 1000,
                 None,
             )
-            .await
-            .unwrap_err();
+            .await;
+            let err = match result {
+                Ok((stdout, stderr, status, timed_out)) => {
+                    panic!(
+                        "expected blocked env key for {key}, got Ok(stdout={stdout:?}, stderr={stderr:?}, status={status}, timed_out={timed_out})"
+                    )
+                }
+                Err(err) => err,
+            };
             assert!(
                 err.contains("blocked env key"),
                 "expected blocked env key for {key}, got: {err}"
@@ -319,15 +326,22 @@
         let cases = [("BASH_ENV", "/tmp/evil-rc"), ("env", "/tmp/evil-rc")];
 
         for (key, value) in cases {
-            let err = spawn_process(
+            let result = spawn_process(
                 &argv,
                 &[(key.to_string(), value.to_string())],
                 None,
                 1000,
                 None,
             )
-            .await
-            .unwrap_err();
+            .await;
+            let err = match result {
+                Ok((stdout, stderr, status, timed_out)) => {
+                    panic!(
+                        "expected blocked env key for {key}, got Ok(stdout={stdout:?}, stderr={stderr:?}, status={status}, timed_out={timed_out})"
+                    )
+                }
+                Err(err) => err,
+            };
             assert!(
                 err.contains("blocked env key"),
                 "expected blocked env key for {key}, got: {err}"
@@ -725,6 +739,7 @@
             ("AWS_ACCESS_KEY_ID", "AKIAEVILTEST000001"),
             ("aws_secret_access_key", "evil-aws-secret-key"),
             ("AWS_SESSION_TOKEN", "evil-session-token"),
+            ("AWS_REGION", "us-east-1"),
             ("AWS_PROFILE", "evil-profile"),
             ("aws_default_profile", "evil-default-profile"),
             ("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/evil"),
@@ -842,15 +857,22 @@
         ];
 
         for (key, value) in cases {
-            let err = spawn_process(
+            let result = spawn_process(
                 &argv,
                 &[(key.to_string(), value.to_string())],
                 None,
                 1000,
                 None,
             )
-            .await
-            .unwrap_err();
+            .await;
+            let err = match result {
+                Ok((stdout, stderr, status, timed_out)) => {
+                    panic!(
+                        "expected blocked env key for {key}, got Ok(stdout={stdout:?}, stderr={stderr:?}, status={status}, timed_out={timed_out})"
+                    )
+                }
+                Err(err) => err,
+            };
             assert!(
                 err.contains("blocked env key"),
                 "expected blocked env key for {key}, got: {err}"
