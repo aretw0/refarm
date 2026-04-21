@@ -376,6 +376,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
                 && n != "connection"
                 && n != "proxy-authorization"
                 && n != "proxy-authenticate"
+                && n != "proxy-connection"
                 && n != "te"
                 && n != "trailer"
                 && n != "upgrade"

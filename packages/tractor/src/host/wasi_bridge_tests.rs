@@ -533,6 +533,7 @@
         let headers = vec![
             ("Connection".to_string(), "keep-alive".to_string()),
             ("Proxy-Authorization".to_string(), "Basic x".to_string()),
+            ("Proxy-Connection".to_string(), "keep-alive".to_string()),
             ("TE".to_string(), "trailers".to_string()),
             ("Upgrade".to_string(), "websocket".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
