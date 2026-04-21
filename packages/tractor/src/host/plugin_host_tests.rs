@@ -460,6 +460,29 @@
     }
 
     #[test]
+    fn merge_plugin_env_vars_caps_total_entries() {
+        let llm: Vec<(String, String)> = (0..220)
+            .map(|i| (format!("LLM_SAFE_{i:03}"), "ok".to_string()))
+            .collect();
+
+        let merged = merge_plugin_env_vars(llm, vec![]);
+        assert_eq!(merged.len(), 192);
+    }
+
+    #[test]
+    fn merge_plugin_env_vars_caps_total_payload_bytes() {
+        let llm: Vec<(String, String)> = (0..40)
+            .map(|i| (format!("LLM_A{i:03}"), "x".repeat(3000)))
+            .collect();
+
+        let merged = merge_plugin_env_vars(llm, vec![]);
+        assert_eq!(merged.len(), 32);
+        assert!(merged.iter().any(|(k, _)| k == "LLM_A000"));
+        assert!(merged.iter().any(|(k, _)| k == "LLM_A031"));
+        assert!(!merged.iter().any(|(k, _)| k == "LLM_A032"));
+    }
+
+    #[test]
     fn refarm_config_node_payload_contains_expected_fields() {
         let dir = tempfile::tempdir().unwrap();
         let env_vars = vec![

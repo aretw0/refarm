@@ -195,6 +195,9 @@ fn merge_plugin_env_vars(
     llm_vars: Vec<(String, String)>,
     config_vars: Vec<(String, String)>,
 ) -> Vec<(String, String)> {
+    const MAX_PLUGIN_ENV_VARS: usize = 192;
+    const MAX_PLUGIN_ENV_TOTAL_BYTES: usize = 96 * 1024;
+
     let mut merged = std::collections::BTreeMap::<String, String>::new();
     for (k, v) in llm_vars {
         merged.insert(k, v);
@@ -202,7 +205,22 @@ fn merge_plugin_env_vars(
     for (k, v) in config_vars {
         merged.insert(k, v);
     }
-    merged.into_iter().collect()
+
+    let mut out = Vec::new();
+    let mut total_bytes = 0usize;
+    for (k, v) in merged {
+        if out.len() >= MAX_PLUGIN_ENV_VARS {
+            break;
+        }
+        let next_total = total_bytes.saturating_add(k.len() + v.len());
+        if next_total > MAX_PLUGIN_ENV_TOTAL_BYTES {
+            continue;
+        }
+        total_bytes = next_total;
+        out.push((k, v));
+    }
+
+    out
 }
 
 fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {
