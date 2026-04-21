@@ -1372,6 +1372,24 @@
                 "x-slack-request-timestamp".to_string(),
                 "1711111111".to_string(),
             ),
+            ("X-Hub-Signature".to_string(), "sha1=deadbeef".to_string()),
+            (
+                "x-hub-signature-256".to_string(),
+                "sha256=deadbeef".to_string(),
+            ),
+            (
+                "X-Stripe-Signature".to_string(),
+                "t=1711111111,v1=deadbeef".to_string(),
+            ),
+            (
+                "x-twilio-signature".to_string(),
+                "twilio-signature-evil".to_string(),
+            ),
+            ("X-Line-Signature".to_string(), "line-signature-evil".to_string()),
+            (
+                "x-shopify-hmac-sha256".to_string(),
+                "shopify-hmac-evil".to_string(),
+            ),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
