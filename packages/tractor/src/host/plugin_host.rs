@@ -297,19 +297,23 @@ fn upsert_env_var_vec(vars: &mut Vec<(String, String)>, key: String, value: Stri
 }
 
 fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
-    const MAX_REFARM_CONFIG_BYTES: usize = 256 * 1024;
+    const MAX_REFARM_CONFIG_BYTES: u64 = 256 * 1024;
 
-    let Ok(bytes) = std::fs::read(path) else {
+    let Ok(metadata) = std::fs::metadata(path) else {
         return None;
     };
-    if bytes.len() > MAX_REFARM_CONFIG_BYTES {
+    if metadata.len() > MAX_REFARM_CONFIG_BYTES {
         tracing::warn!(
             path = %path.display(),
-            bytes = bytes.len(),
+            bytes = metadata.len(),
             "ignoring oversized .refarm/config.json"
         );
         return None;
     }
+
+    let Ok(bytes) = std::fs::read(path) else {
+        return None;
+    };
     Some(bytes)
 }
 
