@@ -353,6 +353,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("DATADOG_")
         || upper.starts_with("NEW_RELIC_")
         || upper.starts_with("HONEYCOMB_")
+        || upper.starts_with("LOGDNA_")
         || upper.starts_with("ROLLBAR_")
         || upper.starts_with("BUGSNAG_")
         || upper.starts_with("PAGERDUTY_")

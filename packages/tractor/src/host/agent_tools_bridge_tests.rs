@@ -429,6 +429,7 @@
             ("new_relic_license_key", "nr-license-key-evil"),
             ("NEW_RELIC_APP_NAME", "evil-app"),
             ("LOGDNA_INGESTION_KEY", "logdna-key-evil"),
+            ("LOGDNA_HOST", "logs.evil.example"),
             ("ROLLBAR_ACCESS_TOKEN", "rollbar-token-evil"),
             ("bugsnag_api_key", "bugsnag-api-key-evil"),
             ("PAGERDUTY_API_TOKEN", "pagerduty-token-evil"),
