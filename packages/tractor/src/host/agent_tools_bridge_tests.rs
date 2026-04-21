@@ -426,6 +426,26 @@
             ("NEW_RELIC_API_KEY", "nr-api-key-evil"),
             ("new_relic_license_key", "nr-license-key-evil"),
             ("LOGDNA_INGESTION_KEY", "logdna-key-evil"),
+            ("ROLLBAR_ACCESS_TOKEN", "rollbar-token-evil"),
+            ("bugsnag_api_key", "bugsnag-api-key-evil"),
+            ("PAGERDUTY_API_TOKEN", "pagerduty-token-evil"),
+            ("grafana_cloud_api_key", "grafana-cloud-key-evil"),
+            (
+                "OTEL_EXPORTER_OTLP_HEADERS",
+                "authorization=Bearer evil",
+            ),
+            (
+                "otel_exporter_otlp_traces_headers",
+                "authorization=Bearer evil",
+            ),
+            (
+                "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+                "authorization=Bearer evil",
+            ),
+            (
+                "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
+                "authorization=Bearer evil",
+            ),
             ("CLOUDFLARE_API_TOKEN", "cf-api-token-evil"),
             ("CLOUDFLARE_API_KEY", "cf-api-key-evil"),
             ("cf_api_token", "cf-token-evil"),
