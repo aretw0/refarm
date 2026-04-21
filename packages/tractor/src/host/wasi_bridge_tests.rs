@@ -1386,6 +1386,11 @@
                 "X-Telegram-Api-Hash".to_string(),
                 "telegram-api-hash-evil".to_string(),
             ),
+            ("x-supabase-api-key".to_string(), "sb-key-evil".to_string()),
+            (
+                "X-Metabase-Session".to_string(),
+                "metabase-session-evil".to_string(),
+            ),
             (
                 "x-twitter-bearer-token".to_string(),
                 "twitter-bearer-token-evil".to_string(),

@@ -621,6 +621,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-goog-authenticated-user-email"
             || n == "x-goog-authenticated-user-id"
             || n.starts_with("x-goog-authenticated-user-")
+            || n.starts_with("x-supabase-")
+            || n.starts_with("x-metabase-")
             || n == "x-google-authenticated-user-email"
             || n == "x-google-authenticated-user-id"
             || n.starts_with("x-google-authenticated-user-")
