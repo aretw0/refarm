@@ -353,6 +353,11 @@
             ("GEM_PATH", "/tmp/pwn-gem-path"),
             ("LUA_PATH", "/tmp/pwn-lua"),
             ("LUA_CPATH", "/tmp/pwn-lua-c"),
+            ("SSL_CERT_FILE", "/tmp/evil-ca.pem"),
+            ("ssl_cert_dir", "/tmp/evil-ca-dir"),
+            ("REQUESTS_CA_BUNDLE", "/tmp/evil-requests-ca.pem"),
+            ("CURL_CA_BUNDLE", "/tmp/evil-curl-ca.pem"),
+            ("GIT_SSL_CAINFO", "/tmp/evil-git-ca.pem"),
         ];
 
         for (key, value) in cases {
