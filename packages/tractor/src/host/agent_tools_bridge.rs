@@ -380,12 +380,27 @@ fn is_safe_plugin_id_token(value: &str) -> bool {
 fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
     let base = std::env::current_dir().map_err(|e| format!("current_dir: {e}"))?;
     let path = base.join(".refarm/config.json");
-    let Ok(bytes) = std::fs::read(&path) else {
+    let bytes = read_trusted_plugins_config_bytes(&path)?;
+    let Some(bytes) = bytes else {
         return Ok(None);
     };
     let cfg = serde_json::from_slice::<serde_json::Value>(&bytes)
         .map_err(|e| format!("[blocked: invalid .refarm/config.json: {e}]"))?;
     parse_trusted_plugins(&cfg)
+}
+
+fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
+    const MAX_REFARM_CONFIG_BYTES: u64 = 256 * 1024;
+
+    let Ok(metadata) = std::fs::metadata(path) else {
+        return Ok(None);
+    };
+    if metadata.len() > MAX_REFARM_CONFIG_BYTES {
+        return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
+    }
+
+    let bytes = std::fs::read(path).map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    Ok(Some(bytes))
 }
 
 fn parse_trusted_plugins(
