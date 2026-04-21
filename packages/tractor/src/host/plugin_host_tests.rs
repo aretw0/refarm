@@ -94,6 +94,17 @@
     }
 
     #[test]
+    fn forwarded_llm_env_vars_from_iter_limits_input_scan_window() {
+        let mut vars: Vec<(String, String)> = (0..512)
+            .map(|i| (format!("OTHER_{i}"), "x".to_string()))
+            .collect();
+        vars.push(("LLM_PROVIDER".to_string(), "openai".to_string()));
+
+        let out = forwarded_llm_env_vars_from_iter(vars);
+        assert!(out.is_empty());
+    }
+
+    #[test]
     fn refarm_config_env_vars_maps_fields_correctly() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");

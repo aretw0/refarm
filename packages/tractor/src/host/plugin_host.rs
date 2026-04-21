@@ -114,13 +114,14 @@ where
     I: IntoIterator<Item = (String, String)>,
 {
     const MAX_FORWARDED_LLM_ENV_VARS: usize = 128;
+    const MAX_FORWARDED_LLM_ENV_SCAN: usize = 512;
     const MAX_FORWARDED_LLM_ENV_TOTAL_BYTES: usize = 64 * 1024;
 
     let mut out = Vec::new();
     let mut total_bytes = 0usize;
     let mut seen_keys = std::collections::HashSet::new();
 
-    for (k, v) in vars {
+    for (k, v) in vars.into_iter().take(MAX_FORWARDED_LLM_ENV_SCAN) {
         if out.len() >= MAX_FORWARDED_LLM_ENV_VARS {
             break;
         }
