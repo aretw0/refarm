@@ -824,6 +824,16 @@
             ("x-scw-default-region".to_string(), "scw-evil".to_string()),
             ("x-vault-token".to_string(), "fake-key".to_string()),
             ("x-vault-namespace".to_string(), "ns-evil".to_string()),
+            (
+                "x-oci-cli-security-token-file".to_string(),
+                "/tmp/oci-token".to_string(),
+            ),
+            ("x-netrc-machine".to_string(), "evil-machine".to_string()),
+            (
+                "x-curl-ssl-backend".to_string(),
+                "openssl".to_string(),
+            ),
+            ("x-wget-user".to_string(), "evil-user".to_string()),
             ("x-kube-token".to_string(), "kube-token-evil".to_string()),
             (
                 "x-helm-kubetoken".to_string(),
@@ -1350,6 +1360,19 @@
             (" x-scw-default-region ".to_string(), "scw-evil".to_string()),
             (" x-vault-token ".to_string(), "fake-key".to_string()),
             (" x-vault-namespace ".to_string(), "ns-evil".to_string()),
+            (
+                " x-oci-cli-security-token-file ".to_string(),
+                "/tmp/oci-token".to_string(),
+            ),
+            (
+                " x-netrc-machine ".to_string(),
+                "evil-machine".to_string(),
+            ),
+            (
+                " x-curl-ssl-backend ".to_string(),
+                "openssl".to_string(),
+            ),
+            (" x-wget-user ".to_string(), "evil-user".to_string()),
             (" x-kube-token ".to_string(), "kube-token-evil".to_string()),
             (
                 " x-helm-kubetoken ".to_string(),
