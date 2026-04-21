@@ -370,6 +370,12 @@
             ("GIT_SSH_COMMAND", "ssh -i /tmp/evil"),
             ("GIT_CONFIG_GLOBAL", "/tmp/evil-gitconfig"),
             ("git_config_count", "1"),
+            ("AWS_SHARED_CREDENTIALS_FILE", "/tmp/evil-aws-credentials"),
+            ("aws_config_file", "/tmp/evil-aws-config"),
+            ("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/evil-gcp-sa.json"),
+            ("AZURE_CONFIG_DIR", "/tmp/evil-azure-config"),
+            ("KUBECONFIG", "/tmp/evil-kubeconfig"),
+            ("DOCKER_CONFIG", "/tmp/evil-docker-config"),
         ];
 
         for (key, value) in cases {
