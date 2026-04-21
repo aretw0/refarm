@@ -489,6 +489,26 @@
             ("scw_secret_key", "scw-secret-key-evil"),
             ("SUPABASE_ACCESS_TOKEN", "sb-access-token-evil"),
             ("supabase_service_role_key", "sb-service-role-key-evil"),
+            ("SUPABASE_ANON_KEY", "sb-anon-key-evil"),
+            ("supabase_jwt_secret", "supabase-jwt-secret-evil"),
+            ("SUPABASE_DB_URL", "postgres://user:pass@db/supabase"),
+            ("METABASE_API_KEY", "metabase-api-key-evil"),
+            (
+                "METABASE_DB_CONNECTION_URI",
+                "postgres://user:pass@db/metabase",
+            ),
+            (
+                "mb_db_connection_uri",
+                "postgres://user:pass@db/metabase",
+            ),
+            (
+                "METABASE_ENCRYPTION_SECRET_KEY",
+                "metabase-encryption-secret-evil",
+            ),
+            (
+                "metabase_jwt_shared_secret",
+                "metabase-jwt-shared-secret-evil",
+            ),
             ("NEON_API_KEY", "neon-api-key-evil"),
             ("VAULT_TOKEN", "hvs.evilvaulttoken"),
             ("SOPS_AGE_KEY", "AGE-SECRET-KEY-1EVILTOKEN"),
