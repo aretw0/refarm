@@ -715,6 +715,9 @@ fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
     if path.trim() != path {
         return Err("[blocked: path contains surrounding whitespace]".to_string());
     }
+    if !path.is_ascii() {
+        return Err("[blocked: path must be ascii]".to_string());
+    }
     if contains_control_chars(path) {
         return Err("[blocked: path contains control characters]".to_string());
     }

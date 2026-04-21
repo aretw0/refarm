@@ -800,6 +800,14 @@
     }
 
     #[test]
+    fn fs_root_blocks_non_ascii_path() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let err = enforce_fs_root_with("arquivo-ç.txt", Some(&root)).unwrap_err();
+        assert!(err.contains("path must be ascii"));
+    }
+
+    #[test]
     fn fs_root_blocks_overlong_paths() {
         let root_dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(root_dir.path()).unwrap();
