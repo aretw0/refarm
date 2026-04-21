@@ -773,8 +773,25 @@
             ("x-ms-token-aad-expires-on".to_string(), "1700000000".to_string()),
             ("cf-access-jwt-assertion".to_string(), "jwt".to_string()),
             ("x-goog-iap-jwt-assertion".to_string(), "jwt".to_string()),
+            (
+                "x-goog-authenticated-user-email".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                "x-goog-authenticated-user-id".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
+            (
+                "x-google-authenticated-user-email".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                "x-google-authenticated-user-id".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
             ("x-amzn-oidc-data".to_string(), "jwt".to_string()),
             ("x-amzn-oidc-identity".to_string(), "sub".to_string()),
+            ("x-amzn-oidc-accesstoken".to_string(), "jwt".to_string()),
             ("x-forwarded-user".to_string(), "alice".to_string()),
             ("x-forwarded-groups".to_string(), "admins".to_string()),
             ("x-auth-user".to_string(), "alice".to_string()),
@@ -838,8 +855,25 @@
             ("X-MS-TOKEN-AAD-EXPIRES-ON".to_string(), "1700000000".to_string()),
             ("CF-ACCESS-JWT-ASSERTION".to_string(), "jwt".to_string()),
             ("X-GOOG-IAP-JWT-ASSERTION".to_string(), "jwt".to_string()),
+            (
+                "X-GOOG-AUTHENTICATED-USER-EMAIL".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                "X-GOOG-AUTHENTICATED-USER-ID".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
+            (
+                "X-GOOGLE-AUTHENTICATED-USER-EMAIL".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                "X-GOOGLE-AUTHENTICATED-USER-ID".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
             ("X-AMZN-OIDC-DATA".to_string(), "jwt".to_string()),
             ("X-AMZN-OIDC-IDENTITY".to_string(), "sub".to_string()),
+            ("X-AMZN-OIDC-ACCESSTOKEN".to_string(), "jwt".to_string()),
             ("X-FORWARDED-USER".to_string(), "alice".to_string()),
             ("X-FORWARDED-GROUPS".to_string(), "admins".to_string()),
             ("X-AUTH-USER".to_string(), "alice".to_string()),
@@ -906,8 +940,25 @@
             (" x-ms-token-aad-expires-on ".to_string(), "1700000000".to_string()),
             (" cf-access-jwt-assertion ".to_string(), "jwt".to_string()),
             (" x-goog-iap-jwt-assertion ".to_string(), "jwt".to_string()),
+            (
+                " x-goog-authenticated-user-email ".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                " x-goog-authenticated-user-id ".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
+            (
+                " x-google-authenticated-user-email ".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
+                " x-google-authenticated-user-id ".to_string(),
+                "accounts.google.com:123".to_string(),
+            ),
             (" x-amzn-oidc-data ".to_string(), "jwt".to_string()),
             (" x-amzn-oidc-identity ".to_string(), "sub".to_string()),
+            (" x-amzn-oidc-accesstoken ".to_string(), "jwt".to_string()),
             (" x-forwarded-user ".to_string(), "alice".to_string()),
             (" x-forwarded-groups ".to_string(), "admins".to_string()),
             (" x-auth-user ".to_string(), "alice".to_string()),
