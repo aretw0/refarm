@@ -1383,9 +1383,14 @@
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
             ("ngrok-authtoken".to_string(), "ngrok-token-evil".to_string()),
+            ("x-ngrok-edge-id".to_string(), "edge-evil".to_string()),
             (
                 "X-Tailscale-Authkey".to_string(),
                 "tskey-auth-evil".to_string(),
+            ),
+            (
+                "x-tailscale-node-id".to_string(),
+                "tailscale-node-evil".to_string(),
             ),
             (
                 "x-telegram-bot-api-secret-token".to_string(),
@@ -1439,6 +1444,10 @@
             (
                 "x-cloudflare-tunnel-token".to_string(),
                 "cf-tunnel-token-evil".to_string(),
+            ),
+            (
+                "X-Cloudflare-Tunnel-Id".to_string(),
+                "cf-tunnel-id-evil".to_string(),
             ),
             (
                 "X-Matrix-Access-Token".to_string(),

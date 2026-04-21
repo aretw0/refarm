@@ -560,7 +560,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-k8s-aws-id"
             || n == "ngrok-authtoken"
             || n == "x-ngrok-authtoken"
+            || n.starts_with("x-ngrok-")
             || n == "x-tailscale-authkey"
+            || n.starts_with("x-tailscale-")
             || n == "x-telegram-bot-api-secret-token"
             || n == "x-telegram-api-hash"
             || n.starts_with("x-telegram-")
@@ -574,6 +576,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-instagram-")
             || n.starts_with("x-meta-")
             || n == "x-cloudflare-tunnel-token"
+            || n.starts_with("x-cloudflare-tunnel-")
             || n == "x-matrix-access-token"
             || n.starts_with("x-matrix-")
             || n == "x-discord-token"
