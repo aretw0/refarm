@@ -256,6 +256,7 @@ const MAX_TRUSTED_PLUGINS: usize = 256;
 const MAX_FS_PATH_LEN: usize = 4096;
 const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
+const MAX_SPAWN_ENV_TOTAL_BYTES: usize = 128 * 1024;
 const MAX_SPAWN_ENV_VARS: usize = 128;
 const MAX_SPAWN_CWD_LEN: usize = 4096;
 const MAX_SPAWN_STDIN_LEN: usize = 1024 * 1024;
@@ -315,6 +316,7 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
     }
 
     let mut seen = std::collections::HashSet::new();
+    let mut total_bytes = 0usize;
     for (key, value) in env {
         if !seen.insert(key) {
             return Err("spawn: duplicate env key".to_string());
@@ -331,6 +333,11 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
         if contains_control_chars(value) {
             return Err("spawn: env value contains control characters".to_string());
         }
+        let next_total = total_bytes.saturating_add(key.len() + value.len());
+        if next_total > MAX_SPAWN_ENV_TOTAL_BYTES {
+            return Err("spawn: env payload exceeds max total bytes".to_string());
+        }
+        total_bytes = next_total;
     }
     Ok(())
 }

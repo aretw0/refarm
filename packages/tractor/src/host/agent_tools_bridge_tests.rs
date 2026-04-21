@@ -255,6 +255,16 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_overlong_total_env_payload() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env: Vec<(String, String)> = (0..44)
+            .map(|i| (format!("K{i}"), "x".repeat(3000)))
+            .collect();
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("env payload exceeds max total bytes"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_cwd_with_control_chars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let err = spawn_process(&argv, &[], Some("/tmp\nboom"), 1000, None)
