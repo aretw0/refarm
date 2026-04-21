@@ -873,6 +873,16 @@
     }
 
     #[test]
+    fn trusted_plugins_whitespace_only_entries_block_all_plugins() {
+        let cfg = serde_json::json!({"trusted_plugins": [" ", "\t"]});
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+        assert!(parsed.is_empty());
+
+        let err = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed)).unwrap_err();
+        assert!(err.contains("not allowed to use agent-shell"));
+    }
+
+    #[test]
     fn trusted_plugins_enforcement_blocks_unlisted_plugin() {
         let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("other_plugin", Some(&allowed)).unwrap_err();
