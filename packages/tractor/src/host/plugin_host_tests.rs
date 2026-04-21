@@ -203,6 +203,25 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_skip_string_fields_with_non_ascii() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","model":"gpt-4o-miní","default_provider":"ollamá"}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert!(!map.contains_key("LLM_MODEL"));
+        assert!(!map.contains_key("LLM_DEFAULT_PROVIDER"));
+    }
+
+    #[test]
     fn refarm_config_env_vars_skip_overlong_string_fields() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
