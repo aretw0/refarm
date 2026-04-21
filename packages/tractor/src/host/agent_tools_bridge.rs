@@ -256,6 +256,7 @@ const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_FS_PATH_LEN: usize = 4096;
 const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
+const MAX_SPAWN_ENV_VARS: usize = 128;
 const MAX_SPAWN_CWD_LEN: usize = 4096;
 
 fn is_safe_spawn_env_key(key: &str) -> bool {
@@ -276,6 +277,10 @@ fn is_safe_spawn_env_key(key: &str) -> bool {
 }
 
 fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
+    if env.len() > MAX_SPAWN_ENV_VARS {
+        return Err("spawn: too many env vars".to_string());
+    }
+
     for (key, value) in env {
         if !is_safe_spawn_env_key(key) {
             return Err("spawn: invalid env key".to_string());

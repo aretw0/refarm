@@ -197,6 +197,16 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_too_many_env_vars() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env: Vec<(String, String)> = (0..129)
+            .map(|i| (format!("K{i}"), "x".to_string()))
+            .collect();
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("too many env vars"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_cwd_with_control_chars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let err = spawn_process(&argv, &[], Some("/tmp\nboom"), 1000, None)
