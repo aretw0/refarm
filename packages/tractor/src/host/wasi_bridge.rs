@@ -202,7 +202,7 @@ fn llm_complete_http(
 }
 
 fn use_anthropic_auth(provider: &str) -> bool {
-    provider.trim() == "anthropic"
+    provider.trim().eq_ignore_ascii_case("anthropic")
 }
 
 fn is_openai_provider_family(provider: &str) -> bool {
@@ -735,6 +735,9 @@ mod tests {
 
         assert!(use_anthropic_auth(" anthropic "));
         assert!(!use_openai_auth(" anthropic "));
+
+        assert!(use_anthropic_auth("Anthropic"));
+        assert!(!use_openai_auth("Anthropic"));
     }
 
     #[test]
