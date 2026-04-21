@@ -382,6 +382,10 @@
             ("AZURE_CONFIG_DIR", "/tmp/evil-azure-config"),
             ("KUBECONFIG", "/tmp/evil-kubeconfig"),
             ("DOCKER_CONFIG", "/tmp/evil-docker-config"),
+            ("NETRC", "/tmp/evil.netrc"),
+            ("_NETRC", "1"),
+            ("CURL_HOME", "/tmp/evil-curl-home"),
+            ("WGETRC", "/tmp/evil-wgetrc"),
         ];
 
         for (key, value) in cases {
