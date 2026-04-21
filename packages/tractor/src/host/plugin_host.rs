@@ -137,8 +137,10 @@ fn is_forwardable_llm_env_value(value: &str) -> bool {
 }
 
 fn is_safe_llm_env_key_format(key: &str) -> bool {
+    const MAX_SUFFIX_LEN: usize = 96;
     let suffix = &key["LLM_".len()..];
     !suffix.is_empty()
+        && suffix.len() <= MAX_SUFFIX_LEN
         && suffix
             .bytes()
             .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
@@ -461,6 +463,7 @@ mod tests {
         assert!(!is_forwardable_llm_env_key("LLM-provider"));
         assert!(!is_forwardable_llm_env_key("LLM_PROVIDER NAME"));
         assert!(!is_forwardable_llm_env_key("LLM_provider"));
+        assert!(!is_forwardable_llm_env_key(&format!("LLM_{}", "A".repeat(97))));
 
         assert!(!is_forwardable_llm_env_key("OPENAI_API_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_OPENAI_API_KEY"));
