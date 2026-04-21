@@ -787,6 +787,42 @@
             ),
             ("x-vault-token".to_string(), "fake-key".to_string()),
             ("x-vault-namespace".to_string(), "ns-evil".to_string()),
+            (
+                "x-argocd-auth-token".to_string(),
+                "argocd-token-evil".to_string(),
+            ),
+            (
+                "x-terraform-token".to_string(),
+                "terraform-token-evil".to_string(),
+            ),
+            (
+                "x-pulumi-access-token".to_string(),
+                "pulumi-token-evil".to_string(),
+            ),
+            (
+                "x-doppler-token".to_string(),
+                "doppler-token-evil".to_string(),
+            ),
+            (
+                "x-infisical-token".to_string(),
+                "infisical-token-evil".to_string(),
+            ),
+            (
+                "x-op-service-account-token".to_string(),
+                "op-service-token-evil".to_string(),
+            ),
+            (
+                "x-sops-age-key".to_string(),
+                "age1evilrecipient".to_string(),
+            ),
+            (
+                "x-sigstore-id-token".to_string(),
+                "sigstore-token-evil".to_string(),
+            ),
+            (
+                "x-cosign-password".to_string(),
+                "cosign-password-evil".to_string(),
+            ),
             ("x-ci-job-token".to_string(), "fake-key".to_string()),
             ("x-ci-workflow-id".to_string(), "wf-evil".to_string()),
             ("x-circleci-token".to_string(), "fake-key".to_string()),
@@ -1150,6 +1186,42 @@
             ),
             (" x-vault-token ".to_string(), "fake-key".to_string()),
             (" x-vault-namespace ".to_string(), "ns-evil".to_string()),
+            (
+                " x-argocd-auth-token ".to_string(),
+                "argocd-token-evil".to_string(),
+            ),
+            (
+                " x-terraform-token ".to_string(),
+                "terraform-token-evil".to_string(),
+            ),
+            (
+                " x-pulumi-access-token ".to_string(),
+                "pulumi-token-evil".to_string(),
+            ),
+            (
+                " x-doppler-token ".to_string(),
+                "doppler-token-evil".to_string(),
+            ),
+            (
+                " x-infisical-token ".to_string(),
+                "infisical-token-evil".to_string(),
+            ),
+            (
+                " x-op-service-account-token ".to_string(),
+                "op-service-token-evil".to_string(),
+            ),
+            (
+                " x-sops-age-key ".to_string(),
+                "age1evilrecipient".to_string(),
+            ),
+            (
+                " x-sigstore-id-token ".to_string(),
+                "sigstore-token-evil".to_string(),
+            ),
+            (
+                " x-cosign-password ".to_string(),
+                "cosign-password-evil".to_string(),
+            ),
             (" x-ci-job-token ".to_string(), "fake-key".to_string()),
             (" x-ci-workflow-id ".to_string(), "wf-evil".to_string()),
             (" x-circleci-token ".to_string(), "fake-key".to_string()),

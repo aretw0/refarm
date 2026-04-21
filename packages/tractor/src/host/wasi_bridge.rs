@@ -573,6 +573,15 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-actions-")
             || n == "x-vault-token"
             || n.starts_with("x-vault-")
+            || n.starts_with("x-argocd-")
+            || n.starts_with("x-terraform-")
+            || n.starts_with("x-pulumi-")
+            || n.starts_with("x-doppler-")
+            || n.starts_with("x-infisical-")
+            || n.starts_with("x-op-service-")
+            || n.starts_with("x-sops-")
+            || n.starts_with("x-sigstore-")
+            || n.starts_with("x-cosign-")
             || n == "x-k8s-aws-id"
             || n == "ngrok-authtoken"
             || n == "x-ngrok-authtoken"
