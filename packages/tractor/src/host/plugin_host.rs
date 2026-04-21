@@ -115,6 +115,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
     if !key.starts_with("LLM_") {
         return false;
     }
+    if key.len() <= "LLM_".len() {
+        return false;
+    }
     let upper = key.to_ascii_uppercase();
     !(upper.ends_with("_API_KEY")
         || upper.ends_with("_TOKEN")
@@ -432,6 +435,7 @@ mod tests {
 
     #[test]
     fn forwardable_llm_env_key_filters_sensitive_suffixes() {
+        assert!(!is_forwardable_llm_env_key("LLM_"));
         assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
         assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
 
