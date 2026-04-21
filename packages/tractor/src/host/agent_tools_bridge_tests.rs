@@ -368,6 +368,8 @@
             ("GIT_ASKPASS", "/tmp/git-askpass.sh"),
             ("GIT_SSH", "/tmp/ssh-wrapper.sh"),
             ("GIT_SSH_COMMAND", "ssh -i /tmp/evil"),
+            ("GIT_CONFIG_GLOBAL", "/tmp/evil-gitconfig"),
+            ("git_config_count", "1"),
         ];
 
         for (key, value) in cases {
