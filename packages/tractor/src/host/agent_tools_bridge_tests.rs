@@ -399,6 +399,20 @@
     }
 
     #[test]
+    fn shell_allowlist_parser_caps_entry_count() {
+        let raw = (0..300)
+            .map(|i| format!("cmd{i}"))
+            .collect::<Vec<_>>()
+            .join(",");
+        let allowlist = parse_shell_allowlist(&raw);
+
+        assert_eq!(allowlist.len(), 256);
+        assert!(allowlist.contains("cmd0"));
+        assert!(allowlist.contains("cmd255"));
+        assert!(!allowlist.contains("cmd256"));
+    }
+
+    #[test]
     fn shell_allowlist_rejects_overlong_binary() {
         let allowlist = parse_shell_allowlist("*");
         let argv = vec!["a".repeat(257)];
