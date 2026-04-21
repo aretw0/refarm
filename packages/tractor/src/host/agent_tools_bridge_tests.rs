@@ -451,9 +451,14 @@
             ("cf_api_token", "cf-token-evil"),
             ("CF_ACCESS_CLIENT_ID", "cf-access-client-id-evil"),
             ("cf_access_client_secret", "cf-access-client-secret-evil"),
+            ("CF_ACCESS_AUD", "cf-access-audience-evil"),
             (
                 "CLOUDFLARE_ACCESS_CLIENT_ID",
                 "cf-access-client-id-evil-2",
+            ),
+            (
+                "cloudflare_access_aud",
+                "cf-access-audience-evil-2",
             ),
             (
                 "cloudflare_access_client_secret",

@@ -329,6 +329,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("SUPABASE_")
         || upper.starts_with("METABASE_")
         || upper.starts_with("MB_DB_")
+        || upper.starts_with("CF_ACCESS_")
+        || upper.starts_with("CLOUDFLARE_ACCESS_")
         || upper.starts_with("MB_JWT_")
         || upper.starts_with("MB_ENCRYPTION_")
         || upper.starts_with("LIBSQL_")
