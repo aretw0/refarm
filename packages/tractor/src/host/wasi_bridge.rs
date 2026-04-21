@@ -211,10 +211,17 @@ fn use_openai_auth(provider: &str) -> bool {
 }
 
 fn provider_name_from_env() -> String {
-    std::env::var("LLM_PROVIDER")
+    let provider = std::env::var("LLM_PROVIDER")
         .ok()
         .or_else(|| std::env::var("LLM_DEFAULT_PROVIDER").ok())
-        .unwrap_or_else(|| "ollama".to_string())
+        .unwrap_or_else(|| "ollama".to_string());
+
+    let trimmed = provider.trim();
+    if trimmed.is_empty() {
+        "ollama".to_string()
+    } else {
+        trimmed.to_string()
+    }
 }
 
 fn expected_llm_route_from_env() -> LlmRoute {
@@ -347,6 +354,19 @@ mod tests {
                 path: "/v1/chat/completions".to_string(),
             }
         );
+    }
+
+    #[test]
+    fn expected_route_trims_provider_from_env() {
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "  openai  ");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai");
+        assert_eq!(route.base_url, "https://api.openai.com");
+        assert_eq!(route.path, "/v1/chat/completions");
+
+        reset_llm_env();
     }
 
     #[test]
