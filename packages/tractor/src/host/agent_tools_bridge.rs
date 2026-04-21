@@ -582,6 +582,13 @@ mod tests {
     }
 
     #[test]
+    fn shell_allowlist_unset_is_permissive() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let result = enforce_shell_allowlist_with(&argv, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn fs_root_allows_paths_inside_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(dir.path()).unwrap();
@@ -599,6 +606,12 @@ mod tests {
         let outside = outside_dir.path().join("escape.txt");
 
         let err = enforce_fs_root_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
+        assert!(err.contains("path outside LLM_FS_ROOT"));
+    }
+
+    #[test]
+    fn fs_root_empty_marker_blocks_all_paths() {
+        let err = enforce_fs_root_with("/tmp/anything", Some(Path::new(""))).unwrap_err();
         assert!(err.contains("path outside LLM_FS_ROOT"));
     }
 
@@ -630,6 +643,12 @@ mod tests {
         let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("other_plugin", Some(&allowed)).unwrap_err();
         assert!(err.contains("not allowed to use agent-shell"));
+    }
+
+    #[test]
+    fn trusted_plugins_unset_is_permissive() {
+        let result = enforce_trusted_plugin_for_shell_with("any_plugin", None);
+        assert!(result.is_ok());
     }
 
     #[test]
