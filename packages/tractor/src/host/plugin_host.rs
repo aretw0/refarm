@@ -209,8 +209,11 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_FORWARDED_USER")
         || upper.ends_with("_AUTH_REQUEST_USER")
         || upper.ends_with("_AUTH_REQUEST_EMAIL")
+        || upper.ends_with("_AUTH_REQUEST_PREFERRED_USERNAME")
+        || upper.ends_with("_FORWARDED_EMAIL")
         || upper.ends_with("_AUTHENTICATED_USERID")
         || upper.ends_with("_AUTHENTICATED_USER_EMAIL")
+        || upper.ends_with("_AUTHENTICATED_USER")
         || upper.ends_with("_AUTHENTICATED_GROUPS"))
 }
 

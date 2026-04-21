@@ -75,8 +75,11 @@
             "LLM_FORWARDED_USER",
             "LLM_AUTH_REQUEST_USER",
             "LLM_AUTH_REQUEST_EMAIL",
+            "LLM_AUTH_REQUEST_PREFERRED_USERNAME",
+            "LLM_FORWARDED_EMAIL",
             "LLM_AUTHENTICATED_USERID",
             "LLM_AUTHENTICATED_USER_EMAIL",
+            "LLM_AUTHENTICATED_USER",
             "LLM_AUTHENTICATED_GROUPS",
         ];
         for key in blocked {
