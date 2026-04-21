@@ -1408,8 +1408,24 @@
                 "facebook-signature-evil".to_string(),
             ),
             (
+                "X-Facebook-AppSecret-Proof".to_string(),
+                "facebook-appsecret-proof-evil".to_string(),
+            ),
+            (
                 "X-Whatsapp-Signature".to_string(),
                 "whatsapp-signature-evil".to_string(),
+            ),
+            (
+                "x-whatsapp-token".to_string(),
+                "whatsapp-token-evil".to_string(),
+            ),
+            (
+                "X-Instagram-Signature".to_string(),
+                "instagram-signature-evil".to_string(),
+            ),
+            (
+                "x-meta-signature".to_string(),
+                "meta-signature-evil".to_string(),
             ),
             (
                 "x-cloudflare-tunnel-token".to_string(),

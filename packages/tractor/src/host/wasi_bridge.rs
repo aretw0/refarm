@@ -565,8 +565,13 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-telegram-api-hash"
             || n == "x-twitter-bearer-token"
             || n == "x-twitter-webhooks-signature"
+            || n.starts_with("x-twitter-")
             || n == "x-facebook-signature"
+            || n.starts_with("x-facebook-")
             || n == "x-whatsapp-signature"
+            || n.starts_with("x-whatsapp-")
+            || n.starts_with("x-instagram-")
+            || n.starts_with("x-meta-")
             || n == "x-cloudflare-tunnel-token"
             || n == "x-matrix-access-token"
             || n == "x-discord-token"
