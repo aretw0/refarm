@@ -658,8 +658,16 @@ fn configured_fs_root() -> Result<Option<PathBuf>, String> {
     if trimmed.is_empty() {
         return Ok(Some(PathBuf::new()));
     }
+    if trimmed != raw {
+        return Err("[blocked: invalid LLM_FS_ROOT: surrounding whitespace not allowed]".to_string());
+    }
     let root = std::fs::canonicalize(trimmed)
         .map_err(|e| format!("[blocked: invalid LLM_FS_ROOT '{trimmed}': {e}]"))?;
+    if !root.is_dir() {
+        return Err(format!(
+            "[blocked: invalid LLM_FS_ROOT '{trimmed}': must be a directory]"
+        ));
+    }
     Ok(Some(root))
 }
 

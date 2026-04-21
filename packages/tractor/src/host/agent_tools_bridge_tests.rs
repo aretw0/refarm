@@ -657,6 +657,45 @@
     }
 
     #[test]
+    fn configured_fs_root_rejects_surrounding_whitespace() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        let dir = tempfile::tempdir().unwrap();
+        let raw = format!(" {} ", dir.path().to_string_lossy());
+        std::env::set_var("LLM_FS_ROOT", raw);
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("surrounding whitespace"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
+    fn configured_fs_root_rejects_non_directory_path() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("root.txt");
+        std::fs::write(&file, b"not-a-dir").unwrap();
+        std::env::set_var("LLM_FS_ROOT", file.to_string_lossy().as_ref());
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("must be a directory"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
     fn fs_root_allows_paths_inside_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(dir.path()).unwrap();
