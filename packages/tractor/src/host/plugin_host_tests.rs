@@ -194,6 +194,8 @@
             "LLM_CF_ACCESS_AUTHENTICATED_USER_EMAIL",
             "LLM_CF_ACCESS_CLIENT_ID",
             "LLM_CLOUDFLARE_ACCESS_CLIENT_SECRET",
+            "LLM_CF_ACCESS_AUD",
+            "LLM_CLOUDFLARE_ACCESS_AUD",
             "LLM_SUPABASE_URL",
             "LLM_METABASE_SITE_URL",
             "LLM_MB_DB_SSLMODE",
