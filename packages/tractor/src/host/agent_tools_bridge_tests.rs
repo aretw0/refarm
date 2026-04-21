@@ -700,6 +700,18 @@
     }
 
     #[test]
+    fn trusted_plugins_config_reader_blocks_non_regular_file_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let path = refarm_dir.join("config.json");
+        std::fs::create_dir_all(&path).unwrap();
+
+        let err = read_trusted_plugins_config_bytes(&path).unwrap_err();
+        assert!(err.contains("must be a regular file"));
+    }
+
+    #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
         let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});
         let err = parse_trusted_plugins(&cfg).unwrap_err();

@@ -410,6 +410,9 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
     let Ok(metadata) = std::fs::metadata(path) else {
         return Ok(None);
     };
+    if !metadata.is_file() {
+        return Err("[blocked: .refarm/config.json must be a regular file for trusted_plugins]".to_string());
+    }
     if metadata.len() > MAX_REFARM_CONFIG_BYTES {
         return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
     }
