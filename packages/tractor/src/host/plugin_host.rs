@@ -177,7 +177,9 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
     const MAX_CONFIG_BUDGET_VARS: usize = 64;
 
     let path = base.join(".refarm/config.json");
-    let Ok(bytes) = std::fs::read(&path) else { return vec![]; };
+    let Some(bytes) = read_refarm_config_bytes(&path) else {
+        return vec![];
+    };
     let Ok(cfg) = serde_json::from_slice::<serde_json::Value>(&bytes) else {
         tracing::warn!(".refarm/config.json is not valid JSON — ignoring");
         return vec![];
@@ -263,9 +265,26 @@ fn upsert_env_var_vec(vars: &mut Vec<(String, String)>, key: String, value: Stri
     }
 }
 
+fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
+    const MAX_REFARM_CONFIG_BYTES: usize = 256 * 1024;
+
+    let Ok(bytes) = std::fs::read(path) else {
+        return None;
+    };
+    if bytes.len() > MAX_REFARM_CONFIG_BYTES {
+        tracing::warn!(
+            path = %path.display(),
+            bytes = bytes.len(),
+            "ignoring oversized .refarm/config.json"
+        );
+        return None;
+    }
+    Some(bytes)
+}
+
 fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
     let path = base.join(".refarm/config.json");
-    let Ok(bytes) = std::fs::read(path) else { return None; };
+    let bytes = read_refarm_config_bytes(&path)?;
     serde_json::from_slice::<serde_json::Value>(&bytes).ok()
 }
 

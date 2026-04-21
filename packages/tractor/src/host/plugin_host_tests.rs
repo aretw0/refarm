@@ -306,6 +306,17 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_ignores_oversized_config_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), vec![b'a'; 256 * 1024 + 1]).unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        assert!(vars.is_empty());
+    }
+
+    #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
@@ -327,6 +338,17 @@
         let refarm_dir = dir.path().join(".refarm");
         std::fs::create_dir_all(&refarm_dir).unwrap();
         std::fs::write(refarm_dir.join("config.json"), b"not-json").unwrap();
+
+        let cfg = refarm_config_json_from(dir.path());
+        assert!(cfg.is_none());
+    }
+
+    #[test]
+    fn refarm_config_json_from_returns_none_on_oversized_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), vec![b'a'; 256 * 1024 + 1]).unwrap();
 
         let cfg = refarm_config_json_from(dir.path());
         assert!(cfg.is_none());
