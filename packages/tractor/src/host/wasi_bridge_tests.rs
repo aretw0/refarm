@@ -1335,6 +1335,17 @@
                 "newrelic-key-evil".to_string(),
             ),
             ("X-Logdna-Apikey".to_string(), "logdna-key-evil".to_string()),
+            (
+                "x-rollbar-access-token".to_string(),
+                "rollbar-token-evil".to_string(),
+            ),
+            ("X-Bugsnag-Api-Key".to_string(), "bugsnag-key-evil".to_string()),
+            (
+                "x-pagerduty-token".to_string(),
+                "pagerduty-token-evil".to_string(),
+            ),
+            ("X-Grafana-Api-Key".to_string(), "grafana-key-evil".to_string()),
+            ("x-otlp-api-key".to_string(), "otlp-api-key-evil".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
