@@ -266,6 +266,12 @@ fn parse_trusted_plugins(
             .as_str()
             .ok_or_else(|| "[blocked: .refarm/config.json trusted_plugins must contain only strings]".to_string())?
             .trim();
+        if contains_control_chars(plugin) {
+            return Err(
+                "[blocked: .refarm/config.json trusted_plugins cannot contain control characters]"
+                    .to_string(),
+            );
+        }
         if !plugin.is_empty() {
             out.insert(plugin.to_string());
         }
@@ -768,6 +774,13 @@ mod tests {
         assert!(parsed.contains("pi_agent"));
         assert!(parsed.contains("agent-tools"));
         assert!(!parsed.contains(""));
+    }
+
+    #[test]
+    fn trusted_plugins_parse_blocks_control_characters() {
+        let cfg = serde_json::json!({"trusted_plugins": ["pi\n_agent"]});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("cannot contain control characters"));
     }
 
     #[test]
