@@ -325,6 +325,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
                 && n != "authorization"
                 && n != "x-api-key"
                 && n != "host"
+                && n != "content-length"
+                && n != "transfer-encoding"
                 && is_safe_header_name(name)
         })
         .filter(|(_, value)| is_safe_header_value(value))
@@ -709,6 +711,18 @@ mod tests {
     fn sanitized_headers_drop_host_header_case_insensitive() {
         let headers = vec![
             ("Host".to_string(), "attacker.example".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_transport_override_headers() {
+        let headers = vec![
+            ("Content-Length".to_string(), "999999".to_string()),
+            ("Transfer-Encoding".to_string(), "chunked".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
