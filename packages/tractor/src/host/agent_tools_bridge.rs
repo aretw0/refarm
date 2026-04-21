@@ -282,6 +282,7 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
     raw.split(',')
         .map(str::trim)
         .filter(|s| !s.is_empty())
+        .filter(|s| !contains_control_chars(s))
         .map(ToString::to_string)
         .collect()
 }
@@ -681,6 +682,15 @@ mod tests {
         assert!(allowlist.contains("grep"));
         assert!(allowlist.contains("cat"));
         assert_eq!(allowlist.len(), 3);
+    }
+
+    #[test]
+    fn shell_allowlist_parser_drops_entries_with_control_characters() {
+        let allowlist = parse_shell_allowlist("ls,gr\nep,cat");
+        assert!(allowlist.contains("ls"));
+        assert!(allowlist.contains("cat"));
+        assert!(!allowlist.contains("gr\nep"));
+        assert_eq!(allowlist.len(), 2);
     }
 
     #[test]
