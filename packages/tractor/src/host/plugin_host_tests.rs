@@ -27,6 +27,7 @@
             "LLM_provider",
             "OPENAI_API_KEY",
             "LLM_OPENAI_API_KEY",
+            "LLM_OPENAI_KEY",
             "LLM_SESSION_TOKEN",
             "LLM_SHARED_SECRET",
             "LLM_DB_PASSWORD",
