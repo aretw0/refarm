@@ -293,6 +293,28 @@
         .await
         .unwrap_err();
         assert!(py_path_err.contains("blocked env key"));
+
+        let java_opts_err = spawn_process(
+            &argv,
+            &[("JAVA_TOOL_OPTIONS".to_string(), "-javaagent:/tmp/pwn.jar".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(java_opts_err.contains("blocked env key"));
+
+        let py_startup_err = spawn_process(
+            &argv,
+            &[("PYTHONSTARTUP".to_string(), "/tmp/pwn.py".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(py_startup_err.contains("blocked env key"));
     }
 
     #[tokio::test]
