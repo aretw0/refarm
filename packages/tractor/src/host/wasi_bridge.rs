@@ -583,6 +583,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-auth-request-preferred-username"
             || n == "x-auth-request-groups"
             || n == "x-auth-request-access-token"
+            || n.starts_with("x-auth-request-")
             || n == "impersonate-user"
             || n == "impersonate-group"
             || n == "impersonate-uid"
