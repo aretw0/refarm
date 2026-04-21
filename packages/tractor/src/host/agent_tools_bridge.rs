@@ -653,6 +653,9 @@ fn enforce_spawn_argv_within_limits(argv: &[String]) -> Result<(), String> {
         if entry.len() > MAX_SPAWN_ARG_LEN {
             return Err("spawn: argv entry exceeds max length".to_string());
         }
+        if idx > 0 && !entry.is_ascii() {
+            return Err("spawn: argv must be ascii".to_string());
+        }
         if idx > 0 && contains_control_chars(entry) {
             return Err("spawn: argv contains control characters".to_string());
         }
