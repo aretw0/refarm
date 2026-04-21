@@ -391,6 +391,9 @@ fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), Strin
     if cwd.len() > MAX_SPAWN_CWD_LEN {
         return Err("spawn: cwd exceeds max length".to_string());
     }
+    if !cwd.is_ascii() {
+        return Err("spawn: cwd must be ascii".to_string());
+    }
     if contains_control_chars(cwd) {
         return Err("spawn: cwd contains control characters".to_string());
     }
