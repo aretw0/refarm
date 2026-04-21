@@ -417,6 +417,22 @@ mod tests {
     }
 
     #[test]
+    fn enforce_route_accepts_base_url_with_trailing_slash() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let result = enforce_llm_route(
+            "openai",
+            "https://api.openai.com/",
+            "/v1/chat/completions",
+            &expected,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn sanitized_headers_drop_sensitive_auth_keys() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
