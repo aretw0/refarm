@@ -345,7 +345,28 @@ fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
             .join(path)
     };
 
-    resolve_existing_ancestor_path(&candidate)
+    let resolved = resolve_existing_ancestor_path(&candidate)?;
+    Ok(normalize_lexical_path(&resolved))
+}
+
+fn normalize_lexical_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+
+    let mut out = PathBuf::new();
+    for component in path.components() {
+        match component {
+            Component::Prefix(prefix) => out.push(prefix.as_os_str()),
+            Component::RootDir => out.push(Path::new("/")),
+            Component::CurDir => {}
+            Component::ParentDir => {
+                if !out.pop() && !out.is_absolute() {
+                    out.push("..");
+                }
+            }
+            Component::Normal(seg) => out.push(seg),
+        }
+    }
+    out
 }
 
 fn resolve_existing_ancestor_path(path: &Path) -> Result<PathBuf, String> {
@@ -652,6 +673,23 @@ mod tests {
 
         let err = enforce_fs_root_with(escape.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
         assert!(err.contains("path outside LLM_FS_ROOT"));
+    }
+
+    #[test]
+    fn fs_root_blocks_parent_escape_through_missing_segments() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let escape = root
+            .join("newdir")
+            .join("..")
+            .join("..")
+            .join("outside.txt");
+
+        let err = enforce_fs_root_with(escape.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
+        assert!(
+            err.contains("path outside LLM_FS_ROOT") || err.contains("resolve path("),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]
