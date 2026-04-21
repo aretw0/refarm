@@ -490,6 +490,14 @@
             ("AWS_ROLE_SESSION_DURATION", "3600"),
             ("BOTO_CONFIG", "/tmp/evil-boto-config"),
             ("AWS_WEB_IDENTITY_TOKEN_FILE", "/tmp/evil-aws-web-identity"),
+            ("AWS_EC2_METADATA_DISABLED", "false"),
+            (
+                "aws_ec2_metadata_service_endpoint",
+                "http://169.254.169.254",
+            ),
+            ("AWS_EC2_METADATA_SERVICE_ENDPOINT_MODE", "IPv6"),
+            ("AWS_METADATA_SERVICE_TIMEOUT", "1"),
+            ("aws_metadata_service_num_attempts", "1"),
             (
                 "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
                 "/v2/credentials/evil",
@@ -515,6 +523,7 @@
                 "GOOGLE_IMPERSONATE_SERVICE_ACCOUNT",
                 "evil-sa@project.iam.gserviceaccount.com",
             ),
+            ("GCE_METADATA_HOST", "metadata.evil.internal"),
             ("gcloud_project", "evil-project"),
             ("cloudsdk_config", "/tmp/evil-gcloud-config"),
             ("CLOUDSDK_AUTH_ACCESS_TOKEN", "ya29.eviltoken"),
