@@ -550,6 +550,7 @@
             ("mb_jwt_shared_secret", "mb-jwt-secret-evil"),
             ("NEON_API_KEY", "neon-api-key-evil"),
             ("VAULT_TOKEN", "hvs.evilvaulttoken"),
+            ("VAULT_ADDR", "https://vault.evil"),
             ("SOPS_AGE_KEY", "AGE-SECRET-KEY-1EVILTOKEN"),
             ("sops_age_key_file", "/tmp/evil-sops-age-key.txt"),
             ("AGE_SECRET_KEY", "AGE-SECRET-KEY-1EVILTOKEN2"),

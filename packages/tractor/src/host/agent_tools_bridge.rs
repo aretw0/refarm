@@ -349,6 +349,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("NGROK_")
         || upper.starts_with("TAILSCALE_")
         || upper.starts_with("CLOUDFLARE_TUNNEL_")
+        || upper.starts_with("VAULT_")
         || upper.starts_with("SENTRY_")
         || upper.starts_with("DATADOG_")
         || upper.starts_with("NEW_RELIC_")
