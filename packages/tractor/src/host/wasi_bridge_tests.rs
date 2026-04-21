@@ -1365,6 +1365,11 @@
                 "evil.example".to_string(),
             ),
             ("X-Original-Forwarded-Proto".to_string(), "http".to_string()),
+            (
+                "X-Original-Forwarded-Protocol".to_string(),
+                "http".to_string(),
+            ),
+            ("X-Original-Forwarded-Scheme".to_string(), "http".to_string()),
             ("X-Original-Forwarded-Port".to_string(), "443".to_string()),
             ("X-Original-Host".to_string(), "evil.example".to_string()),
             ("X-Host".to_string(), "evil.example".to_string()),
