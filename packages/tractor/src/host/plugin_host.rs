@@ -258,6 +258,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_AUTHENTICATED_USER")
         || upper.ends_with("_AUTHENTICATED_USER_NAME")
         || upper.ends_with("_AUTHENTICATED_GROUPS")
+        || upper.ends_with("_VERIFIED_USER")
+        || upper.ends_with("_VERIFIED_EMAIL")
         || upper.ends_with("_GOOG_AUTHENTICATED_USER_EMAIL")
         || upper.ends_with("_GOOG_AUTHENTICATED_USER_ID")
         || upper.ends_with("_GOOGLE_AUTHENTICATED_USER_EMAIL")
