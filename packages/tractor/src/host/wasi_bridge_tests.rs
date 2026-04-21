@@ -704,6 +704,19 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_very_large_header_name() {
+        let huge_name = format!("x-{}", "a".repeat(32 * 1024));
+        let headers = vec![
+            (huge_name, "ok".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_overlong_header_value() {
         let headers = vec![
             ("x-safe".to_string(), "a".repeat(16 * 1024 + 1)),

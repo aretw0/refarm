@@ -406,6 +406,7 @@ fn normalize_path(path: &str) -> String {
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_FORWARDED_HEADER_COUNT: usize = 64;
     const MAX_HEADER_SCAN: usize = 256;
+    const MAX_HEADER_NAME_LEN: usize = 128;
     const MAX_HEADER_PAIR_BYTES: usize = 16 * 1024;
     const MAX_HEADER_TOTAL_BYTES: usize = 256 * 1024;
 
@@ -418,7 +419,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             break;
         }
 
-        let n = name.trim().to_ascii_lowercase();
+        let trimmed_name = name.trim();
+        if trimmed_name.is_empty() || trimmed_name.len() > MAX_HEADER_NAME_LEN {
+            continue;
+        }
+
+        let n = trimmed_name.to_ascii_lowercase();
         if n.is_empty()
             || n == "authorization"
             || n == "x-api-key"
@@ -433,13 +439,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "trailer"
             || n == "upgrade"
             || n == "keep-alive"
-            || !is_safe_header_name(name)
+            || !is_safe_header_name(trimmed_name)
             || !is_safe_header_value(value)
         {
             continue;
         }
 
-        let trimmed_name = name.trim();
         let pair_bytes = trimmed_name.len().saturating_add(value.len());
         if pair_bytes > MAX_HEADER_PAIR_BYTES {
             continue;
