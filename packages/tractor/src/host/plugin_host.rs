@@ -107,8 +107,19 @@ pub struct PluginHost {
 /// tokens, etc.) into the plugin sandbox.
 fn forwarded_llm_env_vars() -> Vec<(String, String)> {
     std::env::vars()
-        .filter(|(k, _)| k.starts_with("LLM_"))
+        .filter(|(k, _)| is_forwardable_llm_env_key(k))
         .collect()
+}
+
+fn is_forwardable_llm_env_key(key: &str) -> bool {
+    if !key.starts_with("LLM_") {
+        return false;
+    }
+    let upper = key.to_ascii_uppercase();
+    !(upper.ends_with("_API_KEY")
+        || upper.ends_with("_TOKEN")
+        || upper.ends_with("_SECRET")
+        || upper.ends_with("_PASSWORD"))
 }
 
 /// Build plugin env vars with project config override semantics:
@@ -415,6 +426,18 @@ mod tests {
         let vars = refarm_config_env_vars_from(&base);
         // Can't assert empty (dev machine might have a config), but must not error.
         let _ = vars;
+    }
+
+    #[test]
+    fn forwardable_llm_env_key_filters_sensitive_suffixes() {
+        assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
+        assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
+
+        assert!(!is_forwardable_llm_env_key("OPENAI_API_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_OPENAI_API_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_SESSION_TOKEN"));
+        assert!(!is_forwardable_llm_env_key("LLM_SHARED_SECRET"));
+        assert!(!is_forwardable_llm_env_key("LLM_DB_PASSWORD"));
     }
 
     #[test]
