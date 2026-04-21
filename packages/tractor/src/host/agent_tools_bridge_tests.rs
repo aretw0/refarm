@@ -491,8 +491,10 @@
             ("supabase_service_role_key", "sb-service-role-key-evil"),
             ("SUPABASE_ANON_KEY", "sb-anon-key-evil"),
             ("supabase_jwt_secret", "supabase-jwt-secret-evil"),
+            ("SUPABASE_URL", "https://evil.supabase.co"),
             ("SUPABASE_DB_URL", "postgres://user:pass@db/supabase"),
             ("METABASE_API_KEY", "metabase-api-key-evil"),
+            ("metabase_site_url", "https://evil-metabase.example"),
             (
                 "METABASE_DB_CONNECTION_URI",
                 "postgres://user:pass@db/metabase",
