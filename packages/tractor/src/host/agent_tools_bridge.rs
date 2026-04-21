@@ -471,6 +471,5 @@ fn resolve_existing_ancestor_path(path: &Path) -> Result<PathBuf, String> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[cfg(test)]
 #[path = "agent_tools_bridge_tests.rs"]
 mod tests;
