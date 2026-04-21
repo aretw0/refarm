@@ -222,6 +222,10 @@ fn enforce_trusted_plugin_for_shell_with(
     let Some(allowed) = allowed else {
         return Ok(());
     };
+    let plugin_id = plugin_id.trim();
+    if plugin_id.is_empty() {
+        return Err("[blocked: plugin id is empty]".to_string());
+    }
     if allowed.contains("*") || allowed.contains(plugin_id) {
         Ok(())
     } else {
@@ -758,6 +762,20 @@ mod tests {
     fn trusted_plugins_unset_is_permissive() {
         let result = enforce_trusted_plugin_for_shell_with("any_plugin", None);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn trusted_plugins_allows_trimmed_plugin_id() {
+        let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
+        let ok = enforce_trusted_plugin_for_shell_with("  pi_agent  ", Some(&allowed));
+        assert!(ok.is_ok());
+    }
+
+    #[test]
+    fn trusted_plugins_blocks_empty_plugin_id() {
+        let allowed = std::collections::HashSet::from(["*".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("   ", Some(&allowed)).unwrap_err();
+        assert!(err.contains("plugin id is empty"));
     }
 
     #[test]
