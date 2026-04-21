@@ -243,6 +243,10 @@ fn contains_control_chars(value: &str) -> bool {
     value.chars().any(|c| c.is_control())
 }
 
+fn contains_whitespace(value: &str) -> bool {
+    value.chars().any(|c| c.is_whitespace())
+}
+
 fn is_safe_plugin_id_token(value: &str) -> bool {
     value
         .bytes()
@@ -304,6 +308,7 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
         .map(str::trim)
         .filter(|s| !s.is_empty())
         .filter(|s| !contains_control_chars(s))
+        .filter(|s| !contains_whitespace(s))
         .map(ToString::to_string)
         .collect()
 }
@@ -328,6 +333,9 @@ fn enforce_shell_allowlist_with(
     }
     if contains_control_chars(binary) {
         return Err("[blocked: binary contains control characters]".into());
+    }
+    if contains_whitespace(binary) {
+        return Err("[blocked: binary contains whitespace]".into());
     }
     if allowlist.contains("*") {
         return Ok(());
@@ -723,6 +731,14 @@ mod tests {
     }
 
     #[test]
+    fn shell_allowlist_rejects_binary_with_internal_whitespace() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["my cmd".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("contains whitespace"));
+    }
+
+    #[test]
     fn shell_allowlist_parser_ignores_empty_entries_and_trims_whitespace() {
         let allowlist = parse_shell_allowlist(" ls , ,grep,   cat  ,");
         assert!(allowlist.contains("ls"));
@@ -737,6 +753,15 @@ mod tests {
         assert!(allowlist.contains("ls"));
         assert!(allowlist.contains("cat"));
         assert!(!allowlist.contains("gr\nep"));
+        assert_eq!(allowlist.len(), 2);
+    }
+
+    #[test]
+    fn shell_allowlist_parser_drops_entries_with_whitespace() {
+        let allowlist = parse_shell_allowlist("ls,my cmd,cat");
+        assert!(allowlist.contains("ls"));
+        assert!(allowlist.contains("cat"));
+        assert!(!allowlist.contains("my cmd"));
         assert_eq!(allowlist.len(), 2);
     }
 
