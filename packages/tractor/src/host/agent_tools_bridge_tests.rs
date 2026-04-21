@@ -231,9 +231,39 @@
     #[tokio::test]
     async fn spawn_rejects_blocked_loader_env_keys() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
-        let env = vec![("LD_PRELOAD".to_string(), "evil.so".to_string())];
-        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
-        assert!(err.contains("blocked env key"));
+
+        let ld_preload_err = spawn_process(
+            &argv,
+            &[("LD_PRELOAD".to_string(), "evil.so".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(ld_preload_err.contains("blocked env key"));
+
+        let ld_audit_err = spawn_process(
+            &argv,
+            &[("ld_audit".to_string(), "evil.so".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(ld_audit_err.contains("blocked env key"));
+
+        let dyld_fw_err = spawn_process(
+            &argv,
+            &[("DYLD_FRAMEWORK_PATH".to_string(), "/tmp/pwn-fw".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(dyld_fw_err.contains("blocked env key"));
     }
 
     #[tokio::test]
@@ -286,6 +316,17 @@
         .unwrap_err();
         assert!(node_opts_err.contains("blocked env key"));
 
+        let node_path_err = spawn_process(
+            &argv,
+            &[("node_path".to_string(), "/tmp/pwn-node".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(node_path_err.contains("blocked env key"));
+
         let py_path_err = spawn_process(
             &argv,
             &[("pythonpath".to_string(), "/tmp/evil-py".to_string())],
@@ -308,6 +349,17 @@
         .unwrap_err();
         assert!(java_opts_err.contains("blocked env key"));
 
+        let classpath_err = spawn_process(
+            &argv,
+            &[("CLASSPATH".to_string(), "/tmp/pwn.jar".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(classpath_err.contains("blocked env key"));
+
         let py_startup_err = spawn_process(
             &argv,
             &[("PYTHONSTARTUP".to_string(), "/tmp/pwn.py".to_string())],
@@ -318,6 +370,17 @@
         .await
         .unwrap_err();
         assert!(py_startup_err.contains("blocked env key"));
+
+        let py_userbase_err = spawn_process(
+            &argv,
+            &[("pythonuserbase".to_string(), "/tmp/pwn-py-user".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(py_userbase_err.contains("blocked env key"));
 
         let ruby_lib_err = spawn_process(
             &argv,

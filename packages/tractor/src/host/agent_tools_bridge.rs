@@ -314,11 +314,14 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
             | "BASH_ENV"
             | "ENV"
             | "NODE_OPTIONS"
+            | "NODE_PATH"
+            | "CLASSPATH"
             | "JAVA_TOOL_OPTIONS"
             | "_JAVA_OPTIONS"
             | "PYTHONPATH"
             | "PYTHONHOME"
             | "PYTHONSTARTUP"
+            | "PYTHONUSERBASE"
             | "RUBYOPT"
             | "RUBYLIB"
             | "PERL5OPT"
@@ -328,9 +331,12 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
             | "LUA_PATH"
             | "LUA_CPATH"
             | "LD_PRELOAD"
+            | "LD_AUDIT"
             | "LD_LIBRARY_PATH"
             | "DYLD_INSERT_LIBRARIES"
             | "DYLD_LIBRARY_PATH"
+            | "DYLD_FRAMEWORK_PATH"
+            | "DYLD_FALLBACK_LIBRARY_PATH"
     )
 }
 
