@@ -391,6 +391,18 @@
     }
 
     #[test]
+    fn refarm_config_reader_ignores_non_regular_file_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let path = refarm_dir.join("config.json");
+        std::fs::create_dir_all(&path).unwrap();
+
+        let bytes = read_refarm_config_bytes(&path);
+        assert!(bytes.is_none());
+    }
+
+    #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");

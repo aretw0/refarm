@@ -303,6 +303,13 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
     let Ok(metadata) = std::fs::metadata(path) else {
         return None;
     };
+    if !metadata.is_file() {
+        tracing::warn!(
+            path = %path.display(),
+            "ignoring non-regular .refarm/config.json entry"
+        );
+        return None;
+    }
     if metadata.len() > MAX_REFARM_CONFIG_BYTES {
         tracing::warn!(
             path = %path.display(),
