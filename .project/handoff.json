@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de projeto atualizado sob pedido do usuário (compactação manual será feita por ele). Frente única segue em hardening dos boundaries host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com micro-slices atômicos e validação por suíte-alvo a cada mudança. Estado atual: branch `develop` em `ahead 126` de `origin/develop`. Nesta janela, houve reforço de bloqueios de env de runtime injection no spawn (Node/Java/Python/Ruby/Perl/Gem/Lua), normalização case-insensitive de `trusted_plugins`, bloqueio de `trusted_plugins` via symlink/não-arquivo regular, reforços de sanitização de headers (valor com espaços externos, prefilter de nomes enormes antes de lowercase), e caps adicionais de payload/scan para env/allowlists.",
-	"timestamp": "2026-04-21T08:43:28Z",
+	"context": "Checkpoint operacional atualizado após nova rodada de hardening host-side no Tractor. Frente única permanece em boundaries (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com micro-slices + testes alvo por commit. Estado atual: `develop` em `ahead 150` de `origin/develop`. Nesta janela recente: (1) reforço TOCTOU em leitura de `.refarm/config.json` com verificação de identidade path↔fd antes/depois da leitura em `trusted_plugins`; (2) leitura bounded/streaming consolidada para config; (3) endurecimento de sanitização de env forwardado no `plugin_host` (valor sem whitespace lateral e ASCII-only); (4) endurecimento de `llm-bridge` authority/base_url (porta válida, labels de host estritas, bracketed IPv6 exigindo `:`); (5) headers LLM ASCII-only; (6) `LLM_SHELL_ALLOWLIST` com tokens/binary ASCII-only e wildcard colapsado para modo exclusivo; (7) expansão de cobertura em testes (table-driven + regressões de fail-closed).",
+	"timestamp": "2026-04-21T09:59:02Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -8,9 +8,9 @@
 		"Lote local grande ainda sem push/CI remoto (aguardando autorização)."
 	],
 	"next_actions": [
-		"Usuário executará compactação manual após este checkpoint.",
-		"Após compactação, retomar em micro-slices (1–2 arquivos + testes) mantendo foco em boundaries host-side.",
-		"Quando autorizado, pushar lote (ahead 126) e rodar uma única rodada de CI remota; registrar resultado em `.project/verification.json`."
+		"Manter micro-slices (1–2 arquivos) focados em race-hardening residual e validações de boundary.",
+		"Ao aproximar de limite de contexto, renovar handoff e validar projeto antes de nova compactação.",
+		"Quando autorizado, pushar lote (ahead 150) e executar uma rodada única de CI remota; registrar em `.project/verification.json`."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
