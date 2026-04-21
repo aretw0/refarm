@@ -680,6 +680,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-original-forwarded-protocol"
             || n == "x-original-forwarded-scheme"
             || n == "x-original-forwarded-port"
+            || n == "x-original-forwarded-prefix"
+            || n == "x-original-forwarded-server"
             || n == "x-original-host"
             || n == "x-host"
             || n == "front-end-https"

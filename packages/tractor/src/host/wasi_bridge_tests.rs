@@ -1398,6 +1398,14 @@
             ),
             ("X-Original-Forwarded-Scheme".to_string(), "http".to_string()),
             ("X-Original-Forwarded-Port".to_string(), "443".to_string()),
+            (
+                "X-Original-Forwarded-Prefix".to_string(),
+                "/internal".to_string(),
+            ),
+            (
+                "X-Original-Forwarded-Server".to_string(),
+                "edge-1".to_string(),
+            ),
             ("X-Original-Host".to_string(), "evil.example".to_string()),
             ("X-Host".to_string(), "evil.example".to_string()),
             ("Front-End-Https".to_string(), "on".to_string()),
