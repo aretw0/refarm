@@ -314,6 +314,14 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
     let Ok(bytes) = std::fs::read(path) else {
         return None;
     };
+    if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
+        tracing::warn!(
+            path = %path.display(),
+            bytes = bytes.len(),
+            "ignoring oversized .refarm/config.json after read"
+        );
+        return None;
+    }
     Some(bytes)
 }
 

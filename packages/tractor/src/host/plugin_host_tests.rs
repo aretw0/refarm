@@ -368,6 +368,18 @@
     }
 
     #[test]
+    fn refarm_config_reader_allows_exact_limit_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let path = refarm_dir.join("config.json");
+        std::fs::write(&path, vec![b'a'; 256 * 1024]).unwrap();
+
+        let bytes = read_refarm_config_bytes(&path).expect("expected bytes at exact limit");
+        assert_eq!(bytes.len(), 256 * 1024);
+    }
+
+    #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
