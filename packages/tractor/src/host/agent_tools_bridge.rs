@@ -324,6 +324,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("CARGO_")
         || upper.starts_with("RUSTUP_")
         || upper.starts_with("OCI_CLI_")
+        || upper.starts_with("PGLITE_")
+        || upper.starts_with("OPFS_")
     {
         return true;
     }
