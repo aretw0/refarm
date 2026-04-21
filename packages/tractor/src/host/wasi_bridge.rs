@@ -272,11 +272,17 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
 
 fn normalize_path(path: &str) -> String {
     let p = path.trim();
-    if p.starts_with('/') {
+    let mut normalized = if p.starts_with('/') {
         p.to_string()
     } else {
         format!("/{p}")
+    };
+
+    while normalized.len() > 1 && normalized.ends_with('/') {
+        normalized.pop();
     }
+
+    normalized
 }
 
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
@@ -427,6 +433,22 @@ mod tests {
             "openai",
             "https://api.openai.com/",
             "/v1/chat/completions",
+            &expected,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn enforce_route_accepts_path_with_trailing_slash() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let result = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions/",
             &expected,
         );
         assert!(result.is_ok());
