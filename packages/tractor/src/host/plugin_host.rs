@@ -149,6 +149,9 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
                 continue;
             }
             if let Some(usd) = amount.as_f64() {
+                if usd < 0.0 {
+                    continue;
+                }
                 let key = format!("LLM_BUDGET_{}_USD", provider.to_uppercase());
                 vars.push((key, usd.to_string()));
             }
@@ -447,6 +450,24 @@ mod tests {
 
         assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
         assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_negative_budgets() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"openai":-1.0,"ollama":0.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
+        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "0");
     }
 
     #[test]
