@@ -760,6 +760,9 @@
             ("api-key".to_string(), "fake-key".to_string()),
             ("x-auth-token".to_string(), "fake-key".to_string()),
             ("x-access-token".to_string(), "fake-key".to_string()),
+            ("x-session-token".to_string(), "fake-key".to_string()),
+            ("x-id-token".to_string(), "fake-key".to_string()),
+            ("x-amz-security-token".to_string(), "fake-key".to_string()),
             ("cookie".to_string(), "session=abc".to_string()),
             ("set-cookie".to_string(), "session=abc".to_string()),
         ];
@@ -777,6 +780,9 @@
             ("API-KEY".to_string(), "fake-key".to_string()),
             ("X-AUTH-TOKEN".to_string(), "fake-key".to_string()),
             ("X-ACCESS-TOKEN".to_string(), "fake-key".to_string()),
+            ("X-SESSION-TOKEN".to_string(), "fake-key".to_string()),
+            ("X-ID-TOKEN".to_string(), "fake-key".to_string()),
+            ("X-AMZ-SECURITY-TOKEN".to_string(), "fake-key".to_string()),
             ("Cookie".to_string(), "session=abc".to_string()),
             ("Set-Cookie".to_string(), "session=abc".to_string()),
         ];
@@ -794,6 +800,9 @@
             (" api-key ".to_string(), "fake-key".to_string()),
             (" x-auth-token ".to_string(), "fake-key".to_string()),
             (" x-access-token ".to_string(), "fake-key".to_string()),
+            (" x-session-token ".to_string(), "fake-key".to_string()),
+            (" x-id-token ".to_string(), "fake-key".to_string()),
+            (" x-amz-security-token ".to_string(), "fake-key".to_string()),
             (" cookie ".to_string(), "session=abc".to_string()),
             (" set-cookie ".to_string(), "session=abc".to_string()),
         ];
