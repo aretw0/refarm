@@ -68,6 +68,8 @@
             "LLM_SQLITE_URL",
             "LLM_SQLITE_PATH",
             "LLM_SQLITE_FILE",
+            "LLM_SQLITE_TMPDIR",
+            "LLM_SQLITE_HISTORY",
             "LLM_PGLITE_DATA_DIR",
             "LLM_PGLITE_DB_PATH",
             "LLM_PGLITE_OPFS_PATH",

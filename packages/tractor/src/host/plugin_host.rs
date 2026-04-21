@@ -210,6 +210,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_SQLITE_URL")
         || upper.ends_with("_SQLITE_PATH")
         || upper.ends_with("_SQLITE_FILE")
+        || upper.ends_with("_SQLITE_TMPDIR")
+        || upper.ends_with("_SQLITE_HISTORY")
         || upper.ends_with("_PGLITE_DATA_DIR")
         || upper.ends_with("_PGLITE_DB_PATH")
         || upper.ends_with("_PGLITE_OPFS_PATH")
