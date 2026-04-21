@@ -1,22 +1,23 @@
 {
-  "context": "P2 estabilizado e limpo. ISS-009/010/011 resolvidas no .project; iniciado hardening do sprint de segurança em tractor com testes adicionais de policy do llm-bridge.",
-  "timestamp": "2026-04-20T23:59:05.252Z",
+  "context": "P2 estável e sem warnings Node20 nos jobs principais. Frente ativa voltou para segurança Tractor/Pi-agent com hardening de testes de policy no host (llm-bridge e gates shell/fs/trusted_plugins).",
+  "timestamp": "2026-04-21T00:01:19.657Z",
   "current_phase": 2,
   "current_tasks": [
-    "Security hardening: llm-bridge policy tests"
+    "Security hardening: host policy tests (tractor)"
   ],
   "blockers": [
     "Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
   ],
   "next_actions": [
-    "Continuar frente única de segurança Tractor/Pi-agent: cobertura de LLM_SHELL_ALLOWLIST, LLM_FS_ROOT e trusted_plugins em testes do host.",
-    "Avaliar necessidade de novos testes para auditoria RefarmConfig node (plugin_host) e rotas llm-bridge.",
-    "Push dos commits locais somente sob autorização."
+    "Cobrir auditoria do RefarmConfig node no plugin_host (persistência + leitura consistente).",
+    "Adicionar teste focado para integração llm-bridge + policy env (provider/base_url/path) sem rede externa.",
+    "Após novo lote de testes, decidir push dos commits locais sob autorização."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
     "packages/tractor/src/host/wasi_bridge.rs",
+    "packages/tractor/src/host/agent_tools_bridge.rs",
     ".project/issues.json",
     ".project/handoff.json"
   ]
