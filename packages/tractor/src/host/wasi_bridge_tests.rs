@@ -1033,11 +1033,12 @@
 
     #[test]
     fn sanitize_auth_token_for_header_filters_invalid_values() {
-        assert_eq!(sanitize_auth_token_for_header(" token123 "), Some("token123".to_string()));
+        assert_eq!(sanitize_auth_token_for_header("token123"), Some("token123".to_string()));
 
         let blocked = [
             "",
             "   ",
+            " token123 ",
             "token with space",
             "token\nvalue",
             "tøken",

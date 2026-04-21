@@ -242,6 +242,7 @@ fn sanitize_auth_token_for_header(token: &str) -> Option<String> {
     const MAX_AUTH_TOKEN_LEN: usize = 4096;
     let trimmed = token.trim();
     if trimmed.is_empty()
+        || trimmed != token
         || trimmed.len() > MAX_AUTH_TOKEN_LEN
         || !trimmed.is_ascii()
         || trimmed.chars().any(|c| c.is_control())
