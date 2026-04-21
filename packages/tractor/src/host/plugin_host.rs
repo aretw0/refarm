@@ -340,9 +340,18 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
         return None;
     }
 
-    let Ok(bytes) = std::fs::read(path) else {
+    let Ok(mut file) = std::fs::File::open(path) else {
         return None;
     };
+    let mut bytes = Vec::new();
+    use std::io::Read as _;
+    if (&mut file)
+        .take(MAX_REFARM_CONFIG_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .is_err()
+    {
+        return None;
+    }
     if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
         tracing::warn!(
             path = %path.display(),
