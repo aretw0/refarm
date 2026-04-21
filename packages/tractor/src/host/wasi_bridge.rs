@@ -297,11 +297,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
 }
 
 fn join_base_url_and_path(base_url: &str, path: &str) -> String {
-    let left = base_url.trim_end_matches('/');
-    if path.starts_with('/') {
-        format!("{left}{path}")
+    let left = base_url.trim().trim_end_matches('/');
+    let right = path.trim();
+    if right.starts_with('/') {
+        format!("{left}{right}")
     } else {
-        format!("{left}/{path}")
+        format!("{left}/{right}")
     }
 }
 
@@ -504,5 +505,11 @@ mod tests {
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
         assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn join_base_url_and_path_trims_surrounding_whitespace() {
+        let url = join_base_url_and_path(" https://api.openai.com/ ", " /v1/chat/completions ");
+        assert_eq!(url, "https://api.openai.com/v1/chat/completions");
     }
 }
