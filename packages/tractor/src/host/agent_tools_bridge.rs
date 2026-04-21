@@ -360,6 +360,12 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("GRAFANA_")
         || upper.starts_with("OTEL_")
         || upper.starts_with("OTLP_")
+        || upper.starts_with("CIRCLECI_")
+        || upper.starts_with("BUILDKITE_")
+        || upper.starts_with("DRONE_")
+        || upper.starts_with("JENKINS_")
+        || upper.starts_with("CODECOV_")
+        || upper.starts_with("SONAR_")
     {
         return true;
     }
