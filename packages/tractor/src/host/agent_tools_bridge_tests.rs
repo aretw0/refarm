@@ -774,6 +774,32 @@
         assert!(err.contains("must be a regular file"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn trusted_plugins_config_path_guard_allows_matching_open_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, br#"{"trusted_plugins":["pi_agent"]}"#).unwrap();
+
+        let file = std::fs::File::open(&path).unwrap();
+        let result = ensure_trusted_plugins_config_path_matches_open_file(&path, &file);
+        assert!(result.is_ok(), "expected guard to accept matching file: {result:?}");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn trusted_plugins_config_path_guard_blocks_mismatched_open_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_a = dir.path().join("a.json");
+        let path_b = dir.path().join("b.json");
+        std::fs::write(&path_a, br#"{"trusted_plugins":["a"]}"#).unwrap();
+        std::fs::write(&path_b, br#"{"trusted_plugins":["b"]}"#).unwrap();
+
+        let file = std::fs::File::open(&path_a).unwrap();
+        let err = ensure_trusted_plugins_config_path_matches_open_file(&path_b, &file).unwrap_err();
+        assert!(err.contains("changed during trusted_plugins read"));
+    }
+
     #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
         let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});

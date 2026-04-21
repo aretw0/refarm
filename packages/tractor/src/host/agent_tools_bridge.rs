@@ -433,6 +433,8 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
     }
 
     let mut file = std::fs::File::open(path).map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    ensure_trusted_plugins_config_path_matches_open_file(path, &file)?;
+
     let mut bytes = Vec::new();
     use std::io::Read as _;
     (&mut file)
@@ -443,6 +445,56 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
         return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
     }
     Ok(Some(bytes))
+}
+
+#[cfg(unix)]
+fn ensure_trusted_plugins_config_path_matches_open_file(
+    path: &Path,
+    file: &std::fs::File,
+) -> Result<(), String> {
+    use std::os::unix::fs::MetadataExt;
+
+    let path_metadata = std::fs::symlink_metadata(path)
+        .map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    let file_metadata = file
+        .metadata()
+        .map_err(|e| format!("read .refarm/config.json: {e}"))?;
+
+    if !path_metadata.is_file() || !file_metadata.is_file() {
+        return Err(
+            "[blocked: .refarm/config.json must be a regular file for trusted_plugins]"
+                .to_string(),
+        );
+    }
+
+    if path_metadata.dev() != file_metadata.dev() || path_metadata.ino() != file_metadata.ino() {
+        return Err(
+            "[blocked: .refarm/config.json changed during trusted_plugins read]".to_string(),
+        );
+    }
+
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn ensure_trusted_plugins_config_path_matches_open_file(
+    path: &Path,
+    file: &std::fs::File,
+) -> Result<(), String> {
+    let path_metadata = std::fs::symlink_metadata(path)
+        .map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    let file_metadata = file
+        .metadata()
+        .map_err(|e| format!("read .refarm/config.json: {e}"))?;
+
+    if !path_metadata.is_file() || !file_metadata.is_file() {
+        return Err(
+            "[blocked: .refarm/config.json must be a regular file for trusted_plugins]"
+                .to_string(),
+        );
+    }
+
+    Ok(())
 }
 
 fn parse_trusted_plugins(
