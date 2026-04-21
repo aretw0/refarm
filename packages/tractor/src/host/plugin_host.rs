@@ -488,4 +488,15 @@ mod tests {
         assert_eq!(payload["plugin_id"], "pi_agent");
         assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
     }
+
+    #[test]
+    fn refarm_config_node_payload_uses_null_config_when_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![("LLM_PROVIDER".to_string(), "ollama".to_string())];
+
+        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, None);
+
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert!(payload["config_json"].is_null());
+    }
 }
