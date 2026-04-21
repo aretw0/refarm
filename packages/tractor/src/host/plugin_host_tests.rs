@@ -63,6 +63,21 @@
     }
 
     #[test]
+    fn forwarded_llm_env_vars_from_iter_caps_total_bytes() {
+        let vars: Vec<(String, String)> = (0..40)
+            .map(|i| (format!("LLM_A{i:03}"), "x".repeat(3000)))
+            .collect();
+
+        let out = forwarded_llm_env_vars_from_iter(vars);
+        let map: std::collections::HashMap<_, _> = out.into_iter().collect();
+
+        assert_eq!(map.len(), 21);
+        assert!(map.contains_key("LLM_A000"));
+        assert!(map.contains_key("LLM_A020"));
+        assert!(!map.contains_key("LLM_A021"));
+    }
+
+    #[test]
     fn refarm_config_env_vars_maps_fields_correctly() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");

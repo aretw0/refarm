@@ -114,11 +114,27 @@ where
     I: IntoIterator<Item = (String, String)>,
 {
     const MAX_FORWARDED_LLM_ENV_VARS: usize = 128;
+    const MAX_FORWARDED_LLM_ENV_TOTAL_BYTES: usize = 64 * 1024;
 
-    vars.into_iter()
-        .filter(|(k, v)| is_forwardable_llm_env_key(k) && is_forwardable_llm_env_value(v))
-        .take(MAX_FORWARDED_LLM_ENV_VARS)
-        .collect()
+    let mut out = Vec::new();
+    let mut total_bytes = 0usize;
+
+    for (k, v) in vars {
+        if out.len() >= MAX_FORWARDED_LLM_ENV_VARS {
+            break;
+        }
+        if !is_forwardable_llm_env_key(&k) || !is_forwardable_llm_env_value(&v) {
+            continue;
+        }
+        let next_total = total_bytes.saturating_add(k.len() + v.len());
+        if next_total > MAX_FORWARDED_LLM_ENV_TOTAL_BYTES {
+            continue;
+        }
+        total_bytes = next_total;
+        out.push((k, v));
+    }
+
+    out
 }
 
 fn is_forwardable_llm_env_key(key: &str) -> bool {
