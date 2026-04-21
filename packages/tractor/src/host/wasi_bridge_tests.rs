@@ -1241,6 +1241,24 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_identity_prefix_aliases() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("x-forwarded-user-login".to_string(), "alice".to_string()),
+            ("X-REMOTE-USER-NAME".to_string(), "alice".to_string()),
+            (" x-auth-user-login ".to_string(), "alice".to_string()),
+            (
+                "X-AUTHENTICATED-USER-LOGIN".to_string(),
+                "alice".to_string(),
+            ),
+            (" x-end-user-login ".to_string(), "alice".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_empty_header_names() {
         let headers = vec![
             ("   ".to_string(), "ignored".to_string()),

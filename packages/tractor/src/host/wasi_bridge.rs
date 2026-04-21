@@ -562,15 +562,18 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-user-id"
             || n == "x-forwarded-userid"
             || n == "x-forwarded-user-email"
+            || n.starts_with("x-forwarded-user-")
             || n == "x-forwarded-groups"
             || n == "x-remote-user"
             || n == "x-remote-userid"
+            || n.starts_with("x-remote-user-")
             || n == "x-remote-email"
             || n == "x-remote-groups"
             || n == "x-original-user"
             || n == "x-original-groups"
             || n == "x-auth-user"
             || n == "x-auth-userid"
+            || n.starts_with("x-auth-user-")
             || n == "x-auth-email"
             || n == "x-auth-request-user"
             || n == "x-auth-request-user-id"
@@ -592,6 +595,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-authenticated-user-id"
             || n == "x-authenticated-user"
             || n == "x-authenticated-user-name"
+            || n.starts_with("x-authenticated-user-")
             || n == "x-authenticated-user-email"
             || n == "x-authenticated-email"
             || n == "x-authenticated-groups"
@@ -599,6 +603,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-verified-email"
             || n == "x-end-user"
             || n == "x-end-userid"
+            || n.starts_with("x-end-user-")
             || n == "x-end-user-email"
             || n == "x-user-id"
             || n == "x-userid"
