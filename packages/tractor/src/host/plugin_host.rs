@@ -139,9 +139,9 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
         return vec![];
     };
     let mut vars: Vec<(String, String)> = Vec::new();
-    push_trimmed_env_var(&mut vars, "LLM_PROVIDER", cfg["provider"].as_str());
+    push_trimmed_lower_env_var(&mut vars, "LLM_PROVIDER", cfg["provider"].as_str());
     push_trimmed_env_var(&mut vars, "LLM_MODEL", cfg["model"].as_str());
-    push_trimmed_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
+    push_trimmed_lower_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
     if let Some(budgets) = cfg["budgets"].as_object() {
         for (provider, amount) in budgets {
             let Some(provider_token) = sanitize_budget_provider_for_env(provider) else {
@@ -190,6 +190,14 @@ fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Opti
     let trimmed = value.trim();
     if !trimmed.is_empty() {
         vars.push((key.to_string(), trimmed.to_string()));
+    }
+}
+
+fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
+    let Some(value) = value else { return; };
+    let trimmed = value.trim();
+    if !trimmed.is_empty() {
+        vars.push((key.to_string(), trimmed.to_ascii_lowercase()));
     }
 }
 
@@ -457,6 +465,24 @@ mod tests {
         assert_eq!(map["LLM_PROVIDER"], "openai");
         assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
         assert!(!map.contains_key("LLM_MODEL"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_normalize_provider_fields_to_lowercase() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":" OpenAI ","default_provider":" OLLAMA "}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
     }
 
     #[test]
