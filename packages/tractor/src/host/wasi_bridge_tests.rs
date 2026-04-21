@@ -1360,6 +1360,11 @@
             ),
             ("x-discord-token".to_string(), "discord-token-evil".to_string()),
             (
+                "X-Signature-Ed25519".to_string(),
+                "deadbeefsignature".to_string(),
+            ),
+            ("x-signature-timestamp".to_string(), "1711111111".to_string()),
+            (
                 "X-Slack-Signature".to_string(),
                 "v0=deadbeef".to_string(),
             ),

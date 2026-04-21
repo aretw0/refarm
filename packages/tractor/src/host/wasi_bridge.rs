@@ -555,6 +555,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-telegram-bot-api-secret-token"
             || n == "x-matrix-access-token"
             || n == "x-discord-token"
+            || n == "x-signature-ed25519"
+            || n == "x-signature-timestamp"
             || n == "x-slack-signature"
             || n == "x-slack-request-timestamp"
             || n == "x-ci-job-token"
