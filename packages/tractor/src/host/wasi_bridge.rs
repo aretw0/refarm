@@ -724,6 +724,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-sqlcipher-")
             || n == "x-libsql-auth-token"
             || n.starts_with("x-libsql-")
+            || n.starts_with("x-neon-")
+            || n.starts_with("x-planetscale-")
+            || n.starts_with("x-upstash-")
             || n == "x-turso-auth-token"
             || n.starts_with("x-turso-")
             || n == "x-pglite-data-dir"

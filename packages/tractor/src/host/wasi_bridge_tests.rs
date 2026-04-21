@@ -2155,6 +2155,18 @@
                 "x-libsql-url".to_string(),
                 "libsql://org.turso.io".to_string(),
             ),
+            (
+                "x-neon-branch-id".to_string(),
+                "neon-branch-evil".to_string(),
+            ),
+            (
+                "x-planetscale-org".to_string(),
+                "pscale-org-evil".to_string(),
+            ),
+            (
+                "x-upstash-account-id".to_string(),
+                "upstash-account-evil".to_string(),
+            ),
             ("x-turso-auth-token".to_string(), "turso-token-evil".to_string()),
             ("X-Turso-Org".to_string(), "org-evil".to_string()),
             ("x-pglite-data-dir".to_string(), "/tmp/evil-pglite".to_string()),
