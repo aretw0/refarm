@@ -492,6 +492,16 @@
     }
 
     #[test]
+    fn trusted_plugins_parse_blocks_too_many_entries() {
+        let entries: Vec<serde_json::Value> = (0..257)
+            .map(|i| serde_json::Value::String(format!("plugin-{i}")))
+            .collect();
+        let cfg = serde_json::json!({"trusted_plugins": entries});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("exceeds max entries"));
+    }
+
+    #[test]
     fn trusted_plugins_parse_allows_only_strings() {
         let cfg = serde_json::json!({"trusted_plugins": ["pi_agent", "agent-tools", " "]});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();

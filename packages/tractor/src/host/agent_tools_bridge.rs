@@ -264,6 +264,7 @@ fn effective_spawn_timeout_ms(requested: u32) -> u32 {
 const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_SPAWN_ARGV_COUNT: usize = 128;
 const MAX_SPAWN_TIMEOUT_MS: u32 = 300_000;
+const MAX_TRUSTED_PLUGINS: usize = 256;
 const MAX_FS_PATH_LEN: usize = 4096;
 const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
@@ -362,6 +363,9 @@ fn parse_trusted_plugins(
     let arr = raw
         .as_array()
         .ok_or_else(|| "[blocked: .refarm/config.json trusted_plugins must be an array]".to_string())?;
+    if arr.len() > MAX_TRUSTED_PLUGINS {
+        return Err("[blocked: .refarm/config.json trusted_plugins exceeds max entries]".to_string());
+    }
     let mut out = std::collections::HashSet::new();
     for item in arr {
         let plugin = item
