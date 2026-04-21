@@ -247,6 +247,8 @@ fn contains_whitespace(value: &str) -> bool {
     value.chars().any(|c| c.is_whitespace())
 }
 
+const MAX_SHELL_TOKEN_LEN: usize = 256;
+
 fn is_safe_plugin_id_token(value: &str) -> bool {
     const MAX_PLUGIN_ID_LEN: usize = 128;
     value.len() <= MAX_PLUGIN_ID_LEN
@@ -311,6 +313,7 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
         .filter(|s| !s.is_empty())
         .filter(|s| !contains_control_chars(s))
         .filter(|s| !contains_whitespace(s))
+        .filter(|s| s.len() <= MAX_SHELL_TOKEN_LEN)
         .map(ToString::to_string)
         .collect()
 }
@@ -338,6 +341,9 @@ fn enforce_shell_allowlist_with(
     }
     if contains_whitespace(binary) {
         return Err("[blocked: binary contains whitespace]".into());
+    }
+    if binary.len() > MAX_SHELL_TOKEN_LEN {
+        return Err("[blocked: binary exceeds max length]".into());
     }
     if allowlist.contains("*") {
         return Ok(());
@@ -765,6 +771,24 @@ mod tests {
         assert!(allowlist.contains("cat"));
         assert!(!allowlist.contains("my cmd"));
         assert_eq!(allowlist.len(), 2);
+    }
+
+    #[test]
+    fn shell_allowlist_parser_drops_overlong_entries() {
+        let overlong = "a".repeat(257);
+        let allowlist = parse_shell_allowlist(&format!("ls,{overlong},cat"));
+        assert!(allowlist.contains("ls"));
+        assert!(allowlist.contains("cat"));
+        assert!(!allowlist.contains(&overlong));
+        assert_eq!(allowlist.len(), 2);
+    }
+
+    #[test]
+    fn shell_allowlist_rejects_overlong_binary() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["a".repeat(257)];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("exceeds max length"));
     }
 
     #[test]
