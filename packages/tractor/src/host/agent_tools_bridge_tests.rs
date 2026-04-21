@@ -557,6 +557,14 @@
     }
 
     #[test]
+    fn shell_allowlist_rejects_non_ascii_binary() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["échø".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("must be ascii"));
+    }
+
+    #[test]
     fn shell_allowlist_parser_ignores_empty_entries_and_trims_whitespace() {
         let allowlist = parse_shell_allowlist(" ls , ,grep,   cat  ,");
         assert!(allowlist.contains("ls"));
@@ -580,6 +588,15 @@
         assert!(allowlist.contains("ls"));
         assert!(allowlist.contains("cat"));
         assert!(!allowlist.contains("my cmd"));
+        assert_eq!(allowlist.len(), 2);
+    }
+
+    #[test]
+    fn shell_allowlist_parser_drops_non_ascii_entries() {
+        let allowlist = parse_shell_allowlist("ls,échø,cat");
+        assert!(allowlist.contains("ls"));
+        assert!(allowlist.contains("cat"));
+        assert!(!allowlist.contains("échø"));
         assert_eq!(allowlist.len(), 2);
     }
 

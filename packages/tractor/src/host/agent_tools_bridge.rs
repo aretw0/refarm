@@ -556,6 +556,7 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
         .take(MAX_SHELL_ALLOWLIST_SCAN)
         .map(str::trim)
         .filter(|s| !s.is_empty())
+        .filter(|s| s.is_ascii())
         .filter(|s| !contains_control_chars(s))
         .filter(|s| !contains_whitespace(s))
         .filter(|s| s.len() <= MAX_SHELL_TOKEN_LEN)
@@ -587,6 +588,9 @@ fn enforce_shell_allowlist_with(
     }
     if contains_whitespace(binary) {
         return Err("[blocked: binary contains whitespace]".into());
+    }
+    if !binary.is_ascii() {
+        return Err("[blocked: binary must be ascii]".into());
     }
     if binary.len() > MAX_SHELL_TOKEN_LEN {
         return Err("[blocked: binary exceeds max length]".into());
