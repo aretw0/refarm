@@ -12,36 +12,53 @@
 
     #[test]
     fn forwardable_llm_env_key_filters_sensitive_suffixes() {
-        assert!(!is_forwardable_llm_env_key("LLM_"));
-        assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
-        assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
-        assert!(!is_forwardable_llm_env_key("LLM_SHELL_ALLOWLIST"));
-        assert!(!is_forwardable_llm_env_key("LLM_FS_ROOT"));
-        assert!(!is_forwardable_llm_env_key("LLM-provider"));
-        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER NAME"));
-        assert!(!is_forwardable_llm_env_key("LLM_provider"));
+        let allowed = ["LLM_PROVIDER", "LLM_BASE_URL"];
+        for key in allowed {
+            assert!(is_forwardable_llm_env_key(key), "expected key to be allowed: {key}");
+        }
+
+        let blocked = [
+            "LLM_",
+            "LLM_SHELL_ALLOWLIST",
+            "LLM_FS_ROOT",
+            "LLM-provider",
+            "LLM_PROVIDER NAME",
+            "LLM_provider",
+            "OPENAI_API_KEY",
+            "LLM_OPENAI_API_KEY",
+            "LLM_SESSION_TOKEN",
+            "LLM_SHARED_SECRET",
+            "LLM_DB_PASSWORD",
+            "LLM_PROVIDER_CREDENTIALS",
+            "LLM_SSH_PRIVATE_KEY",
+            "LLM_AWS_ACCESS_KEY",
+            "LLM_REQUEST_SIGNING_KEY",
+            "LLM_PROXY_AUTH",
+            "LLM_AUTH_HEADER",
+            "LLM_AUTHORIZATION",
+            "LLM_SESSION_BEARER",
+        ];
+        for key in blocked {
+            assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
+        }
         assert!(!is_forwardable_llm_env_key(&format!("LLM_{}", "A".repeat(97))));
 
-        assert!(!is_forwardable_llm_env_key("OPENAI_API_KEY"));
-        assert!(!is_forwardable_llm_env_key("LLM_OPENAI_API_KEY"));
-        assert!(!is_forwardable_llm_env_key("LLM_SESSION_TOKEN"));
-        assert!(!is_forwardable_llm_env_key("LLM_SHARED_SECRET"));
-        assert!(!is_forwardable_llm_env_key("LLM_DB_PASSWORD"));
-        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER_CREDENTIALS"));
-        assert!(!is_forwardable_llm_env_key("LLM_SSH_PRIVATE_KEY"));
-        assert!(!is_forwardable_llm_env_key("LLM_AWS_ACCESS_KEY"));
-        assert!(!is_forwardable_llm_env_key("LLM_REQUEST_SIGNING_KEY"));
-        assert!(!is_forwardable_llm_env_key("LLM_PROXY_AUTH"));
-        assert!(!is_forwardable_llm_env_key("LLM_AUTH_HEADER"));
-        assert!(!is_forwardable_llm_env_key("LLM_AUTHORIZATION"));
-        assert!(!is_forwardable_llm_env_key("LLM_SESSION_BEARER"));
+        let good_values = ["openai", "https://api.openai.com/v1"];
+        for value in good_values {
+            assert!(
+                is_forwardable_llm_env_value(value),
+                "expected value to be allowed: {value}"
+            );
+        }
 
-        assert!(is_forwardable_llm_env_value("openai"));
-        assert!(is_forwardable_llm_env_value("https://api.openai.com/v1"));
-        assert!(!is_forwardable_llm_env_value("   "));
+        let blocked_values = ["   ", "open\nai", "open\u{0000}ai"];
+        for value in blocked_values {
+            assert!(
+                !is_forwardable_llm_env_value(value),
+                "expected value to be blocked: {value:?}"
+            );
+        }
         assert!(!is_forwardable_llm_env_value(&"a".repeat(4097)));
-        assert!(!is_forwardable_llm_env_value("open\nai"));
-        assert!(!is_forwardable_llm_env_value("open\u{0000}ai"));
     }
 
     #[test]
