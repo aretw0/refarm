@@ -356,6 +356,26 @@
                 "invalid authority characters",
             ),
             (
+                "host_label_starts_with_dash",
+                "https://-api.openai.com",
+                "invalid authority characters",
+            ),
+            (
+                "host_label_ends_with_dash",
+                "https://api-.openai.com",
+                "invalid authority characters",
+            ),
+            (
+                "host_has_empty_label",
+                "https://api..openai.com",
+                "invalid authority characters",
+            ),
+            (
+                "host_trailing_dot",
+                "https://api.openai.com.",
+                "invalid authority characters",
+            ),
+            (
                 "port_non_numeric",
                 "https://api.openai.com:abc",
                 "invalid authority characters",

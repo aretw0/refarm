@@ -393,10 +393,25 @@ fn is_safe_base_url_authority(authority: &str) -> bool {
     }
 
     fn valid_host_ascii(host: &str) -> bool {
-        !host.is_empty()
-            && host
-                .bytes()
-                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
+        if host.is_empty() || host.len() > 253 {
+            return false;
+        }
+
+        host.split('.').all(|label| {
+            !label.is_empty()
+                && label.len() <= 63
+                && label
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b == b'-')
+                && label
+                    .bytes()
+                    .next()
+                    .is_some_and(|b| b.is_ascii_alphanumeric())
+                && label
+                    .bytes()
+                    .last()
+                    .is_some_and(|b| b.is_ascii_alphanumeric())
+        })
     }
 
     fn valid_port(port: &str) -> bool {
