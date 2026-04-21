@@ -312,6 +312,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("DYLD_")
         || upper.starts_with("MALLOC_")
         || upper.starts_with("GIT_CONFIG_")
+        || upper.starts_with("GIT_")
+        || upper.starts_with("SSH_")
         || upper.starts_with("NPM_CONFIG_")
         || upper.starts_with("YARN_")
         || upper.starts_with("PNPM_")
