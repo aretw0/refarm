@@ -205,9 +205,13 @@ fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim() == "anthropic"
 }
 
-fn use_openai_auth(provider: &str) -> bool {
+fn is_openai_provider_family(provider: &str) -> bool {
     let provider = provider.trim();
     provider == "openai" || provider.starts_with("openai-")
+}
+
+fn use_openai_auth(provider: &str) -> bool {
+    is_openai_provider_family(provider)
 }
 
 fn provider_name_from_env() -> String {
@@ -239,7 +243,7 @@ fn expected_llm_route_from_env() -> LlmRoute {
     }
 
     let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
-        if provider == "openai" {
+        if is_openai_provider_family(&provider) {
             "https://api.openai.com".to_string()
         } else {
             "http://localhost:11434".to_string()
@@ -342,6 +346,9 @@ fn read_response_bytes(resp: ureq::Response) -> Result<Vec<u8>, String> {
 mod tests {
     use super::*;
 
+    static ENV_LOCK: std::sync::LazyLock<std::sync::Mutex<()>> =
+        std::sync::LazyLock::new(|| std::sync::Mutex::new(()));
+
     fn reset_llm_env() {
         for k in ["LLM_PROVIDER", "LLM_DEFAULT_PROVIDER", "LLM_BASE_URL"] {
             std::env::remove_var(k);
@@ -350,6 +357,7 @@ mod tests {
 
     #[test]
     fn expected_route_defaults_to_ollama() {
+        let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         let route = expected_llm_route_from_env();
         assert_eq!(
@@ -364,6 +372,7 @@ mod tests {
 
     #[test]
     fn expected_route_trims_provider_from_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "  openai  ");
 
@@ -377,6 +386,7 @@ mod tests {
 
     #[test]
     fn expected_route_normalizes_provider_case_from_env() {
+        let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "OpenAI");
 
@@ -389,6 +399,7 @@ mod tests {
 
     #[test]
     fn expected_route_uses_default_provider_when_primary_is_blank() {
+        let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
         std::env::set_var("LLM_PROVIDER", "   ");
         std::env::set_var("LLM_DEFAULT_PROVIDER", " openai ");
@@ -396,6 +407,20 @@ mod tests {
         let route = expected_llm_route_from_env();
         assert_eq!(route.provider, "openai");
         assert_eq!(route.base_url, "https://api.openai.com");
+
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_defaults_openai_family_to_openai_base_url() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "openai-codex");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai-codex");
+        assert_eq!(route.base_url, "https://api.openai.com");
+        assert_eq!(route.path, "/v1/chat/completions");
 
         reset_llm_env();
     }
