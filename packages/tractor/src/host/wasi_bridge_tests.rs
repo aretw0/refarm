@@ -786,6 +786,14 @@
                 "https://actions.evil".to_string(),
             ),
             (
+                "x-cf-api-base-url".to_string(),
+                "https://api.cloudflare.evil".to_string(),
+            ),
+            (
+                "x-cloudflare-api-base-url".to_string(),
+                "https://api.cloudflare.evil".to_string(),
+            ),
+            (
                 "x-fastly-service-id".to_string(),
                 "fastly-service-evil".to_string(),
             ),
@@ -1364,6 +1372,14 @@
             (
                 " x-actions-runtime-url ".to_string(),
                 "https://actions.evil".to_string(),
+            ),
+            (
+                " x-cf-api-base-url ".to_string(),
+                "https://api.cloudflare.evil".to_string(),
+            ),
+            (
+                " x-cloudflare-api-base-url ".to_string(),
+                "https://api.cloudflare.evil".to_string(),
             ),
             (
                 " x-fastly-service-id ".to_string(),
