@@ -296,6 +296,11 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
 }
 
 fn enforce_spawn_cwd(cwd: &str) -> Result<(), String> {
+    let fs_root = configured_fs_root()?;
+    enforce_spawn_cwd_with(cwd, fs_root.as_deref())
+}
+
+fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), String> {
     let trimmed = cwd.trim();
     if trimmed.is_empty() {
         return Err("spawn: cwd must be non-empty".to_string());
@@ -308,6 +313,11 @@ fn enforce_spawn_cwd(cwd: &str) -> Result<(), String> {
     }
     if contains_control_chars(cwd) {
         return Err("spawn: cwd contains control characters".to_string());
+    }
+    if let Some(root) = fs_root {
+        if let Err(_) = enforce_fs_root_with(cwd, Some(root)) {
+            return Err("spawn: cwd outside LLM_FS_ROOT".to_string());
+        }
     }
     Ok(())
 }

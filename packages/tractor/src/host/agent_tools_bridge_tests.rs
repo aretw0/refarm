@@ -216,6 +216,27 @@
     }
 
     #[test]
+    fn spawn_cwd_within_fs_root_is_allowed() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let inside = root.join("subdir");
+
+        let ok = enforce_spawn_cwd_with(inside.to_string_lossy().as_ref(), Some(&root));
+        assert!(ok.is_ok(), "expected cwd inside root to be allowed: {ok:?}");
+    }
+
+    #[test]
+    fn spawn_cwd_outside_fs_root_is_blocked() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let outside_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let outside = outside_dir.path().join("elsewhere");
+
+        let err = enforce_spawn_cwd_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
+        assert!(err.contains("cwd outside LLM_FS_ROOT"));
+    }
+
+    #[test]
     fn shell_allowlist_allows_bare_binary_name() {
         let allowlist = parse_shell_allowlist("ls,grep");
 
