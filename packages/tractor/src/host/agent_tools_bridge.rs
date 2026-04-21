@@ -658,6 +658,17 @@ mod tests {
     }
 
     #[test]
+    fn trusted_plugins_parse_trims_and_deduplicates_values() {
+        let cfg = serde_json::json!({
+            "trusted_plugins": [" pi_agent ", "pi_agent", "  ", "agent-tools"]
+        });
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+        assert!(parsed.contains("pi_agent"));
+        assert!(parsed.contains("agent-tools"));
+        assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
     fn trusted_plugins_empty_array_blocks_all_plugins() {
         let cfg = serde_json::json!({"trusted_plugins": []});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
