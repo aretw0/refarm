@@ -450,6 +450,12 @@ fn parse_trusted_plugins(
             out.insert(plugin.to_string());
         }
     }
+    if out.contains("*") && out.len() > 1 {
+        return Err(
+            "[blocked: .refarm/config.json trusted_plugins wildcard must be the only entry]"
+                .to_string(),
+        );
+    }
     Ok(Some(out))
 }
 

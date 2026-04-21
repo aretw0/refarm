@@ -731,6 +731,13 @@
     }
 
     #[test]
+    fn trusted_plugins_parse_blocks_mixed_wildcard_and_specific_ids() {
+        let cfg = serde_json::json!({"trusted_plugins": ["*", "pi_agent"]});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("wildcard must be the only entry"));
+    }
+
+    #[test]
     fn trusted_plugins_empty_array_blocks_all_plugins() {
         let cfg = serde_json::json!({"trusted_plugins": []});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
