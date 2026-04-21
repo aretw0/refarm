@@ -276,6 +276,8 @@
             ("LD_PRELOAD", "evil.so"),
             ("ld_audit", "evil.so"),
             ("LD_ORIGIN_PATH", "/tmp/pwn-origin"),
+            ("glibc_tunables", "glibc.malloc.check=3"),
+            ("MALLOC_CHECK_", "3"),
             ("DYLD_FRAMEWORK_PATH", "/tmp/pwn-fw"),
             ("DYLD_FALLBACK_LIBRARY_PATH", "/tmp/pwn-dylib"),
             ("DYLD_VERSIONED_LIBRARY_PATH", "/tmp/pwn-versioned"),
