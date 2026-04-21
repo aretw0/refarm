@@ -402,6 +402,23 @@
         assert!(bytes.is_none());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn refarm_config_reader_ignores_symlink_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+
+        let target = dir.path().join("real-config.json");
+        std::fs::write(&target, br#"{"provider":"openai"}"#).unwrap();
+
+        let link = refarm_dir.join("config.json");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let bytes = read_refarm_config_bytes(&link);
+        assert!(bytes.is_none());
+    }
+
     #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();

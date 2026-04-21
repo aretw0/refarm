@@ -318,7 +318,7 @@ fn upsert_env_var_vec(vars: &mut Vec<(String, String)>, key: String, value: Stri
 fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
     const MAX_REFARM_CONFIG_BYTES: u64 = 256 * 1024;
 
-    let Ok(metadata) = std::fs::metadata(path) else {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return None;
     };
     if !metadata.is_file() {
