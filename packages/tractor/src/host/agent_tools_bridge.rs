@@ -258,6 +258,7 @@ fn contains_whitespace(value: &str) -> bool {
 }
 
 const MAX_SHELL_TOKEN_LEN: usize = 256;
+const MAX_SPAWN_ARGV_COUNT: usize = 128;
 const MAX_FS_PATH_LEN: usize = 4096;
 const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
@@ -406,6 +407,9 @@ fn enforce_shell_allowlist_with(
     };
     if argv.is_empty() {
         return Err("spawn: argv must be non-empty".into());
+    }
+    if argv.len() > MAX_SPAWN_ARGV_COUNT {
+        return Err("spawn: too many argv entries".into());
     }
     let binary_raw = argv[0].as_str();
     let binary = binary_raw.trim();

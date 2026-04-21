@@ -311,6 +311,17 @@
     }
 
     #[test]
+    fn shell_allowlist_rejects_too_many_argv_entries() {
+        let allowlist = parse_shell_allowlist("*");
+        let mut argv = vec!["echo".to_string()];
+        argv.extend((0..128).map(|i| i.to_string()));
+
+        let result = enforce_shell_allowlist_with(&argv, Some(&allowlist));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("too many argv entries"));
+    }
+
+    #[test]
     fn shell_allowlist_rejects_binary_with_surrounding_whitespace() {
         let allowlist = parse_shell_allowlist("ls");
         let argv = vec![" ls ".to_string()];
