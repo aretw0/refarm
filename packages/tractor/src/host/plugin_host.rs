@@ -304,12 +304,23 @@ fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value
     const MAX_CONFIG_ENV_VALUE_LEN: usize = 4096;
     let Some(value) = value else { return; };
     let trimmed = value.trim();
+    let lowered = trimmed.to_ascii_lowercase();
     if !trimmed.is_empty()
         && trimmed.len() <= MAX_CONFIG_ENV_VALUE_LEN
         && !trimmed.chars().any(|c| c.is_control())
+        && is_safe_provider_token(&lowered)
     {
-        upsert_env_var_vec(vars, key.to_string(), trimmed.to_ascii_lowercase());
+        upsert_env_var_vec(vars, key.to_string(), lowered);
     }
+}
+
+fn is_safe_provider_token(value: &str) -> bool {
+    const MAX_PROVIDER_TOKEN_LEN: usize = 64;
+    !value.is_empty()
+        && value.len() <= MAX_PROVIDER_TOKEN_LEN
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
 }
 
 fn upsert_env_var_vec(vars: &mut Vec<(String, String)>, key: String, value: String) {

@@ -243,6 +243,25 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_skip_provider_fields_with_invalid_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"open ai","default_provider":"anthropic/v1","model":"gpt-4o-mini"}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_PROVIDER"));
+        assert!(!map.contains_key("LLM_DEFAULT_PROVIDER"));
+        assert_eq!(map["LLM_MODEL"], "gpt-4o-mini");
+    }
+
+    #[test]
     fn refarm_config_env_vars_trim_budget_provider_names() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
