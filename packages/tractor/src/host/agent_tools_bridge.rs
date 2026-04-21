@@ -341,6 +341,11 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("WHATSAPP_")
         || upper.starts_with("INSTAGRAM_")
         || upper.starts_with("META_")
+        || upper.starts_with("TELEGRAM_")
+        || upper.starts_with("SLACK_")
+        || upper.starts_with("DISCORD_")
+        || upper.starts_with("LINE_")
+        || upper.starts_with("MATRIX_")
     {
         return true;
     }
