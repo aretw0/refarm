@@ -476,10 +476,13 @@
             ("ngrok_api_key", "ngrok-api-key-evil"),
             ("NGROK_AUTHTOKEN_FILE", "/tmp/evil-ngrok.token"),
             ("NGROK_CONFIG", "/tmp/evil-ngrok.yml"),
+            ("NGROK_EDGE_LABEL", "edge-evil"),
             ("CLOUDFLARE_TUNNEL_TOKEN", "cf-tunnel-token-evil"),
+            ("CLOUDFLARE_TUNNEL_ID", "tunnel-id-evil"),
             ("TAILSCALE_AUTHKEY", "tskey-auth-evil"),
             ("ts_authkey", "tskey-auth-evil-2"),
             ("TAILSCALE_API_KEY", "ts-api-key-evil"),
+            ("TAILSCALE_CONTROL_URL", "https://controlplane.evil"),
             (
                 "TAILSCALE_OAUTH_CLIENT_SECRET",
                 "ts-oauth-client-secret-evil",
