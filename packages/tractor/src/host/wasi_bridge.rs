@@ -206,7 +206,7 @@ fn use_anthropic_auth(provider: &str) -> bool {
 }
 
 fn is_openai_provider_family(provider: &str) -> bool {
-    let provider = provider.trim();
+    let provider = provider.trim().to_ascii_lowercase();
     provider == "openai" || provider.starts_with("openai-")
 }
 
@@ -730,6 +730,7 @@ mod tests {
     fn auth_policy_allows_openai_family_only() {
         assert!(use_openai_auth("openai"));
         assert!(use_openai_auth("openai-codex"));
+        assert!(use_openai_auth("OpenAI-Codex"));
         assert!(!use_openai_auth("custom-openai-compatible"));
         assert!(!use_openai_auth("ollama"));
     }
