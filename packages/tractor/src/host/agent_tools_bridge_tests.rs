@@ -25,6 +25,22 @@
         }
     }
 
+    fn configured_fs_root_err_for(raw: &str) -> String {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        std::env::set_var("LLM_FS_ROOT", raw);
+        let err = configured_fs_root().unwrap_err();
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+
+        err
+    }
+
     // ── agent-fs ──────────────────────────────────────────────────────────────
 
     #[tokio::test]
@@ -732,109 +748,43 @@
 
     #[test]
     fn configured_fs_root_rejects_surrounding_whitespace() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
         let dir = tempfile::tempdir().unwrap();
         let raw = format!(" {} ", dir.path().to_string_lossy());
-        std::env::set_var("LLM_FS_ROOT", raw);
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for(&raw);
         assert!(err.contains("surrounding whitespace"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
     fn configured_fs_root_rejects_non_directory_path() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("root.txt");
         std::fs::write(&file, b"not-a-dir").unwrap();
-        std::env::set_var("LLM_FS_ROOT", file.to_string_lossy().as_ref());
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for(file.to_string_lossy().as_ref());
         assert!(err.contains("must be a directory"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
     fn configured_fs_root_rejects_control_chars() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
-        std::env::set_var("LLM_FS_ROOT", "/tmp/root\n");
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for("/tmp/root\n");
         assert!(err.contains("contains control characters"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
     fn configured_fs_root_rejects_non_ascii_value() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
-        std::env::set_var("LLM_FS_ROOT", "/tmp/raíz");
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for("/tmp/raíz");
         assert!(err.contains("must be ascii"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
     fn configured_fs_root_rejects_internal_whitespace() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
-        std::env::set_var("LLM_FS_ROOT", "/tmp/root dir");
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for("/tmp/root dir");
         assert!(err.contains("whitespace not allowed"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
     fn configured_fs_root_rejects_overlong_value() {
-        let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_FS_ROOT").ok();
-
-        std::env::set_var("LLM_FS_ROOT", format!("/{}", "a".repeat(4097)));
-
-        let err = configured_fs_root().unwrap_err();
+        let err = configured_fs_root_err_for(&format!("/{}", "a".repeat(4097)));
         assert!(err.contains("exceeds max length"));
-
-        if let Some(prev) = prev {
-            std::env::set_var("LLM_FS_ROOT", prev);
-        } else {
-            std::env::remove_var("LLM_FS_ROOT");
-        }
     }
 
     #[test]
