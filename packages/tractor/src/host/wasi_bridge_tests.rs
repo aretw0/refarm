@@ -1323,6 +1323,14 @@
                 " cf-access-authenticated-user-name ".to_string(),
                 "alice".to_string(),
             ),
+            (
+                "CF-Access-Client-Id".to_string(),
+                "cf-access-client-id-evil".to_string(),
+            ),
+            (
+                "cf-access-client-secret".to_string(),
+                "cf-access-client-secret-evil".to_string(),
+            ),
             ("X-AMZN-OIDC-SUB".to_string(), "alice-sub".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
@@ -1468,6 +1476,12 @@
             ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
             ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
             ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
+            ("x-sqlcipher-key".to_string(), "sqlcipher-key-evil".to_string()),
+            (
+                "X-Libsql-Auth-Token".to_string(),
+                "libsql-token-evil".to_string(),
+            ),
+            ("x-turso-auth-token".to_string(), "turso-token-evil".to_string()),
             ("x-pglite-data-dir".to_string(), "/tmp/evil-pglite".to_string()),
             (
                 "X-Pglite-Db-Path".to_string(),
