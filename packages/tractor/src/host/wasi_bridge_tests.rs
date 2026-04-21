@@ -770,6 +770,10 @@
             ("x-forwarded-user".to_string(), "alice".to_string()),
             ("x-auth-request-user".to_string(), "alice".to_string()),
             ("x-auth-request-email".to_string(), "alice@example.com".to_string()),
+            ("x-client-verify".to_string(), "SUCCESS".to_string()),
+            ("x-client-dn".to_string(), "CN=alice".to_string()),
+            ("x-ssl-client-verify".to_string(), "SUCCESS".to_string()),
+            ("x-ssl-client-dn".to_string(), "CN=alice".to_string()),
             ("cookie".to_string(), "session=abc".to_string()),
             ("set-cookie".to_string(), "session=abc".to_string()),
         ];
@@ -797,6 +801,10 @@
             ("X-FORWARDED-USER".to_string(), "alice".to_string()),
             ("X-AUTH-REQUEST-USER".to_string(), "alice".to_string()),
             ("X-AUTH-REQUEST-EMAIL".to_string(), "alice@example.com".to_string()),
+            ("X-CLIENT-VERIFY".to_string(), "SUCCESS".to_string()),
+            ("X-CLIENT-DN".to_string(), "CN=alice".to_string()),
+            ("X-SSL-CLIENT-VERIFY".to_string(), "SUCCESS".to_string()),
+            ("X-SSL-CLIENT-DN".to_string(), "CN=alice".to_string()),
             ("Cookie".to_string(), "session=abc".to_string()),
             ("Set-Cookie".to_string(), "session=abc".to_string()),
         ];
@@ -824,6 +832,10 @@
             (" x-forwarded-user ".to_string(), "alice".to_string()),
             (" x-auth-request-user ".to_string(), "alice".to_string()),
             (" x-auth-request-email ".to_string(), "alice@example.com".to_string()),
+            (" x-client-verify ".to_string(), "SUCCESS".to_string()),
+            (" x-client-dn ".to_string(), "CN=alice".to_string()),
+            (" x-ssl-client-verify ".to_string(), "SUCCESS".to_string()),
+            (" x-ssl-client-dn ".to_string(), "CN=alice".to_string()),
             (" cookie ".to_string(), "session=abc".to_string()),
             (" set-cookie ".to_string(), "session=abc".to_string()),
         ];
