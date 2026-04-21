@@ -1476,6 +1476,14 @@
             ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
             ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
             ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
+            (
+                "x-sqlite-tmpdir".to_string(),
+                "/tmp/evil-sqlite-tmp".to_string(),
+            ),
+            (
+                "X-Sqlite-History".to_string(),
+                "/tmp/evil-sqlite-history".to_string(),
+            ),
             ("x-sqlcipher-key".to_string(), "sqlcipher-key-evil".to_string()),
             (
                 "X-Libsql-Auth-Token".to_string(),

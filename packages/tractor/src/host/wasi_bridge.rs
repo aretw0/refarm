@@ -600,6 +600,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-sqlite-url"
             || n == "x-sqlite-path"
             || n == "x-sqlite-file"
+            || n == "x-sqlite-tmpdir"
+            || n == "x-sqlite-history"
             || n == "x-sqlcipher-key"
             || n == "x-libsql-auth-token"
             || n == "x-turso-auth-token"
