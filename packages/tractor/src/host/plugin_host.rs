@@ -322,6 +322,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_ORIGINAL_METHOD")
         || upper.ends_with("_ORIGINAL_PATH")
         || upper.ends_with("_SSL_CLIENT_DN")
+        || upper.ends_with("_SSL_CLIENT_S_DN")
+        || upper.ends_with("_SSL_CLIENT_I_DN")
         || upper.ends_with("_SSL_CLIENT_SAN"))
 }
 

@@ -186,6 +186,8 @@
             "LLM_ORIGINAL_METHOD",
             "LLM_ORIGINAL_PATH",
             "LLM_SSL_CLIENT_DN",
+            "LLM_SSL_CLIENT_S_DN",
+            "LLM_SSL_CLIENT_I_DN",
             "LLM_SSL_CLIENT_SAN",
         ];
         for key in blocked {
