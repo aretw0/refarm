@@ -664,6 +664,18 @@
     }
 
     #[test]
+    fn sanitized_headers_limit_input_scan_window() {
+        let mut headers: Vec<(String, String)> = (0..256)
+            .map(|i| (format!("x-scan-{i}"), "ok".to_string()))
+            .collect();
+        headers.push(("x-after-scan".to_string(), "ok".to_string()));
+
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 64);
+        assert!(out.iter().all(|(k, _)| *k != "x-after-scan"));
+    }
+
+    #[test]
     fn join_base_url_and_path_trims_surrounding_whitespace() {
         let url = join_base_url_and_path(" https://api.openai.com/ ", " /v1/chat/completions ");
         assert_eq!(url, "https://api.openai.com/v1/chat/completions");
