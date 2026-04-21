@@ -1254,6 +1254,7 @@
             (" x-end-user-login ".to_string(), "alice".to_string()),
             ("X-USER-LOGIN".to_string(), "alice".to_string()),
             (" x-principal-email ".to_string(), "alice@example.com".to_string()),
+            ("X-VERIFIED-USERID".to_string(), "alice-id".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);

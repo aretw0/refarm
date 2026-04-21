@@ -602,6 +602,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-authenticated-groups"
             || n == "x-verified-user"
             || n == "x-verified-email"
+            || n.starts_with("x-verified-")
             || n == "x-end-user"
             || n == "x-end-userid"
             || n.starts_with("x-end-user-")
