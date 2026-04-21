@@ -316,6 +316,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_ENVOY_EXTERNAL_ADDRESS")
         || upper.ends_with("_ENVOY_PEER_METADATA")
         || upper.ends_with("_ENVOY_PEER_METADATA_ID")
+        || upper.contains("_ENVOY_PEER_METADATA_")
         || upper.ends_with("_FASTLY_CLIENT_IP")
         || upper.ends_with("_CLIENT_DN")
         || upper.ends_with("_CLIENT_SAN")

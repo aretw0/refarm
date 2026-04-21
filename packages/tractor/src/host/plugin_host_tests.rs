@@ -179,6 +179,7 @@
             "LLM_ENVOY_EXTERNAL_ADDRESS",
             "LLM_ENVOY_PEER_METADATA",
             "LLM_ENVOY_PEER_METADATA_ID",
+            "LLM_ENVOY_PEER_METADATA_NAMESPACE",
             "LLM_FASTLY_CLIENT_IP",
             "LLM_CLIENT_DN",
             "LLM_CLIENT_SAN",
