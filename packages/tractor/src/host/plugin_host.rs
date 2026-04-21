@@ -196,7 +196,12 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_OIDC")
         || upper.ends_with("_OIDC_DATA")
         || upper.ends_with("_OIDC_IDENTITY")
-        || upper.ends_with("_USERINFO"))
+        || upper.ends_with("_USERINFO")
+        || upper.ends_with("_CLIENT_PRINCIPAL")
+        || upper.ends_with("_CLIENT_PRINCIPAL_ID")
+        || upper.ends_with("_USER_ID")
+        || upper.ends_with("_USER_EMAIL")
+        || upper.ends_with("_GROUPS"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {

@@ -63,6 +63,11 @@
             "LLM_OIDC_DATA",
             "LLM_OIDC_IDENTITY",
             "LLM_USERINFO",
+            "LLM_CLIENT_PRINCIPAL",
+            "LLM_CLIENT_PRINCIPAL_ID",
+            "LLM_USER_ID",
+            "LLM_USER_EMAIL",
+            "LLM_USER_GROUPS",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
