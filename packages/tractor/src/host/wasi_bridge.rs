@@ -607,8 +607,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-sqlite-tmpdir"
             || n == "x-sqlite-history"
             || n == "x-sqlcipher-key"
+            || n.starts_with("x-sqlcipher-")
             || n == "x-libsql-auth-token"
+            || n.starts_with("x-libsql-")
             || n == "x-turso-auth-token"
+            || n.starts_with("x-turso-")
             || n == "x-pglite-data-dir"
             || n == "x-pglite-db-path"
             || n == "x-pglite-opfs-path"

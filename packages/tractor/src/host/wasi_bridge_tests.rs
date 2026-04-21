@@ -1507,10 +1507,19 @@
             ),
             ("x-sqlcipher-key".to_string(), "sqlcipher-key-evil".to_string()),
             (
+                "X-Sqlcipher-Passphrase".to_string(),
+                "sqlcipher-pass-evil".to_string(),
+            ),
+            (
                 "X-Libsql-Auth-Token".to_string(),
                 "libsql-token-evil".to_string(),
             ),
+            (
+                "x-libsql-url".to_string(),
+                "libsql://org.turso.io".to_string(),
+            ),
             ("x-turso-auth-token".to_string(), "turso-token-evil".to_string()),
+            ("X-Turso-Org".to_string(), "org-evil".to_string()),
             ("x-pglite-data-dir".to_string(), "/tmp/evil-pglite".to_string()),
             (
                 "X-Pglite-Db-Path".to_string(),
