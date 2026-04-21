@@ -280,6 +280,17 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_duplicate_env_keys_case_insensitive() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![
+            ("SAFE_KEY".to_string(), "one".to_string()),
+            ("safe_key".to_string(), "two".to_string()),
+        ];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("duplicate env key"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_too_many_env_vars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env: Vec<(String, String)> = (0..129)

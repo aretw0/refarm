@@ -328,7 +328,7 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
     let mut seen = std::collections::HashSet::new();
     let mut total_bytes = 0usize;
     for (key, value) in env {
-        if !seen.insert(key) {
+        if !seen.insert(key.to_ascii_uppercase()) {
             return Err("spawn: duplicate env key".to_string());
         }
         if !is_safe_spawn_env_key(key) {
