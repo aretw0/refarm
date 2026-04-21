@@ -314,7 +314,11 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
         return Err("spawn: too many env vars".to_string());
     }
 
+    let mut seen = std::collections::HashSet::new();
     for (key, value) in env {
+        if !seen.insert(key) {
+            return Err("spawn: duplicate env key".to_string());
+        }
         if !is_safe_spawn_env_key(key) {
             return Err("spawn: invalid env key".to_string());
         }
