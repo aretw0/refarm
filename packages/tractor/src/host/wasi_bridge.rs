@@ -352,6 +352,9 @@ fn enforce_llm_route(
 
 fn normalize_base_url(base_url: &str) -> Result<String, String> {
     let raw = base_url.trim();
+    if !raw.is_ascii() {
+        return Err("[blocked: llm-bridge base_url must be ascii]".to_string());
+    }
     let lower_raw = raw.to_ascii_lowercase();
 
     if lower_raw.contains('?') || lower_raw.contains('#') {

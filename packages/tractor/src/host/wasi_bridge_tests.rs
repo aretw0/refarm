@@ -356,6 +356,11 @@
                 "invalid authority characters",
             ),
             (
+                "non_ascii_base_url",
+                "https://api.öpenai.com",
+                "base_url must be ascii",
+            ),
+            (
                 "host_label_starts_with_dash",
                 "https://-api.openai.com",
                 "invalid authority characters",
