@@ -247,6 +247,14 @@
     }
 
     #[test]
+    fn spawn_timeout_has_floor_and_cap() {
+        assert_eq!(effective_spawn_timeout_ms(0), 1);
+        assert_eq!(effective_spawn_timeout_ms(1), 1);
+        assert_eq!(effective_spawn_timeout_ms(300_000), 300_000);
+        assert_eq!(effective_spawn_timeout_ms(300_001), 300_000);
+    }
+
+    #[test]
     fn shell_allowlist_allows_bare_binary_name() {
         let allowlist = parse_shell_allowlist("ls,grep");
 

@@ -124,7 +124,7 @@ pub(crate) async fn spawn_process(
 
     let binary = &argv[0];
     let args = &argv[1..];
-    let timeout_dur = Duration::from_millis(timeout_ms.max(1) as u64);
+    let timeout_dur = Duration::from_millis(effective_spawn_timeout_ms(timeout_ms) as u64);
 
     let mut cmd = Command::new(binary);
     cmd.args(args)
@@ -257,8 +257,13 @@ fn contains_whitespace(value: &str) -> bool {
     value.chars().any(|c| c.is_whitespace())
 }
 
+fn effective_spawn_timeout_ms(requested: u32) -> u32 {
+    requested.clamp(1, MAX_SPAWN_TIMEOUT_MS)
+}
+
 const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_SPAWN_ARGV_COUNT: usize = 128;
+const MAX_SPAWN_TIMEOUT_MS: u32 = 300_000;
 const MAX_FS_PATH_LEN: usize = 4096;
 const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
