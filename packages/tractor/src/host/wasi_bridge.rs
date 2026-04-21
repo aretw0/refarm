@@ -362,14 +362,17 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
 
 fn is_safe_header_name(name: &str) -> bool {
     let trimmed = name.trim();
+    const MAX_HEADER_NAME_LEN: usize = 128;
     !trimmed.is_empty()
+        && trimmed.len() <= MAX_HEADER_NAME_LEN
         && trimmed
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&b))
 }
 
 fn is_safe_header_value(value: &str) -> bool {
-    !value.chars().any(|c| c.is_control())
+    const MAX_HEADER_VALUE_LEN: usize = 8 * 1024;
+    value.len() <= MAX_HEADER_VALUE_LEN && !value.chars().any(|c| c.is_control())
 }
 
 fn join_base_url_and_path(base_url: &str, path: &str) -> String {
@@ -859,6 +862,29 @@ mod tests {
     fn sanitized_headers_drop_values_with_other_control_chars() {
         let headers = vec![
             ("x-safe".to_string(), "ok\u{0000}bad".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_overlong_header_name() {
+        let long_name = format!("x-{}", "a".repeat(130));
+        let headers = vec![
+            (long_name, "ok".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_overlong_header_value() {
+        let headers = vec![
+            ("x-safe".to_string(), "a".repeat(8 * 1024 + 1)),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
