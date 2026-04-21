@@ -373,8 +373,19 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
     if authority.contains('@') {
         return Err("[blocked: llm-bridge base_url must not include credentials]".to_string());
     }
+    if !is_safe_base_url_authority(authority) {
+        return Err("[blocked: llm-bridge base_url contains invalid authority characters]".to_string());
+    }
 
     Ok(lower_raw.trim_end_matches('/').to_string())
+}
+
+fn is_safe_base_url_authority(authority: &str) -> bool {
+    const MAX_AUTHORITY_LEN: usize = 255;
+    authority.len() <= MAX_AUTHORITY_LEN
+        && authority
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':' | b'[' | b']'))
 }
 
 fn normalize_path(path: &str) -> String {
