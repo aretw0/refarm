@@ -825,6 +825,10 @@
             ("X-Forwarded-For".to_string(), "1.2.3.4".to_string()),
             ("X-Forwarded-Host".to_string(), "evil.example".to_string()),
             ("X-Forwarded-Proto".to_string(), "http".to_string()),
+            ("X-Real-IP".to_string(), "1.2.3.4".to_string()),
+            ("X-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("True-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("CF-Connecting-IP".to_string(), "1.2.3.4".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
