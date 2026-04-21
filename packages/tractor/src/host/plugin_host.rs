@@ -133,7 +133,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
-    !value.chars().any(|c| c.is_control())
+    !value.trim().is_empty() && !value.chars().any(|c| c.is_control())
 }
 
 fn is_safe_llm_env_key_format(key: &str) -> bool {
@@ -474,6 +474,7 @@ mod tests {
 
         assert!(is_forwardable_llm_env_value("openai"));
         assert!(is_forwardable_llm_env_value("https://api.openai.com/v1"));
+        assert!(!is_forwardable_llm_env_value("   "));
         assert!(!is_forwardable_llm_env_value("open\nai"));
         assert!(!is_forwardable_llm_env_value("open\u{0000}ai"));
     }
