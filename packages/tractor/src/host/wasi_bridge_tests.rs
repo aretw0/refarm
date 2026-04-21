@@ -683,6 +683,20 @@
     }
 
     #[test]
+    fn sanitized_headers_deduplicate_names_case_insensitive() {
+        let headers = vec![
+            ("X-Trace-Id".to_string(), "first".to_string()),
+            (" x-trace-id ".to_string(), "second".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0], ("X-Trace-Id", "first"));
+        assert_eq!(out[1], ("content-type", "application/json"));
+    }
+
+    #[test]
     fn sanitized_headers_allow_large_single_header_within_pair_cap() {
         let headers = vec![
             ("x-large".to_string(), "a".repeat(12 * 1024)),

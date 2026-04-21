@@ -385,6 +385,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_HEADER_PAIR_BYTES: usize = 16 * 1024;
 
     let mut out = Vec::new();
+    let mut seen_names = std::collections::HashSet::new();
 
     for (name, value) in headers.iter().take(MAX_HEADER_SCAN) {
         if out.len() >= MAX_FORWARDED_HEADER_COUNT {
@@ -414,6 +415,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
 
         let trimmed_name = name.trim();
         if trimmed_name.len().saturating_add(value.len()) > MAX_HEADER_PAIR_BYTES {
+            continue;
+        }
+        if !seen_names.insert(n) {
             continue;
         }
         out.push((trimmed_name, value.as_str()));
