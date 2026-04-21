@@ -653,8 +653,17 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-session-token"
             || n == "x-id-token"
             || n == "x-amz-security-token"
+            || n.starts_with("x-aws-")
             || n == "x-aws-ec2-metadata-token"
             || n == "x-aws-ec2-metadata-token-ttl-seconds"
+            || n.starts_with("x-azure-")
+            || n.starts_with("x-arm-")
+            || n.starts_with("x-google-")
+            || n.starts_with("x-gcp-")
+            || n.starts_with("x-cloudsdk-")
+            || n.starts_with("x-msi-")
+            || n.starts_with("x-imds-")
+            || n.starts_with("x-identity-")
             || n == "metadata-flavor"
             || n == "x-google-metadata-request"
             || n == "cf-access-client-id"

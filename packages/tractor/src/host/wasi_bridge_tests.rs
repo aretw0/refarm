@@ -879,6 +879,33 @@
             ("x-session-token".to_string(), "fake-key".to_string()),
             ("x-id-token".to_string(), "fake-key".to_string()),
             ("x-amz-security-token".to_string(), "fake-key".to_string()),
+            ("x-aws-region".to_string(), "us-east-1".to_string()),
+            (
+                "x-azure-cloud-name".to_string(),
+                "AzurePublicCloud".to_string(),
+            ),
+            ("x-arm-environment".to_string(), "public".to_string()),
+            (
+                "x-google-cloud-region".to_string(),
+                "us-central1".to_string(),
+            ),
+            (
+                "x-gcp-project-number".to_string(),
+                "123456789".to_string(),
+            ),
+            (
+                "x-cloudsdk-active-config-name".to_string(),
+                "evil-config".to_string(),
+            ),
+            (
+                "x-msi-client-id".to_string(),
+                "msi-client-id-evil".to_string(),
+            ),
+            ("x-imds-port".to_string(), "1338".to_string()),
+            (
+                "x-identity-header-file".to_string(),
+                "/tmp/identity-header".to_string(),
+            ),
             ("x-ms-client-principal".to_string(), "jwt".to_string()),
             ("x-ms-client-principal-id".to_string(), "alice".to_string()),
             ("x-ms-client-principal-name".to_string(), "alice".to_string()),
@@ -1309,6 +1336,33 @@
             (" x-session-token ".to_string(), "fake-key".to_string()),
             (" x-id-token ".to_string(), "fake-key".to_string()),
             (" x-amz-security-token ".to_string(), "fake-key".to_string()),
+            (" x-aws-region ".to_string(), "us-east-1".to_string()),
+            (
+                " x-azure-cloud-name ".to_string(),
+                "AzurePublicCloud".to_string(),
+            ),
+            (" x-arm-environment ".to_string(), "public".to_string()),
+            (
+                " x-google-cloud-region ".to_string(),
+                "us-central1".to_string(),
+            ),
+            (
+                " x-gcp-project-number ".to_string(),
+                "123456789".to_string(),
+            ),
+            (
+                " x-cloudsdk-active-config-name ".to_string(),
+                "evil-config".to_string(),
+            ),
+            (
+                " x-msi-client-id ".to_string(),
+                "msi-client-id-evil".to_string(),
+            ),
+            (" x-imds-port ".to_string(), "1338".to_string()),
+            (
+                " x-identity-header-file ".to_string(),
+                "/tmp/identity-header".to_string(),
+            ),
             (" x-ms-client-principal ".to_string(), "jwt".to_string()),
             (" x-ms-client-principal-id ".to_string(), "alice".to_string()),
             (
