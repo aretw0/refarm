@@ -1387,6 +1387,22 @@
                 "telegram-api-hash-evil".to_string(),
             ),
             (
+                "x-twitter-bearer-token".to_string(),
+                "twitter-bearer-token-evil".to_string(),
+            ),
+            (
+                "X-Twitter-Webhooks-Signature".to_string(),
+                "twitter-signature-evil".to_string(),
+            ),
+            (
+                "x-facebook-signature".to_string(),
+                "facebook-signature-evil".to_string(),
+            ),
+            (
+                "X-Whatsapp-Signature".to_string(),
+                "whatsapp-signature-evil".to_string(),
+            ),
+            (
                 "x-cloudflare-tunnel-token".to_string(),
                 "cf-tunnel-token-evil".to_string(),
             ),
