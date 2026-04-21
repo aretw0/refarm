@@ -77,6 +77,8 @@
             "LLM_NGROK_AUTHTOKEN",
             "LLM_SLACK_SIGNATURE",
             "LLM_SLACK_REQUEST_TIMESTAMP",
+            "LLM_SHOPIFY_HMAC_SHA256",
+            "LLM_WEBHOOK_HMAC",
             "LLM_DISCORD_WEBHOOK_URL",
             "LLM_OIDC",
             "LLM_OIDC_DATA",
