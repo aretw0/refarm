@@ -531,6 +531,21 @@
     }
 
     #[test]
+    fn llm_error_body_preview_keeps_small_body() {
+        let body = b"small error".to_vec();
+        let preview = llm_error_body_preview(&body);
+        assert_eq!(preview, "small error");
+    }
+
+    #[test]
+    fn llm_error_body_preview_truncates_large_body() {
+        let body = vec![b'a'; 8 * 1024 + 128];
+        let preview = llm_error_body_preview(&body);
+        assert!(preview.starts_with(&"a".repeat(32)));
+        assert!(preview.contains("[truncated: llm-bridge error body exceeded 8192 bytes]"));
+    }
+
+    #[test]
     fn sanitized_headers_drop_sensitive_auth_keys() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),

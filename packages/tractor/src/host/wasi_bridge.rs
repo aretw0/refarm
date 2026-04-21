@@ -196,10 +196,23 @@ fn llm_complete_http(
         Ok(resp) => read_response_bytes(resp),
         Err(ureq::Error::Status(code, resp)) => {
             let bytes = read_response_bytes(resp)?;
-            Err(format!("HTTP {code}: {}", String::from_utf8_lossy(&bytes)))
+            Err(format!("HTTP {code}: {}", llm_error_body_preview(&bytes)))
         }
         Err(e) => Err(format!("http error: {e}")),
     }
+}
+
+fn llm_error_body_preview(bytes: &[u8]) -> String {
+    const MAX_LLM_ERROR_PREVIEW_LEN: usize = 8 * 1024;
+
+    if bytes.len() <= MAX_LLM_ERROR_PREVIEW_LEN {
+        return String::from_utf8_lossy(bytes).to_string();
+    }
+
+    let prefix = String::from_utf8_lossy(&bytes[..MAX_LLM_ERROR_PREVIEW_LEN]);
+    format!(
+        "{prefix}\n[truncated: llm-bridge error body exceeded {MAX_LLM_ERROR_PREVIEW_LEN} bytes]"
+    )
 }
 
 fn use_anthropic_auth(provider: &str) -> bool {
