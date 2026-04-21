@@ -373,6 +373,13 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
     {
         return None;
     }
+    if !refarm_config_path_matches_open_file(path, &file) {
+        tracing::warn!(
+            path = %path.display(),
+            "ignoring unstable .refarm/config.json entry after read"
+        );
+        return None;
+    }
     if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
         tracing::warn!(
             path = %path.display(),
