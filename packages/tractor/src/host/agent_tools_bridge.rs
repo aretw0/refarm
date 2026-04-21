@@ -308,6 +308,9 @@ fn is_safe_spawn_env_key(key: &str) -> bool {
 
 fn is_blocked_spawn_env_key(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
+    if upper.starts_with("LD_") || upper.starts_with("DYLD_") {
+        return true;
+    }
     matches!(
         upper.as_str(),
         "PATH"

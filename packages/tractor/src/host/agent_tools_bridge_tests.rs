@@ -275,8 +275,10 @@
         let cases = [
             ("LD_PRELOAD", "evil.so"),
             ("ld_audit", "evil.so"),
+            ("LD_ORIGIN_PATH", "/tmp/pwn-origin"),
             ("DYLD_FRAMEWORK_PATH", "/tmp/pwn-fw"),
             ("DYLD_FALLBACK_LIBRARY_PATH", "/tmp/pwn-dylib"),
+            ("DYLD_VERSIONED_LIBRARY_PATH", "/tmp/pwn-versioned"),
             ("IFS", "/"),
             ("SHELLOPTS", "igncr"),
             ("BASHOPTS", "expand_aliases"),
