@@ -785,6 +785,43 @@
                 "x-actions-runtime-url".to_string(),
                 "https://actions.evil".to_string(),
             ),
+            (
+                "x-fastly-service-id".to_string(),
+                "fastly-service-evil".to_string(),
+            ),
+            ("x-akamai-host".to_string(), "akamai.evil".to_string()),
+            (
+                "x-netlify-site-id".to_string(),
+                "netlify-site-evil".to_string(),
+            ),
+            (
+                "x-vercel-project-id".to_string(),
+                "vercel-project-evil".to_string(),
+            ),
+            (
+                "x-render-service-id".to_string(),
+                "render-service-evil".to_string(),
+            ),
+            (
+                "x-railway-project-id".to_string(),
+                "railway-project-evil".to_string(),
+            ),
+            (
+                "x-heroku-app-name".to_string(),
+                "heroku-app-evil".to_string(),
+            ),
+            ("x-fly-app-name".to_string(), "fly-app-evil".to_string()),
+            (
+                "x-digitalocean-project-id".to_string(),
+                "do-project-evil".to_string(),
+            ),
+            (
+                "x-linode-region".to_string(),
+                "linode-region-evil".to_string(),
+            ),
+            ("x-hcloud-project".to_string(), "hcloud-evil".to_string()),
+            ("x-vultr-region".to_string(), "vultr-evil".to_string()),
+            ("x-scw-default-region".to_string(), "scw-evil".to_string()),
             ("x-vault-token".to_string(), "fake-key".to_string()),
             ("x-vault-namespace".to_string(), "ns-evil".to_string()),
             ("x-kube-token".to_string(), "kube-token-evil".to_string()),
@@ -1274,6 +1311,43 @@
                 " x-actions-runtime-url ".to_string(),
                 "https://actions.evil".to_string(),
             ),
+            (
+                " x-fastly-service-id ".to_string(),
+                "fastly-service-evil".to_string(),
+            ),
+            (" x-akamai-host ".to_string(), "akamai.evil".to_string()),
+            (
+                " x-netlify-site-id ".to_string(),
+                "netlify-site-evil".to_string(),
+            ),
+            (
+                " x-vercel-project-id ".to_string(),
+                "vercel-project-evil".to_string(),
+            ),
+            (
+                " x-render-service-id ".to_string(),
+                "render-service-evil".to_string(),
+            ),
+            (
+                " x-railway-project-id ".to_string(),
+                "railway-project-evil".to_string(),
+            ),
+            (
+                " x-heroku-app-name ".to_string(),
+                "heroku-app-evil".to_string(),
+            ),
+            (" x-fly-app-name ".to_string(), "fly-app-evil".to_string()),
+            (
+                " x-digitalocean-project-id ".to_string(),
+                "do-project-evil".to_string(),
+            ),
+            (
+                " x-linode-region ".to_string(),
+                "linode-region-evil".to_string(),
+            ),
+            (" x-hcloud-project ".to_string(), "hcloud-evil".to_string()),
+            (" x-vultr-region ".to_string(), "vultr-evil".to_string()),
+            (" x-scw-default-region ".to_string(), "scw-evil".to_string()),
             (" x-vault-token ".to_string(), "fake-key".to_string()),
             (" x-vault-namespace ".to_string(), "ns-evil".to_string()),
             (" x-kube-token ".to_string(), "kube-token-evil".to_string()),

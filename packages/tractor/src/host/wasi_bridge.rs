@@ -657,6 +657,19 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-twine-")
             || n.starts_with("x-rubygems-")
             || n.starts_with("x-nuget-")
+            || n.starts_with("x-fastly-")
+            || n.starts_with("x-akamai-")
+            || n.starts_with("x-netlify-")
+            || n.starts_with("x-vercel-")
+            || n.starts_with("x-render-")
+            || n.starts_with("x-railway-")
+            || n.starts_with("x-heroku-")
+            || n.starts_with("x-fly-")
+            || n.starts_with("x-digitalocean-")
+            || n.starts_with("x-linode-")
+            || n.starts_with("x-hcloud-")
+            || n.starts_with("x-vultr-")
+            || n.starts_with("x-scw-")
             || n == "x-access-token"
             || n == "x-session-token"
             || n == "x-id-token"
