@@ -272,6 +272,9 @@ fn enforce_llm_route(
     path: &str,
     expected: &LlmRoute,
 ) -> Result<(), String> {
+    const MAX_BASE_URL_LEN: usize = 2048;
+    const MAX_PATH_LEN: usize = 2048;
+
     if provider.chars().any(|c| c.is_control()) || expected.provider.chars().any(|c| c.is_control()) {
         return Err("[blocked: llm-bridge provider contains control characters]".to_string());
     }
@@ -280,6 +283,12 @@ fn enforce_llm_route(
     }
     if path.chars().any(|c| c.is_control()) || expected.path.chars().any(|c| c.is_control()) {
         return Err("[blocked: llm-bridge path contains control characters]".to_string());
+    }
+    if base_url.len() > MAX_BASE_URL_LEN || expected.base_url.len() > MAX_BASE_URL_LEN {
+        return Err("[blocked: llm-bridge base_url too long]".to_string());
+    }
+    if path.len() > MAX_PATH_LEN || expected.path.len() > MAX_PATH_LEN {
+        return Err("[blocked: llm-bridge path too long]".to_string());
     }
 
     let requested_provider = normalize_provider_name(provider);
@@ -621,6 +630,32 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("path contains control characters"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_overlong_base_url() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let overlong = format!("https://{}", "a".repeat(2100));
+        let err = enforce_llm_route("openai", &overlong, "/v1/chat/completions", &expected)
+            .unwrap_err();
+        assert!(err.contains("base_url too long"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_overlong_path() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let overlong = format!("/{}", "a".repeat(2100));
+        let err = enforce_llm_route("openai", "https://api.openai.com", &overlong, &expected)
+            .unwrap_err();
+        assert!(err.contains("path too long"));
     }
 
     #[test]
