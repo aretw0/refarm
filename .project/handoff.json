@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint operacional atualizado após nova rodada de hardening host-side no Tractor. Frente única permanece em boundaries (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com micro-slices + testes alvo por commit. Estado atual: `develop` em `ahead 152` de `origin/develop`. Nesta janela recente: (1) reforço TOCTOU em leitura de `.refarm/config.json` com verificação de identidade path↔fd antes/depois da leitura em `trusted_plugins` e também no `plugin_host`; (2) leitura bounded/streaming consolidada para config; (3) endurecimento de sanitização de env forwardado no `plugin_host` (valor sem whitespace lateral e ASCII-only); (4) endurecimento de `llm-bridge` authority/base_url (porta válida, labels de host estritas, bracketed IPv6 exigindo `:`); (5) headers LLM ASCII-only; (6) `LLM_SHELL_ALLOWLIST` com tokens/binary ASCII-only e wildcard colapsado para modo exclusivo; (7) expansão de cobertura em testes (table-driven + regressões de fail-closed).",
-	"timestamp": "2026-04-21T10:12:08Z",
+	"context": "Checkpoint operacional atualizado após nova rodada de hardening host-side no Tractor. Frente única permanece em boundaries (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com micro-slices + testes alvo por commit. Estado atual: `develop` em `ahead 155` de `origin/develop`. Nesta janela recente: (1) reforço TOCTOU em leitura de `.refarm/config.json` com verificação de identidade path↔fd antes/depois da leitura em `trusted_plugins` e também no `plugin_host`; (2) leitura bounded/streaming consolidada para config; (3) endurecimento de sanitização de env forwardado no `plugin_host` com exigência de ASCII também para valores vindos de `.refarm/config.json`; (4) endurecimento de `llm-bridge` authority/base_url com validação estrita de IPv6 bracketed via parser (bloqueando formas inválidas como `::::`); (5) headers LLM ASCII-only; (6) `LLM_SHELL_ALLOWLIST` com tokens/binary ASCII-only e wildcard colapsado para modo exclusivo; (7) expansão de cobertura em testes (table-driven + regressões de fail-closed).",
+	"timestamp": "2026-04-21T10:20:32Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -10,7 +10,7 @@
 	"next_actions": [
 		"Manter micro-slices (1–2 arquivos) focados em race-hardening residual e validações de boundary.",
 		"Ao aproximar de limite de contexto, renovar handoff e validar projeto antes de nova compactação.",
-		"Quando autorizado, pushar lote (ahead 152) e executar uma rodada única de CI remota; registrar em `.project/verification.json`."
+		"Quando autorizado, pushar lote (ahead 155) e executar uma rodada única de CI remota; registrar em `.project/verification.json`."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
