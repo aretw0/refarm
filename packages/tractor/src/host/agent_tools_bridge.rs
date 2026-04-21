@@ -369,6 +369,9 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
         if contains_control_chars(value) {
             return Err("spawn: env value contains control characters".to_string());
         }
+        if value.chars().any(|c| c.is_whitespace()) {
+            return Err("spawn: env value must not contain whitespace".to_string());
+        }
         let next_total = total_bytes.saturating_add(key.len() + value.len());
         if next_total > MAX_SPAWN_ENV_TOTAL_BYTES {
             return Err("spawn: env payload exceeds max total bytes".to_string());
