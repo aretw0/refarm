@@ -106,8 +106,18 @@ pub struct PluginHost {
 /// Security: avoids leaking unrelated host environment variables (credentials,
 /// tokens, etc.) into the plugin sandbox.
 fn forwarded_llm_env_vars() -> Vec<(String, String)> {
-    std::env::vars()
+    forwarded_llm_env_vars_from_iter(std::env::vars())
+}
+
+fn forwarded_llm_env_vars_from_iter<I>(vars: I) -> Vec<(String, String)>
+where
+    I: IntoIterator<Item = (String, String)>,
+{
+    const MAX_FORWARDED_LLM_ENV_VARS: usize = 128;
+
+    vars.into_iter()
         .filter(|(k, v)| is_forwardable_llm_env_key(k) && is_forwardable_llm_env_value(v))
+        .take(MAX_FORWARDED_LLM_ENV_VARS)
         .collect()
 }
 

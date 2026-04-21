@@ -43,6 +43,26 @@
     }
 
     #[test]
+    fn forwarded_llm_env_vars_from_iter_filters_and_caps_entries() {
+        let mut vars = vec![
+            ("LLM_PROVIDER".to_string(), "openai".to_string()),
+            ("LLM_OPENAI_API_KEY".to_string(), "secret".to_string()),
+            ("OTHER_VAR".to_string(), "x".to_string()),
+            ("LLM_BAD".to_string(), "bad\nvalue".to_string()),
+        ];
+        vars.extend((0..130).map(|i| (format!("LLM_SAFE_{i}"), "ok".to_string())));
+
+        let out = forwarded_llm_env_vars_from_iter(vars);
+        let map: std::collections::HashMap<_, _> = out.into_iter().collect();
+
+        assert_eq!(map.get("LLM_PROVIDER"), Some(&"openai".to_string()));
+        assert!(!map.contains_key("LLM_OPENAI_API_KEY"));
+        assert!(!map.contains_key("OTHER_VAR"));
+        assert!(!map.contains_key("LLM_BAD"));
+        assert_eq!(map.len(), 128);
+    }
+
+    #[test]
     fn refarm_config_env_vars_maps_fields_correctly() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
