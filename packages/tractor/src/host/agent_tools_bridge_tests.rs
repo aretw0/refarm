@@ -833,12 +833,24 @@
     #[test]
     fn trusted_plugins_parse_trims_and_deduplicates_values() {
         let cfg = serde_json::json!({
-            "trusted_plugins": [" pi_agent ", "pi_agent", "  ", "agent-tools"]
+            "trusted_plugins": [" pi_agent ", "PI_AGENT", "  ", "agent-tools"]
         });
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
         assert!(parsed.contains("pi_agent"));
         assert!(parsed.contains("agent-tools"));
         assert_eq!(parsed.len(), 2);
+    }
+
+    #[test]
+    fn trusted_plugins_enforcement_matches_plugin_id_case_insensitively() {
+        let cfg = serde_json::json!({"trusted_plugins": ["Pi_Agent"]});
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+
+        let ok_lower = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed));
+        assert!(ok_lower.is_ok());
+
+        let ok_upper = enforce_trusted_plugin_for_shell_with("PI_AGENT", Some(&parsed));
+        assert!(ok_upper.is_ok());
     }
 
     #[test]
@@ -885,7 +897,7 @@
     #[test]
     fn trusted_plugins_allows_trimmed_plugin_id() {
         let allowed = std::collections::HashSet::from(["pi_agent".to_string()]);
-        let ok = enforce_trusted_plugin_for_shell_with("  pi_agent  ", Some(&allowed));
+        let ok = enforce_trusted_plugin_for_shell_with("  PI_AGENT  ", Some(&allowed));
         assert!(ok.is_ok());
     }
 

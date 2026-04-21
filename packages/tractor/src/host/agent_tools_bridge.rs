@@ -229,7 +229,8 @@ fn enforce_trusted_plugin_for_shell_with(
     if !is_safe_plugin_id_token(plugin_id) {
         return Err("[blocked: plugin id has invalid characters]".to_string());
     }
-    if allowed.contains("*") || allowed.contains(plugin_id) {
+    let normalized_plugin_id = plugin_id.to_ascii_lowercase();
+    if allowed.contains("*") || allowed.contains(&normalized_plugin_id) {
         Ok(())
     } else {
         Err(format!("[blocked: plugin '{plugin_id}' not allowed to use agent-shell]"))
@@ -463,8 +464,10 @@ fn parse_trusted_plugins(
                     .to_string(),
             );
         }
-        if !plugin.is_empty() {
+        if plugin == "*" {
             out.insert(plugin.to_string());
+        } else if !plugin.is_empty() {
+            out.insert(plugin.to_ascii_lowercase());
         }
     }
     if out.contains("*") && out.len() > 1 {
