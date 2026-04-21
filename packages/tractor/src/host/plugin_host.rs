@@ -118,6 +118,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
     if key.len() <= "LLM_".len() {
         return false;
     }
+    if !is_safe_llm_env_key_format(key) {
+        return false;
+    }
     let upper = key.to_ascii_uppercase();
     !(upper.ends_with("_API_KEY")
         || upper.ends_with("_TOKEN")
@@ -127,6 +130,14 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_PRIVATE_KEY")
         || upper.ends_with("_ACCESS_KEY")
         || upper.ends_with("_SIGNING_KEY"))
+}
+
+fn is_safe_llm_env_key_format(key: &str) -> bool {
+    let suffix = &key["LLM_".len()..];
+    !suffix.is_empty()
+        && suffix
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
 }
 
 /// Build plugin env vars with project config override semantics:
@@ -440,6 +451,9 @@ mod tests {
         assert!(!is_forwardable_llm_env_key("LLM_"));
         assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
         assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
+        assert!(!is_forwardable_llm_env_key("LLM-provider"));
+        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER NAME"));
+        assert!(!is_forwardable_llm_env_key("LLM_provider"));
 
         assert!(!is_forwardable_llm_env_key("OPENAI_API_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_OPENAI_API_KEY"));
