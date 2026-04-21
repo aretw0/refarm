@@ -1412,6 +1412,13 @@
         let headers = vec![
             ("Connection".to_string(), "keep-alive".to_string()),
             ("Proxy-Authorization".to_string(), "Basic x".to_string()),
+            ("Proxy-Authenticate".to_string(), "Basic realm=proxy".to_string()),
+            (
+                "Proxy-Authentication-Info".to_string(),
+                "nextnonce=xyz".to_string(),
+            ),
+            ("Proxy-Status".to_string(), "error=http_request_error".to_string()),
+            ("Authentication-Info".to_string(), "nextnonce=abc".to_string()),
             ("Proxy-Connection".to_string(), "keep-alive".to_string()),
             ("TE".to_string(), "trailers".to_string()),
             ("Upgrade".to_string(), "websocket".to_string()),
