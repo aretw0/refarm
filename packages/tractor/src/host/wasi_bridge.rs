@@ -610,10 +610,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-user"
             || n == "x-user-name"
             || n == "x-user-email"
+            || n.starts_with("x-user-")
             || n == "x-user-groups"
             || n == "x-principal"
             || n == "x-principal-id"
             || n == "x-principal-name"
+            || n.starts_with("x-principal-")
             || n == "x-gitlab-user-id"
             || n == "x-gitlab-username"
             || n == "x-gitlab-user-login"
