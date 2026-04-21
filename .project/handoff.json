@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção para compactação iminente. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) via micro-slices com validação por boundary. Estado atual: `develop` em `ahead 220` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente endureceu: (1) bloqueio de env de injeção em spawn (`GIT_*`, `SSH_*`, `NPM_CONFIG_*`, `YARN_*`, `PNPM_*`, `PIP_*`, `NETRC/_NETRC/CURL_HOME/WGETRC`, overrides cloud credenciais); (2) forwarding host-only ampliado em `plugin_host` para session/oidc/userinfo/principal identity envs sensíveis; (3) sanitização `llm-bridge` ampliada para headers de identidade federada, principal e tokens AAD/MTLS.",
-	"timestamp": "2026-04-21T15:01:13Z",
+	"context": "Checkpoint de contenção para compactação iminente (janela ~64%). Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) em micro/macro-loops atômicos com validação por boundary. Estado atual: `develop` em `ahead 283` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente reforçou fail-closed em três eixos: (1) spawn env blocklist ampliada para credenciais cloud/CI/registry/LLM providers (AWS/Azure/GCP/OCI, GH/GitLab/Bitbucket/CI, Docker/registry e tokens de provedores LLM); (2) forwarding host-only em `plugin_host` expandido para aliases e prefixes de identidade (`*_USER*`, `*_PRINCIPAL*`, `*_AUTH_REQUEST*`, `*_VERIFIED*`, `*_GITLAB_USER_*`, `*_GITHUB_USER_*`, `*_BITBUCKET_USER_*`, cadeias de IP e metadata envoy); (3) sanitização `llm-bridge` ampliada para aliases/prefixos de headers de auth/identidade/transporte (incluindo prefixes `x-gitlab-user-*`, `x-github-user-*`, `x-bitbucket-user-*`, `impersonate-extra-*`, aliases `userid`/`user-email` e headers de token CI/VCS).",
+	"timestamp": "2026-04-21T17:42:40Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,10 +9,10 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Executar compactação de contexto imediatamente após validação do checkpoint.",
-		"Após compactação, retomar micro-slices em boundaries host-side mantendo 1-2 arquivos por commit.",
-		"Quando autorizado, pushar lote local e rodar uma rodada única de CI remota.",
-		"Sincronizar `.project/verification.json` com novas evidências por lote antes do próximo checkpoint."
+		"Executar compactação de contexto imediatamente após validar checkpoint canônico.",
+		"Após compactação, retomar micro-slices nas mesmas boundaries mantendo 1-2 arquivos por commit.",
+		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
+		"Sincronizar `.project/verification.json` a cada macro-loop antes do próximo checkpoint."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
