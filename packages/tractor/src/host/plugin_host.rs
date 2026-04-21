@@ -107,7 +107,7 @@ pub struct PluginHost {
 /// tokens, etc.) into the plugin sandbox.
 fn forwarded_llm_env_vars() -> Vec<(String, String)> {
     std::env::vars()
-        .filter(|(k, _)| is_forwardable_llm_env_key(k))
+        .filter(|(k, v)| is_forwardable_llm_env_key(k) && is_forwardable_llm_env_value(v))
         .collect()
 }
 
@@ -130,6 +130,10 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_PRIVATE_KEY")
         || upper.ends_with("_ACCESS_KEY")
         || upper.ends_with("_SIGNING_KEY"))
+}
+
+fn is_forwardable_llm_env_value(value: &str) -> bool {
+    !value.chars().any(|c| c.is_control())
 }
 
 fn is_safe_llm_env_key_format(key: &str) -> bool {
@@ -467,6 +471,11 @@ mod tests {
         assert!(!is_forwardable_llm_env_key("LLM_SSH_PRIVATE_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_AWS_ACCESS_KEY"));
         assert!(!is_forwardable_llm_env_key("LLM_REQUEST_SIGNING_KEY"));
+
+        assert!(is_forwardable_llm_env_value("openai"));
+        assert!(is_forwardable_llm_env_value("https://api.openai.com/v1"));
+        assert!(!is_forwardable_llm_env_value("open\nai"));
+        assert!(!is_forwardable_llm_env_value("open\u{0000}ai"));
     }
 
     #[test]
