@@ -1365,6 +1365,12 @@
             ),
             ("x-signature-timestamp".to_string(), "1711111111".to_string()),
             (
+                "x-gitlab-webhook-token".to_string(),
+                "gitlab-webhook-token-evil".to_string(),
+            ),
+            ("X-Gitea-Signature".to_string(), "gitea-signature-evil".to_string()),
+            ("x-gogs-signature".to_string(), "gogs-signature-evil".to_string()),
+            (
                 "X-Slack-Signature".to_string(),
                 "v0=deadbeef".to_string(),
             ),
