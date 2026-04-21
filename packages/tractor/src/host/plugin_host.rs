@@ -265,6 +265,9 @@ fn sanitize_budget_provider_for_env(provider: &str) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
+    if !trimmed.is_ascii() {
+        return None;
+    }
     if trimmed.chars().any(|c| c.is_control()) {
         return None;
     }

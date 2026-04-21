@@ -299,6 +299,24 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_skip_non_ascii_budget_provider_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"opénai":2.5,"openai":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
     fn refarm_config_env_vars_cap_budget_entries() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
