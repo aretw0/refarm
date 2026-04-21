@@ -289,10 +289,17 @@ fn enforce_shell_allowlist_with(
     if argv.is_empty() {
         return Err("spawn: argv must be non-empty".into());
     }
+    let binary_raw = argv[0].as_str();
+    let binary = binary_raw.trim();
+    if binary.is_empty() {
+        return Err("spawn: binary must be non-empty".into());
+    }
+    if binary != binary_raw {
+        return Err("[blocked: binary contains surrounding whitespace]".into());
+    }
     if allowlist.contains("*") {
         return Ok(());
     }
-    let binary = argv[0].as_str();
     let cmd = Path::new(binary)
         .file_name()
         .and_then(|s| s.to_str())
@@ -631,6 +638,14 @@ mod tests {
         let result = enforce_shell_allowlist_with(&argv, Some(&allowlist));
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("argv must be non-empty"));
+    }
+
+    #[test]
+    fn shell_allowlist_rejects_binary_with_surrounding_whitespace() {
+        let allowlist = parse_shell_allowlist("ls");
+        let argv = vec![" ls ".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("surrounding whitespace"));
     }
 
     #[test]
