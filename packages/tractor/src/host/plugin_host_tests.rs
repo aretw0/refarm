@@ -79,10 +79,16 @@
             "LLM_AUTH_REQUEST_GROUPS",
             "LLM_AUTH_REQUEST_PREFERRED_USERNAME",
             "LLM_FORWARDED_EMAIL",
+            "LLM_AUTH_USER",
+            "LLM_AUTH_EMAIL",
             "LLM_AUTHENTICATED_USERID",
             "LLM_AUTHENTICATED_USER_EMAIL",
             "LLM_AUTHENTICATED_USER",
             "LLM_AUTHENTICATED_GROUPS",
+            "LLM_END_USER",
+            "LLM_END_USER_EMAIL",
+            "LLM_FORWARDED_IP",
+            "LLM_CLIENT_IP",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
