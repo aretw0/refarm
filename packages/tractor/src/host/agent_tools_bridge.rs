@@ -365,6 +365,10 @@ fn enforce_fs_root_with(path: &str, fs_root: Option<&Path>) -> Result<(), String
 }
 
 fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
+    if contains_control_chars(path) {
+        return Err("[blocked: path contains control characters]".to_string());
+    }
+
     let candidate = if Path::new(path).is_absolute() {
         PathBuf::from(path)
     } else {
@@ -718,6 +722,14 @@ mod tests {
 
         let err = enforce_fs_root_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
         assert!(err.contains("path outside LLM_FS_ROOT"));
+    }
+
+    #[test]
+    fn fs_root_blocks_paths_with_control_chars() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let err = enforce_fs_root_with("safe\nname.txt", Some(&root)).unwrap_err();
+        assert!(err.contains("control characters"));
     }
 
     #[test]
