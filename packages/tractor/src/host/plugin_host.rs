@@ -154,6 +154,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         return false;
     }
     let upper = key.to_ascii_uppercase();
+    if matches!(upper.as_str(), "LLM_SHELL_ALLOWLIST" | "LLM_FS_ROOT") {
+        return false;
+    }
     !(upper.ends_with("_API_KEY")
         || upper.ends_with("_TOKEN")
         || upper.ends_with("_SECRET")

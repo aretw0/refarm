@@ -15,6 +15,8 @@
         assert!(!is_forwardable_llm_env_key("LLM_"));
         assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
         assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
+        assert!(!is_forwardable_llm_env_key("LLM_SHELL_ALLOWLIST"));
+        assert!(!is_forwardable_llm_env_key("LLM_FS_ROOT"));
         assert!(!is_forwardable_llm_env_key("LLM-provider"));
         assert!(!is_forwardable_llm_env_key("LLM_PROVIDER NAME"));
         assert!(!is_forwardable_llm_env_key("LLM_provider"));
@@ -46,6 +48,8 @@
     fn forwarded_llm_env_vars_from_iter_filters_and_caps_entries() {
         let mut vars = vec![
             ("LLM_PROVIDER".to_string(), "openai".to_string()),
+            ("LLM_SHELL_ALLOWLIST".to_string(), "echo,ls".to_string()),
+            ("LLM_FS_ROOT".to_string(), "/workspace".to_string()),
             ("LLM_OPENAI_API_KEY".to_string(), "secret".to_string()),
             ("OTHER_VAR".to_string(), "x".to_string()),
             ("LLM_BAD".to_string(), "bad\nvalue".to_string()),
@@ -56,6 +60,8 @@
         let map: std::collections::HashMap<_, _> = out.into_iter().collect();
 
         assert_eq!(map.get("LLM_PROVIDER"), Some(&"openai".to_string()));
+        assert!(!map.contains_key("LLM_SHELL_ALLOWLIST"));
+        assert!(!map.contains_key("LLM_FS_ROOT"));
         assert!(!map.contains_key("LLM_OPENAI_API_KEY"));
         assert!(!map.contains_key("OTHER_VAR"));
         assert!(!map.contains_key("LLM_BAD"));
