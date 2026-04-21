@@ -599,12 +599,15 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gitlab-username"
             || n == "x-gitlab-user-login"
             || n == "x-gitlab-user-email"
+            || n.starts_with("x-gitlab-user-")
             || n == "x-github-user-id"
             || n == "x-github-login"
             || n == "x-github-user-email"
+            || n.starts_with("x-github-user-")
             || n == "x-bitbucket-user"
             || n == "x-bitbucket-uuid"
             || n == "x-bitbucket-user-email"
+            || n.starts_with("x-bitbucket-user-")
             || n == "x-ms-client-principal"
             || n == "x-ms-client-principal-id"
             || n == "x-ms-client-principal-name"

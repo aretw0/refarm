@@ -856,17 +856,20 @@
             ("x-gitlab-user-id".to_string(), "123".to_string()),
             ("x-gitlab-username".to_string(), "alice".to_string()),
             ("x-gitlab-user-login".to_string(), "alice".to_string()),
+            ("x-gitlab-user-name".to_string(), "alice".to_string()),
             (
                 "x-gitlab-user-email".to_string(),
                 "alice@example.com".to_string(),
             ),
             ("x-github-user-id".to_string(), "123".to_string()),
             ("x-github-login".to_string(), "alice".to_string()),
+            ("x-github-user-name".to_string(), "alice".to_string()),
             (
                 "x-github-user-email".to_string(),
                 "alice@example.com".to_string(),
             ),
             ("x-bitbucket-user".to_string(), "alice".to_string()),
+            ("x-bitbucket-user-login".to_string(), "alice".to_string()),
             ("x-bitbucket-uuid".to_string(), "uuid-123".to_string()),
             (
                 "x-bitbucket-user-email".to_string(),
@@ -993,17 +996,20 @@
             ("X-GITLAB-USER-ID".to_string(), "123".to_string()),
             ("X-GITLAB-USERNAME".to_string(), "alice".to_string()),
             ("X-GITLAB-USER-LOGIN".to_string(), "alice".to_string()),
+            ("X-GITLAB-USER-NAME".to_string(), "alice".to_string()),
             (
                 "X-GITLAB-USER-EMAIL".to_string(),
                 "alice@example.com".to_string(),
             ),
             ("X-GITHUB-USER-ID".to_string(), "123".to_string()),
             ("X-GITHUB-LOGIN".to_string(), "alice".to_string()),
+            ("X-GITHUB-USER-NAME".to_string(), "alice".to_string()),
             (
                 "X-GITHUB-USER-EMAIL".to_string(),
                 "alice@example.com".to_string(),
             ),
             ("X-BITBUCKET-USER".to_string(), "alice".to_string()),
+            ("X-BITBUCKET-USER-LOGIN".to_string(), "alice".to_string()),
             ("X-BITBUCKET-UUID".to_string(), "uuid-123".to_string()),
             (
                 "X-BITBUCKET-USER-EMAIL".to_string(),
@@ -1142,17 +1148,20 @@
             (" x-gitlab-user-id ".to_string(), "123".to_string()),
             (" x-gitlab-username ".to_string(), "alice".to_string()),
             (" x-gitlab-user-login ".to_string(), "alice".to_string()),
+            (" x-gitlab-user-name ".to_string(), "alice".to_string()),
             (
                 " x-gitlab-user-email ".to_string(),
                 "alice@example.com".to_string(),
             ),
             (" x-github-user-id ".to_string(), "123".to_string()),
             (" x-github-login ".to_string(), "alice".to_string()),
+            (" x-github-user-name ".to_string(), "alice".to_string()),
             (
                 " x-github-user-email ".to_string(),
                 "alice@example.com".to_string(),
             ),
             (" x-bitbucket-user ".to_string(), "alice".to_string()),
+            (" x-bitbucket-user-login ".to_string(), "alice".to_string()),
             (" x-bitbucket-uuid ".to_string(), "uuid-123".to_string()),
             (
                 " x-bitbucket-user-email ".to_string(),
