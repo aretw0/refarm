@@ -542,14 +542,25 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-webhook-secret"
             || n == "api-key"
             || n == "x-datadog-api-key"
+            || n.starts_with("x-datadog-")
             || n == "x-honeycomb-team"
+            || n.starts_with("x-honeycomb-")
             || n == "x-newrelic-api-key"
+            || n.starts_with("x-newrelic-")
             || n == "x-logdna-apikey"
+            || n.starts_with("x-logdna-")
             || n == "x-rollbar-access-token"
+            || n.starts_with("x-rollbar-")
             || n == "x-bugsnag-api-key"
+            || n.starts_with("x-bugsnag-")
             || n == "x-pagerduty-token"
+            || n.starts_with("x-pagerduty-")
             || n == "x-grafana-api-key"
+            || n.starts_with("x-grafana-")
             || n == "x-otlp-api-key"
+            || n.starts_with("x-otlp-")
+            || n.starts_with("x-otel-")
+            || n.starts_with("x-sentry-")
             || n == "x-auth-token"
             || n == "x-authentication-token"
             || n == "x-github-token"

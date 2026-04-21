@@ -1371,7 +1371,45 @@
                 "pagerduty-token-evil".to_string(),
             ),
             ("X-Grafana-Api-Key".to_string(), "grafana-key-evil".to_string()),
+            (
+                "x-datadog-application-key".to_string(),
+                "dd-app-key-evil".to_string(),
+            ),
+            ("x-honeycomb-dataset".to_string(), "hny-dataset-evil".to_string()),
+            (
+                "x-newrelic-license-key".to_string(),
+                "nr-license-key-evil".to_string(),
+            ),
+            (
+                "x-rollbar-environment".to_string(),
+                "rollbar-env-evil".to_string(),
+            ),
+            (
+                "x-bugsnag-release-stage".to_string(),
+                "bugsnag-stage-evil".to_string(),
+            ),
+            (
+                "x-pagerduty-service-id".to_string(),
+                "pagerduty-service-evil".to_string(),
+            ),
+            (
+                "x-grafana-stack-id".to_string(),
+                "grafana-stack-evil".to_string(),
+            ),
+            (
+                "x-logdna-host".to_string(),
+                "logdna-host-evil".to_string(),
+            ),
             ("x-otlp-api-key".to_string(), "otlp-api-key-evil".to_string()),
+            (
+                "x-otlp-endpoint".to_string(),
+                "https://otlp.evil".to_string(),
+            ),
+            (
+                "x-otel-exporter-otlp-endpoint".to_string(),
+                "https://otel.evil".to_string(),
+            ),
+            ("x-sentry-token".to_string(), "sentry-token-evil".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
