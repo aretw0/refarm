@@ -156,7 +156,12 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
     if matches!(
         upper.as_str(),
-        "LLM_SHELL_ALLOWLIST" | "LLM_FS_ROOT" | "LLM_TRUSTED_PLUGINS"
+        "LLM_SHELL_ALLOWLIST"
+            | "LLM_FS_ROOT"
+            | "LLM_TRUSTED_PLUGINS"
+            | "LLM_USER"
+            | "LLM_USER_NAME"
+            | "LLM_EMAIL"
     ) {
         return false;
     }
