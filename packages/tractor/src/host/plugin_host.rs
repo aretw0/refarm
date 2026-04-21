@@ -193,6 +193,9 @@ fn sanitize_budget_provider_for_env(provider: &str) -> Option<String> {
     if trimmed.is_empty() {
         return None;
     }
+    if trimmed.chars().any(|c| c.is_control()) {
+        return None;
+    }
 
     let mut out = String::new();
     let mut prev_underscore = false;
@@ -593,6 +596,24 @@ mod tests {
 
         assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
         assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_budget_provider_with_control_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"open\nai":2.5,"openai":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map.len(), 1);
     }
 
     #[test]
