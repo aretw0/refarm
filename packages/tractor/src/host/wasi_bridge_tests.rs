@@ -376,6 +376,11 @@
                 "invalid authority characters",
             ),
             (
+                "bracketed_non_ipv6_literal",
+                "https://[abcd]",
+                "invalid authority characters",
+            ),
+            (
                 "port_non_numeric",
                 "https://api.openai.com:abc",
                 "invalid authority characters",
