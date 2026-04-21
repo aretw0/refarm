@@ -1331,6 +1331,10 @@
                 "cf-access-client-secret".to_string(),
                 "cf-access-client-secret-evil".to_string(),
             ),
+            (
+                "X-CF-Access-Client-Id".to_string(),
+                "cf-access-client-id-evil-2".to_string(),
+            ),
             ("X-AMZN-OIDC-SUB".to_string(), "alice-sub".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);

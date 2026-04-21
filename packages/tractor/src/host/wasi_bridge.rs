@@ -594,6 +594,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-google-metadata-request"
             || n == "cf-access-client-id"
             || n == "cf-access-client-secret"
+            || n.starts_with("cf-access-client-")
+            || n.starts_with("x-cf-access-client-")
             || n == "x-database-url"
             || n == "x-redis-url"
             || n == "x-mongodb-uri"
