@@ -1465,6 +1465,20 @@
             ("x-mysql-url".to_string(), "mysql://user:pass@db/evil".to_string()),
             ("X-Broker-Url".to_string(), "amqp://user:pass@mq/evil".to_string()),
             ("x-amqp-url".to_string(), "amqp://user:pass@mq/evil".to_string()),
+            ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
+            ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
+            ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
+            ("x-pglite-data-dir".to_string(), "/tmp/evil-pglite".to_string()),
+            (
+                "X-Pglite-Db-Path".to_string(),
+                "/tmp/evil-pglite/db".to_string(),
+            ),
+            (
+                "x-pglite-opfs-path".to_string(),
+                "opfs://evil-db".to_string(),
+            ),
+            ("X-Opfs-Path".to_string(), "opfs://evil-path".to_string()),
+            ("x-opfs-root".to_string(), "opfs://evil-root".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
