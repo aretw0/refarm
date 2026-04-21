@@ -496,8 +496,10 @@
             ("SUPABASE_DB_PASSWORD", "supabase-db-password-evil"),
             ("SUPABASE_URL", "https://evil.supabase.co"),
             ("SUPABASE_DB_URL", "postgres://user:pass@db/supabase"),
+            ("SUPABASE_REGION", "us-east-1"),
             ("METABASE_API_KEY", "metabase-api-key-evil"),
             ("metabase_site_url", "https://evil-metabase.example"),
+            ("METABASE_INSTANCE_NAME", "evil-metabase"),
             (
                 "METABASE_DB_CONNECTION_URI",
                 "postgres://user:pass@db/metabase",
@@ -510,6 +512,9 @@
             ("metabase_db_pass", "metabase-pass-evil"),
             ("MB_DB_USER", "mb-user-evil"),
             ("mb_db_pass", "mb-pass-evil"),
+            ("MB_DB_SSLMODE", "disable"),
+            ("MB_JWT_ISSUER", "evil-issuer"),
+            ("MB_ENCRYPTION_CIPHER", "evil-cipher"),
             (
                 "METABASE_ENCRYPTION_SECRET_KEY",
                 "metabase-encryption-secret-evil",

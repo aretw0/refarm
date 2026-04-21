@@ -326,6 +326,11 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("OCI_CLI_")
         || upper.starts_with("PGLITE_")
         || upper.starts_with("OPFS_")
+        || upper.starts_with("SUPABASE_")
+        || upper.starts_with("METABASE_")
+        || upper.starts_with("MB_DB_")
+        || upper.starts_with("MB_JWT_")
+        || upper.starts_with("MB_ENCRYPTION_")
     {
         return true;
     }
