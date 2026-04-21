@@ -362,6 +362,12 @@
             ("https_proxy", "http://127.0.0.1:8888"),
             ("ALL_PROXY", "socks5://127.0.0.1:1080"),
             ("NO_PROXY", "*"),
+            ("SSH_AUTH_SOCK", "/tmp/ssh-agent.sock"),
+            ("SSH_AGENT_PID", "1234"),
+            ("SSH_ASKPASS", "/tmp/askpass.sh"),
+            ("GIT_ASKPASS", "/tmp/git-askpass.sh"),
+            ("GIT_SSH", "/tmp/ssh-wrapper.sh"),
+            ("GIT_SSH_COMMAND", "ssh -i /tmp/evil"),
         ];
 
         for (key, value) in cases {
