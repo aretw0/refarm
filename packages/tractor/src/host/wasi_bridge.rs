@@ -533,9 +533,13 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         let n = trimmed_name.to_ascii_lowercase();
         if n.is_empty()
             || n == "authorization"
+            || n == "x-authorization"
+            || n == "authentication"
             || n == "x-api-key"
+            || n == "x-api-token"
             || n == "api-key"
             || n == "x-auth-token"
+            || n == "x-authentication-token"
             || n == "x-access-token"
             || n == "x-session-token"
             || n == "x-id-token"
