@@ -71,6 +71,14 @@
       "status": "decided",
       "phase": 9,
       "context": "Convergência de workflow humano+agente para fonte única de verdade em planejamento/execução."
+    },
+    {
+      "id": "DEC-010",
+      "decision": "Adotar estratégia híbrida de execução de modelos no harness (LLM grande + small models + Transformers.js) com roteamento por capacidade e custo.",
+      "rationale": "Usar um único modelo para tudo aumenta custo/latência e acoplamento. Roteamento por classe de tarefa preserva qualidade em planejamento/orquestração e reduz custo para classificação/extração/embeddings locais, mantendo fallback determinístico.",
+      "status": "tentative",
+      "phase": 2,
+      "context": "Pergunta do usuário sobre usar LLM para tudo versus combinar small models/transformers.js durante sprint de segurança do Tractor/Pi Agent."
     }
   ]
 }

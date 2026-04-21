@@ -200,6 +200,17 @@
       "package": "typescript",
       "source": "agent",
       "resolved_by": "VER-PIPE-07-20260420"
+    },
+    {
+      "id": "ISS-012",
+      "title": "Formalizar ADR-012 de estratégia híbrida de modelos no harness do Pi Agent",
+      "body": "Especificar no ADR-012 um ModelRouter com capability map (chat/tool-call/json/embedding), políticas cheap|balanced|reliable, fallback determinístico e gates de segurança pré-modelo. Escopo inicial: integração host-side sem quebrar boundaries atuais (`LLM_SHELL_ALLOWLIST`, `LLM_FS_ROOT`, sanitização de env/headers).",
+      "location": "specs/ADRs/README.md:74",
+      "status": "open",
+      "category": "capability",
+      "priority": "high",
+      "package": "tractor",
+      "source": "human"
     }
   ]
 }
