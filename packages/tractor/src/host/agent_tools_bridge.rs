@@ -297,6 +297,9 @@ fn enforce_shell_allowlist_with(
     if binary != binary_raw {
         return Err("[blocked: binary contains surrounding whitespace]".into());
     }
+    if binary.chars().any(|c| c.is_control()) {
+        return Err("[blocked: binary contains control characters]".into());
+    }
     if allowlist.contains("*") {
         return Ok(());
     }
@@ -654,6 +657,14 @@ mod tests {
         let argv = vec!["".to_string()];
         let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
         assert!(err.contains("binary must be non-empty"));
+    }
+
+    #[test]
+    fn shell_allowlist_rejects_binary_with_control_characters() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["l\ns".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("control characters"));
     }
 
     #[test]
