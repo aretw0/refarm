@@ -570,6 +570,7 @@
             ("twitter_api_key", "twitter-api-key-evil"),
             ("TWITTER_API_SECRET", "twitter-api-secret-evil"),
             ("TWITTER_ACCESS_TOKEN", "twitter-access-token-evil"),
+            ("TWITTER_USERNAME", "evil-account"),
             (
                 "twitter_access_token_secret",
                 "twitter-access-token-secret-evil",
@@ -589,10 +590,14 @@
             ("LINE_CHANNEL_SECRET", "line-channel-secret-evil"),
             ("FACEBOOK_ACCESS_TOKEN", "facebook-access-token-evil"),
             ("facebook_app_secret", "facebook-app-secret-evil"),
+            ("FACEBOOK_APP_ID", "1234567890"),
             ("META_ACCESS_TOKEN", "meta-access-token-evil"),
+            ("META_BUSINESS_ID", "0987654321"),
             ("INSTAGRAM_ACCESS_TOKEN", "instagram-access-token-evil"),
+            ("INSTAGRAM_APP_ID", "1122334455"),
             ("WHATSAPP_TOKEN", "whatsapp-token-evil"),
             ("whatsapp_verify_token", "whatsapp-verify-token-evil"),
+            ("WHATSAPP_PHONE_NUMBER_ID", "15551234567"),
             ("MATRIX_ACCESS_TOKEN", "matrix-token-evil"),
             ("matrix_homeserver_token", "matrix-hs-token-evil"),
             (

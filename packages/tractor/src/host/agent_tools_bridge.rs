@@ -334,6 +334,11 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("LIBSQL_")
         || upper.starts_with("TURSO_")
         || upper.starts_with("SQLCIPHER_")
+        || upper.starts_with("TWITTER_")
+        || upper.starts_with("FACEBOOK_")
+        || upper.starts_with("WHATSAPP_")
+        || upper.starts_with("INSTAGRAM_")
+        || upper.starts_with("META_")
     {
         return true;
     }
