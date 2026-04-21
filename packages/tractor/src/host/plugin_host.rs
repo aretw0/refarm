@@ -152,7 +152,7 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
                     continue;
                 }
                 let key = format!("LLM_BUDGET_{}_USD", provider_token);
-                vars.push((key, usd.to_string()));
+                upsert_env_var_vec(&mut vars, key, usd.to_string());
             }
         }
     }
@@ -189,7 +189,7 @@ fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Opti
     let Some(value) = value else { return; };
     let trimmed = value.trim();
     if !trimmed.is_empty() {
-        vars.push((key.to_string(), trimmed.to_string()));
+        upsert_env_var_vec(vars, key.to_string(), trimmed.to_string());
     }
 }
 
@@ -197,7 +197,13 @@ fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value
     let Some(value) = value else { return; };
     let trimmed = value.trim();
     if !trimmed.is_empty() {
-        vars.push((key.to_string(), trimmed.to_ascii_lowercase()));
+        upsert_env_var_vec(vars, key.to_string(), trimmed.to_ascii_lowercase());
+    }
+}
+
+fn upsert_env_var_vec(vars: &mut Vec<(String, String)>, key: String, value: String) {
+    if vars.iter().all(|(k, _)| k != &key) {
+        vars.push((key, value));
     }
 }
 
@@ -519,6 +525,24 @@ mod tests {
 
         assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
         assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_dedupe_provider_and_budget_keys_after_normalization() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","budgets":{"openai-codex/v1":1.0,"openai codex v1":2.5}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
     }
 
     #[test]
