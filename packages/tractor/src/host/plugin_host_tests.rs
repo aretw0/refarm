@@ -185,6 +185,7 @@
             "LLM_ARR_CLIENTCERT",
             "LLM_HTTP_METHOD_OVERRIDE",
             "LLM_METHOD_OVERRIDE",
+            "LLM_HTTP_METHOD",
             "LLM_FORWARDED_METHOD",
             "LLM_ORIGINAL_METHOD",
             "LLM_ORIGINAL_PATH",

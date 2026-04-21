@@ -321,6 +321,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_ARR_CLIENTCERT")
         || upper.ends_with("_HTTP_METHOD_OVERRIDE")
         || upper.ends_with("_METHOD_OVERRIDE")
+        || upper.ends_with("_HTTP_METHOD")
         || upper.ends_with("_FORWARDED_METHOD")
         || upper.ends_with("_ORIGINAL_METHOD")
         || upper.ends_with("_ORIGINAL_PATH")
