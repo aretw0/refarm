@@ -823,8 +823,15 @@
             ("x-user-email".to_string(), "alice@example.com".to_string()),
             ("x-client-verify".to_string(), "SUCCESS".to_string()),
             ("x-client-dn".to_string(), "CN=alice".to_string()),
+            (
+                "x-client-cert-chain".to_string(),
+                "-----BEGIN CERTIFICATE-----...".to_string(),
+            ),
             ("x-ssl-client-verify".to_string(), "SUCCESS".to_string()),
             ("x-ssl-client-dn".to_string(), "CN=alice".to_string()),
+            ("x-ssl-client-s-dn".to_string(), "CN=alice".to_string()),
+            ("x-ssl-client-i-dn".to_string(), "CN=Refarm CA".to_string()),
+            ("x-ssl-client-san".to_string(), "DNS:alice".to_string()),
             ("cookie".to_string(), "session=abc".to_string()),
             ("set-cookie".to_string(), "session=abc".to_string()),
         ];
@@ -905,8 +912,15 @@
             ("X-USER-EMAIL".to_string(), "alice@example.com".to_string()),
             ("X-CLIENT-VERIFY".to_string(), "SUCCESS".to_string()),
             ("X-CLIENT-DN".to_string(), "CN=alice".to_string()),
+            (
+                "X-CLIENT-CERT-CHAIN".to_string(),
+                "-----BEGIN CERTIFICATE-----...".to_string(),
+            ),
             ("X-SSL-CLIENT-VERIFY".to_string(), "SUCCESS".to_string()),
             ("X-SSL-CLIENT-DN".to_string(), "CN=alice".to_string()),
+            ("X-SSL-CLIENT-S-DN".to_string(), "CN=alice".to_string()),
+            ("X-SSL-CLIENT-I-DN".to_string(), "CN=Refarm CA".to_string()),
+            ("X-SSL-CLIENT-SAN".to_string(), "DNS:alice".to_string()),
             ("Cookie".to_string(), "session=abc".to_string()),
             ("Set-Cookie".to_string(), "session=abc".to_string()),
         ];
@@ -993,8 +1007,15 @@
             (" x-user-email ".to_string(), "alice@example.com".to_string()),
             (" x-client-verify ".to_string(), "SUCCESS".to_string()),
             (" x-client-dn ".to_string(), "CN=alice".to_string()),
+            (
+                " x-client-cert-chain ".to_string(),
+                "-----BEGIN CERTIFICATE-----...".to_string(),
+            ),
             (" x-ssl-client-verify ".to_string(), "SUCCESS".to_string()),
             (" x-ssl-client-dn ".to_string(), "CN=alice".to_string()),
+            (" x-ssl-client-s-dn ".to_string(), "CN=alice".to_string()),
+            (" x-ssl-client-i-dn ".to_string(), "CN=Refarm CA".to_string()),
+            (" x-ssl-client-san ".to_string(), "DNS:alice".to_string()),
             (" cookie ".to_string(), "session=abc".to_string()),
             (" set-cookie ".to_string(), "session=abc".to_string()),
         ];
