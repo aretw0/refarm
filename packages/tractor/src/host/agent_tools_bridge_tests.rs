@@ -603,6 +603,20 @@
     }
 
     #[test]
+    fn trusted_plugins_config_reader_allows_exact_limit_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let path = refarm_dir.join("config.json");
+        std::fs::write(&path, vec![b'a'; 256 * 1024]).unwrap();
+
+        let bytes = read_trusted_plugins_config_bytes(&path)
+            .unwrap()
+            .expect("expected bytes at exact limit");
+        assert_eq!(bytes.len(), 256 * 1024);
+    }
+
+    #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
         let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});
         let err = parse_trusted_plugins(&cfg).unwrap_err();

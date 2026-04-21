@@ -406,6 +406,9 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
     }
 
     let bytes = std::fs::read(path).map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
+        return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
+    }
     Ok(Some(bytes))
 }
 
