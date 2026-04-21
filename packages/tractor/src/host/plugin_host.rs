@@ -340,6 +340,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_TWITTER_")
         || upper.contains("_FACEBOOK_")
         || upper.contains("_WHATSAPP_")
+        || upper.contains("_INSTAGRAM_")
         || upper.contains("_META_")
         || upper.contains("_MB_JWT_")
         || upper.contains("_MB_ENCRYPTION_")

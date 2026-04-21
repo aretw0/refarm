@@ -202,6 +202,7 @@
             "LLM_TWITTER_USERNAME",
             "LLM_FACEBOOK_APP_ID",
             "LLM_WHATSAPP_PHONE_NUMBER_ID",
+            "LLM_INSTAGRAM_APP_ID",
             "LLM_META_BUSINESS_ID",
             "LLM_FORWARDED_IP",
             "LLM_FORWARDED_FOR",
