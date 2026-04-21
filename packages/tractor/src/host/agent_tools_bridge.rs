@@ -301,6 +301,14 @@ fn is_safe_spawn_env_key(key: &str) -> bool {
     chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+fn is_blocked_spawn_env_key(key: &str) -> bool {
+    let upper = key.to_ascii_uppercase();
+    matches!(
+        upper.as_str(),
+        "LD_PRELOAD" | "LD_LIBRARY_PATH" | "DYLD_INSERT_LIBRARIES" | "DYLD_LIBRARY_PATH"
+    )
+}
+
 fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
     if env.len() > MAX_SPAWN_ENV_VARS {
         return Err("spawn: too many env vars".to_string());
@@ -309,6 +317,9 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
     for (key, value) in env {
         if !is_safe_spawn_env_key(key) {
             return Err("spawn: invalid env key".to_string());
+        }
+        if is_blocked_spawn_env_key(key) {
+            return Err("spawn: blocked env key".to_string());
         }
         if value.len() > MAX_SPAWN_ENV_VALUE_LEN {
             return Err("spawn: env value exceeds max length".to_string());

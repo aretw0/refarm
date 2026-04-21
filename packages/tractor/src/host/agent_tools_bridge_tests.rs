@@ -226,6 +226,14 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_blocked_loader_env_keys() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![("LD_PRELOAD".to_string(), "evil.so".to_string())];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("blocked env key"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_too_many_env_vars() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env: Vec<(String, String)> = (0..129)
