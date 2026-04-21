@@ -1556,6 +1556,22 @@
                 "https://otel.evil".to_string(),
             ),
             ("x-sentry-token".to_string(), "sentry-token-evil".to_string()),
+            (
+                "x-sendgrid-account-id".to_string(),
+                "sendgrid-account-evil".to_string(),
+            ),
+            (
+                "x-mailgun-domain".to_string(),
+                "mg.evil.example".to_string(),
+            ),
+            (
+                "x-postmark-message-stream".to_string(),
+                "postmark-stream-evil".to_string(),
+            ),
+            (
+                "x-resend-audience-id".to_string(),
+                "resend-audience-evil".to_string(),
+            ),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);

@@ -561,6 +561,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-otlp-")
             || n.starts_with("x-otel-")
             || n.starts_with("x-sentry-")
+            || n.starts_with("x-sendgrid-")
+            || n.starts_with("x-mailgun-")
+            || n.starts_with("x-postmark-")
+            || n.starts_with("x-resend-")
             || n == "x-auth-token"
             || n == "x-authentication-token"
             || n == "x-github-token"
