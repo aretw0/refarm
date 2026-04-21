@@ -315,6 +315,39 @@
         .await
         .unwrap_err();
         assert!(py_startup_err.contains("blocked env key"));
+
+        let ruby_lib_err = spawn_process(
+            &argv,
+            &[("RUBYLIB".to_string(), "/tmp/pwn-rb".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(ruby_lib_err.contains("blocked env key"));
+
+        let gem_home_err = spawn_process(
+            &argv,
+            &[("gem_home".to_string(), "/tmp/pwn-gem".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(gem_home_err.contains("blocked env key"));
+
+        let lua_path_err = spawn_process(
+            &argv,
+            &[("LUA_PATH".to_string(), "/tmp/pwn-lua".to_string())],
+            None,
+            1000,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert!(lua_path_err.contains("blocked env key"));
     }
 
     #[tokio::test]
