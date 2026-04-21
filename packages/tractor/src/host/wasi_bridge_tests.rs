@@ -875,6 +875,38 @@
                 "codecov-token-evil".to_string(),
             ),
             ("x-sonar-token".to_string(), "sonar-token-evil".to_string()),
+            (
+                "x-npm-registry-url".to_string(),
+                "https://registry.npmjs.org".to_string(),
+            ),
+            (
+                "x-node-auth-token-file".to_string(),
+                "/tmp/node-auth-token".to_string(),
+            ),
+            (
+                "x-yarn-npm-registry-server".to_string(),
+                "https://registry.yarnpkg.com".to_string(),
+            ),
+            (
+                "x-bun-registry".to_string(),
+                "https://registry.bun.sh".to_string(),
+            ),
+            (
+                "x-pypi-repository".to_string(),
+                "https://upload.pypi.org/legacy".to_string(),
+            ),
+            (
+                "x-twine-repository-url".to_string(),
+                "https://upload.pypi.org/legacy".to_string(),
+            ),
+            (
+                "x-rubygems-host".to_string(),
+                "https://rubygems.org".to_string(),
+            ),
+            (
+                "x-nuget-source".to_string(),
+                "https://api.nuget.org/v3/index.json".to_string(),
+            ),
             ("x-access-token".to_string(), "fake-key".to_string()),
             ("x-session-token".to_string(), "fake-key".to_string()),
             ("x-id-token".to_string(), "fake-key".to_string()),
@@ -1332,6 +1364,38 @@
                 "codecov-token-evil".to_string(),
             ),
             (" x-sonar-token ".to_string(), "sonar-token-evil".to_string()),
+            (
+                " x-npm-registry-url ".to_string(),
+                "https://registry.npmjs.org".to_string(),
+            ),
+            (
+                " x-node-auth-token-file ".to_string(),
+                "/tmp/node-auth-token".to_string(),
+            ),
+            (
+                " x-yarn-npm-registry-server ".to_string(),
+                "https://registry.yarnpkg.com".to_string(),
+            ),
+            (
+                " x-bun-registry ".to_string(),
+                "https://registry.bun.sh".to_string(),
+            ),
+            (
+                " x-pypi-repository ".to_string(),
+                "https://upload.pypi.org/legacy".to_string(),
+            ),
+            (
+                " x-twine-repository-url ".to_string(),
+                "https://upload.pypi.org/legacy".to_string(),
+            ),
+            (
+                " x-rubygems-host ".to_string(),
+                "https://rubygems.org".to_string(),
+            ),
+            (
+                " x-nuget-source ".to_string(),
+                "https://api.nuget.org/v3/index.json".to_string(),
+            ),
             (" x-access-token ".to_string(), "fake-key".to_string()),
             (" x-session-token ".to_string(), "fake-key".to_string()),
             (" x-id-token ".to_string(), "fake-key".to_string()),

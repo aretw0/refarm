@@ -649,6 +649,14 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-jenkins-")
             || n.starts_with("x-codecov-")
             || n.starts_with("x-sonar-")
+            || n.starts_with("x-npm-")
+            || n.starts_with("x-node-auth-")
+            || n.starts_with("x-yarn-")
+            || n.starts_with("x-bun-")
+            || n.starts_with("x-pypi-")
+            || n.starts_with("x-twine-")
+            || n.starts_with("x-rubygems-")
+            || n.starts_with("x-nuget-")
             || n == "x-access-token"
             || n == "x-session-token"
             || n == "x-id-token"
