@@ -767,8 +767,24 @@
             ("x-auth-token".to_string(), "fake-key".to_string()),
             ("x-authentication-token".to_string(), "fake-key".to_string()),
             ("x-github-token".to_string(), "fake-key".to_string()),
+            (
+                "x-github-run-id".to_string(),
+                "123456789".to_string(),
+            ),
             ("x-gitlab-token".to_string(), "fake-key".to_string()),
+            (
+                "x-gitlab-project-id".to_string(),
+                "999999".to_string(),
+            ),
             ("x-bitbucket-token".to_string(), "fake-key".to_string()),
+            (
+                "x-bitbucket-workspace".to_string(),
+                "evil-workspace".to_string(),
+            ),
+            (
+                "x-actions-runtime-url".to_string(),
+                "https://actions.evil".to_string(),
+            ),
             ("x-vault-token".to_string(), "fake-key".to_string()),
             ("x-vault-namespace".to_string(), "ns-evil".to_string()),
             ("x-ci-job-token".to_string(), "fake-key".to_string()),
@@ -1114,8 +1130,24 @@
                 "fake-key".to_string(),
             ),
             (" x-github-token ".to_string(), "fake-key".to_string()),
+            (
+                " x-github-run-id ".to_string(),
+                "123456789".to_string(),
+            ),
             (" x-gitlab-token ".to_string(), "fake-key".to_string()),
+            (
+                " x-gitlab-project-id ".to_string(),
+                "999999".to_string(),
+            ),
             (" x-bitbucket-token ".to_string(), "fake-key".to_string()),
+            (
+                " x-bitbucket-workspace ".to_string(),
+                "evil-workspace".to_string(),
+            ),
+            (
+                " x-actions-runtime-url ".to_string(),
+                "https://actions.evil".to_string(),
+            ),
             (" x-vault-token ".to_string(), "fake-key".to_string()),
             (" x-vault-namespace ".to_string(), "ns-evil".to_string()),
             (" x-ci-job-token ".to_string(), "fake-key".to_string()),
