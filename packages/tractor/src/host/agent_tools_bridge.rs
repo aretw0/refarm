@@ -360,6 +360,9 @@ fn enforce_spawn_env(env: &[(String, String)]) -> Result<(), String> {
         if value.len() > MAX_SPAWN_ENV_VALUE_LEN {
             return Err("spawn: env value exceeds max length".to_string());
         }
+        if value.trim() != value {
+            return Err("spawn: env value contains surrounding whitespace".to_string());
+        }
         if !value.is_ascii() {
             return Err("spawn: env value must be ascii".to_string());
         }
