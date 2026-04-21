@@ -477,6 +477,7 @@
                 "/tmp/evil-oci-security-token",
             ),
             ("OCI_CLI_AUTH", "security_token"),
+            ("oci_cli_region", "sa-saopaulo-1"),
             ("NETRC", "/tmp/evil.netrc"),
             ("_NETRC", "1"),
             ("CURL_HOME", "/tmp/evil-curl-home"),
