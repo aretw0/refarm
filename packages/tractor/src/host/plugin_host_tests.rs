@@ -25,6 +25,7 @@
             "LLM_USER",
             "LLM_USER_NAME",
             "LLM_EMAIL",
+            "LLM_AUTHENTICATION",
             "LLM-provider",
             "LLM_PROVIDER NAME",
             "LLM_provider",

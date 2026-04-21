@@ -162,6 +162,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
             | "LLM_USER"
             | "LLM_USER_NAME"
             | "LLM_EMAIL"
+            | "LLM_AUTHENTICATION"
     ) {
         return false;
     }
