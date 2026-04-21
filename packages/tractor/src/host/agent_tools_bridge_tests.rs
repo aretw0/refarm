@@ -817,6 +817,14 @@
     }
 
     #[test]
+    fn fs_root_blocks_path_with_internal_whitespace() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let err = enforce_fs_root_with("safe file.txt", Some(&root)).unwrap_err();
+        assert!(err.contains("must not contain whitespace"));
+    }
+
+    #[test]
     fn fs_root_blocks_non_ascii_path() {
         let root_dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(root_dir.path()).unwrap();

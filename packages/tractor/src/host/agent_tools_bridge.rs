@@ -727,6 +727,9 @@ fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
     if contains_control_chars(path) {
         return Err("[blocked: path contains control characters]".to_string());
     }
+    if path.chars().any(|c| c.is_whitespace()) {
+        return Err("[blocked: path must not contain whitespace]".to_string());
+    }
     if path.len() > MAX_FS_PATH_LEN {
         return Err("[blocked: path exceeds max length]".to_string());
     }
