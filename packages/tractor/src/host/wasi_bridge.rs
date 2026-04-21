@@ -170,6 +170,7 @@ fn llm_complete_http(
 ) -> Result<Vec<u8>, String> {
     let expected = expected_llm_route_from_env();
     enforce_llm_route(provider, base_url, path, &expected)?;
+    let provider = provider.trim();
 
     let url = join_base_url_and_path(base_url, path);
     let mut req = ureq::post(&url);
@@ -178,11 +179,11 @@ fn llm_complete_http(
         req = req.set(name, value);
     }
 
-    if provider == "anthropic" {
+    if use_anthropic_auth(provider) {
         let key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
         req = req.set("x-api-key", &key);
-    } else if provider != "ollama" {
+    } else if use_openai_auth(provider) {
         if let Ok(key) = std::env::var("OPENAI_API_KEY") {
             if !key.trim().is_empty() {
                 req = req.set("authorization", &format!("Bearer {key}"));
@@ -198,6 +199,15 @@ fn llm_complete_http(
         }
         Err(e) => Err(format!("http error: {e}")),
     }
+}
+
+fn use_anthropic_auth(provider: &str) -> bool {
+    provider.trim() == "anthropic"
+}
+
+fn use_openai_auth(provider: &str) -> bool {
+    let provider = provider.trim();
+    provider != "ollama" && provider != "anthropic"
 }
 
 fn provider_name_from_env() -> String {
@@ -511,5 +521,23 @@ mod tests {
     fn join_base_url_and_path_trims_surrounding_whitespace() {
         let url = join_base_url_and_path(" https://api.openai.com/ ", " /v1/chat/completions ");
         assert_eq!(url, "https://api.openai.com/v1/chat/completions");
+    }
+
+    #[test]
+    fn auth_policy_treats_trimmed_ollama_as_no_host_auth() {
+        assert!(!use_anthropic_auth("ollama"));
+        assert!(!use_openai_auth("ollama"));
+
+        assert!(!use_anthropic_auth(" ollama "));
+        assert!(!use_openai_auth(" ollama "));
+    }
+
+    #[test]
+    fn auth_policy_treats_trimmed_anthropic_as_anthropic_auth() {
+        assert!(use_anthropic_auth("anthropic"));
+        assert!(!use_openai_auth("anthropic"));
+
+        assert!(use_anthropic_auth(" anthropic "));
+        assert!(!use_openai_auth(" anthropic "));
     }
 }
