@@ -1342,6 +1342,38 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_tunnel_and_social_auth_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("ngrok-authtoken".to_string(), "ngrok-token-evil".to_string()),
+            (
+                "X-Tailscale-Authkey".to_string(),
+                "tskey-auth-evil".to_string(),
+            ),
+            (
+                "x-telegram-bot-api-secret-token".to_string(),
+                "telegram-secret-evil".to_string(),
+            ),
+            (
+                "X-Matrix-Access-Token".to_string(),
+                "matrix-token-evil".to_string(),
+            ),
+            ("x-discord-token".to_string(), "discord-token-evil".to_string()),
+            (
+                "X-Slack-Signature".to_string(),
+                "v0=deadbeef".to_string(),
+            ),
+            (
+                "x-slack-request-timestamp".to_string(),
+                "1711111111".to_string(),
+            ),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_vault_and_k8s_auth_headers() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
