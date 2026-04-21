@@ -563,6 +563,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-tailscale-authkey"
             || n == "x-telegram-bot-api-secret-token"
             || n == "x-telegram-api-hash"
+            || n.starts_with("x-telegram-")
             || n == "x-twitter-bearer-token"
             || n == "x-twitter-webhooks-signature"
             || n.starts_with("x-twitter-")
@@ -574,7 +575,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-meta-")
             || n == "x-cloudflare-tunnel-token"
             || n == "x-matrix-access-token"
+            || n.starts_with("x-matrix-")
             || n == "x-discord-token"
+            || n.starts_with("x-discord-")
             || n == "x-signature-ed25519"
             || n == "x-signature-timestamp"
             || n == "x-hub-signature"
@@ -584,9 +587,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-stripe-signature"
             || n == "x-twilio-signature"
             || n == "x-line-signature"
+            || n.starts_with("x-line-")
             || n == "x-shopify-hmac-sha256"
             || n == "x-slack-signature"
             || n == "x-slack-request-timestamp"
+            || n.starts_with("x-slack-")
             || n == "x-ci-job-token"
             || n == "x-circleci-token"
             || n == "x-access-token"

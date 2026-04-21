@@ -1395,6 +1395,10 @@
                 "X-Telegram-Api-Hash".to_string(),
                 "telegram-api-hash-evil".to_string(),
             ),
+            (
+                "x-telegram-chat-id".to_string(),
+                "123456789".to_string(),
+            ),
             ("x-supabase-api-key".to_string(), "sb-key-evil".to_string()),
             (
                 "X-Metabase-Session".to_string(),
@@ -1440,7 +1444,15 @@
                 "X-Matrix-Access-Token".to_string(),
                 "matrix-token-evil".to_string(),
             ),
+            (
+                "x-matrix-server-name".to_string(),
+                "evil-matrix.example".to_string(),
+            ),
             ("x-discord-token".to_string(), "discord-token-evil".to_string()),
+            (
+                "x-discord-application-id".to_string(),
+                "123456789012345678".to_string(),
+            ),
             (
                 "X-Signature-Ed25519".to_string(),
                 "deadbeefsignature".to_string(),
@@ -1460,6 +1472,7 @@
                 "x-slack-request-timestamp".to_string(),
                 "1711111111".to_string(),
             ),
+            ("x-slack-team-id".to_string(), "T01234567".to_string()),
             ("X-Hub-Signature".to_string(), "sha1=deadbeef".to_string()),
             (
                 "x-hub-signature-256".to_string(),
@@ -1474,6 +1487,10 @@
                 "twilio-signature-evil".to_string(),
             ),
             ("X-Line-Signature".to_string(), "line-signature-evil".to_string()),
+            (
+                "x-line-channel-id".to_string(),
+                "line-channel-id-evil".to_string(),
+            ),
             (
                 "x-shopify-hmac-sha256".to_string(),
                 "shopify-hmac-evil".to_string(),
