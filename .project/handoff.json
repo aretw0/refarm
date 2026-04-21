@@ -1,25 +1,22 @@
 {
-  "context": "Frente única mantida: segurança Tractor/Pi-agent com commits pequenos focados em testes. Cobertura reforçada para llm-bridge route/header policy, gates shell/fs/trusted_plugins e auditoria RefarmConfig no plugin_host.",
-  "timestamp": "2026-04-21T00:11:56.975Z",
-  "current_phase": 2,
-  "current_tasks": [
-    "Security hardening tests for tractor host boundaries"
-  ],
-  "blockers": [
-    "Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
-  ],
-  "next_actions": [
-    "Decidir envio dos 11 commits locais e validar CI remoto sob autorização.",
-    "Após CI verde, abrir/atualizar task dedicada para próximo slice funcional (se necessário) mantendo diffs pequenos.",
-    "Se contexto subir, compactar após push/validação para preservar continuidade."
-  ],
-  "open_questions": [],
-  "key_decisions_pending": [],
-  "files_in_flux": [
-    "packages/tractor/src/host/wasi_bridge.rs",
-    "packages/tractor/src/host/agent_tools_bridge.rs",
-    "packages/tractor/src/host/plugin_host.rs",
-    ".project/issues.json",
-    ".project/handoff.json"
-  ]
+	"context": "Modo local-first mantido. Hardening incremental avançou com 31 commits locais pós-origin/develop, cobrindo: normalização/validação de rota llm-bridge (provider/base_url/path), sanitização de headers sensíveis (authorization/x-api-key/host), gates de shell allowlist (wildcard, argv vazio, binário vazio/whitespace), gate trusted_plugins (trim + plugin_id vazio bloqueado) e export de env/config no plugin_host (normalização provider/budgets, dedupe de chaves normalizadas, filtro de sufixos sensíveis).",
+	"timestamp": "2026-04-21T02:53:54Z",
+	"current_phase": 2,
+	"current_tasks": ["Security hardening tests for tractor host boundaries"],
+	"blockers": [
+		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
+	],
+	"next_actions": [
+		"Compactar contexto agora (~58%) com este handoff canônico atualizado.",
+		"Após compactação, continuar micro-slices locais (1 arquivo + teste + commit) até autorização de push.",
+		"Quando autorizado, pushar lote e validar CI remoto; depois registrar verification dedicada desta rodada."
+	],
+	"open_questions": [],
+	"key_decisions_pending": [],
+	"files_in_flux": [
+		"packages/tractor/src/host/wasi_bridge.rs",
+		"packages/tractor/src/host/agent_tools_bridge.rs",
+		"packages/tractor/src/host/plugin_host.rs",
+		".project/handoff.json"
+	]
 }
