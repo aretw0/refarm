@@ -669,6 +669,17 @@ mod tests {
     }
 
     #[test]
+    fn trusted_plugins_parse_wildcard_with_whitespace_allows_any_plugin() {
+        let cfg = serde_json::json!({"trusted_plugins": [" * "]});
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+        assert!(parsed.contains("*"));
+        assert_eq!(parsed.len(), 1);
+
+        let ok = enforce_trusted_plugin_for_shell_with("any_plugin", Some(&parsed));
+        assert!(ok.is_ok());
+    }
+
+    #[test]
     fn trusted_plugins_empty_array_blocks_all_plugins() {
         let cfg = serde_json::json!({"trusted_plugins": []});
         let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
