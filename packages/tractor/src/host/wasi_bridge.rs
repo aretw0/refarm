@@ -313,7 +313,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         .iter()
         .filter(|(name, _)| {
             let n = name.trim().to_ascii_lowercase();
-            !n.is_empty() && n != "authorization" && n != "x-api-key"
+            !n.is_empty() && n != "authorization" && n != "x-api-key" && n != "host"
         })
         .map(|(name, value)| (name.trim(), value.as_str()))
         .collect()
@@ -620,6 +620,17 @@ mod tests {
     fn sanitized_headers_drop_empty_header_names() {
         let headers = vec![
             ("   ".to_string(), "ignored".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_host_header_case_insensitive() {
+        let headers = vec![
+            ("Host".to_string(), "attacker.example".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
