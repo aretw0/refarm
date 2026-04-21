@@ -263,6 +263,10 @@ fn enforce_llm_route(
     path: &str,
     expected: &LlmRoute,
 ) -> Result<(), String> {
+    if provider.chars().any(|c| c.is_control()) || expected.provider.chars().any(|c| c.is_control()) {
+        return Err("[blocked: llm-bridge provider contains control characters]".to_string());
+    }
+
     let requested_provider = normalize_provider_name(provider);
     let expected_provider = normalize_provider_name(&expected.provider);
     if requested_provider != expected_provider {
@@ -472,6 +476,23 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("provider mismatch"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_provider_with_control_chars() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "open\nai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("control characters"));
     }
 
     #[test]
