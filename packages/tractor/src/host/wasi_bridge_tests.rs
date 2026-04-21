@@ -1434,6 +1434,35 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_connection_string_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            (
+                "x-database-url".to_string(),
+                "postgres://user:pass@db/evil".to_string(),
+            ),
+            (
+                "X-Redis-Url".to_string(),
+                "redis://:pass@redis:6379/0".to_string(),
+            ),
+            (
+                "x-mongodb-uri".to_string(),
+                "mongodb://user:pass@mongo:27017/evil".to_string(),
+            ),
+            (
+                "X-Postgres-Url".to_string(),
+                "postgres://user:pass@db/evil".to_string(),
+            ),
+            ("x-mysql-url".to_string(), "mysql://user:pass@db/evil".to_string()),
+            ("X-Broker-Url".to_string(), "amqp://user:pass@mq/evil".to_string()),
+            ("x-amqp-url".to_string(), "amqp://user:pass@mq/evil".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_managed_identity_headers() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
