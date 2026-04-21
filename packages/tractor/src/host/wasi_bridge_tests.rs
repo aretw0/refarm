@@ -1341,7 +1341,12 @@
                 "x-aws-ec2-metadata-token".to_string(),
                 "AQAEbW9jay10b2tlbg==".to_string(),
             ),
+            (
+                "X-Aws-Ec2-Metadata-Token-Ttl-Seconds".to_string(),
+                "21600".to_string(),
+            ),
             ("Metadata-Flavor".to_string(), "Google".to_string()),
+            ("X-Google-Metadata-Request".to_string(), "True".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
