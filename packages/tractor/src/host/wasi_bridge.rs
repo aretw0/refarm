@@ -366,9 +366,15 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
         return Err("[blocked: llm-bridge base_url must use http(s)]".to_string());
     };
 
-    let authority = rest.split('/').next().unwrap_or_default();
+    let (authority, suffix) = rest
+        .split_once('/')
+        .map(|(a, b)| (a, Some(b)))
+        .unwrap_or((rest, None));
     if authority.is_empty() {
         return Err("[blocked: llm-bridge base_url must include host]".to_string());
+    }
+    if suffix.is_some_and(|s| !s.is_empty() && s.chars().any(|c| c != '/')) {
+        return Err("[blocked: llm-bridge base_url must not include path]".to_string());
     }
     if authority.contains('@') {
         return Err("[blocked: llm-bridge base_url must not include credentials]".to_string());

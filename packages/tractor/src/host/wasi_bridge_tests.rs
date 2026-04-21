@@ -409,6 +409,42 @@
     }
 
     #[test]
+    fn enforce_route_blocks_base_url_with_path_segments() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com/v1",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("base_url must not include path"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_expected_base_url_with_path_segments() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com/v1".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("base_url must not include path"));
+    }
+
+    #[test]
     fn enforce_route_accepts_path_without_leading_slash() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
