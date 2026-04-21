@@ -393,6 +393,20 @@
             ("XDG_CACHE_HOME", "/tmp/evil-xdg-cache"),
             ("AWS_SHARED_CREDENTIALS_FILE", "/tmp/evil-aws-credentials"),
             ("aws_config_file", "/tmp/evil-aws-config"),
+            ("AWS_WEB_IDENTITY_TOKEN_FILE", "/tmp/evil-aws-web-identity"),
+            (
+                "AWS_CONTAINER_CREDENTIALS_RELATIVE_URI",
+                "/v2/credentials/evil",
+            ),
+            (
+                "aws_container_credentials_full_uri",
+                "http://169.254.170.2/v2/credentials/evil",
+            ),
+            ("AWS_CONTAINER_AUTHORIZATION_TOKEN", "Bearer evil"),
+            (
+                "AWS_CONTAINER_AUTHORIZATION_TOKEN_FILE",
+                "/tmp/evil-aws-auth-token",
+            ),
             ("GOOGLE_APPLICATION_CREDENTIALS", "/tmp/evil-gcp-sa.json"),
             ("AZURE_CONFIG_DIR", "/tmp/evil-azure-config"),
             ("KUBECONFIG", "/tmp/evil-kubeconfig"),
