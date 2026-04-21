@@ -217,7 +217,7 @@ fn sanitize_budget_provider_for_env(provider: &str) -> Option<String> {
 fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
     let Some(value) = value else { return; };
     let trimmed = value.trim();
-    if !trimmed.is_empty() {
+    if !trimmed.is_empty() && !trimmed.chars().any(|c| c.is_control()) {
         upsert_env_var_vec(vars, key.to_string(), trimmed.to_string());
     }
 }
@@ -225,7 +225,7 @@ fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Opti
 fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
     let Some(value) = value else { return; };
     let trimmed = value.trim();
-    if !trimmed.is_empty() {
+    if !trimmed.is_empty() && !trimmed.chars().any(|c| c.is_control()) {
         upsert_env_var_vec(vars, key.to_string(), trimmed.to_ascii_lowercase());
     }
 }
@@ -520,6 +520,25 @@ mod tests {
         assert_eq!(map["LLM_PROVIDER"], "openai");
         assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
         assert!(!map.contains_key("LLM_MODEL"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_string_fields_with_control_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"open\nai","model":"gpt\u0000x","default_provider":" ollama "}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_PROVIDER"));
+        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
     }
 
     #[test]
