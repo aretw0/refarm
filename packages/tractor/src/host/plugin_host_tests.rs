@@ -32,6 +32,7 @@
             "OPENAI_API_KEY",
             "LLM_OPENAI_API_KEY",
             "LLM_OPENAI_APIKEY",
+            "LLM_TELEGRAM_API_HASH",
             "LLM_OPENAI_KEY",
             "LLM_TS_AUTHKEY",
             "LLM_SESSION_TOKEN",
