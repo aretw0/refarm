@@ -618,7 +618,7 @@
     #[test]
     fn sanitized_headers_drop_overlong_header_value() {
         let headers = vec![
-            ("x-safe".to_string(), "a".repeat(8 * 1024 + 1)),
+            ("x-safe".to_string(), "a".repeat(16 * 1024 + 1)),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
@@ -638,7 +638,18 @@
     }
 
     #[test]
-    fn sanitized_headers_cap_total_forwarded_bytes() {
+    fn sanitized_headers_allow_large_single_header_within_pair_cap() {
+        let headers = vec![
+            ("x-large".to_string(), "a".repeat(12 * 1024)),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 2);
+        assert_eq!(out[0].0, "x-large");
+    }
+
+    #[test]
+    fn sanitized_headers_use_per_header_byte_cap_not_global_total() {
         let headers = vec![
             ("x-h1".to_string(), "a".repeat(8000)),
             ("x-h2".to_string(), "a".repeat(8000)),
@@ -646,9 +657,10 @@
         ];
 
         let out = sanitized_plugin_headers(&headers);
-        assert_eq!(out.len(), 2);
+        assert_eq!(out.len(), 3);
         assert_eq!(out[0].0, "x-h1");
         assert_eq!(out[1].0, "x-h2");
+        assert_eq!(out[2].0, "x-h3");
     }
 
     #[test]

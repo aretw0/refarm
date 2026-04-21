@@ -371,10 +371,9 @@ fn normalize_path(path: &str) -> String {
 
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_FORWARDED_HEADER_COUNT: usize = 64;
-    const MAX_FORWARDED_HEADER_TOTAL_BYTES: usize = 16 * 1024;
+    const MAX_HEADER_PAIR_BYTES: usize = 16 * 1024;
 
     let mut out = Vec::new();
-    let mut total_bytes = 0usize;
 
     for (name, value) in headers {
         if out.len() >= MAX_FORWARDED_HEADER_COUNT {
@@ -403,11 +402,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         }
 
         let trimmed_name = name.trim();
-        let next_total = total_bytes.saturating_add(trimmed_name.len() + value.len());
-        if next_total > MAX_FORWARDED_HEADER_TOTAL_BYTES {
+        if trimmed_name.len().saturating_add(value.len()) > MAX_HEADER_PAIR_BYTES {
             continue;
         }
-        total_bytes = next_total;
         out.push((trimmed_name, value.as_str()));
     }
 
@@ -425,7 +422,7 @@ fn is_safe_header_name(name: &str) -> bool {
 }
 
 fn is_safe_header_value(value: &str) -> bool {
-    const MAX_HEADER_VALUE_LEN: usize = 8 * 1024;
+    const MAX_HEADER_VALUE_LEN: usize = 16 * 1024;
     value.len() <= MAX_HEADER_VALUE_LEN && !value.chars().any(|c| c.is_control())
 }
 
@@ -461,7 +458,6 @@ fn read_limited_bytes(
     Ok(out)
 }
 
-#[cfg(test)]
 #[cfg(test)]
 #[path = "wasi_bridge_tests.rs"]
 mod tests;
