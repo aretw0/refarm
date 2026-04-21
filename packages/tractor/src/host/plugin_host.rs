@@ -181,6 +181,7 @@ fn is_forwardable_llm_env_value(value: &str) -> bool {
         && value.trim() == value
         && value.len() <= MAX_LLM_ENV_VALUE_LEN
         && value.is_ascii()
+        && !value.chars().any(|c| c.is_whitespace())
         && !value.chars().any(|c| c.is_control())
 }
 

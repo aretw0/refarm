@@ -53,7 +53,14 @@
             );
         }
 
-        let blocked_values = ["   ", " openai ", "open\nai", "open\u{0000}ai", "opénaí"];
+        let blocked_values = [
+            "   ",
+            " openai ",
+            "open ai",
+            "open\nai",
+            "open\u{0000}ai",
+            "opénaí",
+        ];
         for value in blocked_values {
             assert!(
                 !is_forwardable_llm_env_value(value),
