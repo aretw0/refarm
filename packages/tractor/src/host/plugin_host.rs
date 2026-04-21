@@ -350,6 +350,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_LINE_")
         || upper.contains("_MATRIX_")
         || upper.contains("_NGROK_")
+        || upper.contains("_VAULT_")
         || upper.contains("_TAILSCALE_")
         || upper.contains("_CLOUDFLARE_TUNNEL_")
         || upper.contains("_SENTRY_")

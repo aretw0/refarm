@@ -229,6 +229,7 @@
             "LLM_LINE_CHANNEL_ID",
             "LLM_MATRIX_SERVER_NAME",
             "LLM_NGROK_EDGE_LABEL",
+            "LLM_VAULT_ADDR",
             "LLM_TAILSCALE_CONTROL_URL",
             "LLM_CLOUDFLARE_TUNNEL_ID",
             "LLM_FORWARDED_IP",
