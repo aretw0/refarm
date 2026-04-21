@@ -354,6 +354,7 @@ impl PluginHost {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::NativeStorage;
 
     #[test]
     fn refarm_config_env_vars_returns_empty_when_no_file() {
@@ -400,6 +401,33 @@ mod tests {
     }
 
     #[test]
+    fn refarm_config_json_from_reads_valid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","model":"gpt-4o-mini"}"#,
+        )
+        .unwrap();
+
+        let cfg = refarm_config_json_from(dir.path()).expect("config should parse");
+        assert_eq!(cfg["provider"], "openai");
+        assert_eq!(cfg["model"], "gpt-4o-mini");
+    }
+
+    #[test]
+    fn refarm_config_json_from_returns_none_on_invalid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), b"not-json").unwrap();
+
+        let cfg = refarm_config_json_from(dir.path());
+        assert!(cfg.is_none());
+    }
+
+    #[test]
     fn merge_plugin_env_vars_config_overrides_llm_vars() {
         let llm = vec![
             ("LLM_PROVIDER".to_string(), "openai".to_string()),
@@ -434,5 +462,30 @@ mod tests {
         assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
         assert_eq!(payload["config_json"]["model"], "llama3.2");
         assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:pi_agent:"));
+    }
+
+    #[test]
+    fn store_refarm_config_node_persists_queryable_audit_record() {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-refarm-config").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+        ];
+        let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
+
+        store_refarm_config_node(&sync, "pi_agent", dir.path(), &env_vars, Some(&cfg)).unwrap();
+
+        let rows = sync.query_nodes("RefarmConfig").unwrap();
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(row.type_, "RefarmConfig");
+        assert_eq!(row.source_plugin.as_deref(), Some("tractor-host"));
+
+        let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
     }
 }
