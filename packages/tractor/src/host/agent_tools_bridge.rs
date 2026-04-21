@@ -706,6 +706,12 @@ fn enforce_fs_root_with(path: &str, fs_root: Option<&Path>) -> Result<(), String
 }
 
 fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
+    if path.is_empty() {
+        return Err("[blocked: path must be non-empty]".to_string());
+    }
+    if path.trim() != path {
+        return Err("[blocked: path contains surrounding whitespace]".to_string());
+    }
     if contains_control_chars(path) {
         return Err("[blocked: path contains control characters]".to_string());
     }
