@@ -328,6 +328,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_CF_ACCESS_AUTHENTICATED_USER_")
         || upper.contains("_CF_ACCESS_CLIENT_")
         || upper.contains("_CLOUDFLARE_ACCESS_CLIENT_")
+        || upper.contains("_SUPABASE_")
+        || upper.contains("_METABASE_")
         || upper.ends_with("_FORWARDED_IP")
         || upper.ends_with("_FORWARDED_FOR")
         || upper.ends_with("_FORWARDED_HOST")
