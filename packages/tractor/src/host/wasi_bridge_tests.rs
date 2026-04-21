@@ -757,6 +757,9 @@
             ("content-type".to_string(), "application/json".to_string()),
             ("authorization".to_string(), "Bearer fake".to_string()),
             ("x-api-key".to_string(), "fake-key".to_string()),
+            ("api-key".to_string(), "fake-key".to_string()),
+            ("x-auth-token".to_string(), "fake-key".to_string()),
+            ("x-access-token".to_string(), "fake-key".to_string()),
             ("cookie".to_string(), "session=abc".to_string()),
             ("set-cookie".to_string(), "session=abc".to_string()),
         ];
@@ -771,6 +774,9 @@
             ("Content-Type".to_string(), "application/json".to_string()),
             ("Authorization".to_string(), "Bearer fake".to_string()),
             ("X-API-KEY".to_string(), "fake-key".to_string()),
+            ("API-KEY".to_string(), "fake-key".to_string()),
+            ("X-AUTH-TOKEN".to_string(), "fake-key".to_string()),
+            ("X-ACCESS-TOKEN".to_string(), "fake-key".to_string()),
             ("Cookie".to_string(), "session=abc".to_string()),
             ("Set-Cookie".to_string(), "session=abc".to_string()),
         ];
@@ -785,6 +791,9 @@
             (" content-type ".to_string(), "application/json".to_string()),
             (" authorization ".to_string(), "Bearer fake".to_string()),
             (" x-api-key ".to_string(), "fake-key".to_string()),
+            (" api-key ".to_string(), "fake-key".to_string()),
+            (" x-auth-token ".to_string(), "fake-key".to_string()),
+            (" x-access-token ".to_string(), "fake-key".to_string()),
             (" cookie ".to_string(), "session=abc".to_string()),
             (" set-cookie ".to_string(), "session=abc".to_string()),
         ];
@@ -825,6 +834,8 @@
             ("X-Forwarded-For".to_string(), "1.2.3.4".to_string()),
             ("X-Forwarded-Host".to_string(), "evil.example".to_string()),
             ("X-Forwarded-Proto".to_string(), "http".to_string()),
+            ("X-Forwarded-Port".to_string(), "443".to_string()),
+            ("X-Forwarded-Server".to_string(), "edge-1".to_string()),
             ("X-Real-IP".to_string(), "1.2.3.4".to_string()),
             ("X-Client-IP".to_string(), "1.2.3.4".to_string()),
             ("True-Client-IP".to_string(), "1.2.3.4".to_string()),

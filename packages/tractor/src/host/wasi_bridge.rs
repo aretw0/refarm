@@ -534,6 +534,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         if n.is_empty()
             || n == "authorization"
             || n == "x-api-key"
+            || n == "api-key"
+            || n == "x-auth-token"
+            || n == "x-access-token"
             || n == "cookie"
             || n == "set-cookie"
             || n == "host"
@@ -545,6 +548,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-for"
             || n == "x-forwarded-host"
             || n == "x-forwarded-proto"
+            || n == "x-forwarded-port"
+            || n == "x-forwarded-server"
             || n == "x-real-ip"
             || n == "x-client-ip"
             || n == "true-client-ip"
