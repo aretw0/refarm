@@ -755,6 +755,40 @@
     }
 
     #[test]
+    fn configured_fs_root_rejects_non_ascii_value() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        std::env::set_var("LLM_FS_ROOT", "/tmp/raíz");
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("must be ascii"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
+    fn configured_fs_root_rejects_internal_whitespace() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        std::env::set_var("LLM_FS_ROOT", "/tmp/root dir");
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("whitespace not allowed"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
     fn configured_fs_root_rejects_overlong_value() {
         let _guard = ENV_LOCK.lock().unwrap();
         let prev = std::env::var("LLM_FS_ROOT").ok();
