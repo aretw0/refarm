@@ -429,6 +429,21 @@ mod tests {
     }
 
     #[test]
+    fn expected_route_uses_openai_family_default_provider_when_primary_is_blank() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "   ");
+        std::env::set_var("LLM_DEFAULT_PROVIDER", " openai-codex ");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai-codex");
+        assert_eq!(route.base_url, "https://api.openai.com");
+        assert_eq!(route.path, "/v1/chat/completions");
+
+        reset_llm_env();
+    }
+
+    #[test]
     fn expected_route_defaults_openai_family_to_openai_base_url() {
         let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();
