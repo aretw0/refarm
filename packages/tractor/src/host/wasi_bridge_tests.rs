@@ -1299,6 +1299,28 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_federated_identity_header_prefix_aliases() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            (
+                "x-goog-authenticated-user-name".to_string(),
+                "accounts.google.com:alice".to_string(),
+            ),
+            (
+                "X-GOOGLE-AUTHENTICATED-USER-NAME".to_string(),
+                "accounts.google.com:alice".to_string(),
+            ),
+            (
+                " cf-access-authenticated-user-name ".to_string(),
+                "alice".to_string(),
+            ),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_empty_header_names() {
         let headers = vec![
             ("   ".to_string(), "ignored".to_string()),
