@@ -322,6 +322,14 @@ fn enforce_shell_allowlist_with(
         .and_then(|s| s.to_str())
         .unwrap_or(binary);
 
+    let has_path_components = Path::new(binary).components().count() > 1;
+    if has_path_components {
+        if allowlist.contains(binary) {
+            return Ok(());
+        }
+        return Err(format!("[blocked: {binary} not in allowlist]"));
+    }
+
     if allowlist.contains(binary) || allowlist.contains(cmd) {
         return Ok(());
     }
@@ -612,11 +620,25 @@ mod tests {
     }
 
     #[test]
-    fn shell_allowlist_allows_binary_or_basename() {
+    fn shell_allowlist_allows_bare_binary_name() {
         let allowlist = parse_shell_allowlist("ls,grep");
 
         let direct = vec!["ls".to_string(), "-la".to_string()];
         assert!(enforce_shell_allowlist_with(&direct, Some(&allowlist)).is_ok());
+    }
+
+    #[test]
+    fn shell_allowlist_blocks_path_when_only_basename_allowed() {
+        let allowlist = parse_shell_allowlist("ls,grep");
+
+        let absolute = vec!["/bin/ls".to_string(), "-la".to_string()];
+        let err = enforce_shell_allowlist_with(&absolute, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("/bin/ls not in allowlist"));
+    }
+
+    #[test]
+    fn shell_allowlist_allows_exact_binary_path_entry() {
+        let allowlist = parse_shell_allowlist("/bin/ls");
 
         let absolute = vec!["/bin/ls".to_string(), "-la".to_string()];
         assert!(enforce_shell_allowlist_with(&absolute, Some(&allowlist)).is_ok());
