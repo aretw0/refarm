@@ -711,12 +711,19 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-cf-api-")
             || n.starts_with("x-cloudflare-api-")
             || n == "x-database-url"
+            || n.starts_with("x-database-")
             || n == "x-redis-url"
+            || n.starts_with("x-redis-")
             || n == "x-mongodb-uri"
+            || n.starts_with("x-mongodb-")
             || n == "x-postgres-url"
+            || n.starts_with("x-postgres-")
             || n == "x-mysql-url"
+            || n.starts_with("x-mysql-")
             || n == "x-broker-url"
+            || n.starts_with("x-broker-")
             || n == "x-amqp-url"
+            || n.starts_with("x-amqp-")
             || n == "x-sqlite-url"
             || n == "x-sqlite-path"
             || n == "x-sqlite-file"

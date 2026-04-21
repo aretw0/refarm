@@ -2132,21 +2132,37 @@
                 "x-database-url".to_string(),
                 "postgres://user:pass@db/evil".to_string(),
             ),
+            ("x-database-host".to_string(), "db.evil".to_string()),
             (
                 "X-Redis-Url".to_string(),
                 "redis://:pass@redis:6379/0".to_string(),
             ),
+            ("x-redis-host".to_string(), "redis.evil".to_string()),
             (
                 "x-mongodb-uri".to_string(),
                 "mongodb://user:pass@mongo:27017/evil".to_string(),
             ),
             (
+                "x-mongodb-dbname".to_string(),
+                "evil".to_string(),
+            ),
+            (
                 "X-Postgres-Url".to_string(),
                 "postgres://user:pass@db/evil".to_string(),
             ),
+            (
+                "x-postgres-user".to_string(),
+                "postgres-evil".to_string(),
+            ),
             ("x-mysql-url".to_string(), "mysql://user:pass@db/evil".to_string()),
+            (
+                "x-mysql-database".to_string(),
+                "evil".to_string(),
+            ),
             ("X-Broker-Url".to_string(), "amqp://user:pass@mq/evil".to_string()),
+            ("x-broker-host".to_string(), "mq.evil".to_string()),
             ("x-amqp-url".to_string(), "amqp://user:pass@mq/evil".to_string()),
+            ("x-amqp-host".to_string(), "mq.evil".to_string()),
             ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
             ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
             ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
