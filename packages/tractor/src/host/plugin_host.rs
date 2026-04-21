@@ -203,6 +203,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_OIDC_DATA")
         || upper.ends_with("_OIDC_IDENTITY")
         || upper.ends_with("_ACCESSTOKEN")
+        || upper.contains("_AMZN_OIDC_")
         || upper.ends_with("_USERINFO")
         || upper.ends_with("_CLIENT_PRINCIPAL")
         || upper.ends_with("_CLIENT_PRINCIPAL_ID")

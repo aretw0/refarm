@@ -67,6 +67,7 @@
             "LLM_OIDC_DATA",
             "LLM_OIDC_IDENTITY",
             "LLM_AMZN_OIDC_ACCESSTOKEN",
+            "LLM_AMZN_OIDC_SUB",
             "LLM_USERINFO",
             "LLM_CLIENT_PRINCIPAL",
             "LLM_CLIENT_PRINCIPAL_ID",
