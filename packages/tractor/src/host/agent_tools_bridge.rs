@@ -318,6 +318,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("YARN_")
         || upper.starts_with("PNPM_")
         || upper.starts_with("PIP_")
+        || upper.starts_with("CARGO_")
+        || upper.starts_with("RUSTUP_")
     {
         return true;
     }
@@ -373,6 +375,10 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
             | "_NETRC"
             | "CURL_HOME"
             | "WGETRC"
+            | "RUSTFLAGS"
+            | "RUSTDOCFLAGS"
+            | "RUSTC_WRAPPER"
+            | "RUSTC_WORKSPACE_WRAPPER"
             | "LD_PRELOAD"
             | "LD_AUDIT"
             | "LD_LIBRARY_PATH"
