@@ -78,6 +78,22 @@
     }
 
     #[test]
+    fn forwarded_llm_env_vars_from_iter_deduplicates_keys() {
+        let vars = vec![
+            ("LLM_PROVIDER".to_string(), "openai".to_string()),
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_MODEL".to_string(), "gpt-4.1-mini".to_string()),
+        ];
+
+        let out = forwarded_llm_env_vars_from_iter(vars);
+        let map: std::collections::HashMap<_, _> = out.into_iter().collect();
+
+        assert_eq!(map.len(), 2);
+        assert_eq!(map.get("LLM_PROVIDER"), Some(&"openai".to_string()));
+        assert_eq!(map.get("LLM_MODEL"), Some(&"gpt-4.1-mini".to_string()));
+    }
+
+    #[test]
     fn refarm_config_env_vars_maps_fields_correctly() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");

@@ -118,6 +118,7 @@ where
 
     let mut out = Vec::new();
     let mut total_bytes = 0usize;
+    let mut seen_keys = std::collections::HashSet::new();
 
     for (k, v) in vars {
         if out.len() >= MAX_FORWARDED_LLM_ENV_VARS {
@@ -126,10 +127,14 @@ where
         if !is_forwardable_llm_env_key(&k) || !is_forwardable_llm_env_value(&v) {
             continue;
         }
+        if seen_keys.contains(&k) {
+            continue;
+        }
         let next_total = total_bytes.saturating_add(k.len() + v.len());
         if next_total > MAX_FORWARDED_LLM_ENV_TOTAL_BYTES {
             continue;
         }
+        seen_keys.insert(k.clone());
         total_bytes = next_total;
         out.push((k, v));
     }
