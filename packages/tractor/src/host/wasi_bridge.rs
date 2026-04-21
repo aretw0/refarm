@@ -233,7 +233,9 @@ fn normalize_provider_name(value: &str) -> String {
 }
 
 fn is_safe_provider_token(value: &str) -> bool {
+    const MAX_PROVIDER_TOKEN_LEN: usize = 64;
     !value.is_empty()
+        && value.len() <= MAX_PROVIDER_TOKEN_LEN
         && value
             .bytes()
             .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'-' || b == b'_')
@@ -562,6 +564,23 @@ mod tests {
         };
         let err = enforce_llm_route(
             "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("invalid characters"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_overlong_provider_token() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            &"a".repeat(65),
             "https://api.openai.com",
             "/v1/chat/completions",
             &expected,
