@@ -248,9 +248,11 @@ fn contains_whitespace(value: &str) -> bool {
 }
 
 fn is_safe_plugin_id_token(value: &str) -> bool {
-    value
-        .bytes()
-        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
+    const MAX_PLUGIN_ID_LEN: usize = 128;
+    value.len() <= MAX_PLUGIN_ID_LEN
+        && value
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }
 
 fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
@@ -865,6 +867,13 @@ mod tests {
     }
 
     #[test]
+    fn trusted_plugins_parse_blocks_overlong_plugin_id() {
+        let cfg = serde_json::json!({"trusted_plugins": ["a".repeat(129)]});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("invalid characters"));
+    }
+
+    #[test]
     fn trusted_plugins_parse_trims_and_deduplicates_values() {
         let cfg = serde_json::json!({
             "trusted_plugins": [" pi_agent ", "pi_agent", "  ", "agent-tools"]
@@ -934,6 +943,14 @@ mod tests {
     fn trusted_plugins_blocks_invalid_characters_plugin_id() {
         let allowed = std::collections::HashSet::from(["*".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("plugin a", Some(&allowed)).unwrap_err();
+        assert!(err.contains("invalid characters"));
+    }
+
+    #[test]
+    fn trusted_plugins_blocks_overlong_plugin_id() {
+        let allowed = std::collections::HashSet::from(["*".to_string()]);
+        let plugin_id = "a".repeat(129);
+        let err = enforce_trusted_plugin_for_shell_with(&plugin_id, Some(&allowed)).unwrap_err();
         assert!(err.contains("invalid characters"));
     }
 
