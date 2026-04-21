@@ -432,7 +432,13 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
         return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
     }
 
-    let bytes = std::fs::read(path).map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    let mut file = std::fs::File::open(path).map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    let mut bytes = Vec::new();
+    use std::io::Read as _;
+    (&mut file)
+        .take(MAX_REFARM_CONFIG_BYTES + 1)
+        .read_to_end(&mut bytes)
+        .map_err(|e| format!("read .refarm/config.json: {e}"))?;
     if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
         return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
     }
