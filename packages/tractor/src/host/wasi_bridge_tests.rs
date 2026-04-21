@@ -356,6 +356,21 @@
                 "invalid authority characters",
             ),
             (
+                "port_non_numeric",
+                "https://api.openai.com:abc",
+                "invalid authority characters",
+            ),
+            (
+                "port_out_of_range",
+                "https://api.openai.com:70000",
+                "invalid authority characters",
+            ),
+            (
+                "port_empty",
+                "https://api.openai.com:",
+                "invalid authority characters",
+            ),
+            (
                 "query",
                 "https://api.openai.com?x=1",
                 "must not include query or fragment",
@@ -809,6 +824,15 @@
         assert_eq!(out[0].0, "x-header-000");
         assert_eq!(out[15].0, "x-header-015");
         assert!(out.iter().all(|(k, _)| *k != "x-header-016"));
+    }
+
+    #[test]
+    fn normalize_base_url_accepts_valid_numeric_port_and_ipv6_authority() {
+        let with_port = normalize_base_url("https://api.openai.com:443/").unwrap();
+        assert_eq!(with_port, "https://api.openai.com:443");
+
+        let ipv6 = normalize_base_url("http://[::1]:11434/").unwrap();
+        assert_eq!(ipv6, "http://[::1]:11434");
     }
 
     #[test]

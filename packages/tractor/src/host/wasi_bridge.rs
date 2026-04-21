@@ -388,10 +388,56 @@ fn normalize_base_url(base_url: &str) -> Result<String, String> {
 
 fn is_safe_base_url_authority(authority: &str) -> bool {
     const MAX_AUTHORITY_LEN: usize = 255;
-    authority.len() <= MAX_AUTHORITY_LEN
-        && authority
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-' | b':' | b'[' | b']'))
+    if authority.is_empty() || authority.len() > MAX_AUTHORITY_LEN {
+        return false;
+    }
+
+    fn valid_host_ascii(host: &str) -> bool {
+        !host.is_empty()
+            && host
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'-'))
+    }
+
+    fn valid_port(port: &str) -> bool {
+        if port.is_empty() || port.len() > 5 || !port.bytes().all(|b| b.is_ascii_digit()) {
+            return false;
+        }
+        let Ok(value) = port.parse::<u16>() else {
+            return false;
+        };
+        value > 0
+    }
+
+    if let Some(rest) = authority.strip_prefix('[') {
+        let Some((ipv6, tail)) = rest.split_once(']') else {
+            return false;
+        };
+        if ipv6.is_empty()
+            || !ipv6
+                .bytes()
+                .all(|b| b.is_ascii_hexdigit() || b == b':' || b == b'.')
+        {
+            return false;
+        }
+        if tail.is_empty() {
+            return true;
+        }
+        if let Some(port) = tail.strip_prefix(':') {
+            return valid_port(port);
+        }
+        return false;
+    }
+
+    if authority.contains('[') || authority.contains(']') {
+        return false;
+    }
+
+    match authority.rsplit_once(':') {
+        Some((host, _port)) if host.contains(':') => false,
+        Some((host, port)) => valid_host_ascii(host) && valid_port(port),
+        None => valid_host_ascii(authority),
+    }
 }
 
 fn normalize_path(path: &str) -> String {
