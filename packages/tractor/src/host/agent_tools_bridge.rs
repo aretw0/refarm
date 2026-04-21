@@ -226,11 +226,18 @@ fn enforce_trusted_plugin_for_shell_with(
     if plugin_id.is_empty() {
         return Err("[blocked: plugin id is empty]".to_string());
     }
+    if contains_control_chars(plugin_id) {
+        return Err("[blocked: plugin id contains control characters]".to_string());
+    }
     if allowed.contains("*") || allowed.contains(plugin_id) {
         Ok(())
     } else {
         Err(format!("[blocked: plugin '{plugin_id}' not allowed to use agent-shell]"))
     }
+}
+
+fn contains_control_chars(value: &str) -> bool {
+    value.chars().any(|c| c.is_control())
 }
 
 fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
@@ -297,7 +304,7 @@ fn enforce_shell_allowlist_with(
     if binary != binary_raw {
         return Err("[blocked: binary contains surrounding whitespace]".into());
     }
-    if binary.chars().any(|c| c.is_control()) {
+    if contains_control_chars(binary) {
         return Err("[blocked: binary contains control characters]".into());
     }
     if allowlist.contains("*") {
@@ -810,6 +817,13 @@ mod tests {
         let allowed = std::collections::HashSet::from(["*".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("   ", Some(&allowed)).unwrap_err();
         assert!(err.contains("plugin id is empty"));
+    }
+
+    #[test]
+    fn trusted_plugins_blocks_control_characters_plugin_id() {
+        let allowed = std::collections::HashSet::from(["*".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("plugin\n-a", Some(&allowed)).unwrap_err();
+        assert!(err.contains("control characters"));
     }
 
     #[test]
