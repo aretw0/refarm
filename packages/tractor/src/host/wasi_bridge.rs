@@ -306,6 +306,9 @@ fn enforce_llm_route(
     if path.chars().any(|c| c.is_control()) || expected.path.chars().any(|c| c.is_control()) {
         return Err("[blocked: llm-bridge path contains control characters]".to_string());
     }
+    if !path.is_ascii() || !expected.path.is_ascii() {
+        return Err("[blocked: llm-bridge path must be ascii]".to_string());
+    }
     if base_url.len() > MAX_BASE_URL_LEN || expected.base_url.len() > MAX_BASE_URL_LEN {
         return Err("[blocked: llm-bridge base_url too long]".to_string());
     }
