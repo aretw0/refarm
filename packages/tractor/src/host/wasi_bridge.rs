@@ -299,6 +299,16 @@ fn enforce_llm_route(
     if path.len() > MAX_PATH_LEN || expected.path.len() > MAX_PATH_LEN {
         return Err("[blocked: llm-bridge path too long]".to_string());
     }
+    if path.contains('?')
+        || path.contains('#')
+        || expected.path.contains('?')
+        || expected.path.contains('#')
+    {
+        return Err("[blocked: llm-bridge path must not include query or fragment]".to_string());
+    }
+    if path.contains('\\') || expected.path.contains('\\') {
+        return Err("[blocked: llm-bridge path contains invalid separator]".to_string());
+    }
 
     let requested_provider = normalize_provider_name(provider);
     let expected_provider = normalize_provider_name(&expected.provider);

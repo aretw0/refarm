@@ -214,6 +214,51 @@
     }
 
     #[test]
+    fn enforce_route_blocks_path_with_query_or_fragment() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+
+        let err_query = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions?stream=true",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err_query.contains("path must not include query or fragment"));
+
+        let err_fragment = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions#frag",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err_fragment.contains("path must not include query or fragment"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_path_with_invalid_separator() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "\\v1\\chat\\completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("invalid separator"));
+    }
+
+    #[test]
     fn enforce_route_blocks_overlong_base_url() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
