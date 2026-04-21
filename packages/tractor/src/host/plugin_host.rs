@@ -227,7 +227,12 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_END_USER")
         || upper.ends_with("_END_USER_EMAIL")
         || upper.ends_with("_FORWARDED_IP")
-        || upper.ends_with("_CLIENT_IP"))
+        || upper.ends_with("_CLIENT_IP")
+        || upper.ends_with("_CLIENT_DN")
+        || upper.ends_with("_CLIENT_SAN")
+        || upper.ends_with("_CLIENT_CERT_CHAIN")
+        || upper.ends_with("_SSL_CLIENT_DN")
+        || upper.ends_with("_SSL_CLIENT_SAN"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {

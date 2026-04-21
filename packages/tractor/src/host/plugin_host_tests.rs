@@ -94,6 +94,11 @@
             "LLM_END_USER_EMAIL",
             "LLM_FORWARDED_IP",
             "LLM_CLIENT_IP",
+            "LLM_CLIENT_DN",
+            "LLM_CLIENT_SAN",
+            "LLM_CLIENT_CERT_CHAIN",
+            "LLM_SSL_CLIENT_DN",
+            "LLM_SSL_CLIENT_SAN",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
