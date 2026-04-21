@@ -282,11 +282,11 @@ fn enforce_shell_allowlist_with(
     let Some(allowlist) = allowlist else {
         return Ok(());
     };
-    if allowlist.contains("*") {
-        return Ok(());
-    }
     if argv.is_empty() {
         return Err("spawn: argv must be non-empty".into());
+    }
+    if allowlist.contains("*") {
+        return Ok(());
     }
     let binary = argv[0].as_str();
     let cmd = Path::new(binary)
@@ -597,6 +597,15 @@ mod tests {
         let argv = vec!["definitely-not-in-list".to_string()];
         let result = enforce_shell_allowlist_with(&argv, Some(&allowlist));
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn shell_allowlist_wildcard_still_rejects_empty_argv() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec![];
+        let result = enforce_shell_allowlist_with(&argv, Some(&allowlist));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("argv must be non-empty"));
     }
 
     #[test]
