@@ -599,7 +599,7 @@
     }
 
     #[test]
-    fn enforce_route_accepts_trimmed_provider_base_url_and_path() {
+    fn enforce_route_accepts_trimmed_provider_and_base_url() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
@@ -608,10 +608,27 @@
         let result = enforce_llm_route(
             " openai ",
             " https://api.openai.com/ ",
-            "  v1/chat/completions  ",
+            "v1/chat/completions",
             &expected,
         );
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn enforce_route_blocks_path_with_surrounding_whitespace() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "  v1/chat/completions  ",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("path contains surrounding whitespace"));
     }
 
     #[test]
