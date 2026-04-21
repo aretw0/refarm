@@ -864,9 +864,12 @@
             ("OCI_CLI_AUTH", "security_token"),
             ("oci_cli_region", "sa-saopaulo-1"),
             ("NETRC", "/tmp/evil.netrc"),
+            ("NETRC_MACHINE", "evil-machine"),
             ("_NETRC", "1"),
             ("CURL_HOME", "/tmp/evil-curl-home"),
+            ("CURL_SSL_BACKEND", "openssl"),
             ("WGETRC", "/tmp/evil-wgetrc"),
+            ("WGET_USER", "evil-user"),
         ];
 
         for (key, value) in cases {
