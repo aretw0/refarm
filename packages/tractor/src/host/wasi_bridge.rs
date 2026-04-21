@@ -611,12 +611,18 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-hub-signature"
             || n == "x-hub-signature-256"
             || n == "x-gitea-signature"
+            || n.starts_with("x-gitea-")
             || n == "x-gogs-signature"
+            || n.starts_with("x-gogs-")
             || n == "x-stripe-signature"
+            || n.starts_with("x-stripe-")
             || n == "x-twilio-signature"
+            || n.starts_with("x-twilio-")
+            || n.starts_with("x-signal-")
             || n == "x-line-signature"
             || n.starts_with("x-line-")
             || n == "x-shopify-hmac-sha256"
+            || n.starts_with("x-shopify-")
             || n == "x-slack-signature"
             || n == "x-slack-request-timestamp"
             || n.starts_with("x-slack-")

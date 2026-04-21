@@ -1656,7 +1656,12 @@
                 "gitlab-webhook-token-evil".to_string(),
             ),
             ("X-Gitea-Signature".to_string(), "gitea-signature-evil".to_string()),
+            (
+                "x-gitea-delivery".to_string(),
+                "gitea-delivery-evil".to_string(),
+            ),
             ("x-gogs-signature".to_string(), "gogs-signature-evil".to_string()),
+            ("x-gogs-delivery".to_string(), "gogs-delivery-evil".to_string()),
             (
                 "X-Slack-Signature".to_string(),
                 "v0=deadbeef".to_string(),
@@ -1676,8 +1681,20 @@
                 "t=1711111111,v1=deadbeef".to_string(),
             ),
             (
+                "x-stripe-account".to_string(),
+                "acct_evil".to_string(),
+            ),
+            (
                 "x-twilio-signature".to_string(),
                 "twilio-signature-evil".to_string(),
+            ),
+            (
+                "x-twilio-webhook-id".to_string(),
+                "twilio-webhook-evil".to_string(),
+            ),
+            (
+                "x-signal-signature".to_string(),
+                "signal-signature-evil".to_string(),
             ),
             ("X-Line-Signature".to_string(), "line-signature-evil".to_string()),
             (
@@ -1687,6 +1704,10 @@
             (
                 "x-shopify-hmac-sha256".to_string(),
                 "shopify-hmac-evil".to_string(),
+            ),
+            (
+                "x-shopify-topic".to_string(),
+                "orders/create".to_string(),
             ),
         ];
         let out = sanitized_plugin_headers(&headers);
