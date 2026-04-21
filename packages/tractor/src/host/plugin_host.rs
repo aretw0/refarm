@@ -167,8 +167,11 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         return false;
     }
     !(upper.ends_with("_API_KEY")
+        || upper.ends_with("_APIKEY")
         || upper.ends_with("_KEY")
+        || upper.ends_with("_AUTHKEY")
         || upper.ends_with("_TOKEN")
+        || upper.ends_with("_AUTHTOKEN")
         || upper.ends_with("_SECRET")
         || upper.ends_with("_COOKIE")
         || upper.ends_with("_PASSWORD")
