@@ -317,10 +317,27 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         .iter()
         .filter(|(name, _)| {
             let n = name.trim().to_ascii_lowercase();
-            !n.is_empty() && n != "authorization" && n != "x-api-key" && n != "host"
+            !n.is_empty()
+                && n != "authorization"
+                && n != "x-api-key"
+                && n != "host"
+                && is_safe_header_name(name)
         })
+        .filter(|(_, value)| is_safe_header_value(value))
         .map(|(name, value)| (name.trim(), value.as_str()))
         .collect()
+}
+
+fn is_safe_header_name(name: &str) -> bool {
+    let trimmed = name.trim();
+    !trimmed.is_empty()
+        && trimmed
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"!#$%&'*+-.^_`|~".contains(&b))
+}
+
+fn is_safe_header_value(value: &str) -> bool {
+    !value.contains(['\r', '\n'])
 }
 
 fn join_base_url_and_path(base_url: &str, path: &str) -> String {
@@ -656,6 +673,28 @@ mod tests {
     fn sanitized_headers_drop_host_header_case_insensitive() {
         let headers = vec![
             ("Host".to_string(), "attacker.example".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_invalid_header_names() {
+        let headers = vec![
+            ("x-evil:injected".to_string(), "1".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_values_with_newline() {
+        let headers = vec![
+            ("x-safe".to_string(), "ok\r\nInjected: 1".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
