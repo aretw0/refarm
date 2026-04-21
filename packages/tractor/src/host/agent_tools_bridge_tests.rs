@@ -824,6 +824,23 @@
         assert!(err.contains("changed during trusted_plugins read"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn trusted_plugins_config_path_guard_blocks_file_replaced_at_same_path() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, br#"{"trusted_plugins":["a"]}"#).unwrap();
+
+        let file = std::fs::File::open(&path).unwrap();
+
+        let replacement = dir.path().join("replacement.json");
+        std::fs::write(&replacement, br#"{"trusted_plugins":["b"]}"#).unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+
+        let err = ensure_trusted_plugins_config_path_matches_open_file(&path, &file).unwrap_err();
+        assert!(err.contains("changed during trusted_plugins read"));
+    }
+
     #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
         let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});

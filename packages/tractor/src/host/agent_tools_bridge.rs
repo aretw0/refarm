@@ -441,6 +441,7 @@ fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, Str
         .take(MAX_REFARM_CONFIG_BYTES + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| format!("read .refarm/config.json: {e}"))?;
+    ensure_trusted_plugins_config_path_matches_open_file(path, &file)?;
     if bytes.len() as u64 > MAX_REFARM_CONFIG_BYTES {
         return Err("[blocked: .refarm/config.json exceeds max size for trusted_plugins]".to_string());
     }
