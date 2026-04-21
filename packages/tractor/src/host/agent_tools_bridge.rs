@@ -248,6 +248,7 @@ fn contains_whitespace(value: &str) -> bool {
 }
 
 const MAX_SHELL_TOKEN_LEN: usize = 256;
+const MAX_FS_PATH_LEN: usize = 4096;
 
 fn is_safe_plugin_id_token(value: &str) -> bool {
     const MAX_PLUGIN_ID_LEN: usize = 128;
@@ -406,6 +407,9 @@ fn enforce_fs_root_with(path: &str, fs_root: Option<&Path>) -> Result<(), String
 fn resolve_for_fs_policy(path: &str) -> Result<PathBuf, String> {
     if contains_control_chars(path) {
         return Err("[blocked: path contains control characters]".to_string());
+    }
+    if path.len() > MAX_FS_PATH_LEN {
+        return Err("[blocked: path exceeds max length]".to_string());
     }
 
     let candidate = if Path::new(path).is_absolute() {
@@ -818,6 +822,15 @@ mod tests {
         let root = std::fs::canonicalize(root_dir.path()).unwrap();
         let err = enforce_fs_root_with("safe\nname.txt", Some(&root)).unwrap_err();
         assert!(err.contains("control characters"));
+    }
+
+    #[test]
+    fn fs_root_blocks_overlong_paths() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let path = format!("/{}", "a".repeat(4097));
+        let err = enforce_fs_root_with(&path, Some(&root)).unwrap_err();
+        assert!(err.contains("exceeds max length"));
     }
 
     #[test]
