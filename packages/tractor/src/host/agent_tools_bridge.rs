@@ -10,7 +10,7 @@
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
-use tokio::io::AsyncWriteExt as _;
+use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::process::Command;
 use tokio::time::{timeout, Duration};
 
@@ -155,24 +155,11 @@ pub(crate) async fn spawn_process(
 
     // Drain stdout/stderr on background tasks — lets us call child.kill()
     // if the timeout fires without consuming ownership via wait_with_output.
-    use tokio::io::AsyncReadExt as _;
-    let mut out_pipe = child.stdout.take();
-    let mut err_pipe = child.stderr.take();
+    let out_pipe = child.stdout.take();
+    let err_pipe = child.stderr.take();
 
-    let stdout_task = tokio::spawn(async move {
-        let mut buf = Vec::new();
-        if let Some(ref mut p) = out_pipe {
-            let _ = p.read_to_end(&mut buf).await;
-        }
-        buf
-    });
-    let stderr_task = tokio::spawn(async move {
-        let mut buf = Vec::new();
-        if let Some(ref mut p) = err_pipe {
-            let _ = p.read_to_end(&mut buf).await;
-        }
-        buf
-    });
+    let stdout_task = tokio::spawn(read_spawn_pipe_limited(out_pipe));
+    let stderr_task = tokio::spawn(read_spawn_pipe_limited(err_pipe));
 
     match timeout(timeout_dur, child.wait()).await {
         Ok(Ok(status)) => {
@@ -272,6 +259,30 @@ const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
 const MAX_SPAWN_ENV_VARS: usize = 128;
 const MAX_SPAWN_CWD_LEN: usize = 4096;
 const MAX_SPAWN_STDIN_LEN: usize = 1024 * 1024;
+const MAX_SPAWN_STDIO_LEN: usize = 1024 * 1024;
+
+async fn read_spawn_pipe_limited<R>(pipe: Option<R>) -> Vec<u8>
+where
+    R: AsyncRead + Unpin,
+{
+    let mut buf = Vec::new();
+    let Some(mut pipe) = pipe else {
+        return buf;
+    };
+    if (&mut pipe)
+        .take(MAX_SPAWN_STDIO_LEN as u64 + 1)
+        .read_to_end(&mut buf)
+        .await
+        .is_err()
+    {
+        return Vec::new();
+    }
+    if buf.len() > MAX_SPAWN_STDIO_LEN {
+        buf.truncate(MAX_SPAWN_STDIO_LEN);
+        buf.extend_from_slice(b"\n[truncated: spawn output exceeded limit]");
+    }
+    buf
+}
 
 fn is_safe_spawn_env_key(key: &str) -> bool {
     if key.is_empty() || key.len() > MAX_SPAWN_ENV_KEY_LEN {

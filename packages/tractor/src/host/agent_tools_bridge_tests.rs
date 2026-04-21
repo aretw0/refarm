@@ -178,6 +178,25 @@
     }
 
     #[tokio::test]
+    async fn spawn_truncates_overlong_stdout() {
+        let bytes = MAX_SPAWN_STDIO_LEN + 1;
+        let argv = vec![
+            "sh".to_string(),
+            "-c".to_string(),
+            format!("head -c {bytes} /dev/zero"),
+        ];
+
+        let (stdout, stderr, exit_code, timed_out) = spawn_process(&argv, &[], None, 5_000, None)
+            .await
+            .unwrap();
+
+        assert_eq!(exit_code, 0);
+        assert!(!timed_out);
+        assert!(stderr.is_empty());
+        assert!(stdout.ends_with(b"[truncated: spawn output exceeded limit]"));
+    }
+
+    #[tokio::test]
     async fn spawn_env_clear_no_ambient_env() {
         let mut b = make_bindings();
         let result = AgentShellHost::spawn(
