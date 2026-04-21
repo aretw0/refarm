@@ -460,6 +460,9 @@
             ("AWS_SESSION_TOKEN", "evil-session-token"),
             ("AWS_PROFILE", "evil-profile"),
             ("aws_default_profile", "evil-default-profile"),
+            ("AWS_ROLE_ARN", "arn:aws:iam::123456789012:role/evil"),
+            ("aws_role_session_name", "evil-session"),
+            ("AWS_ROLE_SESSION_DURATION", "3600"),
             ("BOTO_CONFIG", "/tmp/evil-boto-config"),
             ("AWS_WEB_IDENTITY_TOKEN_FILE", "/tmp/evil-aws-web-identity"),
             (
@@ -483,9 +486,17 @@
             ("GCP_ID_TOKEN", "eyJhbGciOiJSUzI1NiJ9.evil.gcp.id"),
             ("GOOGLE_GHA_CREDS_PATH", "/tmp/gha-creds-evil.json"),
             ("GOOGLE_CLOUD_PROJECT", "evil-project"),
+            (
+                "GOOGLE_IMPERSONATE_SERVICE_ACCOUNT",
+                "evil-sa@project.iam.gserviceaccount.com",
+            ),
             ("gcloud_project", "evil-project"),
             ("cloudsdk_config", "/tmp/evil-gcloud-config"),
             ("CLOUDSDK_AUTH_ACCESS_TOKEN", "ya29.eviltoken"),
+            (
+                "cloudsdk_auth_credential_file_override",
+                "/tmp/evil-gcloud-creds.json",
+            ),
             ("AZURE_CONFIG_DIR", "/tmp/evil-azure-config"),
             ("AZURE_FEDERATED_TOKEN_FILE", "/tmp/evil-azure-federated.jwt"),
             ("AZURE_ACCESS_TOKEN", "evil-azure-access-token"),
