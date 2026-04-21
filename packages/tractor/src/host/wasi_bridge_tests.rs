@@ -692,6 +692,17 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_values_with_surrounding_unicode_whitespace() {
+        let headers = vec![
+            ("x-safe".to_string(), "\u{00A0}token\u{00A0}".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_overlong_header_name() {
         let long_name = format!("x-{}", "a".repeat(130));
         let headers = vec![
