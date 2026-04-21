@@ -549,6 +549,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-session-token"
             || n == "x-id-token"
             || n == "x-amz-security-token"
+            || n == "x-aws-ec2-metadata-token"
+            || n == "metadata-flavor"
             || n == "cf-access-jwt-assertion"
             || n == "x-goog-iap-jwt-assertion"
             || n == "x-goog-authenticated-user-email"

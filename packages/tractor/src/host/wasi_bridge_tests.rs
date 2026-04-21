@@ -1322,6 +1322,21 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_metadata_auth_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            (
+                "x-aws-ec2-metadata-token".to_string(),
+                "AQAEbW9jay10b2tlbg==".to_string(),
+            ),
+            ("Metadata-Flavor".to_string(), "Google".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_empty_header_names() {
         let headers = vec![
             ("   ".to_string(), "ignored".to_string()),
