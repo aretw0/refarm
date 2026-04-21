@@ -358,6 +358,10 @@
             ("REQUESTS_CA_BUNDLE", "/tmp/evil-requests-ca.pem"),
             ("CURL_CA_BUNDLE", "/tmp/evil-curl-ca.pem"),
             ("GIT_SSL_CAINFO", "/tmp/evil-git-ca.pem"),
+            ("HTTP_PROXY", "http://127.0.0.1:8888"),
+            ("https_proxy", "http://127.0.0.1:8888"),
+            ("ALL_PROXY", "socks5://127.0.0.1:1080"),
+            ("NO_PROXY", "*"),
         ];
 
         for (key, value) in cases {
