@@ -139,11 +139,9 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
         return vec![];
     };
     let mut vars: Vec<(String, String)> = Vec::new();
-    if let Some(v) = cfg["provider"].as_str() { vars.push(("LLM_PROVIDER".into(), v.into())); }
-    if let Some(v) = cfg["model"].as_str()    { vars.push(("LLM_MODEL".into(), v.into())); }
-    if let Some(v) = cfg["default_provider"].as_str() {
-        vars.push(("LLM_DEFAULT_PROVIDER".into(), v.into()));
-    }
+    push_trimmed_env_var(&mut vars, "LLM_PROVIDER", cfg["provider"].as_str());
+    push_trimmed_env_var(&mut vars, "LLM_MODEL", cfg["model"].as_str());
+    push_trimmed_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
     if let Some(budgets) = cfg["budgets"].as_object() {
         for (provider, amount) in budgets {
             if let Some(usd) = amount.as_f64() {
@@ -153,6 +151,14 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
         }
     }
     vars
+}
+
+fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<&str>) {
+    let Some(value) = value else { return; };
+    let trimmed = value.trim();
+    if !trimmed.is_empty() {
+        vars.push((key.to_string(), trimmed.to_string()));
+    }
 }
 
 fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
@@ -400,6 +406,25 @@ mod tests {
         assert!(!map.contains_key("LLM_BUDGET_ANTHROPIC_USD"));
         assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
         assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "1.25");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_trim_and_skip_empty_string_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"  openai  ","model":"   ","default_provider":"\tollama\t"}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("LLM_MODEL"));
     }
 
     #[test]
