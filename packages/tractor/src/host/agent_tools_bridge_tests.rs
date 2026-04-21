@@ -733,6 +733,23 @@
         assert!(err.contains("must be a regular file"));
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn trusted_plugins_config_reader_blocks_symlink_entry() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+
+        let target = dir.path().join("real-config.json");
+        std::fs::write(&target, br#"{"trusted_plugins":["pi_agent"]}"#).unwrap();
+
+        let link = refarm_dir.join("config.json");
+        std::os::unix::fs::symlink(&target, &link).unwrap();
+
+        let err = read_trusted_plugins_config_bytes(&link).unwrap_err();
+        assert!(err.contains("must be a regular file"));
+    }
+
     #[test]
     fn trusted_plugins_parse_blocks_invalid_type() {
         let cfg = serde_json::json!({"trusted_plugins": "pi_agent"});

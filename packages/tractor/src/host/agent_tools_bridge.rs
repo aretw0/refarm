@@ -410,7 +410,7 @@ fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashS
 fn read_trusted_plugins_config_bytes(path: &Path) -> Result<Option<Vec<u8>>, String> {
     const MAX_REFARM_CONFIG_BYTES: u64 = 256 * 1024;
 
-    let Ok(metadata) = std::fs::metadata(path) else {
+    let Ok(metadata) = std::fs::symlink_metadata(path) else {
         return Ok(None);
     };
     if !metadata.is_file() {
