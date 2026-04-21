@@ -294,6 +294,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_ORIGINAL_FORWARDED_FOR")
         || upper.ends_with("_ORIGINAL_FORWARDED_HOST")
         || upper.ends_with("_ORIGINAL_FORWARDED_PROTO")
+        || upper.ends_with("_ORIGINAL_FORWARDED_PROTOCOL")
+        || upper.ends_with("_ORIGINAL_FORWARDED_SCHEME")
         || upper.ends_with("_ORIGINAL_FORWARDED_PORT")
         || upper.ends_with("_ORIGINAL_HOST")
         || upper.ends_with("_FORWARDED_PREFIX")
