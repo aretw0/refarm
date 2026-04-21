@@ -285,8 +285,9 @@ fn enforce_llm_route(
 
 fn normalize_base_url(base_url: &str) -> Result<String, String> {
     let trimmed = base_url.trim().trim_end_matches('/');
-    if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
-        Ok(trimmed.to_string())
+    let normalized = trimmed.to_ascii_lowercase();
+    if normalized.starts_with("http://") || normalized.starts_with("https://") {
+        Ok(normalized)
     } else {
         Err("[blocked: llm-bridge base_url must use http(s)]".to_string())
     }
@@ -493,6 +494,38 @@ mod tests {
         let result = enforce_llm_route(
             "openai",
             "https://api.openai.com/",
+            "/v1/chat/completions",
+            &expected,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn enforce_route_accepts_base_url_with_mixed_case_host() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let result = enforce_llm_route(
+            "openai",
+            "https://API.OpenAI.com",
+            "/v1/chat/completions",
+            &expected,
+        );
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn enforce_route_accepts_base_url_with_uppercase_scheme() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let result = enforce_llm_route(
+            "openai",
+            "HTTPS://api.openai.com",
             "/v1/chat/completions",
             &expected,
         );
