@@ -802,6 +802,9 @@
             ("x-auth-user".to_string(), "alice".to_string()),
             ("x-auth-email".to_string(), "alice@example.com".to_string()),
             ("x-auth-request-user".to_string(), "alice".to_string()),
+            ("x-auth-request-user-id".to_string(), "alice-id".to_string()),
+            ("x-auth-request-uid".to_string(), "123".to_string()),
+            ("x-auth-request-name".to_string(), "alice".to_string()),
             ("x-auth-request-email".to_string(), "alice@example.com".to_string()),
             (
                 "x-auth-request-preferred-username".to_string(),
@@ -912,6 +915,9 @@
             ("X-AUTH-USER".to_string(), "alice".to_string()),
             ("X-AUTH-EMAIL".to_string(), "alice@example.com".to_string()),
             ("X-AUTH-REQUEST-USER".to_string(), "alice".to_string()),
+            ("X-AUTH-REQUEST-USER-ID".to_string(), "alice-id".to_string()),
+            ("X-AUTH-REQUEST-UID".to_string(), "123".to_string()),
+            ("X-AUTH-REQUEST-NAME".to_string(), "alice".to_string()),
             ("X-AUTH-REQUEST-EMAIL".to_string(), "alice@example.com".to_string()),
             (
                 "X-AUTH-REQUEST-PREFERRED-USERNAME".to_string(),
@@ -1025,6 +1031,12 @@
             (" x-auth-user ".to_string(), "alice".to_string()),
             (" x-auth-email ".to_string(), "alice@example.com".to_string()),
             (" x-auth-request-user ".to_string(), "alice".to_string()),
+            (
+                " x-auth-request-user-id ".to_string(),
+                "alice-id".to_string(),
+            ),
+            (" x-auth-request-uid ".to_string(), "123".to_string()),
+            (" x-auth-request-name ".to_string(), "alice".to_string()),
             (
                 " x-auth-request-email ".to_string(),
                 "alice@example.com".to_string(),
