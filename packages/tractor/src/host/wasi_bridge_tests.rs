@@ -1322,6 +1322,26 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_observability_auth_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("x-datadog-api-key".to_string(), "dd-api-key-evil".to_string()),
+            (
+                "X-Honeycomb-Team".to_string(),
+                "honeycomb-team-key-evil".to_string(),
+            ),
+            (
+                "x-newrelic-api-key".to_string(),
+                "newrelic-key-evil".to_string(),
+            ),
+            ("X-Logdna-Apikey".to_string(), "logdna-key-evil".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_vault_and_k8s_auth_headers() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
