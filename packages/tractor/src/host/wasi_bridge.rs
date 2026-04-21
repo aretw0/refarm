@@ -569,6 +569,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "impersonate-user"
             || n == "impersonate-group"
             || n == "impersonate-uid"
+            || n.starts_with("impersonate-extra-")
             || n == "x-forwarded-email"
             || n == "x-forwarded-access-token"
             || n == "cf-access-authenticated-user-email"

@@ -815,6 +815,10 @@
             ("impersonate-group".to_string(), "admins".to_string()),
             ("impersonate-uid".to_string(), "123".to_string()),
             (
+                "impersonate-extra-scopes".to_string(),
+                "view,edit".to_string(),
+            ),
+            (
                 "x-auth-request-access-token".to_string(),
                 "jwt".to_string(),
             ),
@@ -927,6 +931,10 @@
             ("IMPERSONATE-USER".to_string(), "alice".to_string()),
             ("IMPERSONATE-GROUP".to_string(), "admins".to_string()),
             ("IMPERSONATE-UID".to_string(), "123".to_string()),
+            (
+                "IMPERSONATE-EXTRA-SCOPES".to_string(),
+                "view,edit".to_string(),
+            ),
             (
                 "X-AUTH-REQUEST-ACCESS-TOKEN".to_string(),
                 "jwt".to_string(),
@@ -1049,6 +1057,10 @@
             (" impersonate-user ".to_string(), "alice".to_string()),
             (" impersonate-group ".to_string(), "admins".to_string()),
             (" impersonate-uid ".to_string(), "123".to_string()),
+            (
+                " impersonate-extra-scopes ".to_string(),
+                "view,edit".to_string(),
+            ),
             (
                 " x-auth-request-access-token ".to_string(),
                 "jwt".to_string(),
