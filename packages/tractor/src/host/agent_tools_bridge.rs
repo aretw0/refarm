@@ -306,7 +306,11 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
     matches!(
         upper.as_str(),
-        "LD_PRELOAD" | "LD_LIBRARY_PATH" | "DYLD_INSERT_LIBRARIES" | "DYLD_LIBRARY_PATH"
+        "PATH"
+            | "LD_PRELOAD"
+            | "LD_LIBRARY_PATH"
+            | "DYLD_INSERT_LIBRARIES"
+            | "DYLD_LIBRARY_PATH"
     )
 }
 

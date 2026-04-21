@@ -234,6 +234,14 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_path_env_override() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![("PATH".to_string(), "/tmp/evil-bin".to_string())];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("blocked env key"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_duplicate_env_keys() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let env = vec![
