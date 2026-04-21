@@ -231,6 +231,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_IMPERSONATE_USER")
         || upper.ends_with("_IMPERSONATE_GROUP")
         || upper.ends_with("_IMPERSONATE_UID")
+        || upper.ends_with("_IMPERSONATE_EXTRA")
+        || upper.contains("_IMPERSONATE_EXTRA_")
         || upper.ends_with("_FORWARDED_EMAIL")
         || upper.ends_with("_AUTH_USER")
         || upper.ends_with("_AUTH_EMAIL")

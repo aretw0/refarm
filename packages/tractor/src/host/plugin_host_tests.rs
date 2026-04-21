@@ -95,6 +95,8 @@
             "LLM_IMPERSONATE_USER",
             "LLM_IMPERSONATE_GROUP",
             "LLM_IMPERSONATE_UID",
+            "LLM_IMPERSONATE_EXTRA",
+            "LLM_IMPERSONATE_EXTRA_SCOPES",
             "LLM_FORWARDED_EMAIL",
             "LLM_AUTH_USER",
             "LLM_AUTH_EMAIL",
