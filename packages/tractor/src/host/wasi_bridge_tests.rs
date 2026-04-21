@@ -787,6 +787,37 @@
             ),
             ("x-vault-token".to_string(), "fake-key".to_string()),
             ("x-vault-namespace".to_string(), "ns-evil".to_string()),
+            ("x-kube-token".to_string(), "kube-token-evil".to_string()),
+            (
+                "x-helm-kubetoken".to_string(),
+                "helm-token-evil".to_string(),
+            ),
+            (
+                "x-docker-config".to_string(),
+                "docker-config-evil".to_string(),
+            ),
+            (
+                "x-registry-auth".to_string(),
+                "registry-auth-evil".to_string(),
+            ),
+            (
+                "x-containers-auth-file".to_string(),
+                "/tmp/containers-auth-evil".to_string(),
+            ),
+            ("x-ghcr-token".to_string(), "ghcr-token-evil".to_string()),
+            ("x-quay-token".to_string(), "quay-token-evil".to_string()),
+            (
+                "x-harbor-password".to_string(),
+                "harbor-pass-evil".to_string(),
+            ),
+            (
+                "x-artifactory-api-key".to_string(),
+                "artifactory-key-evil".to_string(),
+            ),
+            (
+                "x-jfrog-access-token".to_string(),
+                "jfrog-token-evil".to_string(),
+            ),
             (
                 "x-argocd-auth-token".to_string(),
                 "argocd-token-evil".to_string(),
@@ -1186,6 +1217,37 @@
             ),
             (" x-vault-token ".to_string(), "fake-key".to_string()),
             (" x-vault-namespace ".to_string(), "ns-evil".to_string()),
+            (" x-kube-token ".to_string(), "kube-token-evil".to_string()),
+            (
+                " x-helm-kubetoken ".to_string(),
+                "helm-token-evil".to_string(),
+            ),
+            (
+                " x-docker-config ".to_string(),
+                "docker-config-evil".to_string(),
+            ),
+            (
+                " x-registry-auth ".to_string(),
+                "registry-auth-evil".to_string(),
+            ),
+            (
+                " x-containers-auth-file ".to_string(),
+                "/tmp/containers-auth-evil".to_string(),
+            ),
+            (" x-ghcr-token ".to_string(), "ghcr-token-evil".to_string()),
+            (" x-quay-token ".to_string(), "quay-token-evil".to_string()),
+            (
+                " x-harbor-password ".to_string(),
+                "harbor-pass-evil".to_string(),
+            ),
+            (
+                " x-artifactory-api-key ".to_string(),
+                "artifactory-key-evil".to_string(),
+            ),
+            (
+                " x-jfrog-access-token ".to_string(),
+                "jfrog-token-evil".to_string(),
+            ),
             (
                 " x-argocd-auth-token ".to_string(),
                 "argocd-token-evil".to_string(),
