@@ -36,6 +36,7 @@
             "LLM_PROXY_AUTH",
             "LLM_AUTH_HEADER",
             "LLM_AUTHORIZATION",
+            "LLM_AUTHORIZATION_HEADER",
             "LLM_SESSION_BEARER",
         ];
         for key in blocked {
