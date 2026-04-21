@@ -336,94 +336,55 @@
     }
 
     #[test]
-    fn enforce_route_blocks_base_url_with_missing_host() {
+    fn enforce_route_blocks_invalid_base_url_forms() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
             base_url: "https://api.openai.com".to_string(),
             path: "/v1/chat/completions".to_string(),
         };
-        let err = enforce_llm_route("openai", "https:///", "/v1/chat/completions", &expected)
+
+        let cases = [
+            ("missing_host", "https:///", "must include host"),
+            (
+                "embedded_credentials",
+                "https://user:pass@api.openai.com",
+                "must not include credentials",
+            ),
+            (
+                "invalid_authority_chars",
+                "https://api.openai.com\\evil",
+                "invalid authority characters",
+            ),
+            (
+                "query",
+                "https://api.openai.com?x=1",
+                "must not include query or fragment",
+            ),
+            (
+                "fragment",
+                "https://api.openai.com#frag",
+                "must not include query or fragment",
+            ),
+            (
+                "path_segments",
+                "https://api.openai.com/v1",
+                "base_url must not include path",
+            ),
+        ];
+
+        for (case, requested_base_url, expected_msg) in cases {
+            let err = enforce_llm_route(
+                "openai",
+                requested_base_url,
+                "/v1/chat/completions",
+                &expected,
+            )
             .unwrap_err();
-        assert!(err.contains("must include host"));
-    }
-
-    #[test]
-    fn enforce_route_blocks_base_url_with_embedded_credentials() {
-        let expected = LlmRoute {
-            provider: "openai".to_string(),
-            base_url: "https://api.openai.com".to_string(),
-            path: "/v1/chat/completions".to_string(),
-        };
-        let err = enforce_llm_route(
-            "openai",
-            "https://user:pass@api.openai.com",
-            "/v1/chat/completions",
-            &expected,
-        )
-        .unwrap_err();
-        assert!(err.contains("must not include credentials"));
-    }
-
-    #[test]
-    fn enforce_route_blocks_base_url_with_invalid_authority_chars() {
-        let expected = LlmRoute {
-            provider: "openai".to_string(),
-            base_url: "https://api.openai.com".to_string(),
-            path: "/v1/chat/completions".to_string(),
-        };
-        let err = enforce_llm_route(
-            "openai",
-            "https://api.openai.com\\evil",
-            "/v1/chat/completions",
-            &expected,
-        )
-        .unwrap_err();
-        assert!(err.contains("invalid authority characters"));
-    }
-
-    #[test]
-    fn enforce_route_blocks_base_url_with_query_or_fragment() {
-        let expected = LlmRoute {
-            provider: "openai".to_string(),
-            base_url: "https://api.openai.com".to_string(),
-            path: "/v1/chat/completions".to_string(),
-        };
-
-        let err_query = enforce_llm_route(
-            "openai",
-            "https://api.openai.com?x=1",
-            "/v1/chat/completions",
-            &expected,
-        )
-        .unwrap_err();
-        assert!(err_query.contains("must not include query or fragment"));
-
-        let err_fragment = enforce_llm_route(
-            "openai",
-            "https://api.openai.com#frag",
-            "/v1/chat/completions",
-            &expected,
-        )
-        .unwrap_err();
-        assert!(err_fragment.contains("must not include query or fragment"));
-    }
-
-    #[test]
-    fn enforce_route_blocks_base_url_with_path_segments() {
-        let expected = LlmRoute {
-            provider: "openai".to_string(),
-            base_url: "https://api.openai.com".to_string(),
-            path: "/v1/chat/completions".to_string(),
-        };
-
-        let err = enforce_llm_route(
-            "openai",
-            "https://api.openai.com/v1",
-            "/v1/chat/completions",
-            &expected,
-        )
-        .unwrap_err();
-        assert!(err.contains("base_url must not include path"));
+            assert!(
+                err.contains(expected_msg),
+                "case {case} expected '{expected_msg}', got: {err}"
+            );
+        }
     }
 
     #[test]
