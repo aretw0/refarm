@@ -560,6 +560,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-amzn-oidc-data"
             || n == "x-amzn-oidc-identity"
             || n == "x-amzn-oidc-accesstoken"
+            || n.starts_with("x-amzn-oidc-")
             || n == "x-forwarded-user"
             || n == "x-forwarded-user-id"
             || n == "x-forwarded-userid"

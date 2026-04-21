@@ -1314,6 +1314,7 @@
                 " cf-access-authenticated-user-name ".to_string(),
                 "alice".to_string(),
             ),
+            ("X-AMZN-OIDC-SUB".to_string(), "alice-sub".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
