@@ -282,6 +282,9 @@ fn enforce_shell_allowlist_with(
     let Some(allowlist) = allowlist else {
         return Ok(());
     };
+    if allowlist.contains("*") {
+        return Ok(());
+    }
     if argv.is_empty() {
         return Err("spawn: argv must be non-empty".into());
     }
@@ -585,6 +588,14 @@ mod tests {
     fn shell_allowlist_unset_is_permissive() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
         let result = enforce_shell_allowlist_with(&argv, None);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn shell_allowlist_wildcard_allows_any_command() {
+        let allowlist = parse_shell_allowlist(" * ");
+        let argv = vec!["definitely-not-in-list".to_string()];
+        let result = enforce_shell_allowlist_with(&argv, Some(&allowlist));
         assert!(result.is_ok());
     }
 
