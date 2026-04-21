@@ -207,7 +207,7 @@ fn use_anthropic_auth(provider: &str) -> bool {
 
 fn use_openai_auth(provider: &str) -> bool {
     let provider = provider.trim();
-    provider != "ollama" && provider != "anthropic"
+    provider == "openai" || provider.starts_with("openai-")
 }
 
 fn provider_name_from_env() -> String {
@@ -649,5 +649,13 @@ mod tests {
 
         assert!(use_anthropic_auth(" anthropic "));
         assert!(!use_openai_auth(" anthropic "));
+    }
+
+    #[test]
+    fn auth_policy_allows_openai_family_only() {
+        assert!(use_openai_auth("openai"));
+        assert!(use_openai_auth("openai-codex"));
+        assert!(!use_openai_auth("custom-openai-compatible"));
+        assert!(!use_openai_auth("ollama"));
     }
 }
