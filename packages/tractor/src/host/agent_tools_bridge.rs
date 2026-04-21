@@ -589,6 +589,15 @@ mod tests {
     }
 
     #[test]
+    fn shell_allowlist_parser_ignores_empty_entries_and_trims_whitespace() {
+        let allowlist = parse_shell_allowlist(" ls , ,grep,   cat  ,");
+        assert!(allowlist.contains("ls"));
+        assert!(allowlist.contains("grep"));
+        assert!(allowlist.contains("cat"));
+        assert_eq!(allowlist.len(), 3);
+    }
+
+    #[test]
     fn fs_root_allows_paths_inside_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(dir.path()).unwrap();
