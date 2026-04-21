@@ -601,6 +601,13 @@
     }
 
     #[test]
+    fn shell_allowlist_parser_wildcard_is_exclusive() {
+        let allowlist = parse_shell_allowlist("ls,*,cat");
+        assert!(allowlist.contains("*"));
+        assert_eq!(allowlist.len(), 1);
+    }
+
+    #[test]
     fn shell_allowlist_parser_drops_overlong_entries() {
         let overlong = "a".repeat(257);
         let allowlist = parse_shell_allowlist(&format!("ls,{overlong},cat"));

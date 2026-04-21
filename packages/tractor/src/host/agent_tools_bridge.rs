@@ -552,7 +552,8 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
         return std::collections::HashSet::new();
     }
 
-    raw.split(',')
+    let out: std::collections::HashSet<String> = raw
+        .split(',')
         .take(MAX_SHELL_ALLOWLIST_SCAN)
         .map(str::trim)
         .filter(|s| !s.is_empty())
@@ -562,7 +563,13 @@ fn parse_shell_allowlist(raw: &str) -> std::collections::HashSet<String> {
         .filter(|s| s.len() <= MAX_SHELL_TOKEN_LEN)
         .take(MAX_SHELL_ALLOWLIST_ENTRIES)
         .map(ToString::to_string)
-        .collect()
+        .collect();
+
+    if out.contains("*") {
+        return std::collections::HashSet::from(["*".to_string()]);
+    }
+
+    out
 }
 
 fn enforce_shell_allowlist_with(
