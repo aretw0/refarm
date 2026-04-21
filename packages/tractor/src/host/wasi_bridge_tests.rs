@@ -1049,3 +1049,28 @@
 
         assert_eq!(sanitize_auth_token_for_header(&"a".repeat(4097)), None);
     }
+
+    #[test]
+    fn openai_auth_header_from_env_requires_valid_token_when_set() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("OPENAI_API_KEY").ok();
+
+        std::env::remove_var("OPENAI_API_KEY");
+        assert_eq!(openai_auth_header_from_env().unwrap(), None);
+
+        std::env::set_var("OPENAI_API_KEY", " key123 ");
+        let err = openai_auth_header_from_env().unwrap_err();
+        assert!(err.contains("invalid OPENAI_API_KEY"));
+
+        std::env::set_var("OPENAI_API_KEY", "key123");
+        assert_eq!(
+            openai_auth_header_from_env().unwrap(),
+            Some("Bearer key123".to_string())
+        );
+
+        if let Some(prev) = prev {
+            std::env::set_var("OPENAI_API_KEY", prev);
+        } else {
+            std::env::remove_var("OPENAI_API_KEY");
+        }
+    }

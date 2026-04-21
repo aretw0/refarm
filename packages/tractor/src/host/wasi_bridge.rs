@@ -187,10 +187,8 @@ fn llm_complete_http(
             .ok_or_else(|| "[blocked: invalid ANTHROPIC_API_KEY]".to_string())?;
         req = req.set("x-api-key", &key);
     } else if use_openai_auth(&provider) {
-        if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-            if let Some(key) = sanitize_auth_token_for_header(&key) {
-                req = req.set("authorization", &format!("Bearer {key}"));
-            }
+        if let Some(header) = openai_auth_header_from_env()? {
+            req = req.set("authorization", &header);
         }
     }
 
@@ -251,6 +249,15 @@ fn sanitize_auth_token_for_header(token: &str) -> Option<String> {
         return None;
     }
     Some(trimmed.to_string())
+}
+
+fn openai_auth_header_from_env() -> Result<Option<String>, String> {
+    let Ok(key) = std::env::var("OPENAI_API_KEY") else {
+        return Ok(None);
+    };
+    let key = sanitize_auth_token_for_header(&key)
+        .ok_or_else(|| "[blocked: invalid OPENAI_API_KEY]".to_string())?;
+    Ok(Some(format!("Bearer {key}")))
 }
 
 fn provider_name_from_env() -> String {
