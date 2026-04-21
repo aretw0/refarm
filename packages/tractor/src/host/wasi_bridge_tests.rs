@@ -1322,6 +1322,18 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_vault_and_k8s_auth_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("x-vault-token".to_string(), "hvs.eviltoken".to_string()),
+            ("X-K8S-AWS-ID".to_string(), "cluster-evil".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_metadata_auth_headers() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),

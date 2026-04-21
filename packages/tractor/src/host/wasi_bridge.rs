@@ -543,6 +543,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-github-token"
             || n == "x-gitlab-token"
             || n == "x-bitbucket-token"
+            || n == "x-vault-token"
+            || n == "x-k8s-aws-id"
             || n == "x-ci-job-token"
             || n == "x-circleci-token"
             || n == "x-access-token"
