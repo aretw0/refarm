@@ -229,6 +229,9 @@ fn enforce_trusted_plugin_for_shell_with(
     if contains_control_chars(plugin_id) {
         return Err("[blocked: plugin id contains control characters]".to_string());
     }
+    if !is_safe_plugin_id_token(plugin_id) {
+        return Err("[blocked: plugin id has invalid characters]".to_string());
+    }
     if allowed.contains("*") || allowed.contains(plugin_id) {
         Ok(())
     } else {
@@ -238,6 +241,12 @@ fn enforce_trusted_plugin_for_shell_with(
 
 fn contains_control_chars(value: &str) -> bool {
     value.chars().any(|c| c.is_control())
+}
+
+fn is_safe_plugin_id_token(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
 }
 
 fn trusted_plugins_from_refarm_config() -> Result<Option<std::collections::HashSet<String>>, String> {
@@ -269,6 +278,12 @@ fn parse_trusted_plugins(
         if contains_control_chars(plugin) {
             return Err(
                 "[blocked: .refarm/config.json trusted_plugins cannot contain control characters]"
+                    .to_string(),
+            );
+        }
+        if plugin != "*" && !is_safe_plugin_id_token(plugin) {
+            return Err(
+                "[blocked: .refarm/config.json trusted_plugins contain invalid characters]"
                     .to_string(),
             );
         }
@@ -818,6 +833,13 @@ mod tests {
     }
 
     #[test]
+    fn trusted_plugins_parse_blocks_invalid_characters() {
+        let cfg = serde_json::json!({"trusted_plugins": ["pi agent"]});
+        let err = parse_trusted_plugins(&cfg).unwrap_err();
+        assert!(err.contains("invalid characters"));
+    }
+
+    #[test]
     fn trusted_plugins_parse_trims_and_deduplicates_values() {
         let cfg = serde_json::json!({
             "trusted_plugins": [" pi_agent ", "pi_agent", "  ", "agent-tools"]
@@ -881,6 +903,13 @@ mod tests {
         let allowed = std::collections::HashSet::from(["*".to_string()]);
         let err = enforce_trusted_plugin_for_shell_with("plugin\n-a", Some(&allowed)).unwrap_err();
         assert!(err.contains("control characters"));
+    }
+
+    #[test]
+    fn trusted_plugins_blocks_invalid_characters_plugin_id() {
+        let allowed = std::collections::HashSet::from(["*".to_string()]);
+        let err = enforce_trusted_plugin_for_shell_with("plugin a", Some(&allowed)).unwrap_err();
+        assert!(err.contains("invalid characters"));
     }
 
     #[test]
