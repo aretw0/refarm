@@ -53,6 +53,8 @@
             "LLM_ALLOW_INSECURE",
             "LLM_SSL_VERIFY",
             "LLM_VERIFY_SSL",
+            "LLM_PROXY_SOCK",
+            "LLM_UNIX_SOCKET",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");

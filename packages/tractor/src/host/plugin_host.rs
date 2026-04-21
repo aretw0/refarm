@@ -186,7 +186,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_TLS_INSECURE")
         || upper.ends_with("_INSECURE")
         || upper.ends_with("_SSL_VERIFY")
-        || upper.ends_with("_VERIFY_SSL"))
+        || upper.ends_with("_VERIFY_SSL")
+        || upper.ends_with("_SOCK")
+        || upper.ends_with("_SOCKET"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
