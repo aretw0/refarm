@@ -183,10 +183,12 @@ fn llm_complete_http(
     if use_anthropic_auth(&provider) {
         let key = std::env::var("ANTHROPIC_API_KEY")
             .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
+        let key = sanitize_auth_token_for_header(&key)
+            .ok_or_else(|| "[blocked: invalid ANTHROPIC_API_KEY]".to_string())?;
         req = req.set("x-api-key", &key);
     } else if use_openai_auth(&provider) {
         if let Ok(key) = std::env::var("OPENAI_API_KEY") {
-            if !key.trim().is_empty() {
+            if let Some(key) = sanitize_auth_token_for_header(&key) {
                 req = req.set("authorization", &format!("Bearer {key}"));
             }
         }
@@ -234,6 +236,20 @@ fn is_openai_provider_family(provider: &str) -> bool {
 
 fn use_openai_auth(provider: &str) -> bool {
     is_openai_provider_family(provider)
+}
+
+fn sanitize_auth_token_for_header(token: &str) -> Option<String> {
+    const MAX_AUTH_TOKEN_LEN: usize = 4096;
+    let trimmed = token.trim();
+    if trimmed.is_empty()
+        || trimmed.len() > MAX_AUTH_TOKEN_LEN
+        || !trimmed.is_ascii()
+        || trimmed.chars().any(|c| c.is_control())
+        || trimmed.chars().any(|c| c.is_whitespace())
+    {
+        return None;
+    }
+    Some(trimmed.to_string())
 }
 
 fn provider_name_from_env() -> String {

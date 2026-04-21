@@ -1030,3 +1030,21 @@
         assert!(!use_openai_auth("custom-openai-compatible"));
         assert!(!use_openai_auth("ollama"));
     }
+
+    #[test]
+    fn sanitize_auth_token_for_header_filters_invalid_values() {
+        assert_eq!(sanitize_auth_token_for_header(" token123 "), Some("token123".to_string()));
+
+        let blocked = [
+            "",
+            "   ",
+            "token with space",
+            "token\nvalue",
+            "tøken",
+        ];
+        for token in blocked {
+            assert_eq!(sanitize_auth_token_for_header(token), None);
+        }
+
+        assert_eq!(sanitize_auth_token_for_header(&"a".repeat(4097)), None);
+    }
