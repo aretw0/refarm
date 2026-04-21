@@ -1,16 +1,18 @@
 {
-	"context": "Checkpoint operacional atualizado para preservar continuidade antes de nova compactação de contexto. Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) em micro-slices com teste alvo por commit. Estado atual: `develop` em `ahead 175` de `origin/develop`. Janela recente ampliou validações fail-closed com foco em normalização/charset/whitespace: `llm-bridge` path agora bloqueia vazio, whitespace em bordas e whitespace interno; `plugin_host` mantém variáveis host-only adicionais e rejeita whitespace em valores forwardados/model/budget providers no mapeamento de `.refarm/config.json`; `agent_tools_bridge` endureceu `LLM_FS_ROOT`, paths sob FS policy (ASCII + sem padding), env values do spawn (ASCII + sem padding) e `cwd` (ASCII + sem whitespace).",
-	"timestamp": "2026-04-21T11:08:31Z",
+	"context": "Checkpoint de contenção para compactação iminente. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) via micro-slices com validação por boundary. Estado atual: `develop` em `ahead 220` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente endureceu: (1) bloqueio de env de injeção em spawn (`GIT_*`, `SSH_*`, `NPM_CONFIG_*`, `YARN_*`, `PNPM_*`, `PIP_*`, `NETRC/_NETRC/CURL_HOME/WGETRC`, overrides cloud credenciais); (2) forwarding host-only ampliado em `plugin_host` para session/oidc/userinfo/principal identity envs sensíveis; (3) sanitização `llm-bridge` ampliada para headers de identidade federada, principal e tokens AAD/MTLS.",
+	"timestamp": "2026-04-21T15:01:13Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
 		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo desta frente).",
-		"Lote local grande ainda sem push/CI remoto (aguardando autorização)."
+		"Lote local grande ainda sem push/CI remoto (aguardando autorização).",
+		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Manter micro-slices (1–2 arquivos) focados em race-hardening residual e validações de boundary.",
-		"Ao aproximar de limite de contexto, renovar handoff e validar projeto antes de nova compactação.",
-		"Quando autorizado, pushar lote (ahead 175) e executar uma rodada única de CI remota; registrar em `.project/verification.json`."
+		"Executar compactação de contexto imediatamente após validação do checkpoint.",
+		"Após compactação, retomar micro-slices em boundaries host-side mantendo 1-2 arquivos por commit.",
+		"Quando autorizado, pushar lote local e rodar uma rodada única de CI remota.",
+		"Sincronizar `.project/verification.json` com novas evidências por lote antes do próximo checkpoint."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
@@ -21,6 +23,7 @@
 		"packages/tractor/src/host/plugin_host_tests.rs",
 		"packages/tractor/src/host/wasi_bridge.rs",
 		"packages/tractor/src/host/wasi_bridge_tests.rs",
-		".project/handoff.json"
+		".project/handoff.json",
+		".project/verification.json"
 	]
 }

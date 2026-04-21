@@ -144,6 +144,32 @@
           "evidence": "Mudanças concentradas em wrappers .github/actions e ajustes pontuais de reusable workflow/template."
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-CHKPT-20260421-220",
+      "target": "2",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "test",
+      "timestamp": "2026-04-21T15:01:13Z",
+      "evidence": "Checkpoint de contenção criado em ahead 220 com hardening incremental nas boundaries host-side (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`). Lotes recentes verificados localmente por módulo e em rodada agregada.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "111 testes passando nas rodadas alvo e agregadas."
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "42 testes passando nas rodadas alvo e agregadas."
+        },
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "74 testes passando nas rodadas alvo e agregadas."
+        }
+      ]
     }
   ]
 }
