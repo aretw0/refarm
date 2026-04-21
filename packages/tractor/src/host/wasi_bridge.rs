@@ -337,7 +337,7 @@ fn is_safe_header_name(name: &str) -> bool {
 }
 
 fn is_safe_header_value(value: &str) -> bool {
-    !value.contains(['\r', '\n'])
+    !value.chars().any(|c| c.is_control())
 }
 
 fn join_base_url_and_path(base_url: &str, path: &str) -> String {
@@ -695,6 +695,17 @@ mod tests {
     fn sanitized_headers_drop_values_with_newline() {
         let headers = vec![
             ("x-safe".to_string(), "ok\r\nInjected: 1".to_string()),
+            ("content-type".to_string(), "application/json".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
+    fn sanitized_headers_drop_values_with_other_control_chars() {
+        let headers = vec![
+            ("x-safe".to_string(), "ok\u{0000}bad".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
