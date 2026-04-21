@@ -1,0 +1,380 @@
+    use super::*;
+    use crate::storage::NativeStorage;
+
+    #[test]
+    fn refarm_config_env_vars_returns_empty_when_no_file() {
+        // CWD in test environment has no .refarm/config.json — must not panic.
+        let base = std::env::current_dir().unwrap_or_default();
+        let vars = refarm_config_env_vars_from(&base);
+        // Can't assert empty (dev machine might have a config), but must not error.
+        let _ = vars;
+    }
+
+    #[test]
+    fn forwardable_llm_env_key_filters_sensitive_suffixes() {
+        assert!(!is_forwardable_llm_env_key("LLM_"));
+        assert!(is_forwardable_llm_env_key("LLM_PROVIDER"));
+        assert!(is_forwardable_llm_env_key("LLM_BASE_URL"));
+        assert!(!is_forwardable_llm_env_key("LLM-provider"));
+        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER NAME"));
+        assert!(!is_forwardable_llm_env_key("LLM_provider"));
+        assert!(!is_forwardable_llm_env_key(&format!("LLM_{}", "A".repeat(97))));
+
+        assert!(!is_forwardable_llm_env_key("OPENAI_API_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_OPENAI_API_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_SESSION_TOKEN"));
+        assert!(!is_forwardable_llm_env_key("LLM_SHARED_SECRET"));
+        assert!(!is_forwardable_llm_env_key("LLM_DB_PASSWORD"));
+        assert!(!is_forwardable_llm_env_key("LLM_PROVIDER_CREDENTIALS"));
+        assert!(!is_forwardable_llm_env_key("LLM_SSH_PRIVATE_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_AWS_ACCESS_KEY"));
+        assert!(!is_forwardable_llm_env_key("LLM_REQUEST_SIGNING_KEY"));
+
+        assert!(is_forwardable_llm_env_value("openai"));
+        assert!(is_forwardable_llm_env_value("https://api.openai.com/v1"));
+        assert!(!is_forwardable_llm_env_value("   "));
+        assert!(!is_forwardable_llm_env_value(&"a".repeat(4097)));
+        assert!(!is_forwardable_llm_env_value("open\nai"));
+        assert!(!is_forwardable_llm_env_value("open\u{0000}ai"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_maps_fields_correctly() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"anthropic","model":"claude-opus-4-7","default_provider":"ollama","budgets":{"anthropic":5.0,"openai":2.5}}"#,
+        ).unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+        assert_eq!(map["LLM_PROVIDER"], "anthropic");
+        assert_eq!(map["LLM_MODEL"], "claude-opus-4-7");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert_eq!(map["LLM_BUDGET_ANTHROPIC_USD"], "5");
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_non_numeric_budgets() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"anthropic":"5.0","openai":null,"ollama":1.25}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_BUDGET_ANTHROPIC_USD"));
+        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
+        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "1.25");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_trim_and_skip_empty_string_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"  openai  ","model":"   ","default_provider":"\tollama\t"}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("LLM_MODEL"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_string_fields_with_control_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"open\nai","model":"gpt\u0000x","default_provider":" ollama "}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_PROVIDER"));
+        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_overlong_string_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let long = "a".repeat(4097);
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            format!(
+                r#"{{"provider":"{long}","model":"{long}","default_provider":" ollama "}}"#
+            ),
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_PROVIDER"));
+        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_normalize_provider_fields_to_lowercase() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":" OpenAI ","default_provider":" OLLAMA "}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_trim_budget_provider_names() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{" openai ":2.5,"   ":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
+        assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_sanitize_budget_provider_tokens() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"openai-codex/v1":2.5,"***":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
+        assert!(!map.contains_key("LLM_BUDGET___USD"));
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_overlong_budget_provider_token() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        let overlong = "a".repeat(65);
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            format!(r#"{{"budgets":{{"{overlong}":2.5,"openai":1.0}}}}"#),
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn refarm_config_env_vars_skip_budget_provider_with_control_chars() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"open\nai":2.5,"openai":1.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map.len(), 1);
+    }
+
+    #[test]
+    fn refarm_config_env_vars_dedupe_provider_and_budget_keys_after_normalization() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","budgets":{"openai-codex/v1":1.0,"openai codex v1":2.5}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_negative_budgets() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"openai":-1.0,"ollama":0.0}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
+        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "0");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_invalid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), b"not json").unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn refarm_config_env_vars_empty_when_no_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let vars = refarm_config_env_vars_from(dir.path());
+        assert!(vars.is_empty());
+    }
+
+    #[test]
+    fn refarm_config_json_from_reads_valid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","model":"gpt-4o-mini"}"#,
+        )
+        .unwrap();
+
+        let cfg = refarm_config_json_from(dir.path()).expect("config should parse");
+        assert_eq!(cfg["provider"], "openai");
+        assert_eq!(cfg["model"], "gpt-4o-mini");
+    }
+
+    #[test]
+    fn refarm_config_json_from_returns_none_on_invalid_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), b"not-json").unwrap();
+
+        let cfg = refarm_config_json_from(dir.path());
+        assert!(cfg.is_none());
+    }
+
+    #[test]
+    fn merge_plugin_env_vars_config_overrides_llm_vars() {
+        let llm = vec![
+            ("LLM_PROVIDER".to_string(), "openai".to_string()),
+            ("LLM_MODEL".to_string(), "gpt-4o-mini".to_string()),
+        ];
+        let cfg = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_BASE_URL".to_string(), "http://127.0.0.1:11434".to_string()),
+        ];
+
+        let merged = merge_plugin_env_vars(llm, cfg);
+        let map: std::collections::HashMap<_, _> = merged.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "ollama");
+        assert_eq!(map["LLM_MODEL"], "gpt-4o-mini");
+        assert_eq!(map["LLM_BASE_URL"], "http://127.0.0.1:11434");
+    }
+
+    #[test]
+    fn refarm_config_node_payload_contains_expected_fields() {
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+        ];
+        let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
+
+        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, Some(&cfg));
+
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
+        assert_eq!(payload["config_json"]["model"], "llama3.2");
+        assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:pi_agent:"));
+    }
+
+    #[test]
+    fn store_refarm_config_node_persists_queryable_audit_record() {
+        let storage = NativeStorage::open(":memory:").unwrap();
+        let sync = NativeSync::new(storage, "test-refarm-config").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![
+            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
+            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+        ];
+        let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
+
+        store_refarm_config_node(&sync, "pi_agent", dir.path(), &env_vars, Some(&cfg)).unwrap();
+
+        let rows = sync.query_nodes("RefarmConfig").unwrap();
+        assert_eq!(rows.len(), 1);
+        let row = &rows[0];
+        assert_eq!(row.type_, "RefarmConfig");
+        assert_eq!(row.source_plugin.as_deref(), Some("tractor-host"));
+
+        let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert_eq!(payload["plugin_id"], "pi_agent");
+        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
+    }
+
+    #[test]
+    fn refarm_config_node_payload_uses_null_config_when_missing() {
+        let dir = tempfile::tempdir().unwrap();
+        let env_vars = vec![("LLM_PROVIDER".to_string(), "ollama".to_string())];
+
+        let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, None);
+
+        assert_eq!(payload["@type"], "RefarmConfig");
+        assert!(payload["config_json"].is_null());
+    }
