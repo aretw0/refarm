@@ -81,6 +81,34 @@
     }
 
     #[test]
+    fn expected_route_ignores_invalid_primary_provider_and_uses_valid_default() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "open ai");
+        std::env::set_var("LLM_DEFAULT_PROVIDER", "openai");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "openai");
+        assert_eq!(route.base_url, "https://api.openai.com");
+
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_falls_back_to_ollama_when_provider_env_tokens_are_invalid() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "open ai");
+        std::env::set_var("LLM_DEFAULT_PROVIDER", "opénaí");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.provider, "ollama");
+        assert_eq!(route.base_url, "http://localhost:11434");
+
+        reset_llm_env();
+    }
+
+    #[test]
     fn expected_route_defaults_openai_family_to_openai_base_url() {
         let _guard = ENV_LOCK.lock().unwrap();
         reset_llm_env();

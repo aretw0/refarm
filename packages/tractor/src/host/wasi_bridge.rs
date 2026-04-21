@@ -268,12 +268,12 @@ fn provider_name_from_env() -> String {
     std::env::var("LLM_PROVIDER")
         .ok()
         .map(|v| normalize_provider_name(&v))
-        .filter(|v| !v.is_empty())
+        .filter(|v| !v.is_empty() && is_safe_provider_token(v))
         .or_else(|| {
             std::env::var("LLM_DEFAULT_PROVIDER")
                 .ok()
                 .map(|v| normalize_provider_name(&v))
-                .filter(|v| !v.is_empty())
+                .filter(|v| !v.is_empty() && is_safe_provider_token(v))
         })
         .unwrap_or_else(|| "ollama".to_string())
 }
