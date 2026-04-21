@@ -229,6 +229,14 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_env_value_with_non_ascii() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let env = vec![("SAFE_KEY".to_string(), "olá".to_string())];
+        let err = spawn_process(&argv, &env, None, 1000, None).await.unwrap_err();
+        assert!(err.contains("env value must be ascii"));
+    }
+
+    #[tokio::test]
     async fn spawn_rejects_blocked_loader_env_keys() {
         let argv = vec!["echo".to_string(), "ok".to_string()];
 
