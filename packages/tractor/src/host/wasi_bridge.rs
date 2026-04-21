@@ -315,6 +315,9 @@ fn enforce_llm_route(
     if path.trim() != path || expected.path.trim() != expected.path {
         return Err("[blocked: llm-bridge path contains surrounding whitespace]".to_string());
     }
+    if path.chars().any(|c| c.is_whitespace()) || expected.path.chars().any(|c| c.is_whitespace()) {
+        return Err("[blocked: llm-bridge path must not contain whitespace]".to_string());
+    }
     if base_url.len() > MAX_BASE_URL_LEN || expected.base_url.len() > MAX_BASE_URL_LEN {
         return Err("[blocked: llm-bridge base_url too long]".to_string());
     }

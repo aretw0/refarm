@@ -632,6 +632,40 @@
     }
 
     #[test]
+    fn enforce_route_blocks_path_with_internal_whitespace() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/comp letions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("path must not contain whitespace"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_expected_path_with_internal_whitespace() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/comp letions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("path must not contain whitespace"));
+    }
+
+    #[test]
     fn enforce_route_accepts_mixed_case_provider_name() {
         let expected = LlmRoute {
             provider: "openai".to_string(),
