@@ -298,13 +298,26 @@ fn enforce_llm_route(
 }
 
 fn normalize_base_url(base_url: &str) -> Result<String, String> {
-    let trimmed = base_url.trim().trim_end_matches('/');
-    let normalized = trimmed.to_ascii_lowercase();
-    if normalized.starts_with("http://") || normalized.starts_with("https://") {
-        Ok(normalized)
+    let raw = base_url.trim();
+    let lower_raw = raw.to_ascii_lowercase();
+
+    let rest = if let Some(v) = lower_raw.strip_prefix("http://") {
+        v
+    } else if let Some(v) = lower_raw.strip_prefix("https://") {
+        v
     } else {
-        Err("[blocked: llm-bridge base_url must use http(s)]".to_string())
+        return Err("[blocked: llm-bridge base_url must use http(s)]".to_string());
+    };
+
+    let authority = rest.split('/').next().unwrap_or_default();
+    if authority.is_empty() {
+        return Err("[blocked: llm-bridge base_url must include host]".to_string());
     }
+    if authority.contains('@') {
+        return Err("[blocked: llm-bridge base_url must not include credentials]".to_string());
+    }
+
+    Ok(lower_raw.trim_end_matches('/').to_string())
 }
 
 fn normalize_path(path: &str) -> String {
@@ -593,6 +606,35 @@ mod tests {
         )
         .unwrap_err();
         assert!(err.contains("base_url must use http(s)"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_base_url_with_missing_host() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route("openai", "https:///", "/v1/chat/completions", &expected)
+            .unwrap_err();
+        assert!(err.contains("must include host"));
+    }
+
+    #[test]
+    fn enforce_route_blocks_base_url_with_embedded_credentials() {
+        let expected = LlmRoute {
+            provider: "openai".to_string(),
+            base_url: "https://api.openai.com".to_string(),
+            path: "/v1/chat/completions".to_string(),
+        };
+        let err = enforce_llm_route(
+            "openai",
+            "https://user:pass@api.openai.com",
+            "/v1/chat/completions",
+            &expected,
+        )
+        .unwrap_err();
+        assert!(err.contains("must not include credentials"));
     }
 
     #[test]
