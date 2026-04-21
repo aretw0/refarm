@@ -1074,3 +1074,26 @@
             std::env::remove_var("OPENAI_API_KEY");
         }
     }
+
+    #[test]
+    fn anthropic_api_key_from_env_requires_valid_token() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("ANTHROPIC_API_KEY").ok();
+
+        std::env::remove_var("ANTHROPIC_API_KEY");
+        let err = anthropic_api_key_from_env().unwrap_err();
+        assert!(err.contains("ANTHROPIC_API_KEY not set"));
+
+        std::env::set_var("ANTHROPIC_API_KEY", " key123 ");
+        let err = anthropic_api_key_from_env().unwrap_err();
+        assert!(err.contains("invalid ANTHROPIC_API_KEY"));
+
+        std::env::set_var("ANTHROPIC_API_KEY", "key123");
+        assert_eq!(anthropic_api_key_from_env().unwrap(), "key123");
+
+        if let Some(prev) = prev {
+            std::env::set_var("ANTHROPIC_API_KEY", prev);
+        } else {
+            std::env::remove_var("ANTHROPIC_API_KEY");
+        }
+    }

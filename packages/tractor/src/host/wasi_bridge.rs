@@ -181,10 +181,7 @@ fn llm_complete_http(
     }
 
     if use_anthropic_auth(&provider) {
-        let key = std::env::var("ANTHROPIC_API_KEY")
-            .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
-        let key = sanitize_auth_token_for_header(&key)
-            .ok_or_else(|| "[blocked: invalid ANTHROPIC_API_KEY]".to_string())?;
+        let key = anthropic_api_key_from_env()?;
         req = req.set("x-api-key", &key);
     } else if use_openai_auth(&provider) {
         if let Some(header) = openai_auth_header_from_env()? {
@@ -249,6 +246,13 @@ fn sanitize_auth_token_for_header(token: &str) -> Option<String> {
         return None;
     }
     Some(trimmed.to_string())
+}
+
+fn anthropic_api_key_from_env() -> Result<String, String> {
+    let key = std::env::var("ANTHROPIC_API_KEY")
+        .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
+    sanitize_auth_token_for_header(&key)
+        .ok_or_else(|| "[blocked: invalid ANTHROPIC_API_KEY]".to_string())
 }
 
 fn openai_auth_header_from_env() -> Result<Option<String>, String> {
