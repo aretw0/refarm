@@ -1,6 +1,6 @@
 {
-  "context": "Segurança Tractor/Pi-agent em progresso com hardening incremental por testes (llm-bridge policy, gates shell/fs/trusted_plugins, auditoria RefarmConfig). Nenhuma mudança funcional ampla, apenas codificação de comportamento esperado.",
-  "timestamp": "2026-04-21T00:09:00.272Z",
+  "context": "Frente única mantida: segurança Tractor/Pi-agent com commits pequenos focados em testes. Cobertura reforçada para llm-bridge route/header policy, gates shell/fs/trusted_plugins e auditoria RefarmConfig no plugin_host.",
+  "timestamp": "2026-04-21T00:11:56.975Z",
   "current_phase": 2,
   "current_tasks": [
     "Security hardening tests for tractor host boundaries"
@@ -9,9 +9,9 @@
     "Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo de T-PIPE-08)."
   ],
   "next_actions": [
-    "Revisar se falta qualquer cenário crítico de policy não coberto (especialmente llm-bridge headers/auth boundary).",
-    "Preparar push dos commits acumulados quando autorizado.",
-    "Após push/CI, avaliar se abrimos task específica para eventuais gaps restantes."
+    "Decidir envio dos 11 commits locais e validar CI remoto sob autorização.",
+    "Após CI verde, abrir/atualizar task dedicada para próximo slice funcional (se necessário) mantendo diffs pequenos.",
+    "Se contexto subir, compactar após push/validação para preservar continuidade."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
