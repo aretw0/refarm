@@ -923,6 +923,18 @@
             ),
             ("x-sonar-token".to_string(), "sonar-token-evil".to_string()),
             (
+                "x-git-config-count".to_string(),
+                "1".to_string(),
+            ),
+            (
+                "x-ssh-known-hosts".to_string(),
+                "/tmp/known_hosts".to_string(),
+            ),
+            (
+                "x-npm-config-userconfig".to_string(),
+                "/tmp/.npmrc".to_string(),
+            ),
+            (
                 "x-npm-registry-url".to_string(),
                 "https://registry.npmjs.org".to_string(),
             ),
@@ -933,6 +945,38 @@
             (
                 "x-yarn-npm-registry-server".to_string(),
                 "https://registry.yarnpkg.com".to_string(),
+            ),
+            (
+                "x-pnpm-store-path".to_string(),
+                "/tmp/pnpm-store".to_string(),
+            ),
+            (
+                "x-pip-index-url".to_string(),
+                "https://evil.example/simple".to_string(),
+            ),
+            (
+                "x-uv-cache-dir".to_string(),
+                "/tmp/uv-cache".to_string(),
+            ),
+            (
+                "x-poetry-virtualenvs-path".to_string(),
+                "/tmp/poetry-venv".to_string(),
+            ),
+            (
+                "x-bundle-path".to_string(),
+                "/tmp/bundle-path".to_string(),
+            ),
+            (
+                "x-cargo-registries-crates-io-token".to_string(),
+                "cargo-crates-token-evil".to_string(),
+            ),
+            (
+                "x-rustup-toolchain".to_string(),
+                "nightly-evil".to_string(),
+            ),
+            (
+                "x-gem-host-api-key".to_string(),
+                "gem-host-api-key-evil".to_string(),
             ),
             (
                 "x-bun-registry".to_string(),
@@ -1462,6 +1506,18 @@
             ),
             (" x-sonar-token ".to_string(), "sonar-token-evil".to_string()),
             (
+                " x-git-config-count ".to_string(),
+                "1".to_string(),
+            ),
+            (
+                " x-ssh-known-hosts ".to_string(),
+                "/tmp/known_hosts".to_string(),
+            ),
+            (
+                " x-npm-config-userconfig ".to_string(),
+                "/tmp/.npmrc".to_string(),
+            ),
+            (
                 " x-npm-registry-url ".to_string(),
                 "https://registry.npmjs.org".to_string(),
             ),
@@ -1472,6 +1528,38 @@
             (
                 " x-yarn-npm-registry-server ".to_string(),
                 "https://registry.yarnpkg.com".to_string(),
+            ),
+            (
+                " x-pnpm-store-path ".to_string(),
+                "/tmp/pnpm-store".to_string(),
+            ),
+            (
+                " x-pip-index-url ".to_string(),
+                "https://evil.example/simple".to_string(),
+            ),
+            (
+                " x-uv-cache-dir ".to_string(),
+                "/tmp/uv-cache".to_string(),
+            ),
+            (
+                " x-poetry-virtualenvs-path ".to_string(),
+                "/tmp/poetry-venv".to_string(),
+            ),
+            (
+                " x-bundle-path ".to_string(),
+                "/tmp/bundle-path".to_string(),
+            ),
+            (
+                " x-cargo-registries-crates-io-token ".to_string(),
+                "cargo-crates-token-evil".to_string(),
+            ),
+            (
+                " x-rustup-toolchain ".to_string(),
+                "nightly-evil".to_string(),
+            ),
+            (
+                " x-gem-host-api-key ".to_string(),
+                "gem-host-api-key-evil".to_string(),
             ),
             (
                 " x-bun-registry ".to_string(),
