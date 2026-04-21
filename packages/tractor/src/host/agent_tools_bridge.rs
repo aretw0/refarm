@@ -649,6 +649,14 @@ mod tests {
     }
 
     #[test]
+    fn shell_allowlist_rejects_empty_binary_token() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["".to_string()];
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("binary must be non-empty"));
+    }
+
+    #[test]
     fn shell_allowlist_parser_ignores_empty_entries_and_trims_whitespace() {
         let allowlist = parse_shell_allowlist(" ls , ,grep,   cat  ,");
         assert!(allowlist.contains("ls"));
