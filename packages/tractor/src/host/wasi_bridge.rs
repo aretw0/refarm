@@ -534,6 +534,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         if n.is_empty()
             || n == "authorization"
             || n == "x-api-key"
+            || n == "cookie"
+            || n == "set-cookie"
             || n == "host"
             || n == "content-length"
             || n == "transfer-encoding"

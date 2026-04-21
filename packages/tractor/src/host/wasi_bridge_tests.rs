@@ -757,6 +757,8 @@
             ("content-type".to_string(), "application/json".to_string()),
             ("authorization".to_string(), "Bearer fake".to_string()),
             ("x-api-key".to_string(), "fake-key".to_string()),
+            ("cookie".to_string(), "session=abc".to_string()),
+            ("set-cookie".to_string(), "session=abc".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
@@ -769,6 +771,8 @@
             ("Content-Type".to_string(), "application/json".to_string()),
             ("Authorization".to_string(), "Bearer fake".to_string()),
             ("X-API-KEY".to_string(), "fake-key".to_string()),
+            ("Cookie".to_string(), "session=abc".to_string()),
+            ("Set-Cookie".to_string(), "session=abc".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
@@ -781,6 +785,8 @@
             (" content-type ".to_string(), "application/json".to_string()),
             (" authorization ".to_string(), "Bearer fake".to_string()),
             (" x-api-key ".to_string(), "fake-key".to_string()),
+            (" cookie ".to_string(), "session=abc".to_string()),
+            (" set-cookie ".to_string(), "session=abc".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
