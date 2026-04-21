@@ -400,6 +400,15 @@
         assert!(err.contains("cwd must be ascii"));
     }
 
+    #[tokio::test]
+    async fn spawn_rejects_cwd_with_internal_whitespace() {
+        let argv = vec!["echo".to_string(), "ok".to_string()];
+        let err = spawn_process(&argv, &[], Some("/tmp/white space"), 1000, None)
+            .await
+            .unwrap_err();
+        assert!(err.contains("cwd must not contain whitespace"));
+    }
+
     #[test]
     fn spawn_cwd_within_fs_root_is_allowed() {
         let root_dir = tempfile::tempdir().unwrap();

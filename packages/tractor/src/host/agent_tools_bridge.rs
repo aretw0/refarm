@@ -400,6 +400,9 @@ fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), Strin
     if contains_control_chars(cwd) {
         return Err("spawn: cwd contains control characters".to_string());
     }
+    if cwd.chars().any(|c| c.is_whitespace()) {
+        return Err("spawn: cwd must not contain whitespace".to_string());
+    }
     if let Some(root) = fs_root {
         if let Err(_) = enforce_fs_root_with(cwd, Some(root)) {
             return Err("spawn: cwd outside LLM_FS_ROOT".to_string());
