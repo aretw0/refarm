@@ -571,6 +571,5 @@ impl PluginHost {
 }
 
 #[cfg(test)]
-#[cfg(test)]
 #[path = "plugin_host_tests.rs"]
 mod tests;
