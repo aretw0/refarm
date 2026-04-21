@@ -251,6 +251,8 @@ fn effective_spawn_timeout_ms(requested: u32) -> u32 {
 const MAX_SHELL_TOKEN_LEN: usize = 256;
 const MAX_SHELL_ALLOWLIST_ENTRIES: usize = 256;
 const MAX_SPAWN_ARGV_COUNT: usize = 128;
+const MAX_SPAWN_ARG_LEN: usize = 4096;
+const MAX_SPAWN_ARGV_TOTAL_BYTES: usize = 64 * 1024;
 const MAX_SPAWN_TIMEOUT_MS: u32 = 300_000;
 const MAX_TRUSTED_PLUGINS: usize = 256;
 const MAX_FS_PATH_LEN: usize = 4096;
@@ -470,9 +472,6 @@ fn enforce_shell_allowlist_with(
     argv: &[String],
     allowlist: Option<&std::collections::HashSet<String>>,
 ) -> Result<(), String> {
-    let Some(allowlist) = allowlist else {
-        return Ok(());
-    };
     if argv.is_empty() {
         return Err("spawn: argv must be non-empty".into());
     }
@@ -496,6 +495,12 @@ fn enforce_shell_allowlist_with(
     if binary.len() > MAX_SHELL_TOKEN_LEN {
         return Err("[blocked: binary exceeds max length]".into());
     }
+
+    enforce_spawn_argv_within_limits(argv)?;
+
+    let Some(allowlist) = allowlist else {
+        return Ok(());
+    };
     if allowlist.contains("*") {
         return Ok(());
     }
@@ -517,6 +522,24 @@ fn enforce_shell_allowlist_with(
     }
 
     Err(format!("[blocked: {cmd} not in allowlist]"))
+}
+
+fn enforce_spawn_argv_within_limits(argv: &[String]) -> Result<(), String> {
+    let mut total_bytes = 0usize;
+    for (idx, entry) in argv.iter().enumerate() {
+        if entry.len() > MAX_SPAWN_ARG_LEN {
+            return Err("spawn: argv entry exceeds max length".to_string());
+        }
+        if idx > 0 && contains_control_chars(entry) {
+            return Err("spawn: argv contains control characters".to_string());
+        }
+        let next_total = total_bytes.saturating_add(entry.len());
+        if next_total > MAX_SPAWN_ARGV_TOTAL_BYTES {
+            return Err("spawn: argv payload exceeds max total bytes".to_string());
+        }
+        total_bytes = next_total;
+    }
+    Ok(())
 }
 
 fn configured_fs_root() -> Result<Option<PathBuf>, String> {

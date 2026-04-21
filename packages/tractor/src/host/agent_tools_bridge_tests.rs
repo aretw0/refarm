@@ -385,6 +385,34 @@
     }
 
     #[test]
+    fn shell_allowlist_unset_still_enforces_argv_count_cap() {
+        let mut argv = vec!["echo".to_string()];
+        argv.extend((0..128).map(|i| i.to_string()));
+
+        let err = enforce_shell_allowlist_with(&argv, None).unwrap_err();
+        assert!(err.contains("too many argv entries"));
+    }
+
+    #[test]
+    fn shell_allowlist_rejects_overlong_argv_entry() {
+        let allowlist = parse_shell_allowlist("*");
+        let argv = vec!["echo".to_string(), "a".repeat(4097)];
+
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("argv entry exceeds max length"));
+    }
+
+    #[test]
+    fn shell_allowlist_rejects_overlong_total_argv_payload() {
+        let allowlist = parse_shell_allowlist("*");
+        let mut argv = vec!["echo".to_string()];
+        argv.extend((0..20).map(|_| "a".repeat(4000)));
+
+        let err = enforce_shell_allowlist_with(&argv, Some(&allowlist)).unwrap_err();
+        assert!(err.contains("argv payload exceeds max total bytes"));
+    }
+
+    #[test]
     fn shell_allowlist_wildcard_allows_any_command() {
         let allowlist = parse_shell_allowlist(" * ");
         let argv = vec!["definitely-not-in-list".to_string()];
