@@ -176,6 +176,28 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_cap_budget_entries() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+
+        let mut budgets = serde_json::Map::new();
+        for i in 0..80 {
+            budgets.insert(format!("provider-{i}"), serde_json::Value::from(i as f64));
+        }
+        let cfg = serde_json::json!({"budgets": budgets});
+        std::fs::write(refarm_dir.join("config.json"), cfg.to_string()).unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let budget_count = vars
+            .iter()
+            .filter(|(k, _)| k.starts_with("LLM_BUDGET_"))
+            .count();
+
+        assert_eq!(budget_count, 64);
+    }
+
+    #[test]
     fn refarm_config_env_vars_sanitize_budget_provider_tokens() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
