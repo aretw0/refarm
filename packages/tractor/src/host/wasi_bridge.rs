@@ -633,10 +633,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-client-principal-id"
             || n == "x-ms-client-principal-name"
             || n == "x-ms-client-principal-idp"
+            || n.starts_with("x-ms-client-principal-")
             || n == "x-ms-token-aad-id-token"
             || n == "x-ms-token-aad-access-token"
             || n == "x-ms-token-aad-refresh-token"
             || n == "x-ms-token-aad-expires-on"
+            || n.starts_with("x-ms-token-aad-")
             || n == "x-client-verify"
             || n == "x-client-dn"
             || n == "x-client-cert-chain"

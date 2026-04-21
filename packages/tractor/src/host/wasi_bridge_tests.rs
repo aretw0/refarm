@@ -1261,6 +1261,25 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_ms_aad_header_prefix_aliases() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("x-ms-client-principal-claims".to_string(), "...".to_string()),
+            (
+                "X-MS-TOKEN-AAD-TOKEN-TYPE".to_string(),
+                "Bearer".to_string(),
+            ),
+            (
+                " x-ms-token-aad-tenant-id ".to_string(),
+                "tenant".to_string(),
+            ),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_empty_header_names() {
         let headers = vec![
             ("   ".to_string(), "ignored".to_string()),
