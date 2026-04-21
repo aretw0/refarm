@@ -193,6 +193,25 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_skip_string_fields_with_whitespace() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"provider":"openai","model":"gpt 4.1-mini","default_provider":"ollama"}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_PROVIDER"], "openai");
+        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("LLM_MODEL"));
+    }
+
+    #[test]
     fn refarm_config_env_vars_skip_string_fields_with_control_chars() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");

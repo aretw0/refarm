@@ -305,6 +305,7 @@ fn push_trimmed_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Opti
     if !trimmed.is_empty()
         && trimmed.len() <= MAX_CONFIG_ENV_VALUE_LEN
         && trimmed.is_ascii()
+        && !trimmed.chars().any(|c| c.is_whitespace())
         && !trimmed.chars().any(|c| c.is_control())
     {
         upsert_env_var_vec(vars, key.to_string(), trimmed.to_string());
