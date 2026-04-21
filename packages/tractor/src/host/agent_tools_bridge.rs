@@ -616,6 +616,16 @@ mod tests {
     }
 
     #[test]
+    fn fs_root_blocks_parent_escape_sequence() {
+        let root_dir = tempfile::tempdir().unwrap();
+        let root = std::fs::canonicalize(root_dir.path()).unwrap();
+        let escape = root.join("..").join("outside.txt");
+
+        let err = enforce_fs_root_with(escape.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
+        assert!(err.contains("path outside LLM_FS_ROOT"));
+    }
+
+    #[test]
     fn trusted_plugins_parse_none_when_unset() {
         let cfg = serde_json::json!({"provider": "ollama"});
         let parsed = parse_trusted_plugins(&cfg).unwrap();
@@ -636,6 +646,16 @@ mod tests {
         assert!(parsed.contains("pi_agent"));
         assert!(parsed.contains("agent-tools"));
         assert!(!parsed.contains(""));
+    }
+
+    #[test]
+    fn trusted_plugins_empty_array_blocks_all_plugins() {
+        let cfg = serde_json::json!({"trusted_plugins": []});
+        let parsed = parse_trusted_plugins(&cfg).unwrap().unwrap();
+        assert!(parsed.is_empty());
+
+        let err = enforce_trusted_plugin_for_shell_with("pi_agent", Some(&parsed)).unwrap_err();
+        assert!(err.contains("not allowed to use agent-shell"));
     }
 
     #[test]
