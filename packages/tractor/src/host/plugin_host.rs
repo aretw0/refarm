@@ -384,6 +384,25 @@ mod tests {
     }
 
     #[test]
+    fn refarm_config_env_vars_ignores_non_numeric_budgets() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(
+            refarm_dir.join("config.json"),
+            r#"{"budgets":{"anthropic":"5.0","openai":null,"ollama":1.25}}"#,
+        )
+        .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_BUDGET_ANTHROPIC_USD"));
+        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
+        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "1.25");
+    }
+
+    #[test]
     fn refarm_config_env_vars_ignores_invalid_json() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
