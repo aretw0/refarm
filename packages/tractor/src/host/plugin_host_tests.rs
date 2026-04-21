@@ -46,6 +46,13 @@
             "LLM_HTTP_PROXY",
             "LLM_HTTPS_PROXY_URL",
             "LLM_NO_PROXY",
+            "LLM_CA_BUNDLE",
+            "LLM_CA_FILE",
+            "LLM_CA_PATH",
+            "LLM_TLS_INSECURE",
+            "LLM_ALLOW_INSECURE",
+            "LLM_SSL_VERIFY",
+            "LLM_VERIFY_SSL",
         ];
         for key in blocked {
             assert!(!is_forwardable_llm_env_key(key), "expected key to be blocked: {key}");
