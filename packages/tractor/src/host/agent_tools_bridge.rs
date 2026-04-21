@@ -116,6 +116,11 @@ pub(crate) async fn spawn_process(
     if let Some(dir) = cwd {
         enforce_spawn_cwd(dir)?;
     }
+    if let Some(stdin_bytes) = stdin {
+        if stdin_bytes.len() > MAX_SPAWN_STDIN_LEN {
+            return Err("spawn: stdin exceeds max length".to_string());
+        }
+    }
 
     let binary = &argv[0];
     let args = &argv[1..];
@@ -258,6 +263,7 @@ const MAX_SPAWN_ENV_KEY_LEN: usize = 128;
 const MAX_SPAWN_ENV_VALUE_LEN: usize = 4096;
 const MAX_SPAWN_ENV_VARS: usize = 128;
 const MAX_SPAWN_CWD_LEN: usize = 4096;
+const MAX_SPAWN_STDIN_LEN: usize = 1024 * 1024;
 
 fn is_safe_spawn_env_key(key: &str) -> bool {
     if key.is_empty() || key.len() > MAX_SPAWN_ENV_KEY_LEN {

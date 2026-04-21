@@ -168,6 +168,16 @@
     }
 
     #[tokio::test]
+    async fn spawn_rejects_overlong_stdin() {
+        let argv = vec!["cat".to_string()];
+        let stdin = vec![b'a'; 1024 * 1024 + 1];
+        let err = spawn_process(&argv, &[], None, 1000, Some(&stdin))
+            .await
+            .unwrap_err();
+        assert!(err.contains("stdin exceeds max length"));
+    }
+
+    #[tokio::test]
     async fn spawn_env_clear_no_ambient_env() {
         let mut b = make_bindings();
         let result = AgentShellHost::spawn(
