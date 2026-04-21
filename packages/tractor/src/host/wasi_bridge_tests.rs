@@ -381,6 +381,16 @@
                 "invalid authority characters",
             ),
             (
+                "bracketed_ipv6_invalid_colon_layout",
+                "https://[::::]",
+                "invalid authority characters",
+            ),
+            (
+                "bracketed_ipv6_too_many_segments",
+                "https://[1:2:3:4:5:6:7:8:9]",
+                "invalid authority characters",
+            ),
+            (
                 "port_non_numeric",
                 "https://api.openai.com:abc",
                 "invalid authority characters",

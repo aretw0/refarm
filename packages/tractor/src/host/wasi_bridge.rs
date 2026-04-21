@@ -428,12 +428,7 @@ fn is_safe_base_url_authority(authority: &str) -> bool {
         let Some((ipv6, tail)) = rest.split_once(']') else {
             return false;
         };
-        if ipv6.is_empty()
-            || !ipv6.contains(':')
-            || !ipv6
-                .bytes()
-                .all(|b| b.is_ascii_hexdigit() || b == b':' || b == b'.')
-        {
+        if ipv6.is_empty() || !ipv6.contains(':') || ipv6.parse::<std::net::Ipv6Addr>().is_err() {
             return false;
         }
         if tail.is_empty() {
