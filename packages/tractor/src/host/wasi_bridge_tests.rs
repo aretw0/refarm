@@ -1334,6 +1334,22 @@
     }
 
     #[test]
+    fn sanitized_headers_drop_managed_identity_headers() {
+        let headers = vec![
+            ("content-type".to_string(), "application/json".to_string()),
+            ("Metadata".to_string(), "true".to_string()),
+            (
+                "x-identity-header".to_string(),
+                "identity-header-evil".to_string(),
+            ),
+            ("X-MSI-SECRET".to_string(), "msi-secret-evil".to_string()),
+        ];
+        let out = sanitized_plugin_headers(&headers);
+        assert_eq!(out.len(), 1);
+        assert_eq!(out[0].0, "content-type");
+    }
+
+    #[test]
     fn sanitized_headers_drop_metadata_auth_headers() {
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),

@@ -644,6 +644,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-client-principal"
             || n == "x-ms-client-principal-id"
             || n == "x-ms-client-principal-name"
+            || n == "metadata"
+            || n == "x-identity-header"
+            || n == "x-msi-secret"
             || n == "x-ms-client-principal-idp"
             || n.starts_with("x-ms-client-principal-")
             || n == "x-ms-token-aad-id-token"
