@@ -21,6 +21,7 @@
             "LLM_",
             "LLM_SHELL_ALLOWLIST",
             "LLM_FS_ROOT",
+            "LLM_TRUSTED_PLUGINS",
             "LLM-provider",
             "LLM_PROVIDER NAME",
             "LLM_provider",
