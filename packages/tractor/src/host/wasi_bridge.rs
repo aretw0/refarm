@@ -470,7 +470,9 @@ fn is_safe_header_name(name: &str) -> bool {
 
 fn is_safe_header_value(value: &str) -> bool {
     const MAX_HEADER_VALUE_LEN: usize = 16 * 1024;
-    value.len() <= MAX_HEADER_VALUE_LEN && !value.chars().any(|c| c.is_control())
+    value.len() <= MAX_HEADER_VALUE_LEN
+        && value.trim_matches(' ') == value
+        && !value.chars().any(|c| c.is_control())
 }
 
 fn join_base_url_and_path(base_url: &str, path: &str) -> String {
