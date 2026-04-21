@@ -326,6 +326,11 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
     matches!(
         upper.as_str(),
         "PATH"
+            | "HOME"
+            | "USERPROFILE"
+            | "XDG_CONFIG_HOME"
+            | "XDG_DATA_HOME"
+            | "XDG_CACHE_HOME"
             | "IFS"
             | "SHELLOPTS"
             | "BASHOPTS"
