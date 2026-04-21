@@ -32,6 +32,8 @@
             "LLM_SHARED_SECRET",
             "LLM_DB_PASSWORD",
             "LLM_PROVIDER_CREDENTIALS",
+            "LLM_TLS_CERT",
+            "LLM_CA_CERTIFICATE",
             "LLM_SSH_PRIVATE_KEY",
             "LLM_AWS_ACCESS_KEY",
             "LLM_REQUEST_SIGNING_KEY",
