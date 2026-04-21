@@ -461,6 +461,30 @@
         assert!(bytes.is_none());
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn refarm_config_path_guard_accepts_matching_open_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("config.json");
+        std::fs::write(&path, br#"{"provider":"openai"}"#).unwrap();
+
+        let file = std::fs::File::open(&path).unwrap();
+        assert!(refarm_config_path_matches_open_file(&path, &file));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn refarm_config_path_guard_rejects_mismatched_open_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path_a = dir.path().join("a.json");
+        let path_b = dir.path().join("b.json");
+        std::fs::write(&path_a, br#"{"provider":"openai"}"#).unwrap();
+        std::fs::write(&path_b, br#"{"provider":"ollama"}"#).unwrap();
+
+        let file = std::fs::File::open(&path_a).unwrap();
+        assert!(!refarm_config_path_matches_open_file(&path_b, &file));
+    }
+
     #[test]
     fn refarm_config_json_from_reads_valid_json() {
         let dir = tempfile::tempdir().unwrap();

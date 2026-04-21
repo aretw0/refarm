@@ -354,6 +354,14 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
     let Ok(mut file) = std::fs::File::open(path) else {
         return None;
     };
+    if !refarm_config_path_matches_open_file(path, &file) {
+        tracing::warn!(
+            path = %path.display(),
+            "ignoring unstable .refarm/config.json entry during read"
+        );
+        return None;
+    }
+
     let mut bytes = Vec::new();
     use std::io::Read as _;
     if (&mut file)
@@ -372,6 +380,35 @@ fn read_refarm_config_bytes(path: &std::path::Path) -> Option<Vec<u8>> {
         return None;
     }
     Some(bytes)
+}
+
+#[cfg(unix)]
+fn refarm_config_path_matches_open_file(path: &std::path::Path, file: &std::fs::File) -> bool {
+    use std::os::unix::fs::MetadataExt;
+
+    let Ok(path_metadata) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    let Ok(file_metadata) = file.metadata() else {
+        return false;
+    };
+
+    path_metadata.is_file()
+        && file_metadata.is_file()
+        && path_metadata.dev() == file_metadata.dev()
+        && path_metadata.ino() == file_metadata.ino()
+}
+
+#[cfg(not(unix))]
+fn refarm_config_path_matches_open_file(path: &std::path::Path, file: &std::fs::File) -> bool {
+    let Ok(path_metadata) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    let Ok(file_metadata) = file.metadata() else {
+        return false;
+    };
+
+    path_metadata.is_file() && file_metadata.is_file()
 }
 
 fn refarm_config_json_from(base: &std::path::Path) -> Option<serde_json::Value> {
