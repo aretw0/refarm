@@ -657,6 +657,12 @@ fn configured_fs_root() -> Result<Option<PathBuf>, String> {
     let Ok(raw) = std::env::var("LLM_FS_ROOT") else {
         return Ok(None);
     };
+    if raw.len() > MAX_FS_PATH_LEN {
+        return Err("[blocked: invalid LLM_FS_ROOT: exceeds max length]".to_string());
+    }
+    if contains_control_chars(&raw) {
+        return Err("[blocked: invalid LLM_FS_ROOT: contains control characters]".to_string());
+    }
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return Ok(Some(PathBuf::new()));

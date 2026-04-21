@@ -704,6 +704,40 @@
     }
 
     #[test]
+    fn configured_fs_root_rejects_control_chars() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        std::env::set_var("LLM_FS_ROOT", "/tmp/root\n");
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("contains control characters"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
+    fn configured_fs_root_rejects_overlong_value() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev = std::env::var("LLM_FS_ROOT").ok();
+
+        std::env::set_var("LLM_FS_ROOT", format!("/{}", "a".repeat(4097)));
+
+        let err = configured_fs_root().unwrap_err();
+        assert!(err.contains("exceeds max length"));
+
+        if let Some(prev) = prev {
+            std::env::set_var("LLM_FS_ROOT", prev);
+        } else {
+            std::env::remove_var("LLM_FS_ROOT");
+        }
+    }
+
+    #[test]
     fn fs_root_allows_paths_inside_root() {
         let dir = tempfile::tempdir().unwrap();
         let root = std::fs::canonicalize(dir.path()).unwrap();
