@@ -820,6 +820,11 @@
         let headers = vec![
             ("Content-Length".to_string(), "999999".to_string()),
             ("Transfer-Encoding".to_string(), "chunked".to_string()),
+            ("Forwarded".to_string(), "for=1.2.3.4".to_string()),
+            ("Via".to_string(), "1.1 edge".to_string()),
+            ("X-Forwarded-For".to_string(), "1.2.3.4".to_string()),
+            ("X-Forwarded-Host".to_string(), "evil.example".to_string()),
+            ("X-Forwarded-Proto".to_string(), "http".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
