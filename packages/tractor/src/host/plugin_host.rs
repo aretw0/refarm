@@ -190,7 +190,9 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_SOCK")
         || upper.ends_with("_SOCKET")
         || upper.ends_with("_JWT")
-        || upper.ends_with("_ASSERTION"))
+        || upper.ends_with("_ASSERTION")
+        || upper.ends_with("_SESSION")
+        || upper.ends_with("_SESSION_ID"))
 }
 
 fn is_forwardable_llm_env_value(value: &str) -> bool {
