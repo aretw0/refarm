@@ -1,24 +1,28 @@
 {
-	"context": "Checkpoint de compactação preparado. Frente única permanece em segurança de boundaries do Tractor host (`agent_tools_bridge`, `wasi_bridge`, `plugin_host`) com hardening incremental e refactor para reduzir arquivos monolíticos. Nesta rodada, além dos gates de validação (charset/controle/whitespace/comprimento para provider, allowlist, trusted_plugins, headers, env e paths), houve split estrutural dos testes: `wasi_bridge_tests.rs` e `agent_tools_bridge_tests.rs`.",
-	"timestamp": "2026-04-21T05:19:20Z",
+	"context": "Checkpoint pré-limite de contexto atualizado. Frente única continua em hardening de boundaries do Tractor host (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com micro-slices locais e validação por suíte alvo. O lote avançou para 97 commits locais à frente de `origin/develop`, com foco recente em caps defensivos (stdin/stdout+stderr/env payload/header scan/body req+resp), bloqueio de chaves de env de loader injection, dedupe de env keys e ajuste de política de headers para granularidade por header (em vez de orçamento global), mantendo limite por quantidade e janela de scan.",
+	"timestamp": "2026-04-21T06:52:57Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
-		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo desta frente)."
+		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo desta frente).",
+		"Lote local grande ainda sem push/CI remoto (aguardando autorização)."
 	],
 	"next_actions": [
-		"Após compactação, continuar micro-slices (1 arquivo + teste + commit) priorizando limites/validações de input host-side.",
-		"Manter disciplina anti-monólito: se algum arquivo crescer demais, extrair módulo auxiliar ou arquivo de testes dedicado.",
-		"Quando autorizado, pushar lote local (ahead 69) e executar uma única rodada de validação CI remota."
+		"Se contexto aproximar do limite, compactar imediatamente após este handoff (estado canônico já pronto).",
+		"Após compactação, retomar com micro-slices em `plugin_host` e `wasi_bridge` (caps finos e dedupe), preservando 1–2 arquivos por commit.",
+		"Quando autorizado, pushar lote (ahead 97) e executar uma única validação remota de CI; registrar verificação formal em `.project/verification.json`."
 	],
-	"open_questions": [],
+	"open_questions": [
+		"Confirmar política final de headers: manter cap por header (atual) com eventual soft-cap global alto opcional?"
+	],
 	"key_decisions_pending": [],
 	"files_in_flux": [
 		"packages/tractor/src/host/agent_tools_bridge.rs",
 		"packages/tractor/src/host/agent_tools_bridge_tests.rs",
+		"packages/tractor/src/host/plugin_host.rs",
+		"packages/tractor/src/host/plugin_host_tests.rs",
 		"packages/tractor/src/host/wasi_bridge.rs",
 		"packages/tractor/src/host/wasi_bridge_tests.rs",
-		"packages/tractor/src/host/plugin_host.rs",
 		".project/handoff.json"
 	]
 }
