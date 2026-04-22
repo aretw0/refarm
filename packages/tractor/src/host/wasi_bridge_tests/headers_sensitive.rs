@@ -26,7 +26,15 @@
                 "access-key-id-evil".to_string(),
             ),
             (
+                "x-accesskey-id".to_string(),
+                "access-key-id-evil".to_string(),
+            ),
+            (
                 "x-signing-key-id".to_string(),
+                "signing-key-id-evil".to_string(),
+            ),
+            (
+                "x-signingkey-id".to_string(),
                 "signing-key-id-evil".to_string(),
             ),
             (
@@ -34,7 +42,15 @@
                 "/tmp/evil-credentials.json".to_string(),
             ),
             (
+                "x-credentialfile-path".to_string(),
+                "/tmp/evil-credentials.json".to_string(),
+            ),
+            (
                 "x-credentials-path".to_string(),
+                "/tmp/evil-credentials.json".to_string(),
+            ),
+            (
+                "x-credentialsfile-path".to_string(),
                 "/tmp/evil-credentials.json".to_string(),
             ),
             (
@@ -42,7 +58,15 @@
                 "/tmp/evil-private.key".to_string(),
             ),
             (
+                "x-keyfile-path".to_string(),
+                "/tmp/evil-private.key".to_string(),
+            ),
+            (
                 "x-token-file-path".to_string(),
+                "/tmp/evil-token.txt".to_string(),
+            ),
+            (
+                "x-tokenfile-path".to_string(),
                 "/tmp/evil-token.txt".to_string(),
             ),
             (
