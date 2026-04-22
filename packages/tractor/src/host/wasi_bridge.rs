@@ -647,6 +647,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-shopify-")
             || n == "x-slack-signature"
             || n == "x-slack-request-timestamp"
+            || n == "x-request-timestamp"
+            || n.starts_with("x-request-timestamp-")
             || n.starts_with("x-slack-")
             || n == "x-ci-job-token"
             || n.starts_with("x-ci-")

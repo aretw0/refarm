@@ -2083,6 +2083,7 @@
                 "x-slack-request-timestamp".to_string(),
                 "1711111111".to_string(),
             ),
+            ("x-request-timestamp".to_string(), "1711111111".to_string()),
             ("x-slack-team-id".to_string(), "T01234567".to_string()),
             ("X-Hub-Signature".to_string(), "sha1=deadbeef".to_string()),
             (
