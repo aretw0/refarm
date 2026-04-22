@@ -756,6 +756,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-opfs-")
             || n == "cf-access-jwt-assertion"
             || n == "x-goog-iap-jwt-assertion"
+            || n.starts_with("x-assertion-")
             || n == "x-goog-authenticated-user-email"
             || n == "x-goog-authenticated-user-id"
             || n.starts_with("x-goog-authenticated-user-")
@@ -764,6 +765,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-google-authenticated-user-email"
             || n == "x-google-authenticated-user-id"
             || n.starts_with("x-google-authenticated-user-")
+            || n == "x-userinfo"
+            || n.starts_with("x-userinfo-")
             || n == "x-amzn-oidc-data"
             || n == "x-amzn-oidc-identity"
             || n == "x-amzn-oidc-accesstoken"

@@ -1065,6 +1065,7 @@
                 "x-google-authenticated-user-id".to_string(),
                 "accounts.google.com:123".to_string(),
             ),
+            ("x-userinfo-email".to_string(), "alice@example.com".to_string()),
             ("x-amzn-oidc-data".to_string(), "jwt".to_string()),
             ("x-amzn-oidc-identity".to_string(), "sub".to_string()),
             ("x-amzn-oidc-accesstoken".to_string(), "jwt".to_string()),
