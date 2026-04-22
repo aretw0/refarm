@@ -71,6 +71,23 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "STRIPESECRETKEY",
     "STRIPESIGNATURE",
     "STRIPEWEBHOOKSECRET",
+    // Forwarded / routing compact aliases
+    "FORWARDEDURI",
+    "ORIGINALURL",
+    "ORIGINALURI",
+    "ORIGINALPATH",
+    "REWRITEURL",
+    "REWRITEURI",
+    "REALIP",
+    "CLIENTIP",
+    "TRUECLIENTIP",
+    "CFCONNECTINGIP",
+    "CLUSTERCLIENTIP",
+    "ENVOYEXTERNALADDRESS",
+    "ENVOYORIGINALPATH",
+    "ENVOYORIGINALURL",
+    "ENVOYPEERMETADATA",
+    "ENVOYPEERMETADATAID",
 ];
 
 fn env_suffix_matches_token(upper_env_key: &str, token: &str) -> bool {
@@ -160,6 +177,25 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
     "xstripeapikey",
     "xstripesecretkey",
     "xstripewebhooksecret",
+    // Forwarded / routing compact headers
+    "xforwardeduri",
+    "xoriginalurl",
+    "xoriginaluri",
+    "xoriginalpath",
+    "xrewriteurl",
+    "xrewriteuri",
+    "xrealip",
+    "xclientip",
+    "trueclientip",
+    "cfconnectingip",
+    "xclusterclientip",
+    "xenvoyexternaladdress",
+    "xenvoyoriginalpath",
+    "xenvoyoriginalurl",
+    "xenvoypeermetadata",
+    "xenvoypeermetadataid",
+    "xforwardedclientip",
+    "fastlyclientip",
 ];
 
 const COMPACT_HEADER_PREFIX: &[&str] = &[
