@@ -680,6 +680,12 @@
             ("STRIPE_WEBHOOK_SECRET", "whsec_evil_secret"),
             ("STRIPE_ACCOUNT_ID", "acct_evil"),
             ("SHOPIFY_WEBHOOK_SECRET", "shopify-webhook-secret-evil"),
+            ("CUSTOM_WEBHOOK_SECRET", "custom-webhook-secret-evil"),
+            (
+                "CUSTOM_WEBHOOK_SECRET_TOKEN",
+                "custom-webhook-secret-token-evil",
+            ),
+            ("PAYLOAD_SIGNATURE", "sha256=deadbeef"),
             ("SHOPIFY_API_SECRET", "shopify-api-secret-evil"),
             ("SHOPIFY_STORE_DOMAIN", "evil.myshopify.com"),
             ("GITEA_INSTANCE_URL", "https://gitea.evil"),
