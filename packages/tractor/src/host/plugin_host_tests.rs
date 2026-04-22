@@ -381,6 +381,7 @@
             "LLM_IDENTITY_HEADER_FILE",
             "LLM_KUBECONFIG",
             "LLM_KUBE_CONFIG_PATH",
+            "LLM_K8S_CLUSTER_NAME",
             "LLM_KUBEAPISERVER",
             "LLM_KUBETOKEN",
             "LLM_KUBECAFILE",

@@ -372,6 +372,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_GITEA_")
         || upper.contains("_GOGS_")
         || upper.contains("_SENDGRID_")
+        || upper.contains("_K8S_")
         || upper.contains("_KUBE_")
         || upper.contains("_HELM_")
         || upper.contains("_DOCKER_")
