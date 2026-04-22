@@ -160,16 +160,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-discord-")
             || n == "x-signature-ed25519"
             || n == "x-signature-timestamp"
-            || n == "x-signaturetimestamp"
             || n == "x-hub-signature"
             || n == "x-hubsignature"
             || n == "x-hub-signature-256"
             || n == "x-hubsignature256"
-            || n == "x-hmacsha256"
             || n.starts_with("x-webhook-")
-            || n == "x-webhooksecret"
-            || n == "x-webhooksecrettoken"
-            || n == "x-webhookurl"
             || n == "x-gitea-signature"
             || n.starts_with("x-gitea-")
             || n == "x-gogs-signature"
@@ -188,7 +183,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-slack-request-timestamp"
             || n == "x-slack-requesttimestamp"
             || n == "x-request-timestamp"
-            || n == "x-requesttimestamp"
             || n.starts_with("x-request-timestamp-")
             || n.starts_with("x-slack-")
             || n == "x-ci-job-token"

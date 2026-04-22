@@ -118,6 +118,15 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "SUPABASEDBURL",
     "METABASEDBCONNECTIONURI",
     "MBDBCONNECTIONURI",
+    // Webhook / session / auth compact aliases
+    "AUTHORIZATIONHEADER",
+    "REQUESTTIMESTAMP",
+    "SESSIONID",
+    "SIGNATURETIMESTAMP",
+    "HMACSHA256",
+    "WEBHOOKSECRET",
+    "WEBHOOKSECRETTOKEN",
+    "WEBHOOKURL",
     // Client cert / principal compact aliases
     "FORWARDEDCLIENTCERT",
     "CLIENTCERT",
@@ -275,6 +284,13 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
     "xsupabasedburl",
     "xmetabasedbconnectionuri",
     "xmbdbconnectionuri",
+    // Webhook / session / auth compact headers
+    "xrequesttimestamp",
+    "xsignaturetimestamp",
+    "xhmacsha256",
+    "xwebhooksecret",
+    "xwebhooksecrettoken",
+    "xwebhookurl",
     // Client cert / principal compact headers
     "xforwardedclientcert",
     "xclientcert",
@@ -340,6 +356,8 @@ mod tests {
             "SERVICE_HTTPMETHODOVERRIDE",
             "SERVICE_OIDCDATA",
             "SERVICE_DATABASEURL",
+            "SERVICE_WEBHOOKURL",
+            "SERVICE_SESSIONID",
         ];
         for key in blocked {
             assert!(
@@ -393,6 +411,8 @@ mod tests {
             "x-httpmethodoverride",
             "x-oidcdata",
             "x-databaseurl",
+            "x-webhookurl",
+            "x-requesttimestamp",
         ];
         for header in blocked {
             assert!(
