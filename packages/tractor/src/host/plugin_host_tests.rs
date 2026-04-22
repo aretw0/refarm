@@ -47,6 +47,7 @@
             "LLM_AWS_WEB_IDENTITY_TOKEN_FILE",
             "LLM_CLOUDSDK_AUTH_CREDENTIAL_FILE",
             "LLM_OCI_CLI_REGION",
+            "LLM_OCI_REGION",
             "LLM_NETRC",
             "LLM_NETRC_MACHINE",
             "LLM_CURL_SSL_BACKEND",

@@ -425,6 +425,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_CODECOV_")
         || upper.contains("_SONAR_")
         || upper.contains("_OCI_CLI_")
+        || upper.contains("_OCI_")
         || upper.contains("_PROXY_")
         || upper.contains("_FORWARDED_")
         || upper.contains("_ORIGINAL_")
