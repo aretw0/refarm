@@ -274,6 +274,7 @@
                 "deadbeefsignature".to_string(),
             ),
             ("x-signature-timestamp".to_string(), "1711111111".to_string()),
+            ("x-signaturetimestamp".to_string(), "1711111111".to_string()),
             (
                 "x-gitlab-webhook-token".to_string(),
                 "gitlab-webhook-token-evil".to_string(),
@@ -296,13 +297,30 @@
             ("x-request-timestamp".to_string(), "1711111111".to_string()),
             ("x-slack-team-id".to_string(), "T01234567".to_string()),
             ("X-Hub-Signature".to_string(), "sha1=deadbeef".to_string()),
+            ("x-hubsignature".to_string(), "sha1=deadbeef".to_string()),
             (
                 "x-hub-signature-256".to_string(),
                 "sha256=deadbeef".to_string(),
             ),
             (
+                "x-hubsignature256".to_string(),
+                "sha256=deadbeef".to_string(),
+            ),
+            (
                 "x-webhook-secret".to_string(),
                 "custom-webhook-secret-evil".to_string(),
+            ),
+            (
+                "x-webhooksecret".to_string(),
+                "custom-webhook-secret-evil".to_string(),
+            ),
+            (
+                "x-webhooksecrettoken".to_string(),
+                "custom-webhook-secret-token-evil".to_string(),
+            ),
+            (
+                "x-webhookurl".to_string(),
+                "https://hooks.example/evil".to_string(),
             ),
             (
                 "X-Stripe-Signature".to_string(),
@@ -331,6 +349,10 @@
             ),
             (
                 "x-shopify-hmac-sha256".to_string(),
+                "shopify-hmac-evil".to_string(),
+            ),
+            (
+                "x-shopify-hmacsha256".to_string(),
                 "shopify-hmac-evil".to_string(),
             ),
             (
