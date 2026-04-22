@@ -368,7 +368,15 @@
                 "postgres://user:pass@db/evil".to_string(),
             ),
             (
+                "x-databaseurl".to_string(),
+                "postgres://user:pass@db/evil".to_string(),
+            ),
+            (
                 "x-dsn-primary".to_string(),
+                "postgres://user:pass@db-primary/evil".to_string(),
+            ),
+            (
+                "x-databasedsn".to_string(),
                 "postgres://user:pass@db-primary/evil".to_string(),
             ),
             ("x-database-host".to_string(), "db.evil".to_string()),
@@ -376,9 +384,17 @@
                 "X-Redis-Url".to_string(),
                 "redis://:pass@redis:6379/0".to_string(),
             ),
+            (
+                "X-RedisUrl".to_string(),
+                "redis://:pass@redis:6379/0".to_string(),
+            ),
             ("x-redis-host".to_string(), "redis.evil".to_string()),
             (
                 "x-mongodb-uri".to_string(),
+                "mongodb://user:pass@mongo:27017/evil".to_string(),
+            ),
+            (
+                "x-mongodburi".to_string(),
                 "mongodb://user:pass@mongo:27017/evil".to_string(),
             ),
             (
@@ -390,10 +406,15 @@
                 "postgres://user:pass@db/evil".to_string(),
             ),
             (
+                "X-PostgresUrl".to_string(),
+                "postgres://user:pass@db/evil".to_string(),
+            ),
+            (
                 "x-postgres-user".to_string(),
                 "postgres-evil".to_string(),
             ),
             ("x-mysql-url".to_string(), "mysql://user:pass@db/evil".to_string()),
+            ("x-mysqlurl".to_string(), "mysql://user:pass@db/evil".to_string()),
             (
                 "x-mysql-database".to_string(),
                 "evil".to_string(),
@@ -456,6 +477,12 @@
                 "upstash-account-evil".to_string(),
             ),
             ("x-turso-auth-token".to_string(), "turso-token-evil".to_string()),
+            ("x-supabasedburl".to_string(), "postgres://user:pass@db/supabase".to_string()),
+            (
+                "x-metabasedbconnectionuri".to_string(),
+                "postgres://user:pass@db/metabase".to_string(),
+            ),
+            ("x-mbdbconnectionuri".to_string(), "sqlite:///tmp/metabase.db".to_string()),
             ("X-Turso-Org".to_string(), "org-evil".to_string()),
             ("x-pglite-data-dir".to_string(), "/tmp/evil-pglite".to_string()),
             (
