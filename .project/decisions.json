@@ -79,6 +79,14 @@
       "status": "tentative",
       "phase": 2,
       "context": "Pergunta do usuário sobre usar LLM para tudo versus combinar small models/transformers.js durante sprint de segurança do Tractor/Pi Agent."
+    },
+    {
+      "id": "DEC-011",
+      "decision": "Encerrar a fase de centralização quando regras compartilháveis de sensibilidade estiverem em `sensitive_aliases.rs`, mantendo locais apenas limites estruturais de boundary (shape/charset/size/order dedupe).",
+      "rationale": "Evita centralização excessiva e arquivo monolítico sem ganho. Regras semânticas de sensibilidade ficam em fonte única; guardrails mecânicos de cada boundary permanecem locais por contexto de transporte.",
+      "status": "decided",
+      "phase": 2,
+      "context": "Definição de critério de done para a frente de hardening host-side após redução de duplicação em spawn/plugin/wasi."
     }
   ]
 }
