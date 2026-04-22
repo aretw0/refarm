@@ -191,3 +191,82 @@ pub(crate) fn is_compact_sensitive_header_alias(lower_header_name: &str) -> bool
     COMPACT_HEADER_EXACT.iter().any(|v| compact == *v)
         || COMPACT_HEADER_PREFIX.iter().any(|v| compact.starts_with(v))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn compact_env_alias_suffix_matches_expected_keys() {
+        let blocked = [
+            "SERVICE_GITHUBTOKEN",
+            "SERVICE_CFACCESSJWTASSERTION",
+            "SERVICE_KUBECONFIGPATH",
+            "SERVICE_SLACKBOTTOKEN",
+            "SERVICE_STRIPEWEBHOOKSECRET",
+        ];
+        for key in blocked {
+            assert!(
+                is_compact_sensitive_env_alias_suffix(key),
+                "expected compact env suffix match: {key}"
+            );
+        }
+
+        let allowed = ["SERVICE_GITHUB_TOKEN", "GITHUBTOKEN", "SERVICE_PROVIDER"];
+        for key in allowed {
+            assert!(
+                !is_compact_sensitive_env_alias_suffix(key),
+                "expected compact env suffix NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn compact_env_alias_segment_matches_expected_keys() {
+        let blocked = [
+            "LLM_FOO_GITLABTOKEN_BAR",
+            "LLM_FOO_CLOUDFLAREACCESSCLIENTSECRET_BAR",
+            "LLM_FOO_SLACKREQUESTTIMESTAMP_BAR",
+        ];
+        for key in blocked {
+            assert!(
+                is_compact_sensitive_env_alias_suffix_or_segment(key),
+                "expected compact env segment match: {key}"
+            );
+        }
+
+        let allowed = ["LLM_FOO_GITLAB_TOKEN_BAR", "LLM_PROVIDER_BASE_URL"];
+        for key in allowed {
+            assert!(
+                !is_compact_sensitive_env_alias_suffix_or_segment(key),
+                "expected compact env segment NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn compact_header_alias_matches_normalized_forms() {
+        let blocked = [
+            "x-githubtoken",
+            "X-GitLabUserId",
+            "x-slack-requesttimestamp",
+            "x-stripe-api-key",
+            "x-kubeconfig-path",
+            "x-msisecret",
+        ];
+        for header in blocked {
+            assert!(
+                is_compact_sensitive_header_alias(header),
+                "expected compact header alias match: {header}"
+            );
+        }
+
+        let allowed = ["x-github-token-legacy", "x-provider", "x-openai-model"];
+        for header in allowed {
+            assert!(
+                !is_compact_sensitive_header_alias(header),
+                "expected compact header alias NOT to match: {header}"
+            );
+        }
+    }
+}
