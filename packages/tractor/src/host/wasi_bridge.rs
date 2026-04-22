@@ -768,6 +768,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-amzn-oidc-identity"
             || n == "x-amzn-oidc-accesstoken"
             || n.starts_with("x-amzn-oidc-")
+            || n.starts_with("x-oidc-")
             || n == "x-forwarded-user"
             || n == "x-forwarded-user-id"
             || n == "x-forwarded-userid"
@@ -850,6 +851,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-msi-secret"
             || n == "x-ms-client-principal-idp"
             || n.starts_with("x-ms-client-principal-")
+            || n.starts_with("x-client-principal-")
             || n == "x-ms-token-aad-id-token"
             || n == "x-ms-token-aad-access-token"
             || n == "x-ms-token-aad-refresh-token"
