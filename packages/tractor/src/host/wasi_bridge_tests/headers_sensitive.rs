@@ -165,6 +165,10 @@
                 "openssl".to_string(),
             ),
             ("x-wget-user".to_string(), "evil-user".to_string()),
+            (
+                "x-wgetrc-path".to_string(),
+                "/tmp/evil-wgetrc".to_string(),
+            ),
             ("x-kube-token".to_string(), "kube-token-evil".to_string()),
             (
                 "x-helm-kubetoken".to_string(),
