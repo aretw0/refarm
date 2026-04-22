@@ -1,23 +1,20 @@
 {
-	"context": "Checkpoint de contenção com contexto alto (~71%) para compactação iminente. Estado atual: `develop` em `ahead 607` de `origin/develop`, árvore limpa. A frente de hardening host-side do Tractor manteve centralização em `packages/tractor/src/host/sensitive_aliases.rs` (spawn env block, plugin LLM env forwarding key/value, canonical+compact header policy WASI) com delegação nas três boundaries. Nesta janela recente: (1) ADR-012 formalizado e indexado; (2) backlog ISS-013 aberto para modularizar `sensitive_aliases.rs` depois; (3) testes de anti-drift adicionados para wrappers de delegação em `agent_tools_bridge_tests/fs_shell_core.rs` e `plugin_host_tests/env_policy_core.rs` para garantir alinhamento contínuo com helpers compartilhados.",
-	"timestamp": "2026-04-22T22:19:01Z",
+	"context": "Checkpoint de contenção pós-lote manual (sem colônia). Estado atual: `develop` em `ahead 610` de `origin/develop`, árvore limpa. A centralização de políticas sensíveis segue consolidada em `packages/tractor/src/host/sensitive_aliases.rs` com delegação nas boundaries spawn/plugin/wasi. Nesta janela foram adicionados guards de anti-drift para manter a delegação alinhada e foi formalizado critério de encerramento da fase de centralização (regra semântica compartilhada no módulo central; limites mecânicos de boundary permanecem locais).",
+	"timestamp": "2026-04-22T22:52:30Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
 		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo desta frente).",
-		"Lote local grande ainda sem push/CI remoto (aguardando autorização).",
+		"Lote local ainda sem push/CI remoto (aguardando autorização).",
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Compactar contexto agora para preservar continuidade sem perda de estado.",
-		"Após compactação, executar passe final de critério de done para centralização de políticas sensíveis.",
-		"Manter validação agregada por macro-lote (agent_tools_bridge + plugin_host + wasi_bridge).",
-		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
+		"Executar passe final de residuals por boundary conforme critério DEC-011.",
+		"Manter validação agregada (agent_tools_bridge + plugin_host + wasi_bridge) a cada macro-lote.",
+		"Quando autorizado, pushar lote local e disparar CI remota única."
 	],
 	"open_questions": [],
-	"key_decisions_pending": [
-		"Critério formal de encerramento da frente de centralização (limite entre política compartilhada e exceções específicas de boundary)."
-	],
+	"key_decisions_pending": [],
 	"files_in_flux": [
 		"packages/tractor/src/host/sensitive_aliases.rs",
 		"packages/tractor/src/host/agent_tools_bridge/core.rs",
@@ -26,10 +23,11 @@
 		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
 		"packages/tractor/src/host/agent_tools_bridge_tests/fs_shell_core.rs",
 		"packages/tractor/src/host/plugin_host_tests/env_policy_core.rs",
-		"packages/tractor/src/host/wasi_bridge_tests/*",
+		"packages/tractor/src/host/wasi_bridge_tests/headers_transport_misc.rs",
 		"specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md",
 		".project/handoff.json",
 		".project/verification.json",
+		".project/decisions.json",
 		".project/issues.json"
 	]
 }

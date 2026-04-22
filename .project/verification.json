@@ -491,6 +491,32 @@
           "evidence": "112 passed"
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-CHKPT-20260422-610",
+      "target": "2",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "test",
+      "timestamp": "2026-04-22T22:52:30Z",
+      "evidence": "Checkpoint pós-lote manual com anti-drift WASI + decisão DEC-011 de critério de done da centralização.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "112 passed"
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "43 passed"
+        },
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "85 passed"
+        }
+      ]
     }
   ]
 }
