@@ -407,14 +407,20 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-bitbucket-user-email"
             || n.starts_with("x-bitbucket-user-")
             || n == "x-ms-client-principal"
+            || n == "x-ms-clientprincipal"
             || n == "x-ms-client-principal-id"
+            || n == "x-ms-clientprincipalid"
             || n == "x-ms-client-principal-name"
+            || n == "x-ms-clientprincipalname"
             || n == "metadata"
             || n == "x-identity-header"
             || n == "x-msi-secret"
             || n == "x-ms-client-principal-idp"
+            || n == "x-ms-clientprincipalidp"
             || n.starts_with("x-ms-client-principal-")
+            || n.starts_with("x-ms-clientprincipal-")
             || n.starts_with("x-client-principal-")
+            || n.starts_with("x-clientprincipal-")
             || n == "x-ms-token-aad-id-token"
             || n == "x-ms-token-aad-access-token"
             || n == "x-ms-token-aad-refresh-token"

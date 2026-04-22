@@ -24,6 +24,9 @@
         let headers = vec![
             ("content-type".to_string(), "application/json".to_string()),
             ("x-ms-client-principal-claims".to_string(), "...".to_string()),
+            ("x-ms-clientprincipal-claims".to_string(), "...".to_string()),
+            ("x-ms-clientprincipalid".to_string(), "alice-id".to_string()),
+            ("x-clientprincipal-name".to_string(), "alice".to_string()),
             (
                 "X-MS-TOKEN-AAD-TOKEN-TYPE".to_string(),
                 "Bearer".to_string(),
