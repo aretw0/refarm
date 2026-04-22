@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção com contexto em ~73%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 569` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou cloud metadata + kube/registry compact aliases e iniciou bloco CF Access/IAP com 2 boundaries estáveis (spawn/env host-only), mantendo regressões corrigidas antes de avançar.",
-	"timestamp": "2026-04-22T14:38:44Z",
+	"context": "Checkpoint de contenção com contexto em ~75% antes de nova compactação. Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 571` de `origin/develop`, árvore limpa e suíte alvo verde. O bloco CF Access/IAP ficou fechado nas três boundaries (spawn/env host-only/headers).",
+	"timestamp": "2026-04-22T14:43:31Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,9 +9,9 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Prosseguir em modo conservador (micro-lotes) enquanto contexto alto.",
-		"Completar o boundary de headers para CF Access/IAP em commit atômico separado.",
-		"Planejar compactação quando contexto subir para ~78-80%.",
+		"Compactar contexto agora.",
+		"Após compactação, retomar em micro-lotes por boundary com testes por slice.",
+		"Planejar novo checkpoint quando contexto voltar à faixa ~75-80%.",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
 	],
 	"open_questions": [],
