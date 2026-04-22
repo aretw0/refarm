@@ -1,33 +1,22 @@
 {
-	"context": "Checkpoint de fechamento da frente host-side hardening (pré-push). Estado atual: `develop` local em `ahead 614` (antes deste checkpoint commit), com centralização de policy semântica em `packages/tractor/src/host/sensitive_aliases.rs` e guardrails mecânicos locais por boundary conforme DEC-011. Passe final de residuals concluído, ADR-012 formalizado com rastreio fechado (ISS-012 resolvido), e gate agregado final de testes executado com sucesso.",
-	"timestamp": "2026-04-22T23:18:00Z",
+	"context": "Checkpoint pré-compactação com correção de falha de CI concluída. Root cause real do vermelho: `@refarm.dev/tractor-rs` falhava primeiro em `cargo clippy -D warnings` (não reproduzível localmente por ausência de `cargo-clippy`), e após correções de clippy emergiu falha de teste unitário em `host::sensitive_aliases::tests::generic_env_sensitive_token_matches_suffix_and_segment` para `SERVICE_WEBHOOK_TOKEN`. Ajustes aplicados e validados.",
+	"timestamp": "2026-04-22T23:40:16Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
-		"Push/CI remoto dependem de autorização explícita do usuário.",
-		"`cargo clippy` indisponível localmente (cargo-clippy não instalado).",
-		"Risco externo de churn/promovibilidade em colônias permanece fora do escopo desta frente."
+		"Ferramentas locais `cargo-clippy` e `cargo-fmt` indisponíveis no ambiente atual.",
+		"Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical)."
 	],
 	"next_actions": [
-		"Com autorização: push único do lote local para origin/develop.",
-		"Com autorização: disparar/acompanhar rodada única de CI remota.",
-		"Após merge/CI: abrir frente separada para ISS-013 (modularização de sensitive_aliases)."
+		"Compactar contexto e seguir próximo lote funcional.",
+		"Opcional: instalar `cargo-clippy`/`cargo-fmt` localmente para reduzir gap de reprodução CI/local."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
 	"files_in_flux": [
 		"packages/tractor/src/host/sensitive_aliases.rs",
-		"packages/tractor/src/host/agent_tools_bridge/core.rs",
-		"packages/tractor/src/host/plugin_host/core.rs",
-		"packages/tractor/src/host/plugin_host/env_and_runtime.rs",
-		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
-		"packages/tractor/src/host/agent_tools_bridge_tests/fs_shell_core.rs",
-		"packages/tractor/src/host/plugin_host_tests/env_policy_core.rs",
-		"packages/tractor/src/host/wasi_bridge_tests/headers_transport_misc.rs",
-		"specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md",
+		"packages/tractor/src/host/agent_tools_bridge/policy_and_fs.rs",
 		".project/handoff.json",
-		".project/verification.json",
-		".project/decisions.json",
-		".project/issues.json"
+		".project/verification.json"
 	]
 }

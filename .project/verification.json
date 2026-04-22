@@ -595,6 +595,27 @@
           "evidence": "85 passed"
         }
       ]
+    },
+    {
+      "id": "VER-CI-RECOVERY-20260422-TRACTOR-RS",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-22T23:40:16Z",
+      "evidence": "Recuperação do pipeline `Test & Quality` após correção de regressões em `packages/tractor`: clippy warnings/errors corrigidos e ajuste de regra para preservar exclusão `WEBHOOK_TOKEN` no matcher genérico.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib --quiet (packages/tractor)",
+          "status": "passed",
+          "evidence": "275 passed, 0 failed"
+        },
+        {
+          "criterion": "GitHub Actions run 24808001802",
+          "status": "passed",
+          "evidence": "quality/build/e2e/summary concluídos com sucesso"
+        }
+      ]
     }
   ]
 }
