@@ -866,6 +866,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-client-verify"
             || n == "x-client-dn"
             || n == "x-client-cert-chain"
+            || n.starts_with("x-certificate-")
+            || n.starts_with("x-private-key-")
             || n == "x-ssl-client-verify"
             || n == "x-ssl-client-dn"
             || n == "x-ssl-client-s-dn"

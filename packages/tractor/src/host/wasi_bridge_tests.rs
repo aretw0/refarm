@@ -1047,6 +1047,14 @@
             ("x-ms-token-aad-access-token".to_string(), "jwt".to_string()),
             ("x-ms-token-aad-refresh-token".to_string(), "jwt".to_string()),
             ("x-ms-token-aad-expires-on".to_string(), "1700000000".to_string()),
+            (
+                "x-certificate-chain".to_string(),
+                "-----BEGIN CERTIFICATE-----evil".to_string(),
+            ),
+            (
+                "x-private-key-path".to_string(),
+                "/tmp/evil-private-key.pem".to_string(),
+            ),
             ("cf-access-jwt-assertion".to_string(), "jwt".to_string()),
             ("x-goog-iap-jwt-assertion".to_string(), "jwt".to_string()),
             (
@@ -1649,6 +1657,14 @@
             (" x-ms-token-aad-access-token ".to_string(), "jwt".to_string()),
             (" x-ms-token-aad-refresh-token ".to_string(), "jwt".to_string()),
             (" x-ms-token-aad-expires-on ".to_string(), "1700000000".to_string()),
+            (
+                " x-certificate-chain ".to_string(),
+                "-----BEGIN CERTIFICATE-----evil".to_string(),
+            ),
+            (
+                " x-private-key-path ".to_string(),
+                "/tmp/evil-private-key.pem".to_string(),
+            ),
             (" cf-access-jwt-assertion ".to_string(), "jwt".to_string()),
             (" x-goog-iap-jwt-assertion ".to_string(), "jwt".to_string()),
             (
