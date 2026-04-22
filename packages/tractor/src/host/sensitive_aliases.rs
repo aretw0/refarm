@@ -3,6 +3,11 @@
 /// Goal: keep compact variants (without `_` / `-`) in one place so
 /// spawn/plugin/wasi policies stay in lockstep with lower maintenance churn.
 
+// NOTE: Keep this catalog focused on *compact aliases* for multi-part sensitive
+// names (e.g. HTTP_METHOD_OVERRIDE -> HTTPMETHODOVERRIDE).
+// Intentionally excluded generic canonical tokens (TOKEN, SECRET, SESSION, JWT,
+// HMAC, AUTHORIZATION, etc.) remain enforced directly in boundary code to avoid
+// over-expanding this compact-alias helper.
 const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     // Cloud metadata / workload identity compact aliases
     "AWSEC2METADATATOKEN",
@@ -451,6 +456,43 @@ mod tests {
             assert!(
                 !is_compact_sensitive_env_alias_suffix_or_segment(key),
                 "expected compact env segment NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn compact_alias_catalog_excludes_generic_canonical_tokens() {
+        let env_not_compact = [
+            "SERVICE_TOKEN",
+            "SERVICE_SECRET",
+            "SERVICE_SESSION",
+            "SERVICE_JWT",
+            "SERVICE_HMAC",
+            "SERVICE_AUTHORIZATION",
+            "SERVICE_TRAILER",
+            "SERVICE_UPGRADE",
+        ];
+        for key in env_not_compact {
+            assert!(
+                !is_compact_sensitive_env_alias_suffix(key),
+                "generic canonical token must stay outside compact catalog: {key}"
+            );
+        }
+
+        let header_not_compact = [
+            "x-token",
+            "x-secret",
+            "x-session",
+            "x-jwt",
+            "x-hmac",
+            "authorization",
+            "trailer",
+            "upgrade",
+        ];
+        for header in header_not_compact {
+            assert!(
+                !is_compact_sensitive_header_alias(header),
+                "generic canonical header must stay outside compact catalog: {header}"
             );
         }
     }
