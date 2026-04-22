@@ -457,6 +457,7 @@
             "LLM_PROXY_AUTHORIZATION",
             "LLM_PROXY_AUTHENTICATE",
             "LLM_PROXY_AUTHENTICATION_INFO",
+            "LLM_SERVICE_WGETRC_PATH",
             "LLM_PROXY_XFF_HINT",
             "LLM_PROXY_STATUS",
             "LLM_AUTHENTICATION_INFO",

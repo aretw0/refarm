@@ -481,6 +481,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_NETRC_")
         || upper.contains("_CURL_")
         || upper.ends_with("_WGETRC")
+        || upper.contains("_WGETRC_")
         || upper.contains("_WGET_")
         || upper.contains("_GIT_")
         || upper.contains("_SSH_")
