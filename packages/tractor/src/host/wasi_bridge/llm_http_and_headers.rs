@@ -49,23 +49,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-password-")
             || n.starts_with("x-cookie-")
             || n.starts_with("x-proxy-")
-            || n == "x-proxyurl"
-            || n.starts_with("x-proxyurl-")
             || n.starts_with("x-no-proxy-")
-            || n == "x-noproxy"
-            || n.starts_with("x-noproxy-")
             || n.starts_with("x-ca-bundle-")
-            || n == "x-cabundle"
-            || n.starts_with("x-cabundle-")
             || n.starts_with("x-ca-file-")
-            || n == "x-cafile"
-            || n.starts_with("x-cafile-")
             || n.starts_with("x-ca-path-")
-            || n == "x-capath"
-            || n.starts_with("x-capath-")
             || n.starts_with("x-jwt-")
-            || n.starts_with("x-sock-")
-            || n.starts_with("x-socket-")
             || n == "api-key"
             || n == "x-datadog-api-key"
             || n.starts_with("x-datadog-")
@@ -119,10 +107,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-jfrog-")
             || n.starts_with("x-oci-cli-")
             || n.starts_with("x-oci-")
-            || n.starts_with("x-netrc-")
             || n.starts_with("x-curl-")
             || n.starts_with("x-wget-")
-            || n.starts_with("x-wgetrc-")
             || n.starts_with("x-argocd-")
             || n.starts_with("x-terraform-")
             || n.starts_with("x-pulumi-")
@@ -441,16 +427,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-urlscheme"
             || n.starts_with("x-url-scheme-")
             || n == "x-tls-insecure"
-            || n == "x-tlsinsecure"
             || n.starts_with("x-tls-insecure-")
             || n == "x-insecure-mode"
-            || n == "x-insecuremode"
             || n.starts_with("x-insecure-")
             || n == "x-verify-ssl"
-            || n == "x-verifyssl"
             || n.starts_with("x-verify-ssl-")
             || n == "x-ssl-verify"
-            || n == "x-sslverify"
             || n.starts_with("x-ssl-verify-")
             || n == "x-forwarded-port"
             || n == "x-forwardedport"

@@ -127,6 +127,20 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "WEBHOOKSECRET",
     "WEBHOOKSECRETTOKEN",
     "WEBHOOKURL",
+    // Proxy / TLS / transport compact aliases
+    "PROXYURL",
+    "NOPROXY",
+    "CABUNDLE",
+    "CAFILE",
+    "CAPATH",
+    "SOCK",
+    "SOCKET",
+    "NETRC",
+    "WGETRC",
+    "TLSINSECURE",
+    "INSECURE",
+    "SSLVERIFY",
+    "VERIFYSSL",
     // Client cert / principal compact aliases
     "FORWARDEDCLIENTCERT",
     "CLIENTCERT",
@@ -311,6 +325,19 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
 ];
 
 const COMPACT_HEADER_PREFIX: &[&str] = &[
+    "xproxyurl",
+    "xnoproxy",
+    "xcabundle",
+    "xcafile",
+    "xcapath",
+    "xsock",
+    "xsocket",
+    "xnetrc",
+    "xwgetrc",
+    "xtlsinsecure",
+    "xinsecure",
+    "xverifyssl",
+    "xsslverify",
     "xkubeconfig",
     "xk8saws",
     "xdockerhost",
@@ -358,6 +385,9 @@ mod tests {
             "SERVICE_DATABASEURL",
             "SERVICE_WEBHOOKURL",
             "SERVICE_SESSIONID",
+            "SERVICE_PROXYURL",
+            "SERVICE_TLSINSECURE",
+            "SERVICE_NETRC",
         ];
         for key in blocked {
             assert!(
@@ -413,6 +443,10 @@ mod tests {
             "x-databaseurl",
             "x-webhookurl",
             "x-requesttimestamp",
+            "x-proxyurl",
+            "x-cabundle",
+            "x-tlsinsecure",
+            "x-netrc-profile",
         ];
         for header in blocked {
             assert!(
