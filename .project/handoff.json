@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção com contexto em ~68%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos e validação agregada por lote. Estado atual: `develop` em `ahead 586` de `origin/develop`; árvore limpa exceto `context.md` untracked. Janela recente consolidou a centralização de aliases compactos em `packages/tractor/src/host/sensitive_aliases.rs`, reduzindo duplicação nas três boundaries para famílias de git providers, slack/discord/stripe, forwarded/routing, principal/client-cert, method/proxy transport, oidc/database e webhook/session/auth.",
-	"timestamp": "2026-04-22T19:12:23Z",
+	"context": "Checkpoint de contenção após centralização avançada da política sensível host-side no Tractor. Estado atual: `develop` em `ahead 596` de `origin/develop`, árvore limpa. Nesta janela foram concluídos macro-lotes de convergência para single-source policy em `packages/tractor/src/host/sensitive_aliases.rs`: (1) guards genéricos de env token, (2) guards canônicos compartilhados de env suffix/segment, (3) namespaces sensíveis compartilhados de env (prefix/segment), e (4) política canônica de headers WASI roteada por helper único (`is_sensitive_plugin_header_name`) com remoção massiva de duplicação local em `wasi_bridge/llm_http_and_headers.rs`. Paridade spawn/plugin/wasi preservada com validação agregada por lote.",
+	"timestamp": "2026-04-22T21:10:24Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,14 +9,14 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Compactar contexto agora.",
-		"Após compactação, retomar varredura residual de aliases compactos com scout/soldier pontuais (sem colônia).",
-		"Manter macro-lotes com validação agregada (agent_tools_bridge + plugin_host + wasi_bridge).",
-		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
+		"Manter varredura residual para reduzir casos literais remanescentes específicos por boundary (sem regressão de cobertura).",
+		"Preservar macro-lotes com validação agregada (agent_tools_bridge + plugin_host + wasi_bridge).",
+		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
+		"Formalizar documento ADR-012 quando houver janela dedicada e alinhamento final de escopo."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [
-		"Definir critério final de fechamento da fase de aliases e transição para hardening estrutural/documental (ADR-012)."
+		"Critério de encerramento da frente de centralização (limite prático entre política compartilhada e exceções específicas de boundary)."
 	],
 	"files_in_flux": [
 		"packages/tractor/src/host/sensitive_aliases.rs",
