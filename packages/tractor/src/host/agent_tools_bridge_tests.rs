@@ -365,6 +365,7 @@
             ("PERL5LIB", "/tmp/pwn-pl"),
             ("gem_home", "/tmp/pwn-gem"),
             ("GEM_PATH", "/tmp/pwn-gem-path"),
+            ("GEM_SPEC_CACHE", "/tmp/pwn-gem-spec-cache"),
             ("LUA_PATH", "/tmp/pwn-lua"),
             ("LUA_CPATH", "/tmp/pwn-lua-c"),
             ("SSL_CERT_FILE", "/tmp/evil-ca.pem"),
