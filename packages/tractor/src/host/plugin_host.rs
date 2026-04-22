@@ -250,6 +250,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_ASSERTION_")
         || upper.ends_with("_SESSION")
         || upper.ends_with("_SESSION_ID")
+        || upper.contains("_SESSION_")
         || upper.ends_with("_OIDC")
         || upper.ends_with("_OIDC_DATA")
         || upper.ends_with("_OIDC_IDENTITY")
