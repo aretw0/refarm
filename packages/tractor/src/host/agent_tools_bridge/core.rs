@@ -289,6 +289,8 @@ where
     buf
 }
 
+// Boundary-local (not shared): lexical shape checks for spawn env keys.
+// Semantic sensitive-key policy is centralized in `sensitive_aliases`.
 fn is_safe_spawn_env_key(key: &str) -> bool {
     if key.is_empty() || key.len() > MAX_SPAWN_ENV_KEY_LEN {
         return false;

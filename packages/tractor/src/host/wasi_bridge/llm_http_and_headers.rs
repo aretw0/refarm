@@ -46,6 +46,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     out
 }
 
+// Boundary-local (not shared): HTTP shape/charset limits.
+// Semantic sensitive-header policy is centralized in `sensitive_aliases`.
 fn is_safe_header_name(name: &str) -> bool {
     let trimmed = name.trim();
     const MAX_HEADER_NAME_LEN: usize = 128;

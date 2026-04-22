@@ -113,6 +113,9 @@ fn forwarded_llm_env_vars_from_iter<I>(vars: I) -> Vec<(String, String)>
 where
     I: IntoIterator<Item = (String, String)>,
 {
+    // Boundary-local (not shared): transport/runtime quotas and dedupe mechanics.
+    // Semantic allow/deny policy for `LLM_*` keys/values is delegated to
+    // `crate::host::sensitive_aliases`.
     const MAX_FORWARDED_LLM_ENV_VARS: usize = 128;
     const MAX_FORWARDED_LLM_ENV_SCAN: usize = 512;
     const MAX_FORWARDED_LLM_ENV_TOTAL_BYTES: usize = 64 * 1024;
