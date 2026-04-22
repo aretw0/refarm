@@ -150,6 +150,8 @@
             "LLM_SLACK_REQUEST_TIMESTAMP",
             "LLM_SHOPIFY_HMAC_SHA256",
             "LLM_WEBHOOK_HMAC",
+            "LLM_CUSTOM_WEBHOOK_SECRET",
+            "LLM_CUSTOM_WEBHOOK_SECRET_TOKEN",
             "LLM_DISCORD_WEBHOOK_URL",
             "LLM_OIDC",
             "LLM_OIDC_DATA",

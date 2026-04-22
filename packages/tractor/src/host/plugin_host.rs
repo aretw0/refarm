@@ -174,6 +174,8 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_TOKEN")
         || upper.ends_with("_AUTHTOKEN")
         || upper.ends_with("_WEBHOOK_URL")
+        || upper.ends_with("_WEBHOOK_SECRET")
+        || upper.ends_with("_WEBHOOK_SECRET_TOKEN")
         || upper.ends_with("_SIGNATURE")
         || upper.ends_with("_HMAC")
         || upper.ends_with("_HMAC_SHA256")
