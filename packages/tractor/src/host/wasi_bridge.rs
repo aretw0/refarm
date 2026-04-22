@@ -601,6 +601,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-sigstore-")
             || n.starts_with("x-cosign-")
             || n == "x-k8s-aws-id"
+            || n.starts_with("x-k8s-")
             || n == "ngrok-authtoken"
             || n == "x-ngrok-authtoken"
             || n.starts_with("x-ngrok-")
