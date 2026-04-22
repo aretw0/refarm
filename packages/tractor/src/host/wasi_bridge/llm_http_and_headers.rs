@@ -264,9 +264,13 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "cf-access-client-id"
             || n == "cf-access-client-secret"
             || n.starts_with("cf-access-client-")
+            || n.starts_with("cfaccessclient")
             || n.starts_with("x-cf-access-client-")
+            || n.starts_with("x-cfaccessclient")
             || n.starts_with("cf-access-")
+            || n.starts_with("cfaccess")
             || n.starts_with("x-cf-access-")
+            || n.starts_with("x-cfaccess")
             || n.starts_with("x-cf-api-")
             || n.starts_with("x-cloudflare-api-")
             || n == "x-database-url"
@@ -318,7 +322,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-opfs-root"
             || n.starts_with("x-opfs-")
             || n == "cf-access-jwt-assertion"
+            || n == "cfaccessjwtassertion"
+            || n == "x-cfaccessjwtassertion"
             || n == "x-goog-iap-jwt-assertion"
+            || n == "x-googiapjwtassertion"
             || n.starts_with("x-assertion-")
             || n == "x-goog-authenticated-user-email"
             || n == "x-googauthenticateduseremail"

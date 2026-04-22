@@ -97,8 +97,24 @@
             ),
             ("cf-access-aud".to_string(), "aud-evil".to_string()),
             (
+                "cfaccessclientid".to_string(),
+                "cf-access-client-id-evil-compact".to_string(),
+            ),
+            (
+                "x-cfaccessclientsecret".to_string(),
+                "cf-access-client-secret-evil-compact".to_string(),
+            ),
+            (
                 "x-cf-access-jwt-assertion".to_string(),
                 "jwt-evil".to_string(),
+            ),
+            (
+                "cfaccessjwtassertion".to_string(),
+                "jwt-evil-compact".to_string(),
+            ),
+            (
+                "x-googiapjwtassertion".to_string(),
+                "jwt-evil-iap-compact".to_string(),
             ),
             ("x-amznoidcdata".to_string(), "amzn-oidc-data-evil".to_string()),
             (
