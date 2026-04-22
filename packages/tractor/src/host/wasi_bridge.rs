@@ -724,6 +724,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-broker-")
             || n == "x-amqp-url"
             || n.starts_with("x-amqp-")
+            || n.starts_with("x-kafka-")
+            || n.starts_with("x-nats-")
+            || n.starts_with("x-rabbitmq-")
+            || n.starts_with("x-redpanda-")
             || n == "x-sqlite-url"
             || n == "x-sqlite-path"
             || n == "x-sqlite-file"

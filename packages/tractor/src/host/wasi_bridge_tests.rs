@@ -2163,6 +2163,19 @@
             ("x-broker-host".to_string(), "mq.evil".to_string()),
             ("x-amqp-url".to_string(), "amqp://user:pass@mq/evil".to_string()),
             ("x-amqp-host".to_string(), "mq.evil".to_string()),
+            (
+                "x-kafka-brokers".to_string(),
+                "kafka-1.evil:9092".to_string(),
+            ),
+            ("x-nats-url".to_string(), "nats://nats.evil:4222".to_string()),
+            (
+                "x-rabbitmq-uri".to_string(),
+                "amqp://rabbit.evil".to_string(),
+            ),
+            (
+                "x-redpanda-brokers".to_string(),
+                "redpanda.evil:9092".to_string(),
+            ),
             ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
             ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
             ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
