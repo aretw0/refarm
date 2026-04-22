@@ -217,6 +217,12 @@
                 "/tmp/evil-wgetrc".to_string(),
             ),
             (" x-kube-token ".to_string(), "kube-token-evil".to_string()),
+            (" x-kubetoken ".to_string(), "kube-token-evil".to_string()),
+            (
+                " x-kubeconfigpath ".to_string(),
+                "/tmp/evil-kubeconfig".to_string(),
+            ),
+            (" x-k8sawsid ".to_string(), "evil-k8s-aws-id".to_string()),
             (
                 " x-helm-kubetoken ".to_string(),
                 "helm-token-evil".to_string(),
