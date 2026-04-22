@@ -836,6 +836,7 @@
                 "x-oci-cli-security-token-file".to_string(),
                 "/tmp/oci-token".to_string(),
             ),
+            ("x-oci-region".to_string(), "sa-saopaulo-1".to_string()),
             ("x-netrc-machine".to_string(), "evil-machine".to_string()),
             (
                 "x-curl-ssl-backend".to_string(),
@@ -1423,6 +1424,10 @@
             (
                 " x-oci-cli-security-token-file ".to_string(),
                 "/tmp/oci-token".to_string(),
+            ),
+            (
+                " x-oci-region ".to_string(),
+                "sa-saopaulo-1".to_string(),
             ),
             (
                 " x-netrc-machine ".to_string(),

@@ -588,6 +588,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-artifactory-")
             || n.starts_with("x-jfrog-")
             || n.starts_with("x-oci-cli-")
+            || n.starts_with("x-oci-")
             || n.starts_with("x-netrc-")
             || n.starts_with("x-curl-")
             || n.starts_with("x-wget-")
