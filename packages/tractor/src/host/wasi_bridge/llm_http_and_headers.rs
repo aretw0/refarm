@@ -404,15 +404,27 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-token-aad-expires-on"
             || n.starts_with("x-ms-token-aad-")
             || n == "x-client-verify"
+            || n == "x-clientverify"
             || n == "x-client-dn"
+            || n == "x-clientdn"
+            || n == "x-client-san"
+            || n == "x-clientsan"
             || n == "x-client-cert-chain"
+            || n == "x-clientcertchain"
             || n.starts_with("x-certificate-")
+            || n.starts_with("x-certificatechain-")
             || n.starts_with("x-private-key-")
+            || n.starts_with("x-privatekey-")
             || n == "x-ssl-client-verify"
+            || n == "x-sslclientverify"
             || n == "x-ssl-client-dn"
+            || n == "x-sslclientdn"
             || n == "x-ssl-client-s-dn"
+            || n == "x-sslclientsdn"
             || n == "x-ssl-client-i-dn"
+            || n == "x-sslclientidn"
             || n == "x-ssl-client-san"
+            || n == "x-sslclientsan"
             || n == "cookie"
             || n == "set-cookie"
             || n == "host"
