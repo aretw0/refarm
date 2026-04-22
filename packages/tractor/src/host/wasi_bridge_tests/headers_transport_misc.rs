@@ -9,7 +9,12 @@
                 "x-identity-header".to_string(),
                 "identity-header-evil".to_string(),
             ),
+            (
+                "x-identityheader".to_string(),
+                "identity-header-evil".to_string(),
+            ),
             ("X-MSI-SECRET".to_string(), "msi-secret-evil".to_string()),
+            ("X-MSISECRET".to_string(), "msi-secret-evil".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);
@@ -25,11 +30,21 @@
                 "AQAEbW9jay10b2tlbg==".to_string(),
             ),
             (
+                "x-awsec2metadatatoken".to_string(),
+                "AQAEbW9jay10b2tlbg==".to_string(),
+            ),
+            (
                 "X-Aws-Ec2-Metadata-Token-Ttl-Seconds".to_string(),
                 "21600".to_string(),
             ),
+            (
+                "x-awsec2metadatatokenttlseconds".to_string(),
+                "21600".to_string(),
+            ),
             ("Metadata-Flavor".to_string(), "Google".to_string()),
+            ("MetadataFlavor".to_string(), "Google".to_string()),
             ("X-Google-Metadata-Request".to_string(), "True".to_string()),
+            ("X-GoogleMetadataRequest".to_string(), "True".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
         assert_eq!(out.len(), 1);

@@ -234,7 +234,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-amz-security-token"
             || n.starts_with("x-aws-")
             || n == "x-aws-ec2-metadata-token"
+            || n == "x-awsec2metadatatoken"
             || n == "x-aws-ec2-metadata-token-ttl-seconds"
+            || n == "x-awsec2metadatatokenttlseconds"
             || n.starts_with("x-azure-")
             || n.starts_with("x-arm-")
             || n.starts_with("x-google-")
@@ -244,7 +246,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-imds-")
             || n.starts_with("x-identity-")
             || n == "metadata-flavor"
+            || n == "metadataflavor"
             || n == "x-google-metadata-request"
+            || n == "x-googlemetadatarequest"
             || n == "cf-access-client-id"
             || n == "cf-access-client-secret"
             || n.starts_with("cf-access-client-")
@@ -414,7 +418,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-clientprincipalname"
             || n == "metadata"
             || n == "x-identity-header"
+            || n == "x-identityheader"
             || n == "x-msi-secret"
+            || n == "x-msisecret"
             || n == "x-ms-client-principal-idp"
             || n == "x-ms-clientprincipalidp"
             || n.starts_with("x-ms-client-principal-")
