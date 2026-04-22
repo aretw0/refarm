@@ -79,6 +79,7 @@
             "LLM_SQLITE_FILE",
             "LLM_SQLITE_TMPDIR",
             "LLM_SQLITE_HISTORY",
+            "LLM_SQLITE_BUSY_TIMEOUT",
             "LLM_SQLCIPHER_KEY",
             "LLM_LIBSQL_AUTH_TOKEN",
             "LLM_TURSO_AUTH_TOKEN",

@@ -215,6 +215,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_SQLITE_FILE")
         || upper.ends_with("_SQLITE_TMPDIR")
         || upper.ends_with("_SQLITE_HISTORY")
+        || upper.contains("_SQLITE_")
         || upper.ends_with("_SQLCIPHER_KEY")
         || upper.ends_with("_LIBSQL_AUTH_TOKEN")
         || upper.ends_with("_TURSO_AUTH_TOKEN")
