@@ -467,6 +467,10 @@
             ("OIDC_USERINFO", "alice@example.com"),
             ("AUTH_SESSION_ID", "session-id-evil"),
             ("USER_SESSION", "session-evil"),
+            ("SERVICE_TLS_INSECURE", "true"),
+            ("SERVICE_VERIFY_SSL", "false"),
+            ("SERVICE_SSL_VERIFY", "0"),
+            ("SERVICE_URL_SCHEME", "http"),
             ("SLACK_REQUEST_TIMESTAMP", "1711111111"),
             (
                 "TLS_CERTIFICATE_CHAIN_PATH",
