@@ -1,6 +1,8 @@
     #[test]
     fn sanitized_headers_drop_managed_identity_headers() {
         let headers = vec![
+            ("X-RequestTimestamp".to_string(), "1711111111".to_string()),
+            ("X-Slack-RequestTimestamp".to_string(), "1711111111".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
             ("Metadata".to_string(), "true".to_string()),
             (
@@ -78,10 +80,18 @@
             ("X-Forwarded-Scheme".to_string(), "http".to_string()),
             ("X-Forwarded-Ssl".to_string(), "on".to_string()),
             ("X-Url-Scheme".to_string(), "http".to_string()),
+            ("X-UrlScheme".to_string(), "http".to_string()),
             ("X-Url-Scheme-Policy".to_string(), "http".to_string()),
+            ("X-Tls-Insecure".to_string(), "true".to_string()),
+            ("X-TlsInsecure".to_string(), "true".to_string()),
             ("X-Tls-Insecure-Mode".to_string(), "true".to_string()),
             ("X-Insecure-Mode".to_string(), "true".to_string()),
+            ("X-InsecureMode".to_string(), "true".to_string()),
+            ("X-Verify-Ssl".to_string(), "false".to_string()),
+            ("X-VerifySsl".to_string(), "false".to_string()),
             ("X-Verify-Ssl-Policy".to_string(), "false".to_string()),
+            ("X-Ssl-Verify".to_string(), "0".to_string()),
+            ("X-SslVerify".to_string(), "0".to_string()),
             ("X-Ssl-Verify-Policy".to_string(), "0".to_string()),
             ("X-Forwarded-Port".to_string(), "443".to_string()),
             ("X-ForwardedPort".to_string(), "443".to_string()),

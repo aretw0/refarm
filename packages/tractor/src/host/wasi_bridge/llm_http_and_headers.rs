@@ -158,7 +158,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-shopify-")
             || n == "x-slack-signature"
             || n == "x-slack-request-timestamp"
+            || n == "x-slack-requesttimestamp"
             || n == "x-request-timestamp"
+            || n == "x-requesttimestamp"
             || n.starts_with("x-request-timestamp-")
             || n.starts_with("x-slack-")
             || n == "x-ci-job-token"
@@ -405,10 +407,19 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-scheme"
             || n == "x-forwarded-ssl"
             || n == "x-url-scheme"
+            || n == "x-urlscheme"
             || n.starts_with("x-url-scheme-")
+            || n == "x-tls-insecure"
+            || n == "x-tlsinsecure"
             || n.starts_with("x-tls-insecure-")
+            || n == "x-insecure-mode"
+            || n == "x-insecuremode"
             || n.starts_with("x-insecure-")
+            || n == "x-verify-ssl"
+            || n == "x-verifyssl"
             || n.starts_with("x-verify-ssl-")
+            || n == "x-ssl-verify"
+            || n == "x-sslverify"
             || n.starts_with("x-ssl-verify-")
             || n == "x-forwarded-port"
             || n == "x-forwardedport"
