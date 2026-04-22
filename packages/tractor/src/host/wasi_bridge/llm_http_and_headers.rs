@@ -219,6 +219,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-cloudflare-api-")
             || n == "x-database-url"
             || n.starts_with("x-database-")
+            || n.starts_with("x-dsn-")
             || n == "x-redis-url"
             || n.starts_with("x-redis-")
             || n == "x-mongodb-uri"

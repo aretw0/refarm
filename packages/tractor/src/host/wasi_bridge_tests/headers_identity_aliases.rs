@@ -367,6 +367,10 @@
                 "x-database-url".to_string(),
                 "postgres://user:pass@db/evil".to_string(),
             ),
+            (
+                "x-dsn-primary".to_string(),
+                "postgres://user:pass@db-primary/evil".to_string(),
+            ),
             ("x-database-host".to_string(), "db.evil".to_string()),
             (
                 "X-Redis-Url".to_string(),
