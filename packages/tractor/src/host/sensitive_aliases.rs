@@ -88,6 +88,26 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "ENVOYORIGINALURL",
     "ENVOYPEERMETADATA",
     "ENVOYPEERMETADATAID",
+    // Client cert / principal compact aliases
+    "FORWARDEDCLIENTCERT",
+    "CLIENTCERT",
+    "SSLCLIENTCERT",
+    "CLIENTCERTCHAIN",
+    "CLIENTDN",
+    "CLIENTSAN",
+    "CLIENTVERIFY",
+    "SSLCLIENTVERIFY",
+    "SSLCLIENTDN",
+    "SSLCLIENTSDN",
+    "SSLCLIENTIDN",
+    "SSLCLIENTSAN",
+    "CLIENTPRINCIPAL",
+    "CLIENTPRINCIPALID",
+    "CLIENTPRINCIPALNAME",
+    "CLIENTPRINCIPALIDP",
+    "PRINCIPALID",
+    "PRINCIPALNAME",
+    "PRINCIPALIDP",
 ];
 
 fn env_suffix_matches_token(upper_env_key: &str, token: &str) -> bool {
@@ -196,6 +216,23 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
     "xenvoypeermetadataid",
     "xforwardedclientip",
     "fastlyclientip",
+    // Client cert / principal compact headers
+    "xforwardedclientcert",
+    "xclientcert",
+    "xsslclientcert",
+    "xclientcertchain",
+    "xclientdn",
+    "xclientsan",
+    "xclientverify",
+    "xsslclientverify",
+    "xsslclientdn",
+    "xsslclientsdn",
+    "xsslclientidn",
+    "xsslclientsan",
+    "xmsclientprincipal",
+    "xmsclientprincipalid",
+    "xmsclientprincipalname",
+    "xmsclientprincipalidp",
 ];
 
 const COMPACT_HEADER_PREFIX: &[&str] = &[

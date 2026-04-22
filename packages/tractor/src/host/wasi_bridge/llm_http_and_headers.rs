@@ -411,16 +411,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-bitbucket-user-email"
             || n.starts_with("x-bitbucket-user-")
             || n == "x-ms-client-principal"
-            || n == "x-ms-clientprincipal"
             || n == "x-ms-client-principal-id"
-            || n == "x-ms-clientprincipalid"
             || n == "x-ms-client-principal-name"
-            || n == "x-ms-clientprincipalname"
             || n == "metadata"
             || n == "x-identity-header"
             || n == "x-msi-secret"
             || n == "x-ms-client-principal-idp"
-            || n == "x-ms-clientprincipalidp"
             || n.starts_with("x-ms-client-principal-")
             || n.starts_with("x-ms-clientprincipal-")
             || n.starts_with("x-client-principal-")
@@ -431,27 +427,18 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-token-aad-expires-on"
             || n.starts_with("x-ms-token-aad-")
             || n == "x-client-verify"
-            || n == "x-clientverify"
             || n == "x-client-dn"
-            || n == "x-clientdn"
             || n == "x-client-san"
-            || n == "x-clientsan"
             || n == "x-client-cert-chain"
-            || n == "x-clientcertchain"
             || n.starts_with("x-certificate-")
             || n.starts_with("x-certificatechain-")
             || n.starts_with("x-private-key-")
             || n.starts_with("x-privatekey-")
             || n == "x-ssl-client-verify"
-            || n == "x-sslclientverify"
             || n == "x-ssl-client-dn"
-            || n == "x-sslclientdn"
             || n == "x-ssl-client-s-dn"
-            || n == "x-sslclientsdn"
             || n == "x-ssl-client-i-dn"
-            || n == "x-sslclientidn"
             || n == "x-ssl-client-san"
-            || n == "x-sslclientsan"
             || n == "cookie"
             || n == "set-cookie"
             || n == "host"
@@ -524,12 +511,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-envoy-")
             || n == "fastly-client-ip"
             || n == "x-forwarded-client-cert"
-            || n == "x-forwardedclientcert"
             || n == "x-client-cert"
-            || n == "x-clientcert"
             || n.starts_with("x-client-")
             || n == "x-ssl-client-cert"
-            || n == "x-sslclientcert"
             || n.starts_with("x-ssl-client-")
             || n == "x-arr-clientcert"
             || n == "ssl-client-cert"
