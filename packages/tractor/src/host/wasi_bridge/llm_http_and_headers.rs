@@ -305,7 +305,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-goog-iap-jwt-assertion"
             || n.starts_with("x-assertion-")
             || n == "x-goog-authenticated-user-email"
+            || n == "x-googauthenticateduseremail"
             || n == "x-goog-authenticated-user-id"
+            || n == "x-googauthenticateduserid"
             || n.starts_with("x-goog-authenticated-user-")
             || n.starts_with("x-supabase-")
             || n == "x-supabasedburl"
@@ -313,14 +315,21 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-metabasedbconnectionuri"
             || n == "x-mbdbconnectionuri"
             || n == "x-google-authenticated-user-email"
+            || n == "x-googleauthenticateduseremail"
             || n == "x-google-authenticated-user-id"
+            || n == "x-googleauthenticateduserid"
             || n.starts_with("x-google-authenticated-user-")
             || n == "x-userinfo"
             || n.starts_with("x-userinfo-")
             || n == "x-amzn-oidc-data"
+            || n == "x-amznoidcdata"
             || n == "x-amzn-oidc-identity"
+            || n == "x-amznoidcidentity"
             || n == "x-amzn-oidc-accesstoken"
+            || n == "x-amznoidcaccesstoken"
             || n.starts_with("x-amzn-oidc-")
+            || n == "x-oidcdata"
+            || n == "x-oidcidentity"
             || n.starts_with("x-oidc-")
             || n == "x-forwarded-user"
             || n == "x-forwarded-user-id"

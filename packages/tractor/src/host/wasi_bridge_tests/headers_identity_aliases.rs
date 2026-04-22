@@ -65,8 +65,16 @@
                 "accounts.google.com:alice".to_string(),
             ),
             (
+                "x-googauthenticateduseremail".to_string(),
+                "accounts.google.com:alice@example.com".to_string(),
+            ),
+            (
                 "X-GOOGLE-AUTHENTICATED-USER-NAME".to_string(),
                 "accounts.google.com:alice".to_string(),
+            ),
+            (
+                "x-googleauthenticateduserid".to_string(),
+                "accounts.google.com:alice-id".to_string(),
             ),
             (
                 " cf-access-authenticated-user-name ".to_string(),
@@ -89,6 +97,17 @@
                 "x-cf-access-jwt-assertion".to_string(),
                 "jwt-evil".to_string(),
             ),
+            ("x-amznoidcdata".to_string(), "amzn-oidc-data-evil".to_string()),
+            (
+                "x-amznoidcidentity".to_string(),
+                "amzn-oidc-identity-evil".to_string(),
+            ),
+            (
+                "x-amznoidcaccesstoken".to_string(),
+                "amzn-oidc-access-token-evil".to_string(),
+            ),
+            ("x-oidcidentity".to_string(), "oidc-identity-evil".to_string()),
+            ("x-oidcdata".to_string(), "oidc-data-evil".to_string()),
             ("X-AMZN-OIDC-SUB".to_string(), "alice-sub".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
