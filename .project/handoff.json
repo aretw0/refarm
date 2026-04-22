@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção com contexto em ~71%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 566` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou hardening de aliases compactos (principal, OIDC/authenticated-user, webhook/signature/hmac, cloud metadata e kube/registry) em três boundaries.",
-	"timestamp": "2026-04-22T14:27:58Z",
+	"context": "Checkpoint de contenção com contexto em ~73%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 569` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou cloud metadata + kube/registry compact aliases e iniciou bloco CF Access/IAP com 2 boundaries estáveis (spawn/env host-only), mantendo regressões corrigidas antes de avançar.",
+	"timestamp": "2026-04-22T14:38:44Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,19 +9,16 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Retomar macro-lotes curtos por boundary (spawn env / plugin env / sanitized headers).",
-		"Planejar nova compactação quando contexto subir para ~78-80%.",
-		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
-		"Sincronizar `.project/verification.json` a cada checkpoint de contenção."
+		"Prosseguir em modo conservador (micro-lotes) enquanto contexto alto.",
+		"Completar o boundary de headers para CF Access/IAP em commit atômico separado.",
+		"Planejar compactação quando contexto subir para ~78-80%.",
+		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
 	"files_in_flux": [
 		"packages/tractor/src/host/agent_tools_bridge/core.rs",
-		"packages/tractor/src/host/agent_tools_bridge/policy_and_fs.rs",
 		"packages/tractor/src/host/plugin_host/core.rs",
-		"packages/tractor/src/host/plugin_host/env_and_runtime.rs",
-		"packages/tractor/src/host/wasi_bridge/core.rs",
 		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
 		"packages/tractor/src/host/agent_tools_bridge_tests/*",
 		"packages/tractor/src/host/plugin_host_tests/*",
