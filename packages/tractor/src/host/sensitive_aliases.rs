@@ -184,6 +184,28 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "PRINCIPALIDP",
 ];
 
+const GENERIC_ENV_SENSITIVE_TOKENS: &[&str] = &[
+    "ASSERTION",
+    "AUTH",
+    "AUTHORIZATION",
+    "BEARER",
+    "CERT",
+    "CERTIFICATE",
+    "COOKIE",
+    "CREDENTIALS",
+    "HMAC",
+    "JWT",
+    "PASSWORD",
+    "PROXY",
+    "SECRET",
+    "SESSION",
+    "SIGNATURE",
+    "TE",
+    "TOKEN",
+    "TRAILER",
+    "UPGRADE",
+];
+
 fn env_suffix_matches_token(upper_env_key: &str, token: &str) -> bool {
     upper_env_key
         .strip_suffix(token)
@@ -206,6 +228,24 @@ pub(crate) fn is_compact_sensitive_env_alias_suffix(upper_env_key: &str) -> bool
 /// (e.g. `LLM_FOO_GITHUBTOKEN_BAR`).
 pub(crate) fn is_compact_sensitive_env_alias_suffix_or_segment(upper_env_key: &str) -> bool {
     COMPACT_ENV_ALIAS_TOKENS.iter().copied().any(|token| {
+        env_suffix_matches_token(upper_env_key, token)
+            || env_segment_matches_token(upper_env_key, token)
+    })
+}
+
+/// Matches generic sensitive env tokens as trailing token
+/// (e.g. `SERVICE_TOKEN`, `SERVICE_SESSION`).
+pub(crate) fn is_generic_sensitive_env_token_suffix(upper_env_key: &str) -> bool {
+    GENERIC_ENV_SENSITIVE_TOKENS
+        .iter()
+        .copied()
+        .any(|token| env_suffix_matches_token(upper_env_key, token))
+}
+
+/// Matches generic sensitive env tokens as suffix or middle segment
+/// (e.g. `LLM_FOO_TOKEN_BAR`).
+pub(crate) fn is_generic_sensitive_env_token_suffix_or_segment(upper_env_key: &str) -> bool {
+    GENERIC_ENV_SENSITIVE_TOKENS.iter().copied().any(|token| {
         env_suffix_matches_token(upper_env_key, token)
             || env_segment_matches_token(upper_env_key, token)
     })
@@ -456,6 +496,47 @@ mod tests {
             assert!(
                 !is_compact_sensitive_env_alias_suffix_or_segment(key),
                 "expected compact env segment NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn generic_env_sensitive_token_matches_suffix_and_segment() {
+        let suffix_blocked = [
+            "SERVICE_TOKEN",
+            "SERVICE_SECRET",
+            "SERVICE_SESSION",
+            "SERVICE_JWT",
+            "SERVICE_HMAC",
+            "SERVICE_AUTHORIZATION",
+            "SERVICE_TRAILER",
+            "SERVICE_UPGRADE",
+        ];
+        for key in suffix_blocked {
+            assert!(
+                is_generic_sensitive_env_token_suffix(key),
+                "expected generic env suffix match: {key}"
+            );
+        }
+
+        let segment_blocked = [
+            "LLM_FOO_TOKEN_BAR",
+            "LLM_FOO_SECRET_BAR",
+            "LLM_FOO_PROXY_BAR",
+            "LLM_FOO_AUTHORIZATION_BAR",
+        ];
+        for key in segment_blocked {
+            assert!(
+                is_generic_sensitive_env_token_suffix_or_segment(key),
+                "expected generic env segment match: {key}"
+            );
+        }
+
+        let allowed = ["SERVICE_WEBHOOK_TOKEN", "TOKEN", "LLM_PROVIDER_BASE_URL"];
+        for key in allowed {
+            assert!(
+                !is_generic_sensitive_env_token_suffix_or_segment(key),
+                "expected generic env helper NOT to match: {key}"
             );
         }
     }

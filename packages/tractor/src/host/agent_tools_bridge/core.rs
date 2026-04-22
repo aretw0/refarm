@@ -19,7 +19,9 @@ use crate::host::plugin_host::refarm::plugin::{
     agent_fs::Host as AgentFsHost,
     agent_shell::{Host as AgentShellHost, SpawnRequest, SpawnResult},
 };
-use crate::host::sensitive_aliases::is_compact_sensitive_env_alias_suffix;
+use crate::host::sensitive_aliases::{
+    is_compact_sensitive_env_alias_suffix, is_generic_sensitive_env_token_suffix,
+};
 use crate::host::wasi_bridge::TractorNativeBindings;
 
 // ── agent-fs ──────────────────────────────────────────────────────────────────
@@ -399,12 +401,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_WEBHOOK_URL")
         || upper.ends_with("_WEBHOOK_SECRET")
         || upper.ends_with("_WEBHOOK_SECRET_TOKEN")
-        || upper.ends_with("_SIGNATURE")
-        || upper.ends_with("_HMAC")
         || upper.ends_with("_HMAC_SHA256")
-        || upper.ends_with("_ASSERTION")
-        || upper.ends_with("_JWT")
-        || upper.ends_with("_SESSION")
         || upper.ends_with("_SESSION_ID")
         || upper.ends_with("_REQUEST_TIMESTAMP")
         || upper.ends_with("_TLS_INSECURE")
@@ -455,25 +452,18 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_ENVOY_EXTERNAL_ADDRESS")
         || upper.ends_with("_ENVOY_PEER_METADATA")
         || upper.ends_with("_ENVOY_PEER_METADATA_ID")
-        || upper.ends_with("_TOKEN")
         || upper.ends_with("_API_KEY")
         || upper.ends_with("_API_HASH")
-        || upper.ends_with("_SECRET")
-        || upper.ends_with("_AUTH")
         || upper.ends_with("_AUTH_HEADER")
-        || upper.ends_with("_AUTHORIZATION")
         || upper.ends_with("_AUTHORIZATION_HEADER")
         || is_compact_sensitive_env_alias_suffix(&upper)
-        || upper.ends_with("_BEARER")
+        || is_generic_sensitive_env_token_suffix(&upper)
         || upper.ends_with("_KEY_FILE")
         || upper.ends_with("_TOKEN_FILE")
         || upper.ends_with("_CREDENTIAL_FILE")
         || upper.ends_with("_CREDENTIALS_FILE")
         || upper.ends_with("_ACCESS_KEY")
         || upper.ends_with("_SIGNING_KEY")
-        || upper.ends_with("_PASSWORD")
-        || upper.ends_with("_COOKIE")
-        || upper.ends_with("_CREDENTIALS")
         || upper.ends_with("_DATABASE_URL")
         || upper.ends_with("_DATABASE_DSN")
         || upper.ends_with("_REDIS_URL")
@@ -494,11 +484,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_PROXY_STATUS")
         || upper.ends_with("_AUTHENTICATION_INFO")
         || upper.ends_with("_PROXY_CONNECTION")
-        || upper.ends_with("_TRAILER")
-        || upper.ends_with("_UPGRADE")
         || upper.ends_with("_KEEP_ALIVE")
-        || upper.ends_with("_TE")
-        || upper.ends_with("_PROXY")
         || upper.ends_with("_PROXY_URL")
         || upper.ends_with("_NO_PROXY")
         || upper.ends_with("_CA_BUNDLE")
@@ -517,8 +503,6 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_SSL_CLIENT_S_DN")
         || upper.ends_with("_SSL_CLIENT_I_DN")
         || upper.ends_with("_SSL_CLIENT_SAN")
-        || upper.ends_with("_CERT")
-        || upper.ends_with("_CERTIFICATE")
         || upper.ends_with("_PRIVATE_KEY")
         || upper.contains("_CERTIFICATE_")
         || upper.contains("_PRIVATE_KEY_")
