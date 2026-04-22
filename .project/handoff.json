@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção aos ~70% de contexto. Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos e validação por boundary. Estado atual: `develop` em `ahead 466` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente expandiu fail-closed para aliases/prefixes de cloud identity, CI/VCS, observability, social/webhook, tunnel/edge, container tooling, package publishing/toolchain, DBaaS/database endpoints, proxy/forwarding, k8s e SQLite.",
-	"timestamp": "2026-04-22T01:00:47Z",
+	"context": "Checkpoint de contenção com contexto em ~69%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 517` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou hardening genérico (token/secret/auth, proxy/CA, netrc/wgetrc, forwarding/transport/method override/client-cert), além de refactor estrutural para reduzir arquivos gigantes via módulos/tests particionados.",
+	"timestamp": "2026-04-22T11:28:58Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -10,19 +10,22 @@
 	],
 	"next_actions": [
 		"Executar compactação de contexto após commit deste checkpoint.",
-		"Após compactação, retomar mini/macro-lotes mantendo teste por boundary e rodada agregada periódica.",
+		"Após compactação, retomar macro-lotes curtos por boundary (spawn env / plugin env / sanitized headers).",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
 		"Sincronizar `.project/verification.json` a cada checkpoint de contenção."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
 	"files_in_flux": [
-		"packages/tractor/src/host/agent_tools_bridge.rs",
-		"packages/tractor/src/host/agent_tools_bridge_tests.rs",
-		"packages/tractor/src/host/plugin_host.rs",
-		"packages/tractor/src/host/plugin_host_tests.rs",
-		"packages/tractor/src/host/wasi_bridge.rs",
-		"packages/tractor/src/host/wasi_bridge_tests.rs",
+		"packages/tractor/src/host/agent_tools_bridge/core.rs",
+		"packages/tractor/src/host/agent_tools_bridge/policy_and_fs.rs",
+		"packages/tractor/src/host/plugin_host/core.rs",
+		"packages/tractor/src/host/plugin_host/env_and_runtime.rs",
+		"packages/tractor/src/host/wasi_bridge/core.rs",
+		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
+		"packages/tractor/src/host/agent_tools_bridge_tests/*",
+		"packages/tractor/src/host/plugin_host_tests/*",
+		"packages/tractor/src/host/wasi_bridge_tests/*",
 		".project/handoff.json",
 		".project/verification.json"
 	]
