@@ -350,6 +350,14 @@ pub(crate) fn is_generic_sensitive_env_token_suffix(upper_env_key: &str) -> bool
 /// Matches generic sensitive env tokens as suffix or middle segment
 /// (e.g. `LLM_FOO_TOKEN_BAR`).
 pub(crate) fn is_generic_sensitive_env_token_suffix_or_segment(upper_env_key: &str) -> bool {
+    // `WEBHOOK_TOKEN` is treated as a dedicated alias family (not a generic
+    // token hit) to avoid broad false positives in generic-token matching.
+    if env_suffix_matches_token(upper_env_key, "WEBHOOK_TOKEN")
+        || env_segment_matches_token(upper_env_key, "WEBHOOK_TOKEN")
+    {
+        return false;
+    }
+
     is_generic_sensitive_env_token_suffix(upper_env_key)
         || GENERIC_ENV_SENSITIVE_TOKENS
             .iter()
