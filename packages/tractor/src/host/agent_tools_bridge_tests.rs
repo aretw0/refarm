@@ -858,6 +858,7 @@
             ("azure_subscription_id", "sub-evil-azure"),
             ("KUBECONFIG", "/tmp/evil-kubeconfig"),
             ("KUBE_CONFIG_PATH", "/tmp/evil-kubeconfig-alt"),
+            ("K8S_CLUSTER_NAME", "evil-cluster"),
             ("KUBE_NAMESPACE", "evil-namespace"),
             ("HELM_KUBEAPISERVER", "https://evil-k8s-api"),
             ("HELM_KUBETOKEN", "evil-helm-kube-token"),

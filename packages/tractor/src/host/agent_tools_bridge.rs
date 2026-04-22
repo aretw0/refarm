@@ -391,6 +391,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("MSI_")
         || upper.starts_with("IMDS_")
         || upper.starts_with("IDENTITY_")
+        || upper.starts_with("K8S_")
         || upper.starts_with("KUBE_")
         || upper.starts_with("HELM_")
         || upper.starts_with("DOCKER_")
