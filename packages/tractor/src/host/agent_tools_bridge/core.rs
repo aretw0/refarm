@@ -450,6 +450,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_PROXY")
         || upper.ends_with("_PROXY_URL")
         || upper.ends_with("_NO_PROXY")
+        || upper.ends_with("_NETRC")
+        || upper.ends_with("_WGETRC")
         || upper.ends_with("_CA_BUNDLE")
         || upper.ends_with("_CA_FILE")
         || upper.ends_with("_CA_PATH")

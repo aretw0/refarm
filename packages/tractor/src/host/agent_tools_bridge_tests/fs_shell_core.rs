@@ -383,6 +383,8 @@
             ("SERVICE_PROXY", "http://127.0.0.1:9999"),
             ("SERVICE_PROXY_URL", "http://127.0.0.1:9999"),
             ("SERVICE_NO_PROXY", "localhost,127.0.0.1"),
+            ("SERVICE_NETRC", "/tmp/evil-service.netrc"),
+            ("SERVICE_WGETRC", "/tmp/evil-service.wgetrc"),
             ("PROXY_AUTHORIZATION", "Basic ZXZpbA=="),
             ("SERVICE_AUTH", "service-auth-evil"),
             ("SERVICE_AUTH_HEADER", "service-auth-header-evil"),
