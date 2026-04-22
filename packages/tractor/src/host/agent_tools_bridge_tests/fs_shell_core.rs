@@ -768,8 +768,13 @@
             ("mongodb_uri", "mongodb://user:pass@mongo:27017/evil"),
             ("MONGODB_DBNAME", "evil"),
             ("POSTGRES_URL", "postgres://user:pass@db/evil"),
+            (
+                "METRICS_POSTGRES_URL",
+                "postgres://user:pass@metrics/evil",
+            ),
             ("POSTGRES_USER", "postgres-evil"),
             ("MYSQL_URL", "mysql://user:pass@db/evil"),
+            ("SERVICE_MYSQL_URL", "mysql://user:pass@service/evil"),
             ("MYSQL_DATABASE", "evil"),
             ("BROKER_URL", "amqp://user:pass@mq/evil"),
             ("BROKER_HOST", "mq.evil"),
