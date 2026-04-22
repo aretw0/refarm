@@ -735,6 +735,7 @@
             ("RABBITMQ_URI", "amqp://rabbit.evil"),
             ("REDPANDA_BROKERS", "redpanda.evil:9092"),
             ("SQLITE_URL", "file:/tmp/evil.sqlite"),
+            ("SQLITE_BUSY_TIMEOUT", "5000"),
             ("sqlite_path", "/tmp/evil.sqlite"),
             ("SQLITE_FILE", "/tmp/evil.sqlite"),
             ("SQLITE_TMPDIR", "/tmp/evil-sqlite-tmp"),

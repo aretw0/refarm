@@ -356,6 +356,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("NEON_")
         || upper.starts_with("PLANETSCALE_")
         || upper.starts_with("UPSTASH_")
+        || upper.starts_with("SQLITE_")
         || upper.starts_with("LIBSQL_")
         || upper.starts_with("TURSO_")
         || upper.starts_with("SQLCIPHER_")
