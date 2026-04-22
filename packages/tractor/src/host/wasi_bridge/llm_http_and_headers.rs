@@ -457,14 +457,19 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-arr-clientcert"
             || n == "ssl-client-cert"
             || n == "x-http-method-override"
+            || n == "x-httpmethodoverride"
             || n.starts_with("x-http-method-")
             || n == "x-method-override"
+            || n == "x-methodoverride"
             || n.starts_with("x-method-override-")
             || n == "x-forwarded-method"
+            || n == "x-forwardedmethod"
             || n.starts_with("x-forwarded-method-")
             || n == "x-original-method"
+            || n == "x-originalmethod"
             || n.starts_with("x-original-method-")
             || n == "x-http-method"
+            || n == "x-httpmethod"
             || n == "x-original-url"
             || n == "x-original-uri"
             || n == "x-original-path"
