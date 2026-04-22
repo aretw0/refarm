@@ -144,16 +144,7 @@ where
 }
 
 fn is_forwardable_llm_env_key(key: &str) -> bool {
-    if !key.starts_with("LLM_") {
-        return false;
-    }
-    if key.len() <= "LLM_".len() {
-        return false;
-    }
-    if !is_safe_llm_env_key_format(key) {
-        return false;
-    }
-    let upper = key.to_ascii_uppercase();
-    !crate::host::sensitive_aliases::is_disallowed_llm_forward_env_upper(&upper)
+    crate::host::sensitive_aliases::is_forwardable_llm_env_key(key)
 }
+
 

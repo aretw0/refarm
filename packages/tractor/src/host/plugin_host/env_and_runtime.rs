@@ -8,16 +8,6 @@ fn is_forwardable_llm_env_value(value: &str) -> bool {
         && !value.chars().any(|c| c.is_control())
 }
 
-fn is_safe_llm_env_key_format(key: &str) -> bool {
-    const MAX_SUFFIX_LEN: usize = 96;
-    let suffix = &key["LLM_".len()..];
-    !suffix.is_empty()
-        && suffix.len() <= MAX_SUFFIX_LEN
-        && suffix
-            .bytes()
-            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
-}
-
 /// Build plugin env vars with project config override semantics:
 /// process LLM_* vars first, then `.refarm/config.json` overwrites them.
 fn plugin_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> {

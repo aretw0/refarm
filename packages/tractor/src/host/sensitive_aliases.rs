@@ -694,6 +694,31 @@ pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
         || upper.ends_with("_SSL_CLIENT_SAN")
 }
 
+fn is_safe_llm_forward_env_key_format(key: &str) -> bool {
+    const MAX_SUFFIX_LEN: usize = 96;
+    let suffix = &key["LLM_".len()..];
+    !suffix.is_empty()
+        && suffix.len() <= MAX_SUFFIX_LEN
+        && suffix
+            .bytes()
+            .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
+}
+
+/// Shared plugin-forwarding policy for `LLM_*` env keys.
+pub(crate) fn is_forwardable_llm_env_key(key: &str) -> bool {
+    if !key.starts_with("LLM_") {
+        return false;
+    }
+    if key.len() <= "LLM_".len() {
+        return false;
+    }
+    if !is_safe_llm_forward_env_key_format(key) {
+        return false;
+    }
+    let upper = key.to_ascii_uppercase();
+    !is_disallowed_llm_forward_env_upper(&upper)
+}
+
 /// Shared spawn boundary env-key policy (exact keys + prefixes + shared alias catalogs).
 pub(crate) fn is_spawn_sensitive_env_key(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
