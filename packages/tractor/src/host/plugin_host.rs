@@ -399,6 +399,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.contains("_SIGSTORE_")
         || upper.contains("_COSIGN_")
         || upper.contains("_TAILSCALE_")
+        || upper.contains("_TS_")
         || upper.contains("_CLOUDFLARE_TUNNEL_")
         || upper.contains("_SENTRY_")
         || upper.contains("_DATADOG_")

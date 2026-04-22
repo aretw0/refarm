@@ -311,6 +311,7 @@
             "LLM_SIGSTORE_FULCIO_URL",
             "LLM_COSIGN_REPOSITORY",
             "LLM_TAILSCALE_CONTROL_URL",
+            "LLM_TS_CONTROL_URL",
             "LLM_CLOUDFLARE_TUNNEL_ID",
             "LLM_FORWARDED_IP",
             "LLM_FORWARDED_FOR",
