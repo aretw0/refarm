@@ -390,6 +390,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-scheme"
             || n == "x-forwarded-ssl"
             || n == "x-url-scheme"
+            || n.starts_with("x-url-scheme-")
+            || n.starts_with("x-tls-insecure-")
+            || n.starts_with("x-insecure-")
+            || n.starts_with("x-verify-ssl-")
+            || n.starts_with("x-ssl-verify-")
             || n == "x-forwarded-port"
             || n == "x-forwarded-server"
             || n == "x-forwarded-prefix"
