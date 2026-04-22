@@ -30,7 +30,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-api-secret"
             || n == "x-auth-secret"
             || n.starts_with("x-auth-")
-            || n == "x-webhook-secret"
             || n.starts_with("x-bearer-")
             || n.starts_with("x-token-")
             || n.starts_with("x-secret-")
@@ -76,15 +75,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-auth-token"
             || n == "x-authentication-token"
             || crate::host::sensitive_aliases::is_compact_sensitive_header_alias(&n)
-            || n == "x-github-token"
             || n.starts_with("x-github-")
-            || n == "x-gitlab-token"
-            || n == "x-gitlab-privatetoken"
-            || n == "x-gitlab-citoken"
             || n == "x-gitlab-webhook-token"
             || n.starts_with("x-gitlab-")
-            || n == "x-bitbucket-token"
-            || n == "x-bitbucket-app-password"
             || n.starts_with("x-bitbucket-")
             || n.starts_with("x-actions-")
             || n == "x-vault-token"
@@ -112,7 +105,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-sops-")
             || n.starts_with("x-sigstore-")
             || n.starts_with("x-cosign-")
-            || n == "x-k8s-aws-id"
             || n.starts_with("x-k8s-")
             || n == "ngrok-authtoken"
             || n == "x-ngrok-authtoken"
@@ -136,10 +128,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-cloudflare-tunnel-")
             || n == "x-matrix-access-token"
             || n.starts_with("x-matrix-")
-            || n == "x-discord-token"
             || n.starts_with("x-discord-")
             || n == "x-signature-ed25519"
-            || n == "x-signature-timestamp"
             || n == "x-hub-signature"
             || n == "x-hubsignature"
             || n == "x-hub-signature-256"
@@ -149,7 +139,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-gitea-")
             || n == "x-gogs-signature"
             || n.starts_with("x-gogs-")
-            || n == "x-stripe-signature"
             || n.starts_with("x-stripe-")
             || n == "x-twilio-signature"
             || n.starts_with("x-twilio-")
@@ -159,10 +148,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-shopify-hmac-sha256"
             || n == "x-shopify-hmacsha256"
             || n.starts_with("x-shopify-")
-            || n == "x-slack-signature"
-            || n == "x-slack-request-timestamp"
-            || n == "x-slack-requesttimestamp"
-            || n == "x-request-timestamp"
             || n.starts_with("x-request-timestamp-")
             || n.starts_with("x-slack-")
             || n == "x-ci-job-token"
@@ -211,8 +196,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-id-token"
             || n == "x-amz-security-token"
             || n.starts_with("x-aws-")
-            || n == "x-aws-ec2-metadata-token"
-            || n == "x-aws-ec2-metadata-token-ttl-seconds"
             || n.starts_with("x-azure-")
             || n.starts_with("x-arm-")
             || n.starts_with("x-google-")
@@ -221,27 +204,17 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-msi-")
             || n.starts_with("x-imds-")
             || n.starts_with("x-identity-")
-            || n == "metadata-flavor"
-            || n == "x-google-metadata-request"
-            || n == "cf-access-client-id"
-            || n == "cf-access-client-secret"
             || n.starts_with("cf-access-client-")
             || n.starts_with("x-cf-access-client-")
             || n.starts_with("cf-access-")
             || n.starts_with("x-cf-access-")
             || n.starts_with("x-cf-api-")
             || n.starts_with("x-cloudflare-api-")
-            || n == "x-database-url"
-            || n == "x-database-dsn"
             || n.starts_with("x-database-")
             || n.starts_with("x-dsn-")
-            || n == "x-redis-url"
             || n.starts_with("x-redis-")
-            || n == "x-mongodb-uri"
             || n.starts_with("x-mongodb-")
-            || n == "x-postgres-url"
             || n.starts_with("x-postgres-")
-            || n == "x-mysql-url"
             || n.starts_with("x-mysql-")
             || n == "x-broker-url"
             || n.starts_with("x-broker-")
@@ -273,8 +246,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-opfs-path"
             || n == "x-opfs-root"
             || n.starts_with("x-opfs-")
-            || n == "cf-access-jwt-assertion"
-            || n == "x-goog-iap-jwt-assertion"
             || n.starts_with("x-assertion-")
             || n == "x-goog-authenticated-user-email"
             || n == "x-googauthenticateduseremail"
@@ -289,9 +260,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-googleauthenticateduserid"
             || n.starts_with("x-google-authenticated-user-")
             || n.starts_with("x-userinfo-")
-            || n == "x-amzn-oidc-data"
-            || n == "x-amzn-oidc-identity"
-            || n == "x-amzn-oidc-accesstoken"
             || n.starts_with("x-amzn-oidc-")
             || n.starts_with("x-oidc-")
             || n == "x-forwarded-user"
@@ -356,26 +324,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-principal-id"
             || n == "x-principal-name"
             || n.starts_with("x-principal-")
-            || n == "x-gitlab-user-id"
-            || n == "x-gitlab-username"
-            || n == "x-gitlab-user-login"
-            || n == "x-gitlab-user-email"
             || n.starts_with("x-gitlab-user-")
-            || n == "x-github-user-id"
-            || n == "x-github-login"
-            || n == "x-github-user-email"
             || n.starts_with("x-github-user-")
-            || n == "x-bitbucket-user"
-            || n == "x-bitbucket-uuid"
-            || n == "x-bitbucket-user-email"
             || n.starts_with("x-bitbucket-user-")
-            || n == "x-ms-client-principal"
-            || n == "x-ms-client-principal-id"
-            || n == "x-ms-client-principal-name"
             || n == "metadata"
-            || n == "x-identity-header"
-            || n == "x-msi-secret"
-            || n == "x-ms-client-principal-idp"
             || n.starts_with("x-ms-client-principal-")
             || n.starts_with("x-ms-clientprincipal-")
             || n.starts_with("x-client-principal-")
@@ -385,18 +337,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-ms-token-aad-refresh-token"
             || n == "x-ms-token-aad-expires-on"
             || n.starts_with("x-ms-token-aad-")
-            || n == "x-client-verify"
-            || n == "x-client-dn"
-            || n == "x-client-san"
-            || n == "x-client-cert-chain"
             || n.starts_with("x-certificate-")
             || n.starts_with("x-certificatechain-")
             || n.starts_with("x-private-key-")
-            || n == "x-ssl-client-verify"
-            || n == "x-ssl-client-dn"
-            || n == "x-ssl-client-s-dn"
-            || n == "x-ssl-client-i-dn"
-            || n == "x-ssl-client-san"
             || n == "cookie"
             || n == "set-cookie"
             || n == "host"
@@ -416,15 +359,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwardedprotocol"
             || n == "x-forwarded-scheme"
             || n == "x-forwarded-ssl"
-            || n == "x-url-scheme"
             || n.starts_with("x-url-scheme-")
-            || n == "x-tls-insecure"
             || n.starts_with("x-tls-insecure-")
-            || n == "x-insecure-mode"
             || n.starts_with("x-insecure-")
-            || n == "x-verify-ssl"
             || n.starts_with("x-verify-ssl-")
-            || n == "x-ssl-verify"
             || n.starts_with("x-ssl-verify-")
             || n == "x-forwarded-port"
             || n == "x-forwardedport"
@@ -453,55 +391,22 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-originalhost"
             || n == "x-host"
             || n == "front-end-https"
-            || n == "x-real-ip"
-            || n == "x-forwarded-client-ip"
             || n == "x-original-forwarded-for"
             || n == "x-originalforwardedfor"
-            || n == "x-cluster-client-ip"
-            || n == "x-envoy-external-address"
-            || n == "x-envoy-peer-metadata"
-            || n == "x-envoy-peer-metadata-id"
             || n.starts_with("x-envoy-")
-            || n == "fastly-client-ip"
-            || n == "x-forwarded-client-cert"
-            || n == "x-client-cert"
             || n.starts_with("x-client-")
-            || n == "x-ssl-client-cert"
             || n.starts_with("x-ssl-client-")
             || n == "x-arr-clientcert"
             || n == "ssl-client-cert"
-            || n == "x-http-method-override"
             || n.starts_with("x-http-method-")
-            || n == "x-method-override"
             || n.starts_with("x-method-override-")
-            || n == "x-forwarded-method"
             || n.starts_with("x-forwarded-method-")
-            || n == "x-original-method"
             || n.starts_with("x-original-method-")
-            || n == "x-http-method"
-            || n == "x-original-url"
-            || n == "x-original-uri"
-            || n == "x-original-path"
-            || n == "x-forwarded-uri"
-            || n == "x-rewrite-url"
-            || n == "x-rewrite-uri"
             || n.starts_with("x-rewrite-")
-            || n == "x-envoy-original-path"
-            || n == "x-envoy-original-url"
-            || n == "x-client-ip"
-            || n == "true-client-ip"
-            || n == "cf-connecting-ip"
-            || n == "proxy-authorization"
-            || n == "proxy-authenticate"
-            || n == "proxy-authentication-info"
             || n.starts_with("proxy-")
-            || n == "proxy-status"
-            || n == "authentication-info"
-            || n == "proxy-connection"
             || n == "te"
             || n == "trailer"
             || n == "upgrade"
-            || n == "keep-alive"
             || !is_safe_header_name(trimmed_name)
             || !is_safe_header_value(value)
         {
