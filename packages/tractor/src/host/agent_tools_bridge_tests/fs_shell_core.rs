@@ -41,6 +41,26 @@
         err
     }
 
+    #[test]
+    fn spawn_block_policy_delegates_to_shared_helper() {
+        let keys = [
+            "AWS_SECRET_ACCESS_KEY",
+            "LLM_PROVIDER",
+            "service_githubtoken",
+            "DYLD_INSERT_LIBRARIES",
+            "RUST_LOG",
+            "SERVICE_PROVIDER_BASE_URL",
+        ];
+
+        for key in keys {
+            assert_eq!(
+                is_blocked_spawn_env_key(key),
+                crate::host::sensitive_aliases::is_spawn_sensitive_env_key(key),
+                "spawn block policy drift for key: {key}"
+            );
+        }
+    }
+
     // ── agent-fs ──────────────────────────────────────────────────────────────
 
     #[tokio::test]

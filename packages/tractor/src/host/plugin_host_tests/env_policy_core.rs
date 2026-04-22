@@ -11,6 +11,33 @@
     }
 
     #[test]
+    fn llm_env_forwarding_wrappers_delegate_to_shared_helpers() {
+        let keys = [
+            "LLM_PROVIDER",
+            "LLM_GITHUB_TOKEN",
+            "LLM_SHELL_ALLOWLIST",
+            "LLM_AWS_EC2_METADATA_TOKEN",
+            "LLM_PROVIDER_BASE_URL",
+        ];
+        for key in keys {
+            assert_eq!(
+                is_forwardable_llm_env_key(key),
+                crate::host::sensitive_aliases::is_forwardable_llm_env_key(key),
+                "forwardable llm key wrapper drift: {key}"
+            );
+        }
+
+        let values = ["gpt-4.1", "openai", "", "bad value", "line\nfeed"];
+        for value in values {
+            assert_eq!(
+                is_forwardable_llm_env_value(value),
+                crate::host::sensitive_aliases::is_forwardable_llm_env_value(value),
+                "forwardable llm value wrapper drift: {value:?}"
+            );
+        }
+    }
+
+    #[test]
     fn forwardable_llm_env_key_filters_sensitive_suffixes() {
         let allowed = ["LLM_PROVIDER", "LLM_BASE_URL"];
         for key in allowed {
