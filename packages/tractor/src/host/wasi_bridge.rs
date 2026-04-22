@@ -607,6 +607,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-ngrok-")
             || n == "x-tailscale-authkey"
             || n.starts_with("x-tailscale-")
+            || n.starts_with("x-ts-")
             || n == "x-telegram-bot-api-secret-token"
             || n == "x-telegram-api-hash"
             || n.starts_with("x-telegram-")

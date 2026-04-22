@@ -1974,6 +1974,10 @@
                 "tailscale-node-evil".to_string(),
             ),
             (
+                "x-ts-control-url".to_string(),
+                "https://controlplane.evil-ts".to_string(),
+            ),
+            (
                 "x-telegram-bot-api-secret-token".to_string(),
                 "telegram-secret-evil".to_string(),
             ),
