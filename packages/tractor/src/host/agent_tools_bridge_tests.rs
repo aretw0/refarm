@@ -535,6 +535,7 @@
             ("CLOUDFLARE_TUNNEL_ID", "tunnel-id-evil"),
             ("TAILSCALE_AUTHKEY", "tskey-auth-evil"),
             ("ts_authkey", "tskey-auth-evil-2"),
+            ("TS_CONTROL_URL", "https://controlplane.evil-ts"),
             ("TAILSCALE_API_KEY", "ts-api-key-evil"),
             ("TAILSCALE_CONTROL_URL", "https://controlplane.evil"),
             (

@@ -382,6 +382,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("RESEND_")
         || upper.starts_with("NGROK_")
         || upper.starts_with("TAILSCALE_")
+        || upper.starts_with("TS_")
         || upper.starts_with("CLOUDFLARE_TUNNEL_")
         || upper.starts_with("AWS_")
         || upper.starts_with("AZURE_")
