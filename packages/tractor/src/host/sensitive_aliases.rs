@@ -379,6 +379,160 @@ pub(crate) fn is_shared_sensitive_env_canonical_suffix_or_segment(upper_env_key:
         })
 }
 
+const SHARED_SENSITIVE_ENV_NAMESPACES: &[&str] = &[
+    "ACTIONS",
+    "AKAMAI",
+    "AMQP",
+    "ARGOCD",
+    "ARM",
+    "ARTIFACTORY",
+    "AWS",
+    "AZURE",
+    "BITBUCKET",
+    "BROKER",
+    "BUGSNAG",
+    "BUILDKITE",
+    "BUN",
+    "BUNDLE",
+    "CARGO",
+    "CI",
+    "CIRCLECI",
+    "CLOUDSDK",
+    "CODECOV",
+    "CONTAINERS",
+    "COSIGN",
+    "CURL",
+    "DATABASE",
+    "DATADOG",
+    "DIGITALOCEAN",
+    "DISCORD",
+    "DOCKER",
+    "DOPPLER",
+    "DRONE",
+    "ENVOY",
+    "FACEBOOK",
+    "FASTLY",
+    "FLY",
+    "FORWARDED",
+    "GCP",
+    "GEM",
+    "GHCR",
+    "GIT",
+    "GITEA",
+    "GITHUB",
+    "GITLAB",
+    "GOGS",
+    "GOOGLE",
+    "GRAFANA",
+    "HARBOR",
+    "HCLOUD",
+    "HELM",
+    "HEROKU",
+    "HONEYCOMB",
+    "IDENTITY",
+    "IMDS",
+    "INFISICAL",
+    "INSTAGRAM",
+    "JENKINS",
+    "JFROG",
+    "K8S",
+    "KAFKA",
+    "KUBE",
+    "LIBSQL",
+    "LINE",
+    "LINODE",
+    "LOGDNA",
+    "MAILGUN",
+    "MATRIX",
+    "META",
+    "METABASE",
+    "MONGODB",
+    "MSI",
+    "MYSQL",
+    "NATS",
+    "NEON",
+    "NETLIFY",
+    "NGROK",
+    "NPM",
+    "NUGET",
+    "OCI",
+    "OIDC",
+    "OPFS",
+    "ORIGINAL",
+    "OTEL",
+    "OTLP",
+    "PAGERDUTY",
+    "PGLITE",
+    "PIP",
+    "PLANETSCALE",
+    "PNPM",
+    "POETRY",
+    "POSTGRES",
+    "POSTMARK",
+    "PRINCIPAL",
+    "PULUMI",
+    "PYPI",
+    "QUAY",
+    "RABBITMQ",
+    "RAILWAY",
+    "REDIS",
+    "REDPANDA",
+    "REGISTRY",
+    "RENDER",
+    "RESEND",
+    "ROLLBAR",
+    "RUBYGEMS",
+    "RUNNER",
+    "RUSTUP",
+    "SCW",
+    "SENDGRID",
+    "SENTRY",
+    "SHOPIFY",
+    "SIGNAL",
+    "SIGSTORE",
+    "SLACK",
+    "SONAR",
+    "SOPS",
+    "SQLCIPHER",
+    "SQLITE",
+    "SSH",
+    "STRIPE",
+    "SUPABASE",
+    "TAILSCALE",
+    "TELEGRAM",
+    "TERRAFORM",
+    "TS",
+    "TURSO",
+    "TWILIO",
+    "TWINE",
+    "TWITTER",
+    "UPSTASH",
+    "UV",
+    "VAULT",
+    "VERCEL",
+    "VULTR",
+    "WGET",
+    "WHATSAPP",
+    "YARN",
+];
+
+/// Matches shared sensitive env namespaces as prefix (e.g. `AWS_...`).
+pub(crate) fn is_shared_sensitive_env_namespace_prefix(upper_env_key: &str) -> bool {
+    SHARED_SENSITIVE_ENV_NAMESPACES
+        .iter()
+        .copied()
+        .any(|ns| upper_env_key.starts_with(&format!("{ns}_")))
+}
+
+/// Matches shared sensitive env namespaces as middle segment (e.g.
+/// `LLM_FOO_AWS_BAR`).
+pub(crate) fn is_shared_sensitive_env_namespace_segment(upper_env_key: &str) -> bool {
+    SHARED_SENSITIVE_ENV_NAMESPACES
+        .iter()
+        .copied()
+        .any(|ns| upper_env_key.contains(&format!("_{ns}_")))
+}
+
 const COMPACT_HEADER_EXACT: &[&str] = &[
     // CF Access / IAP
     "cfaccessjwtassertion",
@@ -1121,6 +1275,37 @@ mod tests {
             assert!(
                 !is_shared_sensitive_env_canonical_suffix_or_segment(key),
                 "expected shared canonical env segment helper NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_sensitive_env_namespace_matches_prefix_and_segment() {
+        let prefix_blocked = ["AWS_SECRET_ACCESS_KEY", "GITHUB_TOKEN", "KUBE_TOKEN"];
+        for key in prefix_blocked {
+            assert!(
+                is_shared_sensitive_env_namespace_prefix(key),
+                "expected shared namespace prefix match: {key}"
+            );
+        }
+
+        let segment_blocked = [
+            "LLM_FOO_AWS_BAR",
+            "LLM_FOO_GITHUB_BAR",
+            "LLM_FOO_KUBE_BAR",
+        ];
+        for key in segment_blocked {
+            assert!(
+                is_shared_sensitive_env_namespace_segment(key),
+                "expected shared namespace segment match: {key}"
+            );
+        }
+
+        let allowed = ["LLM_FOO_AWSBAR_BAZ", "SERVICE_PROVIDER_BASE_URL"];
+        for key in allowed {
+            assert!(
+                !is_shared_sensitive_env_namespace_segment(key),
+                "expected shared namespace segment helper NOT to match: {key}"
             );
         }
     }
