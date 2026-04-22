@@ -463,12 +463,23 @@ mod tests {
     #[test]
     fn compact_alias_catalog_excludes_generic_canonical_tokens() {
         let env_not_compact = [
-            "SERVICE_TOKEN",
+            "SERVICE_ASSERTION",
+            "SERVICE_AUTH",
+            "SERVICE_AUTHORIZATION",
+            "SERVICE_BEARER",
+            "SERVICE_CERT",
+            "SERVICE_CERTIFICATE",
+            "SERVICE_COOKIE",
+            "SERVICE_CREDENTIALS",
+            "SERVICE_HMAC",
+            "SERVICE_JWT",
+            "SERVICE_PASSWORD",
+            "SERVICE_PROXY",
             "SERVICE_SECRET",
             "SERVICE_SESSION",
-            "SERVICE_JWT",
-            "SERVICE_HMAC",
-            "SERVICE_AUTHORIZATION",
+            "SERVICE_SIGNATURE",
+            "SERVICE_TE",
+            "SERVICE_TOKEN",
             "SERVICE_TRAILER",
             "SERVICE_UPGRADE",
         ];
@@ -486,8 +497,16 @@ mod tests {
             "x-jwt",
             "x-hmac",
             "authorization",
+            "authentication",
+            "connection",
+            "cookie",
+            "forwarded",
+            "host",
+            "metadata",
+            "te",
             "trailer",
             "upgrade",
+            "via",
         ];
         for header in header_not_compact {
             assert!(
