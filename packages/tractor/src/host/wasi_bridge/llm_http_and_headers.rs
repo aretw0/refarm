@@ -35,17 +35,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-token-")
             || n.starts_with("x-secret-")
             || n.starts_with("x-access-key-")
-            || n.starts_with("x-accesskey-")
             || n.starts_with("x-signing-key-")
-            || n.starts_with("x-signingkey-")
             || n.starts_with("x-credential-")
-            || n.starts_with("x-credentialfile-")
             || n.starts_with("x-credentials-")
-            || n.starts_with("x-credentialsfile-")
             || n.starts_with("x-key-file-")
-            || n.starts_with("x-keyfile-")
             || n.starts_with("x-token-file-")
-            || n.starts_with("x-tokenfile-")
             || n.starts_with("x-password-")
             || n.starts_with("x-cookie-")
             || n.starts_with("x-proxy-")
@@ -398,7 +392,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-certificate-")
             || n.starts_with("x-certificatechain-")
             || n.starts_with("x-private-key-")
-            || n.starts_with("x-privatekey-")
             || n == "x-ssl-client-verify"
             || n == "x-ssl-client-dn"
             || n == "x-ssl-client-s-dn"
@@ -424,7 +417,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-scheme"
             || n == "x-forwarded-ssl"
             || n == "x-url-scheme"
-            || n == "x-urlscheme"
             || n.starts_with("x-url-scheme-")
             || n == "x-tls-insecure"
             || n.starts_with("x-tls-insecure-")

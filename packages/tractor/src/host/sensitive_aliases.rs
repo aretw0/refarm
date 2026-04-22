@@ -141,6 +141,22 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "INSECURE",
     "SSLVERIFY",
     "VERIFYSSL",
+    // Credential / kube compact aliases
+    "APIKEY",
+    "AUTHKEY",
+    "AUTHTOKEN",
+    "KEYFILE",
+    "TOKENFILE",
+    "CREDENTIALFILE",
+    "CREDENTIALSFILE",
+    "ACCESSKEY",
+    "SIGNINGKEY",
+    "PRIVATEKEY",
+    "URLSCHEME",
+    "KUBECONFIG",
+    "KUBETOKEN",
+    "KUBEAPISERVER",
+    "KUBECAFILE",
     // Client cert / principal compact aliases
     "FORWARDEDCLIENTCERT",
     "CLIENTCERT",
@@ -338,6 +354,14 @@ const COMPACT_HEADER_PREFIX: &[&str] = &[
     "xinsecure",
     "xverifyssl",
     "xsslverify",
+    "xaccesskey",
+    "xsigningkey",
+    "xcredentialfile",
+    "xcredentialsfile",
+    "xkeyfile",
+    "xtokenfile",
+    "xprivatekey",
+    "xurlscheme",
     "xkubeconfig",
     "xk8saws",
     "xdockerhost",
@@ -388,6 +412,9 @@ mod tests {
             "SERVICE_PROXYURL",
             "SERVICE_TLSINSECURE",
             "SERVICE_NETRC",
+            "SERVICE_ACCESSKEY",
+            "SERVICE_KEYFILE",
+            "SERVICE_KUBECAFILE",
         ];
         for key in blocked {
             assert!(
@@ -447,6 +474,9 @@ mod tests {
             "x-cabundle",
             "x-tlsinsecure",
             "x-netrc-profile",
+            "x-accesskey-profile",
+            "x-keyfile-main",
+            "x-urlscheme",
         ];
         for header in blocked {
             assert!(
