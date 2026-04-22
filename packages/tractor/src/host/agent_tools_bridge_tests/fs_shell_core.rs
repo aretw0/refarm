@@ -389,6 +389,8 @@
             ("APP_TOKEN_FILE", "/tmp/evil-app.token"),
             ("APP_CREDENTIAL_FILE", "/tmp/evil-credential.json"),
             ("APP_CREDENTIALS_FILE", "/tmp/evil-credentials.json"),
+            ("SERVICE_SOCK", "/tmp/service.sock"),
+            ("SERVICE_SOCKET", "/tmp/service.socket"),
             ("FORWARDED_HOST", "evil.example"),
             ("REMOTE_USER_ID", "alice"),
             ("AUTH_REQUEST_EMAIL", "alice@example.com"),
