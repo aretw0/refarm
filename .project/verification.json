@@ -517,6 +517,37 @@
           "evidence": "85 passed"
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-RESIDUALS-20260422",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-22T22:52:30Z",
+      "evidence": "Passe final de residuals por boundary: scan semântico em entry points (`agent_tools_bridge/core.rs`, `plugin_host/core.rs`, `wasi_bridge/llm_http_and_headers.rs`) sem cadeias locais de policy sensível (`n ==`, `upper.starts_with/ends_with/contains`). Reforço documental in-file adicionado para separar policy semântica compartilhada vs limites mecânicos locais.",
+      "criteria_results": [
+        {
+          "criterion": "rg -n \"n\\\\s*==|upper\\\\.(starts_with|ends_with|contains)\\\\(\" <3 entrypoints>",
+          "status": "passed",
+          "evidence": "exit code 1 com 0 linhas de output (nenhum residual encontrado)."
+        },
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "112 passed"
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "43 passed"
+        },
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "85 passed"
+        }
+      ]
     }
   ]
 }

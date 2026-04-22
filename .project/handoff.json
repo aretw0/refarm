@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção pós-lote manual (sem colônia). Estado atual: `develop` em `ahead 610` de `origin/develop`, árvore limpa. A centralização de políticas sensíveis segue consolidada em `packages/tractor/src/host/sensitive_aliases.rs` com delegação nas boundaries spawn/plugin/wasi. Nesta janela foram adicionados guards de anti-drift para manter a delegação alinhada e foi formalizado critério de encerramento da fase de centralização (regra semântica compartilhada no módulo central; limites mecânicos de boundary permanecem locais).",
-	"timestamp": "2026-04-22T22:52:30Z",
+	"context": "Checkpoint de contenção após passe final de residuals por boundary. Estado atual: `develop` em `ahead 612` de `origin/develop`, árvore limpa. Centralização de políticas sensíveis permanece consolidada em `packages/tractor/src/host/sensitive_aliases.rs` com delegação em spawn/plugin/wasi. Nesta janela: (1) passe de residuals sem encontrar cadeias locais de policy sensível nos entry points; (2) comentários explícitos adicionados nos boundaries para separar ownership entre policy semântica compartilhada e limites mecânicos locais; (3) rodada agregada de testes permaneceu verde.",
+	"timestamp": "2026-04-22T23:02:49Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,7 +9,7 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Executar passe final de residuals por boundary conforme critério DEC-011.",
+		"Executar somente ajustes residuais pontuais com ganho líquido claro (sem nova onda de centralização).",
 		"Manter validação agregada (agent_tools_bridge + plugin_host + wasi_bridge) a cada macro-lote.",
 		"Quando autorizado, pushar lote local e disparar CI remota única."
 	],
