@@ -455,6 +455,11 @@
             ("AUTH_SESSION_ID", "session-id-evil"),
             ("USER_SESSION", "session-evil"),
             ("SLACK_REQUEST_TIMESTAMP", "1711111111"),
+            (
+                "TLS_CERTIFICATE_CHAIN_PATH",
+                "/tmp/evil-certificate-chain.pem",
+            ),
+            ("TLS_PRIVATE_KEY_PATH", "/tmp/evil-private-key.pem"),
             ("CIRCLE_TOKEN", "circleci-token-evil"),
             ("CIRCLECI_PROJECT_ID", "circle-project-evil"),
             ("BUILDKITE_AGENT_ACCESS_TOKEN", "buildkite-agent-token"),
