@@ -450,6 +450,8 @@
             ("circle_oidc_token", "circle-oidc-token"),
             ("OIDC_TOKEN", "generic-oidc-token"),
             ("OIDC_IDENTITY", "oidc-identity-evil"),
+            ("JWT_ASSERTION", "eyJhbGciOiJSUzI1NiJ9.evil.assertion"),
+            ("OIDC_USERINFO", "alice@example.com"),
             ("CIRCLE_TOKEN", "circleci-token-evil"),
             ("CIRCLECI_PROJECT_ID", "circle-project-evil"),
             ("BUILDKITE_AGENT_ACCESS_TOKEN", "buildkite-agent-token"),

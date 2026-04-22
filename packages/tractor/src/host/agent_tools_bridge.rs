@@ -401,6 +401,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_SIGNATURE")
         || upper.ends_with("_HMAC")
         || upper.ends_with("_HMAC_SHA256")
+        || upper.ends_with("_ASSERTION")
+        || upper.ends_with("_USERINFO")
         || upper.starts_with("AWS_")
         || upper.starts_with("AZURE_")
         || upper.starts_with("ARM_")
