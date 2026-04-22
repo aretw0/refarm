@@ -88,6 +88,19 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "ENVOYORIGINALURL",
     "ENVOYPEERMETADATA",
     "ENVOYPEERMETADATAID",
+    // Method / proxy transport compact aliases
+    "HTTPMETHODOVERRIDE",
+    "METHODOVERRIDE",
+    "HTTPMETHOD",
+    "FORWARDEDMETHOD",
+    "ORIGINALMETHOD",
+    "PROXYAUTHORIZATION",
+    "PROXYAUTHENTICATE",
+    "PROXYAUTHENTICATIONINFO",
+    "PROXYSTATUS",
+    "AUTHENTICATIONINFO",
+    "PROXYCONNECTION",
+    "KEEPALIVE",
     // Client cert / principal compact aliases
     "FORWARDEDCLIENTCERT",
     "CLIENTCERT",
@@ -216,6 +229,19 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
     "xenvoypeermetadataid",
     "xforwardedclientip",
     "fastlyclientip",
+    // Method / proxy transport compact headers
+    "xhttpmethodoverride",
+    "xmethodoverride",
+    "xforwardedmethod",
+    "xoriginalmethod",
+    "xhttpmethod",
+    "proxyauthorization",
+    "proxyauthenticate",
+    "proxyauthenticationinfo",
+    "proxystatus",
+    "authenticationinfo",
+    "proxyconnection",
+    "keepalive",
     // Client cert / principal compact headers
     "xforwardedclientcert",
     "xclientcert",
@@ -277,6 +303,8 @@ mod tests {
             "SERVICE_KUBECONFIGPATH",
             "SERVICE_SLACKBOTTOKEN",
             "SERVICE_STRIPEWEBHOOKSECRET",
+            "SERVICE_PROXYAUTHORIZATION",
+            "SERVICE_HTTPMETHODOVERRIDE",
         ];
         for key in blocked {
             assert!(
@@ -326,6 +354,8 @@ mod tests {
             "x-stripe-api-key",
             "x-kubeconfig-path",
             "x-msisecret",
+            "proxyauthorization",
+            "x-httpmethodoverride",
         ];
         for header in blocked {
             assert!(
