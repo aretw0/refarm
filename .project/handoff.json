@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção com contexto em ~69%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 517` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou hardening genérico (token/secret/auth, proxy/CA, netrc/wgetrc, forwarding/transport/method override/client-cert), além de refactor estrutural para reduzir arquivos gigantes via módulos/tests particionados.",
-	"timestamp": "2026-04-22T11:28:58Z",
+	"context": "Checkpoint de contenção com contexto em ~71%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 566` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente consolidou hardening de aliases compactos (principal, OIDC/authenticated-user, webhook/signature/hmac, cloud metadata e kube/registry) em três boundaries.",
+	"timestamp": "2026-04-22T14:27:58Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,8 +9,8 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Executar compactação de contexto após commit deste checkpoint.",
-		"Após compactação, retomar macro-lotes curtos por boundary (spawn env / plugin env / sanitized headers).",
+		"Retomar macro-lotes curtos por boundary (spawn env / plugin env / sanitized headers).",
+		"Planejar nova compactação quando contexto subir para ~78-80%.",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
 		"Sincronizar `.project/verification.json` a cada checkpoint de contenção."
 	],
