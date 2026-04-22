@@ -43,6 +43,18 @@
                 " x-cookie-name ".to_string(),
                 "session".to_string(),
             ),
+            (
+                " x-jwt-assertion ".to_string(),
+                "eyJhbGciOiJIUzI1NiJ9.evil.jwt".to_string(),
+            ),
+            (
+                " x-sock-path ".to_string(),
+                "/tmp/evil-service.sock".to_string(),
+            ),
+            (
+                " x-socket-path ".to_string(),
+                "/tmp/evil-service.socket".to_string(),
+            ),
             (" api-key ".to_string(), "fake-key".to_string()),
             (" x-auth-token ".to_string(), "fake-key".to_string()),
             (
