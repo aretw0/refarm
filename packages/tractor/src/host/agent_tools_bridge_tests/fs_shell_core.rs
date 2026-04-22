@@ -380,6 +380,13 @@
             ("PROXY_AUTHORIZATION", "Basic ZXZpbA=="),
             ("SERVICE_AUTH", "service-auth-evil"),
             ("SERVICE_AUTH_HEADER", "service-auth-header-evil"),
+            ("SERVICE_TOKEN", "service-token-evil"),
+            ("SERVICE_AUTHTOKEN", "service-authtoken-evil"),
+            ("SERVICE_AUTHKEY", "service-authkey-evil"),
+            ("SERVICE_API_KEY", "service-api-key-evil"),
+            ("SERVICE_APIKEY", "service-apikey-evil"),
+            ("SERVICE_API_HASH", "service-api-hash-evil"),
+            ("SERVICE_SECRET", "service-secret-evil"),
             (
                 "SERVICE_AUTHORIZATION_HEADER",
                 "Bearer service-auth-header-evil",
