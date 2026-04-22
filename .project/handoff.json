@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção após centralização profunda do hardening host-side do Tractor. Estado atual: `develop` em `ahead 602` de `origin/develop`, árvore limpa. Nesta janela foram consolidadas políticas em `packages/tractor/src/host/sensitive_aliases.rs` com delegação efetiva nas três boundaries: (1) spawn env block policy centralizada (`is_spawn_sensitive_env_key`), (2) plugin LLM env forwarding policy centralizada (`is_disallowed_llm_forward_env_upper` + `is_forwardable_llm_env_key`), (3) canonical + compact header policy WASI centralizada (`is_sensitive_plugin_header_name`), além de catálogos compartilhados para aliases compactos, tokens genéricos, sufixos canônicos e namespaces sensíveis. Resultado: remoção expressiva de duplicação em `agent_tools_bridge/core.rs`, `plugin_host/core.rs` e `wasi_bridge/llm_http_and_headers.rs` com paridade preservada.",
-	"timestamp": "2026-04-22T21:45:04Z",
+	"context": "Checkpoint de contenção com contexto alto (~71%) para compactação iminente. Estado atual: `develop` em `ahead 607` de `origin/develop`, árvore limpa. A frente de hardening host-side do Tractor manteve centralização em `packages/tractor/src/host/sensitive_aliases.rs` (spawn env block, plugin LLM env forwarding key/value, canonical+compact header policy WASI) com delegação nas três boundaries. Nesta janela recente: (1) ADR-012 formalizado e indexado; (2) backlog ISS-013 aberto para modularizar `sensitive_aliases.rs` depois; (3) testes de anti-drift adicionados para wrappers de delegação em `agent_tools_bridge_tests/fs_shell_core.rs` e `plugin_host_tests/env_policy_core.rs` para garantir alinhamento contínuo com helpers compartilhados.",
+	"timestamp": "2026-04-22T22:19:01Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,14 +9,14 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Executar passe final de limpeza para eventuais exceções residuais específicas de boundary.",
+		"Compactar contexto agora para preservar continuidade sem perda de estado.",
+		"Após compactação, executar passe final de critério de done para centralização de políticas sensíveis.",
 		"Manter validação agregada por macro-lote (agent_tools_bridge + plugin_host + wasi_bridge).",
-		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
-		"Formalizar ADR-012 em janela dedicada, alinhando escopo final com o estado centralizado atual."
+		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [
-		"Definir critério formal de done para encerramento da frente de centralização de políticas sensíveis."
+		"Critério formal de encerramento da frente de centralização (limite entre política compartilhada e exceções específicas de boundary)."
 	],
 	"files_in_flux": [
 		"packages/tractor/src/host/sensitive_aliases.rs",
@@ -24,10 +24,12 @@
 		"packages/tractor/src/host/plugin_host/core.rs",
 		"packages/tractor/src/host/plugin_host/env_and_runtime.rs",
 		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
-		"packages/tractor/src/host/agent_tools_bridge_tests/*",
-		"packages/tractor/src/host/plugin_host_tests/*",
+		"packages/tractor/src/host/agent_tools_bridge_tests/fs_shell_core.rs",
+		"packages/tractor/src/host/plugin_host_tests/env_policy_core.rs",
 		"packages/tractor/src/host/wasi_bridge_tests/*",
+		"specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md",
 		".project/handoff.json",
-		".project/verification.json"
+		".project/verification.json",
+		".project/issues.json"
 	]
 }
