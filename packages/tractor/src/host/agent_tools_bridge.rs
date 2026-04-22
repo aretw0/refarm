@@ -328,6 +328,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("CARGO_")
         || upper.starts_with("RUSTUP_")
         || upper.starts_with("OCI_CLI_")
+        || upper.starts_with("OCI_")
         || upper.starts_with("NETRC_")
         || upper.starts_with("CURL_")
         || upper.starts_with("WGET_")

@@ -896,6 +896,7 @@
             ),
             ("OCI_CLI_AUTH", "security_token"),
             ("oci_cli_region", "sa-saopaulo-1"),
+            ("OCI_REGION", "sa-saopaulo-1"),
             ("NETRC", "/tmp/evil.netrc"),
             ("NETRC_MACHINE", "evil-machine"),
             ("_NETRC", "1"),
