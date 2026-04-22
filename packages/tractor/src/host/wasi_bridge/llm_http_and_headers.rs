@@ -176,6 +176,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-matrix-access-token"
             || n.starts_with("x-matrix-")
             || n == "x-discord-token"
+            || n == "x-discordtoken"
+            || n == "x-discordwebhookurl"
             || n.starts_with("x-discord-")
             || n == "x-signature-ed25519"
             || n == "x-signature-timestamp"
@@ -194,6 +196,10 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gogs-signature"
             || n.starts_with("x-gogs-")
             || n == "x-stripe-signature"
+            || n == "x-stripesignature"
+            || n == "x-stripeapikey"
+            || n == "x-stripesecretkey"
+            || n == "x-stripewebhooksecret"
             || n.starts_with("x-stripe-")
             || n == "x-twilio-signature"
             || n.starts_with("x-twilio-")
@@ -204,8 +210,13 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-shopify-hmacsha256"
             || n.starts_with("x-shopify-")
             || n == "x-slack-signature"
+            || n == "x-slacksignature"
             || n == "x-slack-request-timestamp"
             || n == "x-slack-requesttimestamp"
+            || n == "x-slackrequesttimestamp"
+            || n == "x-slackbottoken"
+            || n == "x-slackapptoken"
+            || n == "x-slackwebhookurl"
             || n == "x-request-timestamp"
             || n == "x-requesttimestamp"
             || n.starts_with("x-request-timestamp-")

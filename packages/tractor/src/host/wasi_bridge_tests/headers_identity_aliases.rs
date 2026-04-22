@@ -304,6 +304,14 @@
             ),
             ("x-discord-token".to_string(), "discord-token-evil".to_string()),
             (
+                "x-discordtoken".to_string(),
+                "discord-token-evil-compact".to_string(),
+            ),
+            (
+                "x-discordwebhookurl".to_string(),
+                "https://discord.com/api/webhooks/evil".to_string(),
+            ),
+            (
                 "x-discord-application-id".to_string(),
                 "123456789012345678".to_string(),
             ),
@@ -328,9 +336,20 @@
                 "X-Slack-Signature".to_string(),
                 "v0=deadbeef".to_string(),
             ),
+            ("x-slacksignature".to_string(), "v0=deadbeef".to_string()),
             (
                 "x-slack-request-timestamp".to_string(),
                 "1711111111".to_string(),
+            ),
+            (
+                "x-slackrequesttimestamp".to_string(),
+                "1711111111".to_string(),
+            ),
+            ("x-slackbottoken".to_string(), "xoxb-evil-token".to_string()),
+            ("x-slackapptoken".to_string(), "xapp-evil-token".to_string()),
+            (
+                "x-slackwebhookurl".to_string(),
+                "https://hooks.slack.com/services/evil".to_string(),
             ),
             ("x-request-timestamp".to_string(), "1711111111".to_string()),
             ("x-slack-team-id".to_string(), "T01234567".to_string()),
@@ -363,6 +382,22 @@
             (
                 "X-Stripe-Signature".to_string(),
                 "t=1711111111,v1=deadbeef".to_string(),
+            ),
+            (
+                "x-stripesignature".to_string(),
+                "t=1711111111,v1=deadbeef".to_string(),
+            ),
+            (
+                "x-stripeapikey".to_string(),
+                "stripe-api-key-evil".to_string(),
+            ),
+            (
+                "x-stripesecretkey".to_string(),
+                "stripe-secret-key-evil".to_string(),
+            ),
+            (
+                "x-stripewebhooksecret".to_string(),
+                "whsec_evil_secret".to_string(),
             ),
             (
                 "x-stripe-account".to_string(),
