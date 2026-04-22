@@ -13,11 +13,35 @@
             (" x-api-token ".to_string(), "fake-key".to_string()),
             (" x-api-secret ".to_string(), "fake-key".to_string()),
             (" x-auth-secret ".to_string(), "fake-key".to_string()),
+            (
+                " x-auth-header ".to_string(),
+                "Bearer fake".to_string(),
+            ),
             (" x-webhook-secret ".to_string(), "fake-key".to_string()),
             (" x-bearer-token ".to_string(), "fake-key".to_string()),
             (
                 " x-credential-file ".to_string(),
                 "/tmp/evil-credentials.json".to_string(),
+            ),
+            (
+                " x-credentials-path ".to_string(),
+                "/tmp/evil-credentials.json".to_string(),
+            ),
+            (
+                " x-key-file-path ".to_string(),
+                "/tmp/evil-private.key".to_string(),
+            ),
+            (
+                " x-token-file-path ".to_string(),
+                "/tmp/evil-token.txt".to_string(),
+            ),
+            (
+                " x-password-hint ".to_string(),
+                "password-hint-evil".to_string(),
+            ),
+            (
+                " x-cookie-name ".to_string(),
+                "session".to_string(),
             ),
             (" api-key ".to_string(), "fake-key".to_string()),
             (" x-auth-token ".to_string(), "fake-key".to_string()),

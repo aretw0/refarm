@@ -29,9 +29,15 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-api-token"
             || n == "x-api-secret"
             || n == "x-auth-secret"
+            || n.starts_with("x-auth-")
             || n == "x-webhook-secret"
             || n.starts_with("x-bearer-")
             || n.starts_with("x-credential-")
+            || n.starts_with("x-credentials-")
+            || n.starts_with("x-key-file-")
+            || n.starts_with("x-token-file-")
+            || n.starts_with("x-password-")
+            || n.starts_with("x-cookie-")
             || n == "api-key"
             || n == "x-datadog-api-key"
             || n.starts_with("x-datadog-")
