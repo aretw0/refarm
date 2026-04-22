@@ -93,49 +93,30 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-resend-")
             || n == "x-auth-token"
             || n == "x-authentication-token"
+            || crate::host::sensitive_aliases::is_compact_sensitive_header_alias(&n)
             || n == "x-github-token"
-            || n == "x-githubtoken"
-            || n == "x-githubpat"
             || n.starts_with("x-github-")
             || n == "x-gitlab-token"
-            || n == "x-gitlabtoken"
             || n == "x-gitlab-privatetoken"
-            || n == "x-gitlabprivatetoken"
             || n == "x-gitlab-citoken"
-            || n == "x-gitlabcitoken"
             || n == "x-gitlab-webhook-token"
-            || n == "x-gitlabwebhooksecrettoken"
             || n.starts_with("x-gitlab-")
             || n == "x-bitbucket-token"
-            || n == "x-bitbuckettoken"
             || n == "x-bitbucket-app-password"
-            || n == "x-bitbucketapppassword"
             || n.starts_with("x-bitbucket-")
             || n.starts_with("x-actions-")
             || n == "x-vault-token"
             || n.starts_with("x-vault-")
             || n.starts_with("x-kube-")
-            || n.starts_with("x-kubeconfig")
-            || n.starts_with("x-kubetoken")
-            || n.starts_with("x-kubecafile")
-            || n.starts_with("x-k8saws")
             || n.starts_with("x-helm-")
             || n.starts_with("x-docker-")
-            || n.starts_with("x-dockerhost")
             || n.starts_with("x-registry-")
-            || n.starts_with("x-registryurl")
             || n.starts_with("x-containers-")
-            || n.starts_with("x-containersregistriesconf")
             || n.starts_with("x-ghcr-")
-            || n.starts_with("x-ghcrhost")
             || n.starts_with("x-quay-")
-            || n.starts_with("x-quayorganization")
             || n.starts_with("x-harbor-")
-            || n.starts_with("x-harborurl")
             || n.starts_with("x-artifactory-")
-            || n.starts_with("x-artifactoryurl")
             || n.starts_with("x-jfrog-")
-            || n.starts_with("x-jfrogurl")
             || n.starts_with("x-oci-cli-")
             || n.starts_with("x-oci-")
             || n.starts_with("x-netrc-")
@@ -176,8 +157,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-matrix-access-token"
             || n.starts_with("x-matrix-")
             || n == "x-discord-token"
-            || n == "x-discordtoken"
-            || n == "x-discordwebhookurl"
             || n.starts_with("x-discord-")
             || n == "x-signature-ed25519"
             || n == "x-signature-timestamp"
@@ -196,10 +175,6 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gogs-signature"
             || n.starts_with("x-gogs-")
             || n == "x-stripe-signature"
-            || n == "x-stripesignature"
-            || n == "x-stripeapikey"
-            || n == "x-stripesecretkey"
-            || n == "x-stripewebhooksecret"
             || n.starts_with("x-stripe-")
             || n == "x-twilio-signature"
             || n.starts_with("x-twilio-")
@@ -210,13 +185,8 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-shopify-hmacsha256"
             || n.starts_with("x-shopify-")
             || n == "x-slack-signature"
-            || n == "x-slacksignature"
             || n == "x-slack-request-timestamp"
             || n == "x-slack-requesttimestamp"
-            || n == "x-slackrequesttimestamp"
-            || n == "x-slackbottoken"
-            || n == "x-slackapptoken"
-            || n == "x-slackwebhookurl"
             || n == "x-request-timestamp"
             || n == "x-requesttimestamp"
             || n.starts_with("x-request-timestamp-")
@@ -286,13 +256,9 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "cf-access-client-id"
             || n == "cf-access-client-secret"
             || n.starts_with("cf-access-client-")
-            || n.starts_with("cfaccessclient")
             || n.starts_with("x-cf-access-client-")
-            || n.starts_with("x-cfaccessclient")
             || n.starts_with("cf-access-")
-            || n.starts_with("cfaccess")
             || n.starts_with("x-cf-access-")
-            || n.starts_with("x-cfaccess")
             || n.starts_with("x-cf-api-")
             || n.starts_with("x-cloudflare-api-")
             || n == "x-database-url"
@@ -344,10 +310,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-opfs-root"
             || n.starts_with("x-opfs-")
             || n == "cf-access-jwt-assertion"
-            || n == "cfaccessjwtassertion"
-            || n == "x-cfaccessjwtassertion"
             || n == "x-goog-iap-jwt-assertion"
-            || n == "x-googiapjwtassertion"
             || n.starts_with("x-assertion-")
             || n == "x-goog-authenticated-user-email"
             || n == "x-googauthenticateduseremail"
@@ -442,28 +405,15 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gitlab-username"
             || n == "x-gitlab-user-login"
             || n == "x-gitlab-user-email"
-            || n == "x-gitlabuserid"
-            || n == "x-gitlabusername"
-            || n == "x-gitlabuserlogin"
-            || n == "x-gitlabuseremail"
             || n.starts_with("x-gitlab-user-")
-            || n.starts_with("x-gitlabuser")
             || n == "x-github-user-id"
             || n == "x-github-login"
             || n == "x-github-user-email"
-            || n == "x-githubuserid"
-            || n == "x-githublogin"
-            || n == "x-githubuseremail"
             || n.starts_with("x-github-user-")
-            || n.starts_with("x-githubuser")
             || n == "x-bitbucket-user"
             || n == "x-bitbucket-uuid"
             || n == "x-bitbucket-user-email"
-            || n == "x-bitbucketuser"
-            || n == "x-bitbucketuuid"
-            || n == "x-bitbucketuseremail"
             || n.starts_with("x-bitbucket-user-")
-            || n.starts_with("x-bitbucketuser")
             || n == "x-ms-client-principal"
             || n == "x-ms-clientprincipal"
             || n == "x-ms-client-principal-id"
