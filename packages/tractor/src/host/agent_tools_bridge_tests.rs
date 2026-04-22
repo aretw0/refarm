@@ -454,6 +454,7 @@
             ("OIDC_USERINFO", "alice@example.com"),
             ("AUTH_SESSION_ID", "session-id-evil"),
             ("USER_SESSION", "session-evil"),
+            ("SLACK_REQUEST_TIMESTAMP", "1711111111"),
             ("CIRCLE_TOKEN", "circleci-token-evil"),
             ("CIRCLECI_PROJECT_ID", "circle-project-evil"),
             ("BUILDKITE_AGENT_ACCESS_TOKEN", "buildkite-agent-token"),

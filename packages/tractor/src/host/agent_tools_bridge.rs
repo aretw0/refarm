@@ -405,6 +405,7 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.ends_with("_USERINFO")
         || upper.ends_with("_SESSION")
         || upper.ends_with("_SESSION_ID")
+        || upper.ends_with("_REQUEST_TIMESTAMP")
         || upper.starts_with("AWS_")
         || upper.starts_with("AZURE_")
         || upper.starts_with("ARM_")
