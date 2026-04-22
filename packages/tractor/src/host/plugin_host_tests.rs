@@ -148,6 +148,7 @@
             "LLM_NUGET_SOURCE",
             "LLM_SLACK_SIGNATURE",
             "LLM_SLACK_REQUEST_TIMESTAMP",
+            "LLM_REQUEST_TIMESTAMP_DRIFT",
             "LLM_SHOPIFY_HMAC_SHA256",
             "LLM_WEBHOOK_HMAC",
             "LLM_AUTH_SESSION_ID",

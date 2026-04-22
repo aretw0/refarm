@@ -180,6 +180,7 @@ fn is_forwardable_llm_env_key(key: &str) -> bool {
         || upper.ends_with("_HMAC")
         || upper.ends_with("_HMAC_SHA256")
         || upper.ends_with("_REQUEST_TIMESTAMP")
+        || upper.contains("_REQUEST_TIMESTAMP_")
         || upper.ends_with("_SECRET")
         || upper.ends_with("_COOKIE")
         || upper.ends_with("_PASSWORD")
