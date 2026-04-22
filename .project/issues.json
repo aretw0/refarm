@@ -211,6 +211,17 @@
       "priority": "high",
       "package": "tractor",
       "source": "human"
+    },
+    {
+      "id": "ISS-013",
+      "title": "Reduzir complexidade de `sensitive_aliases.rs` após centralização de políticas",
+      "body": "A centralização de políticas sensíveis em `packages/tractor/src/host/sensitive_aliases.rs` reduziu duplicação cross-boundary, porém concentrou alto volume de regras em um único módulo. Planejar refactor em follow-up para modularizar por domínio (env compact/generic/canonical, namespaces, headers canonical/compact, spawn/plugin policies) mantendo single source of truth sem arquivo monolítico.",
+      "location": "packages/tractor/src/host/sensitive_aliases.rs:1",
+      "status": "open",
+      "category": "cleanup",
+      "priority": "medium",
+      "package": "tractor",
+      "source": "human"
     }
   ]
 }
