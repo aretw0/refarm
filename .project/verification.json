@@ -465,6 +465,32 @@
           "evidence": "84 testes passando na rodada agregada recente."
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-SLICE-20260422-WASI-DELEGATION",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-22T22:19:01Z",
+      "evidence": "Adicionado teste de anti-drift em `wasi_bridge_tests/headers_transport_misc.rs` validando delegação de política sensível para `is_sensitive_plugin_header_name` do módulo compartilhado.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "85 passed"
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "43 passed"
+        },
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "112 passed"
+        }
+      ]
     }
   ]
 }

@@ -1,4 +1,30 @@
     #[test]
+    fn sanitized_headers_delegate_sensitive_name_policy_to_shared_helper() {
+        let names = [
+            "authorization",
+            "x-api-key",
+            "x-forwarded-for",
+            "content-type",
+            "x-custom-header",
+            "x-request-id",
+        ];
+
+        for name in names {
+            let headers = vec![(name.to_string(), "value".to_string())];
+            let out = sanitized_plugin_headers(&headers);
+            let blocked_by_shared = crate::host::sensitive_aliases::is_sensitive_plugin_header_name(
+                &name.to_ascii_lowercase(),
+            );
+
+            assert_eq!(
+                out.is_empty(),
+                blocked_by_shared,
+                "header policy drift for name: {name}"
+            );
+        }
+    }
+
+    #[test]
     fn sanitized_headers_drop_managed_identity_headers() {
         let headers = vec![
             ("X-RequestTimestamp".to_string(), "1711111111".to_string()),
