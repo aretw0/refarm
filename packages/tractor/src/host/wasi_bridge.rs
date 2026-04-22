@@ -734,6 +734,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-sqlite-file"
             || n == "x-sqlite-tmpdir"
             || n == "x-sqlite-history"
+            || n.starts_with("x-sqlite-")
             || n == "x-sqlcipher-key"
             || n.starts_with("x-sqlcipher-")
             || n == "x-libsql-auth-token"

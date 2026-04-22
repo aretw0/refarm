@@ -2181,6 +2181,10 @@
                 "redpanda.evil:9092".to_string(),
             ),
             ("X-Sqlite-Url".to_string(), "file:/tmp/evil.sqlite".to_string()),
+            (
+                "x-sqlite-busy-timeout".to_string(),
+                "5000".to_string(),
+            ),
             ("x-sqlite-path".to_string(), "/tmp/evil.sqlite".to_string()),
             ("X-Sqlite-File".to_string(), "/tmp/evil.sqlite".to_string()),
             (
