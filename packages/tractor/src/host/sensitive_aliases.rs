@@ -719,6 +719,17 @@ pub(crate) fn is_forwardable_llm_env_key(key: &str) -> bool {
     !is_disallowed_llm_forward_env_upper(&upper)
 }
 
+/// Shared plugin-forwarding policy for `LLM_*` env values.
+pub(crate) fn is_forwardable_llm_env_value(value: &str) -> bool {
+    const MAX_LLM_ENV_VALUE_LEN: usize = 4096;
+    !value.trim().is_empty()
+        && value.trim() == value
+        && value.len() <= MAX_LLM_ENV_VALUE_LEN
+        && value.is_ascii()
+        && !value.chars().any(|c| c.is_whitespace())
+        && !value.chars().any(|c| c.is_control())
+}
+
 /// Shared spawn boundary env-key policy (exact keys + prefixes + shared alias catalogs).
 pub(crate) fn is_spawn_sensitive_env_key(key: &str) -> bool {
     let upper = key.to_ascii_uppercase();
@@ -1914,6 +1925,41 @@ mod tests {
             assert!(
                 !is_disallowed_llm_forward_env_upper(key),
                 "expected allowed llm forward env key: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn llm_forwardable_helpers_match_expected_cases() {
+        let key_allowed = ["LLM_MODEL", "LLM_PROVIDER_BASE_URL", "LLM_TEMPERATURE"];
+        for key in key_allowed {
+            assert!(
+                is_forwardable_llm_env_key(key),
+                "expected LLM env key to be forwardable: {key}"
+            );
+        }
+
+        let key_blocked = ["LLM_GITHUB_TOKEN", "LLM_SHELL_ALLOWLIST", "LLM_AWS_FOO_BAR"];
+        for key in key_blocked {
+            assert!(
+                !is_forwardable_llm_env_key(key),
+                "expected LLM env key to be blocked: {key}"
+            );
+        }
+
+        let value_allowed = ["gpt-4.1", "openai", "0.2"];
+        for value in value_allowed {
+            assert!(
+                is_forwardable_llm_env_value(value),
+                "expected LLM env value to be forwardable: {value}"
+            );
+        }
+
+        let value_blocked = ["", " has-space", "line\nfeed"];
+        for value in value_blocked {
+            assert!(
+                !is_forwardable_llm_env_value(value),
+                "expected LLM env value to be blocked: {value:?}"
             );
         }
     }

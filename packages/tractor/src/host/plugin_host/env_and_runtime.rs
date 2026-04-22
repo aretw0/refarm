@@ -1,11 +1,5 @@
 fn is_forwardable_llm_env_value(value: &str) -> bool {
-    const MAX_LLM_ENV_VALUE_LEN: usize = 4096;
-    !value.trim().is_empty()
-        && value.trim() == value
-        && value.len() <= MAX_LLM_ENV_VALUE_LEN
-        && value.is_ascii()
-        && !value.chars().any(|c| c.is_whitespace())
-        && !value.chars().any(|c| c.is_control())
+    crate::host::sensitive_aliases::is_forwardable_llm_env_value(value)
 }
 
 /// Build plugin env vars with project config override semantics:
