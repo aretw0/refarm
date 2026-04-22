@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de encerramento operacional da frente de centralização/hardening host-side. Estado de trabalho: `develop` local, sem mudanças pendentes após os commits desta janela. A política sensível compartilhável permanece consolidada em `packages/tractor/src/host/sensitive_aliases.rs`, com boundaries mantendo apenas guardrails mecânicos locais (shape/charset/quota/dedupe), conforme DEC-011. Passe final de residuals já registrado (sem cadeias locais de policy sensível nos 3 entrypoints) e ADR-012 formalizado com rastreio em `.project` fechado (ISS-012 resolvido).",
-	"timestamp": "2026-04-22T23:12:00Z",
+	"context": "Checkpoint de fechamento da frente host-side hardening (pré-push). Estado atual: `develop` local em `ahead 614` (antes deste checkpoint commit), com centralização de policy semântica em `packages/tractor/src/host/sensitive_aliases.rs` e guardrails mecânicos locais por boundary conforme DEC-011. Passe final de residuals concluído, ADR-012 formalizado com rastreio fechado (ISS-012 resolvido), e gate agregado final de testes executado com sucesso.",
+	"timestamp": "2026-04-22T23:18:00Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,9 +9,9 @@
 		"Risco externo de churn/promovibilidade em colônias permanece fora do escopo desta frente."
 	],
 	"next_actions": [
-		"Aguardar autorização para push do lote local e executar rodada única de CI remota.",
-		"Se autorizado antes do push: rodar gate agregado final (agent_tools_bridge + plugin_host + wasi_bridge).",
-		"Iniciar backlog ISS-013 (split/módulos em sensitive_aliases) em frente separada, sem bloquear este fechamento."
+		"Com autorização: push único do lote local para origin/develop.",
+		"Com autorização: disparar/acompanhar rodada única de CI remota.",
+		"Após merge/CI: abrir frente separada para ISS-013 (modularização de sensitive_aliases)."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],
