@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção para compactação iminente (~69% contexto). Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos e validação por boundary. Estado atual: `develop` em `ahead 397` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente reforçou fail-closed para famílias amplas de segredos/identidade/transporte: cloud/CI/registry/LLM, social/messaging/webhooks (X/Meta/Slack/Discord/Telegram/Line/Matrix), tunnel/edge (ngrok/tailscale/cloudflare tunnel), observability/OTLP, e storage/DB (Supabase/Metabase, SQLite/PgLite/OPFS, LibSQL/Turso/SQLCipher).",
-	"timestamp": "2026-04-21T21:50:13Z",
+	"context": "Checkpoint de contenção aos ~70% de contexto. Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos e validação por boundary. Estado atual: `develop` em `ahead 466` de `origin/develop`, árvore limpa e suíte alvo verde. Janela recente expandiu fail-closed para aliases/prefixes de cloud identity, CI/VCS, observability, social/webhook, tunnel/edge, container tooling, package publishing/toolchain, DBaaS/database endpoints, proxy/forwarding, k8s e SQLite.",
+	"timestamp": "2026-04-22T01:00:47Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,8 +9,8 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Executar compactação de contexto após commit de checkpoint.",
-		"Após compactação, retomar mini-lotes com 1 boundary por slice e agregada periódica.",
+		"Executar compactação de contexto após commit deste checkpoint.",
+		"Após compactação, retomar mini/macro-lotes mantendo teste por boundary e rodada agregada periódica.",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
 		"Sincronizar `.project/verification.json` a cada checkpoint de contenção."
 	],
