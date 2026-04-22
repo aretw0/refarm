@@ -869,6 +869,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-for"
             || n == "x-forwarded-host"
             || n == "x-forwarded-proto"
+            || n.starts_with("x-forwarded-")
             || n == "x-forwarded-protocol"
             || n == "x-forwarded-scheme"
             || n == "x-forwarded-ssl"
@@ -879,6 +880,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-original-forwarded-host"
             || n == "x-original-forwarded-proto"
             || n == "x-original-forwarded-protocol"
+            || n.starts_with("x-original-")
             || n == "x-original-forwarded-scheme"
             || n == "x-original-forwarded-port"
             || n == "x-original-forwarded-prefix"
@@ -893,9 +895,11 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-envoy-external-address"
             || n == "x-envoy-peer-metadata"
             || n == "x-envoy-peer-metadata-id"
+            || n.starts_with("x-envoy-")
             || n == "fastly-client-ip"
             || n == "x-forwarded-client-cert"
             || n == "x-client-cert"
+            || n.starts_with("x-client-")
             || n == "x-ssl-client-cert"
             || n == "x-arr-clientcert"
             || n == "ssl-client-cert"
@@ -910,6 +914,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-forwarded-uri"
             || n == "x-rewrite-url"
             || n == "x-rewrite-uri"
+            || n.starts_with("x-rewrite-")
             || n == "x-envoy-original-path"
             || n == "x-envoy-original-url"
             || n == "x-client-ip"
@@ -918,6 +923,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "proxy-authorization"
             || n == "proxy-authenticate"
             || n == "proxy-authentication-info"
+            || n.starts_with("proxy-")
             || n == "proxy-status"
             || n == "authentication-info"
             || n == "proxy-connection"
