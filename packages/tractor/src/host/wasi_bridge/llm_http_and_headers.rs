@@ -430,9 +430,12 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-envoy-")
             || n == "fastly-client-ip"
             || n == "x-forwarded-client-cert"
+            || n == "x-forwardedclientcert"
             || n == "x-client-cert"
+            || n == "x-clientcert"
             || n.starts_with("x-client-")
             || n == "x-ssl-client-cert"
+            || n == "x-sslclientcert"
             || n.starts_with("x-ssl-client-")
             || n == "x-arr-clientcert"
             || n == "ssl-client-cert"

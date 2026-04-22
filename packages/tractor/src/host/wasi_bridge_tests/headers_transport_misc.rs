@@ -120,8 +120,11 @@
             ),
             ("Fastly-Client-IP".to_string(), "1.2.3.4".to_string()),
             ("X-Forwarded-Client-Cert".to_string(), "By=spiffe://edge".to_string()),
+            ("X-ForwardedClientCert".to_string(), "By=spiffe://edge".to_string()),
             ("X-Client-Cert".to_string(), "-----BEGIN CERT-----...".to_string()),
+            ("X-ClientCert".to_string(), "-----BEGIN CERT-----...".to_string()),
             ("X-SSL-Client-Cert".to_string(), "-----BEGIN CERT-----...".to_string()),
+            ("X-SSLClientCert".to_string(), "-----BEGIN CERT-----...".to_string()),
             (
                 "X-SSL-Client-Policy".to_string(),
                 "strict".to_string(),
