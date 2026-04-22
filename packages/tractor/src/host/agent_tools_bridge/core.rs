@@ -22,7 +22,7 @@ use crate::host::plugin_host::refarm::plugin::{
 use crate::host::sensitive_aliases::{
     is_compact_sensitive_env_alias_suffix,
     is_generic_sensitive_env_token_suffix_or_segment,
-    is_shared_sensitive_env_canonical_suffix,
+    is_shared_sensitive_env_canonical_suffix_or_segment,
     is_shared_sensitive_env_namespace_prefix,
 };
 use crate::host::wasi_bridge::TractorNativeBindings;
@@ -340,9 +340,8 @@ fn is_blocked_spawn_env_key(key: &str) -> bool {
         || upper.starts_with("CLOUDFLARE_TUNNEL_")
         || is_compact_sensitive_env_alias_suffix(&upper)
         || is_generic_sensitive_env_token_suffix_or_segment(&upper)
-        || is_shared_sensitive_env_canonical_suffix(&upper)
+        || is_shared_sensitive_env_canonical_suffix_or_segment(&upper)
         || is_shared_sensitive_env_namespace_prefix(&upper)
-        || upper.contains("_PRIVATE_KEY_")
         || upper.starts_with("AMZN_OIDC_")
         || upper.starts_with("GOOG_")
         || upper.starts_with("MS_TOKEN_AAD_")
