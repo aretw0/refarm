@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção com contexto em ~75% antes de nova compactação. Frente única segue no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos, validação por boundary e rodadas agregadas. Estado atual: `develop` em `ahead 571` de `origin/develop`, árvore limpa e suíte alvo verde. O bloco CF Access/IAP ficou fechado nas três boundaries (spawn/env host-only/headers).",
-	"timestamp": "2026-04-22T14:43:31Z",
+	"context": "Checkpoint de contenção com contexto em ~68%. Frente única permanece no hardening host-side do Tractor (`agent_tools_bridge`, `plugin_host`, `wasi_bridge`) com commits atômicos e validação agregada por lote. Estado atual: `develop` em `ahead 586` de `origin/develop`; árvore limpa exceto `context.md` untracked. Janela recente consolidou a centralização de aliases compactos em `packages/tractor/src/host/sensitive_aliases.rs`, reduzindo duplicação nas três boundaries para famílias de git providers, slack/discord/stripe, forwarded/routing, principal/client-cert, method/proxy transport, oidc/database e webhook/session/auth.",
+	"timestamp": "2026-04-22T19:12:23Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -10,13 +10,16 @@
 	],
 	"next_actions": [
 		"Compactar contexto agora.",
-		"Após compactação, retomar em micro-lotes por boundary com testes por slice.",
-		"Planejar novo checkpoint quando contexto voltar à faixa ~75-80%.",
+		"Após compactação, retomar varredura residual de aliases compactos com scout/soldier pontuais (sem colônia).",
+		"Manter macro-lotes com validação agregada (agent_tools_bridge + plugin_host + wasi_bridge).",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota."
 	],
 	"open_questions": [],
-	"key_decisions_pending": [],
+	"key_decisions_pending": [
+		"Definir critério final de fechamento da fase de aliases e transição para hardening estrutural/documental (ADR-012)."
+	],
 	"files_in_flux": [
+		"packages/tractor/src/host/sensitive_aliases.rs",
 		"packages/tractor/src/host/agent_tools_bridge/core.rs",
 		"packages/tractor/src/host/plugin_host/core.rs",
 		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",

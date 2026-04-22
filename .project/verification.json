@@ -352,6 +352,32 @@
           "evidence": "84 testes passando nas rodadas recentes."
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-CHKPT-20260422-586",
+      "target": "2",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "test",
+      "timestamp": "2026-04-22T19:12:23Z",
+      "evidence": "Checkpoint de contenção em ahead 586 após macro-lotes de centralização de aliases compactos no catálogo compartilhado `sensitive_aliases.rs`, com paridade spawn/plugin/wasi preservada.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "111 testes passando nas rodadas agregadas dos lotes recentes."
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "42 testes passando nas rodadas agregadas dos lotes recentes."
+        },
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "84 testes passando nas rodadas agregadas dos lotes recentes."
+        }
+      ]
     }
   ]
 }
