@@ -143,15 +143,28 @@
             ("X-Host".to_string(), "evil.example".to_string()),
             ("Front-End-Https".to_string(), "on".to_string()),
             ("X-Real-IP".to_string(), "1.2.3.4".to_string()),
+            ("X-RealIP".to_string(), "1.2.3.4".to_string()),
             ("X-Forwarded-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("X-ForwardedClientIP".to_string(), "1.2.3.4".to_string()),
             ("X-Original-Forwarded-For".to_string(), "1.2.3.4".to_string()),
+            ("X-OriginalForwardedFor".to_string(), "1.2.3.4".to_string()),
             ("X-Cluster-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("X-ClusterClientIP".to_string(), "1.2.3.4".to_string()),
             ("X-Envoy-External-Address".to_string(), "1.2.3.4".to_string()),
+            ("X-EnvoyExternalAddress".to_string(), "1.2.3.4".to_string()),
             (
                 "X-Envoy-Peer-Metadata".to_string(),
                 "base64peerdata".to_string(),
             ),
+            (
+                "X-EnvoyPeerMetadata".to_string(),
+                "base64peerdata".to_string(),
+            ),
             ("X-Envoy-Peer-Metadata-Id".to_string(), "sidecar~id".to_string()),
+            (
+                "X-EnvoyPeerMetadataId".to_string(),
+                "sidecar~id".to_string(),
+            ),
             (
                 "X-Envoy-Route-Name".to_string(),
                 "internal-admin".to_string(),
@@ -205,9 +218,12 @@
             ("X-Envoy-Original-URL".to_string(), "/admin".to_string()),
             ("X-EnvoyOriginalURL".to_string(), "/admin".to_string()),
             ("X-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("X-ClientIP".to_string(), "1.2.3.4".to_string()),
             ("X-Client-Geo".to_string(), "US".to_string()),
             ("True-Client-IP".to_string(), "1.2.3.4".to_string()),
+            ("TrueClientIP".to_string(), "1.2.3.4".to_string()),
             ("CF-Connecting-IP".to_string(), "1.2.3.4".to_string()),
+            ("CFConnectingIP".to_string(), "1.2.3.4".to_string()),
             ("content-type".to_string(), "application/json".to_string()),
         ];
         let out = sanitized_plugin_headers(&headers);
