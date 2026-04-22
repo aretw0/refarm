@@ -430,6 +430,15 @@
           "evidence": "84 testes passando nas rodadas agregadas recentes."
         }
       ]
+    },
+    {
+      "id": "ADR-012-20260422",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-22T21:45:04Z",
+      "evidence": "ADR-012 formalized as `specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md` and indexed in `specs/ADRs/README.md`."
     }
   ]
 }
