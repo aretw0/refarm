@@ -517,6 +517,8 @@
             ("circle_oidc_token", "circle-oidc-token"),
             ("OIDC_TOKEN", "generic-oidc-token"),
             ("OIDC_IDENTITY", "oidc-identity-evil"),
+            ("SERVICE_CFACCESSJWTASSERTION", "jwt-evil"),
+            ("SERVICE_GOOGIAPJWTASSERTION", "jwt-evil"),
             ("SERVICE_OIDCDATA", "oidc-data-evil"),
             ("SERVICE_OIDCIDENTITY", "oidc-identity-evil"),
             ("SERVICE_OIDCISSUER", "https://issuer.evil"),
@@ -640,10 +642,16 @@
             ("cf_api_token", "cf-token-evil"),
             ("CF_API_BASE_URL", "https://api.cloudflare.evil"),
             ("CF_ACCESS_CLIENT_ID", "cf-access-client-id-evil"),
+            ("SERVICE_CFACCESSCLIENTID", "cf-access-client-id-evil"),
             ("cf_access_client_secret", "cf-access-client-secret-evil"),
+            ("SERVICE_CFACCESSCLIENTSECRET", "cf-access-client-secret-evil"),
             ("CF_ACCESS_AUD", "cf-access-audience-evil"),
             (
                 "CLOUDFLARE_ACCESS_CLIENT_ID",
+                "cf-access-client-id-evil-2",
+            ),
+            (
+                "SERVICE_CLOUDFLAREACCESSCLIENTID",
                 "cf-access-client-id-evil-2",
             ),
             (
@@ -652,6 +660,10 @@
             ),
             (
                 "cloudflare_access_client_secret",
+                "cf-access-client-secret-evil-2",
+            ),
+            (
+                "SERVICE_CLOUDFLAREACCESSCLIENTSECRET",
                 "cf-access-client-secret-evil-2",
             ),
             ("FASTLY_API_TOKEN", "fastly-token-evil"),
