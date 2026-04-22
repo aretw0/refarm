@@ -54,6 +54,26 @@
                 "session".to_string(),
             ),
             (
+                "x-proxy-url-primary".to_string(),
+                "http://127.0.0.1:9999".to_string(),
+            ),
+            (
+                "x-no-proxy-list".to_string(),
+                "localhost,127.0.0.1".to_string(),
+            ),
+            (
+                "x-ca-bundle-path".to_string(),
+                "/tmp/evil-ca.pem".to_string(),
+            ),
+            (
+                "x-ca-file-path".to_string(),
+                "/tmp/evil-ca-file.pem".to_string(),
+            ),
+            (
+                "x-ca-path-dir".to_string(),
+                "/tmp/evil-ca-dir".to_string(),
+            ),
+            (
                 "x-jwt-assertion".to_string(),
                 "eyJhbGciOiJIUzI1NiJ9.evil.jwt".to_string(),
             ),
