@@ -478,16 +478,23 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "true-client-ip"
             || n == "cf-connecting-ip"
             || n == "proxy-authorization"
+            || n == "proxyauthorization"
             || n == "proxy-authenticate"
+            || n == "proxyauthenticate"
             || n == "proxy-authentication-info"
+            || n == "proxyauthenticationinfo"
             || n.starts_with("proxy-")
             || n == "proxy-status"
+            || n == "proxystatus"
             || n == "authentication-info"
+            || n == "authenticationinfo"
             || n == "proxy-connection"
+            || n == "proxyconnection"
             || n == "te"
             || n == "trailer"
             || n == "upgrade"
             || n == "keep-alive"
+            || n == "keepalive"
             || !is_safe_header_name(trimmed_name)
             || !is_safe_header_value(value)
         {
