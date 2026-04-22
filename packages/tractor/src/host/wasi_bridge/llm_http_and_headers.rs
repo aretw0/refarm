@@ -43,10 +43,20 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-password-")
             || n.starts_with("x-cookie-")
             || n.starts_with("x-proxy-")
+            || n == "x-proxyurl"
+            || n.starts_with("x-proxyurl-")
             || n.starts_with("x-no-proxy-")
+            || n == "x-noproxy"
+            || n.starts_with("x-noproxy-")
             || n.starts_with("x-ca-bundle-")
+            || n == "x-cabundle"
+            || n.starts_with("x-cabundle-")
             || n.starts_with("x-ca-file-")
+            || n == "x-cafile"
+            || n.starts_with("x-cafile-")
             || n.starts_with("x-ca-path-")
+            || n == "x-capath"
+            || n.starts_with("x-capath-")
             || n.starts_with("x-jwt-")
             || n.starts_with("x-sock-")
             || n.starts_with("x-socket-")
