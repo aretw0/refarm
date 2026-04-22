@@ -534,12 +534,15 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
         if n.is_empty()
             || n == "authorization"
             || n == "x-authorization"
+            || n.starts_with("x-authorization-")
             || n == "authentication"
             || n == "x-api-key"
             || n == "x-api-token"
             || n == "x-api-secret"
             || n == "x-auth-secret"
             || n == "x-webhook-secret"
+            || n.starts_with("x-bearer-")
+            || n.starts_with("x-credential-")
             || n == "api-key"
             || n == "x-datadog-api-key"
             || n.starts_with("x-datadog-")
