@@ -1,8 +1,6 @@
-/// Shared compact-alias catalog for host-side security boundaries.
-///
-/// Goal: keep compact variants (without `_` / `-`) in one place so
-/// spawn/plugin/wasi policies stay in lockstep with lower maintenance churn.
-
+// Shared compact-alias catalog for host-side security boundaries.
+// Goal: keep compact variants (without `_` / `-`) in one place so
+// spawn/plugin/wasi policies stay in lockstep with lower maintenance churn.
 // NOTE: Keep this catalog focused on *compact aliases* for multi-part sensitive
 // names (e.g. HTTP_METHOD_OVERRIDE -> HTTPMETHODOVERRIDE).
 // Intentionally excluded generic canonical tokens (TOKEN, SECRET, SESSION, JWT,
@@ -352,10 +350,11 @@ pub(crate) fn is_generic_sensitive_env_token_suffix(upper_env_key: &str) -> bool
 /// Matches generic sensitive env tokens as suffix or middle segment
 /// (e.g. `LLM_FOO_TOKEN_BAR`).
 pub(crate) fn is_generic_sensitive_env_token_suffix_or_segment(upper_env_key: &str) -> bool {
-    GENERIC_ENV_SENSITIVE_TOKENS.iter().copied().any(|token| {
-        env_suffix_matches_token(upper_env_key, token)
-            || env_segment_matches_token(upper_env_key, token)
-    })
+    is_generic_sensitive_env_token_suffix(upper_env_key)
+        || GENERIC_ENV_SENSITIVE_TOKENS
+            .iter()
+            .copied()
+            .any(|token| env_segment_matches_token(upper_env_key, token))
 }
 
 /// Matches shared canonical sensitive env names as trailing suffix
@@ -370,13 +369,11 @@ pub(crate) fn is_shared_sensitive_env_canonical_suffix(upper_env_key: &str) -> b
 /// Matches shared canonical sensitive env names as trailing suffix or middle
 /// segment (e.g. `SERVICE_WEBHOOK_SECRET` or `LLM_FOO_WEBHOOK_SECRET_BAR`).
 pub(crate) fn is_shared_sensitive_env_canonical_suffix_or_segment(upper_env_key: &str) -> bool {
-    SHARED_CANONICAL_ENV_SUFFIX_NAMES
-        .iter()
-        .copied()
-        .any(|name| {
-            env_suffix_matches_token(upper_env_key, name)
-                || env_segment_matches_token(upper_env_key, name)
-        })
+    is_shared_sensitive_env_canonical_suffix(upper_env_key)
+        || SHARED_CANONICAL_ENV_SUFFIX_NAMES
+            .iter()
+            .copied()
+            .any(|name| env_segment_matches_token(upper_env_key, name))
 }
 
 const SHARED_SENSITIVE_ENV_NAMESPACES: &[&str] = &[
@@ -548,10 +545,10 @@ pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
         || upper.ends_with("_API_KEY")
         || upper.ends_with("_KEY")
         || upper.contains("_KEY_")
-        || is_compact_sensitive_env_alias_suffix_or_segment(&upper)
-        || is_generic_sensitive_env_token_suffix_or_segment(&upper)
-        || is_shared_sensitive_env_canonical_suffix_or_segment(&upper)
-        || is_shared_sensitive_env_namespace_segment(&upper)
+        || is_compact_sensitive_env_alias_suffix_or_segment(upper)
+        || is_generic_sensitive_env_token_suffix_or_segment(upper)
+        || is_shared_sensitive_env_canonical_suffix_or_segment(upper)
+        || is_shared_sensitive_env_namespace_segment(upper)
         || upper.ends_with("_HONEYCOMB_TEAM")
         || upper.ends_with("_OTEL_EXPORTER_OTLP_HEADERS")
         || upper.ends_with("_OTEL_EXPORTER_OTLP_TRACES_HEADERS")
@@ -1691,9 +1688,7 @@ const SENSITIVE_HEADER_CANONICAL_PREFIX: &[&str] = &[
 /// Matches any sensitive plugin header by canonical exact/prefix policies
 /// plus compact alias normalization policy.
 pub(crate) fn is_sensitive_plugin_header_name(lower_header_name: &str) -> bool {
-    SENSITIVE_HEADER_CANONICAL_EXACT
-        .iter()
-        .any(|v| lower_header_name == *v)
+    SENSITIVE_HEADER_CANONICAL_EXACT.contains(&lower_header_name)
         || SENSITIVE_HEADER_CANONICAL_PREFIX
             .iter()
             .any(|v| lower_header_name.starts_with(v))

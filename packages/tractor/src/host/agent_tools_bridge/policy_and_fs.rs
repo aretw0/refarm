@@ -65,7 +65,7 @@ fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), Strin
         return Err("spawn: cwd must not contain whitespace".to_string());
     }
     if let Some(root) = fs_root {
-        if let Err(_) = enforce_fs_root_with(cwd, Some(root)) {
+        if enforce_fs_root_with(cwd, Some(root)).is_err() {
             return Err("spawn: cwd outside LLM_FS_ROOT".to_string());
         }
     }
