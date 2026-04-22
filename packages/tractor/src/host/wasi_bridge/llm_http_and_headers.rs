@@ -258,22 +258,16 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n.starts_with("x-cf-api-")
             || n.starts_with("x-cloudflare-api-")
             || n == "x-database-url"
-            || n == "x-databaseurl"
             || n == "x-database-dsn"
-            || n == "x-databasedsn"
             || n.starts_with("x-database-")
             || n.starts_with("x-dsn-")
             || n == "x-redis-url"
-            || n == "x-redisurl"
             || n.starts_with("x-redis-")
             || n == "x-mongodb-uri"
-            || n == "x-mongodburi"
             || n.starts_with("x-mongodb-")
             || n == "x-postgres-url"
-            || n == "x-postgresurl"
             || n.starts_with("x-postgres-")
             || n == "x-mysql-url"
-            || n == "x-mysqlurl"
             || n.starts_with("x-mysql-")
             || n == "x-broker-url"
             || n.starts_with("x-broker-")
@@ -314,26 +308,17 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-googauthenticateduserid"
             || n.starts_with("x-goog-authenticated-user-")
             || n.starts_with("x-supabase-")
-            || n == "x-supabasedburl"
             || n.starts_with("x-metabase-")
-            || n == "x-metabasedbconnectionuri"
-            || n == "x-mbdbconnectionuri"
             || n == "x-google-authenticated-user-email"
             || n == "x-googleauthenticateduseremail"
             || n == "x-google-authenticated-user-id"
             || n == "x-googleauthenticateduserid"
             || n.starts_with("x-google-authenticated-user-")
-            || n == "x-userinfo"
             || n.starts_with("x-userinfo-")
             || n == "x-amzn-oidc-data"
-            || n == "x-amznoidcdata"
             || n == "x-amzn-oidc-identity"
-            || n == "x-amznoidcidentity"
             || n == "x-amzn-oidc-accesstoken"
-            || n == "x-amznoidcaccesstoken"
             || n.starts_with("x-amzn-oidc-")
-            || n == "x-oidcdata"
-            || n == "x-oidcidentity"
             || n.starts_with("x-oidc-")
             || n == "x-forwarded-user"
             || n == "x-forwarded-user-id"

@@ -101,6 +101,23 @@ const COMPACT_ENV_ALIAS_TOKENS: &[&str] = &[
     "AUTHENTICATIONINFO",
     "PROXYCONNECTION",
     "KEEPALIVE",
+    // OIDC / database / identity compact aliases
+    "OIDCDATA",
+    "OIDCIDENTITY",
+    "OIDCISSUER",
+    "AMZNOIDCDATA",
+    "AMZNOIDCIDENTITY",
+    "AMZNOIDCACCESSTOKEN",
+    "USERINFO",
+    "DATABASEURL",
+    "DATABASEDSN",
+    "REDISURL",
+    "MONGODBURI",
+    "POSTGRESURL",
+    "MYSQLURL",
+    "SUPABASEDBURL",
+    "METABASEDBCONNECTIONURI",
+    "MBDBCONNECTIONURI",
     // Client cert / principal compact aliases
     "FORWARDEDCLIENTCERT",
     "CLIENTCERT",
@@ -242,6 +259,22 @@ const COMPACT_HEADER_EXACT: &[&str] = &[
     "authenticationinfo",
     "proxyconnection",
     "keepalive",
+    // OIDC / database / identity compact headers
+    "xoidcdata",
+    "xoidcidentity",
+    "xamznoidcdata",
+    "xamznoidcidentity",
+    "xamznoidcaccesstoken",
+    "xuserinfo",
+    "xdatabaseurl",
+    "xdatabasedsn",
+    "xredisurl",
+    "xmongodburi",
+    "xpostgresurl",
+    "xmysqlurl",
+    "xsupabasedburl",
+    "xmetabasedbconnectionuri",
+    "xmbdbconnectionuri",
     // Client cert / principal compact headers
     "xforwardedclientcert",
     "xclientcert",
@@ -305,6 +338,8 @@ mod tests {
             "SERVICE_STRIPEWEBHOOKSECRET",
             "SERVICE_PROXYAUTHORIZATION",
             "SERVICE_HTTPMETHODOVERRIDE",
+            "SERVICE_OIDCDATA",
+            "SERVICE_DATABASEURL",
         ];
         for key in blocked {
             assert!(
@@ -356,6 +391,8 @@ mod tests {
             "x-msisecret",
             "proxyauthorization",
             "x-httpmethodoverride",
+            "x-oidcdata",
+            "x-databaseurl",
         ];
         for header in blocked {
             assert!(
