@@ -94,11 +94,22 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-auth-token"
             || n == "x-authentication-token"
             || n == "x-github-token"
+            || n == "x-githubtoken"
+            || n == "x-githubpat"
             || n.starts_with("x-github-")
             || n == "x-gitlab-token"
+            || n == "x-gitlabtoken"
+            || n == "x-gitlab-privatetoken"
+            || n == "x-gitlabprivatetoken"
+            || n == "x-gitlab-citoken"
+            || n == "x-gitlabcitoken"
             || n == "x-gitlab-webhook-token"
+            || n == "x-gitlabwebhooksecrettoken"
             || n.starts_with("x-gitlab-")
             || n == "x-bitbucket-token"
+            || n == "x-bitbuckettoken"
+            || n == "x-bitbucket-app-password"
+            || n == "x-bitbucketapppassword"
             || n.starts_with("x-bitbucket-")
             || n.starts_with("x-actions-")
             || n == "x-vault-token"
@@ -420,15 +431,28 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-gitlab-username"
             || n == "x-gitlab-user-login"
             || n == "x-gitlab-user-email"
+            || n == "x-gitlabuserid"
+            || n == "x-gitlabusername"
+            || n == "x-gitlabuserlogin"
+            || n == "x-gitlabuseremail"
             || n.starts_with("x-gitlab-user-")
+            || n.starts_with("x-gitlabuser")
             || n == "x-github-user-id"
             || n == "x-github-login"
             || n == "x-github-user-email"
+            || n == "x-githubuserid"
+            || n == "x-githublogin"
+            || n == "x-githubuseremail"
             || n.starts_with("x-github-user-")
+            || n.starts_with("x-githubuser")
             || n == "x-bitbucket-user"
             || n == "x-bitbucket-uuid"
             || n == "x-bitbucket-user-email"
+            || n == "x-bitbucketuser"
+            || n == "x-bitbucketuuid"
+            || n == "x-bitbucketuseremail"
             || n.starts_with("x-bitbucket-user-")
+            || n.starts_with("x-bitbucketuser")
             || n == "x-ms-client-principal"
             || n == "x-ms-clientprincipal"
             || n == "x-ms-client-principal-id"

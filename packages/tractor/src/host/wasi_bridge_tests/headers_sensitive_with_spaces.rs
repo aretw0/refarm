@@ -130,16 +130,38 @@
                 "fake-key".to_string(),
             ),
             (" x-github-token ".to_string(), "fake-key".to_string()),
+            (" x-githubtoken ".to_string(), "fake-key".to_string()),
+            (" x-githubpat ".to_string(), "fake-key".to_string()),
             (
                 " x-github-run-id ".to_string(),
                 "123456789".to_string(),
             ),
             (" x-gitlab-token ".to_string(), "fake-key".to_string()),
             (
+                " x-gitlabtoken ".to_string(),
+                "fake-key".to_string(),
+            ),
+            (
+                " x-gitlabprivatetoken ".to_string(),
+                "fake-key".to_string(),
+            ),
+            (
+                " x-gitlabcitoken ".to_string(),
+                "fake-key".to_string(),
+            ),
+            (
                 " x-gitlab-project-id ".to_string(),
                 "999999".to_string(),
             ),
             (" x-bitbucket-token ".to_string(), "fake-key".to_string()),
+            (
+                " x-bitbuckettoken ".to_string(),
+                "fake-key".to_string(),
+            ),
+            (
+                " x-bitbucketapppassword ".to_string(),
+                "fake-key".to_string(),
+            ),
             (
                 " x-bitbucket-workspace ".to_string(),
                 "evil-workspace".to_string(),
@@ -540,25 +562,44 @@
             (" x-principal-id ".to_string(), "alice-id".to_string()),
             (" x-principal-name ".to_string(), "alice".to_string()),
             (" x-gitlab-user-id ".to_string(), "123".to_string()),
+            (" x-gitlabuserid ".to_string(), "123".to_string()),
             (" x-gitlab-username ".to_string(), "alice".to_string()),
+            (" x-gitlabusername ".to_string(), "alice".to_string()),
             (" x-gitlab-user-login ".to_string(), "alice".to_string()),
+            (" x-gitlabuserlogin ".to_string(), "alice".to_string()),
             (" x-gitlab-user-name ".to_string(), "alice".to_string()),
             (
                 " x-gitlab-user-email ".to_string(),
                 "alice@example.com".to_string(),
             ),
+            (
+                " x-gitlabuseremail ".to_string(),
+                "alice@example.com".to_string(),
+            ),
             (" x-github-user-id ".to_string(), "123".to_string()),
+            (" x-githubuserid ".to_string(), "123".to_string()),
             (" x-github-login ".to_string(), "alice".to_string()),
+            (" x-githublogin ".to_string(), "alice".to_string()),
             (" x-github-user-name ".to_string(), "alice".to_string()),
             (
                 " x-github-user-email ".to_string(),
                 "alice@example.com".to_string(),
             ),
+            (
+                " x-githubuseremail ".to_string(),
+                "alice@example.com".to_string(),
+            ),
             (" x-bitbucket-user ".to_string(), "alice".to_string()),
+            (" x-bitbucketuser ".to_string(), "alice".to_string()),
             (" x-bitbucket-user-login ".to_string(), "alice".to_string()),
             (" x-bitbucket-uuid ".to_string(), "uuid-123".to_string()),
+            (" x-bitbucketuuid ".to_string(), "uuid-123".to_string()),
             (
                 " x-bitbucket-user-email ".to_string(),
+                "alice@example.com".to_string(),
+            ),
+            (
+                " x-bitbucketuseremail ".to_string(),
                 "alice@example.com".to_string(),
             ),
             (" x-client-verify ".to_string(), "SUCCESS".to_string()),
