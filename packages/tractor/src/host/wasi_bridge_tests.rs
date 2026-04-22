@@ -2083,6 +2083,10 @@
                 "sha256=deadbeef".to_string(),
             ),
             (
+                "x-webhook-secret".to_string(),
+                "custom-webhook-secret-evil".to_string(),
+            ),
+            (
                 "X-Stripe-Signature".to_string(),
                 "t=1711111111,v1=deadbeef".to_string(),
             ),

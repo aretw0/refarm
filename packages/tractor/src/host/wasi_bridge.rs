@@ -631,6 +631,7 @@ fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
             || n == "x-signature-timestamp"
             || n == "x-hub-signature"
             || n == "x-hub-signature-256"
+            || n.starts_with("x-webhook-")
             || n == "x-gitea-signature"
             || n.starts_with("x-gitea-")
             || n == "x-gogs-signature"
