@@ -152,6 +152,8 @@
             "LLM_SHOPIFY_HMAC_SHA256",
             "LLM_WEBHOOK_HMAC",
             "LLM_AUTH_SESSION_ID",
+            "LLM_CERTIFICATE_CHAIN_PATH",
+            "LLM_PRIVATE_KEY_PATH",
             "LLM_CUSTOM_WEBHOOK_SECRET",
             "LLM_CUSTOM_WEBHOOK_SECRET_TOKEN",
             "LLM_DISCORD_WEBHOOK_URL",
