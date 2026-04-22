@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de contenção após centralização avançada da política sensível host-side no Tractor. Estado atual: `develop` em `ahead 596` de `origin/develop`, árvore limpa. Nesta janela foram concluídos macro-lotes de convergência para single-source policy em `packages/tractor/src/host/sensitive_aliases.rs`: (1) guards genéricos de env token, (2) guards canônicos compartilhados de env suffix/segment, (3) namespaces sensíveis compartilhados de env (prefix/segment), e (4) política canônica de headers WASI roteada por helper único (`is_sensitive_plugin_header_name`) com remoção massiva de duplicação local em `wasi_bridge/llm_http_and_headers.rs`. Paridade spawn/plugin/wasi preservada com validação agregada por lote.",
-	"timestamp": "2026-04-22T21:10:24Z",
+	"context": "Checkpoint de contenção após centralização profunda do hardening host-side do Tractor. Estado atual: `develop` em `ahead 602` de `origin/develop`, árvore limpa. Nesta janela foram consolidadas políticas em `packages/tractor/src/host/sensitive_aliases.rs` com delegação efetiva nas três boundaries: (1) spawn env block policy centralizada (`is_spawn_sensitive_env_key`), (2) plugin LLM env forwarding policy centralizada (`is_disallowed_llm_forward_env_upper` + `is_forwardable_llm_env_key`), (3) canonical + compact header policy WASI centralizada (`is_sensitive_plugin_header_name`), além de catálogos compartilhados para aliases compactos, tokens genéricos, sufixos canônicos e namespaces sensíveis. Resultado: remoção expressiva de duplicação em `agent_tools_bridge/core.rs`, `plugin_host/core.rs` e `wasi_bridge/llm_http_and_headers.rs` com paridade preservada.",
+	"timestamp": "2026-04-22T21:45:04Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
@@ -9,19 +9,20 @@
 		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
 	],
 	"next_actions": [
-		"Manter varredura residual para reduzir casos literais remanescentes específicos por boundary (sem regressão de cobertura).",
-		"Preservar macro-lotes com validação agregada (agent_tools_bridge + plugin_host + wasi_bridge).",
+		"Executar passe final de limpeza para eventuais exceções residuais específicas de boundary.",
+		"Manter validação agregada por macro-lote (agent_tools_bridge + plugin_host + wasi_bridge).",
 		"Quando autorizado, pushar lote local e executar rodada única de CI remota.",
-		"Formalizar documento ADR-012 quando houver janela dedicada e alinhamento final de escopo."
+		"Formalizar ADR-012 em janela dedicada, alinhando escopo final com o estado centralizado atual."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [
-		"Critério de encerramento da frente de centralização (limite prático entre política compartilhada e exceções específicas de boundary)."
+		"Definir critério formal de done para encerramento da frente de centralização de políticas sensíveis."
 	],
 	"files_in_flux": [
 		"packages/tractor/src/host/sensitive_aliases.rs",
 		"packages/tractor/src/host/agent_tools_bridge/core.rs",
 		"packages/tractor/src/host/plugin_host/core.rs",
+		"packages/tractor/src/host/plugin_host/env_and_runtime.rs",
 		"packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs",
 		"packages/tractor/src/host/agent_tools_bridge_tests/*",
 		"packages/tractor/src/host/plugin_host_tests/*",

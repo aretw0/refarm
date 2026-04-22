@@ -404,6 +404,32 @@
           "evidence": "84 testes passando nas últimas rodadas agregadas."
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-CHKPT-20260422-602",
+      "target": "2",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "test",
+      "timestamp": "2026-04-22T21:45:04Z",
+      "evidence": "Checkpoint pós-macro-lotes de centralização: spawn env block policy + plugin LLM env forwarding + canonical/compact WASI header policy roteadas por `sensitive_aliases.rs` com redução de duplicação nas boundaries.",
+      "criteria_results": [
+        {
+          "criterion": "cargo test --lib agent_tools_bridge",
+          "status": "passed",
+          "evidence": "111 testes passando nas rodadas agregadas recentes."
+        },
+        {
+          "criterion": "cargo test --lib plugin_host",
+          "status": "passed",
+          "evidence": "42 testes passando nas rodadas agregadas recentes."
+        },
+        {
+          "criterion": "cargo test --lib wasi_bridge",
+          "status": "passed",
+          "evidence": "84 testes passando nas rodadas agregadas recentes."
+        }
+      ]
     }
   ]
 }
