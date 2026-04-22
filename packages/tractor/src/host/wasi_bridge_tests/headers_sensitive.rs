@@ -19,6 +19,16 @@
             ),
             ("x-webhook-secret".to_string(), "fake-key".to_string()),
             ("x-bearer-token".to_string(), "fake-key".to_string()),
+            ("x-token-path".to_string(), "/tmp/evil-token".to_string()),
+            ("x-secret-key".to_string(), "secret-key-evil".to_string()),
+            (
+                "x-access-key-id".to_string(),
+                "access-key-id-evil".to_string(),
+            ),
+            (
+                "x-signing-key-id".to_string(),
+                "signing-key-id-evil".to_string(),
+            ),
             (
                 "x-credential-file".to_string(),
                 "/tmp/evil-credentials.json".to_string(),
