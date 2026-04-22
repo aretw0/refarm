@@ -1,17 +1,17 @@
 {
-	"context": "Checkpoint de contenção após passe final de residuals por boundary. Estado atual: `develop` em `ahead 612` de `origin/develop`, árvore limpa. Centralização de políticas sensíveis permanece consolidada em `packages/tractor/src/host/sensitive_aliases.rs` com delegação em spawn/plugin/wasi. Nesta janela: (1) passe de residuals sem encontrar cadeias locais de policy sensível nos entry points; (2) comentários explícitos adicionados nos boundaries para separar ownership entre policy semântica compartilhada e limites mecânicos locais; (3) rodada agregada de testes permaneceu verde.",
-	"timestamp": "2026-04-22T23:02:49Z",
+	"context": "Checkpoint de encerramento operacional da frente de centralização/hardening host-side. Estado de trabalho: `develop` local, sem mudanças pendentes após os commits desta janela. A política sensível compartilhável permanece consolidada em `packages/tractor/src/host/sensitive_aliases.rs`, com boundaries mantendo apenas guardrails mecânicos locais (shape/charset/quota/dedupe), conforme DEC-011. Passe final de residuals já registrado (sem cadeias locais de policy sensível nos 3 entrypoints) e ADR-012 formalizado com rastreio em `.project` fechado (ISS-012 resolvido).",
+	"timestamp": "2026-04-22T23:12:00Z",
 	"current_phase": 2,
 	"current_tasks": ["Security hardening tests for tractor host boundaries"],
 	"blockers": [
-		"Risco sistêmico remanescente: churn de worktree/promovibilidade em colônias (fora do escopo desta frente).",
-		"Lote local ainda sem push/CI remoto (aguardando autorização).",
-		"`cargo clippy` indisponível localmente (cargo-clippy não instalado)."
+		"Push/CI remoto dependem de autorização explícita do usuário.",
+		"`cargo clippy` indisponível localmente (cargo-clippy não instalado).",
+		"Risco externo de churn/promovibilidade em colônias permanece fora do escopo desta frente."
 	],
 	"next_actions": [
-		"Executar somente ajustes residuais pontuais com ganho líquido claro (sem nova onda de centralização).",
-		"Manter validação agregada (agent_tools_bridge + plugin_host + wasi_bridge) a cada macro-lote.",
-		"Quando autorizado, pushar lote local e disparar CI remota única."
+		"Aguardar autorização para push do lote local e executar rodada única de CI remota.",
+		"Se autorizado antes do push: rodar gate agregado final (agent_tools_bridge + plugin_host + wasi_bridge).",
+		"Iniciar backlog ISS-013 (split/módulos em sensitive_aliases) em frente separada, sem bloquear este fechamento."
 	],
 	"open_questions": [],
 	"key_decisions_pending": [],

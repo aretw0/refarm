@@ -548,6 +548,27 @@
           "evidence": "85 passed"
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-CLOSE-20260422-ADR012",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-22T23:02:49Z",
+      "evidence": "Fechamento de rastreio documental da frente: ISS-012 marcado como resolvido com referência para ADR-012 formalizado e verificação existente `ADR-012-20260422`.",
+      "criteria_results": [
+        {
+          "criterion": "ISS-012 status",
+          "status": "passed",
+          "evidence": "ISS-012 -> resolved"
+        },
+        {
+          "criterion": "ADR-012 artifact",
+          "status": "passed",
+          "evidence": "specs/ADRs/ADR-012-hybrid-model-routing-for-pi-agent-harness.md presente e indexado"
+        }
+      ]
     }
   ]
 }
