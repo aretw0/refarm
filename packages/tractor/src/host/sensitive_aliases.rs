@@ -206,6 +206,113 @@ const GENERIC_ENV_SENSITIVE_TOKENS: &[&str] = &[
     "UPGRADE",
 ];
 
+const SHARED_CANONICAL_ENV_SUFFIX_NAMES: &[&str] = &[
+    "ACCESS_KEY",
+    "API_HASH",
+    "API_KEY",
+    "ARR_CLIENTCERT",
+    "ARTIFACTORY_URL",
+    "AUTHENTICATION_INFO",
+    "AUTHORIZATION_HEADER",
+    "AUTH_HEADER",
+    "CA_BUNDLE",
+    "CA_FILE",
+    "CA_PATH",
+    "CF_CONNECTING_IP",
+    "CLIENT_CERT",
+    "CLIENT_CERT_CHAIN",
+    "CLIENT_DN",
+    "CLIENT_IP",
+    "CLIENT_SAN",
+    "CLIENT_VERIFY",
+    "CLUSTER_CLIENT_IP",
+    "CONTAINERS_REGISTRIES_CONF",
+    "CREDENTIALS_FILE",
+    "CREDENTIAL_FILE",
+    "DATABASE_DSN",
+    "DATABASE_URL",
+    "DOCKER_HOST",
+    "ENVOY_EXTERNAL_ADDRESS",
+    "ENVOY_PEER_METADATA",
+    "ENVOY_PEER_METADATA_ID",
+    "FORWARDED_CLIENT_CERT",
+    "FORWARDED_METHOD",
+    "FORWARDED_PORT",
+    "FORWARDED_PREFIX",
+    "FORWARDED_PROTO",
+    "FORWARDED_PROTOCOL",
+    "FORWARDED_SERVER",
+    "FORWARDED_SSL",
+    "FORWARDED_URI",
+    "GHCR_HOST",
+    "HARBOR_URL",
+    "HMAC_SHA256",
+    "HTTP_METHOD",
+    "HTTP_METHOD_OVERRIDE",
+    "JFROG_URL",
+    "K8S_AWS_ID",
+    "KEEP_ALIVE",
+    "KEY_FILE",
+    "KUBE_CONFIG_PATH",
+    "MB_DB_CONNECTION_URI",
+    "METABASE_DB_CONNECTION_URI",
+    "METHOD_OVERRIDE",
+    "MONGODB_URI",
+    "MYSQL_URL",
+    "NO_PROXY",
+    "ORIGINAL_FORWARDED_FOR",
+    "ORIGINAL_FORWARDED_HOST",
+    "ORIGINAL_FORWARDED_PORT",
+    "ORIGINAL_FORWARDED_PREFIX",
+    "ORIGINAL_FORWARDED_PROTO",
+    "ORIGINAL_FORWARDED_PROTOCOL",
+    "ORIGINAL_FORWARDED_SCHEME",
+    "ORIGINAL_FORWARDED_SERVER",
+    "ORIGINAL_HOST",
+    "ORIGINAL_METHOD",
+    "ORIGINAL_PATH",
+    "ORIGINAL_URI",
+    "ORIGINAL_URL",
+    "POSTGRES_URL",
+    "PRIVATE_KEY",
+    "PROXY_AUTHENTICATE",
+    "PROXY_AUTHENTICATION_INFO",
+    "PROXY_AUTHORIZATION",
+    "PROXY_CONNECTION",
+    "PROXY_STATUS",
+    "PROXY_URL",
+    "QUAY_ORGANIZATION",
+    "REAL_IP",
+    "REDIS_URL",
+    "REGISTRY_URL",
+    "REQUEST_TIMESTAMP",
+    "REWRITE_URI",
+    "REWRITE_URL",
+    "SESSION_ID",
+    "SIGNING_KEY",
+    "SQLITE_FILE",
+    "SQLITE_HISTORY",
+    "SQLITE_PATH",
+    "SQLITE_TMPDIR",
+    "SQLITE_URL",
+    "SSL_CLIENT_CERT",
+    "SSL_CLIENT_DN",
+    "SSL_CLIENT_I_DN",
+    "SSL_CLIENT_SAN",
+    "SSL_CLIENT_S_DN",
+    "SSL_CLIENT_VERIFY",
+    "SSL_VERIFY",
+    "SUPABASE_DB_URL",
+    "TLS_INSECURE",
+    "TOKEN_FILE",
+    "TRUE_CLIENT_IP",
+    "URL_SCHEME",
+    "VERIFY_SSL",
+    "WEBHOOK_SECRET",
+    "WEBHOOK_SECRET_TOKEN",
+    "WEBHOOK_URL",
+];
+
 fn env_suffix_matches_token(upper_env_key: &str, token: &str) -> bool {
     upper_env_key
         .strip_suffix(token)
@@ -249,6 +356,27 @@ pub(crate) fn is_generic_sensitive_env_token_suffix_or_segment(upper_env_key: &s
         env_suffix_matches_token(upper_env_key, token)
             || env_segment_matches_token(upper_env_key, token)
     })
+}
+
+/// Matches shared canonical sensitive env names as trailing suffix
+/// (e.g. `SERVICE_WEBHOOK_URL`, `SERVICE_PROXY_AUTHORIZATION`).
+pub(crate) fn is_shared_sensitive_env_canonical_suffix(upper_env_key: &str) -> bool {
+    SHARED_CANONICAL_ENV_SUFFIX_NAMES
+        .iter()
+        .copied()
+        .any(|name| env_suffix_matches_token(upper_env_key, name))
+}
+
+/// Matches shared canonical sensitive env names as trailing suffix or middle
+/// segment (e.g. `SERVICE_WEBHOOK_SECRET` or `LLM_FOO_WEBHOOK_SECRET_BAR`).
+pub(crate) fn is_shared_sensitive_env_canonical_suffix_or_segment(upper_env_key: &str) -> bool {
+    SHARED_CANONICAL_ENV_SUFFIX_NAMES
+        .iter()
+        .copied()
+        .any(|name| {
+            env_suffix_matches_token(upper_env_key, name)
+                || env_segment_matches_token(upper_env_key, name)
+        })
 }
 
 const COMPACT_HEADER_EXACT: &[&str] = &[
@@ -537,6 +665,60 @@ mod tests {
             assert!(
                 !is_generic_sensitive_env_token_suffix_or_segment(key),
                 "expected generic env helper NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_canonical_env_suffix_matches_expected_keys() {
+        let blocked = [
+            "SERVICE_WEBHOOK_URL",
+            "SERVICE_PROXY_AUTHORIZATION",
+            "SERVICE_DATABASE_URL",
+            "SERVICE_KUBE_CONFIG_PATH",
+            "SERVICE_SSL_CLIENT_CERT",
+        ];
+        for key in blocked {
+            assert!(
+                is_shared_sensitive_env_canonical_suffix(key),
+                "expected shared canonical env suffix match: {key}"
+            );
+        }
+
+        let allowed = [
+            "SERVICE_WEBHOOKURL",
+            "SERVICE_PROXYAUTHORIZATION",
+            "WEBHOOK_URL",
+            "SERVICE_PROVIDER_BASE_URL",
+        ];
+        for key in allowed {
+            assert!(
+                !is_shared_sensitive_env_canonical_suffix(key),
+                "expected shared canonical env helper NOT to match: {key}"
+            );
+        }
+    }
+
+    #[test]
+    fn shared_canonical_env_segment_matches_expected_keys() {
+        let blocked = [
+            "LLM_FOO_WEBHOOK_SECRET_BAR",
+            "LLM_FOO_PROXY_AUTHORIZATION_BAR",
+            "LLM_FOO_DATABASE_URL_BAR",
+            "LLM_FOO_SSL_CLIENT_CERT_BAR",
+        ];
+        for key in blocked {
+            assert!(
+                is_shared_sensitive_env_canonical_suffix_or_segment(key),
+                "expected shared canonical env segment match: {key}"
+            );
+        }
+
+        let allowed = ["LLM_FOO_WEBHOOKSECRET_BAR", "LLM_PROVIDER_BASE_URL"];
+        for key in allowed {
+            assert!(
+                !is_shared_sensitive_env_canonical_suffix_or_segment(key),
+                "expected shared canonical env segment helper NOT to match: {key}"
             );
         }
     }
