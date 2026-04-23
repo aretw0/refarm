@@ -1147,6 +1147,28 @@
       "assigned_agent": "worker-plugin",
       "verification": "VER-PLUGIN-05-20260423",
       "notes": "Novo guia `docs/PLUGIN_AUTHORING_TRACKS.md` formaliza estratégia de adoção progressiva sem bloquear equipes que ainda não usam WASM."
+    },
+    {
+      "id": "T-RUNTIME-13",
+      "description": "Reduzir stub browser de PluginHost permitindo execução de plugins `.js/.mjs` com import dinâmico.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "Browser PluginHost consegue carregar plugin `.js/.mjs`",
+        "Estado/telemetria básica de plugin funciona no caminho browser",
+        "Entradas `.wasm` seguem bloqueadas explicitamente no browser até etapa ADR-044"
+      ],
+      "depends_on": [
+        "T-RUNTIME-12"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-13-20260423",
+      "notes": "`index.browser.ts` deixou de ser stub total: suporta load/call/state/dispatch para plugins JS e mantém bloqueio explícito de `.wasm` no browser."
     }
   ]
 }

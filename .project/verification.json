@@ -1676,6 +1676,37 @@
           "evidence": "Links adicionados em `docs/ARCHITECTURE.md` e `packages/plugin-manifest/README.md`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-13-20260423",
+      "target": "T-RUNTIME-13",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T20:05:05.434Z",
+      "evidence": "Browser PluginHost ganhou caminho funcional para plugins JS com cobertura dedicada.",
+      "criteria_results": [
+        {
+          "criterion": "Browser PluginHost consegue carregar plugin `.js/.mjs`",
+          "status": "passed",
+          "evidence": "`browser-plugin-host.test.ts` carrega módulo JS remoto (fallback fetch+data URL) e valida `ping()`."
+        },
+        {
+          "criterion": "Estado/telemetria básica de plugin funciona no caminho browser",
+          "status": "passed",
+          "evidence": "`index.browser.ts` mantém `instances` map, emite `plugin:load`/`api:call` e implementa `setState/getAllPlugins`."
+        },
+        {
+          "criterion": "Entradas `.wasm` seguem bloqueadas explicitamente no browser até etapa ADR-044",
+          "status": "passed",
+          "evidence": "Teste dedicado garante erro explícito para `entry .wasm` no browser."
+        },
+        {
+          "criterion": "Regressão do runtime verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/tractor-ts run test:unit -- browser-plugin-host plugin-host-internals install-plugin` (29/29) + `npm --prefix packages/tractor-ts run type-check`."
+        }
+      ]
     }
   ]
 }

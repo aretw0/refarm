@@ -39,9 +39,43 @@ const BROWSER_ERROR =
  * Read-only queries return empty results instead of throwing.
  */
 export class PluginHost {
+  private readonly instances = new Map<string, PluginInstance>();
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  constructor(_emit: (data: TelemetryEvent) => void, _registry: any, _logger?: TractorLogger) {
-    // no-op: allow Tractor to boot in browser without plugin support
+  constructor(
+    private readonly emit: (data: TelemetryEvent) => void,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _registry: any,
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _logger?: TractorLogger,
+  ) {}
+
+  private isJavaScriptEntry(entry: string): boolean {
+    const normalized = entry.split("?")[0].split("#")[0].toLowerCase();
+    return normalized.endsWith(".js") || normalized.endsWith(".mjs");
+  }
+
+  private encodeBase64Utf8(source: string): string {
+    const bytes = new TextEncoder().encode(source);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+
+  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+    try {
+      return await import(/* @vite-ignore */ entryUrl);
+    } catch {
+      const response = await fetch(entryUrl);
+      if (!response.ok) {
+        throw new Error(
+          `[tractor] Failed to fetch browser plugin module: ${response.statusText}`,
+        );
+      }
+      const source = await response.text();
+      const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+      return import(/* @vite-ignore */ dataUrl);
+    }
   }
 
   hasValidTrustGrant(_pluginId: string, _wasmHash?: string): boolean {
@@ -61,7 +95,62 @@ export class PluginHost {
   }
 
   async load(_manifest: PluginManifest, _wasmHash?: string): Promise<PluginInstance> {
-    throw new Error(BROWSER_ERROR);
+    const manifest = _manifest;
+    if (!this.isJavaScriptEntry(manifest.entry)) {
+      throw new Error(BROWSER_ERROR);
+    }
+
+    const moduleNamespace = await this.loadJavaScriptModule(manifest.entry);
+    const pluginId = manifest.id;
+
+    const instance: PluginInstance = {
+      id: pluginId,
+      name: manifest.name,
+      manifest,
+      state: "running",
+      call: async (fn: string, args?: unknown): Promise<unknown> => {
+        let result = null;
+        if (
+          moduleNamespace.integration &&
+          typeof moduleNamespace.integration[fn] === "function"
+        ) {
+          result = await moduleNamespace.integration[fn](args);
+        } else if (typeof moduleNamespace[fn] === "function") {
+          result = await moduleNamespace[fn](args);
+        }
+
+        this.emit({
+          event: "api:call",
+          pluginId,
+          payload: { fn, args, result },
+        });
+
+        return result;
+      },
+      terminate: () => {
+        this.instances.delete(pluginId);
+        this.emit({ event: "plugin:terminate", pluginId });
+      },
+      emitTelemetry: (event: string, payload?: any) => {
+        this.emit({ event, pluginId, payload });
+      },
+    };
+
+    this.instances.set(pluginId, instance);
+
+    try {
+      await instance.call("setup");
+    } catch {
+      // setup hook remains optional at runtime for JS onboarding path
+    }
+
+    this.emit({
+      event: "plugin:load",
+      pluginId,
+      payload: { entryType: "js", source: "browser-module" },
+    });
+
+    return instance;
   }
 
   getWasiImports(_manifest: PluginManifest, _profile: ExecutionProfile): Record<string, unknown> {
@@ -69,35 +158,63 @@ export class PluginHost {
   }
 
   registerInternal(_instance: PluginInstance): void {
-    // no-op in browser
+    this.instances.set(_instance.id, _instance);
   }
 
   setState(_pluginId: string, _state: PluginState): void {
-    // no-op in browser
+    const instance = this.instances.get(_pluginId);
+    if (instance && instance.state !== _state) {
+      instance.state = _state;
+      this.emit({
+        event: "system:plugin_state_changed",
+        pluginId: _pluginId,
+        payload: { state: _state },
+      });
+    }
   }
 
   dispatch(_event: TelemetryEvent): void {
-    // no-op in browser
+    for (const instance of this.instances.values()) {
+      if (_event.event.startsWith("system:")) {
+        instance.call("on-event", [_event.event, JSON.stringify(_event.payload)]);
+      }
+    }
   }
 
   async getHelpNodes(): Promise<SovereignNode[]> {
-    return [];
+    const nodes: SovereignNode[] = [];
+    for (const plugin of this.instances.values()) {
+      try {
+        const pluginNodes = (await plugin.call("get-help-nodes")) as any[];
+        if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n)));
+      } catch {
+        // ignore invalid help providers in browser path
+      }
+    }
+    return nodes;
   }
 
   findByApi(_apiName: string): PluginInstance | undefined {
+    for (const instance of this.instances.values()) {
+      if (instance.manifest.capabilities.providesApi?.includes(_apiName)) {
+        return instance;
+      }
+    }
     return undefined;
   }
 
   get(_pluginId: string): PluginInstance | undefined {
-    return undefined;
+    return this.instances.get(_pluginId);
   }
 
   getAllPlugins(): PluginInstance[] {
-    return [];
+    return Array.from(this.instances.values());
   }
 
   terminateAll(): void {
-    // no-op in browser
+    for (const plugin of this.instances.values()) {
+      plugin.terminate();
+    }
   }
 }
 
