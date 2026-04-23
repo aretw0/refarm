@@ -155,6 +155,9 @@ jobs:
         with:
           fetch-depth: "0"
 
+      - name: Validate .project cross-block consistency
+        run: npm run project:validate --silent
+
       - name: Setup
         id: setup
         if: needs.changes.outputs.code_changes == 'true'

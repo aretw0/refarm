@@ -907,6 +907,27 @@
           "evidence": "Commit `3e32dfa1` + fix `56607a93`; run `24817138696` concluída com `ci-metrics` sucesso e artifact `ci-run-metrics`."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-08-20260423",
+      "target": "8",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T04:53:07Z",
+      "evidence": "Validação cruzada entre blocos do `.project` automatizada com script dedicado (`scripts/ci/project-block-consistency.mjs`) e integração contínua no workflow `Test & Quality`.",
+      "criteria_results": [
+        {
+          "criterion": "Checks de referência requirements -> tasks/phase e tasks -> verification",
+          "status": "passed",
+          "evidence": "`npm run project:validate --silent` retorna `project block consistency passed` no estado atual."
+        },
+        {
+          "criterion": "Rotina contínua no CI",
+          "status": "passed",
+          "evidence": "`.github/workflows/test.yml` (job `quality`) executa `npm run project:validate --silent` em todos os runs do workflow."
+        }
+      ]
     }
   ]
 }

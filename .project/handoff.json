@@ -1,24 +1,27 @@
 {
-  "context": "Fase de aceleração de CI concluída com sucesso: workflow `Test & Quality` agora opera com detecção de mudanças (`changes`), execução afetada no Turbo, skip inteligente de build/e2e/audit, lane `deep-regression` opt-in (`ci:deep` + schedule semanal) e export de métricas (`ci-run-metrics`). Objetivo cumprido sem quebrar governança de smoke/full.",
-  "timestamp": "2026-04-23T04:43:48Z",
+  "context": "Frente de aceleração de CI foi concluída e, na sequência, a consistência cross-block do `.project` foi automatizada em rotina contínua (script dedicado + validação no workflow de CI).",
+  "timestamp": "2026-04-23T04:53:07Z",
   "current_phase": 2,
   "current_tasks": [
-    "Checkpoint final desta fase registrado em `.project/verification.json` (`VER-CI-THROUGHPUT-20260423`).",
-    "Preparar compactação de contexto e iniciar próxima frente de potencial do produto Refarm (fora de otimização de CI)."
+    "`ISS-008` foi resolvida com `VER-OPS-08-20260423`.",
+    "Pipeline mantém lanes rápidas/deep e agora valida integridade do board canônico a cada run."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Após compactação, priorizar `ISS-008` (consistência cross-block automatizada) ou `ISS-007` (ritual semanal de triagem).",
-    "Usar artifact `ci-run-metrics` para acompanhar tendência de tempo de pipeline por lane."
+    "Priorizar `ISS-007` (ritual semanal de triagem de tasks bloqueadas).",
+    "Usar artifact `ci-run-metrics` para acompanhar tendência de tempo do pipeline por lane."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
     ".project/handoff.json",
+    ".project/issues.json",
     ".project/verification.json",
     ".github/workflows/test.yml",
-    ".github/actions/setup/action.yml"
+    "scripts/ci/project-block-consistency.mjs",
+    "package.json",
+    "docs/WORKFLOW.md"
   ]
 }

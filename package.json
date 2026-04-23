@@ -24,6 +24,7 @@
 		"type-check": "turbo type-check",
 		"type-check:dist": "turbo type-check:dist",
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
+		"project:validate": "node scripts/ci/project-block-consistency.mjs",
 		"clean:derivatives": "git clean -fX packages/*/src apps/*/src validations/*/src",
 		"clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
 		"clean:rust": "bash scripts/rust-clean.sh",

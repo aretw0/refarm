@@ -661,6 +661,7 @@ Antes de qualquer lote paralelo (colônia, swarm ou macro-refactor), execute:
 
 ```bash
 node scripts/reso.mjs status
+npm run project:validate
 npm run factory:preflight
 ```
 

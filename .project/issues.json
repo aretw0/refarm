@@ -88,11 +88,12 @@
       "title": "Validar consistência entre blocos do .project",
       "body": "Com aumento do conteúdo, é necessário validar referências cruzadas requirements -> tasks -> verification em rotina contínua.",
       "location": ".project:1",
-      "status": "open",
+      "status": "resolved",
       "category": "primitive",
       "priority": "medium",
       "package": "project-governance",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-OPS-08-20260423"
     },
     {
       "id": "ISS-009",
