@@ -5,6 +5,8 @@ on:
     branches: [develop]
   pull_request:
     branches: [main, develop]
+  schedule:
+    - cron: "0 4 * * 1"
 
 permissions:
   contents: read
@@ -26,6 +28,7 @@ jobs:
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
+      run_audit: ${{ steps.detect.outputs.run_audit }}
 
     steps:
       - name: Checkout
@@ -59,6 +62,7 @@ jobs:
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
             echo "run_build=true" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "run_audit=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -94,13 +98,25 @@ jobs:
             run_build=true
           fi
 
+          run_audit=false
+          if [ "$code_changes" = "true" ]; then
+            run_audit=true
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            run_audit=true
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            run_audit=true
+          fi
+
           echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
           echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+          echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit"
 
   quality:
     runs-on: ubuntu-latest
@@ -392,6 +408,8 @@ jobs:
   audit-moderate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.run_audit == 'true'
 
     steps:
       - name: Checkout
@@ -436,14 +454,14 @@ jobs:
     steps:
       - name: Check all checks
         run: |
-          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }}"
+          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }}"
 
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
             exit 1
           fi
 
-          if [ "${{ needs.audit-moderate.result }}" != "success" ]; then
+          if [ "${{ needs.changes.outputs.run_audit }}" = "true" ] && [ "${{ needs.audit-moderate.result }}" != "success" ]; then
             echo "::error::Audit moderate job failed"
             exit 1
           fi
