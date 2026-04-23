@@ -83,7 +83,25 @@ export class PluginHost {
 
   private isJavaScriptEntry(entry: string): boolean {
     const normalized = entry.split("?")[0].split("#")[0].toLowerCase();
-    return normalized.endsWith(".js") || normalized.endsWith(".mjs");
+    return (
+      normalized.endsWith(".js") ||
+      normalized.endsWith(".mjs") ||
+      normalized.endsWith(".cjs")
+    );
+  }
+
+  private normalizeJavaScriptModule(moduleNamespace: any): any {
+    if (!moduleNamespace) return moduleNamespace;
+
+    const defaultExport = moduleNamespace.default;
+    if (defaultExport && typeof defaultExport === "object") {
+      return {
+        ...defaultExport,
+        ...moduleNamespace,
+      };
+    }
+
+    return moduleNamespace;
   }
 
   private encodeBase64Utf8(source: string): string {
@@ -99,7 +117,8 @@ export class PluginHost {
 
   private async loadJavaScriptModule(entryUrl: string): Promise<any> {
     try {
-      return await import(/* @vite-ignore */ entryUrl);
+      const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
     } catch {
       const response = await fetch(entryUrl);
       if (!response.ok) {
@@ -110,7 +129,8 @@ export class PluginHost {
 
       const source = await response.text();
       const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
-      return import(/* @vite-ignore */ dataUrl);
+      const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
     }
   }
 

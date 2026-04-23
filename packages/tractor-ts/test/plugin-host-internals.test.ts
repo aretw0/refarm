@@ -203,6 +203,31 @@ describe("PluginHost.load() — WASM loading paths", () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it("loads .cjs entries through the JavaScript module path", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        statusText: "OK",
+        text: async () =>
+          "export default { async setup(){ return 'ok'; }, async ping(){ return 'pong-cjs'; } };",
+      }),
+    );
+
+    const { host, registry } = makeHost();
+    const manifest = createMockManifest({
+      id: "cjs-plugin",
+      name: "CJS Plugin",
+      entry: "https://example.test/plugin.cjs",
+    });
+    registry.register(manifest);
+    const entry = registry.getPlugin("cjs-plugin");
+    if (entry) entry.status = "validated";
+
+    const instance = await host.load(manifest);
+    expect(await instance.call("ping")).toBe("pong-cjs");
+  });
+
   it("prefers cached wasm for the same plugin id before fetching", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch should not be used")));
 
