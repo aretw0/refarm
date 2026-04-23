@@ -1513,12 +1513,20 @@
     {
       "id": "T-RUNTIME-20",
       "description": "Integrar geração/validação de descriptor sidecar no pipeline de release (CI) para artifacts component.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         ".github/workflows/test.yml",
         "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/scripts/verify-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/scripts/smoke-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/package.json",
         "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "packages/tractor-ts/README.md",
+        "docs/ARCHITECTURE.md",
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
@@ -1528,6 +1536,29 @@
       ],
       "depends_on": [
         "T-RUNTIME-19"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-20-20260423",
+      "notes": "Workflow quality agora executa gate `runtime-module:ci`; install/runtime validam descriptor integrity + metadata obrigatória para component sidecars."
+    },
+    {
+      "id": "T-RUNTIME-21",
+      "description": "Padronizar provenance do descriptor sidecar (build/commit/toolchain) e validar em publish.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        ".github/workflows/test.yml",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Descriptor inclui provenance mínima obrigatória (commit/build/toolchain)",
+        "CI valida presença e consistência de provenance antes de publish",
+        "Contrato documenta política de confiança por origem de descriptor"
+      ],
+      "depends_on": [
+        "T-RUNTIME-20"
       ],
       "assigned_agent": "worker-runtime"
     }

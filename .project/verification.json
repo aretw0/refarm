@@ -2097,6 +2097,32 @@
           "evidence": "Runtime component exige `browserRuntimeDescriptor`; install aceita descriptor object/url com distinção de source."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-20-20260423",
+      "target": "T-RUNTIME-20",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:40:27.466Z",
+      "evidence": "Gate CI para descriptor sidecar integrado e validado localmente com geração/verify determinísticos.",
+      "criteria_results": [
+        {
+          "criterion": "Pipeline de release gera descriptor sidecar determinístico para component",
+          "status": "passed",
+          "evidence": "`runtime-module:descriptor` + `runtime-module:smoke` geram outputs estáveis para mesmas entradas."
+        },
+        {
+          "criterion": "Validação de descriptorIntegrity roda em CI antes de publish",
+          "status": "passed",
+          "evidence": "Workflow `test.yml` adiciona step `Browser runtime descriptor gate (Tractor TS)` executando `npm --prefix packages/tractor-ts run runtime-module:ci`."
+        },
+        {
+          "criterion": "Fluxo de install aceita descriptor assinado/publicado sem entradas manuais ad-hoc",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` aceita descriptor object/URL e valida `descriptorIntegrity`; runtime exige `browserRuntimeDescriptor` para artifactKind=component."
+        }
+      ]
     }
   ]
 }
