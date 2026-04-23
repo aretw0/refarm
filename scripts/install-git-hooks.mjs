@@ -122,12 +122,16 @@ else
   if timeout 120 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
     echo "   ✅ Lint passed"
   else
-    if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-      echo "   ❌ Lint failed or timed out (blocking in strict mode)"
+    LINT_STATUS=$?
+    if [ "$LINT_STATUS" -eq 124 ]; then
+      echo "   ⏱️  Lint timed out after 120s (non-blocking local warning; CI enforces full lint)"
+      WARNINGS=1
+    elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+      echo "   ❌ Lint failed (blocking in strict mode)"
       tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
       BLOCKING_FAILED=1
     else
-      echo "   ⚠️  Lint failed or timed out (warning in permissive mode)"
+      echo "   ⚠️  Lint failed (warning in permissive mode)"
       WARNINGS=1
     fi
   fi
