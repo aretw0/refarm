@@ -64,7 +64,7 @@ Source: `packages/tractor/src/host/plugin_host/env_and_runtime.rs`
 |---|---|---|---|
 | Barn and Tractor expose parallel install flows with different storage semantics | High | `packages/barn/src/index.ts` vs `packages/tractor-ts/src/lib/install-plugin.ts` | Divergent behavior and duplicated security surface |
 | Browser runtime cannot load from installed cache yet | High | `packages/tractor-ts/src/index.browser.ts` stub throws on `load()` | Install does not complete lifecycle (install ≠ executable) |
-| Integrity validation is optional in tractor-ts path (`manifest.integrity` absent) | Medium | `if (manifest.integrity) { ... }` in `install-plugin.ts` | Unpinned wasm can enter cache |
+| Integrity validation is optional in tractor-ts path (`manifest.integrity` absent) | ~~Medium~~ Resolved | (historical) `if (manifest.integrity) { ... }` in `install-plugin.ts` | ✅ Mitigated: `.wasm` install now fails without `manifest.integrity`; cache hit is revalidated before reuse |
 | OPFS layout differs from Barn docs (`refarm-plugins/*` vs `/refarm/barn/*`) | Medium | `opfs-plugin-cache.ts` vs `packages/barn/docs/STORAGE_LAYOUT.md` | Operational confusion + migration overhead |
 | No shared contract test proving install→cache hit/miss→runtime load | Medium | separate tests (`barn/tests`, `tractor-ts/test/install-plugin.test.ts`) | Regressions can pass package-local tests |
 
@@ -74,8 +74,8 @@ Source: `packages/tractor/src/host/plugin_host/env_and_runtime.rs`
 
 ### P0 — integrity and cache correctness
 
-1. **T-PLUGIN-02**: make hash verification mandatory in install pipeline and reject mismatches consistently (miss/hit).
-2. **T-PLUGIN-03**: add regression tests for cache hit/miss + tamper scenarios (including cached artifact mismatch).
+1. **T-PLUGIN-02** ✅: hash verification mandatory in install pipeline; malformed/absent digest now blocks `.wasm` installation.
+2. **T-PLUGIN-03** ✅: regression tests cover cache miss/hit + tamper recovery (cache mismatch triggers eviction + refetch).
 
 ### P1 — single installation contract
 

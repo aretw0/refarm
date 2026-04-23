@@ -581,11 +581,12 @@
     {
       "id": "T-PLUGIN-03",
       "description": "Criar teste de regressão para installPlugin cobrindo cache hit/miss.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "packages/barn/**",
-        "validations/**"
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md"
       ],
       "acceptance_criteria": [
         "Teste cobre cache miss",
@@ -595,7 +596,9 @@
       "depends_on": [
         "T-PLUGIN-02"
       ],
-      "assigned_agent": "worker-plugin"
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-03-20260423",
+      "notes": "Cache path regressions cobertas no install pipeline: cache hit revalida digest SHA-256, mismatch em cache dispara evict+refetch, suporte explícito a digest sha256 base64/hex."
     },
     {
       "id": "T-PLUGIN-04",

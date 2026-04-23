@@ -8,7 +8,11 @@ vi.mock("../src/lib/opfs-plugin-cache", () => ({
 	evictPlugin: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { cachePlugin, getCachedPlugin } from "../src/lib/opfs-plugin-cache";
+import {
+	cachePlugin,
+	evictPlugin,
+	getCachedPlugin,
+} from "../src/lib/opfs-plugin-cache";
 
 async function computeSRI(buffer: ArrayBuffer): Promise<string> {
 	const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
@@ -60,7 +64,7 @@ describe("installPlugin", () => {
 	});
 
 	it("returns cached version without fetching when already cached", async () => {
-		const cachedBuffer = new ArrayBuffer(512);
+		const cachedBuffer = mockBuffer;
 		(getCachedPlugin as any).mockResolvedValue(cachedBuffer);
 
 		const result = await installPlugin(
@@ -70,7 +74,22 @@ describe("installPlugin", () => {
 
 		expect(global.fetch).not.toHaveBeenCalled();
 		expect(result.cached).toBe(true);
-		expect(result.byteLength).toBe(512);
+		expect(result.byteLength).toBe(1024);
+	});
+
+	it("evicts and re-fetches when cached artifact fails integrity", async () => {
+		const tamperedCache = new ArrayBuffer(512);
+		(getCachedPlugin as any).mockResolvedValue(tamperedCache);
+
+		const result = await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+		);
+
+		expect(global.fetch).toHaveBeenCalledTimes(1);
+		expect(result.cached).toBe(false);
+		expect(result.byteLength).toBe(1024);
+		expect(evictPlugin).toHaveBeenCalledWith("test-plugin");
 	});
 
 	it("bypasses cache when force: true", async () => {
@@ -144,6 +163,27 @@ describe("installPlugin", () => {
 			await expect(
 				installPlugin(manifestWithBadAlgo, "https://example.com/test.wasm"),
 			).rejects.toThrow("Unsupported integrity algorithm");
+		});
+
+		it("accepts hex sha256 digest", async () => {
+			const hashBuffer = await globalThis.crypto.subtle.digest(
+				"SHA-256",
+				mockBuffer,
+			);
+			const hex = Array.from(new Uint8Array(hashBuffer))
+				.map((byte) => byte.toString(16).padStart(2, "0"))
+				.join("");
+
+			const manifestWithHexIntegrity = {
+				...manifestWithIntegrity,
+				integrity: `sha256-${hex}`,
+			};
+
+			const result = await installPlugin(
+				manifestWithHexIntegrity,
+				"https://example.com/test.wasm",
+			);
+			expect(result.cached).toBe(false);
 		});
 	});
 });

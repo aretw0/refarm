@@ -1515,6 +1515,58 @@
           "evidence": "`npm --prefix packages/plugin-manifest run test:conformance` (14/14), `npm --prefix packages/barn test` (7/7), `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (8/8)."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-03-20260423",
+      "target": "T-PLUGIN-03",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T18:46:17.321Z",
+      "evidence": "Regressões de install/cache validadas com foco em hit/miss e integridade no caminho de cache.",
+      "criteria_results": [
+        {
+          "criterion": "Teste cobre cache miss",
+          "status": "passed",
+          "evidence": "`install-plugin.test.ts` mantém cenário de fetch+cache quando não há artefato local."
+        },
+        {
+          "criterion": "Teste cobre cache hit",
+          "status": "passed",
+          "evidence": "`install-plugin.test.ts` valida retorno `cached=true` sem fetch quando cache íntegro está presente."
+        },
+        {
+          "criterion": "Teste valida hash no caminho de cache",
+          "status": "passed",
+          "evidence": "Novo cenário valida mismatch no cache com `evictPlugin` + refetch; suite também cobre digest sha256 em base64 e hex."
+        },
+        {
+          "criterion": "Suíte rápida de plugin pipeline verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest run test:conformance` (14/14), `npm --prefix packages/barn test` (7/7), `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (10/10)."
+        }
+      ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-05-20260423",
+      "target": "6",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T18:46:17.321Z",
+      "evidence": "Checkpoint solicitado após lote de 4 slices atômicos no backlog de plugin hardening.",
+      "criteria_results": [
+        {
+          "criterion": "Slices executados com escopo atômico",
+          "status": "passed",
+          "evidence": "(1) revalidação de cache hit, (2) recuperação por evict+refetch em mismatch, (3) regressões de teste para cache/integridade, (4) atualização de board/handoff + checkpoint."
+        },
+        {
+          "criterion": "Workspace pronto para compactação",
+          "status": "passed",
+          "evidence": "Board/handoff atualizados para pausar execução após checkpoint e retomar em T-PLUGIN-04."
+        }
+      ]
     }
   ]
 }

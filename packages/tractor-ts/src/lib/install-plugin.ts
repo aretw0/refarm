@@ -7,7 +7,64 @@
  */
 
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { cachePlugin, getCachedPlugin } from "./opfs-plugin-cache";
+import { cachePlugin, evictPlugin, getCachedPlugin } from "./opfs-plugin-cache";
+
+const SHA256_HEX_RE = /^[0-9a-fA-F]{64}$/;
+const SHA256_BASE64_RE = /^(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
+
+type IntegrityDigest =
+	| { kind: "hex"; value: string }
+	| { kind: "base64"; value: string };
+
+type ShaDigest = {
+	base64: string;
+	hex: string;
+};
+
+function parseIntegrity(integrityString: string): IntegrityDigest {
+	if (!integrityString.startsWith("sha256-")) {
+		throw new Error(
+			`[installPlugin] Unsupported integrity algorithm in "${integrityString}". Only sha256- is supported.`,
+		);
+	}
+
+	const value = integrityString.slice(7);
+	if (SHA256_HEX_RE.test(value)) {
+		return { kind: "hex", value: value.toLowerCase() };
+	}
+	if (SHA256_BASE64_RE.test(value)) {
+		return { kind: "base64", value };
+	}
+
+	throw new Error(
+		`[installPlugin] Invalid SHA-256 digest in "${integrityString}". Expected 64-char hex or base64 value.`,
+	);
+}
+
+function bytesToHex(bytes: Uint8Array): string {
+	return Array.from(bytes)
+		.map((byte) => byte.toString(16).padStart(2, "0"))
+		.join("");
+}
+
+async function computeSha256(buffer: ArrayBuffer): Promise<ShaDigest> {
+	const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+	const hashBytes = new Uint8Array(hashBuffer);
+	let binaryString = "";
+	for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
+
+	return {
+		base64: btoa(binaryString),
+		hex: bytesToHex(hashBytes),
+	};
+}
+
+function isDigestMatch(expected: IntegrityDigest, actual: ShaDigest): boolean {
+	if (expected.kind === "hex") {
+		return expected.value === actual.hex;
+	}
+	return expected.value === actual.base64;
+}
 
 /**
  * Verify the SHA-256 integrity of a WASM buffer against a manifest's
@@ -18,20 +75,12 @@ async function verifyIntegrity(
 	buffer: ArrayBuffer,
 	integrityString: string,
 ): Promise<void> {
-	if (!integrityString.startsWith("sha256-")) {
+	const expected = parseIntegrity(integrityString);
+	const actual = await computeSha256(buffer);
+
+	if (!isDigestMatch(expected, actual)) {
 		throw new Error(
-			`[installPlugin] Unsupported integrity algorithm in "${integrityString}". Only sha256- is supported.`,
-		);
-	}
-	const expected = integrityString.slice(7); // strip "sha256-" prefix
-	const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
-	const hashBytes = new Uint8Array(hashBuffer);
-	let binaryString = "";
-	for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
-	const actual = btoa(binaryString);
-	if (actual !== expected) {
-		throw new Error(
-			`[installPlugin] Integrity check failed: expected sha256-${expected}, got sha256-${actual}`,
+			`[installPlugin] Integrity check failed: expected ${integrityString}, got sha256-${actual.base64}`,
 		);
 	}
 }
@@ -56,10 +105,26 @@ export async function installPlugin(
 ): Promise<InstallPluginResult> {
 	const pluginId = manifest.id;
 
+	if (!manifest.integrity) {
+		throw new Error(
+			`[installPlugin] Missing manifest.integrity for ${pluginId}. sha256- digest is required.`,
+		);
+	}
+
 	if (!options.force) {
 		const cached = await getCachedPlugin(pluginId);
 		if (cached) {
-			return { pluginId, wasmUrl, cached: true, byteLength: cached.byteLength };
+			try {
+				await verifyIntegrity(cached, manifest.integrity);
+				return {
+					pluginId,
+					wasmUrl,
+					cached: true,
+					byteLength: cached.byteLength,
+				};
+			} catch {
+				await evictPlugin(pluginId);
+			}
 		}
 	}
 
@@ -71,12 +136,6 @@ export async function installPlugin(
 	}
 
 	const buffer = await response.arrayBuffer();
-
-	if (!manifest.integrity) {
-		throw new Error(
-			`[installPlugin] Missing manifest.integrity for ${pluginId}. sha256- digest is required.`,
-		);
-	}
 
 	await verifyIntegrity(buffer, manifest.integrity);
 
