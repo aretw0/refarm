@@ -1894,6 +1894,27 @@
           "evidence": "`npm --prefix packages/plugin-manifest test` => 22/22."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-06-20260423",
+      "target": "6",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T21:02:13.705Z",
+      "evidence": "Checkpoint de compactação após lote de hardening de entry compatibility e enforcement runtime JS/WASM.",
+      "criteria_results": [
+        {
+          "criterion": "Lote recente consolidado em estado reprodutível",
+          "status": "passed",
+          "evidence": "Commits: 9cf47957 (entry compatibility centralizado), d456c45a (trusted-fast => wasm), 9a39d91e (conformance query/hash), cf9cebfe (gap tooling browser wasm)."
+        },
+        {
+          "criterion": "Governança sincronizada para retomada pós-compaction",
+          "status": "passed",
+          "evidence": "Handoff atualizado com blockers/next-actions focados em T-RUNTIME-16 e ADR-044 browser wasm cache-backed."
+        }
+      ]
     }
   ]
 }

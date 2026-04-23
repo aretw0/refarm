@@ -1,10 +1,13 @@
 {
-  "context": "Lote atual refinou enforcement de segurança no runtime e robustez de conformance no manifesto. trusted-fast foi alinhado a `.wasm` e parsing de entry com query/hash ganhou cobertura explícita.",
-  "timestamp": "2026-04-23T20:58:06.979Z",
+  "context": "Checkpoint pronto para compactação após lote de 8 slices: contrato de compatibilidade de entry centralizado, runtime node/browser alinhado, trusted-fast restrito a `.wasm`, e conformance robusta para entry com query/hash.",
+  "timestamp": "2026-04-23T21:02:13.705Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-15 concluída (`VER-RUNTIME-15-20260423`): trusted-fast restrito a entry `.wasm`.",
-    "T-PLUGIN-09 concluída (`VER-PLUGIN-09-20260423`): conformance cobre formatos com query/hash."
+    "T-PLUGIN-08 concluída com `VER-PLUGIN-08-20260423` (helpers de compatibilidade por runtime no plugin-manifest).",
+    "T-RUNTIME-14 concluída com `VER-RUNTIME-14-20260423` (PluginHost node/browser usando contrato compartilhado).",
+    "T-RUNTIME-15 concluída com `VER-RUNTIME-15-20260423` (trusted-fast restrito a `.wasm`).",
+    "T-PLUGIN-09 concluída com `VER-PLUGIN-09-20260423` (cobertura de parsing entry com query/hash).",
+    "Checkpoint `VER-CHECKPOINT-COMPACTION-06-20260423` registrado para pausa/compactação."
   ],
   "blockers": [
     "ISS-016: ausência de runner/toolchain browser para `.wasm` mantém último trecho da ADR-044 em aberto.",
@@ -12,20 +15,21 @@
   ],
   "next_actions": [
     "Iniciar T-RUNTIME-16 com foco em tooling/runtime para habilitar `.wasm` no browser host sem romper o modelo de segurança.",
-    "Monitorar o run CI do commit atual para confirmar que o saneamento de `.project/verification` eliminou falhas de cross-block.",
-    "Seguir ADR-044 no browser para `.wasm` cache-backed runtime path."
+    "Definir decisão de enforcement por ambiente (browser público/node local/edge) com rollout incremental alinhado ao envelope L0→L3.",
+    "Usar CI completa somente em marcos; manter validação local scoped no fluxo diário."
   ],
   "open_questions": [
-    "Qual política de enforcement por ambiente será adotada primeiro (browser público, node local, edge)?"
+    "Qual stack/toolchain será adotada para o runner `.wasm` browser (transpile/instantiate cache-backed) sem aumentar risco de supply-chain?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "packages/plugin-manifest/src/entry-support.js",
+    "packages/plugin-manifest/src/validate.js",
+    "packages/tractor-ts/src/lib/plugin-host.ts",
+    "packages/tractor-ts/src/index.browser.ts",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
-    "docs/ARCHITECTURE.md",
-    "packages/plugin-manifest/README.md",
     ".project/tasks.json",
     ".project/issues.json",
-    ".project/decisions.json",
     ".project/verification.json",
     ".project/handoff.json"
   ]
