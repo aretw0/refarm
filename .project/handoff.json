@@ -1,29 +1,29 @@
 {
-  "context": "Lote runtime avançou além do cache: PluginHost de Node agora suporta `.js` e o export browser deixou de ser stub total para JS. Trilha dual-track JS/WASM foi formalizada em docs.",
-  "timestamp": "2026-04-23T20:05:05.434Z",
+  "context": "Lote atual consolidou suporte JS no runtime (Node + browser) e refinou contrato de manifesto para `.mjs/.cjs` além de `.js`.",
+  "timestamp": "2026-04-23T20:09:39.282Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-12 concluída (`VER-RUNTIME-12-20260423`): PluginHost.load no runtime principal aceita `entry .js/.mjs` sem JCO.",
-    "T-RUNTIME-13 concluída (`VER-RUNTIME-13-20260423`): `index.browser.ts` ganhou caminho funcional para plugins JS e mantém bloqueio explícito para `.wasm`."
+    "T-RUNTIME-13 concluída (`VER-RUNTIME-13-20260423`): browser PluginHost funcional para plugins JS.",
+    "T-PLUGIN-06 concluída (`VER-PLUGIN-06-20260423`): manifesto aceita `.js/.mjs/.cjs/.wasm` com regras de integridade preservadas para `.wasm`."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Seguir ADR-044 para caminho browser de `.wasm` com cache instalado (remover bloqueio atual com segurança).",
-    "Transformar política JS vs WASM por ambiente em decisão formal (ADR/decision block) com datas de enforcement."
+    "Seguir ADR-044 para caminho browser `.wasm` cache-backed.",
+    "Formalizar decisão de enforcement JS vs WASM por ambiente (ADR/decision block)."
   ],
   "open_questions": [
-    "Qual janela de transição aceitável para exigir WASM em superfícies críticas sem quebrar onboarding JS?"
+    "Qual baseline de segurança mínima para plugins `.js` em produção antes de exigir migração para WASM?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor-ts/src/lib/plugin-host.ts",
     "packages/tractor-ts/src/index.browser.ts",
-    "packages/tractor-ts/test/plugin-host-internals.test.ts",
-    "packages/tractor-ts/test/browser-plugin-host.test.ts",
+    "packages/tractor-ts/src/lib/plugin-host.ts",
+    "packages/plugin-manifest/src/validate.js",
+    "packages/plugin-manifest/src/validate.test.js",
+    "packages/plugin-manifest/README.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
-    "docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

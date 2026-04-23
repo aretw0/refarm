@@ -36,9 +36,14 @@ export function validatePluginManifest(manifest) {
 
 	if (
 		!manifest.entry ||
-		!(manifest.entry.endsWith(".js") || manifest.entry.endsWith(".wasm"))
+		!(
+			manifest.entry.endsWith(".js") ||
+			manifest.entry.endsWith(".mjs") ||
+			manifest.entry.endsWith(".cjs") ||
+			manifest.entry.endsWith(".wasm")
+		)
 	) {
-		errors.push("entry must be a .js or .wasm path");
+		errors.push("entry must be a .js/.mjs/.cjs or .wasm path");
 	}
 
 	if (manifest.entry && manifest.entry.startsWith("/")) {

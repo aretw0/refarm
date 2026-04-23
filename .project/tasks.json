@@ -1169,6 +1169,28 @@
       "assigned_agent": "worker-runtime",
       "verification": "VER-RUNTIME-13-20260423",
       "notes": "`index.browser.ts` deixou de ser stub total: suporta load/call/state/dispatch para plugins JS e mantém bloqueio explícito de `.wasm` no browser."
+    },
+    {
+      "id": "T-PLUGIN-06",
+      "description": "Expandir contrato de manifesto para aceitar `entry` em `.mjs` e `.cjs` além de `.js`/`.wasm`.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/plugin-manifest/src/validate.js",
+        "packages/plugin-manifest/src/validate.test.js",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "Validação aceita .mjs e .cjs como entry válido",
+        "Conformance cobre novos formatos JS",
+        "Documentação atualizada com extensão suportada"
+      ],
+      "depends_on": [
+        "T-PLUGIN-05"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-06-20260423",
+      "notes": "`validatePluginManifest` agora aceita `.js/.mjs/.cjs/.wasm`; testes e README atualizados para refletir onboarding JS mais amplo."
     }
   ]
 }

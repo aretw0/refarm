@@ -127,7 +127,7 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 1. `id` must be scoped (@vendor/name)
 2. `name` must be at least 3 characters
 3. `version` must be valid semver
-4. `entry` must be relative `.js` or `.wasm` path (absolute paths are rejected)
+4. `entry` must be relative `.js`/`.mjs`/`.cjs` or `.wasm` path (absolute paths are rejected)
 5. `.wasm` entries must declare `integrity` as `sha256-<base64|64hex>`
 6. `capabilities.provides` must have at least one capability
 7. No duplicates in provides/requires/permissions/APIs
@@ -136,7 +136,7 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 
 ## FAQ — "Plugin precisa ser WASM?"
 
-Não. O contrato de manifesto aceita `entry` em `.js` **ou** `.wasm`.
+Não. O contrato de manifesto aceita `entry` em `.js`/`.mjs`/`.cjs` **ou** `.wasm`.
 
 - `.wasm`: caminho recomendado para sandbox e hardening (integridade `sha256-*` obrigatória).
 - `.js`: caminho válido para adoção gradual, especialmente para times que ainda não migraram para WASM.

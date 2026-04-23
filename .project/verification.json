@@ -1707,6 +1707,37 @@
           "evidence": "`npm --prefix packages/tractor-ts run test:unit -- browser-plugin-host plugin-host-internals install-plugin` (29/29) + `npm --prefix packages/tractor-ts run type-check`."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-06-20260423",
+      "target": "T-PLUGIN-06",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T20:09:39.282Z",
+      "evidence": "Contrato de manifesto ampliado para formatos JS adicionais sem quebrar regras WASM de integridade.",
+      "criteria_results": [
+        {
+          "criterion": "Validação aceita .mjs e .cjs como entry válido",
+          "status": "passed",
+          "evidence": "`validate.js` passou a aceitar `.mjs` e `.cjs` no campo `entry`."
+        },
+        {
+          "criterion": "Conformance cobre novos formatos JS",
+          "status": "passed",
+          "evidence": "`validate.test.js` adiciona caso `allows .mjs and .cjs entries without integrity`."
+        },
+        {
+          "criterion": "Documentação atualizada com extensão suportada",
+          "status": "passed",
+          "evidence": "README atualizado para `.js/.mjs/.cjs` no schema e FAQ."
+        },
+        {
+          "criterion": "Suite verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest test` (18/18)."
+        }
+      ]
     }
   ]
 }

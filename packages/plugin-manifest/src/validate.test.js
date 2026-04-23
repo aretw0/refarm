@@ -192,4 +192,18 @@ describe("contract baseline validation", () => {
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(true);
 	});
+
+	it("allows .mjs and .cjs entries without integrity", () => {
+		const mjsManifest = createMockManifest({
+			entry: "./plugin.mjs",
+			integrity: undefined,
+		});
+		const cjsManifest = createMockManifest({
+			entry: "./plugin.cjs",
+			integrity: undefined,
+		});
+
+		expect(validatePluginManifest(mjsManifest).valid).toBe(true);
+		expect(validatePluginManifest(cjsManifest).valid).toBe(true);
+	});
 });
