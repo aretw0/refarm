@@ -4,6 +4,7 @@
 //! Additional utility subcommands:
 //!   - `prompt`: send `user:prompt` JSON over WS and optionally wait for AgentResponse
 //!   - `watch`:  poll storage and print new AgentResponse records
+//!   - `health`: probe runtime boot + daemon WS readiness
 
 use std::collections::HashSet;
 
@@ -33,6 +34,8 @@ enum Command {
     Prompt(PromptArgs),
     /// Watch AgentResponse nodes from storage (polling fallback).
     Watch(WatchArgs),
+    /// Validate runtime boot + daemon websocket readiness.
+    Health(HealthArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -133,6 +136,25 @@ struct WatchArgs {
     until_final: bool,
 }
 
+#[derive(Args, Debug)]
+struct HealthArgs {
+    /// WebSocket daemon port expected to be serving readiness checks.
+    #[arg(long, default_value_t = 42000)]
+    ws_port: u16,
+
+    /// Timeout budget for WS readiness checks.
+    #[arg(long, default_value_t = 1500)]
+    ws_timeout_ms: u64,
+
+    /// Namespace used for the minimal boot probe (`:memory:` recommended).
+    #[arg(long, default_value = ":memory:")]
+    boot_namespace: String,
+
+    /// Skip minimal runtime boot/shutdown probe and only check daemon WS.
+    #[arg(long, default_value_t = false)]
+    skip_boot_probe: bool,
+}
+
 #[derive(Debug)]
 struct AgentResponseEvent {
     id: String,
@@ -152,6 +174,7 @@ async fn main() -> Result<()> {
     match cli.command {
         Some(Command::Prompt(args)) => run_prompt(args).await,
         Some(Command::Watch(args)) => run_watch(args).await,
+        Some(Command::Health(args)) => run_health(args).await,
         None => run_daemon(cli.daemon).await,
     }
 }
@@ -267,6 +290,66 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
     .await?;
 
     Ok(())
+}
+
+async fn run_health(args: HealthArgs) -> Result<()> {
+    if !args.skip_boot_probe {
+        probe_runtime_boot(&args.boot_namespace).await?;
+    }
+
+    let ws_timeout = Duration::from_millis(args.ws_timeout_ms.max(100));
+    probe_ws_daemon(args.ws_port, ws_timeout).await?;
+
+    let report = serde_json::json!({
+        "ok": true,
+        "ws_port": args.ws_port,
+        "ws_timeout_ms": ws_timeout.as_millis(),
+        "boot_probe": !args.skip_boot_probe,
+        "boot_namespace": args.boot_namespace,
+    });
+    println!("{}", report);
+    Ok(())
+}
+
+async fn probe_runtime_boot(namespace: &str) -> Result<()> {
+    let config = TractorNativeConfig {
+        namespace: namespace.to_string(),
+        port: 0,
+        security_mode: SecurityMode::Strict,
+        ..Default::default()
+    };
+
+    let tractor = TractorNative::boot(config)
+        .await
+        .with_context(|| format!("runtime boot probe failed for namespace '{namespace}'"))?;
+
+    tractor
+        .shutdown()
+        .await
+        .context("runtime shutdown probe failed")?;
+
+    Ok(())
+}
+
+async fn probe_ws_daemon(port: u16, timeout_budget: Duration) -> Result<()> {
+    let url = format!("ws://127.0.0.1:{port}");
+    let (ws, _resp) = tokio::time::timeout(timeout_budget, connect_async(&url))
+        .await
+        .with_context(|| format!("health probe timeout while connecting to {url}"))?
+        .with_context(|| format!("health probe failed to connect to {url}"))?;
+
+    let (_sink, mut stream) = ws.split();
+
+    let first = tokio::time::timeout(timeout_budget, stream.next())
+        .await
+        .with_context(|| format!("health probe timeout waiting initial frame from {url}"))?
+        .ok_or_else(|| anyhow::anyhow!("health probe connection closed before initial frame"))?
+        .with_context(|| format!("health probe websocket stream error from {url}"))?;
+
+    match first {
+        Message::Binary(_) => Ok(()),
+        other => anyhow::bail!("health probe expected binary initial frame, got {other:?}"),
+    }
 }
 
 async fn send_user_prompt(port: u16, agent: &str, payload: &str) -> Result<()> {
@@ -422,6 +505,10 @@ use tractor::daemon;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Arc;
+
+    use tokio::net::TcpListener;
+    use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
 
     #[test]
     fn plugin_load_policy_defaults_to_warn_and_continue() {
@@ -447,5 +534,37 @@ mod tests {
 
         assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::FailFast);
         assert_eq!(cli.daemon.plugin.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn runtime_boot_probe_succeeds_in_memory_namespace() {
+        let result = probe_runtime_boot(":memory:").await;
+        assert!(result.is_ok(), "boot probe should succeed: {result:?}");
+    }
+
+    #[tokio::test]
+    async fn ws_probe_returns_error_when_daemon_is_unavailable() {
+        let result = probe_ws_daemon(1, Duration::from_millis(200)).await;
+        assert!(result.is_err(), "ws probe should fail when daemon is unavailable");
+    }
+
+    #[tokio::test]
+    async fn ws_probe_succeeds_when_daemon_is_listening() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind listener");
+        let port = listener.local_addr().expect("listener local addr").port();
+
+        let storage = NativeStorage::open(":memory:").expect("open storage");
+        let sync = Arc::new(NativeSync::new(storage, "health-probe").expect("new sync"));
+        let telemetry = TelemetryBus::new(10);
+        let channels: AgentChannels = Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+        let server = daemon::WsServer::new(sync, port, telemetry, channels);
+
+        tokio::spawn(async move {
+            let _ = server.run(listener).await;
+        });
+        tokio::time::sleep(Duration::from_millis(50)).await;
+
+        let result = probe_ws_daemon(port, Duration::from_millis(500)).await;
+        assert!(result.is_ok(), "ws probe should succeed when daemon is listening: {result:?}");
     }
 }

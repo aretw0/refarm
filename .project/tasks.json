@@ -884,7 +884,7 @@
     {
       "id": "T-RUNTIME-06",
       "description": "Adicionar probe explícita de readiness/health do daemon Tractor para operações locais e CI.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/main.rs",
@@ -900,7 +900,8 @@
         "T-RUNTIME-01",
         "T-RUNTIME-02"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-06-20260423"
     }
   ]
 }

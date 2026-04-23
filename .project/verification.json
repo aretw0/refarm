@@ -1006,6 +1006,32 @@
           "evidence": "`cargo test --bin tractor --quiet` -> 3 passed (inclui `plugin_load_policy_defaults_to_warn_and_continue` e `plugin_load_policy_switches_to_fail_fast_when_flag_is_set`)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-06-20260423",
+      "target": "T-RUNTIME-06",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T06:34:14Z",
+      "evidence": "Probe explícita de readiness/health adicionada ao CLI (`tractor health`) com verificação de boot mínimo (`TractorNative::boot` + `shutdown`) e check de handshake WS (conexão + frame inicial binário).",
+      "criteria_results": [
+        {
+          "criterion": "Comando de health/readiness retorna status não-zero quando daemon indisponível",
+          "status": "passed",
+          "evidence": "`cargo run --bin tractor -- health --ws-port 1 --skip-boot-probe` => `rc=1` com erro `Connection refused`."
+        },
+        {
+          "criterion": "Probe valida bind WS e boot mínimo do runtime",
+          "status": "passed",
+          "evidence": "`probe_runtime_boot` + `probe_ws_daemon` implementados em `src/main.rs`; testes `runtime_boot_probe_succeeds_in_memory_namespace` e `ws_probe_succeeds_when_daemon_is_listening` passando em `cargo test --bin tractor --quiet`."
+        },
+        {
+          "criterion": "Documentação operacional com uso da probe em smoke/local",
+          "status": "passed",
+          "evidence": "`docs/DEVOPS.md` recebeu seção `Tractor Runtime Readiness Probe` e entrada no Quick Reference com comando `tractor -- health`."
+        }
+      ]
     }
   ]
 }

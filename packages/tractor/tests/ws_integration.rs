@@ -33,6 +33,27 @@ async fn ws_server_accepts_connection() {
 }
 
 #[tokio::test]
+async fn ws_server_readiness_contract_initial_binary_frame_arrives_quickly() {
+    let sync = make_sync("t-readiness");
+    let port = start_server(sync).await;
+
+    let (mut ws, _) = connect_async(format!("ws://127.0.0.1:{port}"))
+        .await
+        .expect("must connect");
+
+    let msg = tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        ws.next(),
+    )
+    .await
+    .expect("timeout waiting readiness initial frame")
+    .expect("stream closed")
+    .expect("websocket error");
+
+    assert!(matches!(msg, Message::Binary(_)), "readiness initial frame must be binary");
+}
+
+#[tokio::test]
 async fn ws_server_sends_state_on_connect() {
     let sync = make_sync("t-send");
     // Store a node BEFORE connecting

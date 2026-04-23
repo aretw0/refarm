@@ -503,6 +503,28 @@ Summary
 Factory is ready for swarm execution.
 ```
 
+### Tractor Runtime Readiness Probe
+
+Use the Tractor CLI health probe to validate runtime boot and daemon WS readiness.
+
+```bash
+# 1) Optional: start daemon in another terminal
+# cargo run -p refarm-tractor --bin tractor -- --namespace default --port 42000
+
+# 2) Run readiness probe (boot + WS)
+cargo run -p refarm-tractor --bin tractor -- health --ws-port 42000
+```
+
+Behavior:
+- exit `0` when probe succeeds
+- exit non-zero when daemon is unavailable or probe fails
+
+Quick failure check (expected non-zero):
+
+```bash
+cargo run -p refarm-tractor --bin tractor -- health --ws-port 1 --skip-boot-probe
+```
+
 ### Workspace Health Check
 
 ```bash
@@ -575,6 +597,7 @@ If you update this guide or the dev container configuration:
 |------|---------|
 | Rebuild container | `Dev Containers: Rebuild Container` (VS Code) |
 | Factory readiness check | `npm run factory:preflight` |
+| Tractor runtime readiness probe | `cargo run -p refarm-tractor --bin tractor -- health --ws-port 42000` |
 | Run security audit | `npm audit` |
 | Attempt non-breaking vulnerability fixes | `npm audit fix` |
 | Clean npm cache | `rm -rf ~/.npm && npm cache clean --force` |
