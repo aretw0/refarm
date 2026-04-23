@@ -87,6 +87,14 @@
       "status": "decided",
       "phase": 2,
       "context": "Definição de critério de done para a frente de hardening host-side após redução de duplicação em spawn/plugin/wasi."
+    },
+    {
+      "id": "DEC-012",
+      "decision": "Tratar plugin-manifest v1 como contrato de schema/validação (não capability runtime) e usar `test:conformance` do próprio pacote como gate oficial.",
+      "rationale": "O pacote define integridade estrutural e regras de manifesto; não há semântica de sessão/IO equivalente aos contratos storage/sync/identity. Manter gate no validador reduz complexidade e evita harness artificial antes de um contrato runtime explícito.",
+      "status": "decided",
+      "phase": 5,
+      "context": "Fechamento de T-CONTRACT-04 para formalizar escopo de conformance de plugin-manifest no bloco de contratos v1."
     }
   ]
 }

@@ -1,30 +1,29 @@
 {
-  "context": "Trilha de contratos v1 avançou: T-CONTRACT-03 concluída com conformance sync executando em sync-loro, incluindo cenário de conflito concorrente e gate integrado no comando de capacidades.",
-  "timestamp": "2026-04-23T07:54:58.077Z",
+  "context": "Fase de contratos v1 consolidada: T-CONTRACT-03 e T-CONTRACT-04 concluídas com suites de conformance para sync-loro e identity-nostr, além de escopo formal para manifest:v1.",
+  "timestamp": "2026-04-23T08:27:28.021Z",
   "current_phase": 5,
   "current_tasks": [
-    "T-CONTRACT-03 concluída com verificação `VER-CONTRACT-03-20260423` (sync-contract-v1 + sync-loro conformance).",
-    "`npm run test:capabilities` agora inclui `sync-loro` via script `test:conformance`."
+    "T-CONTRACT-04 concluída com verificação `VER-CONTRACT-04-20260423` (identity-nostr + plugin-manifest).",
+    "`test:capabilities` ampliado para incluir `identity-nostr` e `plugin-manifest test:conformance`."
   ],
   "blockers": [
-    "T-RUNTIME-04 ainda depende de estabilizar a frente seguinte (`T-CONTRACT-04`) para cobertura mínima de identidade/manifest no bloco de contratos v1.",
+    "Lacuna remanescente de conformance em `sync-crdt` foi registrada como `T-CONTRACT-05`.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-CONTRACT-04`: adicionar conformance `identity:v1` para `identity-nostr` e definir decisão de escopo para conformance no `plugin-manifest`.",
-    "Planejar follow-up curto para avaliar inclusão de `sync-crdt` no harness `runSyncV1Conformance`."
+    "Executar `T-CONTRACT-05` para fechar conformance sync:v1 em `sync-crdt`.",
+    "Iniciar `T-RUNTIME-04` (roundtrip runtime/storage), agora destravada por `T-CONTRACT-03` concluída."
   ],
   "open_questions": [],
-  "key_decisions_pending": [
-    "Plugin-manifest deve ganhar harness de conformance formal (análogo aos contratos v1) ou manter validação por unit/schema?"
-  ],
+  "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/sync-loro/src/sync-v1.conformance.test.ts",
-    "packages/sync-contract-v1/src/conformance.test.ts",
+    "packages/identity-nostr/src/identity-v1.conformance.test.ts",
+    "packages/plugin-manifest/src/validate.test.js",
+    "packages/plugin-manifest/README.md",
     "package.json",
-    "docs/CONFORMANCE_V1_INVENTORY.md",
     ".project/tasks.json",
     ".project/verification.json",
+    ".project/decisions.json",
     ".project/handoff.json"
   ]
 }

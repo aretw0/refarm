@@ -127,10 +127,22 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 1. `id` must be scoped (@vendor/name)
 2. `name` must be at least 3 characters
 3. `version` must be valid semver
-4. `entry` must be relative .js path
+4. `entry` must be relative `.js` or `.wasm` path (absolute paths are rejected)
 5. `capabilities.provides` must have at least one capability
-6. No duplicates in provides/requires/permissions
-7. All required telemetry hooks must be declared
+6. No duplicates in provides/requires/permissions/APIs
+7. `targets` must be a non-empty array using only `browser`, `server`, `remote`
+8. All required telemetry hooks must be declared
+
+## Conformance scope (manifest:v1)
+
+`@refarm.dev/plugin-manifest` is a **schema/validation contract**, not a runtime capability contract.
+Therefore, its conformance gate is the validator suite (`src/validate.test.js`) exposed via:
+
+```bash
+npm --prefix packages/plugin-manifest run test:conformance
+```
+
+A dedicated `runManifestV1Conformance()` harness is deferred until a separate runtime contract is introduced.
 
 ---
 

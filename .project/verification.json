@@ -1105,6 +1105,32 @@
           "evidence": "`docs/CONFORMANCE_V1_INVENTORY.md` atualizado com status de `sync-loro` e lacuna remanescente para `sync-crdt`."
         }
       ]
+    },
+    {
+      "id": "VER-CONTRACT-04-20260423",
+      "target": "T-CONTRACT-04",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T08:27:28.021Z",
+      "evidence": "Conformance de identidade e manifesto consolidada: `identity-nostr` ganhou suite `identity-v1.conformance.test.ts` com `runIdentityV1Conformance`; `plugin-manifest` formalizou gate de conformance por schema com script dedicado e cobertura adicional de regras-base.",
+      "criteria_results": [
+        {
+          "criterion": "Conformance identity/manifest executa",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/identity-nostr run test:conformance --silent` (2 passed) + `npm --prefix packages/plugin-manifest run test:conformance --silent` (11 passed)."
+        },
+        {
+          "criterion": "Regras mínimas de contrato validadas",
+          "status": "passed",
+          "evidence": "Novos testes em `plugin-manifest/src/validate.test.js` cobrem rejection de path absoluto e target inválido; conformance de identidade cobre create/sign/verify/get + invalid signature path."
+        },
+        {
+          "criterion": "Lacunas viram novas tasks",
+          "status": "passed",
+          "evidence": "Criada `T-CONTRACT-05` para cobrir lacuna de conformance em `sync-crdt` com integração ao gate `test:capabilities`."
+        }
+      ]
     }
   ]
 }

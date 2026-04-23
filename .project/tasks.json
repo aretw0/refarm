@@ -477,7 +477,7 @@
     {
       "id": "T-CONTRACT-04",
       "description": "Adicionar/ajustar testes de conformance para identity-contract-v1 e plugin-manifest.",
-      "status": "planned",
+      "status": "completed",
       "phase": 5,
       "files": [
         "packages/identity-contract-v1/**",
@@ -492,7 +492,29 @@
       "depends_on": [
         "T-CONTRACT-01"
       ],
-      "assigned_agent": "worker-identity"
+      "assigned_agent": "worker-identity",
+      "verification": "VER-CONTRACT-04-20260423",
+      "notes": "Conformance `identity:v1` adicionada em `identity-nostr` e escopo de conformance `manifest:v1` formalizado como schema/validation gate em `plugin-manifest`."
+    },
+    {
+      "id": "T-CONTRACT-05",
+      "description": "Adicionar suite de conformance sync:v1 para sync-crdt e integrar ao gate de capacidades.",
+      "status": "planned",
+      "phase": 5,
+      "files": [
+        "packages/sync-crdt/**",
+        "package.json",
+        "docs/CONFORMANCE_V1_INVENTORY.md"
+      ],
+      "acceptance_criteria": [
+        "sync-crdt executa runSyncV1Conformance com resultado verde",
+        "Falhas apontam contrato esperado de connect/push/pull/disconnect",
+        "Gate test:capabilities cobre sync-crdt"
+      ],
+      "depends_on": [
+        "T-CONTRACT-03"
+      ],
+      "assigned_agent": "worker-sync"
     },
     {
       "id": "T-PLUGIN-01",
