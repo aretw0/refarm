@@ -1,28 +1,25 @@
 {
-  "context": "Malha de conformance v1 para storage foi fechada: `T-CONTRACT-02` concluída com cobertura explícita em `storage-memory` e `storage-rest`, incluindo cenário de falha acionável no harness.",
-  "timestamp": "2026-04-23T14:58:03.355Z",
-  "current_phase": 5,
+  "context": "Lote runtime de hardening foi concluído com T-RUNTIME-10: loader valida alinhamento manifesto↔runtime antes de ativar plugin e retorna erro explícito em mismatch crítico.",
+  "timestamp": "2026-04-23T15:40:21.720Z",
+  "current_phase": 4,
   "current_tasks": [
-    "T-CONTRACT-02 concluída com verificação `VER-CONTRACT-02-20260423` e gate `test:capabilities` ampliado para `storage-memory`/`storage-rest`.",
-    "Backlog técnico imediato volta para runtime hardening em `T-RUNTIME-10` (manifesto↔runtime no load)."
+    "T-RUNTIME-10 concluída com verificação `VER-RUNTIME-10-20260423` (checagem de plugin_id, hooks obrigatórios e versão metadata↔manifesto no load).",
+    "Checkpoint de compactação `VER-CHECKPOINT-COMPACTION-03-20260423` registrado ao final do lote atual."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-RUNTIME-10` para validar alinhamento manifesto↔runtime durante plugin load.",
-    "Revalidar regressão rápida pós-runtime com `cargo test --test conformance plugin_ -- --nocapture`."
+    "Após compactação, priorizar `T-PLUGIN-01` para mapear fluxo installPlugin/caching/integridade.",
+    "Manter validação rápida de runtime em mudanças sensíveis com `cargo test --test conformance plugin_ -- --nocapture`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/storage-contract-v1/src/conformance.test.ts",
-    "packages/storage-memory/src/storage-v1.conformance.test.ts",
-    "packages/storage-memory/package.json",
-    "packages/storage-rest/src/storage-v1.conformance.test.ts",
-    "packages/storage-rest/package.json",
-    "package.json",
-    "docs/CONFORMANCE_V1_INVENTORY.md",
+    "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
+    "packages/tractor/tests/host_integration.rs",
+    "packages/tractor/docs/ARCHITECTURE.md",
+    "packages/plugin-manifest/README.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

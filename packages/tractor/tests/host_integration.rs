@@ -4,13 +4,46 @@
 /// the pre-compiled null-plugin.wasm fixture (built with cargo-component).
 ///
 /// The null-plugin exports refarm:plugin/integration with all lifecycle stubs.
-use std::path::Path;
-use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use std::path::{Path, PathBuf};
 use tractor::host::PluginHost;
 use tractor::trust::TrustManager;
+use tractor::{NativeStorage, NativeSync, TelemetryBus};
 
 fn fixture_path() -> &'static Path {
     Path::new("tests/fixtures/null-plugin.wasm")
+}
+
+fn write_manifest_for_fixture(dir: &Path, id: &str, version: &str, hooks: &[&str]) -> PathBuf {
+    let manifest_path = dir.join("plugin-manifest.json");
+    let payload = serde_json::json!({
+        "id": id,
+        "name": "Null Plugin",
+        "version": version,
+        "entry": "./null-plugin.wasm",
+        "observability": {
+            "hooks": hooks,
+        },
+    });
+
+    std::fs::write(
+        &manifest_path,
+        serde_json::to_vec(&payload).expect("manifest serialize"),
+    )
+    .expect("manifest write");
+
+    manifest_path
+}
+
+fn temp_fixture_with_manifest(
+    id: &str,
+    version: &str,
+    hooks: &[&str],
+) -> (tempfile::TempDir, PathBuf) {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let wasm_path = dir.path().join("null-plugin.wasm");
+    std::fs::copy(fixture_path(), &wasm_path).expect("copy wasm fixture");
+    let _ = write_manifest_for_fixture(dir.path(), id, version, hooks);
+    (dir, wasm_path)
 }
 
 fn make_host(telemetry: TelemetryBus) -> PluginHost {
@@ -31,7 +64,9 @@ async fn load_null_plugin_calls_setup() {
     let host = make_host(bus);
     let sync = make_sync();
 
-    let handle = host.load(fixture_path(), &sync).await
+    let handle = host
+        .load(fixture_path(), &sync)
+        .await
         .expect("load null-plugin");
 
     // setup() is called during load(); the handle has the expected plugin id
@@ -86,9 +121,13 @@ async fn store_node_roundtrip_via_native_sync() {
         None,
         r#"{"@type":"Message","text":"hello"}"#,
         Some("test-plugin"),
-    ).expect("store_node");
+    )
+    .expect("store_node");
 
-    let payload = sync.get_node("urn:test:1").expect("get_node").expect("found");
+    let payload = sync
+        .get_node("urn:test:1")
+        .expect("get_node")
+        .expect("found");
     assert!(payload.contains("hello"));
 
     let rows = sync.query_nodes("Message").expect("query_nodes");
@@ -154,4 +193,73 @@ async fn lifecycle_emits_structured_events_for_setup_ingest_teardown() {
     assert!(has_lifecycle("plugin:lifecycle:end", "ingest"));
     assert!(has_lifecycle("plugin:lifecycle:start", "teardown"));
     assert!(has_lifecycle("plugin:lifecycle:end", "teardown"));
+}
+
+#[tokio::test]
+async fn load_succeeds_with_aligned_manifest_and_runtime_metadata() {
+    let (_dir, wasm_path) = temp_fixture_with_manifest(
+        "@refarm.dev/null-plugin",
+        "0.1.0",
+        &["onLoad", "onInit", "onRequest", "onError", "onTeardown"],
+    );
+
+    let bus = TelemetryBus::new(100);
+    let host = make_host(bus);
+    let sync = make_sync();
+
+    let handle = host
+        .load(&wasm_path, &sync)
+        .await
+        .expect("load aligned plugin");
+    assert_eq!(handle.id, "null-plugin");
+}
+
+#[tokio::test]
+async fn load_fails_when_manifest_plugin_id_mismatches_runtime_id() {
+    let (_dir, wasm_path) = temp_fixture_with_manifest(
+        "@refarm.dev/other-plugin",
+        "0.1.0",
+        &["onLoad", "onInit", "onRequest", "onError", "onTeardown"],
+    );
+
+    let bus = TelemetryBus::new(100);
+    let host = make_host(bus);
+    let sync = make_sync();
+
+    let err = host
+        .load(&wasm_path, &sync)
+        .await
+        .expect_err("load should fail on manifest/runtime plugin_id mismatch");
+    let message = err.to_string();
+    assert!(
+        message.contains("manifest/runtime alignment failed"),
+        "expected alignment failure error, got: {message}"
+    );
+    assert!(
+        message.contains("plugin_id mismatch"),
+        "expected plugin_id mismatch detail, got: {message}"
+    );
+}
+
+#[tokio::test]
+async fn load_fails_when_manifest_is_missing_required_hooks() {
+    let (_dir, wasm_path) = temp_fixture_with_manifest(
+        "@refarm.dev/null-plugin",
+        "0.1.0",
+        &["onLoad", "onInit", "onRequest"],
+    );
+
+    let bus = TelemetryBus::new(100);
+    let host = make_host(bus);
+    let sync = make_sync();
+
+    let err = host
+        .load(&wasm_path, &sync)
+        .await
+        .expect_err("load should fail when manifest hooks are incomplete");
+    let message = err.to_string();
+    assert!(
+        message.contains("observability.hooks missing required hooks"),
+        "expected missing hooks detail, got: {message}"
+    );
 }

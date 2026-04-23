@@ -1014,12 +1014,13 @@
     {
       "id": "T-RUNTIME-10",
       "description": "Adicionar verificação de alinhamento manifesto↔runtime no load (plugin_id, hooks declarados e metadados mínimos).",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
-        "packages/plugin-manifest/**",
-        "packages/tractor/tests/**"
+        "packages/tractor/tests/host_integration.rs",
+        "packages/tractor/docs/ARCHITECTURE.md",
+        "packages/plugin-manifest/README.md"
       ],
       "acceptance_criteria": [
         "runtime valida contrato mínimo de manifesto antes de ativar plugin",
@@ -1030,7 +1031,9 @@
         "T-RUNTIME-03",
         "T-CONTRACT-04"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-10-20260423",
+      "notes": "Runtime agora valida alinhamento manifesto↔plugin no `load()` (plugin_id derivado do filename, hooks obrigatórios de observabilidade e versão metadata↔manifesto), com falha explícita em mismatch antes de ativar setup."
     }
   ]
 }

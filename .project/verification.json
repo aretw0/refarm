@@ -1380,6 +1380,58 @@
           "evidence": "`storage-memory` cobre caminho feliz; `storage-rest` cobre caminho feliz (SQL habilitado) e cenário de erro de contrato (SQL desabilitado) com resultado `pass=false`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-10-20260423",
+      "target": "T-RUNTIME-10",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T15:40:21.720Z",
+      "evidence": "PluginHost::load() passou a validar manifesto adjacente (`plugin-manifest.json`/`manifest.json`) contra metadata/runtime antes de ativar o plugin.",
+      "criteria_results": [
+        {
+          "criterion": "runtime valida contrato mínimo de manifesto antes de ativar plugin",
+          "status": "passed",
+          "evidence": "Validação adicionada em `packages/tractor/src/host/plugin_host/env_and_runtime.rs` para campos mínimos (`id`, `version`, `entry`), hooks obrigatórios e metadata básica."
+        },
+        {
+          "criterion": "mismatch crítico retorna erro explícito de load",
+          "status": "passed",
+          "evidence": "Erro explícito `manifest/runtime alignment failed ...` com detalhes de mismatch (`plugin_id`, hooks, versão metadata↔manifesto)."
+        },
+        {
+          "criterion": "testes cobrem caso válido e mismatch",
+          "status": "passed",
+          "evidence": "`cargo test --test host_integration -- --nocapture` cobre `load_succeeds_with_aligned_manifest_and_runtime_metadata`, `load_fails_when_manifest_plugin_id_mismatches_runtime_id` e `load_fails_when_manifest_is_missing_required_hooks`."
+        }
+      ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-03-20260423",
+      "target": "4",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T15:40:21.720Z",
+      "evidence": "Checkpoint de lote registrado após conclusão de `T-RUNTIME-10` com suíte runtime local verde e board/handoff alinhados para compactação.",
+      "criteria_results": [
+        {
+          "criterion": "Lote runtime fechado com evidência objetiva",
+          "status": "passed",
+          "evidence": "`cargo test --test host_integration -- --nocapture` e `cargo test --test conformance plugin_ -- --nocapture` verdes."
+        },
+        {
+          "criterion": "Task e verificação rastreadas no board",
+          "status": "passed",
+          "evidence": "`T-RUNTIME-10` marcada como concluída com `VER-RUNTIME-10-20260423`."
+        },
+        {
+          "criterion": "Handoff pronto para compactação",
+          "status": "passed",
+          "evidence": "`handoff.json` atualizado com contexto de fechamento do lote e próximos passos pós-compactação."
+        }
+      ]
     }
   ]
 }

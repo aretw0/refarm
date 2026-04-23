@@ -144,6 +144,19 @@ npm --prefix packages/plugin-manifest run test:conformance
 
 A dedicated `runManifestV1Conformance()` harness is deferred until a separate runtime contract is introduced.
 
+## Runtime alignment notes (tractor)
+
+`@refarm.dev/tractor` now enforces a minimum manifest↔runtime alignment during plugin load when a
+manifest is found next to the `.wasm` artifact (`plugin-manifest.json` or `manifest.json`).
+
+Checks include:
+
+- plugin id alignment (`manifest.id` suffix must match runtime `plugin_id` derived from wasm filename)
+- required observability hooks (`onLoad`, `onInit`, `onRequest`, `onError`, `onTeardown`)
+- minimal metadata compatibility (`metadata.version === manifest.version`)
+
+Critical mismatches fail `load()` with an explicit alignment error before plugin activation.
+
 ---
 
 ## Role in the Sovereign Farm

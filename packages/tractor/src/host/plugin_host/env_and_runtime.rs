@@ -294,6 +294,119 @@ fn store_refarm_config_node(
     Ok(())
 }
 
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RuntimePluginManifest {
+    id: String,
+    version: String,
+    entry: String,
+    observability: RuntimePluginObservability,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+struct RuntimePluginObservability {
+    hooks: Vec<String>,
+}
+
+const REQUIRED_RUNTIME_HOOKS: &[&str] = &[
+    "onLoad",
+    "onInit",
+    "onRequest",
+    "onError",
+    "onTeardown",
+];
+
+fn read_runtime_plugin_manifest(path: &Path) -> Result<Option<RuntimePluginManifest>> {
+    let Some(parent) = path.parent() else {
+        return Ok(None);
+    };
+
+    for filename in ["plugin-manifest.json", "manifest.json"] {
+        let manifest_path = parent.join(filename);
+        if !manifest_path.is_file() {
+            continue;
+        }
+
+        let bytes = std::fs::read(&manifest_path)
+            .map_err(|e| anyhow::anyhow!("failed to read {}: {e}", manifest_path.display()))?;
+        let manifest = serde_json::from_slice::<RuntimePluginManifest>(&bytes)
+            .map_err(|e| anyhow::anyhow!("invalid {}: {e}", manifest_path.display()))?;
+        return Ok(Some(manifest));
+    }
+
+    Ok(None)
+}
+
+fn manifest_runtime_plugin_id(manifest_id: &str) -> &str {
+    manifest_id
+        .trim()
+        .rsplit('/')
+        .next()
+        .filter(|v| !v.trim().is_empty())
+        .unwrap_or(manifest_id)
+}
+
+fn validate_manifest_runtime_alignment(
+    plugin_id: &str,
+    metadata: &refarm::plugin::types::PluginMetadata,
+    manifest: &RuntimePluginManifest,
+) -> Result<()> {
+    let mut issues = Vec::<String>::new();
+
+    if manifest.id.trim().is_empty() {
+        issues.push("manifest.id must be a non-empty string".to_string());
+    }
+    if manifest.version.trim().is_empty() {
+        issues.push("manifest.version must be a non-empty string".to_string());
+    }
+    if manifest.entry.trim().is_empty() {
+        issues.push("manifest.entry must be a non-empty string".to_string());
+    } else if !manifest.entry.ends_with(".wasm") {
+        issues.push("manifest.entry must point to a .wasm artifact for tractor runtime".to_string());
+    }
+
+    let missing_hooks: Vec<&str> = REQUIRED_RUNTIME_HOOKS
+        .iter()
+        .copied()
+        .filter(|hook| !manifest.observability.hooks.iter().any(|declared| declared == hook))
+        .collect();
+    if !missing_hooks.is_empty() {
+        issues.push(format!(
+            "observability.hooks missing required hooks: {}",
+            missing_hooks.join(", ")
+        ));
+    }
+
+    let manifest_plugin_id = manifest_runtime_plugin_id(&manifest.id);
+    if manifest_plugin_id != plugin_id {
+        issues.push(format!(
+            "plugin_id mismatch: runtime='{}' manifest='{}' (manifest.id='{}')",
+            plugin_id, manifest_plugin_id, manifest.id
+        ));
+    }
+
+    if metadata.name.trim().is_empty() {
+        issues.push("metadata.name must be a non-empty string".to_string());
+    }
+    if metadata.version.trim().is_empty() {
+        issues.push("metadata.version must be a non-empty string".to_string());
+    } else if metadata.version != manifest.version {
+        issues.push(format!(
+            "version mismatch: metadata.version='{}' manifest.version='{}'",
+            metadata.version, manifest.version
+        ));
+    }
+
+    if issues.is_empty() {
+        Ok(())
+    } else {
+        anyhow::bail!(
+            "manifest/runtime alignment failed for plugin '{}': {}",
+            plugin_id,
+            issues.join("; ")
+        )
+    }
+}
+
 impl PluginHost {
     pub fn new(trust: TrustManager, telemetry: TelemetryBus) -> Result<Self> {
         let mut config = Config::new();
@@ -373,6 +486,18 @@ impl PluginHost {
 
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
+
+        if let Some(manifest) = read_runtime_plugin_manifest(path)? {
+            let metadata = plugin.refarm_plugin_integration().call_metadata(&mut store).await?;
+            validate_manifest_runtime_alignment(&plugin_id, &metadata, &manifest)?;
+        } else {
+            tracing::warn!(
+                plugin_id = %plugin_id,
+                path = %path.display(),
+                "plugin manifest not found near wasm; skipping manifest/runtime alignment checks"
+            );
+        }
+
         let mut handle = PluginInstanceHandle::new(
             plugin_id.clone(),
             plugin,
