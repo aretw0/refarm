@@ -1598,6 +1598,32 @@
           "evidence": "`npm --prefix packages/plugin-manifest test` (17/17), `npm --prefix packages/barn test` (7/7), `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (10/10)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-11-20260423",
+      "target": "T-RUNTIME-11",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T19:35:23.022Z",
+      "evidence": "PluginHost usa cache instalado antes de rede para entradas .wasm, com cobertura dedicada no suite interno.",
+      "criteria_results": [
+        {
+          "criterion": "cache hit para plugin .wasm evita fetch de rede",
+          "status": "passed",
+          "evidence": "`plugin-host-internals.test.ts` valida que cache preenchido via `cachePlugin()` evita qualquer chamada a `fetch`."
+        },
+        {
+          "criterion": "paths file:// e fallback HTTP permanecem funcionais",
+          "status": "passed",
+          "evidence": "Suite existente mantém testes para `file://` e erro de fetch HTTP não-ok em `PluginHost.load()`."
+        },
+        {
+          "criterion": "testes de regressão verdes",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/tractor-ts run test:unit -- plugin-host-internals install-plugin` (26/26) e `npm --prefix packages/tractor-ts run type-check`."
+        }
+      ]
     }
   ]
 }

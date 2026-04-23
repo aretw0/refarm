@@ -1,28 +1,29 @@
 {
-  "context": "Hardening de plugin avançou para contrato único de instalação/cache/verify. T-PLUGIN-04 concluída com layout OPFS canônico e documentação alinhada.",
-  "timestamp": "2026-04-23T19:19:54.993Z",
+  "context": "Execução avançou no runtime browser path: PluginHost agora prioriza cache instalado para `.wasm` antes de rede. Também foi registrado risco/produto sobre onboarding sem WASM (ISS-014).",
+  "timestamp": "2026-04-23T19:35:23.022Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-04 concluída com `VER-PLUGIN-04-20260423` (Barn↔Tractor unificados via installWasmArtifact; OPFS canônico aplicado).",
-    "Pipeline local segue fast-path com checks escopados; CI fica para marcos pontuais."
+    "T-RUNTIME-11 concluída com `VER-RUNTIME-11-20260423` (PluginHost.load prioriza cache `.wasm` antes de fetch).",
+    "ISS-014 aberta para formalizar trilha oficial de plugins `.js` (sem obrigatoriedade imediata de WASM)."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Avaliar próximo slice de runtime browser: consumo efetivo do cache instalado em `PluginHost.load()` (fechar gap ADR-044 etapa runtime).",
-    "Preparar novo checkpoint antes da próxima compactação, mantendo lotes atômicos."
+    "Definir task de produto/arquitetura para dual-track plugin authoring (.js -> .wasm), incluindo matriz de segurança por ambiente.",
+    "Continuar fechamento do gap ADR-044 no browser runtime (consumo efetivo de artefato instalado até instantiate)."
   ],
-  "open_questions": [],
+  "open_questions": [
+    "Quando e em quais ambientes Refarm exigirá WASM obrigatório vs aceitando JS com capacidades reduzidas?"
+  ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/plugin-manifest/src/integrity.js",
-    "packages/plugin-manifest/src/install-contract.js",
-    "packages/tractor-ts/src/lib/install-plugin.ts",
-    "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
-    "packages/barn/src/index.ts",
+    "packages/tractor-ts/src/lib/plugin-host.ts",
+    "packages/tractor-ts/test/plugin-host-internals.test.ts",
     "docs/ARCHITECTURE.md",
+    "packages/plugin-manifest/README.md",
     ".project/tasks.json",
+    ".project/issues.json",
     ".project/verification.json",
     ".project/handoff.json"
   ]

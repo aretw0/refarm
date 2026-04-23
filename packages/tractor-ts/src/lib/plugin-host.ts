@@ -12,6 +12,7 @@ import type { PluginInstance, PluginState } from "./instance-handle";
 import type { PluginRunner } from "./plugin-runner";
 import { MainThreadRunner } from "./main-thread-runner";
 import { WorkerRunner } from "./worker-runner";
+import { getCachedPlugin } from "./opfs-plugin-cache";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
@@ -79,6 +80,34 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
+  private async readWasmBuffer(
+    pluginId: string,
+    wasmUrl: string,
+  ): Promise<ArrayBuffer> {
+    if (wasmUrl.startsWith("file://")) {
+      const filePath = wasmUrl.replace("file://", "");
+      const { readFile } = await import("node:fs/promises");
+      const buffer = await readFile(filePath);
+      return buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      );
+    }
+
+    if (wasmUrl.toLowerCase().endsWith(".wasm")) {
+      const cached = await getCachedPlugin(pluginId);
+      if (cached) {
+        this.logger.debug(`[tractor] Using cached plugin WASM: ${pluginId}`);
+        return cached;
+      }
+    }
+
+    const response = await fetch(wasmUrl);
+    if (!response.ok)
+      throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+    return response.arrayBuffer();
+  }
+
   async load(
     manifest: PluginManifest,
     wasmHash?: string,
@@ -116,19 +145,8 @@ export class PluginHost {
         this.logger.warn(msg);
     }
 
-    this.logger.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
-    let wasmBuffer: ArrayBuffer;
-
-    if (wasmUrl.startsWith("file://")) {
-      const filePath = wasmUrl.replace("file://", "");
-      const { readFile } = await import("node:fs/promises");
-      const buffer = await readFile(filePath);
-      wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    } else {
-      const response = await fetch(wasmUrl);
-      if (!response.ok) throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
-      wasmBuffer = await response.arrayBuffer();
-    }
+    this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);
+    const wasmBuffer = await this.readWasmBuffer(pluginId, wasmUrl);
 
     const wasi = new WasiImports(pluginId, this.logger, this.emit, this.storeNode);
     const imports = wasi.generate(manifest, profile);

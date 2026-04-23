@@ -134,6 +134,15 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 8. `targets` must be a non-empty array using only `browser`, `server`, `remote`
 9. All required telemetry hooks must be declared
 
+## FAQ — "Plugin precisa ser WASM?"
+
+Não. O contrato de manifesto aceita `entry` em `.js` **ou** `.wasm`.
+
+- `.wasm`: caminho recomendado para sandbox e hardening (integridade `sha256-*` obrigatória).
+- `.js`: caminho válido para adoção gradual, especialmente para times que ainda não migraram para WASM.
+
+Em resumo: WASM é o trilho de segurança mais forte, mas não é bloqueio absoluto para começar.
+
 ## Shared install/cache contract
 
 Besides schema validation, this package now exposes a shared binary-install contract:

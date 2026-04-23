@@ -7,6 +7,7 @@ vi.mock("@refarm.dev/heartwood", () => ({
 import { PluginHost } from "../src/lib/plugin-host";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
+import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
 import type { PluginInstance } from "../src/lib/instance-handle";
 
 // ---------------------------------------------------------------------------
@@ -171,6 +172,25 @@ describe("PluginHost.resolveRunner()", () => {
 describe("PluginHost.load() — WASM loading paths", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
+  });
+
+  it("prefers cached wasm for the same plugin id before fetching", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch should not be used")));
+
+    const { host, registry } = makeHost();
+    const manifest = createMockManifest({
+      id: "cached-plugin",
+      entry: "https://example.test/plugin.wasm",
+    });
+    registry.register(manifest);
+    const entry = registry.getPlugin("cached-plugin");
+    if (entry) entry.status = "validated";
+
+    await cachePlugin("cached-plugin", new Uint8Array([0x00, 0x61, 0x73, 0x6d]).buffer);
+    await host.load(manifest);
+
+    expect(global.fetch).not.toHaveBeenCalled();
+    await evictPlugin("cached-plugin");
   });
 
   it("file:// URL → calls fs.readFile with the local path", async () => {

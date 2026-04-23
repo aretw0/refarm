@@ -1080,6 +1080,29 @@
       "assigned_agent": "worker-runtime",
       "verification": "VER-RUNTIME-10-20260423",
       "notes": "Runtime agora valida alinhamento manifesto↔plugin no `load()` (plugin_id derivado do filename, hooks obrigatórios de observabilidade e versão metadata↔manifesto), com falha explícita em mismatch antes de ativar setup."
+    },
+    {
+      "id": "T-RUNTIME-11",
+      "description": "Fazer PluginHost.load() priorizar cache instalado (OPFS/memory) antes de rede para entradas .wasm.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "packages/tractor-ts/test/plugin-host-internals.test.ts",
+        "docs/ARCHITECTURE.md",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "cache hit para plugin .wasm evita fetch de rede",
+        "paths file:// e fallback HTTP permanecem funcionais",
+        "testes cobrem preferência por cache no PluginHost"
+      ],
+      "depends_on": [
+        "T-PLUGIN-04"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-11-20260423",
+      "notes": "PluginHost ganhou `readWasmBuffer()` com preferência por cache para entradas `.wasm`; apenas em cache miss faz fetch. Preserva file:// no Node e comportamento atual de erro em fetch não-ok."
     }
   ]
 }

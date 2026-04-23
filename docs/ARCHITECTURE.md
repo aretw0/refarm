@@ -153,6 +153,13 @@ All communication is **typed by WIT contracts**. The tractor host validates ever
 
 ### Plugin Loading: Node.js vs Browser
 
+> **WASM is not universally mandatory today.**
+>
+> The manifest contract accepts both `.js` and `.wasm` entries. Refarm's hardening roadmap is currently
+> **WASM-first** because it provides deterministic integrity checks and stronger sandbox boundaries. For
+> teams onboarding gradually, `.js` plugins remain a valid entry path while runtime isolation guarantees
+> are incrementally tightened.
+
 Refarm has a **target architecture** (ADR-044) and a **current implementation snapshot**. Both matter for roadmap decisions.
 
 #### Target architecture (ADR-044)
