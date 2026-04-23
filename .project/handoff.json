@@ -1,27 +1,25 @@
 {
-  "context": "Frente de aceleração de CI foi concluída e, na sequência, a consistência cross-block do `.project` foi automatizada em rotina contínua (script dedicado + validação no workflow de CI).",
-  "timestamp": "2026-04-23T04:53:07Z",
-  "current_phase": 2,
+  "context": "Após concluir a aceleração de CI + consistência cross-block (`ISS-008`), iniciamos frente de produto/runtime e operacionalizamos smoke de daemon/ws no `tractor-rs` (task `T-RUNTIME-02`).",
+  "timestamp": "2026-04-23T05:09:30Z",
+  "current_phase": 4,
   "current_tasks": [
-    "`ISS-008` foi resolvida com `VER-OPS-08-20260423`.",
-    "Pipeline mantém lanes rápidas/deep e agora valida integridade do board canônico a cada run."
+    "`T-RUNTIME-02` concluída com `VER-RUNTIME-02-20260423` (script `test:smoke:ws` + integração em `test:integration` do pacote `@refarm.dev/tractor-rs`).",
+    "`docs/WORKFLOW.md` atualizado para incluir `npm run test:smoke:ws` no preflight completo de runtime/host security."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Priorizar `ISS-007` (ritual semanal de triagem de tasks bloqueadas).",
-    "Usar artifact `ci-run-metrics` para acompanhar tendência de tempo do pipeline por lane."
+    "Executar slice de `T-RUNTIME-01`: mapear fluxo de boot + pontos de falha no runtime e registrar em docs/board.",
+    "Decidir se smoke WS deve ganhar gate dedicado no workflow (além da execução via `test:integration` quando `packages/tractor/**` é afetado)."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".project/handoff.json",
-    ".project/issues.json",
+    "packages/tractor/package.json",
+    "docs/WORKFLOW.md",
+    ".project/tasks.json",
     ".project/verification.json",
-    ".github/workflows/test.yml",
-    "scripts/ci/project-block-consistency.mjs",
-    "package.json",
-    "docs/WORKFLOW.md"
+    ".project/handoff.json"
   ]
 }

@@ -928,6 +928,32 @@
           "evidence": "`.github/workflows/test.yml` (job `quality`) executa `npm run project:validate --silent` em todos os runs do workflow."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-02-20260423",
+      "target": "T-RUNTIME-02",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T05:09:30Z",
+      "evidence": "Smoke gate de daemon/ws operacionalizado em `@refarm.dev/tractor-rs` via script `test:smoke:ws` (usa `cargo test --test ws_integration ws_server_accepts_connection -- --exact --nocapture`) e conectado ao `test:integration` do pacote.",
+      "criteria_results": [
+        {
+          "criterion": "Smoke test executa localmente",
+          "status": "passed",
+          "evidence": "`npm run test:smoke:ws -w @refarm.dev/tractor-rs` -> 1 passed, 0 failed."
+        },
+        {
+          "criterion": "Conexão ws validada",
+          "status": "passed",
+          "evidence": "Teste `ws_server_accepts_connection` conecta em `ws://127.0.0.1:<port>` após boot do `WsServer`."
+        },
+        {
+          "criterion": "Falhas reportadas com logs acionáveis",
+          "status": "passed",
+          "evidence": "Comando usa `--exact --nocapture`; erros de bootstrap/conexão aparecem no teste nomeado `ws_server_accepts_connection` com assert `must connect`."
+        }
+      ]
     }
   ]
 }

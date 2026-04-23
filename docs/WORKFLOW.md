@@ -673,6 +673,7 @@ cargo check --quiet
 cargo test --lib agent_tools_bridge --quiet
 cargo test --lib plugin_host --quiet
 cargo test --lib wasi_bridge --quiet
+npm run test:smoke:ws
 ```
 
 ### Critério de go/no-go

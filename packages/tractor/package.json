@@ -1,15 +1,16 @@
 {
-  "name": "@refarm.dev/tractor-rs",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "build": "RUSTUP_TOOLCHAIN=stable cargo build --release",
-    "test": "RUSTUP_TOOLCHAIN=stable cargo test",
-    "lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
-    "test:unit": "npm run test",
-    "test:integration": "echo 'No integration tests for this crate'",
-    "bench:save": "echo 'Benchmark save not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
-    "bench:check": "echo 'Benchmark check not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
-    "coverage:check": "echo 'Coverage check not yet implemented for Rust core' && mkdir -p coverage && echo '{\"improved\": false, \"previous\": 0, \"current\": 0, \"diff\": \"0%\"}' > coverage/gha-payload.json"
-  }
+	"name": "@refarm.dev/tractor-rs",
+	"version": "0.1.0",
+	"private": true,
+	"scripts": {
+		"build": "RUSTUP_TOOLCHAIN=stable cargo build --release",
+		"test": "RUSTUP_TOOLCHAIN=stable cargo test",
+		"lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
+		"test:unit": "npm run test",
+		"test:smoke:ws": "RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
+		"test:integration": "npm run test:smoke:ws",
+		"bench:save": "echo 'Benchmark save not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
+		"bench:check": "echo 'Benchmark check not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
+		"coverage:check": "echo 'Coverage check not yet implemented for Rust core' && mkdir -p coverage && echo '{\"improved\": false, \"previous\": 0, \"current\": 0, \"diff\": \"0%\"}' > coverage/gha-payload.json"
+	}
 }

@@ -353,7 +353,7 @@
     {
       "id": "T-RUNTIME-02",
       "description": "Criar smoke test de daemon/ws para confirmar ciclo básico de inicialização.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/**",
@@ -367,7 +367,8 @@
       "depends_on": [
         "T-RUNTIME-01"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-02-20260423"
     },
     {
       "id": "T-RUNTIME-03",
