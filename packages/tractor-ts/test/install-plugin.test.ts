@@ -182,6 +182,112 @@ describe("installPlugin", () => {
 		expect(result.runtimeModuleCachePath).toContain("/refarm/barn/implements");
 	});
 
+	it("installs component runtime sidecar via descriptor object", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-descriptor'; } }";
+		const runtimeModuleIntegrity = await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+			browserRuntimeModuleDescriptor: {
+				schemaVersion: 1,
+				pluginId: "test-plugin",
+				componentWasmUrl: "https://example.com/test.wasm",
+				module: {
+					url: "https://example.com/test.browser.mjs",
+					integrity: runtimeModuleIntegrity,
+					format: "esm",
+				},
+				toolchain: {
+					name: "tractor-sidecar",
+					version: "0.1.0",
+					generatedAt: "2026-04-23T00:00:00.000Z",
+				},
+			},
+		});
+
+		expect(cachePlugin).toHaveBeenCalledWith(
+			"test-plugin",
+			mockBuffer,
+			expect.objectContaining({
+				browserRuntimeDescriptor: expect.objectContaining({
+					schemaVersion: 1,
+					source: "descriptor",
+				}),
+				browserRuntimeToolchain: expect.objectContaining({
+					name: "tractor-sidecar",
+				}),
+			}),
+		);
+	});
+
+	it("rejects descriptor plugin mismatch", async () => {
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					schemaVersion: 1,
+					pluginId: "wrong-plugin",
+					componentWasmUrl: "https://example.com/test.wasm",
+					module: {
+						url: "https://example.com/test.browser.mjs",
+						integrity: "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+					},
+				},
+			}),
+		).rejects.toThrow("descriptor pluginId mismatch");
+	});
+
+	it("rejects descriptor integrity mismatch", async () => {
+		const runtimeModuleSource = "export default { async ping(){return 'x';} }";
+		const runtimeModuleIntegrity = await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					schemaVersion: 1,
+					pluginId: "test-plugin",
+					componentWasmUrl: "https://example.com/test.wasm",
+					module: {
+						url: "https://example.com/test.browser.mjs",
+						integrity: runtimeModuleIntegrity,
+					},
+					descriptorIntegrity: "sha256-not-the-real-digest",
+				},
+			}),
+		).rejects.toThrow("descriptor integrity mismatch");
+	});
+
 	it("fails when browser runtime module integrity is invalid", async () => {
 		const runtimeModuleSource = "export const x = 1";
 

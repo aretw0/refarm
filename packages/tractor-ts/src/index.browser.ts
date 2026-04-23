@@ -153,6 +153,12 @@ export class PluginHost {
 			);
 		}
 
+		if (runtimeModule.format !== "esm") {
+			throw new Error(
+				`[tractor] Browser runtime module format '${runtimeModule.format}' is not supported for ${pluginId}.`,
+			);
+		}
+
 		const source = await getCachedPluginRuntimeModule(pluginId);
 		if (!source) {
 			throw new Error(
@@ -224,7 +230,29 @@ export class PluginHost {
 
 		const artifactKind =
 			metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
-		if (artifactKind === "module" || artifactKind === "component") {
+		if (artifactKind === "module") {
+			return artifactKind;
+		}
+
+		if (artifactKind === "component") {
+			if (!metadata.browserRuntimeModule) {
+				throw new Error(
+					`[tractor] Browser WASM component ${pluginId} requires browserRuntimeModule metadata. Reinstall the plugin.`,
+				);
+			}
+
+			if (!metadata.browserRuntimeDescriptor) {
+				throw new Error(
+					`[tractor] Browser WASM component ${pluginId} requires browserRuntimeDescriptor metadata. Reinstall the plugin with an official descriptor.`,
+				);
+			}
+
+			if (metadata.browserRuntimeDescriptor.schemaVersion !== 1) {
+				throw new Error(
+					`[tractor] Browser runtime descriptor schema is not supported for ${pluginId}. Reinstall the plugin.`,
+				);
+			}
+
 			return artifactKind;
 		}
 
@@ -415,7 +443,13 @@ export class PluginHost {
 	}
 }
 
-export type { InstallPluginResult } from "./lib/install-plugin";
+export type {
+	BrowserRuntimeModuleDescriptor,
+	BrowserRuntimeModuleDescriptorReference,
+	BrowserRuntimeModuleInstallInput,
+	InstallPluginOptions,
+	InstallPluginResult,
+} from "./lib/install-plugin";
 export { installPlugin } from "./lib/install-plugin";
 export {
 	cachePlugin,

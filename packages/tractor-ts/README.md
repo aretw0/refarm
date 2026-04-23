@@ -207,7 +207,12 @@ The contract defines:
 
 Plugins communicate via **WIT interface** defined in [`wit/refarm-sdk.wit`](../../wit/refarm-sdk.wit).
 
-**Runtime**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at runtime. This allows seamless integration with Node.js and Browser ESM while maintaining the capability-gated sandbox.
+**Runtime**:
+
+- **Node.js**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at load time.
+- **Browser**: Tractor loads cache-backed artifacts from OPFS.
+  - `artifactKind=module` executes via `WebAssembly.instantiate`
+  - `artifactKind=component` executes via integrity-verified ESM sidecar (`browserRuntimeModule`) linked by descriptor metadata.
 
 **Security model**:
 
@@ -248,6 +253,19 @@ DEBUG=refarm:* npm run dev
 # Watch WASM calls
 DEBUG=refarm:plugin-host:* npm run dev
 ```
+
+### Generate browser runtime descriptor for component sidecars
+
+```bash
+npm run runtime-module:descriptor -- \
+  --plugin-id @acme/component-plugin \
+  --component-url https://cdn.example/component.wasm \
+  --module-file ./dist/component.browser.mjs \
+  --module-url https://cdn.example/component.browser.mjs \
+  --out ./dist/component.runtime-descriptor.json
+```
+
+This emits a deterministic descriptor with `descriptorIntegrity` so install-time flows can verify sidecar provenance.
 
 ### Profile Performance
 
