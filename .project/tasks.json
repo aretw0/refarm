@@ -333,7 +333,7 @@
     {
       "id": "T-RUNTIME-01",
       "description": "Mapear fluxo de boot do runtime Tractor e pontos de falha conhecidos.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/**",
@@ -348,7 +348,8 @@
       "depends_on": [
         "T-PIPE-04"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-01-20260423"
     },
     {
       "id": "T-RUNTIME-02",
@@ -858,6 +859,47 @@
       "assigned_agent": "worker-governance",
       "verification": "VER-OPS-07-20260423",
       "notes": "Verificado em 2026-04-23: `.gitignore` contém `.pi-lens/`, sem arquivos `.pi-lens` versionados e status do repositório limpo."
+    },
+    {
+      "id": "T-RUNTIME-05",
+      "description": "Adicionar política fail-fast opcional para plugins obrigatórios no startup do daemon (ex.: --require-plugin-load).",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/main.rs",
+        "packages/tractor/docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "Flag/estratégia de fail-fast para plugin obrigatório definida",
+        "Startup falha explicitamente quando plugin obrigatório não carrega",
+        "Teste cobrindo modo atual (warn+continue) e modo fail-fast"
+      ],
+      "depends_on": [
+        "T-RUNTIME-01",
+        "T-RUNTIME-02"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-06",
+      "description": "Adicionar probe explícita de readiness/health do daemon Tractor para operações locais e CI.",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/main.rs",
+        "packages/tractor/tests/ws_integration.rs",
+        "docs/DEVOPS.md"
+      ],
+      "acceptance_criteria": [
+        "Comando de health/readiness retorna status não-zero quando daemon indisponível",
+        "Probe valida bind WS e boot mínimo do runtime",
+        "Documentação operacional com uso da probe em smoke/local"
+      ],
+      "depends_on": [
+        "T-RUNTIME-01",
+        "T-RUNTIME-02"
+      ],
+      "assigned_agent": "worker-runtime"
     }
   ]
 }

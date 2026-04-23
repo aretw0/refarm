@@ -954,6 +954,32 @@
           "evidence": "Comando usa `--exact --nocapture`; erros de bootstrap/conexão aparecem no teste nomeado `ws_server_accepts_connection` com assert `must connect`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-01-20260423",
+      "target": "T-RUNTIME-01",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T05:28:09Z",
+      "evidence": "Mapeamento de boot/runtime documentado em `packages/tractor/docs/ARCHITECTURE.md` com classificação de severidade por estágio de inicialização e derivação explícita de follow-ups operacionais.",
+      "criteria_results": [
+        {
+          "criterion": "Fluxo de boot documentado",
+          "status": "passed",
+          "evidence": "Seção `CLI & Plugin Startup` mantém sequência de startup (parse -> boot -> load plugins -> WsServer -> shutdown)."
+        },
+        {
+          "criterion": "Falhas classificadas por severidade",
+          "status": "passed",
+          "evidence": "Nova seção `Known boot/runtime failure points (mapped)` classifica falhas de boot/plugin/ws frame handling em High/Medium."
+        },
+        {
+          "criterion": "Tasks de correção derivadas",
+          "status": "passed",
+          "evidence": "Criadas tasks `T-RUNTIME-05` (fail-fast de plugin obrigatório) e `T-RUNTIME-06` (readiness/health probe)."
+        }
+      ]
     }
   ]
 }

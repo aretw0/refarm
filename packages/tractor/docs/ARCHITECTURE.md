@@ -160,6 +160,20 @@ matches defense-in-depth.
 6. tractor.shutdown()                   — flush + close storage
 ```
 
+### Known boot/runtime failure points (mapped)
+
+| Stage | Failure point | Severity | Current behavior | Source |
+|---|---|---|---|---|
+| `TractorNative::boot` | SQLite open/schema/init failure | High | Boot fails fast (daemon does not start) | `src/lib.rs` (`NativeStorage::open`, `NativeSync::new`) |
+| `PluginHost::new` | wasmtime engine/linker init failure | High | Boot fails fast | `src/host/plugin_host/env_and_runtime.rs` |
+| `load_plugin` loop | Plugin file/hash/setup failure | Medium | `WARN` and continue startup (isolated failure contract) | `src/main.rs` `run_daemon` + `src/host/plugin_host/env_and_runtime.rs` |
+| `WsServer::start` | Port bind/listen failure (`EADDRINUSE`, permissions) | High | Daemon exits with error | `src/daemon/ws_server.rs` |
+| WS client frame handling | Invalid/corrupted incoming frame | Medium | Frame discarded, warning logged, daemon stays up | `src/daemon/ws_server.rs` |
+
+Derived follow-up tasks from this map:
+- `T-RUNTIME-05` — add fail-fast policy for required startup plugins.
+- `T-RUNTIME-06` — add explicit startup/health probe command for daemon readiness.
+
 **CLI flags:**
 
 | Flag | Default | Effect |

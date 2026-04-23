@@ -1,23 +1,22 @@
 {
-  "context": "Após concluir a aceleração de CI + consistência cross-block (`ISS-008`), iniciamos frente de produto/runtime e operacionalizamos smoke de daemon/ws no `tractor-rs` (task `T-RUNTIME-02`).",
-  "timestamp": "2026-04-23T05:09:30Z",
+  "context": "Frente runtime avançou em dois marcos consecutivos: `T-RUNTIME-02` (smoke daemon/ws) e `T-RUNTIME-01` (mapeamento formal de boot + failure points com severidade).",
+  "timestamp": "2026-04-23T05:28:09Z",
   "current_phase": 4,
   "current_tasks": [
-    "`T-RUNTIME-02` concluída com `VER-RUNTIME-02-20260423` (script `test:smoke:ws` + integração em `test:integration` do pacote `@refarm.dev/tractor-rs`).",
-    "`docs/WORKFLOW.md` atualizado para incluir `npm run test:smoke:ws` no preflight completo de runtime/host security."
+    "`T-RUNTIME-01` concluída com `VER-RUNTIME-01-20260423` em `packages/tractor/docs/ARCHITECTURE.md` (boot flow + tabela de falhas por severidade).",
+    "`T-RUNTIME-02` já concluída com `VER-RUNTIME-02-20260423` (script `test:smoke:ws` + integração em `test:integration`)."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar slice de `T-RUNTIME-01`: mapear fluxo de boot + pontos de falha no runtime e registrar em docs/board.",
-    "Decidir se smoke WS deve ganhar gate dedicado no workflow (além da execução via `test:integration` quando `packages/tractor/**` é afetado)."
+    "Implementar `T-RUNTIME-05`: modo fail-fast opcional para plugin obrigatório no startup.",
+    "Implementar `T-RUNTIME-06`: probe explícita de readiness/health do daemon para uso local/CI."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor/package.json",
-    "docs/WORKFLOW.md",
+    "packages/tractor/docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"
