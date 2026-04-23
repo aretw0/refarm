@@ -1328,6 +1328,28 @@
       "assigned_agent": "worker-plugin",
       "verification": "VER-PLUGIN-09-20260423",
       "notes": "Conformance agora garante parsing robusto de extensão com sufixos URL sem regredir regras de integridade para `.wasm`."
+    },
+    {
+      "id": "T-RUNTIME-16",
+      "description": "Definir e preparar toolchain para execução `.wasm` no browser host (fechamento ADR-044 cache-backed path).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "docs/ARCHITECTURE.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Decisão técnica de runtime/transpile browser documentada",
+        "Spike mínimo validando load de `.wasm` a partir de cache instalado",
+        "Risco/tooling necessário registrado para rollout incremental"
+      ],
+      "depends_on": [
+        "T-RUNTIME-14",
+        "T-RUNTIME-15"
+      ],
+      "assigned_agent": "worker-runtime"
     }
   ]
 }

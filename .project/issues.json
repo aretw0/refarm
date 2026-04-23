@@ -178,6 +178,17 @@
       "package": "plugin-platform",
       "source": "human",
       "resolved_by": "VER-PLUGIN-07-20260423"
+    },
+    {
+      "id": "ISS-016",
+      "title": "Falta toolchain/browser runner para executar plugins `.wasm` no path cache-backed (ADR-044)",
+      "body": "Hoje o browser host aceita plugins JS, mas `.wasm` continua bloqueado até existir runner/toolchain adequada para componente WASM em browser (transpile/instantiate determinístico com segurança). Sem essa peça, a etapa final da ADR-044 fica truncada.",
+      "location": "packages/tractor-ts/src/index.browser.ts:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "high",
+      "package": "tractor-ts",
+      "source": "agent"
     }
   ]
 }
