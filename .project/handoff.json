@@ -1,10 +1,10 @@
 {
-  "context": "Runtime lifecycle hardening avançou com execução prática de T-RUNTIME-07 e T-RUNTIME-08: shutdown coordenado de runners + gatilho operacional de ingest no startup do daemon.",
-  "timestamp": "2026-04-23T13:08:09.001Z",
+  "context": "Checkpoint pré-compactação atualizado após avanço de runtime hardening: T-RUNTIME-07 e T-RUNTIME-08 concluídas com CI verde e backlog imediato estabilizado para próxima janela curta.",
+  "timestamp": "2026-04-23T13:26:47.906Z",
   "current_phase": 4,
   "current_tasks": [
-    "T-RUNTIME-08 concluída com verificação `VER-RUNTIME-08-20260423` (`--ingest-on-load` / `--require-plugin-ingest`).",
-    "Lifecycle runtime atualizado em documentação/board com gaps remanescentes focados em observabilidade e validação manifesto↔runtime."
+    "Checkpoint de compactação registrado com base nos últimos lotes runtime (`289c6dde`, `2539aee2`) e CI verde.",
+    "Contexto de retomada reduzido para execução direta em `T-RUNTIME-09` (telemetria de lifecycle)."
   ],
   "blockers": [
     "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
@@ -17,12 +17,7 @@
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor/src/main.rs",
-    "packages/tractor/src/lib.rs",
-    "packages/tractor/tests/plugin_shutdown.rs",
-    "packages/tractor/docs/ARCHITECTURE.md",
-    ".project/tasks.json",
-    ".project/verification.json",
-    ".project/handoff.json"
+    ".project/handoff.json",
+    ".project/verification.json"
   ]
 }

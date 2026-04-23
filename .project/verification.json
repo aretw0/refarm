@@ -1302,6 +1302,32 @@
           "evidence": "`cargo test --bin tractor plugin_ingest_policy -- --nocapture` (3 passed) e `cargo test --bin tractor require_plugin_ingest_flag_allows_plugin_arguments -- --nocapture` (1 passed)."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-02-20260423",
+      "target": "4",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T13:26:47.906Z",
+      "evidence": "Checkpoint de compactação consolidado após hardening runtime (`T-RUNTIME-07`, `T-RUNTIME-08`) com runs CI verdes em develop e workspace limpo.",
+      "criteria_results": [
+        {
+          "criterion": "Workspace limpo no momento do checkpoint",
+          "status": "passed",
+          "evidence": "`git status -sb` limpo antes da atualização de checkpoint."
+        },
+        {
+          "criterion": "Lotes recentes validados em CI",
+          "status": "passed",
+          "evidence": "Runs `24835842231` (fix runtime shutdown) e `24837069564` (ingest-on-load) concluídos com `success`."
+        },
+        {
+          "criterion": "Retomada imediata documentada",
+          "status": "passed",
+          "evidence": "Handoff direciona explicitamente sequência `T-RUNTIME-09` -> `T-CONTRACT-02` para próxima janela pós-compactação."
+        }
+      ]
     }
   ]
 }
