@@ -18,9 +18,86 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code_changes: ${{ steps.detect.outputs.code_changes }}
+      tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
+      run_build: ${{ steps.detect.outputs.run_build }}
+      run_e2e: ${{ steps.detect.outputs.run_e2e }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Detect changed areas
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            # First push on branch may not have github.event.before resolved.
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="$(git rev-parse HEAD^ 2>/dev/null || true)"
+            fi
+          fi
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "::warning::Could not resolve BASE_SHA. Falling back to full checks."
+            echo "code_changes=true" >> "$GITHUB_OUTPUT"
+            echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
+            echo "run_build=true" >> "$GITHUB_OUTPUT"
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/refarm-changed-files.txt
+
+          echo "Changed files (base=$BASE_SHA head=$HEAD_SHA):"
+          cat /tmp/refarm-changed-files.txt || true
+
+          has_match() {
+            local pattern="$1"
+            grep -Eq "$pattern" /tmp/refarm-changed-files.txt
+          }
+
+          code_changes=false
+          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$|\.github/workflows/test\.yml$|\.github/actions/)'; then
+            code_changes=true
+          fi
+
+          tractor_gates=false
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|package-lock\.json$)'; then
+            tractor_gates=true
+          fi
+
+          run_build="$code_changes"
+          run_e2e=false
+          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
+            run_e2e=true
+            run_build=true
+          fi
+
+          echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
+          echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
+          echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
+          echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+
+          echo "::notice::changes: code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e"
+
   quality:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    needs: changes
 
     steps:
       - name: Checkout
@@ -46,12 +123,18 @@ jobs:
         run: npm run tsconfig:guard
 
       - name: Verify (Full Turbo)
+        if: needs.changes.outputs.code_changes == 'true'
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+
+      - name: Verify (Full Turbo) skipped
+        if: needs.changes.outputs.code_changes != 'true'
+        run: echo "::notice::Skipping Full Turbo verification (no code-impacting changes detected)."
 
       # Specialized gates for Tractor (Performance & Coverage)
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
+        if: needs.changes.outputs.tractor_gates == 'true'
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
@@ -82,7 +165,7 @@ jobs:
           fi
 
       - name: Comment PR on Benchmark Increase
-        if: github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        if: needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -133,6 +216,7 @@ jobs:
 
       - name: Coverage Quality Gate (Tractor)
         id: coverage
+        if: needs.changes.outputs.tractor_gates == 'true'
         run: |
           cd packages/tractor
           npm run coverage:check
@@ -150,7 +234,7 @@ jobs:
           fi
 
       - name: Comment PR on Coverage Increase
-        if: github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        if: needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -206,7 +290,7 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always()
+        if: always() && needs.changes.outputs.tractor_gates == 'true'
         uses: ./.github/actions/codecov-upload
         with:
           files: ./coverage/coverage-final.json
@@ -216,7 +300,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: quality
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_build == 'true'
 
     steps:
       - name: Checkout
@@ -243,7 +328,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: build
+    needs: [changes, build]
+    if: needs.changes.outputs.run_e2e == 'true'
 
     steps:
       - name: Checkout
@@ -329,21 +415,30 @@ jobs:
 
   summary:
     if: always()
-    needs: [quality, build, e2e, audit-moderate]
+    needs: [changes, quality, build, e2e, audit-moderate]
     runs-on: ubuntu-latest
 
     steps:
       - name: Check all checks
         run: |
+          echo "changes: code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }}"
+
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
             exit 1
           fi
-          if [ "${{ needs.build.result }}" != "success" ]; then
+
+          if [ "${{ needs.audit-moderate.result }}" != "success" ]; then
+            echo "::error::Audit moderate job failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.changes.outputs.run_build }}" = "true" ] && [ "${{ needs.build.result }}" != "success" ]; then
             echo "::error::Build failed"
             exit 1
           fi
-          if [ "${{ needs.e2e.result }}" != "success" ]; then
+
+          if [ "${{ needs.changes.outputs.run_e2e }}" = "true" ] && [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "::error::E2E tests failed"
             exit 1
           fi
