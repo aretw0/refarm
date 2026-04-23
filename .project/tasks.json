@@ -1191,6 +1191,28 @@
       "assigned_agent": "worker-plugin",
       "verification": "VER-PLUGIN-06-20260423",
       "notes": "`validatePluginManifest` agora aceita `.js/.mjs/.cjs/.wasm`; testes e README atualizados para refletir onboarding JS mais amplo."
+    },
+    {
+      "id": "T-PLUGIN-07",
+      "description": "Publicar spec de envelope de plugin (mínimo/médio/máximo) com matriz de formatos e limites por ambiente.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "docs/ARCHITECTURE.md",
+        "packages/plugin-manifest/README.md",
+        ".project/decisions.json"
+      ],
+      "acceptance_criteria": [
+        "Define claramente mínimo de plugin executável e máximo de extensão suportado hoje",
+        "Matriz por ambiente (browser/node) e formato (js/mjs/cjs/wasm) com status: suportado, parcial, roadmap",
+        "Trilha de escala de plugin (L0->L3) com controles de segurança e critérios de promoção"
+      ],
+      "depends_on": [
+        "T-PLUGIN-06",
+        "T-RUNTIME-13"
+      ],
+      "assigned_agent": "worker-plugin"
     }
   ]
 }

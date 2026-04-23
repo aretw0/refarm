@@ -1,6 +1,6 @@
 {
   "context": "Execução segue em lotes atômicos no eixo plugin runtime. Além do suporte JS em Node/Browser, a política dual-track JS/WASM foi registrada como decisão arquitetural tentativa (DEC-013).",
-  "timestamp": "2026-04-23T20:11:26.273Z",
+  "timestamp": "2026-04-23T20:18:03.810Z",
   "current_phase": 6,
   "current_tasks": [
     "T-RUNTIME-13 e T-PLUGIN-06 concluídas no eixo de adoção JS sem quebrar trilha WASM.",
@@ -10,6 +10,7 @@
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
+    "Executar T-PLUGIN-07 para fechar spec de envelope mínimo→máximo de plugins e matriz formal de suporte por ambiente.",
     "Converter DEC-013 de tentative -> decided quando matriz de enforcement por ambiente estiver fechada.",
     "Continuar fechamento de ADR-044 para `.wasm` browser cache-backed."
   ],
