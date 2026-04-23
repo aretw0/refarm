@@ -167,6 +167,7 @@ Current browser-sidecar metadata keys used by tractor-ts:
 - `browserRuntimeModule` (`url`, `integrity`, `format`)
 - `browserRuntimeDescriptor` (`schemaVersion`, `descriptorHash`, `componentWasmUrl`, `source`)
 - `browserRuntimeToolchain` (`name`, `version`, `generatedAt?`)
+- `browserRuntimeProvenance` (`source`, `commitSha`, `buildId`, `sourceRepository?`)
 
 ## Runtime entry compatibility helpers
 

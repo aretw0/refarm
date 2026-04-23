@@ -124,6 +124,13 @@ export interface BrowserRuntimeToolchainMetadata {
 	generatedAt?: string;
 }
 
+export interface BrowserRuntimeProvenanceMetadata {
+	source: "descriptor" | "direct";
+	commitSha: string;
+	buildId: string;
+	sourceRepository?: string;
+}
+
 export interface PluginArtifactMetadata {
 	pluginId: string;
 	wasmUrl: string;
@@ -134,6 +141,7 @@ export interface PluginArtifactMetadata {
 	browserRuntimeModule?: BrowserRuntimeModuleMetadata;
 	browserRuntimeDescriptor?: BrowserRuntimeModuleDescriptorMetadata;
 	browserRuntimeToolchain?: BrowserRuntimeToolchainMetadata;
+	browserRuntimeProvenance?: BrowserRuntimeProvenanceMetadata;
 }
 
 export interface PluginBinaryCacheAdapter {

@@ -24,9 +24,7 @@ export function detectWasmBinaryKind(bytes) {
 	if (!magicOk) return "unknown";
 
 	const version = Array.from(header.slice(4, 8));
-	if (
-		version.every((value, index) => value === WASM_MODULE_VERSION[index])
-	) {
+	if (version.every((value, index) => value === WASM_MODULE_VERSION[index])) {
 		return "module";
 	}
 
@@ -57,6 +55,7 @@ export function detectWasmBinaryKind(bytes) {
  * @property {{url: string, integrity: string, format: "esm"}} [browserRuntimeModule]
  * @property {{schemaVersion: 1, descriptorHash: string, componentWasmUrl: string, source: "descriptor"|"direct"}} [browserRuntimeDescriptor]
  * @property {{name: string, version: string, generatedAt?: string}} [browserRuntimeToolchain]
+ * @property {{source: "descriptor"|"direct", commitSha: string, buildId: string, sourceRepository?: string}} [browserRuntimeProvenance]
  */
 
 /**
@@ -143,7 +142,11 @@ export async function installWasmArtifact(request, deps) {
 				const wasmHash = `sha256-${digest.base64}`;
 
 				if (metadataExtensions) {
-					await cache.set(pluginId, cached, buildMetadata(wasmHash, artifactKind));
+					await cache.set(
+						pluginId,
+						cached,
+						buildMetadata(wasmHash, artifactKind),
+					);
 				}
 
 				return {
