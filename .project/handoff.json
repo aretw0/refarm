@@ -1,23 +1,24 @@
 {
-  "context": "Modularização de `sensitive_aliases` consolidada (`env.rs`, `headers.rs`, `policy.rs`) com CI verde. Governança operacional também avançou com documentação de preflight obrigatório, autorização explícita para escrita em lote e gate smoke/full.",
-  "timestamp": "2026-04-23T01:55:47Z",
+  "context": "Lote de integridade do Barn concluído: `installPlugin` agora usa SHA-256 real (SubtleCrypto), valida `sha256-` de forma determinística e aplica cache por URL com fail-closed em mismatch de digest cacheado. ISS-005 foi endereçada com cobertura de testes de hit/miss e mismatch.",
+  "timestamp": "2026-04-23T02:03:08Z",
   "current_phase": 2,
   "current_tasks": [
-    "Estabilização/throughput pós-hardening: manter ciclo local↔CI previsível e reduzir pendências abertas de ambiente/integridade."
+    "Estabilização/throughput pós-hardening: manter ciclo local↔CI previsível e reduzir pendências abertas de ambiente/higiene de repositório."
   ],
   "blockers": [
-    "Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical)."
+    "Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical).",
+    "`tsc -p packages/barn/tsconfig.build.json` falha com `TS5103: Invalid value for '--ignoreDeprecations'` no ambiente atual."
   ],
   "next_actions": [
     "Atacar ISS-001 com validação dedicada do runtime toolchain em fluxo completo (além do preflight).",
-    "Planejar lote de segurança de integridade de plugin (ISS-005: SHA-256 + cache hit/miss).",
-    "Fechar higiene de repositório (ISS-006) em commit atômico dedicado."
+    "Fechar higiene de repositório (ISS-006) em commit atômico dedicado.",
+    "Investigar/normalizar baseline TypeScript para remover `TS5103` no build do Barn sem reintroduzir regressão TS6 guard."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "docs/WORKFLOW.md",
-    "docs/PR_QUALITY_GOVERNANCE.md",
+    "packages/barn/src/index.ts",
+    "packages/barn/tests/integration.test.ts",
     ".project/handoff.json",
     ".project/issues.json",
     ".project/verification.json"

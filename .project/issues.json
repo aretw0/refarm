@@ -52,11 +52,12 @@
       "title": "Mapear lacunas de integridade no installPlugin (hash/cache)",
       "body": "Pipeline de plugin precisa consolidar validação SHA-256 e cobertura para cache hit/miss para reduzir risco de integridade.",
       "location": "packages/barn:1",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "medium",
       "package": "barn",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-BARN-INTEGRITY-CACHE-20260423"
     },
     {
       "id": "ISS-006",

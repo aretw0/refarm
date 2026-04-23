@@ -720,6 +720,37 @@
           "evidence": "Seção `Gate operacional smoke + full` adicionada em `docs/PR_QUALITY_GOVERNANCE.md` com critérios de PR e integração de lote."
         }
       ]
+    },
+    {
+      "id": "VER-BARN-INTEGRITY-CACHE-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T02:01:36Z",
+      "evidence": "`packages/barn` saiu do hash mock para SHA-256 real (SubtleCrypto) com validação de integridade (`sha256-`) e proteção de cache por URL + digest. Cobertura de integração expandida para cache hit/miss e mismatch com artefato cacheado.",
+      "criteria_results": [
+        {
+          "criterion": "installPlugin falha em integridade inválida",
+          "status": "passed",
+          "evidence": "Teste `should fail installation if SHA-256 integrity check fails` verde em `packages/barn/tests/integration.test.ts`."
+        },
+        {
+          "criterion": "cache hit/miss coberto em teste",
+          "status": "passed",
+          "evidence": "Teste `should use cache hit and avoid re-fetch for same url + integrity` valida `cacheStatus` e `fetch` chamado 1x."
+        },
+        {
+          "criterion": "mismatch contra artefato cacheado bloqueia instalação",
+          "status": "passed",
+          "evidence": "Teste `should reject cached artifact when requested integrity differs` valida fail-closed sem novo fetch."
+        },
+        {
+          "criterion": "suite de integração do barn",
+          "status": "passed",
+          "evidence": "`npm run test -w @refarm.dev/barn` → 6 passed."
+        }
+      ]
     }
   ]
 }
