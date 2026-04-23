@@ -279,6 +279,10 @@ npm run runtime-module:ci
 
 This runs deterministic smoke generation + descriptor verification (`runtime-module:smoke`).
 
+Distribution policy at install-time:
+- default: `package-embedded` (descriptor URL must stay on same origin as component wasm)
+- optional: `external-signed` + `descriptorTrustedOrigins` allowlist (requires `descriptorIntegrity` and `provenance.sourceRepository`)
+
 ### Profile Performance
 
 ```bash

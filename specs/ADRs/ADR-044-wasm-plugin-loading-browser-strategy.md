@@ -139,6 +139,7 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
    - ✅ descriptor-integrity handshake added (`browserRuntimeDescriptor` + optional toolchain metadata) to reduce manual drift
    - ✅ CI smoke gate (`npm --prefix packages/tractor-ts run runtime-module:ci`) checks deterministic descriptor generation + verification
    - ✅ descriptor provenance baseline now required (`commitSha`, `buildId`, toolchain) and validated in descriptor verify/install path
+   - ✅ distribution policy applied: `package-embedded` is canonical default (same-origin descriptor URL); `external-signed` is opt-in with trusted-origin allowlist + provenance/source repository requirements
    - 🔲 remaining: finalize canonical transpile/runtime contract for Component Model artifacts (JCO-compatible browser runner)
 
 **Timeline**: Steps 1–2 are delivered in this ADR. Steps 3–4 are future work, tracked when OPFS integration is scheduled.
