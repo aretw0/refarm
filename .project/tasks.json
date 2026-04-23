@@ -374,7 +374,7 @@
     {
       "id": "T-RUNTIME-03",
       "description": "Mapear lifecycle de plugin no runtime (setup/ingest/teardown) e gaps.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/**",
@@ -388,7 +388,9 @@
       "depends_on": [
         "T-RUNTIME-01"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-03-20260423",
+      "notes": "Lifecycle mapeado em `packages/tractor/docs/ARCHITECTURE.md` com fluxo real de setup/ingest/teardown/on-event, gaps priorizados e tarefas de hardening derivadas (`T-RUNTIME-07`..`T-RUNTIME-10`)."
     },
     {
       "id": "T-RUNTIME-04",
@@ -932,6 +934,90 @@
       ],
       "assigned_agent": "worker-runtime",
       "verification": "VER-RUNTIME-06-20260423"
+    },
+    {
+      "id": "T-RUNTIME-07",
+      "description": "Implementar shutdown coordenado de plugins com teardown explícito e drenagem das runner threads.",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/lib.rs",
+        "packages/tractor/src/main.rs",
+        "packages/tractor/src/host/instance.rs",
+        "packages/tractor/tests/**"
+      ],
+      "acceptance_criteria": [
+        "shutdown chama teardown para plugins carregados antes de fechar storage",
+        "runner threads são drenadas/encerradas de forma determinística",
+        "teste de integração valida encerramento limpo com plugin carregado"
+      ],
+      "depends_on": [
+        "T-RUNTIME-03"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-08",
+      "description": "Adicionar gatilho operacional para ingest de plugins (manual/CLI) com cobertura de integração.",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/main.rs",
+        "packages/tractor/src/host/instance.rs",
+        "packages/tractor/tests/**",
+        "packages/tractor/docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "daemon expõe caminho claro para disparar ingest de plugins carregados",
+        "falhas de ingest retornam erro acionável sem derrubar daemon por padrão",
+        "teste cobre ciclo ingest com plugin fixture"
+      ],
+      "depends_on": [
+        "T-RUNTIME-03"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-09",
+      "description": "Expandir telemetria de lifecycle de plugin (setup/ingest/teardown) com eventos por fase e resultado.",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
+        "packages/tractor/src/host/instance.rs",
+        "packages/tractor/tests/**",
+        "packages/tractor/docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "eventos estruturados para início/fim/erro de setup ingest teardown",
+        "payload inclui plugin_id e fase do lifecycle",
+        "teste valida emissão mínima dos novos eventos"
+      ],
+      "depends_on": [
+        "T-RUNTIME-03"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-10",
+      "description": "Adicionar verificação de alinhamento manifesto↔runtime no load (plugin_id, hooks declarados e metadados mínimos).",
+      "status": "planned",
+      "phase": 4,
+      "files": [
+        "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
+        "packages/plugin-manifest/**",
+        "packages/tractor/tests/**"
+      ],
+      "acceptance_criteria": [
+        "runtime valida contrato mínimo de manifesto antes de ativar plugin",
+        "mismatch crítico retorna erro explícito de load",
+        "testes cobrem caso válido e mismatch"
+      ],
+      "depends_on": [
+        "T-RUNTIME-03",
+        "T-CONTRACT-04"
+      ],
+      "assigned_agent": "worker-runtime"
     }
   ]
 }

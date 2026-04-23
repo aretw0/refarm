@@ -1,26 +1,23 @@
 {
-  "context": "Malha de conformance v1 avançou: T-CONTRACT-05 concluída com cobertura sync-crdt e gate de capacidades ampliado; trilha principal de contratos sync está fechada para os adapters atuais.",
-  "timestamp": "2026-04-23T11:58:27.585Z",
-  "current_phase": 5,
+  "context": "Trilha runtime avançou: T-RUNTIME-03 concluída com mapeamento objetivo do lifecycle de plugin (setup/ingest/teardown), gaps priorizados e backlog de hardening explícito.",
+  "timestamp": "2026-04-23T12:22:17.023Z",
+  "current_phase": 4,
   "current_tasks": [
-    "T-CONTRACT-05 concluída com verificação `VER-CONTRACT-05-20260423` (suite sync-crdt + integração no `test:capabilities`).",
-    "Inventário `docs/CONFORMANCE_V1_INVENTORY.md` atualizado para refletir cobertura sync:v1 em `sync-loro` e `sync-crdt`."
+    "T-RUNTIME-03 concluída com verificação `VER-RUNTIME-03-20260423` e baseline de lifecycle validado em testes de integração/conformance.",
+    "Backlog de hardening runtime derivado no board: `T-RUNTIME-07`..`T-RUNTIME-10`."
   ],
   "blockers": [
     "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-RUNTIME-03` para mapear lifecycle de plugin (setup/ingest/teardown) e gerar hardening tasks.",
+    "Executar `T-RUNTIME-07` para garantir teardown explícito e shutdown coordenado de plugins.",
     "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/sync-crdt/test/sync-v1.conformance.test.ts",
-    "packages/sync-crdt/package.json",
-    "package.json",
-    "docs/CONFORMANCE_V1_INVENTORY.md",
+    "packages/tractor/docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

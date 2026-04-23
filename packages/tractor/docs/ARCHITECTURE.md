@@ -195,6 +195,35 @@ Default policy is isolated failure (`WARN` + continue startup). When
 `--require-plugin-load` is enabled, plugin load errors become startup-fatal
 (fail-fast) and the daemon exits with non-zero status.
 
+### Plugin lifecycle map (setup / ingest / teardown)
+
+`T-RUNTIME-03` mapeia o lifecycle real no runtime nativo (`tractor`) com base no código e testes atuais.
+
+| Stage | Fluxo atual | Evidência |
+|---|---|---|
+| `setup()` | O daemon chama `tractor.load_plugin(path)` no startup; `PluginHost::load()` instancia o componente WASM e executa `call_setup()` antes de retornar o handle. | `src/main.rs::run_daemon`, `src/lib.rs::TractorNative::load_plugin`, `src/host/plugin_host/env_and_runtime.rs::load` |
+| `ingest()` | A primitiva existe via `PluginInstanceHandle::call_ingest()`, porém não há invocação automática no fluxo do daemon (sem scheduler/trigger CLI dedicado). | `src/host/instance.rs::call_ingest`, testes `tests/conformance.rs::plugin_ingest_roundtrip` |
+| `teardown()` | A primitiva existe e é exercitada em teste, mas o shutdown do daemon não coordena teardown explícito de plugins carregados; hoje o fechamento é centrado em storage/ws. | `src/host/instance.rs::call_teardown`, `tests/host_integration.rs::call_teardown_does_not_panic`, `src/lib.rs::TractorNative::shutdown` |
+| `on-event()` | Após load, o handle é movido para thread dedicada via `register_for_events`; eventos WS `user:prompt` são roteados para `call_on_event()`. | `src/lib.rs::register_for_events`, `src/daemon/ws_server.rs` |
+
+### Gaps priorizados (runtime lifecycle)
+
+| Gap | Prioridade | Impacto operacional | Hardening task derivada |
+|---|---|---|---|
+| `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` |
+| `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` |
+| Telemetria de lifecycle é parcial (`plugin:loaded` existe; sem eventos estruturados para ingest/teardown/erros de fase). | Medium | Observabilidade limitada para diagnosticar falhas por estágio de lifecycle. | `T-RUNTIME-09` |
+| Runtime ainda não valida alinhamento manifesto↔instância (ex.: `plugin_id` efetivo, hooks declarados) no load. | Medium | Plugin inválido no ecossistema pode iniciar sem guard de contrato em runtime. | `T-RUNTIME-10` |
+
+### Evidência de baseline executada (T-RUNTIME-03)
+
+```bash
+cargo test --test conformance plugin_ -- --nocapture
+cargo test --test host_integration call_teardown_does_not_panic -- --nocapture
+```
+
+Resultado: ✅ `plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown` e `call_teardown_does_not_panic` verdes no baseline.
+
 ---
 
 ## Consumer Map — `@refarm.dev/tractor` (TS, `packages/tractor-ts`)

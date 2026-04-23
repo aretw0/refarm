@@ -1209,6 +1209,37 @@
           "evidence": "`package.json` raiz atualizado para incluir `npm --prefix packages/sync-crdt run test:conformance`; `npm run test:capabilities --silent` executado com sucesso."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-03-20260423",
+      "target": "T-RUNTIME-03",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T12:22:17.023Z",
+      "evidence": "Lifecycle de plugin no runtime nativo foi mapeado com evidência de baseline e gaps priorizados; tarefas de hardening derivadas foram criadas no board.",
+      "criteria_results": [
+        {
+          "criterion": "Fluxo lifecycle documentado",
+          "status": "passed",
+          "evidence": "`packages/tractor/docs/ARCHITECTURE.md` agora inclui seção `Plugin lifecycle map (setup / ingest / teardown)` cobrindo setup/ingest/teardown/on-event e referências de código."
+        },
+        {
+          "criterion": "Gaps mapeados com prioridade",
+          "status": "passed",
+          "evidence": "Tabela `Gaps priorizados (runtime lifecycle)` define prioridades High/Medium com impacto operacional e origem no código atual."
+        },
+        {
+          "criterion": "Tasks de hardening criadas",
+          "status": "passed",
+          "evidence": "Novas tasks `T-RUNTIME-07`, `T-RUNTIME-08`, `T-RUNTIME-09`, `T-RUNTIME-10` adicionadas em `.project/tasks.json` com critérios de aceite e dependências explícitas."
+        },
+        {
+          "criterion": "Baseline de lifecycle validado",
+          "status": "passed",
+          "evidence": "`cargo test --test conformance plugin_ -- --nocapture` (2 passed) e `cargo test --test host_integration call_teardown_does_not_panic -- --nocapture` (1 passed)."
+        }
+      ]
     }
   ]
 }
