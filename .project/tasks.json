@@ -1578,13 +1578,18 @@
     {
       "id": "T-RUNTIME-22",
       "description": "Definir e aplicar política de distribuição do descriptor sidecar (embutido no pacote vs artefato externo assinado).",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
-        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
         "packages/tractor-ts/README.md",
-        ".github/workflows/release-changesets.yml"
+        "packages/plugin-manifest/README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
+        ".github/workflows/release-changesets.yml",
+        ".project/decisions.json"
       ],
       "acceptance_criteria": [
         "Decisão registrada para origem oficial do descriptor sidecar em releases",
@@ -1593,6 +1598,29 @@
       ],
       "depends_on": [
         "T-RUNTIME-21"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-22-20260423",
+      "notes": "Política aplicada: `package-embedded` é padrão canônico (same-origin + suffix `.runtime-descriptor.json`); `external-signed` é opt-in com allowlist, descriptorIntegrity e provenance/sourceRepository obrigatórios."
+    },
+    {
+      "id": "T-RUNTIME-23",
+      "description": "Automatizar publicação de descriptors external-signed com assinatura/proveniência verificável no release pipeline.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        ".github/workflows/release-changesets.yml",
+        "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/scripts/verify-browser-runtime-module-descriptor.mjs",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Pipeline publica descriptor external-signed em endpoint versionado com integridade verificável",
+        "Install policy consegue validar origem external-signed sem allowlists manuais por pacote",
+        "Playbook de release cobre rollback/revogação de descriptor externo"
+      ],
+      "depends_on": [
+        "T-RUNTIME-22"
       ],
       "assigned_agent": "worker-runtime"
     }

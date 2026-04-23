@@ -103,6 +103,14 @@
       "status": "decided",
       "phase": 6,
       "context": "Spec de envelope L0→L3 e matriz por ambiente/formato publicada em T-PLUGIN-07."
+    },
+    {
+      "id": "DEC-014",
+      "decision": "Padronizar distribuição de descriptor sidecar em modo `package-embedded` como default canônico, mantendo `external-signed` apenas por opt-in com allowlist e provenance reforçada.",
+      "rationale": "Default same-origin reduz superfície de trust e simplifica reprodução. Fluxo external-signed continua possível para cadeias dedicadas, mas com controles explícitos de origem e integridade.",
+      "status": "decided",
+      "phase": 6,
+      "context": "Fechamento de T-RUNTIME-22 após baseline de descriptor/provenance em T-RUNTIME-21."
     }
   ]
 }

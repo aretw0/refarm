@@ -2170,6 +2170,32 @@
           "evidence": "README/ARCH/ADR e policy notes agora distinguem descriptor oficial e sidecar manual via metadata `browserRuntimeProvenance.source`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-22-20260423",
+      "target": "T-RUNTIME-22",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T23:11:49.987Z",
+      "evidence": "Política de distribuição aplicada no install path com testes de origem e documentação/ADR alinhadas.",
+      "criteria_results": [
+        {
+          "criterion": "Decisão registrada para origem oficial do descriptor sidecar em releases",
+          "status": "passed",
+          "evidence": "DEC-014 adicionada com escolha `package-embedded` como default e `external-signed` opt-in."
+        },
+        {
+          "criterion": "Fluxo de publish documenta onde o descriptor é resolvido/baixado",
+          "status": "passed",
+          "evidence": "README + docs/PLUGIN_AUTHORING_TRACKS + ADR-044 descrevem resolução e condições por política."
+        },
+        {
+          "criterion": "Install policy reflete nível de confiança por origem de descriptor",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` aplica policy `package-embedded|external-signed` com rules de origem, allowlist, descriptorIntegrity e provenance/sourceRepository."
+        }
+      ]
     }
   ]
 }

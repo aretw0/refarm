@@ -214,6 +214,17 @@
       "package": "tractor-ts",
       "source": "agent",
       "resolved_by": "VER-RUNTIME-21-20260423"
+    },
+    {
+      "id": "ISS-019",
+      "title": "Automatizar cadeia external-signed para descriptor sidecar sem allowlist manual",
+      "body": "Política atual suporta external-signed via allowlist explícita + provenance/sourceRepository, porém falta publicação automatizada de descriptor externo assinado para reduzir operação manual no release.",
+      "location": ".github/workflows/release-changesets.yml:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "medium",
+      "package": "tractor-ts",
+      "source": "agent"
     }
   ]
 }
