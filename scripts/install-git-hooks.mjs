@@ -51,6 +51,9 @@ ZERO_SHA="0000000000000000000000000000000000000000"
 NEEDS_LINT=0
 NEEDS_TYPECHECK=0
 NEEDS_UNIT_TESTS=0
+FORCE_GLOBAL_LINT=0
+FORCE_GLOBAL_UNIT_TESTS=0
+CHANGED_PACKAGES=""
 
 while read local_ref local_sha remote_ref remote_sha
 do
@@ -84,10 +87,16 @@ do
     NEEDS_TYPECHECK=1
     NEEDS_UNIT_TESTS=1
   fi
+
+  if echo "$CHANGED_FILES" | grep -Eq '(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+    FORCE_GLOBAL_LINT=1
+    FORCE_GLOBAL_UNIT_TESTS=1
+  fi
 done < "$REFS_FILE"
 
 rm -f "$REFS_FILE"
 sort -u "$CHANGED_FILES_ALL" -o "$CHANGED_FILES_ALL" 2>/dev/null || true
+CHANGED_PACKAGES=$(sed -n 's#^packages/\\([^/]*\\)/.*#\\1#p' "$CHANGED_FILES_ALL" | sort -u | tr '\n' ' ' | xargs)
 
 if [ $HAS_REFS -eq 1 ] && [ $DELETE_ONLY_PUSH -eq 1 ]; then
   echo "🧹 Delete-only push detected. Skipping local validation."
@@ -95,6 +104,9 @@ if [ $HAS_REFS -eq 1 ] && [ $DELETE_ONLY_PUSH -eq 1 ]; then
 fi
 
 echo "🧭 Change profile: lint=$NEEDS_LINT type-check=$NEEDS_TYPECHECK unit-tests=$NEEDS_UNIT_TESTS"
+if [ -n "$CHANGED_PACKAGES" ]; then
+  echo "📦 Changed packages: $CHANGED_PACKAGES"
+fi
 echo ""
 
 # Check if we are in a protected branch (main or develop)
@@ -119,21 +131,52 @@ echo "📝 Checking lint..."
 if [ $NEEDS_LINT -eq 0 ]; then
   echo "   ⏭️  Lint skipped (no workspace lint-relevant file changes in push range)"
 else
-  if timeout 120 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-    echo "   ✅ Lint passed"
+  LINT_FAILED=0
+
+  if [ -n "$CHANGED_PACKAGES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
+    echo "   🔎 Scoped lint for changed packages"
+    for pkg in $CHANGED_PACKAGES; do
+      PKG_DIR="packages/$pkg"
+      [ -f "$PKG_DIR/package.json" ] || continue
+
+      if timeout 45 env CI=1 npm --prefix "$PKG_DIR" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+        echo "   ✅ Lint passed ($PKG_DIR)"
+      else
+        LINT_STATUS=$?
+        if [ "$LINT_STATUS" -eq 124 ]; then
+          echo "   ⏱️  Lint timed out ($PKG_DIR)"
+          WARNINGS=1
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Lint failed ($PKG_DIR)"
+          tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+          LINT_FAILED=1
+        else
+          echo "   ⚠️  Lint failed ($PKG_DIR)"
+          WARNINGS=1
+        fi
+      fi
+    done
   else
-    LINT_STATUS=$?
-    if [ "$LINT_STATUS" -eq 124 ]; then
-      echo "   ⏱️  Lint timed out after 120s (non-blocking local warning; CI enforces full lint)"
-      WARNINGS=1
-    elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-      echo "   ❌ Lint failed (blocking in strict mode)"
-      tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
-      BLOCKING_FAILED=1
+    if timeout 90 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      echo "   ✅ Lint passed"
     else
-      echo "   ⚠️  Lint failed (warning in permissive mode)"
-      WARNINGS=1
+      LINT_STATUS=$?
+      if [ "$LINT_STATUS" -eq 124 ]; then
+        echo "   ⏱️  Lint timed out after 90s (non-blocking local warning; CI enforces full lint)"
+        WARNINGS=1
+      elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+        echo "   ❌ Lint failed (blocking in strict mode)"
+        tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+        LINT_FAILED=1
+      else
+        echo "   ⚠️  Lint failed (warning in permissive mode)"
+        WARNINGS=1
+      fi
     fi
+  fi
+
+  if [ $LINT_FAILED -eq 1 ]; then
+    BLOCKING_FAILED=1
   fi
 fi
 echo ""
@@ -179,15 +222,41 @@ echo "🧪 Running unit tests (advisory local check)..."
 if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
   echo "   ⏭️  Unit tests skipped (no TS/JS workspace changes in push range)"
 else
-  if timeout 180 env CI=1 npm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-    echo "   ✅ Unit tests passed"
+  UNIT_WARN=0
+
+  if [ -n "$CHANGED_PACKAGES" ] && [ $FORCE_GLOBAL_UNIT_TESTS -eq 0 ]; then
+    echo "   🔎 Scoped unit tests for changed packages"
+    for pkg in $CHANGED_PACKAGES; do
+      PKG_DIR="packages/$pkg"
+      [ -f "$PKG_DIR/package.json" ] || continue
+
+      if timeout 90 env CI=1 npm --prefix "$PKG_DIR" run test:unit --if-present --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+        echo "   ✅ Unit tests passed ($PKG_DIR)"
+      else
+        UNIT_STATUS=$?
+        if [ "$UNIT_STATUS" -eq 124 ]; then
+          echo "   ⚠️  Unit tests timed out ($PKG_DIR)"
+        else
+          echo "   ⚠️  Unit tests failed ($PKG_DIR)"
+        fi
+        UNIT_WARN=1
+      fi
+    done
   else
-    UNIT_STATUS=$?
-    if [ "$UNIT_STATUS" -eq 124 ]; then
-      echo "   ⚠️  Unit tests timed out (non-blocking local warning)"
+    if timeout 120 env CI=1 npm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      echo "   ✅ Unit tests passed"
     else
-      echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+      UNIT_STATUS=$?
+      if [ "$UNIT_STATUS" -eq 124 ]; then
+        echo "   ⚠️  Unit tests timed out (non-blocking local warning)"
+      else
+        echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+      fi
+      UNIT_WARN=1
     fi
+  fi
+
+  if [ $UNIT_WARN -eq 1 ]; then
     WARNINGS=1
   fi
 fi
