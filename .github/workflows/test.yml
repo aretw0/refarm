@@ -21,6 +21,7 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
+      ci_changes: ${{ steps.detect.outputs.ci_changes }}
       code_changes: ${{ steps.detect.outputs.code_changes }}
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
@@ -53,6 +54,7 @@ jobs:
 
           if [ -z "$BASE_SHA" ]; then
             echo "::warning::Could not resolve BASE_SHA. Falling back to full checks."
+            echo "ci_changes=true" >> "$GITHUB_OUTPUT"
             echo "code_changes=true" >> "$GITHUB_OUTPUT"
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
             echo "run_build=true" >> "$GITHUB_OUTPUT"
@@ -70,8 +72,13 @@ jobs:
             grep -Eq "$pattern" /tmp/refarm-changed-files.txt
           }
 
+          ci_changes=false
+          if has_match '^(\.github/workflows/|\.github/actions/)'; then
+            ci_changes=true
+          fi
+
           code_changes=false
-          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$|\.github/workflows/test\.yml$|\.github/actions/)'; then
+          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$)'; then
             code_changes=true
           fi
 
@@ -87,12 +94,13 @@ jobs:
             run_build=true
           fi
 
+          echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
           echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e"
 
   quality:
     runs-on: ubuntu-latest
@@ -107,6 +115,7 @@ jobs:
 
       - name: Setup
         id: setup
+        if: needs.changes.outputs.code_changes == 'true'
         uses: ./.github/actions/setup
 
       # Turbo Cache is now handled in ./.github/actions/setup
@@ -117,10 +126,16 @@ jobs:
       #     ...
 
       - name: Security audit
+        if: needs.changes.outputs.code_changes == 'true'
         run: npm audit --audit-level=high
 
       - name: TSConfig preflight
+        if: needs.changes.outputs.code_changes == 'true'
         run: npm run tsconfig:guard
+
+      - name: Quality checks skipped
+        if: needs.changes.outputs.code_changes != 'true'
+        run: echo "::notice::Skipping quality heavy checks (no code-impacting changes detected)."
 
       - name: Verify (Full Turbo)
         if: needs.changes.outputs.code_changes == 'true'
@@ -421,7 +436,7 @@ jobs:
     steps:
       - name: Check all checks
         run: |
-          echo "changes: code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }}"
+          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }}"
 
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
