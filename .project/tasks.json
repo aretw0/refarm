@@ -1544,12 +1544,23 @@
     {
       "id": "T-RUNTIME-21",
       "description": "Padronizar provenance do descriptor sidecar (build/commit/toolchain) e validar em publish.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/scripts/verify-browser-runtime-module-descriptor.mjs",
+        "packages/tractor-ts/scripts/smoke-browser-runtime-module-descriptor.mjs",
         "packages/tractor-ts/src/lib/install-plugin.ts",
-        ".github/workflows/test.yml",
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "packages/tractor-ts/README.md",
+        "packages/plugin-manifest/src/index.d.ts",
+        "packages/plugin-manifest/src/install-contract.js",
+        "packages/plugin-manifest/README.md",
+        ".github/workflows/release-changesets.yml",
+        "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
@@ -1559,6 +1570,29 @@
       ],
       "depends_on": [
         "T-RUNTIME-20"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-21-20260423",
+      "notes": "Descriptor now requires toolchain + provenance (commitSha/buildId); verify/install/runtime enforce metadata and release-changesets runs runtime-module gate before publish."
+    },
+    {
+      "id": "T-RUNTIME-22",
+      "description": "Definir e aplicar política de distribuição do descriptor sidecar (embutido no pacote vs artefato externo assinado).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "packages/tractor-ts/README.md",
+        ".github/workflows/release-changesets.yml"
+      ],
+      "acceptance_criteria": [
+        "Decisão registrada para origem oficial do descriptor sidecar em releases",
+        "Fluxo de publish documenta onde o descriptor é resolvido/baixado",
+        "Install policy reflete nível de confiança por origem de descriptor"
+      ],
+      "depends_on": [
+        "T-RUNTIME-21"
       ],
       "assigned_agent": "worker-runtime"
     }

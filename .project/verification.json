@@ -2144,6 +2144,32 @@
           "evidence": "Handoff atualizado com próximos passos T-RUNTIME-21 (provenance) e decisão de distribuição de descriptor."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-21-20260423",
+      "target": "T-RUNTIME-21",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:58:48.056Z",
+      "evidence": "Provenance obrigatória integrada ao descriptor, verificação e runtime cache path; release workflow reforça gate antes de publish.",
+      "criteria_results": [
+        {
+          "criterion": "Descriptor inclui provenance mínima obrigatória (commit/build/toolchain)",
+          "status": "passed",
+          "evidence": "Generator/verify/install exigem `provenance.commitSha` (40-char), `provenance.buildId` e `toolchain.name/version`."
+        },
+        {
+          "criterion": "CI valida presença e consistência de provenance antes de publish",
+          "status": "passed",
+          "evidence": "`release-changesets.yml` executa `npm --prefix packages/tractor-ts run runtime-module:ci` antes do passo de publish."
+        },
+        {
+          "criterion": "Contrato documenta política de confiança por origem de descriptor",
+          "status": "passed",
+          "evidence": "README/ARCH/ADR e policy notes agora distinguem descriptor oficial e sidecar manual via metadata `browserRuntimeProvenance.source`."
+        }
+      ]
     }
   ]
 }

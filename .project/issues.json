@@ -206,13 +206,14 @@
     {
       "id": "ISS-018",
       "title": "Padronizar provenance de descriptor sidecar em artifacts publicados",
-      "body": "Com gate CI e descriptorIntegrity prontos, próximo gap é padronizar provenance (commit/build/toolchain) e exigir no publish.",
+      "body": "Provenance baseline foi padronizada: descriptor exige commit/build/toolchain; verify/install/runtime validam metadados e release workflow executa gate de descriptor antes de publish.",
       "location": "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs:1",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "medium",
       "package": "tractor-ts",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-RUNTIME-21-20260423"
     }
   ]
 }
