@@ -1,26 +1,28 @@
 {
-  "context": "Runtime lifecycle hardening avançou com T-RUNTIME-09 concluída: telemetria estruturada por fase agora cobre setup/ingest/teardown com eventos acionáveis por plugin.",
-  "timestamp": "2026-04-23T13:55:21.445Z",
-  "current_phase": 4,
+  "context": "Malha de conformance v1 para storage foi fechada: `T-CONTRACT-02` concluída com cobertura explícita em `storage-memory` e `storage-rest`, incluindo cenário de falha acionável no harness.",
+  "timestamp": "2026-04-23T14:58:03.355Z",
+  "current_phase": 5,
   "current_tasks": [
-    "T-RUNTIME-09 concluída com verificação `VER-RUNTIME-09-20260423` (eventos `plugin:lifecycle:start|end|error`).",
-    "Backlog imediato focado em fechamento de lacuna de conformance storage (`T-CONTRACT-02`) e alinhamento manifesto↔runtime (`T-RUNTIME-10`)."
+    "T-CONTRACT-02 concluída com verificação `VER-CONTRACT-02-20260423` e gate `test:capabilities` ampliado para `storage-memory`/`storage-rest`.",
+    "Backlog técnico imediato volta para runtime hardening em `T-RUNTIME-10` (manifesto↔runtime no load)."
   ],
   "blockers": [
-    "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`.",
-    "Executar `T-RUNTIME-10` para validar alinhamento manifesto↔runtime durante plugin load."
+    "Executar `T-RUNTIME-10` para validar alinhamento manifesto↔runtime durante plugin load.",
+    "Revalidar regressão rápida pós-runtime com `cargo test --test conformance plugin_ -- --nocapture`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor/src/host/instance.rs",
-    "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
-    "packages/tractor/tests/host_integration.rs",
-    "packages/tractor/docs/ARCHITECTURE.md",
+    "packages/storage-contract-v1/src/conformance.test.ts",
+    "packages/storage-memory/src/storage-v1.conformance.test.ts",
+    "packages/storage-memory/package.json",
+    "packages/storage-rest/src/storage-v1.conformance.test.ts",
+    "packages/storage-rest/package.json",
+    "package.json",
+    "docs/CONFORMANCE_V1_INVENTORY.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

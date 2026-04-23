@@ -1354,6 +1354,32 @@
           "evidence": "`cargo test --test host_integration lifecycle_emits_structured_events_for_setup_ingest_teardown -- --nocapture` (pass) valida start/end para setup, ingest e teardown."
         }
       ]
+    },
+    {
+      "id": "VER-CONTRACT-02-20260423",
+      "target": "T-CONTRACT-02",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T14:58:03.355Z",
+      "evidence": "Suites de conformance `storage:v1` adicionadas para `storage-memory` e `storage-rest`, cenário de falha adicionado no harness e gate `test:capabilities` atualizado para executar toda a malha.",
+      "criteria_results": [
+        {
+          "criterion": "Conformance storage executa",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/storage-memory run test:conformance` e `npm --prefix packages/storage-rest run test:conformance` passaram; `npm run test:capabilities --silent` verde com ambos no pipeline."
+        },
+        {
+          "criterion": "Falhas apontam comportamento esperado",
+          "status": "passed",
+          "evidence": "`packages/storage-contract-v1/src/conformance.test.ts` agora valida provider incompatível e confirma mensagens acionáveis (`provider.capability...`, `put() threw...`)."
+        },
+        {
+          "criterion": "Cobertura de cenários básicos + erro",
+          "status": "passed",
+          "evidence": "`storage-memory` cobre caminho feliz; `storage-rest` cobre caminho feliz (SQL habilitado) e cenário de erro de contrato (SQL desabilitado) com resultado `pass=false`."
+        }
+      ]
     }
   ]
 }

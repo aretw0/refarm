@@ -441,11 +441,16 @@
     {
       "id": "T-CONTRACT-02",
       "description": "Adicionar/ajustar testes de conformance para storage-contract-v1.",
-      "status": "planned",
+      "status": "completed",
       "phase": 5,
       "files": [
-        "packages/storage-contract-v1/**",
-        "packages/storage-sqlite/**"
+        "packages/storage-contract-v1/src/conformance.test.ts",
+        "packages/storage-memory/src/storage-v1.conformance.test.ts",
+        "packages/storage-memory/package.json",
+        "packages/storage-rest/src/storage-v1.conformance.test.ts",
+        "packages/storage-rest/package.json",
+        "package.json",
+        "docs/CONFORMANCE_V1_INVENTORY.md"
       ],
       "acceptance_criteria": [
         "Conformance storage executa",
@@ -455,7 +460,9 @@
       "depends_on": [
         "T-CONTRACT-01"
       ],
-      "assigned_agent": "worker-storage"
+      "assigned_agent": "worker-storage",
+      "verification": "VER-CONTRACT-02-20260423",
+      "notes": "Conformance storage:v1 expandida para `storage-memory` e `storage-rest` com suites dedicadas, cenário de erro no harness (`storage-contract-v1`) e integração no gate raiz `test:capabilities`."
     },
     {
       "id": "T-CONTRACT-03",

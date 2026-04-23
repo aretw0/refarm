@@ -1,40 +1,41 @@
 {
-  "name": "@refarm.dev/storage-rest",
-  "version": "0.1.0",
-  "description": "REST StorageAdapter for Refarm — implements StorageAdapter by proxying to any HTTP API. Use with @refarm.dev/tractor to build centralized or hybrid applications without CRDT or OPFS. See ADR-046.",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/storage-rest"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "type-check": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@refarm.dev/storage-contract-v1": "*"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "*"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+	"name": "@refarm.dev/storage-rest",
+	"version": "0.1.0",
+	"description": "REST StorageAdapter for Refarm — implements StorageAdapter by proxying to any HTTP API. Use with @refarm.dev/tractor to build centralized or hybrid applications without CRDT or OPFS. See ADR-046.",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/refarm-dev/refarm.git",
+		"directory": "packages/storage-rest"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --project tsconfig.json --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"test:conformance": "vitest run src/storage-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"@refarm.dev/storage-contract-v1": "*"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "*"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	]
 }

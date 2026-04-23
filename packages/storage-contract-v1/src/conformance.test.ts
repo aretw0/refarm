@@ -46,4 +46,23 @@ describe("storage:v1 conformance", () => {
     expect(result.pass).toBe(true);
     expect(result.failed).toBe(0);
   });
+
+  it("reports actionable failures for an incompatible provider", async () => {
+    const provider: StorageProvider = {
+      pluginId: "broken-storage",
+      capability: "storage:v0" as typeof STORAGE_CAPABILITY,
+      get: async () => null,
+      put: async () => {
+        throw new Error("backend unavailable");
+      },
+      delete: async () => {},
+      query: async () => [],
+    };
+
+    const result = await runStorageV1Conformance(provider);
+
+    expect(result.pass).toBe(false);
+    expect(result.failures).toContain("provider.capability must be 'storage:v1'");
+    expect(result.failures.some((failure) => failure.includes("put() threw"))).toBe(true);
+  });
 });
