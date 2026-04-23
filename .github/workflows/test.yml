@@ -91,7 +91,9 @@ jobs:
             tractor_gates=true
           fi
 
-          run_build="$code_changes"
+          # Standalone build job is only needed when E2E needs build artifacts.
+          # General build correctness is already covered inside quality (Verify Full Turbo).
+          run_build=false
           run_e2e=false
           if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
             run_e2e=true
