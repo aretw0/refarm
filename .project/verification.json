@@ -1842,6 +1842,58 @@
           "evidence": "`.project/handoff.json` não referencia mais `VER-DEC-013-*`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-15-20260423",
+      "target": "T-RUNTIME-15",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T20:55:57.104Z",
+      "evidence": "trusted-fast agora é aplicado somente para entradas `.wasm` no PluginHost node.",
+      "criteria_results": [
+        {
+          "criterion": "trusted-fast falha explicitamente para entry não-wasm",
+          "status": "passed",
+          "evidence": "`plugin-host.ts` lança erro quando `trust.profile=trusted-fast` e `entryFormat !== wasm`."
+        },
+        {
+          "criterion": "testes cobrem rejeição para plugin JS com trusted-fast",
+          "status": "passed",
+          "evidence": "`plugin-trust.test.ts` adiciona caso de rejeição para `.mjs` com trusted-fast."
+        },
+        {
+          "criterion": "documentação registra o limite de segurança atual",
+          "status": "passed",
+          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` inclui nota de restrição trusted-fast => wasm."
+        }
+      ]
+    },
+    {
+      "id": "VER-PLUGIN-09-20260423",
+      "target": "T-PLUGIN-09",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T20:55:57.104Z",
+      "evidence": "Validação de manifesto cobre entradas com query/hash sem ambiguidade de extensão.",
+      "criteria_results": [
+        {
+          "criterion": "entry .mjs com query/hash continua válido",
+          "status": "passed",
+          "evidence": "Novo teste em `validate.test.js` valida `.mjs?build=42#module`."
+        },
+        {
+          "criterion": "entry .wasm com query/hash continua exigindo integrity",
+          "status": "passed",
+          "evidence": "Mesmo teste valida falha para `.wasm?build=42` sem integrity."
+        },
+        {
+          "criterion": "suite plugin-manifest permanece verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest test` => 22/22."
+        }
+      ]
     }
   ]
 }

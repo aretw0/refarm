@@ -206,4 +206,21 @@ describe("contract baseline validation", () => {
 		expect(validatePluginManifest(mjsManifest).valid).toBe(true);
 		expect(validatePluginManifest(cjsManifest).valid).toBe(true);
 	});
+
+	it("supports entry format detection with query/hash suffixes", () => {
+		const mjsWithQuery = createMockManifest({
+			entry: "https://cdn.example/plugin.mjs?build=42#module",
+			integrity: undefined,
+		});
+		const wasmWithQueryNoIntegrity = createMockManifest({
+			entry: "https://cdn.example/plugin.wasm?build=42",
+			integrity: undefined,
+		});
+
+		expect(validatePluginManifest(mjsWithQuery).valid).toBe(true);
+
+		const wasmResult = validatePluginManifest(wasmWithQueryNoIntegrity);
+		expect(wasmResult.valid).toBe(false);
+		expect(wasmResult.errors).toContain("integrity is required for .wasm entries");
+	});
 });

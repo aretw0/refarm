@@ -1286,6 +1286,48 @@
       "assigned_agent": "worker-governance",
       "verification": "VER-OPS-09-20260423",
       "notes": "Entradas `target_type: decision` removidas do bloco verification para compatibilidade com `npm run project:validate` da pipeline."
+    },
+    {
+      "id": "T-RUNTIME-15",
+      "description": "Restringir perfil trusted-fast a plugins com entry `.wasm` no runtime principal.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "packages/tractor-ts/test/plugin-trust.test.ts",
+        "docs/PLUGIN_AUTHORING_TRACKS.md"
+      ],
+      "acceptance_criteria": [
+        "trusted-fast falha explicitamente para entry não-wasm",
+        "testes cobrem rejeição para plugin JS com trusted-fast",
+        "documentação registra o limite de segurança atual"
+      ],
+      "depends_on": [
+        "T-RUNTIME-14"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-15-20260423",
+      "notes": "Guardrail adicionado: trusted-fast agora exige entry `.wasm`, reforçando alinhamento entre perfil de confiança e trilha de hardening."
+    },
+    {
+      "id": "T-PLUGIN-09",
+      "description": "Cobrir detecção de formato de entry com query/hash no conformance de plugin-manifest.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/plugin-manifest/src/validate.test.js"
+      ],
+      "acceptance_criteria": [
+        "entry .mjs com query/hash continua válido",
+        "entry .wasm com query/hash continua exigindo integrity",
+        "suite plugin-manifest permanece verde"
+      ],
+      "depends_on": [
+        "T-PLUGIN-08"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-09-20260423",
+      "notes": "Conformance agora garante parsing robusto de extensão com sufixos URL sem regredir regras de integridade para `.wasm`."
     }
   ]
 }

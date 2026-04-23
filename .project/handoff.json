@@ -1,18 +1,17 @@
 {
-  "context": "Execução avançou em enforcement de formatos de plugin: política de compatibilidade de entry foi centralizada e aplicada no runtime node/browser. Governança CI também foi corrigida para target_type suportado no bloco verification.",
-  "timestamp": "2026-04-23T20:46:44.225Z",
+  "context": "Lote atual refinou enforcement de segurança no runtime e robustez de conformance no manifesto. trusted-fast foi alinhado a `.wasm` e parsing de entry com query/hash ganhou cobertura explícita.",
+  "timestamp": "2026-04-23T20:55:57.104Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-08 concluída (`VER-PLUGIN-08-20260423`): contrato compartilhado de compatibilidade de entry por runtime.",
-    "T-RUNTIME-14 concluída (`VER-RUNTIME-14-20260423`): PluginHost node/browser alinhados ao contrato central.",
-    "T-OPS-08 concluída (`VER-OPS-09-20260423`): saneamento de verification para compatibilidade com validador do CI."
+    "T-RUNTIME-15 concluída (`VER-RUNTIME-15-20260423`): trusted-fast restrito a entry `.wasm`.",
+    "T-PLUGIN-09 concluída (`VER-PLUGIN-09-20260423`): conformance cobre formatos com query/hash."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Continuar ADR-044 para habilitar `.wasm` no browser com cache-backed runtime.",
-    "Definir e aplicar primeiro corte de enforcement por ambiente baseado na matriz do envelope (browser público/node local/edge)."
+    "Monitorar o run CI do commit atual para confirmar que o saneamento de `.project/verification` eliminou falhas de cross-block.",
+    "Seguir ADR-044 no browser para `.wasm` cache-backed runtime path."
   ],
   "open_questions": [
     "Qual política de enforcement por ambiente será adotada primeiro (browser público, node local, edge)?"

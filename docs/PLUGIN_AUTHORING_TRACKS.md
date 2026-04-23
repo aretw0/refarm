@@ -77,6 +77,7 @@ Plugin com:
 
 Notas:
 - `.wasm` exige `integrity: sha256-*` no manifesto.
+- `trusted-fast` (quando usado) é restrito a entradas `.wasm` no runtime atual.
 - JS path é onboarding pragmático; WASM path é hardening prioritário.
 
 ---
