@@ -8,6 +8,7 @@
 		"lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
 		"test:unit": "npm run test",
 		"test:smoke:ws": "RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
+		"test:smoke:health": "RUSTUP_TOOLCHAIN=stable cargo test --bin tractor runtime_boot_probe_succeeds_in_memory_namespace -- --nocapture && RUSTUP_TOOLCHAIN=stable cargo test --bin tractor ws_probe_succeeds_when_daemon_is_listening -- --nocapture",
 		"test:integration": "npm run test:smoke:ws",
 		"bench:save": "echo 'Benchmark save not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
 		"bench:check": "echo 'Benchmark check not yet implemented for Rust core' && mkdir -p benchmarks && echo '{\"improved\": false, \"diff\": 0, \"threshold\": 0}' > benchmarks/gha-payload.json",
