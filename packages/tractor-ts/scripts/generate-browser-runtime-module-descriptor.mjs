@@ -29,6 +29,9 @@ function usage() {
 			"    --component-url <url> \\",
 			"    --module-file <path> \\",
 			"    --module-url <url> \\",
+			"    --provenance-commit <git-sha> \\",
+			"    --provenance-build <build-id> \\",
+			"    [--provenance-repo <owner/repo-or-url>] \\",
 			"    [--toolchain-name tractor-sidecar] [--toolchain-version 0.1.0] \\",
 			"    [--generated-at 2026-04-23T00:00:00.000Z] [--out <file>]",
 		].join("\n"),
@@ -59,8 +62,23 @@ async function main() {
 	const componentWasmUrl = args["component-url"];
 	const moduleFile = args["module-file"];
 	const moduleUrl = args["module-url"];
+	const provenanceCommit = args["provenance-commit"] || process.env.GITHUB_SHA;
+	const provenanceBuild =
+		args["provenance-build"] || process.env.GITHUB_RUN_ID || process.env.CI_JOB_ID;
+	const provenanceRepo =
+		args["provenance-repo"] ||
+		(process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY
+			? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}`
+			: undefined);
 
-	if (!pluginId || !componentWasmUrl || !moduleFile || !moduleUrl) {
+	if (
+		!pluginId ||
+		!componentWasmUrl ||
+		!moduleFile ||
+		!moduleUrl ||
+		!provenanceCommit ||
+		!provenanceBuild
+	) {
 		usage();
 		process.exit(1);
 	}
@@ -81,6 +99,11 @@ async function main() {
 			name: args["toolchain-name"] || "tractor-sidecar",
 			version: args["toolchain-version"] || "0.1.0",
 			generatedAt: args["generated-at"] || new Date().toISOString(),
+		},
+		provenance: {
+			commitSha: provenanceCommit,
+			buildId: provenanceBuild,
+			sourceRepository: provenanceRepo,
 		},
 	};
 

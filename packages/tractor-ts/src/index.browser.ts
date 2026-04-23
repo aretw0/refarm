@@ -83,6 +83,10 @@ export class PluginHost {
 		return btoa(binary);
 	}
 
+	private isFullCommitSha(value: string | undefined): boolean {
+		return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
+	}
+
 	private async loadJavaScriptModule(entryUrl: string): Promise<any> {
 		try {
 			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
@@ -250,6 +254,39 @@ export class PluginHost {
 			if (metadata.browserRuntimeDescriptor.schemaVersion !== 1) {
 				throw new Error(
 					`[tractor] Browser runtime descriptor schema is not supported for ${pluginId}. Reinstall the plugin.`,
+				);
+			}
+
+			if (!metadata.browserRuntimeProvenance) {
+				throw new Error(
+					`[tractor] Browser WASM component ${pluginId} requires browserRuntimeProvenance metadata. Reinstall the plugin with descriptor provenance.`,
+				);
+			}
+
+			if (
+				metadata.browserRuntimeDescriptor.source !==
+				metadata.browserRuntimeProvenance.source
+			) {
+				throw new Error(
+					`[tractor] Browser runtime descriptor/provenance source mismatch for ${pluginId}. Reinstall the plugin.`,
+				);
+			}
+
+			if (
+				!metadata.browserRuntimeProvenance.buildId ||
+				!metadata.browserRuntimeProvenance.commitSha
+			) {
+				throw new Error(
+					`[tractor] Browser runtime provenance for ${pluginId} requires buildId + commitSha. Reinstall the plugin.`,
+				);
+			}
+
+			if (
+				metadata.browserRuntimeProvenance.source === "descriptor" &&
+				!this.isFullCommitSha(metadata.browserRuntimeProvenance.commitSha)
+			) {
+				throw new Error(
+					`[tractor] Browser runtime descriptor provenance for ${pluginId} requires full commit SHA. Reinstall the plugin.`,
 				);
 			}
 

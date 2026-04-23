@@ -262,10 +262,14 @@ npm run runtime-module:descriptor -- \
   --component-url https://cdn.example/component.wasm \
   --module-file ./dist/component.browser.mjs \
   --module-url https://cdn.example/component.browser.mjs \
+  --provenance-commit $(git rev-parse HEAD) \
+  --provenance-build local-build-001 \
+  --provenance-repo https://github.com/refarm-dev/refarm \
   --out ./dist/component.runtime-descriptor.json
 ```
 
-This emits a deterministic descriptor with `descriptorIntegrity` so install-time flows can verify sidecar provenance.
+This emits a deterministic descriptor with `descriptorIntegrity` and mandatory provenance (`commitSha`, `buildId`, toolchain) so install-time flows can verify sidecar origin.
+In CI, `--provenance-commit`/`--provenance-build` can be omitted when `GITHUB_SHA`/`GITHUB_RUN_ID` are available.
 
 For CI/local gate validation:
 

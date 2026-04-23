@@ -36,6 +36,10 @@ function sha256Base64(input) {
 	return `sha256-${createHash("sha256").update(input).digest("base64")}`;
 }
 
+function isLikelyCommitSha(value) {
+	return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
+}
+
 async function main() {
 	const args = parseArgs(process.argv.slice(2));
 	const descriptorFile = args["descriptor-file"];
@@ -73,6 +77,16 @@ async function main() {
 
 	if (!descriptor?.toolchain?.name || !descriptor?.toolchain?.version) {
 		throw new Error("descriptor.toolchain.name/version are required");
+	}
+
+	if (!descriptor?.provenance?.buildId) {
+		throw new Error("descriptor.provenance.buildId is required");
+	}
+
+	if (!isLikelyCommitSha(descriptor?.provenance?.commitSha)) {
+		throw new Error(
+			"descriptor.provenance.commitSha must be a full 40-char git SHA",
+		);
 	}
 
 	const moduleIntegrity = sha256Base64(moduleSource);

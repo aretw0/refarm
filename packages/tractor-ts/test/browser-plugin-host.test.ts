@@ -222,6 +222,56 @@ describe("browser PluginHost runtime paths", () => {
 		);
 	});
 
+	it("rejects component artifacts without browser runtime provenance metadata", async () => {
+		const host = new PluginHost(vi.fn(), {});
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource = "export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-descriptor",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"requires browserRuntimeProvenance metadata",
+		);
+	});
+
 	it("loads cached component artifacts via browser runtime module cache", async () => {
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
@@ -254,6 +304,12 @@ describe("browser PluginHost runtime paths", () => {
 				descriptorHash: "sha256-descriptor",
 				componentWasmUrl: "https://example.test/component.wasm",
 				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-123",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",

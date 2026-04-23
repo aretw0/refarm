@@ -9,6 +9,7 @@
 import {
 	type BrowserRuntimeModuleDescriptorMetadata,
 	type BrowserRuntimeModuleMetadata,
+	type BrowserRuntimeProvenanceMetadata,
 	type BrowserRuntimeToolchainMetadata,
 	installWasmArtifact,
 	type PluginBinaryCacheAdapter,
@@ -52,7 +53,12 @@ export interface BrowserRuntimeModuleDescriptor {
 	pluginId: string;
 	componentWasmUrl: string;
 	module: BrowserRuntimeModuleInstallInput & { format?: "esm" };
-	toolchain?: BrowserRuntimeToolchainMetadata;
+	toolchain: BrowserRuntimeToolchainMetadata;
+	provenance: {
+		commitSha: string;
+		buildId: string;
+		sourceRepository?: string;
+	};
 	descriptorIntegrity?: string;
 }
 
@@ -73,6 +79,7 @@ interface ResolvedBrowserRuntimeModule {
 	metadata: BrowserRuntimeModuleMetadata;
 	descriptorMetadata: BrowserRuntimeModuleDescriptorMetadata;
 	toolchainMetadata?: BrowserRuntimeToolchainMetadata;
+	provenanceMetadata?: BrowserRuntimeProvenanceMetadata;
 }
 
 function normalizeToolchainMetadata(
@@ -84,6 +91,30 @@ function normalizeToolchainMetadata(
 		version: toolchain.version,
 		generatedAt: toolchain.generatedAt,
 	};
+}
+
+function normalizeProvenanceMetadata(
+	provenance:
+		| {
+				commitSha?: string;
+				buildId?: string;
+				sourceRepository?: string;
+		  }
+		| undefined,
+	source: "descriptor" | "direct",
+): BrowserRuntimeProvenanceMetadata | undefined {
+	if (!provenance?.commitSha || !provenance?.buildId) return undefined;
+
+	return {
+		source,
+		commitSha: provenance.commitSha,
+		buildId: provenance.buildId,
+		sourceRepository: provenance.sourceRepository,
+	};
+}
+
+function isFullCommitSha(value: string | undefined): boolean {
+	return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
 }
 
 function isDescriptorReference(
@@ -154,6 +185,18 @@ function assertDescriptorShape(
 			`[install-plugin] Browser runtime descriptor module format must be 'esm' for ${manifest.id}.`,
 		);
 	}
+
+	if (!descriptor.toolchain?.name || !descriptor.toolchain?.version) {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor for ${manifest.id} requires toolchain name/version provenance.`,
+		);
+	}
+
+	if (!descriptor.provenance?.buildId || !isFullCommitSha(descriptor.provenance?.commitSha)) {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor for ${manifest.id} requires provenance buildId + full commitSha.`,
+		);
+	}
 }
 
 async function resolveDescriptorInput(
@@ -207,6 +250,7 @@ async function fetchBrowserRuntimeModule(
 	browserRuntimeModule: BrowserRuntimeModuleInstallInput,
 	descriptorMetadata: BrowserRuntimeModuleDescriptorMetadata,
 	toolchainMetadata?: BrowserRuntimeToolchainMetadata,
+	provenanceMetadata?: BrowserRuntimeProvenanceMetadata,
 ): Promise<ResolvedBrowserRuntimeModule> {
 	const response = await fetch(browserRuntimeModule.url);
 	if (!response.ok) {
@@ -228,6 +272,7 @@ async function fetchBrowserRuntimeModule(
 		},
 		descriptorMetadata,
 		toolchainMetadata,
+		provenanceMetadata,
 	};
 }
 
@@ -276,6 +321,7 @@ export async function installPlugin(
 				source: "descriptor",
 			},
 			normalizeToolchainMetadata(descriptor.toolchain),
+			normalizeProvenanceMetadata(descriptor.provenance, "descriptor"),
 		);
 	} else if (options.browserRuntimeModule) {
 		runtimeModule = await fetchBrowserRuntimeModule(
@@ -303,6 +349,11 @@ export async function installPlugin(
 				name: "manual-sidecar",
 				version: "0.1",
 			},
+			{
+				source: "direct",
+				commitSha: "manual-direct",
+				buildId: "manual-direct",
+			},
 		);
 	}
 
@@ -317,7 +368,8 @@ export async function installPlugin(
 						browserRuntimeModule: runtimeModule.metadata,
 						browserRuntimeDescriptor: runtimeModule.descriptorMetadata,
 						browserRuntimeToolchain: runtimeModule.toolchainMetadata,
-					}
+						browserRuntimeProvenance: runtimeModule.provenanceMetadata,
+				  }
 				: undefined,
 		},
 		{

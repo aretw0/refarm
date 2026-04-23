@@ -48,6 +48,9 @@ async function main() {
 	);
 
 	const generatedAt = "2026-04-23T00:00:00.000Z";
+	const provenanceCommit = "1111111111111111111111111111111111111111";
+	const provenanceBuild = "runtime-descriptor-smoke-build";
+	const provenanceRepo = "https://github.com/refarm-dev/refarm";
 
 	try {
 		await writeFile(
@@ -65,6 +68,12 @@ async function main() {
 			moduleFile,
 			"--module-url",
 			"https://example.test/component.browser.mjs",
+			"--provenance-commit",
+			provenanceCommit,
+			"--provenance-build",
+			provenanceBuild,
+			"--provenance-repo",
+			provenanceRepo,
 			"--toolchain-name",
 			"tractor-sidecar",
 			"--toolchain-version",
