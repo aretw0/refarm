@@ -194,11 +194,22 @@
     {
       "id": "ISS-017",
       "title": "Fechar contrato browser para WASM Component (toolchain/transpile canônico)",
-      "body": "A trilha browser agora executa `artifactKind=component` via sidecar `browserRuntimeModule` com verificação de integridade. Resta consolidar toolchain oficial para gerar/pinar esse sidecar no fluxo de build/release.",
-      "location": "packages/tractor-ts/src/lib/install-plugin.ts:1",
+      "body": "Descriptor sidecar com integridade já está implementado no install/runtime browser. Gap remanescente: integrar geração e validação do descriptor no pipeline de CI/release para eliminar sidecar manual fora de processo.",
+      "location": ".github/workflows/test.yml:1",
       "status": "open",
       "category": "capability",
       "priority": "high",
+      "package": "tractor-ts",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-018",
+      "title": "Padronizar provenance de descriptor sidecar em artifacts publicados",
+      "body": "Agora que `descriptorIntegrity` existe, falta padrão de provenance (build id/commit/toolchain version) anexado e validado no publish para auditoria cross-environment.",
+      "location": "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "medium",
       "package": "tractor-ts",
       "source": "agent"
     }

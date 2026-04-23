@@ -1,33 +1,35 @@
 {
-  "context": "Novo lote expandiu a trilha browser WASM component: install-contract suporta metadataExtensions, install-plugin passa a instalar sidecar ESM íntegro e runtime browser executa artifactKind=component com validação de metadata/hash.",
-  "timestamp": "2026-04-23T22:10:01.401Z",
+  "context": "Lote atual consolidou T-RUNTIME-19 com tooling canônico de descriptor sidecar: geração determinística, `descriptorIntegrity` verificada no install e runtime browser exigindo metadata oficial para artifacts component.",
+  "timestamp": "2026-04-23T22:31:17.097Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-11 concluída (`VER-PLUGIN-11-20260423`): metadataExtensions no install-contract para handshake install/load.",
-    "T-RUNTIME-18 concluída (`VER-RUNTIME-18-20260423`): runner browser component via `browserRuntimeModule` cacheado e íntegro.",
-    "T-RUNTIME-19 planejada: formalizar toolchain oficial para geração/pinagem do sidecar component."
+    "T-PLUGIN-12 concluída (`VER-PLUGIN-12-20260423`): metadata canônica sidecar tipada no plugin-manifest.",
+    "T-RUNTIME-19 concluída (`VER-RUNTIME-19-20260423`): descriptor/toolchain sidecar integrado ao install/load browser component.",
+    "T-RUNTIME-20 planejada: integrar geração/validação de descriptor no pipeline CI/release."
   ],
   "blockers": [
-    "ISS-017: falta toolchain oficial para gerar sidecar `browserRuntimeModule` de component no pipeline de release.",
+    "ISS-017: falta integração obrigatória do descriptor sidecar no pipeline CI/release para eliminar fluxo manual.",
+    "ISS-018: provenance de descriptor sidecar ainda não padronizada para auditoria.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Iniciar T-RUNTIME-19 com foco em pipeline deterministic build/install do sidecar component.",
-    "Definir política de assinatura/publicação do sidecar (hash + provenance) alinhada ao manifesto.",
-    "Manter slices pequenos (runtime + docs + tests) com validação local scoped."
+    "Iniciar T-RUNTIME-20 com foco em CI/release descriptor gate.",
+    "Definir campos de provenance obrigatórios para descriptor sidecar (commit/build/toolchain).",
+    "Manter lotes atômicos com validação local scoped + CI full em marcos."
   ],
   "open_questions": [
-    "Sidecar component será produzido no publish (CI) ou no install local via serviço de transpile confiável?"
+    "O descriptor sidecar será versionado junto ao pacote npm ou publicado como artefato externo com referência no manifesto?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/plugin-manifest/src/install-contract.js",
-    "packages/plugin-manifest/src/index.d.ts",
     "packages/tractor-ts/src/lib/install-plugin.ts",
-    "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
     "packages/tractor-ts/src/index.browser.ts",
+    "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
+    "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
     "packages/tractor-ts/test/install-plugin.test.ts",
     "packages/tractor-ts/test/browser-plugin-host.test.ts",
+    "packages/plugin-manifest/src/index.d.ts",
+    "packages/plugin-manifest/src/install-contract.js",
     "docs/ARCHITECTURE.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
     "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",

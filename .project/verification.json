@@ -2045,6 +2045,58 @@
           "evidence": "Docs/ADR atualizados; telemetry distingue `browser-cache` (module) e `browser-runtime-module` (component)."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-12-20260423",
+      "target": "T-PLUGIN-12",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:31:17.097Z",
+      "evidence": "Contrato plugin-manifest agora modela explicitamente metadata de sidecar browser runtime, sem romper install/cache contract.",
+      "criteria_results": [
+        {
+          "criterion": "PluginArtifactMetadata inclui campos tipados para descriptor/toolchain browser runtime",
+          "status": "passed",
+          "evidence": "`index.d.ts` adiciona `browserRuntimeDescriptor` e `browserRuntimeToolchain`."
+        },
+        {
+          "criterion": "Contrato install preserva compatibilidade sem quebrar cache/integridade",
+          "status": "passed",
+          "evidence": "`install-contract.js` mantém fluxo de integridade e aceita extensões opcionais."
+        },
+        {
+          "criterion": "Documentação explicita chaves canônicas de metadata para sidecar",
+          "status": "passed",
+          "evidence": "`packages/plugin-manifest/README.md` documenta chaves canônicas de metadata sidecar."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-19-20260423",
+      "target": "T-RUNTIME-19",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:31:17.097Z",
+      "evidence": "Toolchain canônica de descriptor sidecar foi implementada com geração determinística e verificação no install/load.",
+      "criteria_results": [
+        {
+          "criterion": "Definir pipeline oficial para geração do sidecar component->browserRuntimeModule",
+          "status": "passed",
+          "evidence": "Script `runtime-module:descriptor` gera descriptor com hash determinístico e integridades."
+        },
+        {
+          "criterion": "Assinatura/hash do sidecar integrada ao fluxo de release",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` valida `descriptorIntegrity` quando presente e persiste handshake metadata."
+        },
+        {
+          "criterion": "Remover ambiguidade entre sidecar manual e toolchain oficial",
+          "status": "passed",
+          "evidence": "Runtime component exige `browserRuntimeDescriptor`; install aceita descriptor object/url com distinção de source."
+        }
+      ]
     }
   ]
 }
