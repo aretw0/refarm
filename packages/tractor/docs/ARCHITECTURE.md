@@ -211,7 +211,7 @@ Default policy is isolated failure (`WARN` + continue startup). When
 | Gap | Prioridade | Impacto operacional | Hardening task derivada |
 |---|---|---|---|
 | `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` |
-| `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` |
+| `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` ✅ implementada (evento interno de shutdown + teardown + join das runner threads) |
 | Telemetria de lifecycle é parcial (`plugin:loaded` existe; sem eventos estruturados para ingest/teardown/erros de fase). | Medium | Observabilidade limitada para diagnosticar falhas por estágio de lifecycle. | `T-RUNTIME-09` |
 | Runtime ainda não valida alinhamento manifesto↔instância (ex.: `plugin_id` efetivo, hooks declarados) no load. | Medium | Plugin inválido no ecossistema pode iniciar sem guard de contrato em runtime. | `T-RUNTIME-10` |
 
@@ -223,6 +223,10 @@ cargo test --test host_integration call_teardown_does_not_panic -- --nocapture
 ```
 
 Resultado: ✅ `plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown` e `call_teardown_does_not_panic` verdes no baseline.
+
+Status de execução pós-mapeamento:
+- ✅ `T-RUNTIME-07` concluída (shutdown coordenado com teardown explícito e drenagem de runner threads).
+- ⏭️ Gaps remanescentes priorizados: `T-RUNTIME-08`, `T-RUNTIME-09`, `T-RUNTIME-10`.
 
 ---
 

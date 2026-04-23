@@ -1240,6 +1240,37 @@
           "evidence": "`cargo test --test conformance plugin_ -- --nocapture` (2 passed) e `cargo test --test host_integration call_teardown_does_not_panic -- --nocapture` (1 passed)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-07-20260423",
+      "target": "T-RUNTIME-07",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T12:41:16.096Z",
+      "evidence": "Shutdown coordenado de plugins implementado no runtime com teardown explícito por evento interno e drenagem determinística de runner threads.",
+      "criteria_results": [
+        {
+          "criterion": "shutdown chama teardown para plugins carregados antes de fechar storage",
+          "status": "passed",
+          "evidence": "`packages/tractor/src/lib.rs`: runner trata evento interno `__tractor:shutdown` chamando `call_teardown()` antes de encerrar."
+        },
+        {
+          "criterion": "runner threads são drenadas/encerradas de forma determinística",
+          "status": "passed",
+          "evidence": "`TractorNative` mantém `plugin_runner_handles` e executa `join()` em todos os runners durante `shutdown()`."
+        },
+        {
+          "criterion": "teste de integração valida encerramento limpo com plugin carregado",
+          "status": "passed",
+          "evidence": "`cargo test --test plugin_shutdown -- --nocapture` => 1 passed (`shutdown_drains_plugin_channels_after_registration`)."
+        },
+        {
+          "criterion": "regressão do lifecycle existente não ocorreu",
+          "status": "passed",
+          "evidence": "`cargo test --test conformance plugin_ -- --nocapture` => 2 passed (`plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown`)."
+        }
+      ]
     }
   ]
 }

@@ -938,7 +938,7 @@
     {
       "id": "T-RUNTIME-07",
       "description": "Implementar shutdown coordenado de plugins com teardown explícito e drenagem das runner threads.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/lib.rs",
@@ -954,7 +954,9 @@
       "depends_on": [
         "T-RUNTIME-03"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-07-20260423",
+      "notes": "`TractorNative::shutdown()` agora envia evento interno `__tractor:shutdown`, drena canais de plugin, aguarda `call_teardown()` no runner e faz join determinístico das threads registradas."
     },
     {
       "id": "T-RUNTIME-08",

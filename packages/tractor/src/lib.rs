@@ -49,6 +49,8 @@ pub struct AgentMessage {
     pub payload: Option<String>,
 }
 
+const SHUTDOWN_EVENT: &str = "__tractor:shutdown";
+
 /// Keyed by plugin_id — each sender reaches the plugin's dedicated runner thread.
 pub type AgentChannels = Arc<RwLock<HashMap<String, mpsc::UnboundedSender<AgentMessage>>>>;
 
@@ -89,6 +91,8 @@ pub struct TractorNative {
     /// mpsc senders to plugin runner threads, keyed by plugin_id.
     /// Populated by `register_for_events`; read by WsServer for prompt routing.
     pub agent_channels: AgentChannels,
+    /// Join handles for plugin runner threads, keyed by plugin_id.
+    plugin_runner_handles: Arc<RwLock<HashMap<String, std::thread::JoinHandle<()>>>>,
     #[allow(dead_code)]
     config: TractorNativeConfig,
 }
@@ -116,6 +120,7 @@ impl TractorNative {
             trust,
             telemetry,
             agent_channels: Arc::new(RwLock::new(HashMap::new())),
+            plugin_runner_handles: Arc::new(RwLock::new(HashMap::new())),
             config,
         })
     }
@@ -136,7 +141,7 @@ impl TractorNative {
         let (tx, mut rx) = mpsc::unbounded_channel::<AgentMessage>();
 
         let id_for_thread = plugin_id.clone();
-        std::thread::spawn(move || {
+        let join = std::thread::spawn(move || {
             let rt = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
                 .build()
@@ -144,11 +149,23 @@ impl TractorNative {
             let local = tokio::task::LocalSet::new();
             local.block_on(&rt, async move {
                 let mut h = handle;
+                let mut teardown_done = false;
                 while let Some(msg) = rx.recv().await {
+                    if msg.event == SHUTDOWN_EVENT {
+                        h.call_teardown().await;
+                        teardown_done = true;
+                        break;
+                    }
+
                     if let Err(e) = h.call_on_event(&msg.event, msg.payload.as_deref()).await {
                         tracing::warn!(plugin_id = %id_for_thread, "on_event error: {e}");
                     }
                 }
+
+                if !teardown_done {
+                    h.call_teardown().await;
+                }
+                h.terminate();
                 tracing::debug!(plugin_id = %id_for_thread, "plugin runner exiting");
             });
         });
@@ -156,12 +173,48 @@ impl TractorNative {
         self.agent_channels
             .write()
             .expect("agent_channels poisoned")
-            .insert(plugin_id, tx);
+            .insert(plugin_id.clone(), tx);
+
+        self.plugin_runner_handles
+            .write()
+            .expect("plugin_runner_handles poisoned")
+            .insert(plugin_id, join);
     }
 
     /// Shut down all plugins and close storage.
     pub async fn shutdown(&self) -> Result<()> {
         tracing::info!("TractorNative shutting down");
+
+        let senders = {
+            let mut guard = self
+                .agent_channels
+                .write()
+                .expect("agent_channels poisoned");
+            guard.drain().map(|(_, tx)| tx).collect::<Vec<_>>()
+        };
+
+        for tx in &senders {
+            let _ = tx.send(AgentMessage {
+                event: SHUTDOWN_EVENT.to_string(),
+                payload: None,
+            });
+        }
+        drop(senders);
+
+        let joins = {
+            let mut guard = self
+                .plugin_runner_handles
+                .write()
+                .expect("plugin_runner_handles poisoned");
+            guard.drain().map(|(_, join)| join).collect::<Vec<_>>()
+        };
+
+        for join in joins {
+            if let Err(panic_payload) = join.join() {
+                tracing::warn!("plugin runner thread panic during shutdown: {:?}", panic_payload);
+            }
+        }
+
         self.storage.close()?;
         Ok(())
     }

@@ -1,22 +1,24 @@
 {
-  "context": "Trilha runtime avançou: T-RUNTIME-03 concluída com mapeamento objetivo do lifecycle de plugin (setup/ingest/teardown), gaps priorizados e backlog de hardening explícito.",
-  "timestamp": "2026-04-23T12:22:17.023Z",
+  "context": "Runtime lifecycle avançou com execução de hardening: T-RUNTIME-03 e T-RUNTIME-07 concluídas, reduzindo risco de teardown incompleto no shutdown do daemon.",
+  "timestamp": "2026-04-23T12:41:16.096Z",
   "current_phase": 4,
   "current_tasks": [
-    "T-RUNTIME-03 concluída com verificação `VER-RUNTIME-03-20260423` e baseline de lifecycle validado em testes de integração/conformance.",
-    "Backlog de hardening runtime derivado no board: `T-RUNTIME-07`..`T-RUNTIME-10`."
+    "T-RUNTIME-07 concluída com verificação `VER-RUNTIME-07-20260423` (shutdown coordenado + teardown explícito + join de runners).",
+    "Documentação de arquitetura atualizada com status pós-mapeamento de lifecycle e gaps remanescentes."
   ],
   "blockers": [
     "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-RUNTIME-07` para garantir teardown explícito e shutdown coordenado de plugins.",
+    "Executar `T-RUNTIME-08` para introduzir gatilho operacional de ingest no daemon/CLI.",
     "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "packages/tractor/src/lib.rs",
+    "packages/tractor/tests/plugin_shutdown.rs",
     "packages/tractor/docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
