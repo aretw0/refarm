@@ -1432,6 +1432,32 @@
           "evidence": "`handoff.json` atualizado com contexto de fechamento do lote e próximos passos pós-compactação."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-04-20260423",
+      "target": "4",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "inspect",
+      "timestamp": "2026-04-23T15:54:07.736Z",
+      "evidence": "Checkpoint final antes de compactação solicitado pelo operador; lote encerrado com workspace limpo e aguardando fechamento do CI remoto do commit `b6066a7f`.",
+      "criteria_results": [
+        {
+          "criterion": "Workspace limpo ao encerrar lote",
+          "status": "passed",
+          "evidence": "`git status -sb` limpo (`develop...origin/develop`)."
+        },
+        {
+          "criterion": "Task alvo do lote concluída e rastreada",
+          "status": "passed",
+          "evidence": "`T-RUNTIME-10` concluída e vinculada à `VER-RUNTIME-10-20260423`."
+        },
+        {
+          "criterion": "Situação de CI remoto explicitada para retomada pós-compactação",
+          "status": "partial",
+          "evidence": "Run 24844463798 ainda em progresso no momento do checkpoint; primeira ação pós-compactação deve confirmar conclusão."
+        }
+      ]
     }
   ]
 }
