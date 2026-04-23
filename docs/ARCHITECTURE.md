@@ -153,16 +153,30 @@ All communication is **typed by WIT contracts**. The tractor host validates ever
 
 ### Plugin Loading: Node.js vs Browser
 
-Plugin loading follows different strategies depending on the runtime environment:
+Refarm has a **target architecture** (ADR-044) and a **current implementation snapshot**. Both matter for roadmap decisions.
+
+#### Target architecture (ADR-044)
 
 | Environment | Strategy | When | Stores |
 |---|---|---|---|
 | **Node.js** | JCO transpiles WASM → JS at `PluginHost.load()` | Plugin load time | `.jco-dist/` on disk |
-| **Browser** | WASM cached to OPFS at install time via `installPlugin()` | Plugin install | OPFS-cached ES modules |
-| **Browser (runtime)** | `dynamic import()` of OPFS-cached module | Plugin use | Instance in memory |
+| **Browser** | `installPlugin()` prepares plugin artifacts for offline reuse | Plugin install | OPFS cache |
+| **Browser (runtime)** | `PluginHost.load()` resolves plugin from installed cache | Plugin use | In-memory instance |
 | **CI (no Rust)** | Pre-compiled `pkg/` artifacts used directly | Build time | Git-tracked `pkg/` |
 
+#### Current implementation snapshot (2026-04-23)
+
+| Layer | Current behavior | Source |
+|---|---|---|
+| `@refarm.dev/barn` | `installPlugin(url, integrity)` verifies SHA-256 and caches binaries **in-memory by URL** (no OPFS persistence yet). | `packages/barn/src/index.ts` |
+| `@refarm.dev/tractor` (browser export) | Browser `PluginHost` is an explicit stub and throws on `load()` until cache-backed runtime loading is implemented. | `packages/tractor-ts/src/index.browser.ts` |
+| `@refarm.dev/tractor` install helper | `installPlugin(manifest, wasmUrl)` fetches and stores raw `.wasm` in OPFS cache by `manifest.id`; integrity is optional. | `packages/tractor-ts/src/lib/install-plugin.ts`, `packages/tractor-ts/src/lib/opfs-plugin-cache.ts` |
+| `@refarm.dev/tractor` runtime (Node) | `PluginHost.load()` fetches/reads wasm directly from `manifest.entry`; it does not consume Barn/OPFS cache. | `packages/tractor-ts/src/lib/plugin-host.ts` |
+
 The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundles Node.js-only imports (`node:fs`, `node:path`, `@bytecodealliance/jco`). See [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
+
+For the detailed install/cache/integrity risk map and hardening backlog, see:
+`packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md`.
 
 ### Plugin Distribution (Nostr)
 

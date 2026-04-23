@@ -87,6 +87,9 @@ interface manager {
 
 The Barn is currently in **Phase 1 (SDD/BDD)**. See the detailed [ROADMAP.md](./ROADMAP.md) for upcoming milestones and technical goals.
 
+For the latest install/cache/integrity flow mapping used by runtime hardening, see
+[`docs/INSTALL_FLOW_AUDIT_20260423.md`](./docs/INSTALL_FLOW_AUDIT_20260423.md).
+
 ---
 
 ## License

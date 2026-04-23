@@ -1437,9 +1437,9 @@
       "id": "VER-CHECKPOINT-COMPACTION-04-20260423",
       "target": "4",
       "target_type": "phase",
-      "status": "partial",
+      "status": "passed",
       "method": "inspect",
-      "timestamp": "2026-04-23T15:54:07.736Z",
+      "timestamp": "2026-04-23T16:09:54.994Z",
       "evidence": "Checkpoint final antes de compactação solicitado pelo operador; lote encerrado com workspace limpo e aguardando fechamento do CI remoto do commit `b6066a7f`.",
       "criteria_results": [
         {
@@ -1454,8 +1454,39 @@
         },
         {
           "criterion": "Situação de CI remoto explicitada para retomada pós-compactação",
-          "status": "partial",
-          "evidence": "Run 24844463798 ainda em progresso no momento do checkpoint; primeira ação pós-compactação deve confirmar conclusão."
+          "status": "passed",
+          "evidence": "Run 24844463798 concluído com sucesso antes da retomada pós-compactação."
+        }
+      ]
+    },
+    {
+      "id": "VER-PLUGIN-01-20260423",
+      "target": "T-PLUGIN-01",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T16:09:54.994Z",
+      "evidence": "Mapa de fluxo install/cache/verify consolidado em docs com validação objetiva das suites atuais de Barn e install-plugin do tractor-ts.",
+      "criteria_results": [
+        {
+          "criterion": "Fluxo install/cache/verify documentado",
+          "status": "passed",
+          "evidence": "`packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md` descreve fluxo real por camada (Barn, tractor-ts browser helper, plugin-host Node e host nativo Rust)."
+        },
+        {
+          "criterion": "Pontos de risco identificados",
+          "status": "passed",
+          "evidence": "Audit registra riscos priorizados (duplicidade Barn↔Tractor, runtime browser sem consumo do cache, integridade opcional, divergência de layout OPFS, ausência de teste E2E integrado)."
+        },
+        {
+          "criterion": "Plano de hardening gerado",
+          "status": "passed",
+          "evidence": "Plano P0/P1/P2 publicado no audit e backlog expandido com `T-PLUGIN-04` para unificação contratual e layout OPFS canônico."
+        },
+        {
+          "criterion": "Baseline atual validada com testes alvo",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/barn test` (6/6) e `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (8/8) verdes."
         }
       ]
     }

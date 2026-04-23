@@ -532,12 +532,12 @@
     {
       "id": "T-PLUGIN-01",
       "description": "Mapear fluxo installPlugin com cache OPFS e validação de integridade.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "packages/barn/**",
-        "packages/tractor/**",
-        "docs/ARCHITECTURE.md"
+        "docs/ARCHITECTURE.md",
+        "packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md",
+        "packages/barn/README.md"
       ],
       "acceptance_criteria": [
         "Fluxo install/cache/verify documentado",
@@ -547,7 +547,9 @@
       "depends_on": [
         "T-RUNTIME-03"
       ],
-      "assigned_agent": "worker-plugin"
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-01-20260423",
+      "notes": "Fluxo install/cache/verify mapeado entre Barn + tractor-ts + tractor runtime, com riscos priorizados e plano de hardening P0/P1/P2. Divergências documentadas no audit de 2026-04-23."
     },
     {
       "id": "T-PLUGIN-02",
@@ -584,6 +586,29 @@
       ],
       "depends_on": [
         "T-PLUGIN-02"
+      ],
+      "assigned_agent": "worker-plugin"
+    },
+    {
+      "id": "T-PLUGIN-04",
+      "description": "Unificar contrato de instalação Barn↔Tractor e layout canônico de cache OPFS.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/barn/src/**",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
+        "packages/barn/docs/STORAGE_LAYOUT.md",
+        "docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "Existe fronteira única para install/cache/verify (sem lógica duplicada entre Barn e Tractor)",
+        "Layout OPFS documentado e alinhado com implementação real",
+        "Contrato de integração permite runtime consumir cache instalado sem ambiguidade"
+      ],
+      "depends_on": [
+        "T-PLUGIN-02",
+        "T-PLUGIN-03"
       ],
       "assigned_agent": "worker-plugin"
     },
