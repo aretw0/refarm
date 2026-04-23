@@ -881,6 +881,32 @@
           "evidence": "`.gitignore` contém `.pi-lens/`; `git ls-files .pi-lens` vazio; working tree limpo no checkpoint."
         }
       ]
+    },
+    {
+      "id": "VER-CI-THROUGHPUT-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T04:43:48Z",
+      "evidence": "Pipeline `Test & Quality` foi otimizado com gates change-aware/affected-aware, lane deep opt-in e métricas automáticas por run. Sequência de commits validada em CI sem regressão funcional.",
+      "criteria_results": [
+        {
+          "criterion": "Gates change-aware e skip de jobs pesados para mudanças de CI/governança",
+          "status": "passed",
+          "evidence": "Commits `de6ae12b`, `48453e92`, `32a92464`, `36d0825e`, `af2ad856` reduziram execução para lanes necessárias; runs verdes correspondentes."
+        },
+        {
+          "criterion": "Determinismo de setup de dependências no CI",
+          "status": "passed",
+          "evidence": "Commit `60ad2af6` remove fallback `npm install` e força `npm ci` com fail-fast."
+        },
+        {
+          "criterion": "Lane deep e métricas de duração por run ativas",
+          "status": "passed",
+          "evidence": "Commit `3e32dfa1` + fix `56607a93`; run `24817138696` concluída com `ci-metrics` sucesso e artifact `ci-run-metrics`."
+        }
+      ]
     }
   ]
 }
