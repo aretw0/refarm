@@ -16,33 +16,36 @@
       "title": "Definir preflight obrigatório antes de soltar a colônia",
       "body": "Falta checklist operacional mínimo para validar ambiente, modo de resolução (src/dist) e smoke gate antes de iniciar lote paralelo.",
       "location": "docs/WORKFLOW.md:1",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "high",
       "package": "docs",
-      "source": "human"
+      "source": "human",
+      "resolved_by": "VER-GOV-GATES-20260423"
     },
     {
       "id": "ISS-003",
       "title": "Padronizar autorização explícita para escritas em lote",
       "body": "Houve fricção de autorização durante a sessão. É necessário documentar padrão de confirmação textual para operações de escrita em lote.",
       "location": "docs/WORKFLOW.md:1",
-      "status": "open",
+      "status": "resolved",
       "category": "cleanup",
       "priority": "high",
       "package": "governance",
-      "source": "monitor"
+      "source": "monitor",
+      "resolved_by": "VER-GOV-GATES-20260423"
     },
     {
       "id": "ISS-004",
       "title": "Publicar gate smoke/full para consolidação de PRs da colônia",
       "body": "A fábrica precisa de dois níveis de validação: smoke por task e full para integração de lote, com checklist de reviewer.",
       "location": "docs/PR_QUALITY_GOVERNANCE.md:1",
-      "status": "open",
+      "status": "resolved",
       "category": "composition",
       "priority": "high",
       "package": "project-governance",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-GOV-GATES-20260423"
     },
     {
       "id": "ISS-005",

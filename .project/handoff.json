@@ -1,20 +1,23 @@
 {
-  "context": "Frente de hardening/modularização de `sensitive_aliases` avançou para arquitetura por domínio (`env.rs`, `headers.rs`, `policy.rs`) mantendo single source semântico e paridade spawn/plugin/wasi. CI remoto verde para o último lote (`Test & Quality` run 24811714039).",
-  "timestamp": "2026-04-23T01:51:13Z",
+  "context": "Modularização de `sensitive_aliases` consolidada (`env.rs`, `headers.rs`, `policy.rs`) com CI verde. Governança operacional também avançou com documentação de preflight obrigatório, autorização explícita para escrita em lote e gate smoke/full.",
+  "timestamp": "2026-04-23T01:55:47Z",
   "current_phase": 2,
   "current_tasks": [
-    "Follow-up pós-hardening: fechamento de ISS-013 e preparação do próximo bloco de potencial (gates operacionais + pendências de ambiente/governança)."
+    "Estabilização/throughput pós-hardening: manter ciclo local↔CI previsível e reduzir pendências abertas de ambiente/integridade."
   ],
   "blockers": [
     "Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical)."
   ],
   "next_actions": [
-    "Fechar formalmente ISS-013 no bloco de issues com evidência de modularização.",
-    "Selecionar próximo desbloqueio de throughput: ISS-002/ISS-004 (preflight obrigatório + smoke/full gate) ou ISS-001 (stability runtime toolchain)."
+    "Atacar ISS-001 com validação dedicada do runtime toolchain em fluxo completo (além do preflight).",
+    "Planejar lote de segurança de integridade de plugin (ISS-005: SHA-256 + cache hit/miss).",
+    "Fechar higiene de repositório (ISS-006) em commit atômico dedicado."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "docs/WORKFLOW.md",
+    "docs/PR_QUALITY_GOVERNANCE.md",
     ".project/handoff.json",
     ".project/issues.json",
     ".project/verification.json"

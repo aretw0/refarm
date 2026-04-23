@@ -474,7 +474,38 @@ Se receber muitas notificações de checks falhando:
 
 ---
 
-## Referências
+## 8. Gate operacional smoke + full
+
+### Smoke gate (obrigatório em todo PR)
+
+Checklist mínimo por PR:
+
+- [ ] Escopo de validação limitado aos pacotes/arquivos afetados
+- [ ] Comandos executados e resultado anexado na descrição do PR
+- [ ] Sem regressão nos testes/boundary diretamente impactados
+
+### Full gate (obrigatório para consolidação de lote)
+
+Aplicar quando houver:
+
+- merge de múltiplas tasks
+- mudança em boundary de segurança/runtime host-side
+- preparação para merge em branch protegida
+
+Checklist mínimo:
+
+- [ ] Pipeline `Test & Quality` verde
+- [ ] Evidência registrada em `.project/verification.json`
+- [ ] Reviewer confirma rastreabilidade task → commit → verificação
+
+### Padrão de revisão
+
+- PR atômico: **smoke + revisão de diff**
+- PR de integração/lote: **smoke + full + revisão de evidências**
+
+---
+
+## 9. Referências
 
 - [GitHub Branch Protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
 - [Changesets Documentation](https://github.com/changesets/changesets)

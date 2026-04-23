@@ -694,6 +694,32 @@
           "evidence": "`docs/DEVOPS.md` atualizado com procedimento de parity (`rustup component add rust-src clippy rustfmt` + validação via `npm run factory:preflight`)."
         }
       ]
+    },
+    {
+      "id": "VER-GOV-GATES-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T01:51:13Z",
+      "evidence": "Governança operacional documentada com preflight obrigatório (rápido/completo + go/no-go), autorização explícita para escrita em lote e gate smoke/full para PR e integração.",
+      "criteria_results": [
+        {
+          "criterion": "Checklist de preflight obrigatório em docs/WORKFLOW.md",
+          "status": "passed",
+          "evidence": "Seção `Preflight obrigatório (go/no-go)` adicionada com comandos e critérios."
+        },
+        {
+          "criterion": "Padrão de autorização explícita documentado",
+          "status": "passed",
+          "evidence": "Seção `Autorização explícita para escrita em lote` adicionada em `docs/WORKFLOW.md`."
+        },
+        {
+          "criterion": "Gate smoke/full com checklist de reviewer",
+          "status": "passed",
+          "evidence": "Seção `Gate operacional smoke + full` adicionada em `docs/PR_QUALITY_GOVERNANCE.md` com critérios de PR e integração de lote."
+        }
+      ]
     }
   ]
 }

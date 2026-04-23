@@ -653,7 +653,65 @@ git push -f origin develop
 
 ---
 
-## �🏗 Source Sovereignty & Hygiene
+## Preflight obrigatório (go/no-go)
+
+Antes de qualquer lote paralelo (colônia, swarm ou macro-refactor), execute:
+
+### Preflight rápido (obrigatório)
+
+```bash
+node scripts/reso.mjs status
+npm run factory:preflight
+```
+
+### Preflight completo (quando tocar runtime/host security)
+
+```bash
+cd packages/tractor
+cargo check --quiet
+cargo test --lib agent_tools_bridge --quiet
+cargo test --lib plugin_host --quiet
+cargo test --lib wasi_bridge --quiet
+```
+
+### Critério de go/no-go
+
+- **GO**: todos os checks do preflight rápido verdes; se houver mudança de boundary runtime, preflight completo verde.
+- **NO-GO**: qualquer falha em toolchain/targets/permissão/reso status → corrigir ambiente antes de abrir lote.
+
+### Autorização explícita para escrita em lote
+
+Para evitar ambiguidade operacional, use confirmação textual explícita antes de ações de escrita em lote:
+
+- **Formato recomendado**: `AUTORIZO: executar lote <escopo> com commits`.
+- Sem autorização explícita, limitar execução a leitura/diagnóstico.
+
+---
+
+## Gate de validação: smoke + full
+
+### Smoke gate (por task/PR)
+
+Objetivo: feedback rápido por mudança atômica.
+
+- Rodar apenas o subconjunto afetado (ex.: boundary package + testes diretos).
+- Exigir evidência objetiva no PR/handoff (comando + resultado).
+
+### Full gate (integração de lote)
+
+Objetivo: garantir que o conjunto integrado não regrediu.
+
+- Rodar pipeline completo de qualidade definido no repositório (local e/ou CI).
+- Consolidar evidências em `.project/verification.json`.
+
+Regra prática:
+
+- **Task PR**: smoke obrigatório.
+- **Merge de lote / boundary sensível**: smoke + full obrigatórios.
+
+---
+
+## Source Sovereignty & Hygiene
 
 ### 1. Tracking Policy: Source vs. Derivatives
 To avoid repository bloating and ensure reproducibility:
