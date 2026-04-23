@@ -1,26 +1,24 @@
 {
-  "context": "Lote de integridade do Barn concluído: `installPlugin` agora usa SHA-256 real (SubtleCrypto), valida `sha256-` de forma determinística e aplica cache por URL com fail-closed em mismatch de digest cacheado. ISS-005 foi endereçada com cobertura de testes de hit/miss e mismatch.",
-  "timestamp": "2026-04-23T02:03:08Z",
+  "context": "Push consolidado de 4 commits (`6643beec`, `3130d3d8`, `e6718423`, `585b7985`): Barn com SHA-256 real + cache hit/miss fail-closed, e hardening do pre-push hook para evitar stall eterno (timeouts + type preflight rápido via `tsconfig:guard`).",
+  "timestamp": "2026-04-23T03:10:21Z",
   "current_phase": 2,
   "current_tasks": [
-    "Estabilização/throughput pós-hardening: manter ciclo local↔CI previsível e reduzir pendências abertas de ambiente/higiene de repositório."
+    "Aguardar fechamento da run `Test & Quality` para o head `585b7985` e registrar verificação final.",
+    "Preparar checkpoint de compactação após conclusão da CI."
   ],
   "blockers": [
+    "Run remota `24814461676` ainda em andamento (`quality` in_progress).",
     "Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical).",
-    "`tsc -p packages/barn/tsconfig.build.json` falha com `TS5103: Invalid value for '--ignoreDeprecations'` no ambiente atual."
+    "`tsc -p packages/barn/tsconfig.build.json` segue com `TS5103: Invalid value for '--ignoreDeprecations'` no ambiente atual."
   ],
   "next_actions": [
-    "Atacar ISS-001 com validação dedicada do runtime toolchain em fluxo completo (além do preflight).",
-    "Fechar higiene de repositório (ISS-006) em commit atômico dedicado.",
-    "Investigar/normalizar baseline TypeScript para remover `TS5103` no build do Barn sem reintroduzir regressão TS6 guard."
+    "Quando a run 24814461676 concluir, registrar evidência em `.project/verification.json`.",
+    "Se verde, compactar contexto e seguir para ISS-006 ou ISS-001 conforme prioridade."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/barn/src/index.ts",
-    "packages/barn/tests/integration.test.ts",
     ".project/handoff.json",
-    ".project/issues.json",
     ".project/verification.json"
   ]
 }

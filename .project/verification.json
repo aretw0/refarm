@@ -751,6 +751,32 @@
           "evidence": "`npm run test -w @refarm.dev/barn` → 6 passed."
         }
       ]
+    },
+    {
+      "id": "VER-PUSH-HOOK-STABILITY-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "partial",
+      "method": "test",
+      "timestamp": "2026-04-23T03:10:21Z",
+      "evidence": "Push de `develop` não ficou em stall após ajustes do hook; validação local mostrou timeout controlado (sem travamento infinito) no antigo caminho pesado de type-check. Hook agora usa `tsconfig:guard` rápido para preflight e timeouts em lint/unit/quality/audit.",
+      "criteria_results": [
+        {
+          "criterion": "Push local sem stall eterno",
+          "status": "passed",
+          "evidence": "`git push origin develop` concluído com warnings não-bloqueantes e upload dos commits até `585b7985`."
+        },
+        {
+          "criterion": "Type preflight rápido no hook",
+          "status": "passed",
+          "evidence": "`timeout 120 env CI=1 npm run tsconfig:guard --silent` => exit 0 (~9s)."
+        },
+        {
+          "criterion": "CI remota do head atual",
+          "status": "skipped",
+          "evidence": "Run `24814461676` ainda em andamento (`quality` in_progress, `audit-moderate` success)."
+        }
+      ]
     }
   ]
 }
