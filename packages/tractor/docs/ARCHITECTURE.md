@@ -172,7 +172,8 @@ matches defense-in-depth.
 
 Derived follow-up tasks from this map:
 - `T-RUNTIME-05` — ✅ implemented: fail-fast policy via `--require-plugin-load`.
-- `T-RUNTIME-06` — pending: add explicit startup/health probe command for daemon readiness.
+- `T-RUNTIME-06` — ✅ implemented: explicit startup/health probe (`tractor health`).
+- `T-RUNTIME-04` — ✅ validated in controlled CRDT/storage roundtrip (`tests/sync_crdt.rs::offline_first_roundtrip_preserves_all_nodes`).
 
 **CLI flags:**
 

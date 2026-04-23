@@ -393,7 +393,7 @@
     {
       "id": "T-RUNTIME-04",
       "description": "Validar roundtrip de sync entre runtime e storage em cenário controlado.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/sync-loro/**",
@@ -409,7 +409,9 @@
         "T-RUNTIME-02",
         "T-CONTRACT-03"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-04-20260423",
+      "notes": "Cenário controlado offline-first validado em `packages/tractor/tests/sync_crdt.rs::offline_first_roundtrip_preserves_all_nodes`, cobrindo escrita desconectada em dois peers, troca bidirecional de updates e convergência sem perda no read model."
     },
     {
       "id": "T-CONTRACT-01",

@@ -1131,6 +1131,32 @@
           "evidence": "Criada `T-CONTRACT-05` para cobrir lacuna de conformance em `sync-crdt` com integração ao gate `test:capabilities`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-04-20260423",
+      "target": "T-RUNTIME-04",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T09:00:24.755Z",
+      "evidence": "Roundtrip runtime/storage validado com nova prova offline-first em `packages/tractor/tests/sync_crdt.rs`, executando sync CRDT sobre `NativeStorage` em cenário desconectado e reconexão controlada sem perda de nós.",
+      "criteria_results": [
+        {
+          "criterion": "Roundtrip executa sem perda",
+          "status": "passed",
+          "evidence": "`cargo test --test sync_crdt offline_first_roundtrip_preserves_all_nodes -- --nocapture` => 1 passed; ambos peers convergem com os 3 nós esperados."
+        },
+        {
+          "criterion": "Cenário offline-first validado",
+          "status": "passed",
+          "evidence": "Teste cria writes locais desconectados em peer A/B, depois faz troca bidirecional (`get_update` + `apply_update`) e confirma convergência total."
+        },
+        {
+          "criterion": "Resultado documentado",
+          "status": "passed",
+          "evidence": "`packages/tractor/docs/ARCHITECTURE.md` atualizado com referência explícita ao teste de roundtrip (`offline_first_roundtrip_preserves_all_nodes`)."
+        }
+      ]
     }
   ]
 }

@@ -1,29 +1,26 @@
 {
-  "context": "Fase de contratos v1 consolidada: T-CONTRACT-03 e T-CONTRACT-04 concluídas com suites de conformance para sync-loro e identity-nostr, além de escopo formal para manifest:v1.",
-  "timestamp": "2026-04-23T08:27:28.021Z",
+  "context": "Contratos e runtime avançaram: T-CONTRACT-03/T-CONTRACT-04 concluídas e T-RUNTIME-04 validada com roundtrip offline-first sem perda no runtime nativo.",
+  "timestamp": "2026-04-23T09:00:24.755Z",
   "current_phase": 5,
   "current_tasks": [
-    "T-CONTRACT-04 concluída com verificação `VER-CONTRACT-04-20260423` (identity-nostr + plugin-manifest).",
-    "`test:capabilities` ampliado para incluir `identity-nostr` e `plugin-manifest test:conformance`."
+    "T-RUNTIME-04 concluída com verificação `VER-RUNTIME-04-20260423` via `sync_crdt.rs::offline_first_roundtrip_preserves_all_nodes`.",
+    "Arquitetura runtime documenta explicitamente o roundtrip controlado de storage/sync."
   ],
   "blockers": [
-    "Lacuna remanescente de conformance em `sync-crdt` foi registrada como `T-CONTRACT-05`.",
+    "Lacuna remanescente de conformance em `sync-crdt` permanece em `T-CONTRACT-05`.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
     "Executar `T-CONTRACT-05` para fechar conformance sync:v1 em `sync-crdt`.",
-    "Iniciar `T-RUNTIME-04` (roundtrip runtime/storage), agora destravada por `T-CONTRACT-03` concluída."
+    "Avaliar `T-RUNTIME-03` (lifecycle de plugin setup/ingest/teardown) para próxima rodada de hardening runtime."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/identity-nostr/src/identity-v1.conformance.test.ts",
-    "packages/plugin-manifest/src/validate.test.js",
-    "packages/plugin-manifest/README.md",
-    "package.json",
+    "packages/tractor/tests/sync_crdt.rs",
+    "packages/tractor/docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
-    ".project/decisions.json",
     ".project/handoff.json"
   ]
 }
