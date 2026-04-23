@@ -961,7 +961,7 @@
     {
       "id": "T-RUNTIME-08",
       "description": "Adicionar gatilho operacional para ingest de plugins (manual/CLI) com cobertura de integração.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/main.rs",
@@ -977,7 +977,9 @@
       "depends_on": [
         "T-RUNTIME-03"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-08-20260423",
+      "notes": "`tractor` ganhou gatilho operacional de ingest no startup via `--ingest-on-load` (warn+continue) e `--require-plugin-ingest` (fail-fast), com helper dedicado `maybe_ingest_on_load()` testado contra fixture."
     },
     {
       "id": "T-RUNTIME-09",

@@ -1271,6 +1271,37 @@
           "evidence": "`cargo test --test conformance plugin_ -- --nocapture` => 2 passed (`plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown`)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-08-20260423",
+      "target": "T-RUNTIME-08",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T13:08:09.001Z",
+      "evidence": "Runtime ganhou caminho operacional para ingest de plugins durante o startup do daemon com política configurável (warn+continue/fail-fast), incluindo teste com plugin fixture.",
+      "criteria_results": [
+        {
+          "criterion": "daemon expõe caminho claro para disparar ingest de plugins carregados",
+          "status": "passed",
+          "evidence": "`packages/tractor/src/main.rs` adiciona flags `--ingest-on-load` e `--require-plugin-ingest`; `run_daemon()` executa `maybe_ingest_on_load()` após `load_plugin`."
+        },
+        {
+          "criterion": "falhas de ingest retornam erro acionável sem derrubar daemon por padrão",
+          "status": "passed",
+          "evidence": "Política padrão com `--ingest-on-load` usa warn+continue; modo fail-fast é opt-in via `--require-plugin-ingest` com erro explícito de path/plugin_id."
+        },
+        {
+          "criterion": "teste cobre ciclo ingest com plugin fixture",
+          "status": "passed",
+          "evidence": "`cargo test --bin tractor maybe_ingest_on_load_runs_with_plugin_fixture -- --nocapture` => 1 passed; também validado `cargo test --test conformance plugin_ -- --nocapture` => 2 passed."
+        },
+        {
+          "criterion": "parsing/política CLI coberta",
+          "status": "passed",
+          "evidence": "`cargo test --bin tractor plugin_ingest_policy -- --nocapture` (3 passed) e `cargo test --bin tractor require_plugin_ingest_flag_allows_plugin_arguments -- --nocapture` (1 passed)."
+        }
+      ]
     }
   ]
 }

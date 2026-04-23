@@ -66,6 +66,20 @@ struct DaemonArgs {
     /// prevent daemon boot). Enabling this flag switches startup to fail-fast.
     #[arg(long, default_value_t = false)]
     require_plugin_load: bool,
+
+    /// Trigger plugin ingest() immediately after successful startup load.
+    ///
+    /// This enables an operational/manual CLI path to run ingest without a
+    /// separate scheduler. Ingest errors are warn+continue by default.
+    #[arg(long, default_value_t = false)]
+    ingest_on_load: bool,
+
+    /// Fail startup when ingest-on-load is enabled and any plugin ingest fails.
+    ///
+    /// This implies ingest-on-load behavior even when `--ingest-on-load` is
+    /// not explicitly provided.
+    #[arg(long, default_value_t = false)]
+    require_plugin_ingest: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -79,6 +93,61 @@ fn plugin_load_policy(args: &DaemonArgs) -> PluginLoadPolicy {
         PluginLoadPolicy::FailFast
     } else {
         PluginLoadPolicy::WarnAndContinue
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluginIngestPolicy {
+    Skip,
+    WarnAndContinue,
+    FailFast,
+}
+
+fn plugin_ingest_policy(args: &DaemonArgs) -> PluginIngestPolicy {
+    if args.require_plugin_ingest {
+        PluginIngestPolicy::FailFast
+    } else if args.ingest_on_load {
+        PluginIngestPolicy::WarnAndContinue
+    } else {
+        PluginIngestPolicy::Skip
+    }
+}
+
+async fn maybe_ingest_on_load(
+    handle: &mut tractor::host::PluginInstanceHandle,
+    path: &std::path::Path,
+    policy: PluginIngestPolicy,
+) -> Result<()> {
+    match policy {
+        PluginIngestPolicy::Skip => Ok(()),
+        PluginIngestPolicy::WarnAndContinue | PluginIngestPolicy::FailFast => {
+            match handle.call_ingest().await {
+                Ok(count) => {
+                    tracing::info!(
+                        path = %path.display(),
+                        plugin_id = %handle.id,
+                        ingested = count,
+                        "plugin ingest completed during startup"
+                    );
+                    Ok(())
+                }
+                Err(e) => {
+                    if policy == PluginIngestPolicy::FailFast {
+                        anyhow::bail!(
+                            "required plugin ingest failed during startup (path={} plugin_id={}): {e}",
+                            path.display(),
+                            handle.id
+                        );
+                    }
+                    tracing::warn!(
+                        path = %path.display(),
+                        plugin_id = %handle.id,
+                        "plugin ingest failed during startup: {e}"
+                    );
+                    Ok(())
+                }
+            }
+        }
     }
 }
 
@@ -205,10 +274,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     let tractor = TractorNative::boot(config.clone()).await?;
 
     let load_policy = plugin_load_policy(&args);
+    let ingest_policy = plugin_ingest_policy(&args);
     for path in &args.plugin {
         match tractor.load_plugin(path).await {
-            Ok(handle) => {
+            Ok(mut handle) => {
                 tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
+                maybe_ingest_on_load(&mut handle, path, ingest_policy).await?;
                 tractor.register_for_events(handle);
             }
             Err(e) => {
@@ -534,6 +605,77 @@ mod tests {
 
         assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::FailFast);
         assert_eq!(cli.daemon.plugin.len(), 1);
+    }
+
+    #[test]
+    fn plugin_ingest_policy_defaults_to_skip() {
+        let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
+        assert_eq!(plugin_ingest_policy(&cli.daemon), PluginIngestPolicy::Skip);
+    }
+
+    #[test]
+    fn plugin_ingest_policy_switches_to_warn_and_continue_when_enabled() {
+        let cli = Cli::try_parse_from(["tractor", "--ingest-on-load"]).expect("cli parse");
+        assert_eq!(
+            plugin_ingest_policy(&cli.daemon),
+            PluginIngestPolicy::WarnAndContinue
+        );
+    }
+
+    #[test]
+    fn plugin_ingest_policy_switches_to_fail_fast_when_flag_is_set() {
+        let cli = Cli::try_parse_from(["tractor", "--require-plugin-ingest"]).expect("cli parse");
+        assert_eq!(
+            plugin_ingest_policy(&cli.daemon),
+            PluginIngestPolicy::FailFast
+        );
+    }
+
+    #[test]
+    fn require_plugin_ingest_flag_allows_plugin_arguments() {
+        let cli = Cli::try_parse_from([
+            "tractor",
+            "--require-plugin-ingest",
+            "--plugin",
+            "./plugins/pi-agent.wasm",
+        ])
+        .expect("cli parse");
+
+        assert_eq!(
+            plugin_ingest_policy(&cli.daemon),
+            PluginIngestPolicy::FailFast
+        );
+        assert_eq!(cli.daemon.plugin.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn maybe_ingest_on_load_runs_with_plugin_fixture() {
+        let config = TractorNativeConfig {
+            namespace: ":memory:".to_string(),
+            port: 0,
+            security_mode: SecurityMode::None,
+            ..Default::default()
+        };
+
+        let tractor = TractorNative::boot(config).await.expect("boot tractor");
+        let fixture = std::path::Path::new("tests/fixtures/null-plugin.wasm");
+        let mut handle = tractor
+            .load_plugin(fixture)
+            .await
+            .expect("load fixture plugin");
+
+        let result = maybe_ingest_on_load(
+            &mut handle,
+            fixture,
+            PluginIngestPolicy::WarnAndContinue,
+        )
+        .await;
+        assert!(result.is_ok(), "ingest-on-load should succeed: {result:?}");
+
+        let metadata = handle.call_metadata().await.expect("metadata call");
+        assert_eq!(metadata["name"], "null-plugin");
+
+        tractor.shutdown().await.expect("shutdown tractor");
     }
 
     #[tokio::test]

@@ -185,6 +185,8 @@ Derived follow-up tasks from this map:
 | `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
 | `--require-plugin-load` | `false` | Fail startup if any `--plugin` fails to load |
+| `--ingest-on-load` | `false` | Call `ingest()` immediately after each plugin load (warn+continue on ingest failure) |
+| `--require-plugin-ingest` | `false` | Fail startup when plugin `ingest()` fails (implies ingest-on-load) |
 
 ### Plugin loading semantics
 
@@ -202,7 +204,7 @@ Default policy is isolated failure (`WARN` + continue startup). When
 | Stage | Fluxo atual | Evidência |
 |---|---|---|
 | `setup()` | O daemon chama `tractor.load_plugin(path)` no startup; `PluginHost::load()` instancia o componente WASM e executa `call_setup()` antes de retornar o handle. | `src/main.rs::run_daemon`, `src/lib.rs::TractorNative::load_plugin`, `src/host/plugin_host/env_and_runtime.rs::load` |
-| `ingest()` | A primitiva existe via `PluginInstanceHandle::call_ingest()`, porém não há invocação automática no fluxo do daemon (sem scheduler/trigger CLI dedicado). | `src/host/instance.rs::call_ingest`, testes `tests/conformance.rs::plugin_ingest_roundtrip` |
+| `ingest()` | A primitiva existe via `PluginInstanceHandle::call_ingest()` e agora pode ser disparada no startup do daemon com `--ingest-on-load` (ou fail-fast com `--require-plugin-ingest`). | `src/main.rs::run_daemon`, `src/main.rs::maybe_ingest_on_load`, testes `tests/conformance.rs::plugin_ingest_roundtrip` e `src/main.rs::maybe_ingest_on_load_runs_with_plugin_fixture` |
 | `teardown()` | A primitiva existe e é exercitada em teste, mas o shutdown do daemon não coordena teardown explícito de plugins carregados; hoje o fechamento é centrado em storage/ws. | `src/host/instance.rs::call_teardown`, `tests/host_integration.rs::call_teardown_does_not_panic`, `src/lib.rs::TractorNative::shutdown` |
 | `on-event()` | Após load, o handle é movido para thread dedicada via `register_for_events`; eventos WS `user:prompt` são roteados para `call_on_event()`. | `src/lib.rs::register_for_events`, `src/daemon/ws_server.rs` |
 
@@ -210,7 +212,7 @@ Default policy is isolated failure (`WARN` + continue startup). When
 
 | Gap | Prioridade | Impacto operacional | Hardening task derivada |
 |---|---|---|---|
-| `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` |
+| `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` ✅ implementada (trigger operacional via `--ingest-on-load` / `--require-plugin-ingest`) |
 | `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` ✅ implementada (evento interno de shutdown + teardown + join das runner threads) |
 | Telemetria de lifecycle é parcial (`plugin:loaded` existe; sem eventos estruturados para ingest/teardown/erros de fase). | Medium | Observabilidade limitada para diagnosticar falhas por estágio de lifecycle. | `T-RUNTIME-09` |
 | Runtime ainda não valida alinhamento manifesto↔instância (ex.: `plugin_id` efetivo, hooks declarados) no load. | Medium | Plugin inválido no ecossistema pode iniciar sem guard de contrato em runtime. | `T-RUNTIME-10` |
@@ -226,7 +228,8 @@ Resultado: ✅ `plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown` e `c
 
 Status de execução pós-mapeamento:
 - ✅ `T-RUNTIME-07` concluída (shutdown coordenado com teardown explícito e drenagem de runner threads).
-- ⏭️ Gaps remanescentes priorizados: `T-RUNTIME-08`, `T-RUNTIME-09`, `T-RUNTIME-10`.
+- ✅ `T-RUNTIME-08` concluída (trigger operacional de ingest no startup do daemon).
+- ⏭️ Gaps remanescentes priorizados: `T-RUNTIME-09`, `T-RUNTIME-10`.
 
 ---
 
