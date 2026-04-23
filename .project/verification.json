@@ -1993,6 +1993,58 @@
           "evidence": "`browser-plugin-host.test.ts` cobre sucesso module cache-backed e rejeição de artifactKind component."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-11-20260423",
+      "target": "T-PLUGIN-11",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:10:01.401Z",
+      "evidence": "install-contract recebeu metadataExtensions e preserva consistência de integridade/cache em cache hit e fetch path.",
+      "criteria_results": [
+        {
+          "criterion": "installWasmArtifact aceita metadataExtensions tipado/documentado",
+          "status": "passed",
+          "evidence": "`install-contract.js` + `index.d.ts` incluem `metadataExtensions` com merge no metadata base."
+        },
+        {
+          "criterion": "cache hit pode atualizar metadata estendida sem refetch",
+          "status": "passed",
+          "evidence": "Em cache hit com metadataExtensions, `cache.set` reaplica metadata com hash validado."
+        },
+        {
+          "criterion": "testes cobrem persistência de metadataExtensions em artefatos component",
+          "status": "passed",
+          "evidence": "`install-contract.test.js` cobre atualização de metadata em cache hit para artifact component."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-18-20260423",
+      "target": "T-RUNTIME-18",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T22:10:01.401Z",
+      "evidence": "Runtime browser executa artifacts component via sidecar ESM cacheado e íntegro, além do path module direto.",
+      "criteria_results": [
+        {
+          "criterion": "Component artifacts podem ser executados no browser por runner canônico (sem fallback implícito)",
+          "status": "passed",
+          "evidence": "`index.browser.ts` carrega `browserRuntimeModule` do cache quando `artifactKind=component`."
+        },
+        {
+          "criterion": "Contrato de install/load define formato de artefato final e valida assinatura/hash no bootstrap",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` instala sidecar com integrity check; `index.browser.ts` revalida integridade do sidecar no load."
+        },
+        {
+          "criterion": "Matriz de suporte separa claramente module path vs component path",
+          "status": "passed",
+          "evidence": "Docs/ADR atualizados; telemetry distingue `browser-cache` (module) e `browser-runtime-module` (component)."
+        }
+      ]
     }
   ]
 }

@@ -194,8 +194,8 @@
     {
       "id": "ISS-017",
       "title": "Fechar contrato browser para WASM Component (toolchain/transpile canônico)",
-      "body": "O spike cache-backed habilitou load `.wasm` no browser, mas ainda falta contrato único para artefatos de componente (JCO/component model) e validação determinística de compatibilidade entre install-time e runtime.",
-      "location": "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md:1",
+      "body": "A trilha browser agora executa `artifactKind=component` via sidecar `browserRuntimeModule` com verificação de integridade. Resta consolidar toolchain oficial para gerar/pinar esse sidecar no fluxo de build/release.",
+      "location": "packages/tractor-ts/src/lib/install-plugin.ts:1",
       "status": "open",
       "category": "capability",
       "priority": "high",

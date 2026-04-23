@@ -1,29 +1,32 @@
 {
-  "context": "Novo lote fechou o contrato browser cache-backed para `.wasm`: install passa a classificar `artifactKind`, load valida metadata+integridade e executa apenas artifacts `module` no browser atual.",
-  "timestamp": "2026-04-23T21:56:50.682Z",
+  "context": "Novo lote expandiu a trilha browser WASM component: install-contract suporta metadataExtensions, install-plugin passa a instalar sidecar ESM íntegro e runtime browser executa artifactKind=component com validação de metadata/hash.",
+  "timestamp": "2026-04-23T22:10:01.401Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-10 concluída (`VER-PLUGIN-10-20260423`): install-contract classifica artefatos WASM por kind.",
-    "T-RUNTIME-17 concluída (`VER-RUNTIME-17-20260423`): browser host valida cache metadata/integridade e bloqueia artifacts component.",
-    "ISS-016 resolvida; follow-up aberto em ISS-017 para runner component no browser."
+    "T-PLUGIN-11 concluída (`VER-PLUGIN-11-20260423`): metadataExtensions no install-contract para handshake install/load.",
+    "T-RUNTIME-18 concluída (`VER-RUNTIME-18-20260423`): runner browser component via `browserRuntimeModule` cacheado e íntegro.",
+    "T-RUNTIME-19 planejada: formalizar toolchain oficial para geração/pinagem do sidecar component."
   ],
   "blockers": [
-    "ISS-017: falta runner browser canônico para artifacts WASM component (transpile/runtime determinístico).",
+    "ISS-017: falta toolchain oficial para gerar sidecar `browserRuntimeModule` de component no pipeline de release.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Iniciar T-RUNTIME-18 para suportar artifactKind=component no browser com pipeline install-time transpile.",
-    "Definir formato assinado do artefato final browser (module JS transpiled vs wasm core) e validar no bootstrap.",
-    "Manter validação local scoped e disparar CI full em marcos de runtime/component."
+    "Iniciar T-RUNTIME-19 com foco em pipeline deterministic build/install do sidecar component.",
+    "Definir política de assinatura/publicação do sidecar (hash + provenance) alinhada ao manifesto.",
+    "Manter slices pequenos (runtime + docs + tests) com validação local scoped."
   ],
   "open_questions": [
-    "O formato canônico para component no browser será JS transpiled assinado, wasm+shim, ou dual-format por capability?"
+    "Sidecar component será produzido no publish (CI) ou no install local via serviço de transpile confiável?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
     "packages/plugin-manifest/src/install-contract.js",
     "packages/plugin-manifest/src/index.d.ts",
+    "packages/tractor-ts/src/lib/install-plugin.ts",
+    "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
     "packages/tractor-ts/src/index.browser.ts",
+    "packages/tractor-ts/test/install-plugin.test.ts",
     "packages/tractor-ts/test/browser-plugin-host.test.ts",
     "docs/ARCHITECTURE.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",

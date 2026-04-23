@@ -1379,7 +1379,7 @@
       ],
       "assigned_agent": "worker-runtime",
       "verification": "VER-RUNTIME-17-20260423",
-      "notes": "Browser host agora valida metadata+integridade do cache e bloqueia `artifactKind=component`, aceitando apenas `module` no runtime atual."
+      "notes": "Browser host valida metadata+integridade do cache e aplica gate por `artifactKind`; modules executam direto, components seguem trilha dedicada."
     },
     {
       "id": "T-PLUGIN-10",
@@ -1409,12 +1409,16 @@
     {
       "id": "T-RUNTIME-18",
       "description": "Implementar runner browser para artifactKind=component com pipeline install-time transpile e assinatura de artefato final.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "packages/tractor-ts/src/index.browser.ts",
         "packages/tractor-ts/src/lib/install-plugin.ts",
-        "packages/plugin-manifest/src/install-contract.js",
+        "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
@@ -1423,7 +1427,54 @@
         "Matriz de suporte separa claramente module path vs component path"
       ],
       "depends_on": [
-        "T-RUNTIME-17"
+        "T-RUNTIME-17",
+        "T-PLUGIN-11"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-18-20260423",
+      "notes": "Runner browser para component passou a usar sidecar `browserRuntimeModule` (ESM cacheado com integridade verificada), mantendo wasm cache-backed + metadata handshake."
+    },
+    {
+      "id": "T-PLUGIN-11",
+      "description": "Permitir metadata extension no install-contract para handshake install/load sem divergir do fluxo de integridade.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/plugin-manifest/src/install-contract.js",
+        "packages/plugin-manifest/src/install-contract.test.js",
+        "packages/plugin-manifest/src/index.d.ts",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "installWasmArtifact aceita metadataExtensions tipado/documentado",
+        "cache hit pode atualizar metadata estendida sem refetch",
+        "testes cobrem persistência de metadataExtensions em artefatos component"
+      ],
+      "depends_on": [
+        "T-PLUGIN-10"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-11-20260423",
+      "notes": "Metadata extension foi adicionada ao contrato compartilhado para transportar `browserRuntimeModule` (ou equivalentes futuros) sem duplicar lógica de integridade/cache."
+    },
+    {
+      "id": "T-RUNTIME-19",
+      "description": "Consolidar toolchain canônica para gerar browserRuntimeModule de WASM Component (pipeline build/install determinística).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/plugin-manifest/src/install-contract.js",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Definir pipeline oficial para geração do sidecar component->browserRuntimeModule",
+        "Assinatura/hash do sidecar integrada ao fluxo de release",
+        "Remover ambiguidade entre sidecar manual e toolchain oficial"
+      ],
+      "depends_on": [
+        "T-RUNTIME-18"
       ],
       "assigned_agent": "worker-runtime"
     }
