@@ -39,6 +39,30 @@ async function computeSRIFromText(source: string): Promise<string> {
 	return computeSRI(bytes);
 }
 
+function stableCanonicalize(value: unknown): unknown {
+	if (Array.isArray(value)) {
+		return value.map((item) => stableCanonicalize(item));
+	}
+
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>)
+				.sort(([a], [b]) => a.localeCompare(b))
+				.map(([key, itemValue]) => [key, stableCanonicalize(itemValue)]),
+		);
+	}
+
+	return value;
+}
+
+async function computeDescriptorIntegrity(
+	descriptorWithoutIntegrity: Record<string, unknown>,
+): Promise<string> {
+	return computeSRIFromText(
+		JSON.stringify(stableCanonicalize(descriptorWithoutIntegrity)),
+	);
+}
+
 describe("installPlugin", () => {
 	const mockBuffer = new ArrayBuffer(1024);
 	let manifestWithIntegrity: any;
@@ -253,6 +277,225 @@ describe("installPlugin", () => {
 		);
 	});
 
+	it("installs component runtime sidecar via descriptor URL under package-embedded policy", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-descriptor-url'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".runtime-descriptor.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						pluginId: "test-plugin",
+						componentWasmUrl: "https://example.com/test.wasm",
+						module: {
+							url: "https://example.com/test.browser.mjs",
+							integrity: runtimeModuleIntegrity,
+							format: "esm",
+						},
+						toolchain: {
+							name: "tractor-sidecar",
+							version: "0.1.0",
+						},
+						provenance: {
+							commitSha: "1111111111111111111111111111111111111111",
+							buildId: "build-url-descriptor",
+							sourceRepository: "https://github.com/refarm-dev/refarm",
+						},
+					}),
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				browserRuntimeModuleDescriptor: {
+					url: "https://example.com/test.runtime-descriptor.json",
+				},
+			},
+		);
+
+		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
+			"test-plugin",
+			runtimeModuleSource,
+		);
+	});
+
+	it("rejects cross-origin descriptor URL for package-embedded policy", async () => {
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					url: "https://cdn.other.test/test.runtime-descriptor.json",
+				},
+			}),
+		).rejects.toThrow(
+			"policy package-embedded requires descriptor URL origin to match",
+		);
+	});
+
+	it("requires provenance.sourceRepository for external-signed descriptor policy", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-external-no-repo'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.includes("external.runtime-descriptor.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => {
+						const descriptorWithoutIntegrity = {
+							schemaVersion: 1,
+							pluginId: "test-plugin",
+							componentWasmUrl: "https://example.com/test.wasm",
+							module: {
+								url: "https://cdn.other.test/test.browser.mjs",
+								integrity: runtimeModuleIntegrity,
+								format: "esm",
+							},
+							toolchain: {
+								name: "tractor-sidecar",
+								version: "0.1.0",
+							},
+							provenance: {
+								commitSha: "1111111111111111111111111111111111111111",
+								buildId: "build-external",
+							},
+						};
+
+						return {
+							...descriptorWithoutIntegrity,
+							descriptorIntegrity: await computeDescriptorIntegrity(
+								descriptorWithoutIntegrity,
+							),
+						};
+					},
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					url: "https://cdn.other.test/external.runtime-descriptor.json",
+				},
+				descriptorDistributionPolicy: "external-signed",
+				descriptorTrustedOrigins: ["https://cdn.other.test"],
+			}),
+		).rejects.toThrow("requires provenance.sourceRepository");
+	});
+
+	it("allows cross-origin descriptor URL when external-signed policy has trusted origin", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-external-signed'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.includes("external.runtime-descriptor.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => {
+						const descriptorWithoutIntegrity = {
+							schemaVersion: 1,
+							pluginId: "test-plugin",
+							componentWasmUrl: "https://example.com/test.wasm",
+							module: {
+								url: "https://cdn.other.test/test.browser.mjs",
+								integrity: runtimeModuleIntegrity,
+								format: "esm",
+							},
+							toolchain: {
+								name: "tractor-sidecar",
+								version: "0.1.0",
+							},
+							provenance: {
+								commitSha: "1111111111111111111111111111111111111111",
+								buildId: "build-external",
+								sourceRepository:
+									"https://github.com/refarm-dev/refarm",
+							},
+						};
+
+						return {
+							...descriptorWithoutIntegrity,
+							descriptorIntegrity: await computeDescriptorIntegrity(
+								descriptorWithoutIntegrity,
+							),
+						};
+					},
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				browserRuntimeModuleDescriptor: {
+					url: "https://cdn.other.test/external.runtime-descriptor.json",
+				},
+				descriptorDistributionPolicy: "external-signed",
+				descriptorTrustedOrigins: ["https://cdn.other.test"],
+			},
+		);
+
+		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
+			"test-plugin",
+			runtimeModuleSource,
+		);
+	});
+
 	it("rejects descriptor plugin mismatch", async () => {
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
@@ -299,6 +542,53 @@ describe("installPlugin", () => {
 				} as any,
 			}),
 		).rejects.toThrow("requires provenance buildId + full commitSha");
+	});
+
+	it("requires descriptorIntegrity when using external-signed descriptor policy", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-ext-policy'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					schemaVersion: 1,
+					pluginId: "test-plugin",
+					componentWasmUrl: "https://example.com/test.wasm",
+					module: {
+						url: "https://example.com/test.browser.mjs",
+						integrity: runtimeModuleIntegrity,
+					},
+					toolchain: {
+						name: "tractor-sidecar",
+						version: "0.1.0",
+					},
+					provenance: {
+						commitSha: "1111111111111111111111111111111111111111",
+						buildId: "build-ext-object",
+						sourceRepository: "https://github.com/refarm-dev/refarm",
+					},
+				},
+				descriptorDistributionPolicy: "external-signed",
+			}),
+		).rejects.toThrow("requires descriptorIntegrity");
 	});
 
 	it("rejects descriptor integrity mismatch", async () => {

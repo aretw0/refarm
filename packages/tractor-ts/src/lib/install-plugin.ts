@@ -66,12 +66,18 @@ export interface BrowserRuntimeModuleDescriptorReference {
 	url: string;
 }
 
+export type BrowserRuntimeDescriptorDistributionPolicy =
+	| "package-embedded"
+	| "external-signed";
+
 export interface InstallPluginOptions {
 	force?: boolean;
 	browserRuntimeModule?: BrowserRuntimeModuleInstallInput;
 	browserRuntimeModuleDescriptor?:
 		| BrowserRuntimeModuleDescriptor
 		| BrowserRuntimeModuleDescriptorReference;
+	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
+	descriptorTrustedOrigins?: string[];
 }
 
 interface ResolvedBrowserRuntimeModule {
@@ -115,6 +121,76 @@ function normalizeProvenanceMetadata(
 
 function isFullCommitSha(value: string | undefined): boolean {
 	return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
+}
+
+function safeParseUrl(input: string): URL | null {
+	try {
+		return new URL(input);
+	} catch {
+		return null;
+	}
+}
+
+function normalizeTrustedOrigins(
+	origins: string[] | undefined,
+): Set<string> {
+	const normalized = new Set<string>();
+	for (const origin of origins ?? []) {
+		const parsed = safeParseUrl(origin);
+		if (parsed?.origin) normalized.add(parsed.origin);
+	}
+	return normalized;
+}
+
+function assertDescriptorReferencePolicy(
+	manifest: PluginManifest,
+	wasmUrl: string,
+	descriptorUrlRaw: string,
+	policy: BrowserRuntimeDescriptorDistributionPolicy,
+	trustedOrigins: Set<string>,
+): URL {
+	const descriptorUrl = safeParseUrl(descriptorUrlRaw);
+	if (!descriptorUrl) {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor URL is invalid for ${manifest.id}.`,
+		);
+	}
+
+	if (descriptorUrl.protocol !== "https:") {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor URL must use https for ${manifest.id}.`,
+		);
+	}
+
+	if (!descriptorUrl.pathname.endsWith(".runtime-descriptor.json")) {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor URL must end with .runtime-descriptor.json for ${manifest.id}.`,
+		);
+	}
+
+	const wasmParsedUrl = safeParseUrl(wasmUrl);
+	const wasmOrigin = wasmParsedUrl?.origin;
+
+	if (policy === "package-embedded") {
+		if (!wasmOrigin || descriptorUrl.origin !== wasmOrigin) {
+			throw new Error(
+				`[install-plugin] Descriptor distribution policy package-embedded requires descriptor URL origin to match component origin for ${manifest.id}.`,
+			);
+		}
+		return descriptorUrl;
+	}
+
+	if (
+		wasmOrigin &&
+		descriptorUrl.origin !== wasmOrigin &&
+		!trustedOrigins.has(descriptorUrl.origin)
+	) {
+		throw new Error(
+			`[install-plugin] Descriptor distribution policy external-signed requires descriptor origin allowlist for ${manifest.id}.`,
+		);
+	}
+
+	return descriptorUrl;
 }
 
 function isDescriptorReference(
@@ -199,12 +275,34 @@ function assertDescriptorShape(
 	}
 }
 
+function assertDescriptorObjectPolicy(
+	manifest: PluginManifest,
+	descriptor: BrowserRuntimeModuleDescriptor,
+	policy: BrowserRuntimeDescriptorDistributionPolicy,
+): void {
+	if (policy !== "external-signed") return;
+
+	if (!descriptor.descriptorIntegrity) {
+		throw new Error(
+			`[install-plugin] Descriptor distribution policy external-signed requires descriptorIntegrity for ${manifest.id}.`,
+		);
+	}
+
+	if (!descriptor.provenance?.sourceRepository) {
+		throw new Error(
+			`[install-plugin] Descriptor distribution policy external-signed requires provenance.sourceRepository for ${manifest.id}.`,
+		);
+	}
+}
+
 async function resolveDescriptorInput(
 	manifest: PluginManifest,
 	wasmUrl: string,
 	input:
 		| BrowserRuntimeModuleDescriptor
 		| BrowserRuntimeModuleDescriptorReference,
+	policy: BrowserRuntimeDescriptorDistributionPolicy,
+	trustedOrigins: Set<string>,
 ): Promise<BrowserRuntimeModuleDescriptor> {
 	const verifyDescriptorIntegrity = async (
 		descriptor: BrowserRuntimeModuleDescriptor,
@@ -227,21 +325,32 @@ async function resolveDescriptorInput(
 	};
 
 	if (isDescriptorReference(input)) {
-		const response = await fetch(input.url);
+		const descriptorUrl = assertDescriptorReferencePolicy(
+			manifest,
+			wasmUrl,
+			input.url,
+			policy,
+			trustedOrigins,
+		);
+
+		const response = await fetch(descriptorUrl.toString());
 		if (!response.ok) {
 			throw new Error(
-				`[install-plugin] Failed to fetch browser runtime descriptor ${input.url}: ${response.statusText}`,
+				`[install-plugin] Failed to fetch browser runtime descriptor ${descriptorUrl.toString()}: ${response.statusText}`,
 			);
 		}
 
 		const descriptor =
 			(await response.json()) as BrowserRuntimeModuleDescriptor;
 		assertDescriptorShape(descriptor, manifest, wasmUrl);
+		assertDescriptorObjectPolicy(manifest, descriptor, policy);
+
 		await verifyDescriptorIntegrity(descriptor);
 		return descriptor;
 	}
 
 	assertDescriptorShape(input, manifest, wasmUrl);
+	assertDescriptorObjectPolicy(manifest, input, policy);
 	await verifyDescriptorIntegrity(input);
 	return input;
 }
@@ -293,6 +402,12 @@ export async function installPlugin(
 		);
 	}
 
+	const descriptorDistributionPolicy =
+		options.descriptorDistributionPolicy ?? "package-embedded";
+	const descriptorTrustedOrigins = normalizeTrustedOrigins(
+		options.descriptorTrustedOrigins,
+	);
+
 	let runtimeModule: ResolvedBrowserRuntimeModule | null = null;
 
 	if (options.browserRuntimeModuleDescriptor) {
@@ -300,6 +415,8 @@ export async function installPlugin(
 			manifest,
 			wasmUrl,
 			options.browserRuntimeModuleDescriptor,
+			descriptorDistributionPolicy,
+			descriptorTrustedOrigins,
 		);
 
 		const descriptorWithoutIntegrity = {
