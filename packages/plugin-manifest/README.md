@@ -139,8 +139,8 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 Não. O contrato de manifesto aceita `entry` em `.js`/`.mjs`/`.cjs` **ou** `.wasm`.
 
 - `.wasm`: caminho recomendado para sandbox e hardening (integridade `sha256-*` obrigatória).
-- `.js`: caminho válido para adoção gradual, especialmente para times que ainda não migraram para WASM.
-  No `tractor-ts`, entradas `.js` já podem ser carregadas via módulo JS em runtime.
+- `.js/.mjs/.cjs`: caminho válido para adoção gradual, especialmente para times que ainda não migraram para WASM.
+  No `tractor-ts`, entradas JS já podem ser carregadas via módulo JS em runtime (com diferenças por ambiente).
 
 Em resumo: WASM é o trilho de segurança mais forte, mas não é bloqueio absoluto para começar.
 

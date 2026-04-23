@@ -1759,6 +1759,53 @@
           "evidence": "Status marcado como `tentative` até formalização de enforcement por ambiente."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-07-20260423",
+      "target": "T-PLUGIN-07",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T20:30:10.711Z",
+      "evidence": "Spec de envelope de plugins publicada com critérios de escala e matriz de suporte por ambiente/formato.",
+      "criteria_results": [
+        {
+          "criterion": "Define claramente mínimo de plugin executável e máximo de extensão suportado hoje",
+          "status": "passed",
+          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` seção de envelope define L0 mínimo e L3 máximo com superfícies runtime/UI/assets."
+        },
+        {
+          "criterion": "Matriz por ambiente (browser/node) e formato (js/mjs/cjs/wasm) com status: suportado, parcial, roadmap",
+          "status": "passed",
+          "evidence": "Tabela explícita de suporte por ambiente/formato publicada no guia."
+        },
+        {
+          "criterion": "Trilha de escala de plugin (L0->L3) com controles de segurança e critérios de promoção",
+          "status": "passed",
+          "evidence": "Seção \"Trilha de escala (L0 → L3)\" inclui controles e critérios de promoção por estágio."
+        }
+      ]
+    },
+    {
+      "id": "VER-DEC-013-FINAL-20260423",
+      "target": "DEC-013",
+      "target_type": "decision",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T20:30:10.711Z",
+      "evidence": "DEC-013 promovida para decided após publicação de spec operacional de dual-track JS/WASM.",
+      "criteria_results": [
+        {
+          "criterion": "Decisão deixa de ser tentativa",
+          "status": "passed",
+          "evidence": "`DEC-013.status` atualizado para `decided` em `.project/decisions.json`."
+        },
+        {
+          "criterion": "Base documental existente para sustentar decisão",
+          "status": "passed",
+          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` cobre matriz, envelope e trilha de promoção."
+        }
+      ]
     }
   ]
 }

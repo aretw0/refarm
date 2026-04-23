@@ -185,7 +185,8 @@ The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundl
 For the detailed install/cache/integrity risk map and hardening backlog, see:
 `packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md`.
 
-For onboarding policy and migration path (`.js` → `.wasm`), see:
+For onboarding policy and migration path (`.js` → `.wasm`), including plugin envelope
+(minimum→maximum), environment matrix, and scale levels (L0→L3), see:
 `docs/PLUGIN_AUTHORING_TRACKS.md`.
 
 ### Plugin Distribution (Nostr)

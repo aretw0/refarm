@@ -1195,7 +1195,7 @@
     {
       "id": "T-PLUGIN-07",
       "description": "Publicar spec de envelope de plugin (mínimo/médio/máximo) com matriz de formatos e limites por ambiente.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "docs/PLUGIN_AUTHORING_TRACKS.md",
@@ -1212,7 +1212,9 @@
         "T-PLUGIN-06",
         "T-RUNTIME-13"
       ],
-      "assigned_agent": "worker-plugin"
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-07-20260423",
+      "notes": "Envelope mínimo→máximo formalizado em `docs/PLUGIN_AUTHORING_TRACKS.md` com matriz por ambiente/formato e trilha L0→L3 de promoção."
     }
   ]
 }

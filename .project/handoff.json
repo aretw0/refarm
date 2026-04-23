@@ -1,31 +1,29 @@
 {
-  "context": "Execução segue em lotes atômicos no eixo plugin runtime. Além do suporte JS em Node/Browser, a política dual-track JS/WASM foi registrada como decisão arquitetural tentativa (DEC-013).",
-  "timestamp": "2026-04-23T20:18:03.810Z",
+  "context": "Spec de envelope de plugins foi formalizada e alinhada com decisão arquitetural dual-track (JS/WASM).",
+  "timestamp": "2026-04-23T20:30:10.711Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-13 e T-PLUGIN-06 concluídas no eixo de adoção JS sem quebrar trilha WASM.",
-    "DEC-013 registrada (`VER-DEC-013-20260423`) para guiar enforcement progressivo por ambiente."
+    "T-PLUGIN-07 concluída com `VER-PLUGIN-07-20260423` (mínimo→máximo + matriz ambiente/formato + L0→L3).",
+    "DEC-013 promovida para `decided` com `VER-DEC-013-FINAL-20260423`."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar T-PLUGIN-07 para fechar spec de envelope mínimo→máximo de plugins e matriz formal de suporte por ambiente.",
-    "Converter DEC-013 de tentative -> decided quando matriz de enforcement por ambiente estiver fechada.",
-    "Continuar fechamento de ADR-044 para `.wasm` browser cache-backed."
+    "Aplicar a matriz de enforcement em políticas runtime por ambiente (gates explícitos para superfícies críticas).",
+    "Continuar ADR-044 para caminho `.wasm` no browser cache-backed."
   ],
   "open_questions": [
-    "Quais ambientes entram no primeiro corte de enforcement obrigatório de WASM?"
+    "Qual política de enforcement por ambiente será adotada primeiro (browser público, node local, edge)?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor-ts/src/index.browser.ts",
-    "packages/tractor-ts/src/lib/plugin-host.ts",
-    "packages/plugin-manifest/src/validate.js",
-    "packages/plugin-manifest/src/validate.test.js",
-    "packages/plugin-manifest/README.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
+    "docs/ARCHITECTURE.md",
+    "packages/plugin-manifest/README.md",
     ".project/tasks.json",
+    ".project/issues.json",
+    ".project/decisions.json",
     ".project/verification.json",
     ".project/handoff.json"
   ]

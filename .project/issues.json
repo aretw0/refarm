@@ -172,11 +172,12 @@
       "title": "Definir envelope de plugin (mínimo→máximo) e matriz de formatos por tipo de extensão",
       "body": "Falta definição canônica de até onde um plugin pode ir no Refarm (headless, UI, assets), quais formatos de entry são aceitos por ambiente e qual trilha de evolução recomendada (.js/.mjs/.cjs -> .wasm). Sem isso, onboarding e enforcement podem divergir entre times.",
       "location": "docs/PLUGIN_AUTHORING_TRACKS.md:1",
-      "status": "open",
+      "status": "resolved",
       "category": "composition",
       "priority": "high",
       "package": "plugin-platform",
-      "source": "human"
+      "source": "human",
+      "resolved_by": "VER-PLUGIN-07-20260423"
     }
   ]
 }

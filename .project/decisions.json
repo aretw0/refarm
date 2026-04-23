@@ -100,9 +100,9 @@
       "id": "DEC-013",
       "decision": "Adotar política dual-track para plugins (JS onboarding + WASM hardening progressivo), sem obrigatoriedade imediata de WASM em todas as superfícies.",
       "rationale": "Evita excluir desenvolvedores sem toolchain WASM no curto prazo, mantendo trilha clara de maturidade para isolamento e integridade fortes.",
-      "status": "tentative",
+      "status": "decided",
       "phase": 6,
-      "context": "Discussão de produto/arquitetura após hardening de install/cache e preocupação explícita com adoção de plugins não-WASM."
+      "context": "Spec de envelope L0→L3 e matriz por ambiente/formato publicada em T-PLUGIN-07."
     }
   ]
 }
