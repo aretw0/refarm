@@ -1,60 +1,135 @@
-export type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown";
+export type TelemetryHook =
+	| "onLoad"
+	| "onInit"
+	| "onRequest"
+	| "onError"
+	| "onTeardown";
 export type PluginExecutionProfile = "strict" | "trusted-fast";
-export type ExecutionContextType = "main-thread" | "worker" | "service-worker" | "node" | "edge";
+export type ExecutionContextType =
+	| "main-thread"
+	| "worker"
+	| "service-worker"
+	| "node"
+	| "edge";
 
 export interface ExecutionContextConfig {
-  preferred: ExecutionContextType;
-  fallback?: ExecutionContextType;
-  allowed: ExecutionContextType[];
+	preferred: ExecutionContextType;
+	fallback?: ExecutionContextType;
+	allowed: ExecutionContextType[];
 }
 
 export interface PluginTrustMetadata {
-  profile: PluginExecutionProfile;
-  leaseHours?: number;
+	profile: PluginExecutionProfile;
+	leaseHours?: number;
 }
 
 export interface PluginCapabilities {
-  provides: string[];
-  requires: string[];
-  providesApi?: string[];
-  requiresApi?: string[];
-  allowedOrigins?: string[];
+	provides: string[];
+	requires: string[];
+	providesApi?: string[];
+	requiresApi?: string[];
+	allowedOrigins?: string[];
 }
 
 export interface PluginManifest {
-  id: string;
-  name: string;
-  version: string;
-  entry: string;
-  capabilities: PluginCapabilities;
-  permissions: string[];
-  observability: {
-    hooks: TelemetryHook[];
-  };
-  targets: ("browser" | "server" | "remote")[];
-  ui?: {
-    icon?: string;
-    slots?: string[];
-    color?: string;
-  };
-  certification: {
-    license: string;
-    a11yLevel: number;
-    languages: string[];
-  };
-  i18n?: Record<string, any> | string;
-  executionContext?: ExecutionContextConfig;
-  trust?: PluginTrustMetadata;
-  integrity?: string;
+	id: string;
+	name: string;
+	version: string;
+	entry: string;
+	capabilities: PluginCapabilities;
+	permissions: string[];
+	observability: {
+		hooks: TelemetryHook[];
+	};
+	targets: ("browser" | "server" | "remote")[];
+	ui?: {
+		icon?: string;
+		slots?: string[];
+		color?: string;
+	};
+	certification: {
+		license: string;
+		a11yLevel: number;
+		languages: string[];
+	};
+	i18n?: Record<string, any> | string;
+	executionContext?: ExecutionContextConfig;
+	trust?: PluginTrustMetadata;
+	integrity?: string;
 }
 
 export interface ManifestValidationResult {
-  valid: boolean;
-  errors: string[];
+	valid: boolean;
+	errors: string[];
 }
 
 export const REQUIRED_TELEMETRY_HOOKS: readonly TelemetryHook[];
 
-export function createMockManifest(overrides?: Partial<PluginManifest>): PluginManifest;
+export function createMockManifest(
+	overrides?: Partial<PluginManifest>,
+): PluginManifest;
 export function validatePluginManifest(manifest: any): ManifestValidationResult;
 export function assertValidPluginManifest(manifest: any): void;
+
+export interface ParsedIntegrity {
+	algorithm: "sha256";
+	encoding: "hex" | "base64";
+	value: string;
+}
+
+export interface Sha256Digest {
+	base64: string;
+	hex: string;
+}
+
+export interface PluginArtifactMetadata {
+	pluginId: string;
+	wasmUrl: string;
+	integrity: string;
+	wasmHash: string;
+	cachedAt: number;
+}
+
+export interface PluginBinaryCacheAdapter {
+	get(pluginId: string): Promise<ArrayBuffer | null>;
+	set(
+		pluginId: string,
+		bytes: ArrayBuffer,
+		metadata?: PluginArtifactMetadata,
+	): Promise<void>;
+	evict(pluginId: string): Promise<void>;
+}
+
+export interface InstallWasmArtifactRequest {
+	pluginId: string;
+	wasmUrl: string;
+	integrity: string;
+	force?: boolean;
+}
+
+export interface InstallWasmArtifactResult {
+	pluginId: string;
+	wasmUrl: string;
+	cached: boolean;
+	byteLength: number;
+	wasmHash: string;
+}
+
+export const SHA256_HEX_VALUE_RE: RegExp;
+export const SHA256_BASE64_VALUE_RE: RegExp;
+
+export function parseSha256Integrity(integrity: string): ParsedIntegrity;
+export function computeSha256Digest(bytes: ArrayBuffer): Promise<Sha256Digest>;
+export function isSha256DigestMatch(
+	expected: ParsedIntegrity,
+	actual: Sha256Digest,
+): boolean;
+export function verifyBufferIntegrity(
+	bytes: ArrayBuffer,
+	integrity: string,
+): Promise<Sha256Digest>;
+
+export function installWasmArtifact(
+	request: InstallWasmArtifactRequest,
+	deps: { cache: PluginBinaryCacheAdapter; fetchFn?: typeof fetch },
+): Promise<InstallWasmArtifactResult>;

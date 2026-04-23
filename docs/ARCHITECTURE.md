@@ -168,9 +168,9 @@ Refarm has a **target architecture** (ADR-044) and a **current implementation sn
 
 | Layer | Current behavior | Source |
 |---|---|---|
-| `@refarm.dev/barn` | `installPlugin(url, integrity)` verifies SHA-256 and caches binaries **in-memory by URL** (no OPFS persistence yet). | `packages/barn/src/index.ts` |
+| `@refarm.dev/barn` | `installPlugin(url, integrity, { pluginId? })` delega para contrato compartilhado `installWasmArtifact`; cache local em memória é indexado por `pluginId` (não por URL), com verificação SHA-256 padronizada. | `packages/barn/src/index.ts`, `packages/plugin-manifest/src/install-contract.js` |
 | `@refarm.dev/tractor` (browser export) | Browser `PluginHost` is an explicit stub and throws on `load()` until cache-backed runtime loading is implemented. | `packages/tractor-ts/src/index.browser.ts` |
-| `@refarm.dev/tractor` install helper | `installPlugin(manifest, wasmUrl)` fetches and stores raw `.wasm` in OPFS cache by `manifest.id`; integrity is optional. | `packages/tractor-ts/src/lib/install-plugin.ts`, `packages/tractor-ts/src/lib/opfs-plugin-cache.ts` |
+| `@refarm.dev/tractor` install helper | `installPlugin(manifest, wasmUrl)` usa o mesmo contrato `installWasmArtifact`; integridade SHA-256 é obrigatória e o cache OPFS segue layout canônico `/refarm/barn/{implements,metadata}` por `pluginId`. | `packages/tractor-ts/src/lib/install-plugin.ts`, `packages/tractor-ts/src/lib/opfs-plugin-cache.ts`, `packages/plugin-manifest/src/install-contract.js` |
 | `@refarm.dev/tractor` runtime (Node) | `PluginHost.load()` fetches/reads wasm directly from `manifest.entry`; it does not consume Barn/OPFS cache. | `packages/tractor-ts/src/lib/plugin-host.ts` |
 
 The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundles Node.js-only imports (`node:fs`, `node:path`, `@bytecodealliance/jco`). See [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).

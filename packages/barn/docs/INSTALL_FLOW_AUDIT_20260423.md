@@ -62,10 +62,10 @@ Source: `packages/tractor/src/host/plugin_host/env_and_runtime.rs`
 
 | Risk | Severity | Evidence | Impact |
 |---|---|---|---|
-| Barn and Tractor expose parallel install flows with different storage semantics | High | `packages/barn/src/index.ts` vs `packages/tractor-ts/src/lib/install-plugin.ts` | Divergent behavior and duplicated security surface |
+| Barn and Tractor expose parallel install flows with different storage semantics | ~~High~~ Resolved | Shared `installWasmArtifact` contract (`packages/plugin-manifest/src/install-contract.js`) consumed by Barn + Tractor install paths | ✅ Install/cache/verify frontier unified; duplication removed |
 | Browser runtime cannot load from installed cache yet | High | `packages/tractor-ts/src/index.browser.ts` stub throws on `load()` | Install does not complete lifecycle (install ≠ executable) |
 | Integrity validation is optional in tractor-ts path (`manifest.integrity` absent) | ~~Medium~~ Resolved | (historical) `if (manifest.integrity) { ... }` in `install-plugin.ts` | ✅ Mitigated: `.wasm` install now fails without `manifest.integrity`; cache hit is revalidated before reuse |
-| OPFS layout differs from Barn docs (`refarm-plugins/*` vs `/refarm/barn/*`) | Medium | `opfs-plugin-cache.ts` vs `packages/barn/docs/STORAGE_LAYOUT.md` | Operational confusion + migration overhead |
+| OPFS layout differs from Barn docs (`refarm-plugins/*` vs `/refarm/barn/*`) | ~~Medium~~ Resolved | `opfs-plugin-cache.ts` now uses `/refarm/barn/{implements,metadata}` and docs were aligned | ✅ Canonical layout + metadata sidecar documented and implemented |
 | No shared contract test proving install→cache hit/miss→runtime load | Medium | separate tests (`barn/tests`, `tractor-ts/test/install-plugin.test.ts`) | Regressions can pass package-local tests |
 
 ---
@@ -79,7 +79,7 @@ Source: `packages/tractor/src/host/plugin_host/env_and_runtime.rs`
 
 ### P1 — single installation contract
 
-3. **T-PLUGIN-04 (new)**: unify Barn + Tractor installation contract (shared cache/index abstraction + canonical OPFS layout) and document ownership boundaries.
+3. **T-PLUGIN-04** ✅: Barn + Tractor agora compartilham `installWasmArtifact`; cache OPFS canônico `/refarm/barn/{implements,metadata}` e fronteiras documentadas.
 
 ### P2 — runtime execution from installed cache
 

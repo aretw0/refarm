@@ -45,7 +45,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		});
 
 		await expect(barn.installPlugin(url, integrity)).rejects.toThrow(
-			"Integrity verification failed",
+			"Integrity check failed",
 		);
 	});
 
@@ -113,7 +113,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		expect(global.fetch).toHaveBeenCalledTimes(1);
 	});
 
-	it("should reject cached artifact when requested integrity differs", async () => {
+	it("should evict stale cache and still reject when requested integrity is wrong", async () => {
 		const url = "http://localhost:8080/cached-plugin.wasm";
 		const installedIntegrity = await sha256IntegrityFor("cached content");
 		const mismatchedIntegrity = await sha256IntegrityFor("other content");
@@ -128,8 +128,8 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		await barn.installPlugin(url, installedIntegrity);
 
 		await expect(barn.installPlugin(url, mismatchedIntegrity)).rejects.toThrow(
-			"Integrity verification failed (cached artifact mismatch)",
+			"Integrity check failed",
 		);
-		expect(global.fetch).toHaveBeenCalledTimes(1);
+		expect(global.fetch).toHaveBeenCalledTimes(2);
 	});
 });

@@ -1567,6 +1567,37 @@
           "evidence": "Board/handoff atualizados para pausar execução após checkpoint e retomar em T-PLUGIN-04."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-04-20260423",
+      "target": "T-PLUGIN-04",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T19:19:54.993Z",
+      "evidence": "Contrato compartilhado implantado e validado em plugin-manifest, barn e tractor-ts com layout OPFS canônico documentado.",
+      "criteria_results": [
+        {
+          "criterion": "Existe fronteira única para install/cache/verify (sem lógica duplicada entre Barn e Tractor)",
+          "status": "passed",
+          "evidence": "`installWasmArtifact` em `packages/plugin-manifest/src/install-contract.js` centraliza cache-hit verify, evict-on-mismatch, fetch+verify+persist; Barn e Tractor delegam para esse contrato."
+        },
+        {
+          "criterion": "Layout OPFS documentado e alinhado com implementação real",
+          "status": "passed",
+          "evidence": "`packages/tractor-ts/src/lib/opfs-plugin-cache.ts` usa `/refarm/barn/{implements,metadata}` e `packages/barn/docs/STORAGE_LAYOUT.md` reflete o mesmo layout."
+        },
+        {
+          "criterion": "Contrato de integração permite runtime consumir cache instalado sem ambiguidade",
+          "status": "passed",
+          "evidence": "Instalação passa a ser indexada por `pluginId` com `cachePath` explícito no resultado de `installPlugin` e metadata sidecar persistida para resolução futura no runtime."
+        },
+        {
+          "criterion": "Suíte de regressão verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest test` (17/17), `npm --prefix packages/barn test` (7/7), `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (10/10)."
+        }
+      ]
     }
   ]
 }

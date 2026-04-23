@@ -6,6 +6,9 @@ vi.mock("../src/lib/opfs-plugin-cache", () => ({
 	cachePlugin: vi.fn().mockResolvedValue(undefined),
 	getCachedPlugin: vi.fn().mockResolvedValue(null),
 	evictPlugin: vi.fn().mockResolvedValue(undefined),
+	getPluginCachePath: vi.fn().mockImplementation((pluginId: string) =>
+		`/refarm/barn/implements/${pluginId}.wasm`,
+	),
 }));
 
 import {
@@ -58,9 +61,18 @@ describe("installPlugin", () => {
 		);
 
 		expect(global.fetch).toHaveBeenCalledWith("https://example.com/test.wasm");
-		expect(cachePlugin).toHaveBeenCalledWith("test-plugin", mockBuffer);
+		expect(cachePlugin).toHaveBeenCalledWith(
+			"test-plugin",
+			mockBuffer,
+			expect.objectContaining({
+				pluginId: "test-plugin",
+				wasmUrl: "https://example.com/test.wasm",
+				integrity: manifestWithIntegrity.integrity,
+			}),
+		);
 		expect(result.cached).toBe(false);
 		expect(result.byteLength).toBe(1024);
+		expect(result.cachePath).toContain("/refarm/barn/implements");
 	});
 
 	it("returns cached version without fetching when already cached", async () => {
@@ -114,7 +126,7 @@ describe("installPlugin", () => {
 
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/missing.wasm"),
-		).rejects.toThrow("[installPlugin] Failed to fetch");
+		).rejects.toThrow("[install-contract] Failed to fetch");
 	});
 
 	describe("integrity verification", () => {
@@ -137,7 +149,7 @@ describe("installPlugin", () => {
 
 			await expect(
 				installPlugin(manifestWithIntegrity, "https://example.com/test.wasm"),
-			).rejects.toThrow("[installPlugin] Integrity check failed");
+			).rejects.toThrow("Integrity check failed");
 		});
 
 		it("rejects missing integrity for wasm installation", async () => {
@@ -151,7 +163,7 @@ describe("installPlugin", () => {
 					manifestWithoutIntegrity,
 					"https://example.com/test.wasm",
 				),
-			).rejects.toThrow("Missing manifest.integrity");
+			).rejects.toThrow("Missing integrity");
 		});
 
 		it("rejects an unsupported integrity algorithm", async () => {
@@ -162,7 +174,7 @@ describe("installPlugin", () => {
 
 			await expect(
 				installPlugin(manifestWithBadAlgo, "https://example.com/test.wasm"),
-			).rejects.toThrow("Unsupported integrity algorithm");
+			).rejects.toThrow("Integrity must use sha256-");
 		});
 
 		it("accepts hex sha256 digest", async () => {

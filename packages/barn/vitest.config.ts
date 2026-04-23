@@ -1,4 +1,17 @@
-import { defineConfig } from 'vitest/config'
-import { baseConfig } from '@refarm.dev/vtconfig'
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { defineConfig } from "vitest/config";
 
-export default defineConfig(baseConfig);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export default defineConfig({
+	resolve: {
+		alias: {
+			"@refarm.dev/plugin-manifest": path.resolve(
+				__dirname,
+				"../plugin-manifest/src/index.js",
+			),
+		},
+	},
+});

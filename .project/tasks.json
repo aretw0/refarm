@@ -603,13 +603,21 @@
     {
       "id": "T-PLUGIN-04",
       "description": "Unificar contrato de instalação Barn↔Tractor e layout canônico de cache OPFS.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "packages/barn/src/**",
+        "packages/plugin-manifest/src/integrity.js",
+        "packages/plugin-manifest/src/install-contract.js",
+        "packages/plugin-manifest/src/index.js",
+        "packages/plugin-manifest/src/index.d.ts",
+        "packages/plugin-manifest/src/install-contract.test.js",
         "packages/tractor-ts/src/lib/install-plugin.ts",
         "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/barn/src/index.ts",
+        "packages/barn/tests/integration.test.ts",
         "packages/barn/docs/STORAGE_LAYOUT.md",
+        "packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md",
         "docs/ARCHITECTURE.md"
       ],
       "acceptance_criteria": [
@@ -621,7 +629,9 @@
         "T-PLUGIN-02",
         "T-PLUGIN-03"
       ],
-      "assigned_agent": "worker-plugin"
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-04-20260423",
+      "notes": "Contrato único de instalação/cache/verify extraído para @refarm.dev/plugin-manifest (installWasmArtifact). Barn e Tractor passaram a consumir a mesma fronteira. Cache OPFS do tractor alinhado ao layout canônico /refarm/barn/{implements,metadata} com sidecar de metadata."
     },
     {
       "id": "T-DOC-01",

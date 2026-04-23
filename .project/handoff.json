@@ -1,24 +1,27 @@
 {
-  "context": "Lote de 4 slices concluído em plugin hardening: T-PLUGIN-03 foi fechada com regressão de cache hit/miss e validação de integridade no caminho de cache; checkpoint registrado para compactação.",
-  "timestamp": "2026-04-23T18:46:17.321Z",
+  "context": "Hardening de plugin avançou para contrato único de instalação/cache/verify. T-PLUGIN-04 concluída com layout OPFS canônico e documentação alinhada.",
+  "timestamp": "2026-04-23T19:19:54.993Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-03 concluída com `VER-PLUGIN-03-20260423` (cache hit revalida digest; mismatch faz evict+refetch).",
-    "Checkpoint `VER-CHECKPOINT-COMPACTION-05-20260423` registrado ao final do lote para pausar e compactar."
+    "T-PLUGIN-04 concluída com `VER-PLUGIN-04-20260423` (Barn↔Tractor unificados via installWasmArtifact; OPFS canônico aplicado).",
+    "Pipeline local segue fast-path com checks escopados; CI fica para marcos pontuais."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Após compactação, executar T-PLUGIN-04 para unificar contrato Barn↔Tractor e layout OPFS canônico.",
-    "Somente em marcos pontuais, reexecutar validação CI completa (local segue fluxo scoped por pacote no pre-push)."
+    "Avaliar próximo slice de runtime browser: consumo efetivo do cache instalado em `PluginHost.load()` (fechar gap ADR-044 etapa runtime).",
+    "Preparar novo checkpoint antes da próxima compactação, mantendo lotes atômicos."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "packages/plugin-manifest/src/integrity.js",
+    "packages/plugin-manifest/src/install-contract.js",
     "packages/tractor-ts/src/lib/install-plugin.ts",
-    "packages/tractor-ts/test/install-plugin.test.ts",
-    "packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md",
+    "packages/tractor-ts/src/lib/opfs-plugin-cache.ts",
+    "packages/barn/src/index.ts",
+    "docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

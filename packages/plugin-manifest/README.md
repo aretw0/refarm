@@ -134,6 +134,17 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 8. `targets` must be a non-empty array using only `browser`, `server`, `remote`
 9. All required telemetry hooks must be declared
 
+## Shared install/cache contract
+
+Besides schema validation, this package now exposes a shared binary-install contract:
+
+- `parseSha256Integrity()`
+- `verifyBufferIntegrity()`
+- `installWasmArtifact(request, { cache, fetchFn })`
+
+`installWasmArtifact` is used by both Barn and Tractor install paths, so hash verification,
+cache-hit validation, eviction-on-mismatch, and fetch+persist semantics stay consistent.
+
 ## Conformance scope (manifest:v1)
 
 `@refarm.dev/plugin-manifest` is a **schema/validation contract**, not a runtime capability contract.
