@@ -414,7 +414,7 @@
     {
       "id": "T-CONTRACT-01",
       "description": "Inventariar suites de conformance existentes por contrato v1.",
-      "status": "planned",
+      "status": "completed",
       "phase": 5,
       "files": [
         "packages/storage-contract-v1/**",
@@ -430,7 +430,9 @@
       "depends_on": [
         "T-PIPE-05"
       ],
-      "assigned_agent": "worker-contracts"
+      "assigned_agent": "worker-contracts",
+      "verification": "VER-CONTRACT-01-20260423",
+      "notes": "Inventário v1 consolidado em `docs/CONFORMANCE_V1_INVENTORY.md` com lacunas por adapter e plano priorizado para T-CONTRACT-02/03/04."
     },
     {
       "id": "T-CONTRACT-02",

@@ -1,22 +1,27 @@
 {
-  "context": "Checkpoint de runtime concluído: smoke WS (`T-RUNTIME-02`), mapa de boot/falhas (`T-RUNTIME-01`), fail-fast opcional de plugin obrigatório (`T-RUNTIME-05`) e probe explícita de readiness (`T-RUNTIME-06`) estão implementados e validados local+CI.",
-  "timestamp": "2026-04-23T07:08:36Z",
-  "current_phase": 4,
+  "context": "Foco movido para fase de contratos v1: T-CONTRACT-01 concluída com inventário consolidado e plano de cobertura para desbloquear roundtrip runtime/storage.",
+  "timestamp": "2026-04-23T07:35:15.133Z",
+  "current_phase": 5,
   "current_tasks": [
-    "Gate de health runtime no CI foi integrado (`Tractor health probe smoke`) e validado na run `24821351910` com `success`.",
-    "Board canônico atualizado com verificação `VER-CI-RUNTIME-HEALTH-GATE-20260423`. Preparado para compactação."
+    "Inventário de conformance v1 concluído (`T-CONTRACT-01`) em `docs/CONFORMANCE_V1_INVENTORY.md` com verificação `VER-CONTRACT-01-20260423`.",
+    "Lacunas priorizadas por adapter mapeadas para execução incremental (`T-CONTRACT-03`/`T-CONTRACT-04` antes do roundtrip runtime)."
   ],
   "blockers": [
+    "T-RUNTIME-04 depende de `T-CONTRACT-03`; roundtrip runtime/storage segue bloqueado até cobertura mínima de sync:v1.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Após compactação, escolher próxima frente de produto: `T-RUNTIME-04` (roundtrip runtime/storage) ou `T-CONTRACT-01` (inventário conformance v1).",
-    "Manter monitoramento de tempos por lane via artifact `ci-run-metrics`."
+    "Executar `T-CONTRACT-03`: adicionar suite(s) de conformance `sync:v1` para `sync-loro` (e avaliar `sync-crdt` no mesmo lote).",
+    "Executar `T-CONTRACT-04`: adicionar conformance `identity:v1` para `identity-nostr` e formalizar escopo de conformance para `plugin-manifest`."
   ],
   "open_questions": [],
-  "key_decisions_pending": [],
+  "key_decisions_pending": [
+    "Plugin-manifest deve ganhar harness de conformance formal (análogo aos contratos v1) ou manter validação por unit/schema?"
+  ],
   "files_in_flux": [
-    ".project/handoff.json",
-    ".project/verification.json"
+    "docs/CONFORMANCE_V1_INVENTORY.md",
+    ".project/tasks.json",
+    ".project/verification.json",
+    ".project/handoff.json"
   ]
 }

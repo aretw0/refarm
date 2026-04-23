@@ -1053,6 +1053,32 @@
           "evidence": "Run `24821351910` concluída `success` com jobs `quality/build/e2e/summary/ci-metrics` verdes."
         }
       ]
+    },
+    {
+      "id": "VER-CONTRACT-01-20260423",
+      "target": "T-CONTRACT-01",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T07:35:15.133Z",
+      "evidence": "Inventário de conformance v1 publicado em `docs/CONFORMANCE_V1_INVENTORY.md` com execução local de `npm run test:capabilities --silent` verde para contratos v1, plugin-manifest e adapter de referência storage-sqlite.",
+      "criteria_results": [
+        {
+          "criterion": "Inventário completo por pacote",
+          "status": "passed",
+          "evidence": "Documento cobre storage/sync/identity-contract-v1 e plugin-manifest, incluindo runners/suites e status atual por pacote."
+        },
+        {
+          "criterion": "Lacunas de teste identificadas",
+          "status": "passed",
+          "evidence": "Lacunas explícitas para sync-loro/sync-crdt, identity-nostr, storage-memory/storage-rest e ausência de harness conformance no plugin-manifest."
+        },
+        {
+          "criterion": "Plano de cobertura priorizado",
+          "status": "passed",
+          "evidence": "Plano P0/P1 amarra próximos passos em T-CONTRACT-02, T-CONTRACT-03 e T-CONTRACT-04; dependência de T-RUNTIME-04 registrada."
+        }
+      ]
     }
   ]
 }
