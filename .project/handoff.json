@@ -1,20 +1,20 @@
 {
-  "context": "Lote atual consolidou suporte JS no runtime (Node + browser) e refinou contrato de manifesto para `.mjs/.cjs` além de `.js`.",
-  "timestamp": "2026-04-23T20:09:39.282Z",
+  "context": "Execução segue em lotes atômicos no eixo plugin runtime. Além do suporte JS em Node/Browser, a política dual-track JS/WASM foi registrada como decisão arquitetural tentativa (DEC-013).",
+  "timestamp": "2026-04-23T20:11:26.273Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-13 concluída (`VER-RUNTIME-13-20260423`): browser PluginHost funcional para plugins JS.",
-    "T-PLUGIN-06 concluída (`VER-PLUGIN-06-20260423`): manifesto aceita `.js/.mjs/.cjs/.wasm` com regras de integridade preservadas para `.wasm`."
+    "T-RUNTIME-13 e T-PLUGIN-06 concluídas no eixo de adoção JS sem quebrar trilha WASM.",
+    "DEC-013 registrada (`VER-DEC-013-20260423`) para guiar enforcement progressivo por ambiente."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Seguir ADR-044 para caminho browser `.wasm` cache-backed.",
-    "Formalizar decisão de enforcement JS vs WASM por ambiente (ADR/decision block)."
+    "Converter DEC-013 de tentative -> decided quando matriz de enforcement por ambiente estiver fechada.",
+    "Continuar fechamento de ADR-044 para `.wasm` browser cache-backed."
   ],
   "open_questions": [
-    "Qual baseline de segurança mínima para plugins `.js` em produção antes de exigir migração para WASM?"
+    "Quais ambientes entram no primeiro corte de enforcement obrigatório de WASM?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

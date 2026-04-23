@@ -1738,6 +1738,27 @@
           "evidence": "`npm --prefix packages/plugin-manifest test` (18/18)."
         }
       ]
+    },
+    {
+      "id": "VER-DEC-013-20260423",
+      "target": "DEC-013",
+      "target_type": "decision",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T20:11:26.273Z",
+      "evidence": "Decisão registrada para orientar roadmap JS/WASM com adoção progressiva e sem bloqueio imediato.",
+      "criteria_results": [
+        {
+          "criterion": "Decisão explicita dual-track JS/WASM",
+          "status": "passed",
+          "evidence": "`DEC-013` registra onboarding em JS e trilha de hardening em WASM."
+        },
+        {
+          "criterion": "Status mantém espaço para calibragem futura",
+          "status": "passed",
+          "evidence": "Status marcado como `tentative` até formalização de enforcement por ambiente."
+        }
+      ]
     }
   ]
 }
