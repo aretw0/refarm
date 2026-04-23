@@ -16,7 +16,7 @@ Com foco adicional nos adapters atuais que deveriam consumir essas suites.
 npm run test:capabilities --silent
 ```
 
-Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `plugin-manifest` e `storage-sqlite`.
+Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `plugin-manifest`, `storage-sqlite` e `sync-loro`.
 
 ## Inventário por pacote de contrato
 
@@ -32,17 +32,17 @@ Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-
 | Contrato | Adapters mapeados | Evidência de conformance hoje | Lacuna |
 |---|---|---|---|
 | `storage:v1` | `storage-sqlite`, `storage-memory`, `storage-rest` | ✅ `storage-sqlite/src/storage-v1.conformance.test.ts` + script `test:conformance` | ❗ `storage-memory` e `storage-rest` ainda sem teste de conformance explícito |
-| `sync:v1` | `sync-loro`, `sync-crdt` | ⚠️ Existem testes comportamentais (`loro-crdt-storage.test.ts`, `smoke.test.ts`) | ❗ Falta suite de conformance usando `runSyncV1Conformance` |
+| `sync:v1` | `sync-loro`, `sync-crdt` | ✅ `sync-loro/src/sync-v1.conformance.test.ts` usa `runSyncV1Conformance` + cenário de conflito concorrente entre peers | ⚠️ `sync-crdt` ainda sem suite de conformance com `runSyncV1Conformance` |
 | `identity:v1` | `identity-nostr` | ⚠️ Não há teste de conformance no pacote | ❗ Falta suite usando `runIdentityV1Conformance` |
 | `plugin-manifest` | `plugin-manifest` | ✅ `src/validate.test.js` (9 testes) | ❗ Falta definir contrato/harness de conformance (se escopo exigir paridade com contratos v1) |
 
 ## Plano de cobertura priorizado
 
 ### P0 (desbloqueio de runtime/contracts)
-1. **T-CONTRACT-03**: adicionar conformance em `sync-loro` (e avaliar `sync-crdt` no mesmo lote ou follow-up curto).
-2. **T-CONTRACT-04**: adicionar conformance em `identity-nostr` e decidir formalmente o escopo de conformance para `plugin-manifest`.
+1. **T-CONTRACT-04**: adicionar conformance em `identity-nostr` e decidir formalmente o escopo de conformance para `plugin-manifest`.
 
-### P1 (fechamento da malha de storage)
+### P1 (fechamento da malha de sync/storage)
+2. Follow-up curto: avaliar inclusão de `sync-crdt` no harness `runSyncV1Conformance`.
 3. **T-CONTRACT-02**: expandir conformance para `storage-memory` e `storage-rest` além de `storage-sqlite`.
 
 ## Observação de dependência

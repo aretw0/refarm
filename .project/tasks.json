@@ -456,7 +456,7 @@
     {
       "id": "T-CONTRACT-03",
       "description": "Adicionar/ajustar testes de conformance para sync-contract-v1 e sync-loro.",
-      "status": "planned",
+      "status": "completed",
       "phase": 5,
       "files": [
         "packages/sync-contract-v1/**",
@@ -470,7 +470,9 @@
       "depends_on": [
         "T-CONTRACT-01"
       ],
-      "assigned_agent": "worker-sync"
+      "assigned_agent": "worker-sync",
+      "verification": "VER-CONTRACT-03-20260423",
+      "notes": "Suite `sync-v1.conformance.test.ts` adicionada em `packages/sync-loro` usando `runSyncV1Conformance` e cenário de conflito concorrente entre peers; `sync-contract-v1` recebeu cobertura de caso inválido."
     },
     {
       "id": "T-CONTRACT-04",

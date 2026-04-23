@@ -1,24 +1,27 @@
 {
-  "context": "Foco movido para fase de contratos v1: T-CONTRACT-01 concluída com inventário consolidado e plano de cobertura para desbloquear roundtrip runtime/storage.",
-  "timestamp": "2026-04-23T07:35:15.133Z",
+  "context": "Trilha de contratos v1 avançou: T-CONTRACT-03 concluída com conformance sync executando em sync-loro, incluindo cenário de conflito concorrente e gate integrado no comando de capacidades.",
+  "timestamp": "2026-04-23T07:54:58.077Z",
   "current_phase": 5,
   "current_tasks": [
-    "Inventário de conformance v1 concluído (`T-CONTRACT-01`) em `docs/CONFORMANCE_V1_INVENTORY.md` com verificação `VER-CONTRACT-01-20260423`.",
-    "Lacunas priorizadas por adapter mapeadas para execução incremental (`T-CONTRACT-03`/`T-CONTRACT-04` antes do roundtrip runtime)."
+    "T-CONTRACT-03 concluída com verificação `VER-CONTRACT-03-20260423` (sync-contract-v1 + sync-loro conformance).",
+    "`npm run test:capabilities` agora inclui `sync-loro` via script `test:conformance`."
   ],
   "blockers": [
-    "T-RUNTIME-04 depende de `T-CONTRACT-03`; roundtrip runtime/storage segue bloqueado até cobertura mínima de sync:v1.",
+    "T-RUNTIME-04 ainda depende de estabilizar a frente seguinte (`T-CONTRACT-04`) para cobertura mínima de identidade/manifest no bloco de contratos v1.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-CONTRACT-03`: adicionar suite(s) de conformance `sync:v1` para `sync-loro` (e avaliar `sync-crdt` no mesmo lote).",
-    "Executar `T-CONTRACT-04`: adicionar conformance `identity:v1` para `identity-nostr` e formalizar escopo de conformance para `plugin-manifest`."
+    "Executar `T-CONTRACT-04`: adicionar conformance `identity:v1` para `identity-nostr` e definir decisão de escopo para conformance no `plugin-manifest`.",
+    "Planejar follow-up curto para avaliar inclusão de `sync-crdt` no harness `runSyncV1Conformance`."
   ],
   "open_questions": [],
   "key_decisions_pending": [
     "Plugin-manifest deve ganhar harness de conformance formal (análogo aos contratos v1) ou manter validação por unit/schema?"
   ],
   "files_in_flux": [
+    "packages/sync-loro/src/sync-v1.conformance.test.ts",
+    "packages/sync-contract-v1/src/conformance.test.ts",
+    "package.json",
     "docs/CONFORMANCE_V1_INVENTORY.md",
     ".project/tasks.json",
     ".project/verification.json",

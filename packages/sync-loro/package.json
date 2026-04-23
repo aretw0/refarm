@@ -1,43 +1,44 @@
 {
-  "name": "@refarm.dev/sync-loro",
-  "version": "0.1.0",
-  "description": "Loro CRDT engine for Refarm — implements SyncAdapter + StorageAdapter via CQRS (LoroDoc write model, SQL read model). See ADR-045.",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/sync-loro"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "type-check": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "loro-crdt": "^1.11.0",
-    "@refarm.dev/sync-contract-v1": "*",
-    "@refarm.dev/storage-contract-v1": "*"
-  },
-  "devDependencies": {
-    "@refarm.dev/storage-memory": "*",
-    "@refarm.dev/tsconfig": "*"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+	"name": "@refarm.dev/sync-loro",
+	"version": "0.1.0",
+	"description": "Loro CRDT engine for Refarm — implements SyncAdapter + StorageAdapter via CQRS (LoroDoc write model, SQL read model). See ADR-045.",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/refarm-dev/refarm.git",
+		"directory": "packages/sync-loro"
+	},
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --project tsconfig.json --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"test:conformance": "vitest run src/sync-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"dependencies": {
+		"loro-crdt": "^1.11.0",
+		"@refarm.dev/sync-contract-v1": "*",
+		"@refarm.dev/storage-contract-v1": "*"
+	},
+	"devDependencies": {
+		"@refarm.dev/storage-memory": "*",
+		"@refarm.dev/tsconfig": "*"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	]
 }
