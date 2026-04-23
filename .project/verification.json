@@ -1157,6 +1157,32 @@
           "evidence": "`packages/tractor/docs/ARCHITECTURE.md` atualizado com referência explícita ao teste de roundtrip (`offline_first_roundtrip_preserves_all_nodes`)."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-20260423",
+      "target": "5",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T11:31:08.254Z",
+      "evidence": "Checkpoint de compactação consolidado com board atualizado e CI remoto verde para os dois últimos lotes (`24825734195` e `24826544248`) em develop.",
+      "criteria_results": [
+        {
+          "criterion": "Estado do workspace limpo para compactação",
+          "status": "passed",
+          "evidence": "`git status -sb` limpo no momento do checkpoint."
+        },
+        {
+          "criterion": "Últimos lotes críticos validados em CI",
+          "status": "passed",
+          "evidence": "Run `24825734195` (contracts) e run `24826544248` (runtime roundtrip) concluídas com `success`."
+        },
+        {
+          "criterion": "Próximas ações explícitas para retomada",
+          "status": "passed",
+          "evidence": "Handoff aponta execução imediata de `T-CONTRACT-05` seguida por `T-RUNTIME-03`."
+        }
+      ]
     }
   ]
 }
