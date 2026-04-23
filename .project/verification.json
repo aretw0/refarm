@@ -2123,6 +2123,27 @@
           "evidence": "`install-plugin.ts` aceita descriptor object/URL e valida `descriptorIntegrity`; runtime exige `browserRuntimeDescriptor` para artifactKind=component."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-07-20260423",
+      "target": "6",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T22:42:35.448Z",
+      "evidence": "Checkpoint de compactação após integração do gate CI de descriptors sidecar e fechamento de T-RUNTIME-20.",
+      "criteria_results": [
+        {
+          "criterion": "Entrega recente consolidada em estado reproduzível",
+          "status": "passed",
+          "evidence": "Commits: 7444f207 (ci gate descriptor), f7504475 (docs), 8cbdaa98 (governança T-RUNTIME-20)."
+        },
+        {
+          "criterion": "Contexto pronto para retomada pós-compaction",
+          "status": "passed",
+          "evidence": "Handoff atualizado com próximos passos T-RUNTIME-21 (provenance) e decisão de distribuição de descriptor."
+        }
+      ]
     }
   ]
 }

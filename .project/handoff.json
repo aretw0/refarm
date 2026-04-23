@@ -1,11 +1,11 @@
 {
-  "context": "T-RUNTIME-20 foi concluída: CI agora valida descriptor sidecar deterministicamente e runtime component exige descriptor metadata íntegra. O foco seguinte é provenance obrigatória (T-RUNTIME-21).",
-  "timestamp": "2026-04-23T22:40:27.466Z",
+  "context": "Checkpoint pronto para compactação: T-RUNTIME-20 concluída com gate CI de descriptor sidecar, install/runtime browser component estabilizados por descriptorIntegrity e próxima frente focada em provenance (T-RUNTIME-21).",
+  "timestamp": "2026-04-23T22:42:35.448Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-20 concluída (`VER-RUNTIME-20-20260423`): gate CI `runtime-module:ci` integrado ao workflow quality.",
-    "Install/runtime browser component consolidado com descriptor object/URL + validação de `descriptorIntegrity`.",
-    "T-RUNTIME-21 planejada para padronizar provenance (commit/build/toolchain)."
+    "T-RUNTIME-20 concluída (`VER-RUNTIME-20-20260423`): workflow quality executa gate `runtime-module:ci`.",
+    "T-PLUGIN-12 e T-RUNTIME-19 permanecem concluídas e estáveis (metadata canônica + tooling descriptor).",
+    "Checkpoint de compactação registrado (`VER-CHECKPOINT-COMPACTION-07-20260423`)."
   ],
   "blockers": [
     "ISS-018: provenance de descriptor sidecar ainda não padronizada para auditoria (próxima frente T-RUNTIME-21).",
@@ -13,8 +13,8 @@
   ],
   "next_actions": [
     "Iniciar T-RUNTIME-21 para exigir provenance obrigatória no descriptor sidecar.",
-    "Definir decisão de distribuição do descriptor (artefato versionado no pacote vs publicação externa referenciada).",
-    "Preparar checkpoint para compactação após estabilizar run CI atual."
+    "Decidir política de distribuição do descriptor (pacote npm vs artefato externo assinado).",
+    "Executar novo lote atômico só após confirmação de estabilidade do run CI atual."
   ],
   "open_questions": [
     "Descriptor sidecar deve ser publicado junto ao pacote npm ou em endpoint assinado separado com referência no manifesto?"
