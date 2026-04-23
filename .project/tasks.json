@@ -1284,7 +1284,7 @@
         "T-OPS-07"
       ],
       "assigned_agent": "worker-governance",
-      "verification": "VER-OPS-08-20260423",
+      "verification": "VER-OPS-09-20260423",
       "notes": "Entradas `target_type: decision` removidas do bloco verification para compatibilidade com `npm run project:validate` da pipeline."
     }
   ]

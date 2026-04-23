@@ -1816,6 +1816,32 @@
           "evidence": "`plugin-host-internals.test.ts` cobre `.cjs` no node; `browser-plugin-host.test.ts` cobre `.js`, `.mjs` default export e bloqueios browser."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-09-20260423",
+      "target": "T-OPS-08",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T20:50:36.122Z",
+      "evidence": "Ajuste de governança para remover target_type inválido em verification detectado pela pipeline quality.",
+      "criteria_results": [
+        {
+          "criterion": "Nenhuma entrada de verification usa target_type não suportado pela pipeline",
+          "status": "passed",
+          "evidence": "Entradas `VER-DEC-013-*` removidas do bloco verification."
+        },
+        {
+          "criterion": "project:validate passa localmente com a mesma regra usada no CI",
+          "status": "passed",
+          "evidence": "`npm run project:validate --silent` => PASS."
+        },
+        {
+          "criterion": "Handoff atualizado sem referências a verificação inválida",
+          "status": "passed",
+          "evidence": "`.project/handoff.json` não referencia mais `VER-DEC-013-*`."
+        }
+      ]
     }
   ]
 }

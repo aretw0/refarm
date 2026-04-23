@@ -199,4 +199,18 @@ describe("PluginHost trust grants", () => {
       host.load(manifest, "sha256:old")
     ).rejects.toThrow("Trusted-fast denied");
   });
+
+  it("rejects trusted-fast profile for non-wasm entry formats", async () => {
+    const registry = new SovereignRegistry();
+    const host = new PluginHost(vi.fn(), registry);
+    const manifest = createManifest("trusted-fast");
+    manifest.entry = "https://example.test/high-perf.mjs";
+    registry.register(manifest);
+    const entry = registry.getPlugin(manifest.id);
+    if (entry) entry.status = "validated";
+
+    await expect(
+      host.load(manifest, "sha256:plugin-v1")
+    ).rejects.toThrow(/Trusted-fast is only available for \.wasm/);
+  });
 });

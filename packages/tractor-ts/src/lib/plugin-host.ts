@@ -171,6 +171,12 @@ export class PluginHost {
     const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
     const trust = (manifest as any).trust;
 
+    if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
+      throw new Error(
+        `[tractor] Trusted-fast is only available for .wasm plugin entries (${pluginId}).`,
+      );
+    }
+
     if (trust?.profile === "trusted-fast" && !wasmHash) {
       throw new Error(`[tractor] Trusted-fast requires wasmHash for ${pluginId}.`);
     }

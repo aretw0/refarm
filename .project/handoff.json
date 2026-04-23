@@ -5,7 +5,7 @@
   "current_tasks": [
     "T-PLUGIN-08 concluída (`VER-PLUGIN-08-20260423`): contrato compartilhado de compatibilidade de entry por runtime.",
     "T-RUNTIME-14 concluída (`VER-RUNTIME-14-20260423`): PluginHost node/browser alinhados ao contrato central.",
-    "T-OPS-08 concluída (`VER-OPS-08-20260423`): saneamento de verification para compatibilidade com validador do CI."
+    "T-OPS-08 concluída (`VER-OPS-09-20260423`): saneamento de verification para compatibilidade com validador do CI."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
