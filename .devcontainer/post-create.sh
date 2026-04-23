@@ -41,8 +41,8 @@ for dir in \
   sudo chown -R vscode:vscode "$dir"
 done
 
-# Cargo registry volumes mount as root; ensure vscode can write crate cache
-sudo chown -R vscode:vscode /usr/local/cargo/registry /usr/local/cargo/git 2>/dev/null || true
+# Cargo/Rustup volumes may mount with non-vscode ownership; ensure toolchain is writable
+sudo chown -R vscode:vscode /usr/local/cargo /usr/local/rustup 2>/dev/null || true
 
 # SSH keepalive: prevents GitHub from closing the connection during slow pre-push hooks
 log "Configuring SSH keepalive for GitHub..."
@@ -76,7 +76,14 @@ else
   npm install
 fi
 
-# 3) Playwright browsers + AI agent tools (parallel — independent network downloads)
+# 3) Rust baseline parity for local/CI checks
+log "Ensuring Rust baseline targets and components..."
+retry 2 rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1 \
+  || warn "Could not ensure Rust targets. Run: rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1"
+retry 2 rustup component add rust-src clippy rustfmt \
+  || warn "Could not ensure Rust components. Run: rustup component add rust-src clippy rustfmt"
+
+# 4) Playwright browsers + AI agent tools (parallel — independent network downloads)
 log "Installing Playwright browsers and AI agent tools in parallel..."
 
 retry 2 npx playwright install --with-deps &
@@ -99,7 +106,7 @@ wait $PW_PID  || warn "Playwright browser installation failed. Retry: npx playwr
 wait $CLAUDE_PID || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
 wait $PI_PID  || true
 
-# 4) Finalize
+# 5) Finalize
 log "Installing git hooks..."
 npm run hooks:install || warn "Could not install git hooks automatically"
 

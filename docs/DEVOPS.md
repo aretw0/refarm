@@ -35,14 +35,15 @@ When opening the workspace in VS Code with the Remote Containers extension:
 1. **Container Build** — Docker builds the image from `.devcontainer/devcontainer.json`
 2. **Post-Create Hook** — Executes `.devcontainer/post-create.sh`:
    - Fixes cache/toolchain permissions for mounted volumes
-   - Installs Rust WASM targets (`wasm32-unknown-unknown`, `wasm32-wasip1`)
+   - Ensures Rust targets (`x86_64-unknown-linux-gnu`, `wasm32-unknown-unknown`, `wasm32-wasip1`)
+   - Ensures Rust components (`rust-src`, `clippy`, `rustfmt`) for local/CI parity
    - Installs cargo tools: `cargo-component`, `wasm-tools`
    - Runs `npm ci` to install workspace dependencies
    - Installs Playwright browsers (`npx playwright install --with-deps`)
    - Runs `npm run hooks:install`
    - Runs `npm run factory:preflight` for deterministic readiness checks
 3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
-   - Re-validates Rust toolchain health (`stable` + required targets)
+   - Re-validates Rust toolchain health (`stable` + component baseline checks)
    - Reinstalls git hooks when missing
 
 ### Devcontainer Image Baseline (Tracked)
@@ -107,6 +108,30 @@ npm run test:unit
   ```bash
   rm -rf node_modules package-lock.json
   npm install
+  ```
+
+**Issue: `cargo clippy` / `cargo fmt` missing locally (but required by CI)**
+
+- **Symptom:** Commands fail with messages like:
+
+  ```text
+  error: 'cargo-clippy' is not installed for the toolchain
+  error: 'cargo-fmt' is not installed for the toolchain
+  ```
+
+- **Fix:** first ensure toolchain directories are writable, then install components:
+
+  ```bash
+  sudo chown -R "$USER":"$USER" /usr/local/rustup /usr/local/cargo
+  rustup component add rust-src clippy rustfmt
+  ```
+
+- **Validation:**
+
+  ```bash
+  cargo clippy --version
+  cargo fmt --version
+  npm run factory:preflight
   ```
 
 **Issue: Mermaid/Chromium fails with missing shared library**
@@ -554,11 +579,12 @@ If you update this guide or the dev container configuration:
 | Attempt non-breaking vulnerability fixes | `npm audit fix` |
 | Clean npm cache | `rm -rf ~/.npm && npm cache clean --force` |
 | Verify tools | See [Environment Validation](#environment-validation) |
+| Install Rust lint/format parity tools | `rustup component add rust-src clippy rustfmt` |
 | View container logs | `docker logs <container-id>` |
 | Debug container | `docker debug <container-id>` (optional) |
 
 ---
 
-**Last Updated:** April 14, 2026  
+**Last Updated:** April 22, 2026  
 **Maintained By:** Refarm Team  
 **Next Review:** Q2 2026 (security check)

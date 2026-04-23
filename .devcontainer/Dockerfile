@@ -46,7 +46,7 @@ ENV PATH=/usr/local/cargo/bin:$PATH
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
       | sh -s -- --default-toolchain stable --profile minimal --no-modify-path -y \
   && rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1 \
-  && rustup component add rust-src
+  && rustup component add rust-src clippy rustfmt
 
 # ── wasm-tools (pre-built binary, no compilation needed) ──────────────────────
 RUN tmpdir=$(mktemp -d) \

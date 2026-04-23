@@ -39,6 +39,30 @@ ensure_git_transport() {
   fi
 }
 
+check_rust_baseline() {
+  if ! command -v rustup >/dev/null 2>&1; then
+    return
+  fi
+
+  if [ ! -w /usr/local/rustup/downloads ] || [ ! -w /usr/local/cargo ]; then
+    sudo chown -R "$USER":"$USER" /usr/local/rustup /usr/local/cargo >/dev/null 2>&1 || true
+  fi
+
+  local installed missing=()
+  installed="$(rustup component list --installed 2>/dev/null || true)"
+
+  for component in rust-src clippy rustfmt; do
+    if ! grep -Eq "^${component}($|-)" <<< "$installed"; then
+      missing+=("$component")
+    fi
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "[refarm-devcontainer][warn] Missing Rust components: ${missing[*]}"
+    echo "[refarm-devcontainer][warn] Run: rustup component add rust-src clippy rustfmt"
+  fi
+}
+
 check_agent_env() {
   local missing=()
 
@@ -62,6 +86,7 @@ check_agent_env() {
 
 ensure_hooks
 ensure_git_transport
+check_rust_baseline
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."
