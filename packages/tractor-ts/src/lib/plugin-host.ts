@@ -1,6 +1,10 @@
 // Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
 // Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
-import { PluginManifest } from "@refarm.dev/plugin-manifest";
+import {
+  assertEntryRuntimeCompatibility,
+  detectEntryFormat,
+  type PluginManifest,
+} from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
 import { TractorLogger, SecurityMode } from "./types";
@@ -81,15 +85,6 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
-  private isJavaScriptEntry(entry: string): boolean {
-    const normalized = entry.split("?")[0].split("#")[0].toLowerCase();
-    return (
-      normalized.endsWith(".js") ||
-      normalized.endsWith(".mjs") ||
-      normalized.endsWith(".cjs")
-    );
-  }
-
   private normalizeJavaScriptModule(moduleNamespace: any): any {
     if (!moduleNamespace) return moduleNamespace;
 
@@ -148,7 +143,7 @@ export class PluginHost {
       );
     }
 
-    if (wasmUrl.toLowerCase().endsWith(".wasm")) {
+    if (detectEntryFormat(wasmUrl) === "wasm") {
       const cached = await getCachedPlugin(pluginId);
       if (cached) {
         this.logger.debug(`[tractor] Using cached plugin WASM: ${pluginId}`);
@@ -168,7 +163,10 @@ export class PluginHost {
   ): Promise<PluginInstance> {
     const pluginId = manifest.id;
     const wasmUrl = manifest.entry;
+    const entryFormat = detectEntryFormat(wasmUrl);
     const startTime = performance.now();
+
+    assertEntryRuntimeCompatibility(wasmUrl, "node");
 
     const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
     const trust = (manifest as any).trust;
@@ -199,7 +197,7 @@ export class PluginHost {
         this.logger.warn(msg);
     }
 
-    if (this.isJavaScriptEntry(wasmUrl)) {
+    if (entryFormat !== "wasm") {
       this.logger.debug(`[tractor] Loading JavaScript plugin module: ${wasmUrl}`);
       const moduleNamespace = await this.loadJavaScriptModule(wasmUrl);
 

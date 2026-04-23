@@ -1,17 +1,18 @@
 {
-  "context": "Spec de envelope de plugins foi formalizada e alinhada com decisão arquitetural dual-track (JS/WASM).",
-  "timestamp": "2026-04-23T20:30:10.711Z",
+  "context": "Execução avançou em enforcement de formatos de plugin: política de compatibilidade de entry foi centralizada e aplicada no runtime node/browser. Governança CI também foi corrigida para target_type suportado no bloco verification.",
+  "timestamp": "2026-04-23T20:46:44.225Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-07 concluída com `VER-PLUGIN-07-20260423` (mínimo→máximo + matriz ambiente/formato + L0→L3).",
-    "DEC-013 promovida para `decided` com `VER-DEC-013-FINAL-20260423`."
+    "T-PLUGIN-08 concluída (`VER-PLUGIN-08-20260423`): contrato compartilhado de compatibilidade de entry por runtime.",
+    "T-RUNTIME-14 concluída (`VER-RUNTIME-14-20260423`): PluginHost node/browser alinhados ao contrato central.",
+    "T-OPS-08 concluída (`VER-OPS-08-20260423`): saneamento de verification para compatibilidade com validador do CI."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Aplicar a matriz de enforcement em políticas runtime por ambiente (gates explícitos para superfícies críticas).",
-    "Continuar ADR-044 para caminho `.wasm` no browser cache-backed."
+    "Continuar ADR-044 para habilitar `.wasm` no browser com cache-backed runtime.",
+    "Definir e aplicar primeiro corte de enforcement por ambiente baseado na matriz do envelope (browser público/node local/edge)."
   ],
   "open_questions": [
     "Qual política de enforcement por ambiente será adotada primeiro (browser público, node local, edge)?"

@@ -1740,27 +1740,6 @@
       ]
     },
     {
-      "id": "VER-DEC-013-20260423",
-      "target": "DEC-013",
-      "target_type": "decision",
-      "status": "passed",
-      "method": "inspect",
-      "timestamp": "2026-04-23T20:11:26.273Z",
-      "evidence": "Decisão registrada para orientar roadmap JS/WASM com adoção progressiva e sem bloqueio imediato.",
-      "criteria_results": [
-        {
-          "criterion": "Decisão explicita dual-track JS/WASM",
-          "status": "passed",
-          "evidence": "`DEC-013` registra onboarding em JS e trilha de hardening em WASM."
-        },
-        {
-          "criterion": "Status mantém espaço para calibragem futura",
-          "status": "passed",
-          "evidence": "Status marcado como `tentative` até formalização de enforcement por ambiente."
-        }
-      ]
-    },
-    {
       "id": "VER-PLUGIN-07-20260423",
       "target": "T-PLUGIN-07",
       "target_type": "task",
@@ -1787,23 +1766,54 @@
       ]
     },
     {
-      "id": "VER-DEC-013-FINAL-20260423",
-      "target": "DEC-013",
-      "target_type": "decision",
+      "id": "VER-PLUGIN-08-20260423",
+      "target": "T-PLUGIN-08",
+      "target_type": "task",
       "status": "passed",
-      "method": "inspect",
-      "timestamp": "2026-04-23T20:30:10.711Z",
-      "evidence": "DEC-013 promovida para decided após publicação de spec operacional de dual-track JS/WASM.",
+      "method": "test",
+      "timestamp": "2026-04-23T20:46:44.225Z",
+      "evidence": "Contrato de formato/compatibilidade de entry centralizado em plugin-manifest com cobertura de testes.",
       "criteria_results": [
         {
-          "criterion": "Decisão deixa de ser tentativa",
+          "criterion": "Contrato expõe detecção de formato de entry de forma reutilizável",
           "status": "passed",
-          "evidence": "`DEC-013.status` atualizado para `decided` em `.project/decisions.json`."
+          "evidence": "`entry-support.js` exporta `detectEntryFormat` e constantes de suporte."
         },
         {
-          "criterion": "Base documental existente para sustentar decisão",
+          "criterion": "Compatibilidade por runtime (node/browser) pode ser validada por helper compartilhado",
           "status": "passed",
-          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` cobre matriz, envelope e trilha de promoção."
+          "evidence": "`assertEntryRuntimeCompatibility` e `evaluateEntryRuntimeCompatibility` disponíveis em `index.js`/`index.d.ts`."
+        },
+        {
+          "criterion": "Conformance cobre helper de compatibilidade e validação continua verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest test` (21/21)."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-14-20260423",
+      "target": "T-RUNTIME-14",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T20:46:44.225Z",
+      "evidence": "Hosts runtime node/browser consumindo o mesmo contrato de compatibilidade de entry.",
+      "criteria_results": [
+        {
+          "criterion": "PluginHost node valida formato de entry via contrato compartilhado",
+          "status": "passed",
+          "evidence": "`plugin-host.ts` usa `assertEntryRuntimeCompatibility(..., \"node\")`."
+        },
+        {
+          "criterion": "PluginHost browser rejeita formatos incompatíveis com erro explícito",
+          "status": "passed",
+          "evidence": "`index.browser.ts` usa `assertEntryRuntimeCompatibility(..., \"browser\")` para bloquear `.wasm` e `.cjs` no browser atual."
+        },
+        {
+          "criterion": "Testes cobrem .js/.mjs/.cjs e bloqueio de .wasm no browser",
+          "status": "passed",
+          "evidence": "`plugin-host-internals.test.ts` cobre `.cjs` no node; `browser-plugin-host.test.ts` cobre `.js`, `.mjs` default export e bloqueios browser."
         }
       ]
     }

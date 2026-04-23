@@ -35,6 +35,29 @@ describe("browser PluginHost (.js onboarding path)", () => {
 		);
 	});
 
+	it("supports default-exported JS modules", async () => {
+		const host = new PluginHost(vi.fn(), {});
+
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				statusText: "OK",
+				text: async () =>
+					"export default { async setup(){return 'ok'}, async ping(){return 'pong-default'} }",
+			}),
+		);
+
+		const manifest = createMockManifest({
+			id: "@acme/default-plugin",
+			entry: "https://example.test/default-plugin.mjs",
+			integrity: undefined,
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-default");
+	});
+
 	it("keeps .wasm path blocked in browser stub", async () => {
 		const host = new PluginHost(vi.fn(), {});
 		const manifest = createMockManifest({
@@ -42,7 +65,19 @@ describe("browser PluginHost (.js onboarding path)", () => {
 		});
 
 		await expect(host.load(manifest)).rejects.toThrow(
-			"requires the Node.js runtime or a pre-installed WASM cache",
+			"entry format .wasm is not yet supported in browser runtime",
+		);
+	});
+
+	it("rejects .cjs entries in browser runtime", async () => {
+		const host = new PluginHost(vi.fn(), {});
+		const manifest = createMockManifest({
+			entry: "https://example.test/plugin.cjs",
+			integrity: undefined,
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"entry format .cjs is not supported in browser runtime",
 		);
 	});
 });

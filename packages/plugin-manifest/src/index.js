@@ -1,3 +1,10 @@
+export {
+	assertEntryRuntimeCompatibility,
+	detectEntryFormat,
+	evaluateEntryRuntimeCompatibility,
+	RUNTIME_ENTRY_SUPPORT,
+	SUPPORTED_ENTRY_FORMATS,
+} from "./entry-support.js";
 export { createMockManifest } from "./fixtures.js";
 export { installWasmArtifact } from "./install-contract.js";
 export {

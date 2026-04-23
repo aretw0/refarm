@@ -63,7 +63,25 @@ export interface ManifestValidationResult {
 	errors: string[];
 }
 
+export type EntryFormat = "js" | "mjs" | "cjs" | "wasm" | "unknown";
+export type RuntimeSupportTarget = "node" | "browser";
+
 export const REQUIRED_TELEMETRY_HOOKS: readonly TelemetryHook[];
+export const SUPPORTED_ENTRY_FORMATS: readonly ["js", "mjs", "cjs", "wasm"];
+export const RUNTIME_ENTRY_SUPPORT: Readonly<{
+	node: readonly ["js", "mjs", "cjs", "wasm"];
+	browser: readonly ["js", "mjs"];
+}>;
+
+export function detectEntryFormat(entry: string): EntryFormat;
+export function evaluateEntryRuntimeCompatibility(
+	entry: string,
+	runtime: RuntimeSupportTarget,
+): { runtime: RuntimeSupportTarget; format: EntryFormat; supported: boolean };
+export function assertEntryRuntimeCompatibility(
+	entry: string,
+	runtime: RuntimeSupportTarget,
+): void;
 
 export function createMockManifest(
 	overrides?: Partial<PluginManifest>,

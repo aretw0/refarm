@@ -1,3 +1,4 @@
+import { detectEntryFormat } from "./entry-support.js";
 import { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 
 const SEMVER_RE =
@@ -34,15 +35,8 @@ export function validatePluginManifest(manifest) {
 		errors.push("version must be valid semver");
 	}
 
-	if (
-		!manifest.entry ||
-		!(
-			manifest.entry.endsWith(".js") ||
-			manifest.entry.endsWith(".mjs") ||
-			manifest.entry.endsWith(".cjs") ||
-			manifest.entry.endsWith(".wasm")
-		)
-	) {
+	const entryFormat = detectEntryFormat(manifest.entry);
+	if (!manifest.entry || entryFormat === "unknown") {
 		errors.push("entry must be a .js/.mjs/.cjs or .wasm path");
 	}
 
@@ -50,7 +44,7 @@ export function validatePluginManifest(manifest) {
 		errors.push("entry must not be an absolute filesystem path");
 	}
 
-	if (manifest.entry?.endsWith(".wasm") && !manifest.integrity) {
+	if (entryFormat === "wasm" && !manifest.integrity) {
 		errors.push("integrity is required for .wasm entries");
 	}
 

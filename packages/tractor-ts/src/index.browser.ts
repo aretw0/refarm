@@ -20,7 +20,10 @@ export * from "./lib/types";
 export type { PluginInstance, PluginState } from "./lib/instance-handle";
 export type { PluginTrustGrant, ExecutionProfile } from "./lib/trust-manager";
 
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+import {
+  assertEntryRuntimeCompatibility,
+  type PluginManifest,
+} from "@refarm.dev/plugin-manifest";
 import type { SovereignNode } from "./lib/graph-normalizer";
 import type { TelemetryEvent } from "./lib/telemetry";
 import type { PluginInstance, PluginState } from "./lib/instance-handle";
@@ -50,9 +53,18 @@ export class PluginHost {
     _logger?: TractorLogger,
   ) {}
 
-  private isJavaScriptEntry(entry: string): boolean {
-    const normalized = entry.split("?")[0].split("#")[0].toLowerCase();
-    return normalized.endsWith(".js") || normalized.endsWith(".mjs");
+  private normalizeJavaScriptModule(moduleNamespace: any): any {
+    if (!moduleNamespace) return moduleNamespace;
+
+    const defaultExport = moduleNamespace.default;
+    if (defaultExport && typeof defaultExport === "object") {
+      return {
+        ...defaultExport,
+        ...moduleNamespace,
+      };
+    }
+
+    return moduleNamespace;
   }
 
   private encodeBase64Utf8(source: string): string {
@@ -64,7 +76,8 @@ export class PluginHost {
 
   private async loadJavaScriptModule(entryUrl: string): Promise<any> {
     try {
-      return await import(/* @vite-ignore */ entryUrl);
+      const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
     } catch {
       const response = await fetch(entryUrl);
       if (!response.ok) {
@@ -74,7 +87,8 @@ export class PluginHost {
       }
       const source = await response.text();
       const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
-      return import(/* @vite-ignore */ dataUrl);
+      const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
     }
   }
 
@@ -96,9 +110,7 @@ export class PluginHost {
 
   async load(_manifest: PluginManifest, _wasmHash?: string): Promise<PluginInstance> {
     const manifest = _manifest;
-    if (!this.isJavaScriptEntry(manifest.entry)) {
-      throw new Error(BROWSER_ERROR);
-    }
+    assertEntryRuntimeCompatibility(manifest.entry, "browser");
 
     const moduleNamespace = await this.loadJavaScriptModule(manifest.entry);
     const pluginId = manifest.id;

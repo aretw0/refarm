@@ -157,6 +157,19 @@ Besides schema validation, this package now exposes a shared binary-install cont
 `installWasmArtifact` is used by both Barn and Tractor install paths, so hash verification,
 cache-hit validation, eviction-on-mismatch, and fetch+persist semantics stay consistent.
 
+## Runtime entry compatibility helpers
+
+To keep runtime behavior aligned across hosts, this package also exports:
+
+- `detectEntryFormat(entry)`
+- `evaluateEntryRuntimeCompatibility(entry, runtime)`
+- `assertEntryRuntimeCompatibility(entry, runtime)`
+
+Current runtime policy:
+
+- **node**: `.js`, `.mjs`, `.cjs`, `.wasm`
+- **browser**: `.js`, `.mjs` (while `.wasm` remains ADR-044 roadmap and `.cjs` is blocked)
+
 ## Conformance scope (manifest:v1)
 
 `@refarm.dev/plugin-manifest` is a **schema/validation contract**, not a runtime capability contract.

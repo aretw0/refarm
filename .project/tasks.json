@@ -1215,6 +1215,77 @@
       "assigned_agent": "worker-plugin",
       "verification": "VER-PLUGIN-07-20260423",
       "notes": "Envelope mínimo→máximo formalizado em `docs/PLUGIN_AUTHORING_TRACKS.md` com matriz por ambiente/formato e trilha L0→L3 de promoção."
+    },
+    {
+      "id": "T-PLUGIN-08",
+      "description": "Centralizar detecção de formato de entry e compatibilidade por runtime no contrato plugin-manifest.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/plugin-manifest/src/entry-support.js",
+        "packages/plugin-manifest/src/entry-support.test.js",
+        "packages/plugin-manifest/src/index.js",
+        "packages/plugin-manifest/src/index.d.ts",
+        "packages/plugin-manifest/src/validate.js",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "Contrato expõe detecção de formato de entry de forma reutilizável",
+        "Compatibilidade por runtime (node/browser) pode ser validada por helper compartilhado",
+        "Conformance cobre helper de compatibilidade e validação continua verde"
+      ],
+      "depends_on": [
+        "T-PLUGIN-06",
+        "T-PLUGIN-07"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-08-20260423",
+      "notes": "Adicionados `detectEntryFormat`, `evaluateEntryRuntimeCompatibility` e `assertEntryRuntimeCompatibility` para unificar política de formatos suportados por runtime."
+    },
+    {
+      "id": "T-RUNTIME-14",
+      "description": "Aplicar helpers de compatibilidade de entry no PluginHost node/browser para enforcement consistente.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/test/plugin-host-internals.test.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts"
+      ],
+      "acceptance_criteria": [
+        "PluginHost node valida formato de entry via contrato compartilhado",
+        "PluginHost browser rejeita formatos incompatíveis com erro explícito",
+        "Testes cobrem .js/.mjs/.cjs e bloqueio de .wasm no browser"
+      ],
+      "depends_on": [
+        "T-RUNTIME-13",
+        "T-PLUGIN-08"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-14-20260423",
+      "notes": "Node/browser passaram a consumir `assertEntryRuntimeCompatibility`, reduzindo divergência de regras locais para formatos de plugin."
+    },
+    {
+      "id": "T-OPS-08",
+      "description": "Alinhar verificação do .project ao validador CI removendo target_type não suportado em verification.",
+      "status": "completed",
+      "phase": 8,
+      "files": [
+        ".project/verification.json",
+        ".project/handoff.json"
+      ],
+      "acceptance_criteria": [
+        "Nenhuma entrada de verification usa target_type não suportado pela pipeline",
+        "project:validate passa localmente com a mesma regra usada no CI",
+        "Handoff atualizado sem referências a verificação inválida"
+      ],
+      "depends_on": [
+        "T-OPS-07"
+      ],
+      "assigned_agent": "worker-governance",
+      "verification": "VER-OPS-08-20260423",
+      "notes": "Entradas `target_type: decision` removidas do bloco verification para compatibilidade com `npm run project:validate` da pipeline."
     }
   ]
 }
