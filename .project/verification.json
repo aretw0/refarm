@@ -829,6 +829,32 @@
           "evidence": "Run finalizada `success`, cobrindo `build` e `audit-moderate`."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-07-FOLLOWUP-20260423",
+      "target": "T-OPS-07",
+      "target_type": "task",
+      "status": "partial",
+      "method": "inspect",
+      "timestamp": "2026-04-23T03:44:00Z",
+      "evidence": "Revalidação pós-push: higiene `.pi-lens` permanece correta, porém o fechamento administrativo em `.project/issues.json` (`ISS-006`) e `.project/tasks.json` (`T-OPS-07`) ainda está pendente para evitar diff massivo de formatação.",
+      "criteria_results": [
+        {
+          "criterion": "Entradas de cache .pi-lens alinhadas no .gitignore",
+          "status": "passed",
+          "evidence": "`.gitignore` mantém `.pi-lens/`."
+        },
+        {
+          "criterion": "Arquivos de cache não aparecem em git status limpo",
+          "status": "passed",
+          "evidence": "`git ls-files .pi-lens` segue vazio."
+        },
+        {
+          "criterion": "ISS-006/T-OPS-07 fechados no board canônico",
+          "status": "skipped",
+          "evidence": "Atualização estrutural pendente em etapa dedicada sem reformat global."
+        }
+      ]
     }
   ]
 }
