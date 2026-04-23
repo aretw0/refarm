@@ -23,6 +23,9 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
+      base_sha: ${{ steps.detect.outputs.base_sha }}
+      head_sha: ${{ steps.detect.outputs.head_sha }}
+      turbo_filter: ${{ steps.detect.outputs.turbo_filter }}
       ci_changes: ${{ steps.detect.outputs.ci_changes }}
       code_changes: ${{ steps.detect.outputs.code_changes }}
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
@@ -57,6 +60,9 @@ jobs:
 
           if [ -z "$BASE_SHA" ]; then
             echo "::warning::Could not resolve BASE_SHA. Falling back to full checks."
+            echo "base_sha=" >> "$GITHUB_OUTPUT"
+            echo "head_sha=${HEAD_SHA:-}" >> "$GITHUB_OUTPUT"
+            echo "turbo_filter=" >> "$GITHUB_OUTPUT"
             echo "ci_changes=true" >> "$GITHUB_OUTPUT"
             echo "code_changes=true" >> "$GITHUB_OUTPUT"
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
@@ -111,6 +117,12 @@ jobs:
             run_audit=true
           fi
 
+          turbo_filter="...[$BASE_SHA]"
+
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "turbo_filter=$turbo_filter" >> "$GITHUB_OUTPUT"
+
           echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
           echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
@@ -118,7 +130,7 @@ jobs:
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit filter=$turbo_filter"
 
   quality:
     runs-on: ubuntu-latest
@@ -156,7 +168,11 @@ jobs:
         run: echo "::notice::Skipping quality heavy checks (no code-impacting changes detected)."
 
       - name: Verify (Full Turbo)
-        if: needs.changes.outputs.code_changes == 'true'
+        if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
+        run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+
+      - name: Verify (Full Turbo fallback)
+        if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
 
       - name: Verify (Full Turbo) skipped
@@ -456,7 +472,7 @@ jobs:
     steps:
       - name: Check all checks
         run: |
-          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }}"
+          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
 
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
