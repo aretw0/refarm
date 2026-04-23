@@ -855,6 +855,32 @@
           "evidence": "Atualização estrutural pendente em etapa dedicada sem reformat global."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-07-CANON-20260423",
+      "target": "T-OPS-07",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T03:52:00Z",
+      "evidence": "Fechamento canônico concluído: `ISS-006` marcada como `resolved` com `resolved_by=VER-OPS-07-20260423`; `T-OPS-07` marcada como `completed` com `verification=VER-OPS-07-20260423` e nota de evidência operacional.",
+      "criteria_results": [
+        {
+          "criterion": "ISS-006 resolvida no bloco issues",
+          "status": "passed",
+          "evidence": "`ISS-006.status=resolved` e `resolved_by=VER-OPS-07-20260423`."
+        },
+        {
+          "criterion": "T-OPS-07 concluída no bloco tasks",
+          "status": "passed",
+          "evidence": "`T-OPS-07.status=completed` + `verification=VER-OPS-07-20260423`."
+        },
+        {
+          "criterion": "Higiene .pi-lens comprovada",
+          "status": "passed",
+          "evidence": "`.gitignore` contém `.pi-lens/`; `git ls-files .pi-lens` vazio; working tree limpo no checkpoint."
+        }
+      ]
     }
   ]
 }

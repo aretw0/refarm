@@ -64,11 +64,12 @@
       "title": "Ignorar cache da pasta .pi-lens no versionamento",
       "body": "Arquivos de cache volumosos (ex.: `.pi-lens/index.json`) não devem ser versionados. Revisar `.gitignore` e remover tracking legado.",
       "location": ".gitignore:1",
-      "status": "open",
+      "status": "resolved",
       "category": "cleanup",
       "priority": "high",
       "package": "repository",
-      "source": "human"
+      "source": "human",
+      "resolved_by": "VER-OPS-07-20260423"
     },
     {
       "id": "ISS-007",

@@ -840,7 +840,7 @@
     {
       "id": "T-OPS-07",
       "description": "Corrigir versionamento de cache .pi-lens e fechar pendência de higiene de repositório (ISS-006).",
-      "status": "planned",
+      "status": "completed",
       "phase": 8,
       "files": [
         ".gitignore",
@@ -854,7 +854,9 @@
       "depends_on": [
         "T-OPS-03"
       ],
-      "assigned_agent": "worker-governance"
+      "assigned_agent": "worker-governance",
+      "verification": "VER-OPS-07-20260423",
+      "notes": "Verificado em 2026-04-23: `.gitignore` contém `.pi-lens/`, sem arquivos `.pi-lens` versionados e status do repositório limpo."
     }
   ]
 }
