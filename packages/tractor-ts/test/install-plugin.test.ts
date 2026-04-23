@@ -4,15 +4,22 @@ import { installPlugin } from "../src/lib/install-plugin";
 // Mock OPFS cache module
 vi.mock("../src/lib/opfs-plugin-cache", () => ({
 	cachePlugin: vi.fn().mockResolvedValue(undefined),
+	cachePluginRuntimeModule: vi.fn().mockResolvedValue(undefined),
 	getCachedPlugin: vi.fn().mockResolvedValue(null),
 	evictPlugin: vi.fn().mockResolvedValue(undefined),
 	getPluginCachePath: vi.fn().mockImplementation((pluginId: string) =>
 		`/refarm/barn/implements/${pluginId}.wasm`,
 	),
+	getPluginRuntimeModuleCachePath: vi
+		.fn()
+		.mockImplementation(
+			(pluginId: string) => `/refarm/barn/implements/${pluginId}.mjs`,
+		),
 }));
 
 import {
 	cachePlugin,
+	cachePluginRuntimeModule,
 	evictPlugin,
 	getCachedPlugin,
 } from "../src/lib/opfs-plugin-cache";
@@ -23,6 +30,11 @@ async function computeSRI(buffer: ArrayBuffer): Promise<string> {
 	let binaryString = "";
 	for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
 	return `sha256-${btoa(binaryString)}`;
+}
+
+async function computeSRIFromText(source: string): Promise<string> {
+	const bytes = new TextEncoder().encode(source).buffer;
+	return computeSRI(bytes);
 }
 
 describe("installPlugin", () => {
@@ -118,6 +130,86 @@ describe("installPlugin", () => {
 
 		expect(global.fetch).toHaveBeenCalled();
 		expect(result.cached).toBe(false);
+	});
+
+	it("installs optional browser runtime module with integrity verification", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-ok'; } }";
+		const runtimeModuleIntegrity = await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		const result = await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				browserRuntimeModule: {
+					url: "https://example.com/test.browser.mjs",
+					integrity: runtimeModuleIntegrity,
+				},
+			},
+		);
+
+		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
+			"test-plugin",
+			runtimeModuleSource,
+		);
+		expect(cachePlugin).toHaveBeenCalledWith(
+			"test-plugin",
+			mockBuffer,
+			expect.objectContaining({
+				browserRuntimeModule: {
+					url: "https://example.com/test.browser.mjs",
+					integrity: runtimeModuleIntegrity,
+					format: "esm",
+				},
+			}),
+		);
+		expect(result.runtimeModuleCachePath).toContain("/refarm/barn/implements");
+	});
+
+	it("fails when browser runtime module integrity is invalid", async () => {
+		const runtimeModuleSource = "export const x = 1";
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModule: {
+					url: "https://example.com/test.browser.mjs",
+					integrity: "sha256-invalid",
+				},
+			}),
+		).rejects.toThrow("Integrity digest must be 64-char hex or base64 sha256 value");
+		expect(cachePluginRuntimeModule).not.toHaveBeenCalled();
 	});
 
 	it("throws when fetch fails", async () => {

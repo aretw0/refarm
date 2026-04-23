@@ -3,6 +3,7 @@
  *
  * Canonical layout (ADR hardening):
  * /refarm/barn/implements/<cache-key>.wasm
+ * /refarm/barn/implements/<cache-key>.mjs
  * /refarm/barn/metadata/<cache-key>.json
  *
  * Browser-first with in-memory fallback for non-OPFS runtimes.
@@ -17,7 +18,11 @@ const OPFS_METADATA_SEGMENT = "metadata";
 
 const memoryCache = new Map<
 	string,
-	{ bytes: ArrayBuffer; metadata?: PluginArtifactMetadata }
+	{
+		bytes: ArrayBuffer;
+		metadata?: PluginArtifactMetadata;
+		runtimeModule?: string;
+	}
 >();
 
 function hasOpfs(): boolean {
@@ -30,6 +35,10 @@ export function getPluginCacheKey(pluginId: string): string {
 
 export function getPluginCachePath(pluginId: string): string {
 	return `/${OPFS_ROOT_SEGMENT}/${OPFS_BARN_SEGMENT}/${OPFS_IMPLEMENTS_SEGMENT}/${getPluginCacheKey(pluginId)}.wasm`;
+}
+
+export function getPluginRuntimeModuleCachePath(pluginId: string): string {
+	return `/${OPFS_ROOT_SEGMENT}/${OPFS_BARN_SEGMENT}/${OPFS_IMPLEMENTS_SEGMENT}/${getPluginCacheKey(pluginId)}.mjs`;
 }
 
 function getPluginMetadataPath(pluginId: string): string {
@@ -67,7 +76,12 @@ export async function cachePlugin(
 	metadata?: PluginArtifactMetadata,
 ): Promise<void> {
 	if (!hasOpfs()) {
-		memoryCache.set(pluginId, { bytes: buffer, metadata });
+		const existing = memoryCache.get(pluginId);
+		memoryCache.set(pluginId, {
+			bytes: buffer,
+			metadata,
+			runtimeModule: existing?.runtimeModule,
+		});
 		return;
 	}
 
@@ -92,6 +106,33 @@ export async function cachePlugin(
 }
 
 /**
+ * Store browser runtime module source tied to a plugin ID.
+ */
+export async function cachePluginRuntimeModule(
+	pluginId: string,
+	source: string,
+): Promise<void> {
+	if (!hasOpfs()) {
+		const existing = memoryCache.get(pluginId);
+		memoryCache.set(pluginId, {
+			bytes: existing?.bytes ?? new ArrayBuffer(0),
+			metadata: existing?.metadata,
+			runtimeModule: source,
+		});
+		return;
+	}
+
+	const key = getPluginCacheKey(pluginId);
+	const implementsDir = await getImplementsDir();
+	const moduleHandle = await implementsDir.getFileHandle(`${key}.mjs`, {
+		create: true,
+	});
+	const writable = await (moduleHandle as any).createWritable();
+	await writable.write(source);
+	await writable.close();
+}
+
+/**
  * Retrieve a cached WASM buffer for a given plugin ID.
  * Returns null if not cached.
  */
@@ -99,7 +140,8 @@ export async function getCachedPlugin(
 	pluginId: string,
 ): Promise<ArrayBuffer | null> {
 	if (!hasOpfs()) {
-		return memoryCache.get(pluginId)?.bytes ?? null;
+		const bytes = memoryCache.get(pluginId)?.bytes;
+		return bytes && bytes.byteLength > 0 ? bytes : null;
 	}
 
 	try {
@@ -108,6 +150,27 @@ export async function getCachedPlugin(
 		const fileHandle = await implementsDir.getFileHandle(`${key}.wasm`);
 		const file = await fileHandle.getFile();
 		return file.arrayBuffer();
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Retrieve cached browser runtime module source for a given plugin ID.
+ */
+export async function getCachedPluginRuntimeModule(
+	pluginId: string,
+): Promise<string | null> {
+	if (!hasOpfs()) {
+		return memoryCache.get(pluginId)?.runtimeModule ?? null;
+	}
+
+	try {
+		const key = getPluginCacheKey(pluginId);
+		const implementsDir = await getImplementsDir();
+		const moduleHandle = await implementsDir.getFileHandle(`${key}.mjs`);
+		const file = await moduleHandle.getFile();
+		return file.text();
 	} catch {
 		return null;
 	}
@@ -149,6 +212,13 @@ export async function evictPlugin(pluginId: string): Promise<void> {
 		await implementsDir.removeEntry(`${key}.wasm`);
 	} catch {
 		// Already evicted or never cached — no-op
+	}
+
+	try {
+		const implementsDir = await getImplementsDir();
+		await implementsDir.removeEntry(`${key}.mjs`);
+	} catch {
+		// Runtime module not found — no-op
 	}
 
 	try {

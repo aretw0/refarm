@@ -21,15 +21,20 @@ export * from "./lib/types";
 
 import {
 	assertEntryRuntimeCompatibility,
-	detectWasmBinaryKind,
+	type BrowserRuntimeModuleMetadata,
 	detectEntryFormat,
+	detectWasmBinaryKind,
 	type PluginArtifactMetadata,
 	type PluginManifest,
 	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
 import type { SovereignNode } from "./lib/graph-normalizer";
 import type { PluginInstance, PluginState } from "./lib/instance-handle";
-import { getCachedPlugin, getCachedPluginMetadata } from "./lib/opfs-plugin-cache";
+import {
+	getCachedPlugin,
+	getCachedPluginMetadata,
+	getCachedPluginRuntimeModule,
+} from "./lib/opfs-plugin-cache";
 import type { TelemetryEvent } from "./lib/telemetry";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 import type { TractorLogger } from "./lib/types";
@@ -98,7 +103,7 @@ export class PluginHost {
 
 	private async loadWasmModuleFromCache(
 		manifest: PluginManifest,
-	): Promise<any> {
+	): Promise<{ moduleNamespace: any; artifactKind: "module" | "component" }> {
 		const pluginId = manifest.id;
 		const cached = await getCachedPlugin(pluginId);
 		const metadata = await getCachedPluginMetadata(pluginId);
@@ -110,15 +115,26 @@ export class PluginHost {
 			);
 		}
 
-		await this.assertCachedWasmArtifactCompatibility(
+		const artifactKind = await this.assertCachedWasmArtifactCompatibility(
 			manifest,
 			cached,
 			metadata,
 		);
 
+		if (artifactKind === "component") {
+			const moduleNamespace = await this.loadComponentRuntimeModuleFromCache(
+				pluginId,
+				metadata?.browserRuntimeModule,
+			);
+			return { moduleNamespace, artifactKind };
+		}
+
 		try {
 			const instantiated = await WebAssembly.instantiate(cached, {});
-			return instantiated.instance.exports;
+			return {
+				moduleNamespace: instantiated.instance.exports,
+				artifactKind,
+			};
 		} catch (error: any) {
 			throw new Error(
 				`[tractor] Failed to instantiate cached browser WASM for ${pluginId}. ` +
@@ -127,11 +143,42 @@ export class PluginHost {
 		}
 	}
 
+	private async loadComponentRuntimeModuleFromCache(
+		pluginId: string,
+		runtimeModule: BrowserRuntimeModuleMetadata | undefined,
+	): Promise<any> {
+		if (!runtimeModule) {
+			throw new Error(
+				`[tractor] Browser WASM component ${pluginId} requires browserRuntimeModule metadata. Reinstall the plugin.`,
+			);
+		}
+
+		const source = await getCachedPluginRuntimeModule(pluginId);
+		if (!source) {
+			throw new Error(
+				`[tractor] Browser runtime module cache missing for ${pluginId}. Reinstall the plugin.`,
+			);
+		}
+
+		const bytes = new TextEncoder().encode(source).buffer;
+		try {
+			await verifyBufferIntegrity(bytes, runtimeModule.integrity);
+		} catch {
+			throw new Error(
+				`[tractor] Browser runtime module integrity verification failed for ${pluginId}. Reinstall the plugin.`,
+			);
+		}
+
+		const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+		const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+		return this.normalizeJavaScriptModule(moduleNamespace);
+	}
+
 	private async assertCachedWasmArtifactCompatibility(
 		manifest: PluginManifest,
 		cachedBytes: ArrayBuffer,
 		metadata: PluginArtifactMetadata | null,
-	): Promise<void> {
+	): Promise<"module" | "component"> {
 		const pluginId = manifest.id;
 
 		if (!metadata) {
@@ -175,13 +222,22 @@ export class PluginHost {
 			);
 		}
 
-		const artifactKind = metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
-		if (artifactKind !== "module") {
+		const artifactKind =
+			metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
+		if (artifactKind === "module" || artifactKind === "component") {
+			return artifactKind;
+		}
+
+		if (artifactKind !== "unknown") {
 			throw new Error(
 				`[tractor] Browser WASM artifact kind '${artifactKind}' is not executable in current runtime. ` +
 					"Use a browser-runtime-compatible module artifact or install-time transpile output.",
 			);
 		}
+
+		throw new Error(
+			`[tractor] Browser WASM artifact kind for ${pluginId} is unknown. Reinstall with current install contract.`,
+		);
 	}
 
 	hasValidTrustGrant(_pluginId: string, _wasmHash?: string): boolean {
@@ -214,12 +270,16 @@ export class PluginHost {
 		const manifest = _manifest;
 		const entryFormat = detectEntryFormat(manifest.entry);
 
+		let wasmArtifactKind: "module" | "component" | null = null;
 		const moduleNamespace =
 			entryFormat === "wasm"
 				? (assertEntryRuntimeCompatibility(manifest.entry, "browser", {
 						allowBrowserWasmFromCache: true,
 					}),
-					await this.loadWasmModuleFromCache(manifest))
+					await this.loadWasmModuleFromCache(manifest).then((result) => {
+						wasmArtifactKind = result.artifactKind;
+						return result.moduleNamespace;
+					}))
 				: (assertEntryRuntimeCompatibility(manifest.entry, "browser"),
 					await this.loadJavaScriptModule(manifest.entry));
 
@@ -271,7 +331,13 @@ export class PluginHost {
 			pluginId,
 			payload: {
 				entryType: entryFormat === "wasm" ? "wasm" : "js",
-				source: entryFormat === "wasm" ? "browser-cache" : "browser-module",
+				source:
+					entryFormat === "wasm"
+						? wasmArtifactKind === "component"
+							? "browser-runtime-module"
+							: "browser-cache"
+						: "browser-module",
+				artifactKind: wasmArtifactKind ?? undefined,
 			},
 		});
 
@@ -353,8 +419,12 @@ export type { InstallPluginResult } from "./lib/install-plugin";
 export { installPlugin } from "./lib/install-plugin";
 export {
 	cachePlugin,
+	cachePluginRuntimeModule,
 	evictPlugin,
 	getCachedPlugin,
+	getCachedPluginMetadata,
+	getCachedPluginRuntimeModule,
+	getPluginRuntimeModuleCachePath,
 } from "./lib/opfs-plugin-cache";
 
 /** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */

@@ -1,7 +1,11 @@
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index.browser";
-import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
+import {
+	cachePlugin,
+	cachePluginRuntimeModule,
+	evictPlugin,
+} from "../src/lib/opfs-plugin-cache";
 
 async function computeIntegrity(bytes: ArrayBuffer): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -170,7 +174,62 @@ describe("browser PluginHost runtime paths", () => {
 		});
 
 		await expect(host.load(manifest)).rejects.toThrow(
-			"artifact kind 'component' is not executable in current runtime",
+			"requires browserRuntimeModule metadata",
+		);
+	});
+
+	it("loads cached component artifacts via browser runtime module cache", async () => {
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-component'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-component");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "plugin:load",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					source: "browser-runtime-module",
+					artifactKind: "component",
+				}),
+			}),
 		);
 	});
 

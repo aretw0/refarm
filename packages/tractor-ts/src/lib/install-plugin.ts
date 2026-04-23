@@ -8,15 +8,19 @@
 
 import {
 	installWasmArtifact,
+	verifyBufferIntegrity,
+	type BrowserRuntimeModuleMetadata,
 	type PluginBinaryCacheAdapter,
 	type PluginManifest,
 	type WasmBinaryKind,
 } from "@refarm.dev/plugin-manifest";
 import {
 	cachePlugin,
+	cachePluginRuntimeModule,
 	evictPlugin,
 	getCachedPlugin,
 	getPluginCachePath,
+	getPluginRuntimeModuleCachePath,
 } from "./opfs-plugin-cache";
 
 const OPFS_CACHE_ADAPTER: PluginBinaryCacheAdapter = {
@@ -33,6 +37,41 @@ export interface InstallPluginResult {
 	wasmHash: string;
 	artifactKind: WasmBinaryKind;
 	cachePath: string;
+	runtimeModuleCachePath?: string;
+}
+
+export interface BrowserRuntimeModuleInstallInput {
+	url: string;
+	integrity: string;
+}
+
+export interface InstallPluginOptions {
+	force?: boolean;
+	browserRuntimeModule?: BrowserRuntimeModuleInstallInput;
+}
+
+async function fetchBrowserRuntimeModule(
+	browserRuntimeModule: BrowserRuntimeModuleInstallInput,
+): Promise<{ source: string; metadata: BrowserRuntimeModuleMetadata }> {
+	const response = await fetch(browserRuntimeModule.url);
+	if (!response.ok) {
+		throw new Error(
+			`[install-plugin] Failed to fetch browser runtime module ${browserRuntimeModule.url}: ${response.statusText}`,
+		);
+	}
+
+	const source = await response.text();
+	const bytes = new TextEncoder().encode(source).buffer;
+	await verifyBufferIntegrity(bytes, browserRuntimeModule.integrity);
+
+	return {
+		source,
+		metadata: {
+			url: browserRuntimeModule.url,
+			integrity: browserRuntimeModule.integrity,
+			format: "esm",
+		},
+	};
 }
 
 /**
@@ -44,14 +83,21 @@ export interface InstallPluginResult {
 export async function installPlugin(
 	manifest: PluginManifest,
 	wasmUrl: string,
-	options: { force?: boolean } = {},
+	options: InstallPluginOptions = {},
 ): Promise<InstallPluginResult> {
+	const runtimeModule = options.browserRuntimeModule
+		? await fetchBrowserRuntimeModule(options.browserRuntimeModule)
+		: null;
+
 	const result = await installWasmArtifact(
 		{
 			pluginId: manifest.id,
 			wasmUrl,
 			integrity: manifest.integrity ?? "",
 			force: options.force,
+			metadataExtensions: runtimeModule
+				? { browserRuntimeModule: runtimeModule.metadata }
+				: undefined,
 		},
 		{
 			cache: OPFS_CACHE_ADAPTER,
@@ -59,8 +105,15 @@ export async function installPlugin(
 		},
 	);
 
+	if (runtimeModule) {
+		await cachePluginRuntimeModule(manifest.id, runtimeModule.source);
+	}
+
 	return {
 		...result,
 		cachePath: getPluginCachePath(manifest.id),
+		runtimeModuleCachePath: runtimeModule
+			? getPluginRuntimeModuleCachePath(manifest.id)
+			: undefined,
 	};
 }
