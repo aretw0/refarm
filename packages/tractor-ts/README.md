@@ -267,6 +267,14 @@ npm run runtime-module:descriptor -- \
 
 This emits a deterministic descriptor with `descriptorIntegrity` so install-time flows can verify sidecar provenance.
 
+For CI/local gate validation:
+
+```bash
+npm run runtime-module:ci
+```
+
+This runs deterministic smoke generation + descriptor verification (`runtime-module:smoke`).
+
 ### Profile Performance
 
 ```bash

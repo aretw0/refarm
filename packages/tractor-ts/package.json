@@ -40,7 +40,10 @@
 		"bench:compare": "vitest bench test/stress.bench.ts --run --compare benchmarks/baseline.json",
 		"bench:check": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/current.json && node scripts/sanitize-bench.mjs benchmarks/current.json && node scripts/check-benchmarks.mjs",
 		"clean": "rm -rf dist",
-		"runtime-module:descriptor": "node scripts/generate-browser-runtime-module-descriptor.mjs"
+		"runtime-module:descriptor": "node scripts/generate-browser-runtime-module-descriptor.mjs",
+		"runtime-module:verify": "node scripts/verify-browser-runtime-module-descriptor.mjs",
+		"runtime-module:smoke": "node scripts/smoke-browser-runtime-module-descriptor.mjs",
+		"runtime-module:ci": "npm run runtime-module:smoke"
 	},
 	"dependencies": {
 		"@noble/ed25519": "^3.1.0",
