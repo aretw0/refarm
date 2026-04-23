@@ -35,13 +35,14 @@ runs:
     - name: Install dependencies
       shell: bash
       run: |
-        if [ -f package-lock.json ]; then
-          echo "Found package-lock.json, attempting npm ci..."
-          npm ci || (echo "npm ci failed, falling back to npm install..." && npm install)
-        else
-          echo "No package-lock.json found, running npm install..."
-          npm install
+        set -euo pipefail
+        if [ ! -f package-lock.json ]; then
+          echo "::error::package-lock.json is required for deterministic CI."
+          exit 1
         fi
+
+        echo "Installing dependencies with npm ci (deterministic mode)..."
+        npm ci
 
     - name: Cache Playwright browsers
       if: ${{ inputs.playwright-setup == 'true' }}
