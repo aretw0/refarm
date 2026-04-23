@@ -59,7 +59,7 @@ describe("installWasmArtifact", () => {
 	});
 
 	it("returns cache hit without fetching when cached artifact matches integrity", async () => {
-		const { cache, map } = createMemoryCache();
+		const { cache, map, metadataMap } = createMemoryCache();
 		const buffer = new TextEncoder().encode("hello").buffer;
 		const integrity = await toIntegrity("hello");
 		map.set("plugin-a", buffer);
@@ -77,6 +77,52 @@ describe("installWasmArtifact", () => {
 		expect(result.cached).toBe(true);
 		expect(result.artifactKind).toBe("unknown");
 		expect(fetchFn).not.toHaveBeenCalled();
+		expect(metadataMap.get("plugin-a")).toBeUndefined();
+	});
+
+	it("updates cache metadata on cache hit when metadata extensions are provided", async () => {
+		const { cache, map, metadataMap } = createMemoryCache();
+		const wasmBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const digest = await crypto.subtle.digest("SHA-256", wasmBytes);
+		const integrity = `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
+		map.set("plugin-a", wasmBytes);
+
+		await installWasmArtifact(
+			{
+				pluginId: "plugin-a",
+				wasmUrl: "https://example.com/plugin.wasm",
+				integrity,
+				metadataExtensions: {
+					browserRuntimeModule: {
+						url: "https://example.com/plugin.browser.mjs",
+						integrity: "sha256-module",
+						format: "esm",
+					},
+				},
+			},
+			{ cache, fetchFn: vi.fn() },
+		);
+
+		expect(cache.set).toHaveBeenCalledTimes(1);
+		expect(metadataMap.get("plugin-a")).toEqual(
+			expect.objectContaining({
+				artifactKind: "component",
+				browserRuntimeModule: {
+					url: "https://example.com/plugin.browser.mjs",
+					integrity: "sha256-module",
+					format: "esm",
+				},
+			}),
+		);
 	});
 
 	it("evicts bad cache and refetches with artifact metadata", async () => {

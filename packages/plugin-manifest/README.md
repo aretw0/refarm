@@ -159,6 +159,10 @@ Besides schema validation, this package now exposes a shared binary-install cont
 cache-hit validation, eviction-on-mismatch, fetch+persist semantics, and `artifactKind`
 classification (`module`/`component`/`unknown`) stay consistent.
 
+Advanced hosts can pass `metadataExtensions` in the install request to persist
+runtime-specific install metadata (e.g. browser runtime module sidecars) without forking
+core integrity/cache behavior.
+
 ## Runtime entry compatibility helpers
 
 To keep runtime behavior aligned across hosts, this package also exports:

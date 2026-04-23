@@ -62,6 +62,7 @@ export function detectWasmBinaryKind(bytes) {
  * @property {string} wasmUrl
  * @property {string} integrity
  * @property {boolean} [force]
+ * @property {Record<string, unknown>} [metadataExtensions]
  */
 
 /**
@@ -84,8 +85,24 @@ export async function installWasmArtifact(request, deps) {
 	const wasmUrl = request?.wasmUrl;
 	const integrity = request?.integrity;
 	const force = Boolean(request?.force);
+	const metadataExtensions =
+		request?.metadataExtensions &&
+		typeof request.metadataExtensions === "object" &&
+		!Array.isArray(request.metadataExtensions)
+			? request.metadataExtensions
+			: undefined;
 	const cache = deps?.cache;
 	const fetchFn = deps?.fetchFn ?? globalThis.fetch;
+
+	const buildMetadata = (wasmHash, artifactKind) => ({
+		pluginId,
+		wasmUrl,
+		integrity,
+		wasmHash,
+		cachedAt: Date.now(),
+		artifactKind,
+		...(metadataExtensions ?? {}),
+	});
 
 	if (!pluginId) {
 		throw new Error("[install-contract] pluginId is required");
@@ -120,12 +137,18 @@ export async function installWasmArtifact(request, deps) {
 			try {
 				const digest = await verifyBufferIntegrity(cached, integrity);
 				const artifactKind = detectWasmBinaryKind(cached);
+				const wasmHash = `sha256-${digest.base64}`;
+
+				if (metadataExtensions) {
+					await cache.set(pluginId, cached, buildMetadata(wasmHash, artifactKind));
+				}
+
 				return {
 					pluginId,
 					wasmUrl,
 					cached: true,
 					byteLength: cached.byteLength,
-					wasmHash: `sha256-${digest.base64}`,
+					wasmHash,
 					artifactKind,
 				};
 			} catch {
@@ -146,14 +169,7 @@ export async function installWasmArtifact(request, deps) {
 	const wasmHash = `sha256-${digest.base64}`;
 	const artifactKind = detectWasmBinaryKind(bytes);
 
-	await cache.set(pluginId, bytes, {
-		pluginId,
-		wasmUrl,
-		integrity,
-		wasmHash,
-		cachedAt: Date.now(),
-		artifactKind,
-	});
+	await cache.set(pluginId, bytes, buildMetadata(wasmHash, artifactKind));
 
 	return {
 		pluginId,

@@ -105,6 +105,12 @@ export interface Sha256Digest {
 	hex: string;
 }
 
+export interface BrowserRuntimeModuleMetadata {
+	url: string;
+	integrity: string;
+	format: "esm";
+}
+
 export interface PluginArtifactMetadata {
 	pluginId: string;
 	wasmUrl: string;
@@ -112,6 +118,7 @@ export interface PluginArtifactMetadata {
 	wasmHash: string;
 	cachedAt: number;
 	artifactKind: WasmBinaryKind;
+	browserRuntimeModule?: BrowserRuntimeModuleMetadata;
 }
 
 export interface PluginBinaryCacheAdapter {
@@ -129,6 +136,7 @@ export interface InstallWasmArtifactRequest {
 	wasmUrl: string;
 	integrity: string;
 	force?: boolean;
+	metadataExtensions?: Record<string, unknown>;
 }
 
 export interface InstallWasmArtifactResult {
