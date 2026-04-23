@@ -16,7 +16,7 @@ Com foco adicional nos adapters atuais que deveriam consumir essas suites.
 npm run test:capabilities --silent
 ```
 
-Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `plugin-manifest`, `storage-sqlite`, `sync-loro` e `identity-nostr`.
+Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-contract-v1`, `plugin-manifest`, `storage-sqlite`, `sync-loro`, `sync-crdt` e `identity-nostr`.
 
 ## Inventário por pacote de contrato
 
@@ -32,7 +32,7 @@ Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-
 | Contrato | Adapters mapeados | Evidência de conformance hoje | Lacuna |
 |---|---|---|---|
 | `storage:v1` | `storage-sqlite`, `storage-memory`, `storage-rest` | ✅ `storage-sqlite/src/storage-v1.conformance.test.ts` + script `test:conformance` | ❗ `storage-memory` e `storage-rest` ainda sem teste de conformance explícito |
-| `sync:v1` | `sync-loro`, `sync-crdt` | ✅ `sync-loro/src/sync-v1.conformance.test.ts` usa `runSyncV1Conformance` + cenário de conflito concorrente entre peers | ⚠️ `sync-crdt` ainda sem suite de conformance com `runSyncV1Conformance` |
+| `sync:v1` | `sync-loro`, `sync-crdt` | ✅ `sync-loro/src/sync-v1.conformance.test.ts` e `sync-crdt/test/sync-v1.conformance.test.ts` usando `runSyncV1Conformance` + cenários de conflito concorrente entre peers | ✅ Cobertura mínima aplicada nos dois adapters atuais |
 | `identity:v1` | `identity-nostr` | ✅ `identity-nostr/src/identity-v1.conformance.test.ts` usa `runIdentityV1Conformance` | ✅ Cobertura mínima de create/sign/verify/get validada |
 | `plugin-manifest` | `plugin-manifest` | ✅ `src/validate.test.js` + script `test:conformance` (validação schema/rules) | ℹ️ Escopo formalizado: conformance por schema no `manifest:v1` |
 
@@ -42,9 +42,9 @@ Resultado: **passou** para `storage-contract-v1`, `sync-contract-v1`, `identity-
 1. **T-CONTRACT-04** concluída: conformance em `identity-nostr` e escopo de conformance de `plugin-manifest` formalizado.
 
 ### P1 (fechamento da malha de sync/storage)
-2. Follow-up curto: avaliar inclusão de `sync-crdt` no harness `runSyncV1Conformance`.
+2. **T-CONTRACT-05** concluída: `sync-crdt` integrado ao harness `runSyncV1Conformance` e ao gate `test:capabilities`.
 3. **T-CONTRACT-02**: expandir conformance para `storage-memory` e `storage-rest` além de `storage-sqlite`.
 
 ## Observação de dependência
 
-`T-RUNTIME-04` depende de `T-CONTRACT-03`; portanto, completar a trilha `T-CONTRACT-*` é o caminho mais seguro para reduzir risco no roundtrip runtime/storage.
+`T-RUNTIME-04` depende de `T-CONTRACT-03`; com `T-CONTRACT-05` concluída, a malha principal de conformance sync está fechada para os adapters atuais e reduz risco de regressão no roundtrip runtime/storage.

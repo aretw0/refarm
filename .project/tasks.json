@@ -501,7 +501,7 @@
     {
       "id": "T-CONTRACT-05",
       "description": "Adicionar suite de conformance sync:v1 para sync-crdt e integrar ao gate de capacidades.",
-      "status": "planned",
+      "status": "completed",
       "phase": 5,
       "files": [
         "packages/sync-crdt/**",
@@ -516,7 +516,9 @@
       "depends_on": [
         "T-CONTRACT-03"
       ],
-      "assigned_agent": "worker-sync"
+      "assigned_agent": "worker-sync",
+      "verification": "VER-CONTRACT-05-20260423",
+      "notes": "Suite `test/sync-v1.conformance.test.ts` adicionada em `sync-crdt` usando `runSyncV1Conformance` e cenário de convergência concorrente entre peers; gate raiz `test:capabilities` agora inclui `sync-crdt test:conformance`."
     },
     {
       "id": "T-PLUGIN-01",

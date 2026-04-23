@@ -1183,6 +1183,32 @@
           "evidence": "Handoff aponta execução imediata de `T-CONTRACT-05` seguida por `T-RUNTIME-03`."
         }
       ]
+    },
+    {
+      "id": "VER-CONTRACT-05-20260423",
+      "target": "T-CONTRACT-05",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T11:58:27.585Z",
+      "evidence": "Conformance sync:v1 agora cobre `sync-crdt` com bridge para `SyncProvider` e integração ao gate de capacidades do monorepo.",
+      "criteria_results": [
+        {
+          "criterion": "sync-crdt executa runSyncV1Conformance com resultado verde",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/sync-crdt run test:conformance` => 2 testes verdes (`passes sync:v1 conformance`, `converges concurrent updates from two peers`)."
+        },
+        {
+          "criterion": "Falhas apontam contrato esperado de connect/push/pull/disconnect",
+          "status": "passed",
+          "evidence": "Provider de teste implementa lifecycle `connect/push/pull/disconnect` com `SyncEngine` + transport in-memory; harness `runSyncV1Conformance` executa completo sem falhas."
+        },
+        {
+          "criterion": "Gate test:capabilities cobre sync-crdt",
+          "status": "passed",
+          "evidence": "`package.json` raiz atualizado para incluir `npm --prefix packages/sync-crdt run test:conformance`; `npm run test:capabilities --silent` executado com sucesso."
+        }
+      ]
     }
   ]
 }

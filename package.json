@@ -16,7 +16,7 @@
 		"test:e2e": "turbo run test:e2e --",
 		"test:e2e:headed": "turbo run test:e2e:headed --",
 		"test:matrix": "node scripts/ci/matrix-runner.mjs --execute",
-		"test:capabilities": "npm --prefix packages/storage-contract-v1 run test:unit && npm --prefix packages/sync-contract-v1 run test:unit && npm --prefix packages/identity-contract-v1 run test:unit && npm --prefix packages/plugin-manifest run test:conformance && npm --prefix packages/storage-sqlite run test:conformance && npm --prefix packages/sync-loro run test:conformance && npm --prefix packages/identity-nostr run test:conformance",
+		"test:capabilities": "npm --prefix packages/storage-contract-v1 run test:unit && npm --prefix packages/sync-contract-v1 run test:unit && npm --prefix packages/identity-contract-v1 run test:unit && npm --prefix packages/plugin-manifest run test:conformance && npm --prefix packages/storage-sqlite run test:conformance && npm --prefix packages/sync-loro run test:conformance && npm --prefix packages/sync-crdt run test:conformance && npm --prefix packages/identity-nostr run test:conformance",
 		"bench:sqlite": "npm --prefix validations/sqlite-benchmark run bench:all",
 		"test:repro": "npm run lint && npm run type-check && npm run test:unit && npm run test:integration && npm run test:e2e",
 		"test:coverage": "turbo run test:coverage --",

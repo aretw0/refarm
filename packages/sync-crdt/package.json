@@ -1,39 +1,43 @@
 {
-  "name": "@refarm.dev/sync-crdt",
-  "version": "0.1.0",
-  "description": "CRDT-based sync primitive — conflict-free replicated data types for local-first applications",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/sync-crdt"
-  },
-  "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
-    "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit",
-    "test:unit": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "crdt",
-    "sync",
-    "local-first",
-    "offline-first",
-    "conflict-free"
-  ],
-  "license": "MIT"
+	"name": "@refarm.dev/sync-crdt",
+	"version": "0.1.0",
+	"description": "CRDT-based sync primitive — conflict-free replicated data types for local-first applications",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/refarm-dev/refarm.git",
+		"directory": "packages/sync-crdt"
+	},
+	"bugs": {
+		"url": "https://github.com/refarm-dev/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.json",
+		"dev": "tsc --project tsconfig.json --watch",
+		"lint": "tsc --noEmit",
+		"type-check": "tsc --noEmit",
+		"test:unit": "vitest run --passWithNoTests",
+		"test:conformance": "vitest run test/sync-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"devDependencies": {
+		"@refarm.dev/sync-contract-v1": "*"
+	},
+	"keywords": [
+		"crdt",
+		"sync",
+		"local-first",
+		"offline-first",
+		"conflict-free"
+	],
+	"license": "MIT"
 }

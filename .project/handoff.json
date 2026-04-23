@@ -1,23 +1,28 @@
 {
-  "context": "Checkpoint operacional pronto para compactação: contratos v1 e runtime roundtrip estão consolidados em develop com CI verde, mantendo foco no próximo desbloqueio de potencial.",
-  "timestamp": "2026-04-23T11:31:08.254Z",
+  "context": "Malha de conformance v1 avançou: T-CONTRACT-05 concluída com cobertura sync-crdt e gate de capacidades ampliado; trilha principal de contratos sync está fechada para os adapters atuais.",
+  "timestamp": "2026-04-23T11:58:27.585Z",
   "current_phase": 5,
   "current_tasks": [
-    "Checkpoint pré-compactação registrado após `T-RUNTIME-04` e runs verdes (`24825734195`, `24826544248`).",
-    "Backlog imediato estabilizado para retomada direta no próximo contexto curto."
+    "T-CONTRACT-05 concluída com verificação `VER-CONTRACT-05-20260423` (suite sync-crdt + integração no `test:capabilities`).",
+    "Inventário `docs/CONFORMANCE_V1_INVENTORY.md` atualizado para refletir cobertura sync:v1 em `sync-loro` e `sync-crdt`."
   ],
   "blockers": [
-    "Lacuna remanescente de conformance em `sync-crdt` permanece em `T-CONTRACT-05`.",
+    "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-CONTRACT-05` para fechar conformance sync:v1 em `sync-crdt` e ampliar `test:capabilities`.",
-    "Retomar frente runtime com `T-RUNTIME-03` (lifecycle plugin setup/ingest/teardown) após fechamento de conformance remanescente."
+    "Executar `T-RUNTIME-03` para mapear lifecycle de plugin (setup/ingest/teardown) e gerar hardening tasks.",
+    "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".project/handoff.json",
-    ".project/verification.json"
+    "packages/sync-crdt/test/sync-v1.conformance.test.ts",
+    "packages/sync-crdt/package.json",
+    "package.json",
+    "docs/CONFORMANCE_V1_INVENTORY.md",
+    ".project/tasks.json",
+    ".project/verification.json",
+    ".project/handoff.json"
   ]
 }
