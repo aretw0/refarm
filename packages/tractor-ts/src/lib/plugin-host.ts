@@ -8,6 +8,7 @@ import { SovereignNode } from "./graph-normalizer";
 import { TrustManager, ExecutionProfile } from "./trust-manager";
 import type { PluginTrustGrant } from "./trust-manager";
 import { WasiImports } from "./wasi-imports";
+import { PluginInstanceHandle } from "./instance-handle";
 import type { PluginInstance, PluginState } from "./instance-handle";
 import type { PluginRunner } from "./plugin-runner";
 import { MainThreadRunner } from "./main-thread-runner";
@@ -80,6 +81,39 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
+  private isJavaScriptEntry(entry: string): boolean {
+    const normalized = entry.split("?")[0].split("#")[0].toLowerCase();
+    return normalized.endsWith(".js") || normalized.endsWith(".mjs");
+  }
+
+  private encodeBase64Utf8(source: string): string {
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(source, "utf8").toString("base64");
+    }
+
+    const bytes = new TextEncoder().encode(source);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+
+  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+    try {
+      return await import(/* @vite-ignore */ entryUrl);
+    } catch {
+      const response = await fetch(entryUrl);
+      if (!response.ok) {
+        throw new Error(
+          `[tractor] Failed to fetch plugin JS module: ${response.statusText}`,
+        );
+      }
+
+      const source = await response.text();
+      const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+      return import(/* @vite-ignore */ dataUrl);
+    }
+  }
+
   private async readWasmBuffer(
     pluginId: string,
     wasmUrl: string,
@@ -143,6 +177,43 @@ export class PluginHost {
             throw new Error(msg);
         }
         this.logger.warn(msg);
+    }
+
+    if (this.isJavaScriptEntry(wasmUrl)) {
+      this.logger.debug(`[tractor] Loading JavaScript plugin module: ${wasmUrl}`);
+      const moduleNamespace = await this.loadJavaScriptModule(wasmUrl);
+
+      const instance = new PluginInstanceHandle(
+        pluginId,
+        manifest.name,
+        manifest,
+        moduleNamespace,
+        this.emit,
+        (id) => {
+          this._instances.delete(id);
+          this.registry.deactivatePlugin(id).catch(() => {});
+        },
+      );
+
+      this._instances.set(pluginId, instance);
+
+      try {
+        await instance.call("setup");
+        if (registryEntry && registryEntry.status === "validated") {
+          await this.registry.activatePlugin(pluginId);
+        }
+      } catch (err) {
+        this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
+      }
+
+      this.emit({
+        event: "plugin:load",
+        pluginId,
+        durationMs: performance.now() - startTime,
+        payload: { profile, wasmHash, entryType: "js" },
+      });
+
+      return instance;
     }
 
     this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);

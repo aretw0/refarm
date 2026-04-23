@@ -174,6 +174,35 @@ describe("PluginHost.load() — WASM loading paths", () => {
     vi.unstubAllGlobals();
   });
 
+  it("loads .js plugin entries without JCO transpilation", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue({
+        ok: true,
+        statusText: "OK",
+        text: async () =>
+          "export async function setup(){ return 'ok'; } export async function ping(){ return 'pong'; }",
+      }),
+    );
+
+    const { host, registry } = makeHost();
+    const manifest = createMockManifest({
+      id: "js-plugin",
+      name: "JS Plugin",
+      entry: "https://example.test/plugin.js",
+    });
+
+    registry.register(manifest);
+    const entry = registry.getPlugin("js-plugin");
+    if (entry) entry.status = "validated";
+
+    const instance = await host.load(manifest);
+    const pong = await instance.call("ping");
+
+    expect(pong).toBe("pong");
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("prefers cached wasm for the same plugin id before fetching", async () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch should not be used")));
 

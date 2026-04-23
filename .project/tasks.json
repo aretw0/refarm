@@ -1103,6 +1103,50 @@
       "assigned_agent": "worker-runtime",
       "verification": "VER-RUNTIME-11-20260423",
       "notes": "PluginHost ganhou `readWasmBuffer()` com preferência por cache para entradas `.wasm`; apenas em cache miss faz fetch. Preserva file:// no Node e comportamento atual de erro em fetch não-ok."
+    },
+    {
+      "id": "T-RUNTIME-12",
+      "description": "Adicionar caminho de execução para plugins `.js` em PluginHost.load() sem passar pela transpiração WASM/JCO.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "packages/tractor-ts/test/plugin-host-internals.test.ts",
+        "docs/ARCHITECTURE.md"
+      ],
+      "acceptance_criteria": [
+        "PluginHost identifica `entry` .js e carrega módulo JS em runtime",
+        "Plugin `.js` executa setup/calls sem pipeline WASM",
+        "Testes cobrem caminho .js e mantêm regressões WASM verdes"
+      ],
+      "depends_on": [
+        "T-RUNTIME-11"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-12-20260423",
+      "notes": "`PluginHost.load()` agora detecta entradas `.js/.mjs`, carrega módulo via import dinâmico (com fallback fetch+data URL) e instancia `PluginInstanceHandle` sem JCO. Caminho `.wasm` permanece ativo e preferindo cache."
+    },
+    {
+      "id": "T-PLUGIN-05",
+      "description": "Documentar trilha dual-track de autoria de plugins (.js -> .wasm) para onboarding progressivo.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "docs/ARCHITECTURE.md",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "Matriz JS vs WASM publicada com trade-offs",
+        "Política recomendada por estágio (MVP/pre-prod/prod) documentada",
+        "Arquitetura e README apontam para o guia"
+      ],
+      "depends_on": [
+        "T-PLUGIN-04"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-05-20260423",
+      "notes": "Novo guia `docs/PLUGIN_AUTHORING_TRACKS.md` formaliza estratégia de adoção progressiva sem bloquear equipes que ainda não usam WASM."
     }
   ]
 }

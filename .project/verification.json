@@ -1624,6 +1624,58 @@
           "evidence": "`npm --prefix packages/tractor-ts run test:unit -- plugin-host-internals install-plugin` (26/26) e `npm --prefix packages/tractor-ts run type-check`."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-12-20260423",
+      "target": "T-RUNTIME-12",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T19:58:55.007Z",
+      "evidence": "Runtime TS agora suporta execução de plugins `.js` via import dinâmico em `PluginHost.load()` mantendo trilha WASM inalterada.",
+      "criteria_results": [
+        {
+          "criterion": "PluginHost identifica `entry` .js e carrega módulo JS em runtime",
+          "status": "passed",
+          "evidence": "`plugin-host.ts` implementa `isJavaScriptEntry()` + `loadJavaScriptModule()` (import direto ou fetch+data URL)."
+        },
+        {
+          "criterion": "Plugin `.js` executa setup/calls sem pipeline WASM",
+          "status": "passed",
+          "evidence": "`plugin-host-internals.test.ts` adiciona caso `loads .js plugin entries without JCO transpilation` com `ping()` retornando `pong`."
+        },
+        {
+          "criterion": "Testes cobrem caminho .js e mantêm regressões WASM verdes",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/tractor-ts run test:unit -- plugin-host-internals install-plugin` (27/27) + `npm --prefix packages/tractor-ts run type-check`."
+        }
+      ]
+    },
+    {
+      "id": "VER-PLUGIN-05-20260423",
+      "target": "T-PLUGIN-05",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T19:58:55.007Z",
+      "evidence": "Guia de dual-track plugin authoring publicado e referenciado na arquitetura e no README do contrato de manifesto.",
+      "criteria_results": [
+        {
+          "criterion": "Matriz JS vs WASM publicada com trade-offs",
+          "status": "passed",
+          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` inclui matriz comparativa e recomendações de uso."
+        },
+        {
+          "criterion": "Política recomendada por estágio (MVP/pre-prod/prod) documentada",
+          "status": "passed",
+          "evidence": "Guia explicita política em três estágios com trilha gradual de migração."
+        },
+        {
+          "criterion": "Arquitetura e README apontam para o guia",
+          "status": "passed",
+          "evidence": "Links adicionados em `docs/ARCHITECTURE.md` e `packages/plugin-manifest/README.md`."
+        }
+      ]
     }
   ]
 }

@@ -140,8 +140,11 @@ Não. O contrato de manifesto aceita `entry` em `.js` **ou** `.wasm`.
 
 - `.wasm`: caminho recomendado para sandbox e hardening (integridade `sha256-*` obrigatória).
 - `.js`: caminho válido para adoção gradual, especialmente para times que ainda não migraram para WASM.
+  No `tractor-ts`, entradas `.js` já podem ser carregadas via módulo JS em runtime.
 
 Em resumo: WASM é o trilho de segurança mais forte, mas não é bloqueio absoluto para começar.
+
+Para a política de produto/arquitetura em detalhes, veja `docs/PLUGIN_AUTHORING_TRACKS.md` no monorepo.
 
 ## Shared install/cache contract
 

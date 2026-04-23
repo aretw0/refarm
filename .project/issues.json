@@ -160,11 +160,12 @@
       "title": "Formalizar trilha de onboarding para plugins sem WASM",
       "body": "Há receio de fricção para developers que ainda não conseguem distribuir plugins WASM. Precisamos documentar oficialmente a estratégia dual-track (.js inicial + migração opcional para .wasm hardening), com expectativas de segurança e compatibilidade por ambiente.",
       "location": "docs/ARCHITECTURE.md:170",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "medium",
       "package": "plugin-platform",
-      "source": "human"
+      "source": "human",
+      "resolved_by": "VER-PLUGIN-05-20260423"
     }
   ]
 }

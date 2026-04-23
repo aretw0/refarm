@@ -1,25 +1,26 @@
 {
-  "context": "Execução avançou no runtime browser path: PluginHost agora prioriza cache instalado para `.wasm` antes de rede. Também foi registrado risco/produto sobre onboarding sem WASM (ISS-014).",
-  "timestamp": "2026-04-23T19:35:23.022Z",
+  "context": "Execução avançou com dois slices: suporte runtime para plugins `.js` em `PluginHost.load()` e formalização da trilha dual-track (.js -> .wasm) em documentação de arquitetura/produto.",
+  "timestamp": "2026-04-23T19:58:55.007Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-11 concluída com `VER-RUNTIME-11-20260423` (PluginHost.load prioriza cache `.wasm` antes de fetch).",
-    "ISS-014 aberta para formalizar trilha oficial de plugins `.js` (sem obrigatoriedade imediata de WASM)."
+    "T-RUNTIME-12 concluída com `VER-RUNTIME-12-20260423` (PluginHost suporta entry `.js/.mjs` sem JCO).",
+    "T-PLUGIN-05 concluída com `VER-PLUGIN-05-20260423` (guia de onboarding dual-track publicado)."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Definir task de produto/arquitetura para dual-track plugin authoring (.js -> .wasm), incluindo matriz de segurança por ambiente.",
-    "Continuar fechamento do gap ADR-044 no browser runtime (consumo efetivo de artefato instalado até instantiate)."
+    "Continuar ADR-044 no browser runtime, reduzindo stub do `index.browser.ts` para consumo mais direto de artefato instalado.",
+    "Definir políticas de enforcement por ambiente (quando aceitar `.js` e quando exigir `.wasm`) como decisão formal de arquitetura."
   ],
   "open_questions": [
-    "Quando e em quais ambientes Refarm exigirá WASM obrigatório vs aceitando JS com capacidades reduzidas?"
+    "Quais superfícies de deploy devem exigir `.wasm` obrigatório no curto prazo sem quebrar onboarding?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
     "packages/tractor-ts/src/lib/plugin-host.ts",
     "packages/tractor-ts/test/plugin-host-internals.test.ts",
+    "docs/PLUGIN_AUTHORING_TRACKS.md",
     "docs/ARCHITECTURE.md",
     "packages/plugin-manifest/README.md",
     ".project/tasks.json",
