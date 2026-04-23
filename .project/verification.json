@@ -1032,6 +1032,27 @@
           "evidence": "`docs/DEVOPS.md` recebeu seção `Tractor Runtime Readiness Probe` e entrada no Quick Reference com comando `tractor -- health`."
         }
       ]
+    },
+    {
+      "id": "VER-CI-RUNTIME-HEALTH-GATE-20260423",
+      "target": "4",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T07:08:36Z",
+      "evidence": "Gate rápido de health runtime integrado ao job `quality` para mudanças Tractor (`npm run test:smoke:health -w @refarm.dev/tractor-rs`). Execução validada no workflow `Test & Quality` do commit `8051b56a` com conclusão verde.",
+      "criteria_results": [
+        {
+          "criterion": "Smoke de health executa quando `tractor_gates=true`",
+          "status": "passed",
+          "evidence": "Passo `Tractor health probe smoke` adicionado em `.github/workflows/test.yml` sob condição `needs.changes.outputs.tractor_gates == 'true'`."
+        },
+        {
+          "criterion": "Workflow remoto permanece estável com novo gate",
+          "status": "passed",
+          "evidence": "Run `24821351910` concluída `success` com jobs `quality/build/e2e/summary/ci-metrics` verdes."
+        }
+      ]
     }
   ]
 }

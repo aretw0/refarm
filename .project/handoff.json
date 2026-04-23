@@ -1,26 +1,22 @@
 {
-  "context": "Frente runtime consolidada em quatro marcos: `T-RUNTIME-02` (smoke daemon/ws), `T-RUNTIME-01` (mapa de boot/failure points), `T-RUNTIME-05` (fail-fast opcional de plugin obrigatório) e `T-RUNTIME-06` (probe explícita de readiness/health).",
-  "timestamp": "2026-04-23T06:34:14Z",
+  "context": "Checkpoint de runtime concluído: smoke WS (`T-RUNTIME-02`), mapa de boot/falhas (`T-RUNTIME-01`), fail-fast opcional de plugin obrigatório (`T-RUNTIME-05`) e probe explícita de readiness (`T-RUNTIME-06`) estão implementados e validados local+CI.",
+  "timestamp": "2026-04-23T07:08:36Z",
   "current_phase": 4,
   "current_tasks": [
-    "`T-RUNTIME-06` concluída com `VER-RUNTIME-06-20260423`: novo subcomando `tractor health` valida boot mínimo + handshake WS e falha com status não-zero quando daemon indisponível.",
-    "`docs/DEVOPS.md` atualizado com procedimento operacional da probe para smoke/local."
+    "Gate de health runtime no CI foi integrado (`Tractor health probe smoke`) e validado na run `24821351910` com `success`.",
+    "Board canônico atualizado com verificação `VER-CI-RUNTIME-HEALTH-GATE-20260423`. Preparado para compactação."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Decidir inclusão da probe `tractor health` como gate rápido dedicado no workflow para mudanças em `packages/tractor/**`.",
-    "Escolher próxima frente de maior valor de produto (ex.: roundtrip runtime/storage `T-RUNTIME-04` ou conformance contracts `T-CONTRACT-01`)."
+    "Após compactação, escolher próxima frente de produto: `T-RUNTIME-04` (roundtrip runtime/storage) ou `T-CONTRACT-01` (inventário conformance v1).",
+    "Manter monitoramento de tempos por lane via artifact `ci-run-metrics`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/tractor/src/main.rs",
-    "packages/tractor/tests/ws_integration.rs",
-    "docs/DEVOPS.md",
-    ".project/tasks.json",
-    ".project/verification.json",
-    ".project/handoff.json"
+    ".project/handoff.json",
+    ".project/verification.json"
   ]
 }
