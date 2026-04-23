@@ -5,11 +5,12 @@
       "title": "Corrigir bloqueio de toolchain Rust no build do runtime",
       "body": "Foi observado erro `Missing manifest in toolchain stable-x86_64-unknown-linux-gnu` durante type-check/build envolvendo `packages/tractor`. Sem corrigir o ambiente, workers da colônia perdem ciclos com falhas de setup.",
       "location": "packages/tractor:1",
-      "status": "open",
+      "status": "resolved",
       "category": "issue",
       "priority": "critical",
       "package": "tractor",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-ENV-01-20260423"
     },
     {
       "id": "ISS-002",
