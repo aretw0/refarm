@@ -21,12 +21,15 @@ export * from "./lib/types";
 
 import {
 	assertEntryRuntimeCompatibility,
+	detectWasmBinaryKind,
 	detectEntryFormat,
+	type PluginArtifactMetadata,
 	type PluginManifest,
+	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
 import type { SovereignNode } from "./lib/graph-normalizer";
 import type { PluginInstance, PluginState } from "./lib/instance-handle";
-import { getCachedPlugin } from "./lib/opfs-plugin-cache";
+import { getCachedPlugin, getCachedPluginMetadata } from "./lib/opfs-plugin-cache";
 import type { TelemetryEvent } from "./lib/telemetry";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 import type { TractorLogger } from "./lib/types";
@@ -98,6 +101,7 @@ export class PluginHost {
 	): Promise<any> {
 		const pluginId = manifest.id;
 		const cached = await getCachedPlugin(pluginId);
+		const metadata = await getCachedPluginMetadata(pluginId);
 
 		if (!cached) {
 			throw new Error(
@@ -106,6 +110,12 @@ export class PluginHost {
 			);
 		}
 
+		await this.assertCachedWasmArtifactCompatibility(
+			manifest,
+			cached,
+			metadata,
+		);
+
 		try {
 			const instantiated = await WebAssembly.instantiate(cached, {});
 			return instantiated.instance.exports;
@@ -113,6 +123,63 @@ export class PluginHost {
 			throw new Error(
 				`[tractor] Failed to instantiate cached browser WASM for ${pluginId}. ` +
 					`Current browser path expects cache-backed runtime-compatible exports (${error?.message ?? "unknown error"}).`,
+			);
+		}
+	}
+
+	private async assertCachedWasmArtifactCompatibility(
+		manifest: PluginManifest,
+		cachedBytes: ArrayBuffer,
+		metadata: PluginArtifactMetadata | null,
+	): Promise<void> {
+		const pluginId = manifest.id;
+
+		if (!metadata) {
+			throw new Error(
+				`[tractor] Browser WASM plugin ${pluginId} is cached without metadata. ` +
+					"Reinstall the plugin to align install/load contract.",
+			);
+		}
+
+		if (metadata.pluginId !== pluginId) {
+			throw new Error(
+				`[tractor] Browser WASM metadata/plugin mismatch for ${pluginId}. ` +
+					"Reinstall the plugin.",
+			);
+		}
+
+		if (metadata.wasmUrl !== manifest.entry) {
+			throw new Error(
+				`[tractor] Browser WASM cache entry mismatch for ${pluginId}. ` +
+					"Manifest entry changed; reinstall the plugin.",
+			);
+		}
+
+		if (!manifest.integrity) {
+			throw new Error(
+				`[tractor] Browser WASM plugin ${pluginId} requires manifest integrity for cache-backed load.`,
+			);
+		}
+
+		if (metadata.integrity !== manifest.integrity) {
+			throw new Error(
+				`[tractor] Browser WASM integrity mismatch for ${pluginId}. Reinstall the plugin.`,
+			);
+		}
+
+		try {
+			await verifyBufferIntegrity(cachedBytes, manifest.integrity);
+		} catch {
+			throw new Error(
+				`[tractor] Browser WASM integrity verification failed for ${pluginId}. Reinstall the plugin.`,
+			);
+		}
+
+		const artifactKind = metadata.artifactKind ?? detectWasmBinaryKind(cachedBytes);
+		if (artifactKind !== "module") {
+			throw new Error(
+				`[tractor] Browser WASM artifact kind '${artifactKind}' is not executable in current runtime. ` +
+					"Use a browser-runtime-compatible module artifact or install-time transpile output.",
 			);
 		}
 	}

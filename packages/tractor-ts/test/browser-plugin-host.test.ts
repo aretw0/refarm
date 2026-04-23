@@ -3,10 +3,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index.browser";
 import { cachePlugin, evictPlugin } from "../src/lib/opfs-plugin-cache";
 
+async function computeIntegrity(bytes: ArrayBuffer): Promise<string> {
+	const digest = await crypto.subtle.digest("SHA-256", bytes);
+	return `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
+}
+
 afterEach(async () => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	await evictPlugin("@acme/wasm-plugin");
+	await evictPlugin("@acme/component-plugin");
 });
 
 describe("browser PluginHost runtime paths", () => {
@@ -80,9 +86,28 @@ describe("browser PluginHost runtime paths", () => {
 	it("loads cached .wasm plugins when WebAssembly instantiate succeeds", async () => {
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
+		const wasmBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x01,
+			0x00,
+			0x00,
+			0x00,
+		]).buffer;
+		const integrity = await computeIntegrity(wasmBytes);
 		await cachePlugin(
 			"@acme/wasm-plugin",
-			new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer,
+			wasmBytes,
+			{
+				pluginId: "@acme/wasm-plugin",
+				wasmUrl: "https://example.test/plugin.wasm",
+				integrity,
+				wasmHash: integrity,
+				cachedAt: Date.now(),
+				artifactKind: "module",
+			},
 		);
 
 		vi.spyOn(WebAssembly, "instantiate").mockResolvedValue({
@@ -98,6 +123,7 @@ describe("browser PluginHost runtime paths", () => {
 			id: "@acme/wasm-plugin",
 			name: "WASM Plugin",
 			entry: "https://example.test/plugin.wasm",
+			integrity,
 		});
 
 		const instance = await host.load(manifest);
@@ -111,6 +137,40 @@ describe("browser PluginHost runtime paths", () => {
 					source: "browser-cache",
 				}),
 			}),
+		);
+	});
+
+	it("rejects cached wasm component artifacts in browser runtime", async () => {
+		const host = new PluginHost(vi.fn(), {});
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const integrity = await computeIntegrity(componentBytes);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity,
+			wasmHash: integrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+		});
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity,
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"artifact kind 'component' is not executable in current runtime",
 		);
 	});
 

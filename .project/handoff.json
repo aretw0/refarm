@@ -1,30 +1,30 @@
 {
-  "context": "Pós-compaction: concluído o spike T-RUNTIME-16 para `.wasm` no browser com carga cache-backed. O contrato de compatibilidade ganhou opção explícita para host browser (`allowBrowserWasmFromCache`) e docs/ADR foram alinhados para status parcial.",
-  "timestamp": "2026-04-23T21:25:38.104Z",
+  "context": "Novo lote fechou o contrato browser cache-backed para `.wasm`: install passa a classificar `artifactKind`, load valida metadata+integridade e executa apenas artifacts `module` no browser atual.",
+  "timestamp": "2026-04-23T21:56:50.682Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-16 concluída (`VER-RUNTIME-16-20260423`): browser PluginHost carrega `.wasm` instalado em cache via WebAssembly.instantiate.",
-    "Conformance `plugin-manifest` atualizado para política opcional `allowBrowserWasmFromCache` sem romper defaults de compatibilidade.",
-    "Docs de arquitetura/envelope e ADR-044 atualizados para refletir suporte browser `.wasm` em modo parcial."
+    "T-PLUGIN-10 concluída (`VER-PLUGIN-10-20260423`): install-contract classifica artefatos WASM por kind.",
+    "T-RUNTIME-17 concluída (`VER-RUNTIME-17-20260423`): browser host valida cache metadata/integridade e bloqueia artifacts component.",
+    "ISS-016 resolvida; follow-up aberto em ISS-017 para runner component no browser."
   ],
   "blockers": [
-    "ISS-017: falta contrato canônico de toolchain/runtime para WASM Component no browser (fechamento integral ADR-044).",
+    "ISS-017: falta runner browser canônico para artifacts WASM component (transpile/runtime determinístico).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Iniciar T-RUNTIME-17 para definir artefato browser canônico (component/transpiled) com verificação de compatibilidade no install/load.",
-    "Decidir política de enforcement por ambiente para promoção L1→L2/L3 com base no novo status parcial do browser wasm.",
-    "Manter validação local scoped + CI full apenas em marcos maiores."
+    "Iniciar T-RUNTIME-18 para suportar artifactKind=component no browser com pipeline install-time transpile.",
+    "Definir formato assinado do artefato final browser (module JS transpiled vs wasm core) e validar no bootstrap.",
+    "Manter validação local scoped e disparar CI full em marcos de runtime/component."
   ],
   "open_questions": [
-    "Qual artefato será padrão para browser component runtime: módulo transpiled assinado, wasm core restrito, ou estratégia híbrida por capability?"
+    "O formato canônico para component no browser será JS transpiled assinado, wasm+shim, ou dual-format por capability?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "packages/plugin-manifest/src/install-contract.js",
+    "packages/plugin-manifest/src/index.d.ts",
     "packages/tractor-ts/src/index.browser.ts",
     "packages/tractor-ts/test/browser-plugin-host.test.ts",
-    "packages/plugin-manifest/src/entry-support.js",
-    "packages/plugin-manifest/src/index.d.ts",
     "docs/ARCHITECTURE.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
     "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",

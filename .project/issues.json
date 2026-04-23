@@ -182,13 +182,14 @@
     {
       "id": "ISS-016",
       "title": "Falta toolchain/browser runner para executar plugins `.wasm` no path cache-backed (ADR-044)",
-      "body": "Browser host agora possui spike cache-backed para `.wasm` instalado, mas ainda falta contrato canônico de toolchain/runtime para WASM Component (ADR-044 completo).",
+      "body": "Cache-backed `.wasm` no browser foi habilitado com validação de metadata/integridade e gating por `artifactKind`. Resta evolução específica para artifacts do tipo component em follow-up.",
       "location": "packages/tractor-ts/src/index.browser.ts:1",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "high",
       "package": "tractor-ts",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-RUNTIME-17-20260423"
     },
     {
       "id": "ISS-017",

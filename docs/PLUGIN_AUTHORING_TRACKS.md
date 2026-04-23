@@ -78,6 +78,7 @@ Plugin com:
 Notas:
 - `.wasm` exige `integrity: sha256-*` no manifesto.
 - Browser `.wasm` depende de cache instalado (`installPlugin`) + runtime compatível (ADR-044 ainda em evolução).
+- No runtime browser atual, apenas artefatos WASM classificados como `module` são executáveis; `component` segue em trilha de toolchain.
 - `trusted-fast` (quando usado) é restrito a entradas `.wasm` no runtime atual.
 - JS path é onboarding pragmático; WASM path é hardening prioritário.
 

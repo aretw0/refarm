@@ -1941,6 +1941,58 @@
           "evidence": "`T-RUNTIME-17` planejada para fechar contrato de component-model/toolchain browser."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-10-20260423",
+      "target": "T-PLUGIN-10",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T21:56:50.682Z",
+      "evidence": "Contrato install/cache no plugin-manifest agora classifica artefatos WASM e propaga `artifactKind` para metadata/resultados.",
+      "criteria_results": [
+        {
+          "criterion": "Contrato retorna classificação de artefato WASM ao instalar/ler cache",
+          "status": "passed",
+          "evidence": "`installWasmArtifact` retorna `artifactKind` em cache hit e fetch path."
+        },
+        {
+          "criterion": "Metadata persistida inclui artifactKind para handshake install/load",
+          "status": "passed",
+          "evidence": "`cache.set(...metadata)` agora inclui `artifactKind`."
+        },
+        {
+          "criterion": "Conformance cobre detecção de módulo vs componente",
+          "status": "passed",
+          "evidence": "`install-contract.test.js` adiciona casos para header module/component e persistência da classificação."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-17-20260423",
+      "target": "T-RUNTIME-17",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T21:56:50.682Z",
+      "evidence": "Runtime browser aplica contrato canônico metadata+integridade antes de instanciar `.wasm` em cache.",
+      "criteria_results": [
+        {
+          "criterion": "Definir artefato canônico de runtime browser (component/transpiled module) com verificação de integridade",
+          "status": "passed",
+          "evidence": "`index.browser.ts` valida `pluginId/wasmUrl/integrity` da metadata e verifica digest do buffer antes de `WebAssembly.instantiate`."
+        },
+        {
+          "criterion": "Eliminar ambiguidade entre WASM core e WASM component no path browser",
+          "status": "passed",
+          "evidence": "`index.browser.ts` rejeita `artifactKind !== module` com erro explícito de compatibilidade/toolchain."
+        },
+        {
+          "criterion": "Cobertura de teste para falhas de compatibilidade/toolchain",
+          "status": "passed",
+          "evidence": "`browser-plugin-host.test.ts` cobre sucesso module cache-backed e rejeição de artifactKind component."
+        }
+      ]
     }
   ]
 }

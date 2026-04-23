@@ -1358,6 +1358,57 @@
     {
       "id": "T-RUNTIME-17",
       "description": "Fechar trilha de componente WASM no browser com contrato canônico de transpile/runtime (pós-spike ADR-044).",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Definir artefato canônico de runtime browser (component/transpiled module) com verificação de integridade",
+        "Eliminar ambiguidade entre WASM core e WASM component no path browser",
+        "Cobertura de teste para falhas de compatibilidade/toolchain"
+      ],
+      "depends_on": [
+        "T-RUNTIME-16",
+        "T-PLUGIN-10"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-17-20260423",
+      "notes": "Browser host agora valida metadata+integridade do cache e bloqueia `artifactKind=component`, aceitando apenas `module` no runtime atual."
+    },
+    {
+      "id": "T-PLUGIN-10",
+      "description": "Classificar artefatos WASM instalados por kind (module/component/unknown) no contrato compartilhado de install/cache.",
+      "status": "completed",
+      "phase": 6,
+      "files": [
+        "packages/plugin-manifest/src/install-contract.js",
+        "packages/plugin-manifest/src/install-contract.test.js",
+        "packages/plugin-manifest/src/index.js",
+        "packages/plugin-manifest/src/index.d.ts",
+        "packages/plugin-manifest/README.md"
+      ],
+      "acceptance_criteria": [
+        "Contrato retorna classificação de artefato WASM ao instalar/ler cache",
+        "Metadata persistida inclui artifactKind para handshake install/load",
+        "Conformance cobre detecção de módulo vs componente"
+      ],
+      "depends_on": [
+        "T-PLUGIN-08",
+        "T-PLUGIN-09"
+      ],
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-10-20260423",
+      "notes": "`installWasmArtifact` agora classifica binário (`module`/`component`/`unknown`) e persiste `artifactKind` na metadata para reduzir ambiguidade de runtime browser."
+    },
+    {
+      "id": "T-RUNTIME-18",
+      "description": "Implementar runner browser para artifactKind=component com pipeline install-time transpile e assinatura de artefato final.",
       "status": "planned",
       "phase": 6,
       "files": [
@@ -1367,12 +1418,12 @@
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
-        "Definir artefato canônico de runtime browser (component/transpiled module) com verificação de integridade",
-        "Eliminar ambiguidade entre WASM core e WASM component no path browser",
-        "Cobertura de teste para falhas de compatibilidade/toolchain"
+        "Component artifacts podem ser executados no browser por runner canônico (sem fallback implícito)",
+        "Contrato de install/load define formato de artefato final e valida assinatura/hash no bootstrap",
+        "Matriz de suporte separa claramente module path vs component path"
       ],
       "depends_on": [
-        "T-RUNTIME-16"
+        "T-RUNTIME-17"
       ],
       "assigned_agent": "worker-runtime"
     }
