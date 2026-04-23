@@ -1606,13 +1606,20 @@
     {
       "id": "T-RUNTIME-23",
       "description": "Automatizar publicação de descriptors external-signed com assinatura/proveniência verificável no release pipeline.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
-        "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
-        "packages/tractor-ts/scripts/verify-browser-runtime-module-descriptor.mjs",
-        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/README.md",
+        "packages/plugin-manifest/README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
+        "package.json",
+        ".project/decisions.json"
       ],
       "acceptance_criteria": [
         "Pipeline publica descriptor external-signed em endpoint versionado com integridade verificável",
@@ -1621,6 +1628,30 @@
       ],
       "depends_on": [
         "T-RUNTIME-22"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-23-20260423",
+      "notes": "Release workflow exporta bundle versionado de descriptors (manifest + revocation template) como artifact; install external-signed usa trust mode repository-derived por default e strict-manual por opt-in."
+    },
+    {
+      "id": "T-RUNTIME-24",
+      "description": "Promover bundle de descriptor para endpoint público estável (release assets/CDN) com política de revogação operacional.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        ".github/workflows/release-changesets.yml",
+        ".github/workflows/publish-packages.yml",
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Bundle de descriptor publicado em endpoint público versionado por release (não só artifact interno)",
+        "Instalação external-signed pode resolver endpoint oficial sem configuração manual por ambiente",
+        "Fluxo de revogação inclui publicação de lista revogada e janela de propagação documentada"
+      ],
+      "depends_on": [
+        "T-RUNTIME-23"
       ],
       "assigned_agent": "worker-runtime"
     }

@@ -218,7 +218,19 @@
     {
       "id": "ISS-019",
       "title": "Automatizar cadeia external-signed para descriptor sidecar sem allowlist manual",
-      "body": "Política atual suporta external-signed via allowlist explícita + provenance/sourceRepository, porém falta publicação automatizada de descriptor externo assinado para reduzir operação manual no release.",
+      "body": "Automação foi adicionada com export de bundle versionado no release pipeline e trust mode repository-derived para external-signed sem allowlist manual por pacote.",
+      "location": ".github/workflows/release-changesets.yml:1",
+      "status": "resolved",
+      "category": "capability",
+      "priority": "medium",
+      "package": "tractor-ts",
+      "source": "agent",
+      "resolved_by": "VER-RUNTIME-23-20260423"
+    },
+    {
+      "id": "ISS-020",
+      "title": "Promover bundle de descriptors para endpoint público estável de release",
+      "body": "Fluxo atual publica bundle versionado como artifact de workflow. Falta elevar para endpoint público estável (release asset/CDN) com consumo padronizado em runtime external-signed.",
       "location": ".github/workflows/release-changesets.yml:1",
       "status": "open",
       "category": "capability",

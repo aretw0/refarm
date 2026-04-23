@@ -111,6 +111,14 @@
       "status": "decided",
       "phase": 6,
       "context": "Fechamento de T-RUNTIME-22 após baseline de descriptor/provenance em T-RUNTIME-21."
+    },
+    {
+      "id": "DEC-015",
+      "decision": "Adotar trust mode `repository-derived` como padrão para descriptors `external-signed`, mantendo `strict-manual` para ambientes que exigem allowlist explícita.",
+      "rationale": "Reduz fricção operacional e elimina allowlists por pacote no caminho comum, sem remover opção de hardening estrito para ambientes sensíveis.",
+      "status": "decided",
+      "phase": 6,
+      "context": "Entrega de T-RUNTIME-23 com política de distribuição e provenance já consolidadas em T-RUNTIME-21/T-RUNTIME-22."
     }
   ]
 }

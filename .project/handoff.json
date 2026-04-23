@@ -1,23 +1,23 @@
 {
-  "context": "T-RUNTIME-22 concluída: política de distribuição de descriptor sidecar foi formalizada e aplicada (package-embedded default + external-signed opt-in). Próximo passo é automatizar cadeia external-signed no release (T-RUNTIME-23).",
-  "timestamp": "2026-04-23T23:11:49.987Z",
+  "context": "T-RUNTIME-23 concluída: release pipeline agora exporta bundle versionado de descriptors com manifest/revogação template; install external-signed adotou trust mode repository-derived por default. Próximo passo é promover bundle para endpoint público estável (T-RUNTIME-24).",
+  "timestamp": "2026-04-23T23:39:57.212Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-22 concluída (`VER-RUNTIME-22-20260423`) com policy de origem aplicada no install path.",
-    "DEC-014 decidida: `package-embedded` default, `external-signed` somente com allowlist + provenance reforçada.",
-    "T-RUNTIME-23 planejada para automação da cadeia external-signed."
+    "T-RUNTIME-23 concluída (`VER-RUNTIME-23-20260423`): bundle versionado de descriptor exportado no release workflow.",
+    "DEC-015 decidida: trust `repository-derived` padrão e `strict-manual` opt-in para external-signed.",
+    "T-RUNTIME-24 planejada para endpoint público estável de descriptor bundle."
   ],
   "blockers": [
-    "ISS-019: falta automação de publicação external-signed para evitar allowlist manual por pacote.",
+    "ISS-020: bundle ainda está no canal de artifact interno; falta endpoint público estável por release.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar T-RUNTIME-23 focando automação de publish/verify de descriptor external-signed.",
-    "Adicionar playbook de revogação/rollback para descriptor externo.",
-    "Manter slices atômicos e checkpoint antes da próxima compactação."
+    "Executar T-RUNTIME-24 para publicar bundle em release assets/CDN versionado.",
+    "Definir política de resolução do endpoint oficial external-signed por ambiente.",
+    "Registrar checkpoint antes de nova compactação se avançar em publish infra."
   ],
   "open_questions": [
-    "Qual backend oficial hospeda descriptors external-signed (GitHub Release assets, registry dedicado ou CDN versionado)?"
+    "Endpoint oficial será GitHub Release assets, registry dedicado ou CDN do projeto para bundles de descriptor?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

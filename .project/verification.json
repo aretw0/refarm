@@ -2196,6 +2196,32 @@
           "evidence": "`install-plugin.ts` aplica policy `package-embedded|external-signed` com rules de origem, allowlist, descriptorIntegrity e provenance/sourceRepository."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-23-20260423",
+      "target": "T-RUNTIME-23",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T23:39:57.212Z",
+      "evidence": "Automação de bundle descriptor no release pipeline + trust mode repository-derived sem allowlist manual por pacote + playbook de revogação documentado.",
+      "criteria_results": [
+        {
+          "criterion": "Pipeline publica descriptor external-signed em endpoint versionado com integridade verificável",
+          "status": "passed",
+          "evidence": "`release-changesets.yml` exporta bundle versionado (`runtime-descriptor-bundle-${github.sha}`) com `bundle.manifest.json` + hashes via `export-runtime-descriptor-bundle.mjs`."
+        },
+        {
+          "criterion": "Install policy consegue validar origem external-signed sem allowlists manuais por pacote",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` adiciona trust mode `repository-derived` (default) derivando origens de `provenance.sourceRepository`."
+        },
+        {
+          "criterion": "Playbook de release cobre rollback/revogação de descriptor externo",
+          "status": "passed",
+          "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` seção de rollback/revogação + template `bundle.revocations.template.json` no bundle exportado."
+        }
+      ]
     }
   ]
 }
