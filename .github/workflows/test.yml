@@ -360,7 +360,12 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
 
-      - name: Build
+      - name: Build (affected)
+        if: needs.changes.outputs.turbo_filter != ''
+        run: npx turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+
+      - name: Build (full fallback)
+        if: needs.changes.outputs.turbo_filter == ''
         run: npm run build
 
       - name: Upload build artifacts
