@@ -38,6 +38,9 @@ jobs:
           npm run type-check
           npm run test:capabilities
 
+      - name: Validate browser runtime descriptor provenance gate
+        run: npm --prefix packages/tractor-ts run runtime-module:ci
+
       - name: Create Release PR or Publish
         id: changesets
         uses: changesets/action@v1

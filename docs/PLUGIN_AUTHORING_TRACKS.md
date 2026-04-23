@@ -80,6 +80,7 @@ Notas:
 - Browser `.wasm` depende de cache instalado (`installPlugin`) + runtime compatível (ADR-044 ainda em evolução).
 - No runtime browser atual, `module` executa diretamente e `component` executa quando acompanhado de `browserRuntimeModule` + `browserRuntimeDescriptor` cacheados e íntegros.
 - Para reduzir ambiguidade, prefira descriptor gerado por toolchain (`runtime-module:descriptor`) em vez de sidecar manual.
+- Descriptor oficial para `artifactKind=component` deve incluir provenance mínima (`commitSha` full, `buildId`, `toolchain`) e passar no gate `runtime-module:ci` antes de publish.
 - `trusted-fast` (quando usado) é restrito a entradas `.wasm` no runtime atual.
 - JS path é onboarding pragmático; WASM path é hardening prioritário.
 
