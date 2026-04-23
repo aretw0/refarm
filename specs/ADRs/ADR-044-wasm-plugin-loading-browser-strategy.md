@@ -125,6 +125,7 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
 - `packages/tractor/package.json` — `exports` field with `node`/`browser` conditions
 - `docs/WASM_JCO_ARCHITECTURE.md` — updated transpilation flow and runtime/build-time table
 - `docs/KNOWN_LIMITATIONS.md` — new entry for browser plugin loading
+- `packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs` — deterministic descriptor generator for component sidecars
 
 **Migration path:**
 
@@ -135,6 +136,7 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
    - ✅ `tractor-ts` now attempts cache-backed `.wasm` load in browser (`WebAssembly.instantiate` over installed artifact)
    - ✅ install/load contract now carries `artifactKind` (`module`/`component`/`unknown`) plus metadata handshake (`pluginId/url/integrity`)
    - ✅ `artifactKind=component` can run through cache-backed `browserRuntimeModule` (integrity-verified ESM sidecar)
+   - ✅ descriptor-integrity handshake added (`browserRuntimeDescriptor` + optional toolchain metadata) to reduce manual drift
    - 🔲 remaining: finalize canonical transpile/runtime contract for Component Model artifacts (JCO-compatible browser runner)
 
 **Timeline**: Steps 1–2 are delivered in this ADR. Steps 3–4 are future work, tracked when OPFS integration is scheduled.
