@@ -448,8 +448,7 @@ describe("installPlugin", () => {
 							provenance: {
 								commitSha: "1111111111111111111111111111111111111111",
 								buildId: "build-external",
-								sourceRepository:
-									"https://github.com/refarm-dev/refarm",
+								sourceRepository: "https://github.com/refarm-dev/refarm",
 							},
 						};
 
@@ -494,6 +493,148 @@ describe("installPlugin", () => {
 			"test-plugin",
 			runtimeModuleSource,
 		);
+	});
+
+	it("derives trusted origin from provenance.sourceRepository for external-signed descriptors", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-derived-trust'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".runtime-descriptor.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => {
+						const descriptorWithoutIntegrity = {
+							schemaVersion: 1,
+							pluginId: "test-plugin",
+							componentWasmUrl: "https://example.com/test.wasm",
+							module: {
+								url: "https://objects.githubusercontent.com/test.browser.mjs",
+								integrity: runtimeModuleIntegrity,
+								format: "esm",
+							},
+							toolchain: {
+								name: "tractor-sidecar",
+								version: "0.1.0",
+							},
+							provenance: {
+								commitSha: "1111111111111111111111111111111111111111",
+								buildId: "build-derived-trust",
+								sourceRepository: "https://github.com/refarm-dev/refarm",
+							},
+						};
+
+						return {
+							...descriptorWithoutIntegrity,
+							descriptorIntegrity: await computeDescriptorIntegrity(
+								descriptorWithoutIntegrity,
+							),
+						};
+					},
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				browserRuntimeModuleDescriptor: {
+					url: "https://objects.githubusercontent.com/external.runtime-descriptor.json",
+				},
+				descriptorDistributionPolicy: "external-signed",
+			},
+		);
+
+		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
+			"test-plugin",
+			runtimeModuleSource,
+		);
+	});
+
+	it("requires manual allowlist when external-signed trust mode is strict-manual", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-strict-manual'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".runtime-descriptor.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => {
+						const descriptorWithoutIntegrity = {
+							schemaVersion: 1,
+							pluginId: "test-plugin",
+							componentWasmUrl: "https://example.com/test.wasm",
+							module: {
+								url: "https://objects.githubusercontent.com/test.browser.mjs",
+								integrity: runtimeModuleIntegrity,
+								format: "esm",
+							},
+							toolchain: {
+								name: "tractor-sidecar",
+								version: "0.1.0",
+							},
+							provenance: {
+								commitSha: "1111111111111111111111111111111111111111",
+								buildId: "build-strict-manual",
+								sourceRepository: "https://github.com/refarm-dev/refarm",
+							},
+						};
+
+						return {
+							...descriptorWithoutIntegrity,
+							descriptorIntegrity: await computeDescriptorIntegrity(
+								descriptorWithoutIntegrity,
+							),
+						};
+					},
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				browserRuntimeModuleDescriptor: {
+					url: "https://objects.githubusercontent.com/external.runtime-descriptor.json",
+				},
+				descriptorDistributionPolicy: "external-signed",
+				descriptorTrustMode: "strict-manual",
+			}),
+		).rejects.toThrow("requires descriptor origin allowlist");
 	});
 
 	it("rejects descriptor plugin mismatch", async () => {

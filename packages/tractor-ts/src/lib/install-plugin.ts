@@ -70,6 +70,10 @@ export type BrowserRuntimeDescriptorDistributionPolicy =
 	| "package-embedded"
 	| "external-signed";
 
+export type BrowserRuntimeDescriptorTrustMode =
+	| "strict-manual"
+	| "repository-derived";
+
 export interface InstallPluginOptions {
 	force?: boolean;
 	browserRuntimeModule?: BrowserRuntimeModuleInstallInput;
@@ -78,6 +82,7 @@ export interface InstallPluginOptions {
 		| BrowserRuntimeModuleDescriptorReference;
 	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
 	descriptorTrustedOrigins?: string[];
+	descriptorTrustMode?: BrowserRuntimeDescriptorTrustMode;
 }
 
 interface ResolvedBrowserRuntimeModule {
@@ -142,12 +147,33 @@ function normalizeTrustedOrigins(
 	return normalized;
 }
 
+function deriveTrustedOriginsFromSourceRepository(
+	sourceRepository: string | undefined,
+): Set<string> {
+	const trustedOrigins = new Set<string>();
+	if (!sourceRepository) return trustedOrigins;
+
+	const repositoryUrl = safeParseUrl(sourceRepository);
+	if (!repositoryUrl?.origin) return trustedOrigins;
+
+	trustedOrigins.add(repositoryUrl.origin);
+
+	if (repositoryUrl.hostname === "github.com") {
+		trustedOrigins.add("https://objects.githubusercontent.com");
+		trustedOrigins.add("https://github-releases.githubusercontent.com");
+		trustedOrigins.add("https://raw.githubusercontent.com");
+	}
+
+	return trustedOrigins;
+}
+
 function assertDescriptorReferencePolicy(
 	manifest: PluginManifest,
 	wasmUrl: string,
 	descriptorUrlRaw: string,
 	policy: BrowserRuntimeDescriptorDistributionPolicy,
 	trustedOrigins: Set<string>,
+	trustMode: BrowserRuntimeDescriptorTrustMode,
 ): URL {
 	const descriptorUrl = safeParseUrl(descriptorUrlRaw);
 	if (!descriptorUrl) {
@@ -177,6 +203,10 @@ function assertDescriptorReferencePolicy(
 				`[install-plugin] Descriptor distribution policy package-embedded requires descriptor URL origin to match component origin for ${manifest.id}.`,
 			);
 		}
+		return descriptorUrl;
+	}
+
+	if (trustMode === "repository-derived") {
 		return descriptorUrl;
 	}
 
@@ -303,6 +333,7 @@ async function resolveDescriptorInput(
 		| BrowserRuntimeModuleDescriptorReference,
 	policy: BrowserRuntimeDescriptorDistributionPolicy,
 	trustedOrigins: Set<string>,
+	trustMode: BrowserRuntimeDescriptorTrustMode,
 ): Promise<BrowserRuntimeModuleDescriptor> {
 	const verifyDescriptorIntegrity = async (
 		descriptor: BrowserRuntimeModuleDescriptor,
@@ -331,6 +362,7 @@ async function resolveDescriptorInput(
 			input.url,
 			policy,
 			trustedOrigins,
+			trustMode,
 		);
 
 		const response = await fetch(descriptorUrl.toString());
@@ -344,6 +376,30 @@ async function resolveDescriptorInput(
 			(await response.json()) as BrowserRuntimeModuleDescriptor;
 		assertDescriptorShape(descriptor, manifest, wasmUrl);
 		assertDescriptorObjectPolicy(manifest, descriptor, policy);
+
+		if (policy === "external-signed") {
+			const wasmParsedUrl = safeParseUrl(wasmUrl);
+			const wasmOrigin = wasmParsedUrl?.origin;
+
+			const effectiveTrustedOrigins = new Set(trustedOrigins);
+			if (trustMode === "repository-derived") {
+				for (const origin of deriveTrustedOriginsFromSourceRepository(
+					descriptor.provenance?.sourceRepository,
+				)) {
+					effectiveTrustedOrigins.add(origin);
+				}
+			}
+
+			if (
+				wasmOrigin &&
+				descriptorUrl.origin !== wasmOrigin &&
+				!effectiveTrustedOrigins.has(descriptorUrl.origin)
+			) {
+				throw new Error(
+					`[install-plugin] Descriptor origin ${descriptorUrl.origin} is not trusted for policy external-signed in ${manifest.id}.`,
+				);
+			}
+		}
 
 		await verifyDescriptorIntegrity(descriptor);
 		return descriptor;
@@ -407,6 +463,8 @@ export async function installPlugin(
 	const descriptorTrustedOrigins = normalizeTrustedOrigins(
 		options.descriptorTrustedOrigins,
 	);
+	const descriptorTrustMode =
+		options.descriptorTrustMode ?? "repository-derived";
 
 	let runtimeModule: ResolvedBrowserRuntimeModule | null = null;
 
@@ -417,6 +475,7 @@ export async function installPlugin(
 			options.browserRuntimeModuleDescriptor,
 			descriptorDistributionPolicy,
 			descriptorTrustedOrigins,
+			descriptorTrustMode,
 		);
 
 		const descriptorWithoutIntegrity = {
