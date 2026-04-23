@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -32,6 +33,7 @@ jobs:
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
+      run_deep: ${{ steps.detect.outputs.run_deep }}
 
     steps:
       - name: Checkout
@@ -44,6 +46,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+
+          run_deep=false
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            run_deep=true
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ contains(github.event.pull_request.labels.*.name, 'ci:deep') }}" = "true" ]; then
+            run_deep=true
+          fi
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
@@ -69,6 +79,7 @@ jobs:
             echo "run_build=true" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
+            echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -129,8 +140,9 @@ jobs:
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
+          echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit deep=$run_deep filter=$turbo_filter"
 
   quality:
     runs-on: ubuntu-latest
@@ -428,6 +440,25 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+  deep-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: needs.changes.outputs.run_deep == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          playwright-setup: "true"
+
+      - name: Deep regression (full stack)
+        run: npx turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+
   audit-moderate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -471,13 +502,13 @@ jobs:
 
   summary:
     if: always()
-    needs: [changes, quality, build, e2e, audit-moderate]
+    needs: [changes, quality, build, e2e, audit-moderate, deep-regression]
     runs-on: ubuntu-latest
 
     steps:
       - name: Check all checks
         run: |
-          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
 
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
@@ -499,4 +530,77 @@ jobs:
             exit 1
           fi
 
+          if [ "${{ needs.changes.outputs.run_deep }}" = "true" ] && [ "${{ needs.deep-regression.result }}" != "success" ]; then
+            echo "::error::Deep regression failed"
+            exit 1
+          fi
+
           echo "::notice::All checks passed!"
+
+  ci-metrics:
+    if: always()
+    needs: [summary]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Export run metrics
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            > /tmp/ci-jobs.json
+
+          node - <<'NODE'
+          const fs = require('fs');
+
+          const payload = JSON.parse(fs.readFileSync('/tmp/ci-jobs.json', 'utf8'));
+          const jobs = (payload.jobs || []).map((job) => {
+            const started = job.started_at ? new Date(job.started_at).getTime() : null;
+            const ended = job.completed_at ? new Date(job.completed_at).getTime() : null;
+            const durationSec = started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : 0;
+            return {
+              name: job.name,
+              status: job.status,
+              conclusion: job.conclusion || '-',
+              durationSec,
+            };
+          });
+
+          const totalSec = jobs.reduce((acc, j) => acc + j.durationSec, 0);
+
+          const report = {
+            runId: process.env.GITHUB_RUN_ID,
+            workflow: process.env.GITHUB_WORKFLOW,
+            jobs,
+            totalDurationSec: totalSec,
+          };
+
+          fs.writeFileSync('ci-run-metrics.json', JSON.stringify(report, null, 2));
+
+          const lines = [];
+          lines.push('## CI timing snapshot');
+          lines.push('');
+          lines.push('| Job | Status | Conclusion | Duration (s) |');
+          lines.push('|---|---|---|---:|');
+          for (const j of jobs) {
+            lines.push(`| ${j.name} | ${j.status} | ${j.conclusion} | ${j.durationSec} |`);
+          }
+          lines.push('');
+          lines.push(`**Total job-seconds:** ${totalSec}`);
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          NODE
+
+      - name: Upload CI metrics artifact
+        if: always()
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: ci-run-metrics
+          path: ci-run-metrics.json
+          retention-days: 14
+          if-no-files-found: error
