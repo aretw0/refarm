@@ -616,6 +616,84 @@
           "evidence": "quality/build/e2e/summary concluídos com sucesso"
         }
       ]
+    },
+    {
+      "id": "VER-HARDEN-MODULARIZATION-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T01:51:13Z",
+      "evidence": "Conclusão da modularização pós-centralização de `sensitive_aliases.rs` com extração por domínio (`env.rs`, `headers.rs`, `policy.rs`) preservando comportamento e delegação nos boundaries host-side.",
+      "criteria_results": [
+        {
+          "criterion": "Estrutura modular aplicada",
+          "status": "passed",
+          "evidence": "Arquivos novos: `packages/tractor/src/host/sensitive_aliases/env.rs`, `headers.rs`, `policy.rs`; `sensitive_aliases.rs` reduzido para fachada/orquestração."
+        },
+        {
+          "criterion": "Gate local Rust por boundary",
+          "status": "passed",
+          "evidence": "`cargo check --quiet` + `cargo test --lib sensitive_aliases::tests` (12), `agent_tools_bridge` (112), `plugin_host` (43), `wasi_bridge` (85) todos verdes."
+        },
+        {
+          "criterion": "CI remoto",
+          "status": "passed",
+          "evidence": "GitHub Actions run `24811714039` (Test & Quality) concluído com sucesso em quality/audit-moderate/build/e2e/summary."
+        }
+      ]
+    },
+    {
+      "id": "VER-ENV-01-20260423",
+      "target": "T-ENV-01",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T01:51:13Z",
+      "evidence": "Baseline de toolchain Rust estabilizado no devcontainer com correção de permissões (`/usr/local/rustup`, `/usr/local/cargo`) e validação prática via build/check local do pacote tractor.",
+      "criteria_results": [
+        {
+          "criterion": "rustc -V executa sem erro",
+          "status": "passed",
+          "evidence": "`rustc --version` disponível no ambiente pós-ajustes."
+        },
+        {
+          "criterion": "cargo -V executa sem erro",
+          "status": "passed",
+          "evidence": "`cargo --version` disponível; `cargo check` executa sem erro no `packages/tractor`."
+        },
+        {
+          "criterion": "Erro de manifest não reaparece em build Rust",
+          "status": "passed",
+          "evidence": "`cargo check --quiet` e suites `cargo test --lib` em tractor executadas com sucesso após ajustes de ownership/bootstrap."
+        }
+      ]
+    },
+    {
+      "id": "VER-ENV-02-20260423",
+      "target": "T-ENV-02",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T01:51:13Z",
+      "evidence": "Targets/compontentes Rust necessários foram garantidos no bootstrap (`Dockerfile` + `post-create.sh`) e validados em runtime.",
+      "criteria_results": [
+        {
+          "criterion": "wasm32-wasip1 instalado",
+          "status": "passed",
+          "evidence": "`rustup target list --installed` inclui `wasm32-wasip1`."
+        },
+        {
+          "criterion": "wasm32-unknown-unknown instalado",
+          "status": "passed",
+          "evidence": "`rustup target list --installed` inclui `wasm32-unknown-unknown`."
+        },
+        {
+          "criterion": "Comandos de validação documentados",
+          "status": "passed",
+          "evidence": "`docs/DEVOPS.md` atualizado com procedimento de parity (`rustup component add rust-src clippy rustfmt` + validação via `npm run factory:preflight`)."
+        }
+      ]
     }
   ]
 }

@@ -3,7 +3,7 @@
     {
       "id": "T-ENV-01",
       "description": "Corrigir erro de toolchain Rust (missing manifest stable) no ambiente atual.",
-      "status": "planned",
+      "status": "completed",
       "phase": 1,
       "files": [
         "docs/DEVOPS.md",
@@ -15,12 +15,13 @@
         "cargo -V executa sem erro",
         "Erro de manifest não reaparece em build Rust"
       ],
-      "assigned_agent": "worker-env"
+      "assigned_agent": "worker-env",
+      "verification": "VER-ENV-01-20260423"
     },
     {
       "id": "T-ENV-02",
       "description": "Instalar e validar targets Rust/WASM obrigatórios no ambiente de desenvolvimento.",
-      "status": "planned",
+      "status": "completed",
       "phase": 1,
       "files": [
         "docs/DEVOPS.md",
@@ -34,7 +35,8 @@
       "depends_on": [
         "T-ENV-01"
       ],
-      "assigned_agent": "worker-env"
+      "assigned_agent": "worker-env",
+      "verification": "VER-ENV-02-20260423"
     },
     {
       "id": "T-ENV-03",

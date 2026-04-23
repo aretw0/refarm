@@ -1,22 +1,22 @@
 {
-	"context": "Checkpoint pré-compactação com correção de falha de CI concluída. Root cause real do vermelho: `@refarm.dev/tractor-rs` falhava primeiro em `cargo clippy -D warnings` (não reproduzível localmente por ausência de `cargo-clippy`), e após correções de clippy emergiu falha de teste unitário em `host::sensitive_aliases::tests::generic_env_sensitive_token_matches_suffix_and_segment` para `SERVICE_WEBHOOK_TOKEN`. Ajustes aplicados e validados.",
-	"timestamp": "2026-04-22T23:40:16Z",
-	"current_phase": 2,
-	"current_tasks": ["Security hardening tests for tractor host boundaries"],
-	"blockers": [
-		"Ferramentas locais `cargo-clippy` e `cargo-fmt` indisponíveis no ambiente atual.",
-		"Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical)."
-	],
-	"next_actions": [
-		"Compactar contexto e seguir próximo lote funcional.",
-		"Opcional: instalar `cargo-clippy`/`cargo-fmt` localmente para reduzir gap de reprodução CI/local."
-	],
-	"open_questions": [],
-	"key_decisions_pending": [],
-	"files_in_flux": [
-		"packages/tractor/src/host/sensitive_aliases.rs",
-		"packages/tractor/src/host/agent_tools_bridge/policy_and_fs.rs",
-		".project/handoff.json",
-		".project/verification.json"
-	]
+  "context": "Frente de hardening/modularização de `sensitive_aliases` avançou para arquitetura por domínio (`env.rs`, `headers.rs`, `policy.rs`) mantendo single source semântico e paridade spawn/plugin/wasi. CI remoto verde para o último lote (`Test & Quality` run 24811714039).",
+  "timestamp": "2026-04-23T01:51:13Z",
+  "current_phase": 2,
+  "current_tasks": [
+    "Follow-up pós-hardening: fechamento de ISS-013 e preparação do próximo bloco de potencial (gates operacionais + pendências de ambiente/governança)."
+  ],
+  "blockers": [
+    "Vulnerabilidades npm moderadas continuam como aviso não-bloqueante em CI (sem high/critical)."
+  ],
+  "next_actions": [
+    "Fechar formalmente ISS-013 no bloco de issues com evidência de modularização.",
+    "Selecionar próximo desbloqueio de throughput: ISS-002/ISS-004 (preflight obrigatório + smoke/full gate) ou ISS-001 (stability runtime toolchain)."
+  ],
+  "open_questions": [],
+  "key_decisions_pending": [],
+  "files_in_flux": [
+    ".project/handoff.json",
+    ".project/issues.json",
+    ".project/verification.json"
+  ]
 }
