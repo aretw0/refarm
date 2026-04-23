@@ -111,6 +111,19 @@ export interface BrowserRuntimeModuleMetadata {
 	format: "esm";
 }
 
+export interface BrowserRuntimeModuleDescriptorMetadata {
+	schemaVersion: 1;
+	descriptorHash: string;
+	componentWasmUrl: string;
+	source: "descriptor" | "direct";
+}
+
+export interface BrowserRuntimeToolchainMetadata {
+	name: string;
+	version: string;
+	generatedAt?: string;
+}
+
 export interface PluginArtifactMetadata {
 	pluginId: string;
 	wasmUrl: string;
@@ -119,6 +132,8 @@ export interface PluginArtifactMetadata {
 	cachedAt: number;
 	artifactKind: WasmBinaryKind;
 	browserRuntimeModule?: BrowserRuntimeModuleMetadata;
+	browserRuntimeDescriptor?: BrowserRuntimeModuleDescriptorMetadata;
+	browserRuntimeToolchain?: BrowserRuntimeToolchainMetadata;
 }
 
 export interface PluginBinaryCacheAdapter {

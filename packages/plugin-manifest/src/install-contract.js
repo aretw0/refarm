@@ -54,6 +54,9 @@ export function detectWasmBinaryKind(bytes) {
  * @property {string} wasmHash
  * @property {number} cachedAt
  * @property {"module"|"component"|"unknown"} artifactKind
+ * @property {{url: string, integrity: string, format: "esm"}} [browserRuntimeModule]
+ * @property {{schemaVersion: 1, descriptorHash: string, componentWasmUrl: string, source: "descriptor"|"direct"}} [browserRuntimeDescriptor]
+ * @property {{name: string, version: string, generatedAt?: string}} [browserRuntimeToolchain]
  */
 
 /**
