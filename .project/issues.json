@@ -182,8 +182,19 @@
     {
       "id": "ISS-016",
       "title": "Falta toolchain/browser runner para executar plugins `.wasm` no path cache-backed (ADR-044)",
-      "body": "Hoje o browser host aceita plugins JS, mas `.wasm` continua bloqueado até existir runner/toolchain adequada para componente WASM em browser (transpile/instantiate determinístico com segurança). Sem essa peça, a etapa final da ADR-044 fica truncada.",
+      "body": "Browser host agora possui spike cache-backed para `.wasm` instalado, mas ainda falta contrato canônico de toolchain/runtime para WASM Component (ADR-044 completo).",
       "location": "packages/tractor-ts/src/index.browser.ts:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "high",
+      "package": "tractor-ts",
+      "source": "agent"
+    },
+    {
+      "id": "ISS-017",
+      "title": "Fechar contrato browser para WASM Component (toolchain/transpile canônico)",
+      "body": "O spike cache-backed habilitou load `.wasm` no browser, mas ainda falta contrato único para artefatos de componente (JCO/component model) e validação determinística de compatibilidade entre install-time e runtime.",
+      "location": "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md:1",
       "status": "open",
       "category": "capability",
       "priority": "high",

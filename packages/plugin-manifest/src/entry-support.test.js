@@ -23,6 +23,11 @@ describe("entry support helpers", () => {
 		expect(
 			evaluateEntryRuntimeCompatibility("./plugin.cjs", "browser"),
 		).toEqual({ runtime: "browser", format: "cjs", supported: false });
+		expect(
+			evaluateEntryRuntimeCompatibility("./plugin.wasm", "browser", {
+				allowBrowserWasmFromCache: true,
+			}),
+		).toEqual({ runtime: "browser", format: "wasm", supported: true });
 	});
 
 	it("throws explicit runtime compatibility errors", () => {
@@ -35,5 +40,10 @@ describe("entry support helpers", () => {
 		expect(() =>
 			assertEntryRuntimeCompatibility("./plugin.wasm", "browser"),
 		).toThrow("entry format .wasm is not yet supported in browser runtime");
+		expect(() =>
+			assertEntryRuntimeCompatibility("./plugin.wasm", "browser", {
+				allowBrowserWasmFromCache: true,
+			}),
+		).not.toThrow();
 	});
 });

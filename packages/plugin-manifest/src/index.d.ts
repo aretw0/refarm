@@ -65,6 +65,9 @@ export interface ManifestValidationResult {
 
 export type EntryFormat = "js" | "mjs" | "cjs" | "wasm" | "unknown";
 export type RuntimeSupportTarget = "node" | "browser";
+export interface RuntimeCompatibilityOptions {
+	allowBrowserWasmFromCache?: boolean;
+}
 
 export const REQUIRED_TELEMETRY_HOOKS: readonly TelemetryHook[];
 export const SUPPORTED_ENTRY_FORMATS: readonly ["js", "mjs", "cjs", "wasm"];
@@ -77,10 +80,12 @@ export function detectEntryFormat(entry: string): EntryFormat;
 export function evaluateEntryRuntimeCompatibility(
 	entry: string,
 	runtime: RuntimeSupportTarget,
+	options?: RuntimeCompatibilityOptions,
 ): { runtime: RuntimeSupportTarget; format: EntryFormat; supported: boolean };
 export function assertEntryRuntimeCompatibility(
 	entry: string,
 	runtime: RuntimeSupportTarget,
+	options?: RuntimeCompatibilityOptions,
 ): void;
 
 export function createMockManifest(

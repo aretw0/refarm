@@ -11,28 +11,29 @@
 
 export * from "./lib/graph-normalizer";
 export * from "./lib/identity-recovery-host";
+// Re-export types from plugin-host's dependencies directly (no Node deps)
+export type { PluginInstance, PluginState } from "./lib/instance-handle";
 export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
 export * from "./lib/telemetry";
+export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 export * from "./lib/types";
 
-// Re-export types from plugin-host's dependencies directly (no Node deps)
-export type { PluginInstance, PluginState } from "./lib/instance-handle";
-export type { PluginTrustGrant, ExecutionProfile } from "./lib/trust-manager";
-
 import {
-  assertEntryRuntimeCompatibility,
-  type PluginManifest,
+	assertEntryRuntimeCompatibility,
+	detectEntryFormat,
+	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import type { SovereignNode } from "./lib/graph-normalizer";
-import type { TelemetryEvent } from "./lib/telemetry";
 import type { PluginInstance, PluginState } from "./lib/instance-handle";
-import type { PluginTrustGrant, ExecutionProfile } from "./lib/trust-manager";
+import { getCachedPlugin } from "./lib/opfs-plugin-cache";
+import type { TelemetryEvent } from "./lib/telemetry";
+import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 import type { TractorLogger } from "./lib/types";
 
 const BROWSER_ERROR =
-  "[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
-  "Use installPlugin() to cache the transpiled module to OPFS first. See ADR-044.";
+	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
+	"Use installPlugin() to cache the transpiled module to OPFS first. See ADR-044.";
 
 /**
  * Browser stub for PluginHost.
@@ -42,200 +43,256 @@ const BROWSER_ERROR =
  * Read-only queries return empty results instead of throwing.
  */
 export class PluginHost {
-  private readonly instances = new Map<string, PluginInstance>();
+	private readonly instances = new Map<string, PluginInstance>();
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  constructor(
-    private readonly emit: (data: TelemetryEvent) => void,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _registry: any,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    _logger?: TractorLogger,
-  ) {}
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	constructor(
+		private readonly emit: (data: TelemetryEvent) => void,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_registry: any,
+		// eslint-disable-next-line @typescript-eslint/no-unused-vars
+		_logger?: TractorLogger,
+	) {}
 
-  private normalizeJavaScriptModule(moduleNamespace: any): any {
-    if (!moduleNamespace) return moduleNamespace;
+	private normalizeJavaScriptModule(moduleNamespace: any): any {
+		if (!moduleNamespace) return moduleNamespace;
 
-    const defaultExport = moduleNamespace.default;
-    if (defaultExport && typeof defaultExport === "object") {
-      return {
-        ...defaultExport,
-        ...moduleNamespace,
-      };
-    }
+		const defaultExport = moduleNamespace.default;
+		if (defaultExport && typeof defaultExport === "object") {
+			return {
+				...defaultExport,
+				...moduleNamespace,
+			};
+		}
 
-    return moduleNamespace;
-  }
+		return moduleNamespace;
+	}
 
-  private encodeBase64Utf8(source: string): string {
-    const bytes = new TextEncoder().encode(source);
-    let binary = "";
-    for (const byte of bytes) binary += String.fromCharCode(byte);
-    return btoa(binary);
-  }
+	private encodeBase64Utf8(source: string): string {
+		const bytes = new TextEncoder().encode(source);
+		let binary = "";
+		for (const byte of bytes) binary += String.fromCharCode(byte);
+		return btoa(binary);
+	}
 
-  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
-    try {
-      const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
-      return this.normalizeJavaScriptModule(moduleNamespace);
-    } catch {
-      const response = await fetch(entryUrl);
-      if (!response.ok) {
-        throw new Error(
-          `[tractor] Failed to fetch browser plugin module: ${response.statusText}`,
-        );
-      }
-      const source = await response.text();
-      const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
-      const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
-      return this.normalizeJavaScriptModule(moduleNamespace);
-    }
-  }
+	private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+		try {
+			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
+			return this.normalizeJavaScriptModule(moduleNamespace);
+		} catch {
+			const response = await fetch(entryUrl);
+			if (!response.ok) {
+				throw new Error(
+					`[tractor] Failed to fetch browser plugin module: ${response.statusText}`,
+				);
+			}
+			const source = await response.text();
+			const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+			const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+			return this.normalizeJavaScriptModule(moduleNamespace);
+		}
+	}
 
-  hasValidTrustGrant(_pluginId: string, _wasmHash?: string): boolean {
-    return false;
-  }
+	private async loadWasmModuleFromCache(
+		manifest: PluginManifest,
+	): Promise<any> {
+		const pluginId = manifest.id;
+		const cached = await getCachedPlugin(pluginId);
 
-  grantTrust(_pluginId: string, _wasmHash: string, _leaseMs?: number): PluginTrustGrant {
-    throw new Error(BROWSER_ERROR);
-  }
+		if (!cached) {
+			throw new Error(
+				`[tractor] Browser WASM plugin ${pluginId} is not installed in cache. ` +
+					"Run installPlugin() before load().",
+			);
+		}
 
-  trustManifestOnce(_manifest: PluginManifest, _wasmHash: string): PluginTrustGrant {
-    throw new Error(BROWSER_ERROR);
-  }
+		try {
+			const instantiated = await WebAssembly.instantiate(cached, {});
+			return instantiated.instance.exports;
+		} catch (error: any) {
+			throw new Error(
+				`[tractor] Failed to instantiate cached browser WASM for ${pluginId}. ` +
+					`Current browser path expects cache-backed runtime-compatible exports (${error?.message ?? "unknown error"}).`,
+			);
+		}
+	}
 
-  revokeTrust(_pluginId: string, _wasmHash?: string): void {
-    // no-op in browser
-  }
+	hasValidTrustGrant(_pluginId: string, _wasmHash?: string): boolean {
+		return false;
+	}
 
-  async load(_manifest: PluginManifest, _wasmHash?: string): Promise<PluginInstance> {
-    const manifest = _manifest;
-    assertEntryRuntimeCompatibility(manifest.entry, "browser");
+	grantTrust(
+		_pluginId: string,
+		_wasmHash: string,
+		_leaseMs?: number,
+	): PluginTrustGrant {
+		throw new Error(BROWSER_ERROR);
+	}
 
-    const moduleNamespace = await this.loadJavaScriptModule(manifest.entry);
-    const pluginId = manifest.id;
+	trustManifestOnce(
+		_manifest: PluginManifest,
+		_wasmHash: string,
+	): PluginTrustGrant {
+		throw new Error(BROWSER_ERROR);
+	}
 
-    const instance: PluginInstance = {
-      id: pluginId,
-      name: manifest.name,
-      manifest,
-      state: "running",
-      call: async (fn: string, args?: unknown): Promise<unknown> => {
-        let result = null;
-        if (
-          moduleNamespace.integration &&
-          typeof moduleNamespace.integration[fn] === "function"
-        ) {
-          result = await moduleNamespace.integration[fn](args);
-        } else if (typeof moduleNamespace[fn] === "function") {
-          result = await moduleNamespace[fn](args);
-        }
+	revokeTrust(_pluginId: string, _wasmHash?: string): void {
+		// no-op in browser
+	}
 
-        this.emit({
-          event: "api:call",
-          pluginId,
-          payload: { fn, args, result },
-        });
+	async load(
+		_manifest: PluginManifest,
+		_wasmHash?: string,
+	): Promise<PluginInstance> {
+		const manifest = _manifest;
+		const entryFormat = detectEntryFormat(manifest.entry);
 
-        return result;
-      },
-      terminate: () => {
-        this.instances.delete(pluginId);
-        this.emit({ event: "plugin:terminate", pluginId });
-      },
-      emitTelemetry: (event: string, payload?: any) => {
-        this.emit({ event, pluginId, payload });
-      },
-    };
+		const moduleNamespace =
+			entryFormat === "wasm"
+				? (assertEntryRuntimeCompatibility(manifest.entry, "browser", {
+						allowBrowserWasmFromCache: true,
+					}),
+					await this.loadWasmModuleFromCache(manifest))
+				: (assertEntryRuntimeCompatibility(manifest.entry, "browser"),
+					await this.loadJavaScriptModule(manifest.entry));
 
-    this.instances.set(pluginId, instance);
+		const pluginId = manifest.id;
 
-    try {
-      await instance.call("setup");
-    } catch {
-      // setup hook remains optional at runtime for JS onboarding path
-    }
+		const instance: PluginInstance = {
+			id: pluginId,
+			name: manifest.name,
+			manifest,
+			state: "running",
+			call: async (fn: string, args?: unknown): Promise<unknown> => {
+				let result = null;
+				if (
+					moduleNamespace.integration &&
+					typeof moduleNamespace.integration[fn] === "function"
+				) {
+					result = await moduleNamespace.integration[fn](args);
+				} else if (typeof moduleNamespace[fn] === "function") {
+					result = await moduleNamespace[fn](args);
+				}
 
-    this.emit({
-      event: "plugin:load",
-      pluginId,
-      payload: { entryType: "js", source: "browser-module" },
-    });
+				this.emit({
+					event: "api:call",
+					pluginId,
+					payload: { fn, args, result },
+				});
 
-    return instance;
-  }
+				return result;
+			},
+			terminate: () => {
+				this.instances.delete(pluginId);
+				this.emit({ event: "plugin:terminate", pluginId });
+			},
+			emitTelemetry: (event: string, payload?: any) => {
+				this.emit({ event, pluginId, payload });
+			},
+		};
 
-  getWasiImports(_manifest: PluginManifest, _profile: ExecutionProfile): Record<string, unknown> {
-    return {};
-  }
+		this.instances.set(pluginId, instance);
 
-  registerInternal(_instance: PluginInstance): void {
-    this.instances.set(_instance.id, _instance);
-  }
+		try {
+			await instance.call("setup");
+		} catch {
+			// setup hook remains optional at runtime for JS onboarding path
+		}
 
-  setState(_pluginId: string, _state: PluginState): void {
-    const instance = this.instances.get(_pluginId);
-    if (instance && instance.state !== _state) {
-      instance.state = _state;
-      this.emit({
-        event: "system:plugin_state_changed",
-        pluginId: _pluginId,
-        payload: { state: _state },
-      });
-    }
-  }
+		this.emit({
+			event: "plugin:load",
+			pluginId,
+			payload: {
+				entryType: entryFormat === "wasm" ? "wasm" : "js",
+				source: entryFormat === "wasm" ? "browser-cache" : "browser-module",
+			},
+		});
 
-  dispatch(_event: TelemetryEvent): void {
-    for (const instance of this.instances.values()) {
-      if (_event.event.startsWith("system:")) {
-        instance.call("on-event", [_event.event, JSON.stringify(_event.payload)]);
-      }
-    }
-  }
+		return instance;
+	}
 
-  async getHelpNodes(): Promise<SovereignNode[]> {
-    const nodes: SovereignNode[] = [];
-    for (const plugin of this.instances.values()) {
-      try {
-        const pluginNodes = (await plugin.call("get-help-nodes")) as any[];
-        if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n)));
-      } catch {
-        // ignore invalid help providers in browser path
-      }
-    }
-    return nodes;
-  }
+	getWasiImports(
+		_manifest: PluginManifest,
+		_profile: ExecutionProfile,
+	): Record<string, unknown> {
+		return {};
+	}
 
-  findByApi(_apiName: string): PluginInstance | undefined {
-    for (const instance of this.instances.values()) {
-      if (instance.manifest.capabilities.providesApi?.includes(_apiName)) {
-        return instance;
-      }
-    }
-    return undefined;
-  }
+	registerInternal(_instance: PluginInstance): void {
+		this.instances.set(_instance.id, _instance);
+	}
 
-  get(_pluginId: string): PluginInstance | undefined {
-    return this.instances.get(_pluginId);
-  }
+	setState(_pluginId: string, _state: PluginState): void {
+		const instance = this.instances.get(_pluginId);
+		if (instance && instance.state !== _state) {
+			instance.state = _state;
+			this.emit({
+				event: "system:plugin_state_changed",
+				pluginId: _pluginId,
+				payload: { state: _state },
+			});
+		}
+	}
 
-  getAllPlugins(): PluginInstance[] {
-    return Array.from(this.instances.values());
-  }
+	dispatch(_event: TelemetryEvent): void {
+		for (const instance of this.instances.values()) {
+			if (_event.event.startsWith("system:")) {
+				instance.call("on-event", [
+					_event.event,
+					JSON.stringify(_event.payload),
+				]);
+			}
+		}
+	}
 
-  terminateAll(): void {
-    for (const plugin of this.instances.values()) {
-      plugin.terminate();
-    }
-  }
+	async getHelpNodes(): Promise<SovereignNode[]> {
+		const nodes: SovereignNode[] = [];
+		for (const plugin of this.instances.values()) {
+			try {
+				const pluginNodes = (await plugin.call("get-help-nodes")) as any[];
+				if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n)));
+			} catch {
+				// ignore invalid help providers in browser path
+			}
+		}
+		return nodes;
+	}
+
+	findByApi(_apiName: string): PluginInstance | undefined {
+		for (const instance of this.instances.values()) {
+			if (instance.manifest.capabilities.providesApi?.includes(_apiName)) {
+				return instance;
+			}
+		}
+		return undefined;
+	}
+
+	get(_pluginId: string): PluginInstance | undefined {
+		return this.instances.get(_pluginId);
+	}
+
+	getAllPlugins(): PluginInstance[] {
+		return Array.from(this.instances.values());
+	}
+
+	terminateAll(): void {
+		for (const plugin of this.instances.values()) {
+			plugin.terminate();
+		}
+	}
 }
 
-export { installPlugin } from "./lib/install-plugin";
 export type { InstallPluginResult } from "./lib/install-plugin";
-export { getCachedPlugin, cachePlugin, evictPlugin } from "./lib/opfs-plugin-cache";
+export { installPlugin } from "./lib/install-plugin";
+export {
+	cachePlugin,
+	evictPlugin,
+	getCachedPlugin,
+} from "./lib/opfs-plugin-cache";
 
 /** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */
-export const TRACTOR_VERSION: string = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+export const TRACTOR_VERSION: string =
+	(import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
 // Re-export Tractor for browser consumers.
 // node:fs/promises and @bytecodealliance/jco are now dynamic imports inside

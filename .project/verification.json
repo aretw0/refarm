@@ -1915,6 +1915,32 @@
           "evidence": "Handoff atualizado com blockers/next-actions focados em T-RUNTIME-16 e ADR-044 browser wasm cache-backed."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-16-20260423",
+      "target": "T-RUNTIME-16",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T21:25:38.104Z",
+      "evidence": "Spike ADR-044 implementado: browser host tenta carregar `.wasm` de cache instalado e instanciá-lo via WebAssembly, com política explícita no contrato de compatibilidade.",
+      "criteria_results": [
+        {
+          "criterion": "Decisão técnica de runtime/transpile browser documentada",
+          "status": "passed",
+          "evidence": "`ADR-044` e `docs/ARCHITECTURE.md` atualizados com status cache-backed parcial."
+        },
+        {
+          "criterion": "Spike mínimo validando load de `.wasm` a partir de cache instalado",
+          "status": "passed",
+          "evidence": "`browser-plugin-host.test.ts` cobre sucesso de load `.wasm` cache-backed + erro sem cache."
+        },
+        {
+          "criterion": "Risco/tooling necessário registrado para rollout incremental",
+          "status": "passed",
+          "evidence": "`T-RUNTIME-17` planejada para fechar contrato de component-model/toolchain browser."
+        }
+      ]
     }
   ]
 }

@@ -73,10 +73,11 @@ Plugin com:
 | `.js` | ✅ suportado | ✅ suportado | **supported** |
 | `.mjs` | ✅ suportado | ✅ suportado | **supported** |
 | `.cjs` | ⚠️ parcial (validado no manifesto; runtime browser não é alvo primário) | ✅ suportado | **partial** |
-| `.wasm` | 🚧 roadmap (bloqueado no `index.browser.ts` até fechamento ADR-044) | ✅ suportado | **roadmap/browser + supported/node** |
+| `.wasm` | ⚠️ parcial (cache-backed no browser; requer install prévio e runner compatível) | ✅ suportado | **partial/browser + supported/node** |
 
 Notas:
 - `.wasm` exige `integrity: sha256-*` no manifesto.
+- Browser `.wasm` depende de cache instalado (`installPlugin`) + runtime compatível (ADR-044 ainda em evolução).
 - `trusted-fast` (quando usado) é restrito a entradas `.wasm` no runtime atual.
 - JS path é onboarding pragmático; WASM path é hardening prioritário.
 

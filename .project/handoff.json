@@ -1,33 +1,33 @@
 {
-  "context": "Checkpoint pronto para compactação após lote de 8 slices: contrato de compatibilidade de entry centralizado, runtime node/browser alinhado, trusted-fast restrito a `.wasm`, e conformance robusta para entry com query/hash.",
-  "timestamp": "2026-04-23T21:02:13.705Z",
+  "context": "Pós-compaction: concluído o spike T-RUNTIME-16 para `.wasm` no browser com carga cache-backed. O contrato de compatibilidade ganhou opção explícita para host browser (`allowBrowserWasmFromCache`) e docs/ADR foram alinhados para status parcial.",
+  "timestamp": "2026-04-23T21:25:38.104Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-08 concluída com `VER-PLUGIN-08-20260423` (helpers de compatibilidade por runtime no plugin-manifest).",
-    "T-RUNTIME-14 concluída com `VER-RUNTIME-14-20260423` (PluginHost node/browser usando contrato compartilhado).",
-    "T-RUNTIME-15 concluída com `VER-RUNTIME-15-20260423` (trusted-fast restrito a `.wasm`).",
-    "T-PLUGIN-09 concluída com `VER-PLUGIN-09-20260423` (cobertura de parsing entry com query/hash).",
-    "Checkpoint `VER-CHECKPOINT-COMPACTION-06-20260423` registrado para pausa/compactação."
+    "T-RUNTIME-16 concluída (`VER-RUNTIME-16-20260423`): browser PluginHost carrega `.wasm` instalado em cache via WebAssembly.instantiate.",
+    "Conformance `plugin-manifest` atualizado para política opcional `allowBrowserWasmFromCache` sem romper defaults de compatibilidade.",
+    "Docs de arquitetura/envelope e ADR-044 atualizados para refletir suporte browser `.wasm` em modo parcial."
   ],
   "blockers": [
-    "ISS-016: ausência de runner/toolchain browser para `.wasm` mantém último trecho da ADR-044 em aberto.",
+    "ISS-017: falta contrato canônico de toolchain/runtime para WASM Component no browser (fechamento integral ADR-044).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Iniciar T-RUNTIME-16 com foco em tooling/runtime para habilitar `.wasm` no browser host sem romper o modelo de segurança.",
-    "Definir decisão de enforcement por ambiente (browser público/node local/edge) com rollout incremental alinhado ao envelope L0→L3.",
-    "Usar CI completa somente em marcos; manter validação local scoped no fluxo diário."
+    "Iniciar T-RUNTIME-17 para definir artefato browser canônico (component/transpiled) com verificação de compatibilidade no install/load.",
+    "Decidir política de enforcement por ambiente para promoção L1→L2/L3 com base no novo status parcial do browser wasm.",
+    "Manter validação local scoped + CI full apenas em marcos maiores."
   ],
   "open_questions": [
-    "Qual stack/toolchain será adotada para o runner `.wasm` browser (transpile/instantiate cache-backed) sem aumentar risco de supply-chain?"
+    "Qual artefato será padrão para browser component runtime: módulo transpiled assinado, wasm core restrito, ou estratégia híbrida por capability?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "packages/plugin-manifest/src/entry-support.js",
-    "packages/plugin-manifest/src/validate.js",
-    "packages/tractor-ts/src/lib/plugin-host.ts",
     "packages/tractor-ts/src/index.browser.ts",
+    "packages/tractor-ts/test/browser-plugin-host.test.ts",
+    "packages/plugin-manifest/src/entry-support.js",
+    "packages/plugin-manifest/src/index.d.ts",
+    "docs/ARCHITECTURE.md",
     "docs/PLUGIN_AUTHORING_TRACKS.md",
+    "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
     ".project/tasks.json",
     ".project/issues.json",
     ".project/verification.json",

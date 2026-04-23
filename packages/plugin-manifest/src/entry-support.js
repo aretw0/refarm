@@ -8,6 +8,23 @@ export const RUNTIME_ENTRY_SUPPORT = Object.freeze({
 });
 
 /**
+ * @typedef {Object} RuntimeCompatibilityOptions
+ * @property {boolean} [allowBrowserWasmFromCache]
+ */
+
+/**
+ * @param {"node"|"browser"} runtime
+ * @param {RuntimeCompatibilityOptions} [options]
+ */
+function resolveRuntimeFormats(runtime, options = {}) {
+	const baseFormats = [...(RUNTIME_ENTRY_SUPPORT[runtime] || [])];
+	if (runtime === "browser" && options.allowBrowserWasmFromCache) {
+		baseFormats.push("wasm");
+	}
+	return baseFormats;
+}
+
+/**
  * @param {string} entry
  * @returns {"js"|"mjs"|"cjs"|"wasm"|"unknown"}
  */
@@ -25,11 +42,12 @@ export function detectEntryFormat(entry) {
 /**
  * @param {string} entry
  * @param {"node"|"browser"} runtime
+ * @param {RuntimeCompatibilityOptions} [options]
  * @returns {{runtime: "node"|"browser", format: "js"|"mjs"|"cjs"|"wasm"|"unknown", supported: boolean}}
  */
-export function evaluateEntryRuntimeCompatibility(entry, runtime) {
+export function evaluateEntryRuntimeCompatibility(entry, runtime, options = {}) {
 	const format = detectEntryFormat(entry);
-	const supportedFormats = RUNTIME_ENTRY_SUPPORT[runtime] || [];
+	const supportedFormats = resolveRuntimeFormats(runtime, options);
 
 	return {
 		runtime,
@@ -43,11 +61,13 @@ export function evaluateEntryRuntimeCompatibility(entry, runtime) {
  *
  * @param {string} entry
  * @param {"node"|"browser"} runtime
+ * @param {RuntimeCompatibilityOptions} [options]
  */
-export function assertEntryRuntimeCompatibility(entry, runtime) {
+export function assertEntryRuntimeCompatibility(entry, runtime, options = {}) {
 	const { format, supported } = evaluateEntryRuntimeCompatibility(
 		entry,
 		runtime,
+		options,
 	);
 
 	if (format === "unknown") {

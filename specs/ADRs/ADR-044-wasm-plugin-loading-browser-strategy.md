@@ -131,7 +131,9 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
 1. ✅ Add `src/index.browser.ts` (stub entrypoint)
 2. ✅ Update `package.json` exports with `browser` condition
 3. 🔲 Implement `installPlugin(manifest, wasmUrl)` → fetches WASM, calls JCO in Node.js or a service worker, stores result in OPFS
-4. 🔲 Update `PluginHost` browser stub to use OPFS cache via `dynamic import()`
+4. 🟡 Update `PluginHost` browser path to consume OPFS cache at load time
+   - ✅ `tractor-ts` now attempts cache-backed `.wasm` load in browser (`WebAssembly.instantiate` over installed artifact)
+   - 🔲 remaining: finalize canonical transpile/runtime contract for Component Model artifacts (JCO-compatible browser runner)
 
 **Timeline**: Steps 1–2 are delivered in this ADR. Steps 3–4 are future work, tracked when OPFS integration is scheduled.
 

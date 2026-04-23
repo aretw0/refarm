@@ -1332,12 +1332,14 @@
     {
       "id": "T-RUNTIME-16",
       "description": "Definir e preparar toolchain para execução `.wasm` no browser host (fechamento ADR-044 cache-backed path).",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "packages/tractor-ts/src/index.browser.ts",
-        "packages/tractor-ts/src/lib/plugin-host.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "packages/plugin-manifest/src/entry-support.js",
         "docs/ARCHITECTURE.md",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
@@ -1348,6 +1350,29 @@
       "depends_on": [
         "T-RUNTIME-14",
         "T-RUNTIME-15"
+      ],
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-16-20260423",
+      "notes": "Browser host agora aceita `.wasm` quando a entrada já está instalada no cache (OPFS/memory fallback), via `WebAssembly.instantiate`; conformance de compatibilidade passou a expor opção explícita `allowBrowserWasmFromCache`."
+    },
+    {
+      "id": "T-RUNTIME-17",
+      "description": "Fechar trilha de componente WASM no browser com contrato canônico de transpile/runtime (pós-spike ADR-044).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/plugin-manifest/src/install-contract.js",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Definir artefato canônico de runtime browser (component/transpiled module) com verificação de integridade",
+        "Eliminar ambiguidade entre WASM core e WASM component no path browser",
+        "Cobertura de teste para falhas de compatibilidade/toolchain"
+      ],
+      "depends_on": [
+        "T-RUNTIME-16"
       ],
       "assigned_agent": "worker-runtime"
     }

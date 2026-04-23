@@ -162,13 +162,14 @@ cache-hit validation, eviction-on-mismatch, and fetch+persist semantics stay con
 To keep runtime behavior aligned across hosts, this package also exports:
 
 - `detectEntryFormat(entry)`
-- `evaluateEntryRuntimeCompatibility(entry, runtime)`
-- `assertEntryRuntimeCompatibility(entry, runtime)`
+- `evaluateEntryRuntimeCompatibility(entry, runtime, options?)`
+- `assertEntryRuntimeCompatibility(entry, runtime, options?)`
+  - `options.allowBrowserWasmFromCache` habilita compatibilidade `.wasm` no browser para hosts que adotam execução cache-backed.
 
 Current runtime policy:
 
 - **node**: `.js`, `.mjs`, `.cjs`, `.wasm`
-- **browser**: `.js`, `.mjs` (while `.wasm` remains ADR-044 roadmap and `.cjs` is blocked)
+- **browser**: `.js`, `.mjs` by default; `.wasm` is available only when the host opts into cache-backed execution (`allowBrowserWasmFromCache`) and `.cjs` stays blocked
 
 ## Conformance scope (manifest:v1)
 
