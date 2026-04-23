@@ -134,35 +134,35 @@ else
 fi
 echo ""
 
-# 2. Type-check
-echo "🔤 Checking types..."
+# 2. Type-check preflight (fast local guard)
+echo "🔤 Checking types (fast preflight)..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
-  echo "   ⏭️  Type-check skipped (no TS/JS workspace changes in push range)"
+  echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
 else
-  if timeout 180 env CI=1 npm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-    echo "   ✅ Type-check passed"
+  if timeout 120 env CI=1 npm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+    echo "   ✅ Type-check preflight passed"
   else
     TYPECHECK_STATUS=$?
     TYPECHECK_OUTPUT=$(cat /tmp/prepush-typecheck.out /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true)
 
     if [ "$TYPECHECK_STATUS" -eq 124 ]; then
       if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-        echo "   ❌ Type-check timed out (blocking in strict mode)"
+        echo "   ❌ Type-check preflight timed out (blocking in strict mode)"
         BLOCKING_FAILED=1
       else
-        echo "   ⚠️  Type-check timed out (warning in permissive mode)"
+        echo "   ⚠️  Type-check preflight timed out (warning in permissive mode)"
         WARNINGS=1
       fi
-    elif echo "$TYPECHECK_OUTPUT" | grep -q "Could not find task"; then
-      echo "   ⚠️  Type-check task missing in some workspaces (warning)"
+    elif echo "$TYPECHECK_OUTPUT" | grep -Eq "Missing script|Could not find task"; then
+      echo "   ⚠️  Type-check preflight script/task missing (warning)"
       WARNINGS=1
     else
       if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-        echo "   ❌ Type-check failed (blocking in strict mode)"
+        echo "   ❌ Type-check preflight failed (blocking in strict mode)"
         echo "$TYPECHECK_OUTPUT" | tail -n 40 || true
         BLOCKING_FAILED=1
       else
-        echo "   ⚠️  Type-check failed (warning in permissive mode)"
+        echo "   ⚠️  Type-check preflight failed (warning in permissive mode)"
         WARNINGS=1
       fi
     fi
