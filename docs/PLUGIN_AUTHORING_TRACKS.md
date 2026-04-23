@@ -81,7 +81,8 @@ Notas:
 - No runtime browser atual, `module` executa diretamente e `component` executa quando acompanhado de `browserRuntimeModule` + `browserRuntimeDescriptor` cacheados e íntegros.
 - Para reduzir ambiguidade, prefira descriptor gerado por toolchain (`runtime-module:descriptor`) em vez de sidecar manual.
 - Descriptor oficial para `artifactKind=component` deve incluir provenance mínima (`commitSha` full, `buildId`, `toolchain`) e passar no gate `runtime-module:ci` antes de publish.
-- Política de distribuição: padrão `package-embedded` (descriptor `.runtime-descriptor.json` no mesmo origin do `.wasm`); `external-signed` é opt-in e exige allowlist (`descriptorTrustedOrigins`) + `descriptorIntegrity` + `provenance.sourceRepository`.
+- Política de distribuição: padrão `package-embedded` (descriptor `.runtime-descriptor.json` no mesmo origin do `.wasm`); `external-signed` é opt-in e exige `descriptorIntegrity` + `provenance.sourceRepository`.
+- Em `external-signed`, o modo padrão de trust é `repository-derived` (deriva origens confiáveis a partir de `sourceRepository`); para ambientes mais rígidos use `descriptorTrustMode: "strict-manual"` com `descriptorTrustedOrigins` explícito.
 - `trusted-fast` (quando usado) é restrito a entradas `.wasm` no runtime atual.
 - JS path é onboarding pragmático; WASM path é hardening prioritário.
 
@@ -115,3 +116,17 @@ Notas:
 ## 7) Nota de produto
 
 WASM não é “fingerprint mágico” obrigatório para todo plugin. Ele é um mecanismo de execução mais previsível e verificável. A estratégia soberana é **progressão de maturidade**, não exclusão de quem está começando.
+
+---
+
+## 8) Rollback/revogação de descriptor externo (`external-signed`)
+
+Quando um descriptor externo precisar ser invalidado:
+
+1. Gerar novo bundle/versionamento de descriptor (não reutilizar URL estável).
+2. Marcar `descriptorHash` revogado no manifesto de revogação do bundle.
+3. Publicar descriptor substituto com novo `descriptorIntegrity` e `provenance.buildId`.
+4. Forçar reinstalação do plugin nos ambientes afetados para atualizar cache OPFS.
+5. Registrar incidente e janela de revogação no changelog/release notes.
+
+Playbook operacional do bundle é gerado em CI por `scripts/ci/export-runtime-descriptor-bundle.mjs`.

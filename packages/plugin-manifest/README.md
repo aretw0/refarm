@@ -171,7 +171,9 @@ Current browser-sidecar metadata keys used by tractor-ts:
 
 Descriptor distribution policy currently applied by tractor-ts install path:
 - default `package-embedded`: descriptor URL must be HTTPS, end with `.runtime-descriptor.json`, and share origin with component wasm URL.
-- optional `external-signed`: cross-origin descriptor URL requires explicit allowlist and provenance/source repository metadata.
+- optional `external-signed`: requires `descriptorIntegrity` + provenance/source repository metadata.
+  - trust mode `repository-derived` (default) derives trusted origins from `sourceRepository` (including known GitHub release domains)
+  - trust mode `strict-manual` requires explicit `descriptorTrustedOrigins` allowlist.
 
 ## Runtime entry compatibility helpers
 

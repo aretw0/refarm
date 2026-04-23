@@ -281,7 +281,9 @@ This runs deterministic smoke generation + descriptor verification (`runtime-mod
 
 Distribution policy at install-time:
 - default: `package-embedded` (descriptor URL must stay on same origin as component wasm)
-- optional: `external-signed` + `descriptorTrustedOrigins` allowlist (requires `descriptorIntegrity` and `provenance.sourceRepository`)
+- optional: `external-signed` (requires `descriptorIntegrity` and `provenance.sourceRepository`)
+  - trust mode default is `repository-derived` (derives trusted descriptor origins from `provenance.sourceRepository`, e.g. GitHub release asset domains)
+  - use `descriptorTrustMode: "strict-manual"` + `descriptorTrustedOrigins` when you need explicit allowlists only
 
 ### Profile Performance
 
