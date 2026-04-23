@@ -139,17 +139,27 @@ echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check skipped (no TS/JS workspace changes in push range)"
 else
-  TYPECHECK_OUTPUT=$(CI=1 npm run type-check --silent 2>&1 | filter_vite_warning)
-  TYPECHECK_STATUS=$?
-  if [ $TYPECHECK_STATUS -eq 0 ]; then
+  if timeout 180 env CI=1 npm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ Type-check passed"
   else
-    if echo "$TYPECHECK_OUTPUT" | grep -q "Could not find task"; then
+    TYPECHECK_STATUS=$?
+    TYPECHECK_OUTPUT=$(cat /tmp/prepush-typecheck.out /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true)
+
+    if [ "$TYPECHECK_STATUS" -eq 124 ]; then
+      if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+        echo "   ❌ Type-check timed out (blocking in strict mode)"
+        BLOCKING_FAILED=1
+      else
+        echo "   ⚠️  Type-check timed out (warning in permissive mode)"
+        WARNINGS=1
+      fi
+    elif echo "$TYPECHECK_OUTPUT" | grep -q "Could not find task"; then
       echo "   ⚠️  Type-check task missing in some workspaces (warning)"
       WARNINGS=1
     else
       if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
         echo "   ❌ Type-check failed (blocking in strict mode)"
+        echo "$TYPECHECK_OUTPUT" | tail -n 40 || true
         BLOCKING_FAILED=1
       else
         echo "   ⚠️  Type-check failed (warning in permissive mode)"
@@ -165,10 +175,15 @@ echo "🧪 Running unit tests (advisory local check)..."
 if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
   echo "   ⏭️  Unit tests skipped (no TS/JS workspace changes in push range)"
 else
-  if npm run test:unit --silent 2>&1 | filter_vite_warning >/dev/null; then
+  if timeout 180 env CI=1 npm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
     echo "   ✅ Unit tests passed"
   else
-    echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+    UNIT_STATUS=$?
+    if [ "$UNIT_STATUS" -eq 124 ]; then
+      echo "   ⚠️  Unit tests timed out (non-blocking local warning)"
+    else
+      echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+    fi
     WARNINGS=1
   fi
 fi
@@ -176,22 +191,33 @@ echo ""
 
 # 4. Quality Gate (SDD->BDD->TDD->DDD)
 echo "🔍 Checking Refarm Quality Gate..."
-node packages/toolbox/src/quality-gate.mjs || {
+if timeout 120 node packages/toolbox/src/quality-gate.mjs; then
+  :
+else
+  QG_STATUS=$?
+  if [ "$QG_STATUS" -eq 124 ]; then
+    echo "⏱️  Quality Gate timed out after 120s"
+  fi
   if [ "$IS_PROTECTED_BRANCH" -eq 1 ]; then
     echo "❌ Quality Gate failed (blocking in strict mode)."
     exit 1
   fi
   echo "⚠️ Quality Gate failed (warning in permissive mode)."
   WARNINGS=1
-}
+fi
 echo ""
 
 # 5. Security audit (high/critical only)
 echo "🔒 Checking security (advisory local check)..."
-if npm audit --audit-level=high --silent 2>/dev/null; then
+if timeout 120 npm audit --audit-level=high --silent 2>/dev/null; then
   echo "   ✅ No high/critical vulnerabilities"
 else
-  echo "   ⚠️  Security check returned issues (non-blocking local warning)"
+  AUDIT_STATUS=$?
+  if [ "$AUDIT_STATUS" -eq 124 ]; then
+    echo "   ⏱️  Security check timed out (non-blocking local warning)"
+  else
+    echo "   ⚠️  Security check returned issues (non-blocking local warning)"
+  fi
   WARNINGS=1
 fi
 echo ""
