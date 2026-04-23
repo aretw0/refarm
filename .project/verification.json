@@ -777,6 +777,58 @@
           "evidence": "Run `24814461676` ainda em andamento (`quality` in_progress, `audit-moderate` success)."
         }
       ]
+    },
+    {
+      "id": "VER-OPS-07-20260423",
+      "target": "T-OPS-07",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-23T03:33:00Z",
+      "evidence": "Higiene de cache `.pi-lens` confirmada: `.gitignore` já contém `/.pi-lens` (entry `.pi-lens/`), nenhum arquivo `.pi-lens` está versionado (`git ls-files .pi-lens` vazio) e `git status` permanece limpo.",
+      "criteria_results": [
+        {
+          "criterion": "Entradas de cache .pi-lens alinhadas no .gitignore",
+          "status": "passed",
+          "evidence": "`.gitignore:147` contém `.pi-lens/`."
+        },
+        {
+          "criterion": "Arquivos de cache não aparecem em git status limpo",
+          "status": "passed",
+          "evidence": "`git ls-files .pi-lens` sem saída e `git status -sb` limpo."
+        },
+        {
+          "criterion": "ISS-006 atualizado com evidência de resolução",
+          "status": "passed",
+          "evidence": "Issue será marcada como resolved com referência `VER-OPS-07-20260423`."
+        }
+      ]
+    },
+    {
+      "id": "VER-CI-HOOK-STABILITY-20260423",
+      "target": "2",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T03:38:00Z",
+      "evidence": "Run remota `Test & Quality` para o checkpoint pós-hardening do hook (`6c11340d`) concluiu com `success` (run `24814632692`).",
+      "criteria_results": [
+        {
+          "criterion": "Workflow Test & Quality concluído para head 6c11340d",
+          "status": "passed",
+          "evidence": "`gh run list` mostra run `24814632692` com status `completed` e conclusion `success`."
+        },
+        {
+          "criterion": "Job quality sem regressão",
+          "status": "passed",
+          "evidence": "`gh run view 24814632692` indicou `quality` concluído com `success`."
+        },
+        {
+          "criterion": "Job build sem regressão",
+          "status": "passed",
+          "evidence": "Run finalizada `success`, cobrindo `build` e `audit-moderate`."
+        }
+      ]
     }
   ]
 }

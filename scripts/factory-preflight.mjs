@@ -103,6 +103,37 @@ function checkLockfile() {
   }
 }
 
+function checkTypeScriptAlignment() {
+  if (!existsSync('package-lock.json')) {
+    warn('TypeScript alignment check skipped', 'package-lock.json not found');
+    return;
+  }
+
+  const lock = readJson('package-lock.json');
+  const expected = lock?.packages?.['node_modules/typescript']?.version;
+  if (!expected) {
+    warn('TypeScript expected version missing in lockfile', 'Run: npm install');
+    return;
+  }
+
+  const tsPkgPath = 'node_modules/typescript/package.json';
+  if (!existsSync(tsPkgPath)) {
+    fail('TypeScript is not installed in node_modules', 'Run: npm ci');
+    return;
+  }
+
+  const installed = readJson(tsPkgPath).version;
+  if (installed === expected) {
+    ok('TypeScript workspace version aligned', `typescript@${installed}`);
+    return;
+  }
+
+  fail(
+    'TypeScript workspace version mismatch',
+    `installed=${installed}, lockfile=${expected}. Run: npm ci`
+  );
+}
+
 function checkHooks() {
   if (existsSync('.git/hooks/pre-push')) {
     ok('Git pre-push hook installed');
@@ -254,6 +285,7 @@ console.log(`${colors.dim}Checks for deterministic swarm execution in devcontain
 checkNode();
 checkNpm();
 checkLockfile();
+checkTypeScriptAlignment();
 checkPackageManagerPin();
 checkHooks();
 checkRustToolchain();
