@@ -554,11 +554,17 @@
     {
       "id": "T-PLUGIN-02",
       "description": "Implementar verificação de hash SHA-256 no pipeline de instalação de plugin.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "packages/barn/src/**",
-        "packages/plugin-manifest/src/**"
+        "packages/plugin-manifest/src/validate.js",
+        "packages/plugin-manifest/src/fixtures.js",
+        "packages/plugin-manifest/src/validate.test.js",
+        "packages/plugin-manifest/README.md",
+        "packages/barn/src/index.ts",
+        "packages/barn/tests/integration.test.ts",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts"
       ],
       "acceptance_criteria": [
         "Hash calculado e comparado",
@@ -568,7 +574,9 @@
       "depends_on": [
         "T-PLUGIN-01"
       ],
-      "assigned_agent": "worker-plugin"
+      "assigned_agent": "worker-plugin",
+      "verification": "VER-PLUGIN-02-20260423",
+      "notes": "Pipeline endurecido para SHA-256: manifesto `.wasm` agora exige `integrity` válido, `installPlugin` do tractor-ts bloqueia instalação sem digest e Barn valida formato do digest antes de qualquer fetch."
     },
     {
       "id": "T-PLUGIN-03",

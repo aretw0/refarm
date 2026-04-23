@@ -1,24 +1,29 @@
 {
-  "context": "Retomada pós-compactação concluída: CI pendente foi confirmado verde e T-PLUGIN-01 fechou o mapeamento installPlugin/cache/integridade com plano de hardening por prioridade.",
-  "timestamp": "2026-04-23T16:09:54.994Z",
+  "context": "Fase de hardening de plugin avançou: T-PLUGIN-01 e T-PLUGIN-02 concluídas, com gate SHA-256 obrigatório para install de `.wasm` e validação de digest em múltiplas camadas.",
+  "timestamp": "2026-04-23T16:25:49.475Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-PLUGIN-01 concluída com verificação `VER-PLUGIN-01-20260423` (flow map + risk map + plano P0/P1/P2).",
-    "Backlog de hardening atualizado com `T-PLUGIN-04` para unificar contrato Barn↔Tractor e layout OPFS."
+    "T-PLUGIN-02 concluída com verificação `VER-PLUGIN-02-20260423` (integridade obrigatória para `.wasm` e bloqueio em digest inválido/ausente).",
+    "Backlog segue com `T-PLUGIN-03` (regressão cache hit/miss) e `T-PLUGIN-04` (unificação Barn↔Tractor + layout OPFS canônico)."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar T-PLUGIN-02 para endurecer verificação de hash no pipeline de instalação (casos miss/hit).",
-    "Executar T-PLUGIN-03 com regressão de cache hit/miss e integridade em cenários tampered."
+    "Executar T-PLUGIN-03 para consolidar regressão de cache hit/miss com verificação de integridade no caminho de cache.",
+    "Executar T-PLUGIN-04 para unificar contrato de instalação/cache entre Barn e tractor-ts."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    "docs/ARCHITECTURE.md",
-    "packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md",
-    "packages/barn/README.md",
+    "packages/plugin-manifest/src/validate.js",
+    "packages/plugin-manifest/src/validate.test.js",
+    "packages/plugin-manifest/src/fixtures.js",
+    "packages/plugin-manifest/README.md",
+    "packages/barn/src/index.ts",
+    "packages/barn/tests/integration.test.ts",
+    "packages/tractor-ts/src/lib/install-plugin.ts",
+    "packages/tractor-ts/test/install-plugin.test.ts",
     ".project/tasks.json",
     ".project/verification.json",
     ".project/handoff.json"

@@ -161,4 +161,35 @@ describe("contract baseline validation", () => {
 		expect(result.valid).toBe(false);
 		expect(result.errors).toContain("invalid execution target: edge");
 	});
+
+	it("requires integrity for wasm entries", () => {
+		const manifest = createMockManifest();
+		delete manifest.integrity;
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain("integrity is required for .wasm entries");
+	});
+
+	it("rejects malformed integrity values", () => {
+		const manifest = createMockManifest({
+			integrity: "sha256-not-a-valid-digest",
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"integrity must use sha256- prefix with 64 hex chars or base64 digest",
+		);
+	});
+
+	it("allows .js entries without integrity", () => {
+		const manifest = createMockManifest({
+			entry: "./plugin.js",
+			integrity: undefined,
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
 });

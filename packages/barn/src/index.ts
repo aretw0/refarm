@@ -29,6 +29,9 @@ type CachedBinary = {
 	cachedAt: number;
 };
 
+const SHA256_HEX_RE = /^[0-9a-fA-F]{64}$/;
+const SHA256_BASE64_RE = /^(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
+
 export class Barn {
 	private _inventory: Map<string, PluginEntry> = new Map();
 	private _cacheByUrl: Map<string, CachedBinary> = new Map();
@@ -66,11 +69,17 @@ export class Barn {
 			throw new Error("Integrity digest is empty");
 		}
 
+		if (!SHA256_HEX_RE.test(value) && !SHA256_BASE64_RE.test(value)) {
+			throw new Error(
+				"Integrity digest must be 64-char hex or base64 sha256 value",
+			);
+		}
+
 		return value;
 	}
 
 	private isDigestMatch(expectedDigest: string, actual: Sha256Digest): boolean {
-		if (/^[0-9a-fA-F]{64}$/.test(expectedDigest)) {
+		if (SHA256_HEX_RE.test(expectedDigest)) {
 			return expectedDigest.toLowerCase() === actual.hex;
 		}
 		return expectedDigest === actual.base64;

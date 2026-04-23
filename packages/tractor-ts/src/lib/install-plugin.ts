@@ -14,30 +14,33 @@ import { cachePlugin, getCachedPlugin } from "./opfs-plugin-cache";
  * integrity string (W3C SRI format: "sha256-<base64>").
  * Throws if the hash doesn't match.
  */
-async function verifyIntegrity(buffer: ArrayBuffer, integrityString: string): Promise<void> {
-  if (!integrityString.startsWith("sha256-")) {
-    throw new Error(
-      `[installPlugin] Unsupported integrity algorithm in "${integrityString}". Only sha256- is supported.`
-    );
-  }
-  const expected = integrityString.slice(7); // strip "sha256-" prefix
-  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
-  const hashBytes = new Uint8Array(hashBuffer);
-  let binaryString = "";
-  for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
-  const actual = btoa(binaryString);
-  if (actual !== expected) {
-    throw new Error(
-      `[installPlugin] Integrity check failed: expected sha256-${expected}, got sha256-${actual}`
-    );
-  }
+async function verifyIntegrity(
+	buffer: ArrayBuffer,
+	integrityString: string,
+): Promise<void> {
+	if (!integrityString.startsWith("sha256-")) {
+		throw new Error(
+			`[installPlugin] Unsupported integrity algorithm in "${integrityString}". Only sha256- is supported.`,
+		);
+	}
+	const expected = integrityString.slice(7); // strip "sha256-" prefix
+	const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", buffer);
+	const hashBytes = new Uint8Array(hashBuffer);
+	let binaryString = "";
+	for (const byte of hashBytes) binaryString += String.fromCharCode(byte);
+	const actual = btoa(binaryString);
+	if (actual !== expected) {
+		throw new Error(
+			`[installPlugin] Integrity check failed: expected sha256-${expected}, got sha256-${actual}`,
+		);
+	}
 }
 
 export interface InstallPluginResult {
-  pluginId: string;
-  wasmUrl: string;
-  cached: boolean;
-  byteLength: number;
+	pluginId: string;
+	wasmUrl: string;
+	cached: boolean;
+	byteLength: number;
 }
 
 /**
@@ -47,31 +50,37 @@ export interface InstallPluginResult {
  * Pass force: true to bypass the cache and re-fetch.
  */
 export async function installPlugin(
-  manifest: PluginManifest,
-  wasmUrl: string,
-  options: { force?: boolean } = {}
+	manifest: PluginManifest,
+	wasmUrl: string,
+	options: { force?: boolean } = {},
 ): Promise<InstallPluginResult> {
-  const pluginId = manifest.id;
+	const pluginId = manifest.id;
 
-  if (!options.force) {
-    const cached = await getCachedPlugin(pluginId);
-    if (cached) {
-      return { pluginId, wasmUrl, cached: true, byteLength: cached.byteLength };
-    }
-  }
+	if (!options.force) {
+		const cached = await getCachedPlugin(pluginId);
+		if (cached) {
+			return { pluginId, wasmUrl, cached: true, byteLength: cached.byteLength };
+		}
+	}
 
-  const response = await fetch(wasmUrl);
-  if (!response.ok) {
-    throw new Error(`[installPlugin] Failed to fetch ${wasmUrl}: ${response.statusText}`);
-  }
+	const response = await fetch(wasmUrl);
+	if (!response.ok) {
+		throw new Error(
+			`[installPlugin] Failed to fetch ${wasmUrl}: ${response.statusText}`,
+		);
+	}
 
-  const buffer = await response.arrayBuffer();
+	const buffer = await response.arrayBuffer();
 
-  if (manifest.integrity) {
-    await verifyIntegrity(buffer, manifest.integrity);
-  }
+	if (!manifest.integrity) {
+		throw new Error(
+			`[installPlugin] Missing manifest.integrity for ${pluginId}. sha256- digest is required.`,
+		);
+	}
 
-  await cachePlugin(pluginId, buffer);
+	await verifyIntegrity(buffer, manifest.integrity);
 
-  return { pluginId, wasmUrl, cached: false, byteLength: buffer.byteLength };
+	await cachePlugin(pluginId, buffer);
+
+	return { pluginId, wasmUrl, cached: false, byteLength: buffer.byteLength };
 }

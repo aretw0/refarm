@@ -49,6 +49,17 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		);
 	});
 
+	it("should reject malformed integrity digests before fetch", async () => {
+		const url = "http://localhost:8080/bad-integrity.wasm";
+
+		await expect(
+			barn.installPlugin(url, "sha256-not-a-real-digest"),
+		).rejects.toThrow(
+			"Integrity digest must be 64-char hex or base64 sha256 value",
+		);
+		expect(global.fetch).not.toHaveBeenCalled();
+	});
+
 	it("should list installed plugins in the inventory", async () => {
 		const url = "http://localhost:8080/my-plugin.wasm";
 		const integrity = await sha256IntegrityFor("good content");

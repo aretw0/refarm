@@ -1489,6 +1489,32 @@
           "evidence": "`npm --prefix packages/barn test` (6/6) e `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (8/8) verdes."
         }
       ]
+    },
+    {
+      "id": "VER-PLUGIN-02-20260423",
+      "target": "T-PLUGIN-02",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T16:25:49.475Z",
+      "evidence": "Hash gate do install pipeline endurecido em Barn + plugin-manifest + tractor-ts com falha bloqueante para digest ausente/inválido/mismatch.",
+      "criteria_results": [
+        {
+          "criterion": "Hash calculado e comparado",
+          "status": "passed",
+          "evidence": "`packages/tractor-ts/src/lib/install-plugin.ts` valida sempre `manifest.integrity` com `verifyIntegrity`; Barn mantém comparação de digest (miss/hit) em `packages/barn/src/index.ts`."
+        },
+        {
+          "criterion": "Falhas de integridade bloqueiam instalação",
+          "status": "passed",
+          "evidence": "Falhas bloqueantes para digest malformado em Barn, hash mismatch em install-plugin, e ausência de `manifest.integrity` para `.wasm`."
+        },
+        {
+          "criterion": "Teste cobre caso válido e inválido",
+          "status": "passed",
+          "evidence": "`npm --prefix packages/plugin-manifest run test:conformance` (14/14), `npm --prefix packages/barn test` (7/7), `npm --prefix packages/tractor-ts run test:unit -- install-plugin` (8/8)."
+        }
+      ]
     }
   ]
 }
