@@ -1,19 +1,26 @@
 import { describe, expect, it, vi } from "vitest";
-import { installWasmArtifact } from "./install-contract.js";
+import {
+	detectWasmBinaryKind,
+	installWasmArtifact,
+} from "./install-contract.js";
 
 function createMemoryCache() {
 	const map = new Map();
+	const metadataMap = new Map();
 	return {
 		cache: {
 			get: vi.fn(async (pluginId) => map.get(pluginId) ?? null),
-			set: vi.fn(async (pluginId, bytes) => {
+			set: vi.fn(async (pluginId, bytes, metadata) => {
 				map.set(pluginId, bytes);
+				metadataMap.set(pluginId, metadata);
 			}),
 			evict: vi.fn(async (pluginId) => {
 				map.delete(pluginId);
+				metadataMap.delete(pluginId);
 			}),
 		},
 		map,
+		metadataMap,
 	};
 }
 
@@ -24,6 +31,33 @@ async function toIntegrity(content) {
 }
 
 describe("installWasmArtifact", () => {
+	it("detects wasm binary kind from header", () => {
+		const moduleBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x01,
+			0x00,
+			0x00,
+			0x00,
+		]).buffer;
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+
+		expect(detectWasmBinaryKind(moduleBytes)).toBe("module");
+		expect(detectWasmBinaryKind(componentBytes)).toBe("component");
+		expect(detectWasmBinaryKind(new ArrayBuffer(2))).toBe("unknown");
+	});
+
 	it("returns cache hit without fetching when cached artifact matches integrity", async () => {
 		const { cache, map } = createMemoryCache();
 		const buffer = new TextEncoder().encode("hello").buffer;
@@ -41,14 +75,25 @@ describe("installWasmArtifact", () => {
 		);
 
 		expect(result.cached).toBe(true);
+		expect(result.artifactKind).toBe("unknown");
 		expect(fetchFn).not.toHaveBeenCalled();
 	});
 
-	it("evicts bad cache and refetches", async () => {
-		const { cache, map } = createMemoryCache();
+	it("evicts bad cache and refetches with artifact metadata", async () => {
+		const { cache, map, metadataMap } = createMemoryCache();
 		map.set("plugin-a", new TextEncoder().encode("tampered").buffer);
-		const integrity = await toIntegrity("fresh");
-		const freshBuffer = new TextEncoder().encode("fresh").buffer;
+		const freshBuffer = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x01,
+			0x00,
+			0x00,
+			0x00,
+		]).buffer;
+		const digest = await crypto.subtle.digest("SHA-256", freshBuffer);
+		const integrity = `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
 
 		const fetchFn = vi.fn().mockResolvedValue({
 			ok: true,
@@ -68,6 +113,12 @@ describe("installWasmArtifact", () => {
 		expect(cache.evict).toHaveBeenCalledWith("plugin-a");
 		expect(fetchFn).toHaveBeenCalledTimes(1);
 		expect(result.cached).toBe(false);
+		expect(result.artifactKind).toBe("module");
+		expect(metadataMap.get("plugin-a")).toEqual(
+			expect.objectContaining({
+				artifactKind: "module",
+			}),
+		);
 	});
 
 	it("fails fast on malformed integrity", async () => {

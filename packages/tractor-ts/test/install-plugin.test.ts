@@ -72,6 +72,7 @@ describe("installPlugin", () => {
 		);
 		expect(result.cached).toBe(false);
 		expect(result.byteLength).toBe(1024);
+		expect(result.artifactKind).toBe("unknown");
 		expect(result.cachePath).toContain("/refarm/barn/implements");
 	});
 
@@ -87,6 +88,7 @@ describe("installPlugin", () => {
 		expect(global.fetch).not.toHaveBeenCalled();
 		expect(result.cached).toBe(true);
 		expect(result.byteLength).toBe(1024);
+		expect(result.artifactKind).toBe("unknown");
 	});
 
 	it("evicts and re-fetches when cached artifact fails integrity", async () => {

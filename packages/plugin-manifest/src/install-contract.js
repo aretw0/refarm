@@ -1,5 +1,44 @@
 import { parseSha256Integrity, verifyBufferIntegrity } from "./integrity.js";
 
+const WASM_MAGIC = [0x00, 0x61, 0x73, 0x6d];
+const WASM_MODULE_VERSION = [0x01, 0x00, 0x00, 0x00];
+const WASM_COMPONENT_VERSION = [0x0a, 0x00, 0x01, 0x00];
+
+export const WASM_BINARY_KINDS = Object.freeze([
+	"module",
+	"component",
+	"unknown",
+]);
+
+/**
+ * @param {ArrayBuffer} bytes
+ * @returns {"module"|"component"|"unknown"}
+ */
+export function detectWasmBinaryKind(bytes) {
+	if (!(bytes instanceof ArrayBuffer) || bytes.byteLength < 8) {
+		return "unknown";
+	}
+
+	const header = new Uint8Array(bytes, 0, 8);
+	const magicOk = WASM_MAGIC.every((value, index) => header[index] === value);
+	if (!magicOk) return "unknown";
+
+	const version = Array.from(header.slice(4, 8));
+	if (
+		version.every((value, index) => value === WASM_MODULE_VERSION[index])
+	) {
+		return "module";
+	}
+
+	if (
+		version.every((value, index) => value === WASM_COMPONENT_VERSION[index])
+	) {
+		return "component";
+	}
+
+	return "unknown";
+}
+
 /**
  * @typedef {Object} PluginBinaryCacheAdapter
  * @property {(pluginId: string) => Promise<ArrayBuffer | null>} get
@@ -14,6 +53,7 @@ import { parseSha256Integrity, verifyBufferIntegrity } from "./integrity.js";
  * @property {string} integrity
  * @property {string} wasmHash
  * @property {number} cachedAt
+ * @property {"module"|"component"|"unknown"} artifactKind
  */
 
 /**
@@ -31,6 +71,7 @@ import { parseSha256Integrity, verifyBufferIntegrity } from "./integrity.js";
  * @property {boolean} cached
  * @property {number} byteLength
  * @property {string} wasmHash
+ * @property {"module"|"component"|"unknown"} artifactKind
  */
 
 /**
@@ -78,12 +119,14 @@ export async function installWasmArtifact(request, deps) {
 		if (cached) {
 			try {
 				const digest = await verifyBufferIntegrity(cached, integrity);
+				const artifactKind = detectWasmBinaryKind(cached);
 				return {
 					pluginId,
 					wasmUrl,
 					cached: true,
 					byteLength: cached.byteLength,
 					wasmHash: `sha256-${digest.base64}`,
+					artifactKind,
 				};
 			} catch {
 				await cache.evict(pluginId);
@@ -101,6 +144,7 @@ export async function installWasmArtifact(request, deps) {
 	const bytes = await response.arrayBuffer();
 	const digest = await verifyBufferIntegrity(bytes, integrity);
 	const wasmHash = `sha256-${digest.base64}`;
+	const artifactKind = detectWasmBinaryKind(bytes);
 
 	await cache.set(pluginId, bytes, {
 		pluginId,
@@ -108,6 +152,7 @@ export async function installWasmArtifact(request, deps) {
 		integrity,
 		wasmHash,
 		cachedAt: Date.now(),
+		artifactKind,
 	});
 
 	return {
@@ -116,5 +161,6 @@ export async function installWasmArtifact(request, deps) {
 		cached: false,
 		byteLength: bytes.byteLength,
 		wasmHash,
+		artifactKind,
 	};
 }

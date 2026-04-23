@@ -153,9 +153,11 @@ Besides schema validation, this package now exposes a shared binary-install cont
 - `parseSha256Integrity()`
 - `verifyBufferIntegrity()`
 - `installWasmArtifact(request, { cache, fetchFn })`
+- `detectWasmBinaryKind(bytes)`
 
 `installWasmArtifact` is used by both Barn and Tractor install paths, so hash verification,
-cache-hit validation, eviction-on-mismatch, and fetch+persist semantics stay consistent.
+cache-hit validation, eviction-on-mismatch, fetch+persist semantics, and `artifactKind`
+classification (`module`/`component`/`unknown`) stay consistent.
 
 ## Runtime entry compatibility helpers
 
@@ -170,6 +172,7 @@ Current runtime policy:
 
 - **node**: `.js`, `.mjs`, `.cjs`, `.wasm`
 - **browser**: `.js`, `.mjs` by default; `.wasm` is available only when the host opts into cache-backed execution (`allowBrowserWasmFromCache`) and `.cjs` stays blocked
+  - cache-backed `.wasm` hosts can use `artifactKind` metadata to reject incompatible binaries (e.g. component artifacts pending dedicated runtime toolchain)
 
 ## Conformance scope (manifest:v1)
 

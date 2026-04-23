@@ -111,6 +111,7 @@ export interface PluginArtifactMetadata {
 	integrity: string;
 	wasmHash: string;
 	cachedAt: number;
+	artifactKind: WasmBinaryKind;
 }
 
 export interface PluginBinaryCacheAdapter {
@@ -136,7 +137,12 @@ export interface InstallWasmArtifactResult {
 	cached: boolean;
 	byteLength: number;
 	wasmHash: string;
+	artifactKind: WasmBinaryKind;
 }
+
+export type WasmBinaryKind = "module" | "component" | "unknown";
+export const WASM_BINARY_KINDS: readonly ["module", "component", "unknown"];
+export function detectWasmBinaryKind(bytes: ArrayBuffer): WasmBinaryKind;
 
 export const SHA256_HEX_VALUE_RE: RegExp;
 export const SHA256_BASE64_VALUE_RE: RegExp;

@@ -10,6 +10,7 @@ import {
 	installWasmArtifact,
 	type PluginBinaryCacheAdapter,
 	type PluginManifest,
+	type WasmBinaryKind,
 } from "@refarm.dev/plugin-manifest";
 import {
 	cachePlugin,
@@ -30,6 +31,7 @@ export interface InstallPluginResult {
 	cached: boolean;
 	byteLength: number;
 	wasmHash: string;
+	artifactKind: WasmBinaryKind;
 	cachePath: string;
 }
 

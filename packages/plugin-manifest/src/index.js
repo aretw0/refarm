@@ -6,7 +6,11 @@ export {
 	SUPPORTED_ENTRY_FORMATS,
 } from "./entry-support.js";
 export { createMockManifest } from "./fixtures.js";
-export { installWasmArtifact } from "./install-contract.js";
+export {
+	detectWasmBinaryKind,
+	installWasmArtifact,
+	WASM_BINARY_KINDS,
+} from "./install-contract.js";
 export {
 	computeSha256Digest,
 	isSha256DigestMatch,
