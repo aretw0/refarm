@@ -1328,6 +1328,32 @@
           "evidence": "Handoff direciona explicitamente sequência `T-RUNTIME-09` -> `T-CONTRACT-02` para próxima janela pós-compactação."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-09-20260423",
+      "target": "T-RUNTIME-09",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T13:55:21.445Z",
+      "evidence": "Telemetria de lifecycle por fase emitida via `PluginInstanceHandle` e validada em teste de integração com plugin fixture.",
+      "criteria_results": [
+        {
+          "criterion": "eventos estruturados para início/fim/erro de setup ingest teardown",
+          "status": "passed",
+          "evidence": "Implementado em `packages/tractor/src/host/instance.rs` com emissão `plugin:lifecycle:start|end|error` nos métodos `call_setup`, `call_ingest` e `call_teardown`."
+        },
+        {
+          "criterion": "payload inclui plugin_id e fase do lifecycle",
+          "status": "passed",
+          "evidence": "Payload padrão inclui `plugin_id` e `phase` (além de `stage` e campos opcionais como `ingested`/`error`)."
+        },
+        {
+          "criterion": "teste valida emissão mínima dos novos eventos",
+          "status": "passed",
+          "evidence": "`cargo test --test host_integration lifecycle_emits_structured_events_for_setup_ingest_teardown -- --nocapture` (pass) valida start/end para setup, ingest e teardown."
+        }
+      ]
     }
   ]
 }

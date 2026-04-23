@@ -1,23 +1,28 @@
 {
-  "context": "Checkpoint pré-compactação atualizado após avanço de runtime hardening: T-RUNTIME-07 e T-RUNTIME-08 concluídas com CI verde e backlog imediato estabilizado para próxima janela curta.",
-  "timestamp": "2026-04-23T13:26:47.906Z",
+  "context": "Runtime lifecycle hardening avançou com T-RUNTIME-09 concluída: telemetria estruturada por fase agora cobre setup/ingest/teardown com eventos acionáveis por plugin.",
+  "timestamp": "2026-04-23T13:55:21.445Z",
   "current_phase": 4,
   "current_tasks": [
-    "Checkpoint de compactação registrado com base nos últimos lotes runtime (`289c6dde`, `2539aee2`) e CI verde.",
-    "Contexto de retomada reduzido para execução direta em `T-RUNTIME-09` (telemetria de lifecycle)."
+    "T-RUNTIME-09 concluída com verificação `VER-RUNTIME-09-20260423` (eventos `plugin:lifecycle:start|end|error`).",
+    "Backlog imediato focado em fechamento de lacuna de conformance storage (`T-CONTRACT-02`) e alinhamento manifesto↔runtime (`T-RUNTIME-10`)."
   ],
   "blockers": [
     "Conformance de storage fora de `storage-sqlite` segue pendente em `T-CONTRACT-02` (`storage-memory` e `storage-rest`).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar `T-RUNTIME-09` para ampliar telemetria estruturada de lifecycle (setup/ingest/teardown).",
-    "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`."
+    "Executar `T-CONTRACT-02` para fechar lacunas de conformance storage:v1 em `storage-memory` e `storage-rest`.",
+    "Executar `T-RUNTIME-10` para validar alinhamento manifesto↔runtime durante plugin load."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".project/handoff.json",
-    ".project/verification.json"
+    "packages/tractor/src/host/instance.rs",
+    "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
+    "packages/tractor/tests/host_integration.rs",
+    "packages/tractor/docs/ARCHITECTURE.md",
+    ".project/tasks.json",
+    ".project/verification.json",
+    ".project/handoff.json"
   ]
 }

@@ -12,6 +12,7 @@ use anyhow::Result;
 use wasmtime::Store;
 
 use crate::host::plugin_host::{RefarmPluginHost, TractorStore};
+use crate::telemetry::TelemetryBus;
 
 /// The runtime state of a loaded plugin.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -32,51 +33,171 @@ pub struct PluginInstanceHandle {
     pub state: PluginState,
     plugin: RefarmPluginHost,
     store: Store<TractorStore>,
+    telemetry: TelemetryBus,
 }
 
 impl PluginInstanceHandle {
-    pub(crate) fn new(id: String, plugin: RefarmPluginHost, store: Store<TractorStore>) -> Self {
+    pub(crate) fn new(
+        id: String,
+        plugin: RefarmPluginHost,
+        store: Store<TractorStore>,
+        telemetry: TelemetryBus,
+    ) -> Self {
         Self {
             id,
             state: PluginState::Idle,
             plugin,
             store,
+            telemetry,
         }
+    }
+
+    fn emit_lifecycle_event(
+        &self,
+        stage: &'static str,
+        phase: &'static str,
+        extra: Option<serde_json::Value>,
+    ) {
+        let mut payload = serde_json::Map::new();
+        payload.insert(
+            "plugin_id".to_string(),
+            serde_json::Value::String(self.id.clone()),
+        );
+        payload.insert(
+            "phase".to_string(),
+            serde_json::Value::String(phase.to_string()),
+        );
+        payload.insert(
+            "stage".to_string(),
+            serde_json::Value::String(stage.to_string()),
+        );
+
+        if let Some(extra) = extra {
+            if let Some(extra_map) = extra.as_object() {
+                for (k, v) in extra_map {
+                    payload.insert(k.clone(), v.clone());
+                }
+            } else {
+                payload.insert("details".to_string(), extra);
+            }
+        }
+
+        self.telemetry.emit_named(
+            format!("plugin:lifecycle:{stage}"),
+            Some(self.id.clone()),
+            Some(serde_json::Value::Object(payload)),
+        );
     }
 
     // ── Typed lifecycle methods ───────────────────────────────────────────────
 
     /// Call the plugin's `setup()` export.
     pub async fn call_setup(&mut self) -> Result<()> {
+        self.emit_lifecycle_event("start", "setup", None);
         self.state = PluginState::Running;
-        self.plugin
+        let result = self
+            .plugin
             .refarm_plugin_integration()
             .call_setup(&mut self.store)
-            .await?
-            .map_err(|e| anyhow::anyhow!("setup() error: {:?}", e))?;
-        self.state = PluginState::Idle;
-        Ok(())
+            .await;
+
+        match result {
+            Ok(Ok(())) => {
+                self.state = PluginState::Idle;
+                self.emit_lifecycle_event("end", "setup", None);
+                Ok(())
+            }
+            Ok(Err(e)) => {
+                self.state = PluginState::Error;
+                let message = format!("setup() error: {:?}", e);
+                self.emit_lifecycle_event(
+                    "error",
+                    "setup",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
+                anyhow::bail!(message)
+            }
+            Err(e) => {
+                self.state = PluginState::Error;
+                let message = format!("setup() trap: {e}");
+                self.emit_lifecycle_event(
+                    "error",
+                    "setup",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
+                anyhow::bail!(message)
+            }
+        }
     }
 
     /// Call the plugin's `ingest()` export. Returns the count of ingested nodes.
     pub async fn call_ingest(&mut self) -> Result<u32> {
+        self.emit_lifecycle_event("start", "ingest", None);
         self.state = PluginState::Running;
-        let count = self.plugin
+        let result = self
+            .plugin
             .refarm_plugin_integration()
             .call_ingest(&mut self.store)
-            .await?
-            .map_err(|e| anyhow::anyhow!("ingest() error: {:?}", e))?;
-        self.state = PluginState::Idle;
-        Ok(count)
+            .await;
+
+        match result {
+            Ok(Ok(count)) => {
+                self.state = PluginState::Idle;
+                self.emit_lifecycle_event(
+                    "end",
+                    "ingest",
+                    Some(serde_json::json!({ "ingested": count })),
+                );
+                Ok(count)
+            }
+            Ok(Err(e)) => {
+                self.state = PluginState::Error;
+                let message = format!("ingest() error: {:?}", e);
+                self.emit_lifecycle_event(
+                    "error",
+                    "ingest",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
+                anyhow::bail!(message)
+            }
+            Err(e) => {
+                self.state = PluginState::Error;
+                let message = format!("ingest() trap: {e}");
+                self.emit_lifecycle_event(
+                    "error",
+                    "ingest",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
+                anyhow::bail!(message)
+            }
+        }
     }
 
     /// Call the plugin's `teardown()` export.
     pub async fn call_teardown(&mut self) {
-        let _ = self.plugin
+        self.emit_lifecycle_event("start", "teardown", None);
+        self.state = PluginState::Running;
+        let result = self
+            .plugin
             .refarm_plugin_integration()
             .call_teardown(&mut self.store)
             .await;
-        self.state = PluginState::Idle;
+        match result {
+            Ok(()) => {
+                self.state = PluginState::Idle;
+                self.emit_lifecycle_event("end", "teardown", None);
+            }
+            Err(e) => {
+                self.state = PluginState::Error;
+                let message = format!("teardown() trap: {e}");
+                self.emit_lifecycle_event(
+                    "error",
+                    "teardown",
+                    Some(serde_json::json!({ "error": message.clone() })),
+                );
+                tracing::warn!(plugin_id = %self.id, "{message}");
+            }
+        }
     }
 
     /// Call the plugin's `metadata()` export.

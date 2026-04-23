@@ -984,7 +984,7 @@
     {
       "id": "T-RUNTIME-09",
       "description": "Expandir telemetria de lifecycle de plugin (setup/ingest/teardown) com eventos por fase e resultado.",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/host/plugin_host/env_and_runtime.rs",
@@ -1000,7 +1000,9 @@
       "depends_on": [
         "T-RUNTIME-03"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-09-20260423",
+      "notes": "Lifecycle telemetry estruturada implementada em `PluginInstanceHandle` com eventos `plugin:lifecycle:start|end|error` para setup/ingest/teardown e cobertura dedicada em `tests/host_integration.rs`."
     },
     {
       "id": "T-RUNTIME-10",

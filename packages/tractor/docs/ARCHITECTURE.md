@@ -205,7 +205,7 @@ Default policy is isolated failure (`WARN` + continue startup). When
 |---|---|---|
 | `setup()` | O daemon chama `tractor.load_plugin(path)` no startup; `PluginHost::load()` instancia o componente WASM e executa `call_setup()` antes de retornar o handle. | `src/main.rs::run_daemon`, `src/lib.rs::TractorNative::load_plugin`, `src/host/plugin_host/env_and_runtime.rs::load` |
 | `ingest()` | A primitiva existe via `PluginInstanceHandle::call_ingest()` e agora pode ser disparada no startup do daemon com `--ingest-on-load` (ou fail-fast com `--require-plugin-ingest`). | `src/main.rs::run_daemon`, `src/main.rs::maybe_ingest_on_load`, testes `tests/conformance.rs::plugin_ingest_roundtrip` e `src/main.rs::maybe_ingest_on_load_runs_with_plugin_fixture` |
-| `teardown()` | A primitiva existe e é exercitada em teste, mas o shutdown do daemon não coordena teardown explícito de plugins carregados; hoje o fechamento é centrado em storage/ws. | `src/host/instance.rs::call_teardown`, `tests/host_integration.rs::call_teardown_does_not_panic`, `src/lib.rs::TractorNative::shutdown` |
+| `teardown()` | O shutdown do daemon envia evento interno `__tractor:shutdown`, chama `teardown()` em cada runner e faz `join()` determinístico antes de fechar storage. | `src/lib.rs::TractorNative::shutdown`, `tests/plugin_shutdown.rs::shutdown_drains_plugin_channels_after_registration`, `src/host/instance.rs::call_teardown` |
 | `on-event()` | Após load, o handle é movido para thread dedicada via `register_for_events`; eventos WS `user:prompt` são roteados para `call_on_event()`. | `src/lib.rs::register_for_events`, `src/daemon/ws_server.rs` |
 
 ### Gaps priorizados (runtime lifecycle)
@@ -214,7 +214,7 @@ Default policy is isolated failure (`WARN` + continue startup). When
 |---|---|---|---|
 | `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` ✅ implementada (trigger operacional via `--ingest-on-load` / `--require-plugin-ingest`) |
 | `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` ✅ implementada (evento interno de shutdown + teardown + join das runner threads) |
-| Telemetria de lifecycle é parcial (`plugin:loaded` existe; sem eventos estruturados para ingest/teardown/erros de fase). | Medium | Observabilidade limitada para diagnosticar falhas por estágio de lifecycle. | `T-RUNTIME-09` |
+| Telemetria de lifecycle estruturada por fase estava ausente em setup/ingest/teardown. | Medium | Falhas de fase ficavam sem trilha objetiva para diagnóstico por plugin. | `T-RUNTIME-09` ✅ implementada (`plugin:lifecycle:start|end|error` com `plugin_id` + `phase`) |
 | Runtime ainda não valida alinhamento manifesto↔instância (ex.: `plugin_id` efetivo, hooks declarados) no load. | Medium | Plugin inválido no ecossistema pode iniciar sem guard de contrato em runtime. | `T-RUNTIME-10` |
 
 ### Evidência de baseline executada (T-RUNTIME-03)
@@ -229,7 +229,8 @@ Resultado: ✅ `plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown` e `c
 Status de execução pós-mapeamento:
 - ✅ `T-RUNTIME-07` concluída (shutdown coordenado com teardown explícito e drenagem de runner threads).
 - ✅ `T-RUNTIME-08` concluída (trigger operacional de ingest no startup do daemon).
-- ⏭️ Gaps remanescentes priorizados: `T-RUNTIME-09`, `T-RUNTIME-10`.
+- ✅ `T-RUNTIME-09` concluída (telemetria estruturada de lifecycle com cobertura de teste).
+- ⏭️ Gap remanescente priorizado: `T-RUNTIME-10`.
 
 ---
 

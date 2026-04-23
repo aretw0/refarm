@@ -373,12 +373,13 @@ impl PluginHost {
 
         let plugin =
             RefarmPluginHost::instantiate_async(&mut store, &component, &self.linker).await?;
-
-        plugin
-            .refarm_plugin_integration()
-            .call_setup(&mut store)
-            .await?
-            .map_err(|e| anyhow::anyhow!("Plugin setup() failed: {:?}", e))?;
+        let mut handle = PluginInstanceHandle::new(
+            plugin_id.clone(),
+            plugin,
+            store,
+            self.telemetry.clone(),
+        );
+        handle.call_setup().await?;
 
         if let Err(e) = store_refarm_config_node(sync, &plugin_id, &base, &env_vars, config_json.as_ref()) {
             tracing::warn!(plugin_id = %plugin_id, error = %e, "failed to store RefarmConfig node");
@@ -394,7 +395,7 @@ impl PluginHost {
         );
 
         tracing::info!(plugin_id = %plugin_id, "Plugin loaded and setup() called");
-        Ok(PluginInstanceHandle::new(plugin_id, plugin, store))
+        Ok(handle)
     }
 
     /// Load agent-tools.wasm — the composition component that exports agent-fs + agent-shell.

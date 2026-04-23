@@ -116,3 +116,42 @@ async fn load_emits_telemetry_event() {
     }
     assert!(found, "expected plugin:loaded telemetry event");
 }
+
+#[tokio::test]
+async fn lifecycle_emits_structured_events_for_setup_ingest_teardown() {
+    let bus = TelemetryBus::new(200);
+    let mut sub = bus.subscribe();
+    let host = make_host(bus);
+    let sync = make_sync();
+
+    let mut handle = host.load(fixture_path(), &sync).await.unwrap();
+    let _ = handle.call_ingest().await.expect("call_ingest");
+    handle.call_teardown().await;
+
+    let events: Vec<_> = std::iter::from_fn(|| sub.try_recv().ok()).collect();
+
+    let has_lifecycle = |event_name: &str, phase: &str| {
+        events.iter().any(|evt| {
+            evt.event == event_name
+                && evt
+                    .payload
+                    .as_ref()
+                    .and_then(|p| p.get("phase"))
+                    .and_then(|v| v.as_str())
+                    == Some(phase)
+                && evt
+                    .payload
+                    .as_ref()
+                    .and_then(|p| p.get("plugin_id"))
+                    .and_then(|v| v.as_str())
+                    == Some("null-plugin")
+        })
+    };
+
+    assert!(has_lifecycle("plugin:lifecycle:start", "setup"));
+    assert!(has_lifecycle("plugin:lifecycle:end", "setup"));
+    assert!(has_lifecycle("plugin:lifecycle:start", "ingest"));
+    assert!(has_lifecycle("plugin:lifecycle:end", "ingest"));
+    assert!(has_lifecycle("plugin:lifecycle:start", "teardown"));
+    assert!(has_lifecycle("plugin:lifecycle:end", "teardown"));
+}
