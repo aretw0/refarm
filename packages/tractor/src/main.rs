@@ -56,6 +56,27 @@ struct DaemonArgs {
     /// Load a WASM plugin at startup (may be repeated: --plugin a.wasm --plugin b.wasm)
     #[arg(long, value_name = "PATH")]
     plugin: Vec<std::path::PathBuf>,
+
+    /// Fail startup when any --plugin path cannot be loaded.
+    ///
+    /// Default behavior is warn+continue (isolated plugin failure does not
+    /// prevent daemon boot). Enabling this flag switches startup to fail-fast.
+    #[arg(long, default_value_t = false)]
+    require_plugin_load: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PluginLoadPolicy {
+    WarnAndContinue,
+    FailFast,
+}
+
+fn plugin_load_policy(args: &DaemonArgs) -> PluginLoadPolicy {
+    if args.require_plugin_load {
+        PluginLoadPolicy::FailFast
+    } else {
+        PluginLoadPolicy::WarnAndContinue
+    }
 }
 
 #[derive(Args, Debug)]
@@ -160,13 +181,22 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     let tractor = TractorNative::boot(config.clone()).await?;
 
+    let load_policy = plugin_load_policy(&args);
     for path in &args.plugin {
         match tractor.load_plugin(path).await {
             Ok(handle) => {
                 tracing::info!(path = %path.display(), plugin_id = %handle.id, "plugin loaded");
                 tractor.register_for_events(handle);
             }
-            Err(e) => tracing::warn!(path = %path.display(), "plugin load failed: {e}"),
+            Err(e) => {
+                if load_policy == PluginLoadPolicy::FailFast {
+                    anyhow::bail!(
+                        "required plugin failed to load during startup (path={}): {e}",
+                        path.display()
+                    );
+                }
+                tracing::warn!(path = %path.display(), "plugin load failed: {e}");
+            }
         }
     }
 
@@ -388,3 +418,34 @@ async fn poll_agent_responses(
 
 // Bring daemon module into scope for main.rs
 use tractor::daemon;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plugin_load_policy_defaults_to_warn_and_continue() {
+        let cli = Cli::try_parse_from(["tractor"]).expect("cli parse");
+        assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::WarnAndContinue);
+    }
+
+    #[test]
+    fn plugin_load_policy_switches_to_fail_fast_when_flag_is_set() {
+        let cli = Cli::try_parse_from(["tractor", "--require-plugin-load"]).expect("cli parse");
+        assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::FailFast);
+    }
+
+    #[test]
+    fn require_plugin_load_flag_allows_plugin_arguments() {
+        let cli = Cli::try_parse_from([
+            "tractor",
+            "--require-plugin-load",
+            "--plugin",
+            "./plugins/pi-agent.wasm",
+        ])
+        .expect("cli parse");
+
+        assert_eq!(plugin_load_policy(&cli.daemon), PluginLoadPolicy::FailFast);
+        assert_eq!(cli.daemon.plugin.len(), 1);
+    }
+}

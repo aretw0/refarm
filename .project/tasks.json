@@ -863,7 +863,7 @@
     {
       "id": "T-RUNTIME-05",
       "description": "Adicionar política fail-fast opcional para plugins obrigatórios no startup do daemon (ex.: --require-plugin-load).",
-      "status": "planned",
+      "status": "completed",
       "phase": 4,
       "files": [
         "packages/tractor/src/main.rs",
@@ -878,7 +878,8 @@
         "T-RUNTIME-01",
         "T-RUNTIME-02"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-05-20260423"
     },
     {
       "id": "T-RUNTIME-06",

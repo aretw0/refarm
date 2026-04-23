@@ -980,6 +980,32 @@
           "evidence": "Criadas tasks `T-RUNTIME-05` (fail-fast de plugin obrigatório) e `T-RUNTIME-06` (readiness/health probe)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-05-20260423",
+      "target": "T-RUNTIME-05",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-23T05:51:03Z",
+      "evidence": "Startup do daemon ganhou política opcional fail-fast para plugin obrigatório via flag `--require-plugin-load` em `packages/tractor/src/main.rs`.\nQuando ativa, erro em `load_plugin` aborta startup com erro explícito; quando desativada, mantém comportamento atual de `WARN + continue`.",
+      "criteria_results": [
+        {
+          "criterion": "Flag/estratégia de fail-fast para plugin obrigatório definida",
+          "status": "passed",
+          "evidence": "`DaemonArgs` inclui `require_plugin_load: bool` (`--require-plugin-load`) e `plugin_load_policy` com `WarnAndContinue | FailFast`."
+        },
+        {
+          "criterion": "Startup falha explicitamente quando plugin obrigatório não carrega",
+          "status": "passed",
+          "evidence": "`run_daemon` faz `anyhow::bail!` no branch `PluginLoadPolicy::FailFast` quando `tractor.load_plugin(path)` retorna erro."
+        },
+        {
+          "criterion": "Teste cobrindo modo atual (warn+continue) e modo fail-fast",
+          "status": "passed",
+          "evidence": "`cargo test --bin tractor --quiet` -> 3 passed (inclui `plugin_load_policy_defaults_to_warn_and_continue` e `plugin_load_policy_switches_to_fail_fast_when_flag_is_set`)."
+        }
+      ]
     }
   ]
 }

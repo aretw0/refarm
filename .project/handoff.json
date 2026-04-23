@@ -1,21 +1,22 @@
 {
-  "context": "Frente runtime avançou em dois marcos consecutivos: `T-RUNTIME-02` (smoke daemon/ws) e `T-RUNTIME-01` (mapeamento formal de boot + failure points com severidade).",
-  "timestamp": "2026-04-23T05:28:09Z",
+  "context": "Frente runtime consolidada em três marcos: `T-RUNTIME-02` (smoke daemon/ws), `T-RUNTIME-01` (mapa de boot/failure points) e `T-RUNTIME-05` (fail-fast opcional para plugin obrigatório).",
+  "timestamp": "2026-04-23T05:51:03Z",
   "current_phase": 4,
   "current_tasks": [
-    "`T-RUNTIME-01` concluída com `VER-RUNTIME-01-20260423` em `packages/tractor/docs/ARCHITECTURE.md` (boot flow + tabela de falhas por severidade).",
-    "`T-RUNTIME-02` já concluída com `VER-RUNTIME-02-20260423` (script `test:smoke:ws` + integração em `test:integration`)."
+    "`T-RUNTIME-05` concluída com `VER-RUNTIME-05-20260423`: flag `--require-plugin-load` ativa política fail-fast no startup do daemon.",
+    "`T-RUNTIME-01` e `T-RUNTIME-02` permanecem verdes e ancoram baseline de confiabilidade do runtime."
   ],
   "blockers": [
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Implementar `T-RUNTIME-05`: modo fail-fast opcional para plugin obrigatório no startup.",
-    "Implementar `T-RUNTIME-06`: probe explícita de readiness/health do daemon para uso local/CI."
+    "Implementar `T-RUNTIME-06`: probe explícita de readiness/health do daemon para uso local/CI.",
+    "Decidir inclusão da probe como gate rápido dedicado no workflow para mudanças em `packages/tractor/**`."
   ],
   "open_questions": [],
   "key_decisions_pending": [],
   "files_in_flux": [
+    "packages/tractor/src/main.rs",
     "packages/tractor/docs/ARCHITECTURE.md",
     ".project/tasks.json",
     ".project/verification.json",

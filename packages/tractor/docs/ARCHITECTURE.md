@@ -166,13 +166,13 @@ matches defense-in-depth.
 |---|---|---|---|---|
 | `TractorNative::boot` | SQLite open/schema/init failure | High | Boot fails fast (daemon does not start) | `src/lib.rs` (`NativeStorage::open`, `NativeSync::new`) |
 | `PluginHost::new` | wasmtime engine/linker init failure | High | Boot fails fast | `src/host/plugin_host/env_and_runtime.rs` |
-| `load_plugin` loop | Plugin file/hash/setup failure | Medium | `WARN` and continue startup (isolated failure contract) | `src/main.rs` `run_daemon` + `src/host/plugin_host/env_and_runtime.rs` |
+| `load_plugin` loop | Plugin file/hash/setup failure | Medium | Default: `WARN` + continue; with `--require-plugin-load`: fail-fast (startup exits) | `src/main.rs` `run_daemon` + `src/host/plugin_host/env_and_runtime.rs` |
 | `WsServer::start` | Port bind/listen failure (`EADDRINUSE`, permissions) | High | Daemon exits with error | `src/daemon/ws_server.rs` |
 | WS client frame handling | Invalid/corrupted incoming frame | Medium | Frame discarded, warning logged, daemon stays up | `src/daemon/ws_server.rs` |
 
 Derived follow-up tasks from this map:
-- `T-RUNTIME-05` — add fail-fast policy for required startup plugins.
-- `T-RUNTIME-06` — add explicit startup/health probe command for daemon readiness.
+- `T-RUNTIME-05` — ✅ implemented: fail-fast policy via `--require-plugin-load`.
+- `T-RUNTIME-06` — pending: add explicit startup/health probe command for daemon readiness.
 
 **CLI flags:**
 
@@ -183,13 +183,16 @@ Derived follow-up tasks from this map:
 | `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
 | `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+| `--require-plugin-load` | `false` | Fail startup if any `--plugin` fails to load |
 
 ### Plugin loading semantics
 
 `--plugin` may be specified multiple times. Plugins are loaded in declaration order
-after `boot()` and before `WsServer::start()`. A load failure for one plugin emits
-`WARN` and continues — the daemon does not exit. This follows the isolated-failure
-contract specified in `docs/specs/api-reference.md §1.2`.
+after `boot()` and before `WsServer::start()`.
+
+Default policy is isolated failure (`WARN` + continue startup). When
+`--require-plugin-load` is enabled, plugin load errors become startup-fatal
+(fail-fast) and the daemon exits with non-zero status.
 
 ---
 
