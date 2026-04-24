@@ -35,6 +35,11 @@ import {
 	getCachedPluginMetadata,
 	getCachedPluginRuntimeModule,
 } from "./lib/opfs-plugin-cache";
+import {
+	buildGithubReleaseAssetUrl,
+	fetchRuntimeDescriptorRevocationList,
+	isDescriptorHashRevoked,
+} from "./lib/runtime-descriptor-revocation";
 import type { TelemetryEvent } from "./lib/telemetry";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 import type { TractorLogger } from "./lib/types";
@@ -42,6 +47,10 @@ import type { TractorLogger } from "./lib/types";
 const BROWSER_ERROR =
 	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
 	"Use installPlugin() to cache the transpiled module to OPFS first. See ADR-044.";
+
+const RUNTIME_DESCRIPTOR_REVOCATION_ASSET =
+	"runtime-descriptor-revocations.json";
+const RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
 
 /**
  * Browser stub for PluginHost.
@@ -290,6 +299,8 @@ export class PluginHost {
 				);
 			}
 
+			await this.assertComponentDescriptorNotRevoked(manifest, metadata);
+
 			return artifactKind;
 		}
 
@@ -303,6 +314,52 @@ export class PluginHost {
 		throw new Error(
 			`[tractor] Browser WASM artifact kind for ${pluginId} is unknown. Reinstall with current install contract.`,
 		);
+	}
+
+	private async assertComponentDescriptorNotRevoked(
+		manifest: PluginManifest,
+		metadata: PluginArtifactMetadata,
+	): Promise<void> {
+		const descriptor = metadata.browserRuntimeDescriptor;
+		const provenance = metadata.browserRuntimeProvenance;
+		if (!descriptor || descriptor.source !== "descriptor") return;
+		if (!provenance?.sourceRepository) return;
+
+		const releaseTag = `${manifest.id}@${manifest.version}`;
+
+		let revocationListUrl = "";
+		try {
+			revocationListUrl = buildGithubReleaseAssetUrl(
+				provenance.sourceRepository,
+				releaseTag,
+				RUNTIME_DESCRIPTOR_REVOCATION_ASSET,
+			);
+		} catch {
+			// Unsupported repository URL format for auto-resolve; keep runtime compatible.
+			return;
+		}
+
+		let revocationList;
+		try {
+			revocationList = await fetchRuntimeDescriptorRevocationList(
+				revocationListUrl,
+				{
+					cacheTtlMs: RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS,
+					fetchFn: globalThis.fetch.bind(globalThis),
+					allowStaleOnError: true,
+				},
+			);
+		} catch (error: any) {
+			throw new Error(
+				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error?.message ?? error}`,
+			);
+		}
+
+		if (isDescriptorHashRevoked(descriptor.descriptorHash, revocationList)) {
+			throw new Error(
+				`[tractor] Browser runtime descriptor ${descriptor.descriptorHash} for ${manifest.id} is revoked. Reinstall using a non-revoked release descriptor.`,
+			);
+		}
 	}
 
 	hasValidTrustGrant(_pluginId: string, _wasmHash?: string): boolean {
@@ -481,6 +538,8 @@ export class PluginHost {
 }
 
 export type {
+	BrowserRuntimeDescriptorRevocationList,
+	BrowserRuntimeDescriptorRevocationListReference,
 	BrowserRuntimeModuleDescriptor,
 	BrowserRuntimeModuleDescriptorReference,
 	BrowserRuntimeModuleInstallInput,

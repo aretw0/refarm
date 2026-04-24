@@ -12,6 +12,29 @@ async function computeIntegrity(bytes: ArrayBuffer): Promise<string> {
 	return `sha256-${Buffer.from(new Uint8Array(digest)).toString("base64")}`;
 }
 
+function mockRevocationListFetch(revokedDescriptorHashes: string[] = []): void {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn().mockImplementation(async (url: string) => {
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes,
+					}),
+				};
+			}
+
+			return {
+				ok: false,
+				statusText: "Not Found",
+			};
+		}),
+	);
+}
+
 afterEach(async () => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
@@ -275,6 +298,7 @@ describe("browser PluginHost runtime paths", () => {
 	it("loads cached component artifacts via browser runtime module cache", async () => {
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
+		mockRevocationListFetch();
 		const componentBytes = new Uint8Array([
 			0x00,
 			0x61,
@@ -337,6 +361,65 @@ describe("browser PluginHost runtime paths", () => {
 				}),
 			}),
 		);
+	});
+
+	it("blocks cached component load when descriptor hash is revoked", async () => {
+		const host = new PluginHost(vi.fn(), {});
+		const descriptorHash = "sha256-revoked-descriptor";
+		mockRevocationListFetch([descriptorHash]);
+
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-component'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash,
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-123",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.1",
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow("is revoked");
 	});
 
 	it("rejects .cjs entries in browser runtime", async () => {

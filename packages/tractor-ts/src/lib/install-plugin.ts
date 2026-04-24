@@ -25,6 +25,15 @@ import {
 	getPluginCachePath,
 	getPluginRuntimeModuleCachePath,
 } from "./opfs-plugin-cache";
+import {
+	buildGithubReleaseAssetUrl,
+	fetchRuntimeDescriptorRevocationList,
+	isDescriptorHashRevoked,
+	normalizeRuntimeDescriptorRevocationList,
+	type RuntimeDescriptorRevocationList,
+	type RuntimeDescriptorRevocationListReference,
+	resolveGithubRepoCoordinates,
+} from "./runtime-descriptor-revocation";
 
 const OPFS_CACHE_ADAPTER: PluginBinaryCacheAdapter = {
 	get: getCachedPlugin,
@@ -66,6 +75,12 @@ export interface BrowserRuntimeModuleDescriptorReference {
 	url: string;
 }
 
+export type BrowserRuntimeDescriptorRevocationList =
+	RuntimeDescriptorRevocationList;
+
+export type BrowserRuntimeDescriptorRevocationListReference =
+	RuntimeDescriptorRevocationListReference;
+
 export type BrowserRuntimeDescriptorDistributionPolicy =
 	| "package-embedded"
 	| "external-signed";
@@ -83,6 +98,11 @@ export interface InstallPluginOptions {
 	descriptorSourceRepository?: string;
 	descriptorReleaseTag?: string;
 	descriptorReleaseAssetName?: string;
+	descriptorRevocationList?:
+		| BrowserRuntimeDescriptorRevocationList
+		| BrowserRuntimeDescriptorRevocationListReference;
+	descriptorRevocationAssetName?: string;
+	descriptorRevocationCacheTtlMs?: number;
 	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
 	descriptorTrustedOrigins?: string[];
 	descriptorTrustMode?: BrowserRuntimeDescriptorTrustMode;
@@ -148,41 +168,6 @@ function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 	return normalized;
 }
 
-function stripGitSuffix(repoName: string): string {
-	return repoName.endsWith(".git") ? repoName.slice(0, -4) : repoName;
-}
-
-function resolveGithubRepoCoordinates(
-	sourceRepository: string | undefined,
-): { owner: string; repo: string } | null {
-	if (!sourceRepository) return null;
-
-	try {
-		if (sourceRepository.startsWith("git@github.com:")) {
-			const value = sourceRepository.replace("git@github.com:", "");
-			const [owner, repo] = value.split("/");
-			if (!owner || !repo) return null;
-			return {
-				owner,
-				repo: stripGitSuffix(repo),
-			};
-		}
-
-		const parsed = new URL(sourceRepository);
-		if (parsed.hostname !== "github.com") return null;
-
-		const segments = parsed.pathname.split("/").filter(Boolean).slice(0, 2);
-		if (segments.length < 2) return null;
-
-		return {
-			owner: segments[0],
-			repo: stripGitSuffix(segments[1]),
-		};
-	} catch {
-		return null;
-	}
-}
-
 function buildReleaseAssetDescriptorUrl(
 	manifest: PluginManifest,
 	options: InstallPluginOptions,
@@ -202,9 +187,84 @@ function buildReleaseAssetDescriptorUrl(
 	const descriptorAssetName =
 		options.descriptorReleaseAssetName ?? "runtime-descriptor-manifest.json";
 
-	const releaseAssetUrl = `https://github.com/${coordinates.owner}/${coordinates.repo}/releases/download/${encodeURIComponent(releaseTag)}/${encodeURIComponent(descriptorAssetName)}`;
+	const releaseAssetUrl = buildGithubReleaseAssetUrl(
+		sourceRepository,
+		releaseTag,
+		descriptorAssetName,
+	);
 
 	return { url: releaseAssetUrl };
+}
+
+function isRevocationListReference(
+	input:
+		| BrowserRuntimeDescriptorRevocationList
+		| BrowserRuntimeDescriptorRevocationListReference,
+): input is BrowserRuntimeDescriptorRevocationListReference {
+	return (
+		typeof (input as BrowserRuntimeDescriptorRevocationListReference).url ===
+		"string"
+	);
+}
+
+function resolveAutoRevocationListReference(
+	manifest: PluginManifest,
+	descriptor: BrowserRuntimeModuleDescriptor,
+	options: InstallPluginOptions,
+): BrowserRuntimeDescriptorRevocationListReference | null {
+	const sourceRepository =
+		options.descriptorSourceRepository ??
+		descriptor.provenance?.sourceRepository;
+	if (!sourceRepository) return null;
+
+	const releaseTag =
+		options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
+	const revocationAssetName =
+		options.descriptorRevocationAssetName ??
+		"runtime-descriptor-revocations.json";
+
+	try {
+		return {
+			url: buildGithubReleaseAssetUrl(
+				sourceRepository,
+				releaseTag,
+				revocationAssetName,
+			),
+		};
+	} catch (error: any) {
+		if (options.descriptorSourceRepository) {
+			throw new Error(
+				`[install-plugin] Unable to resolve descriptor revocation list URL for ${manifest.id}: ${error?.message ?? error}`,
+			);
+		}
+		return null;
+	}
+}
+
+async function assertDescriptorNotRevoked(
+	manifest: PluginManifest,
+	descriptorHash: string,
+	descriptor: BrowserRuntimeModuleDescriptor,
+	options: InstallPluginOptions,
+): Promise<void> {
+	const revocationInput =
+		options.descriptorRevocationList ??
+		resolveAutoRevocationListReference(manifest, descriptor, options);
+
+	if (!revocationInput) return;
+
+	const revocationList = isRevocationListReference(revocationInput)
+		? await fetchRuntimeDescriptorRevocationList(revocationInput, {
+				cacheTtlMs: options.descriptorRevocationCacheTtlMs,
+				fetchFn: globalThis.fetch.bind(globalThis),
+			})
+		: normalizeRuntimeDescriptorRevocationList(revocationInput, "inline");
+
+	if (isDescriptorHashRevoked(descriptorHash, revocationList)) {
+		throw new Error(
+			`[install-plugin] Browser runtime descriptor ${descriptorHash} for ${manifest.id} is revoked by release revocation list.`,
+		);
+	}
 }
 
 function deriveTrustedOriginsFromSourceRepository(
@@ -616,6 +676,15 @@ export async function installPlugin(
 			(await computeSha256IntegrityFromText(
 				JSON.stringify(stableCanonicalize(descriptorWithoutIntegrity)),
 			));
+
+		if (descriptorDistributionPolicy === "external-signed") {
+			await assertDescriptorNotRevoked(
+				manifest,
+				descriptorHash,
+				descriptor,
+				options,
+			);
+		}
 
 		runtimeModule = await fetchBrowserRuntimeModule(
 			descriptor.module,

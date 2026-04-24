@@ -395,6 +395,20 @@ describe("installPlugin", () => {
 				};
 			}
 
+			if (
+				url ===
+				"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
+			) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
+				};
+			}
+
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -410,10 +424,14 @@ describe("installPlugin", () => {
 			};
 		});
 
-		await installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
-			descriptorDistributionPolicy: "external-signed",
-			descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
-		});
+		await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				descriptorDistributionPolicy: "external-signed",
+				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		);
 
 		expect(global.fetch).toHaveBeenCalledWith(
 			"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json",
@@ -422,6 +440,93 @@ describe("installPlugin", () => {
 			"test-plugin",
 			runtimeModuleSource,
 		);
+	});
+
+	it("blocks auto-resolved descriptor when release revocation list contains descriptor hash", async () => {
+		const runtimeModuleSource =
+			"export default { async setup(){}, async ping(){ return 'component-revoked'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		let descriptorHash = "";
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.includes("runtime-descriptor-manifest.json")) {
+				const descriptorWithoutIntegrity = {
+					schemaVersion: 1,
+					pluginId: "test-plugin",
+					componentWasmUrl: "https://example.com/test.wasm",
+					module: {
+						url: "https://objects.githubusercontent.com/test.browser.mjs",
+						integrity: runtimeModuleIntegrity,
+						format: "esm",
+					},
+					toolchain: {
+						name: "tractor-sidecar",
+						version: "0.1.0",
+					},
+					provenance: {
+						commitSha: "1111111111111111111111111111111111111111",
+						buildId: "build-revoked",
+						sourceRepository: "https://github.com/refarm-dev/refarm",
+					},
+				};
+
+				descriptorHash = await computeDescriptorIntegrity(
+					descriptorWithoutIntegrity,
+				);
+
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						descriptors: [
+							{
+								pluginId: "test-plugin",
+								componentWasmUrl: "https://example.com/test.wasm",
+								descriptor: {
+									...descriptorWithoutIntegrity,
+									descriptorIntegrity: descriptorHash,
+								},
+							},
+						],
+					}),
+				};
+			}
+
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [descriptorHash],
+					}),
+				};
+			}
+
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorReleaseTag: "test-plugin@0.1.0-revoked",
+			}),
+		).rejects.toThrow("is revoked by release revocation list");
 	});
 
 	it("fails when auto-resolved release asset has malformed bundle manifest", async () => {
@@ -541,6 +646,20 @@ describe("installPlugin", () => {
 				};
 			}
 
+			if (
+				url ===
+				"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
+			) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
+				};
+			}
+
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -556,14 +675,18 @@ describe("installPlugin", () => {
 			};
 		});
 
-		await installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
-			descriptorDistributionPolicy: "external-signed",
-			descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
-			browserRuntimeModuleDescriptor: {
-				url: "https://cdn.example/explicit.runtime-descriptor.json",
+		await installPlugin(
+			manifestWithIntegrity,
+			"https://example.com/test.wasm",
+			{
+				descriptorDistributionPolicy: "external-signed",
+				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				browserRuntimeModuleDescriptor: {
+					url: "https://cdn.example/explicit.runtime-descriptor.json",
+				},
+				descriptorTrustedOrigins: ["https://cdn.example"],
 			},
-			descriptorTrustedOrigins: ["https://cdn.example"],
-		});
+		);
 
 		expect(global.fetch).toHaveBeenCalledWith(
 			"https://cdn.example/explicit.runtime-descriptor.json",
@@ -580,8 +703,10 @@ describe("installPlugin", () => {
 	});
 
 	it("rejects mixing direct runtime module with descriptor auto-resolve inputs", async () => {
-		const runtimeModuleSource = "export default { async ping(){ return 'x'; } }";
-		const runtimeModuleIntegrity = await computeSRIFromText(runtimeModuleSource);
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
 
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
@@ -594,6 +719,65 @@ describe("installPlugin", () => {
 		).rejects.toThrow(
 			"Provide either browserRuntimeModule or descriptor-based inputs",
 		);
+	});
+
+	it("blocks external-signed descriptor when inline revocation list marks descriptor hash revoked", async () => {
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-inline-revocation",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					schemaVersion: 1,
+					revokedDescriptorHashes: [descriptorIntegrity],
+				},
+			}),
+		).rejects.toThrow("is revoked by release revocation list");
 	});
 
 	it("rejects cross-origin descriptor URL for package-embedded policy", async () => {
