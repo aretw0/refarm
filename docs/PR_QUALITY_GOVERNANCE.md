@@ -454,6 +454,24 @@ Se receber muitas notificações de checks falhando:
 - [ ] Comentários resolvidos
 - [ ] Branch atualizada com base (main/develop)
 
+### Granularidade padrão de PR (governança de diffs)
+
+Para manter review rápido e rastreável:
+
+- Diff alvo por PR/task: **até 300 linhas** (flexível para testes/docs acoplados)
+- Arquivos alvo por PR/task: **até 8 arquivos** (exceto migrações coordenadas)
+- PR deve referenciar exatamente 1 task primária da `.project/tasks.json`
+- PR deve incluir seção explícita de evidências (`smoke/full`)
+
+Template de acceptance no PR:
+
+```markdown
+## Acceptance
+- [ ] Critério 1 atendido
+- [ ] Critério 2 atendido
+- [ ] Evidência anexada (comandos + saída)
+```
+
 ---
 
 ## 7. Próximos Passos

@@ -27,7 +27,9 @@ npm run dev      # Start all apps in watch mode
 
 ### 2. Making Changes
 
-- Create a feature branch from `main`
+- Create a feature branch from `develop`
+- Use branch naming padrão: `task/<TASK-ID>-<slug>` (ex.: `task/T-PLAN-05-branch-policy`)
+- Keep 1 task primária por branch/PR para facilitar rastreabilidade
 - Make your changes across one or more packages
 - Test your changes locally
 
@@ -50,6 +52,12 @@ Useful references:
 
 - Governance policy: `docs/PR_QUALITY_GOVERNANCE.md`
 - Branch protection setup: `docs/BRANCH_PROTECTION_SETUP.md`
+
+### Atomic Commit Pattern
+
+- Prefer small commits with Conventional Commits format
+- Keep each commit tied to a single intent (fix/refactor/test/docs)
+- Include task ID in PR description even when not in commit subject
 
 ### 3. Version Management with Changesets
 

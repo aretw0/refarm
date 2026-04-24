@@ -538,6 +538,66 @@ npm run build
 npm run test
 ```
 
+### Colony preflight checklist (quick vs complete)
+
+Quick preflight (sempre obrigatório):
+
+```bash
+node scripts/reso.mjs status
+npm run project:validate
+npm run factory:preflight
+```
+
+Complete preflight (runtime/security boundaries):
+
+```bash
+cd packages/tractor
+cargo check --quiet
+cargo test --lib agent_tools_bridge --quiet
+cargo test --lib plugin_host --quiet
+cargo test --lib wasi_bridge --quiet
+npm run test:smoke:ws
+```
+
+Go/No-Go:
+
+- **GO**: quick preflight verde; se houve mudança runtime boundary, complete preflight verde.
+- **NO-GO**: qualquer falha de toolchain/targets/reso status impede lote paralelo.
+
+### Type-check baseline snapshot (2026-04-24)
+
+Command used:
+
+```bash
+npm run type-check --silent
+```
+
+Result summary:
+- packages in scope: 41
+- failures: 0
+- warnings: only advisory Vite browser externalization notices during app build
+
+Attack order/backlog (if regression appears):
+1. Foundation: `config`, `toolbox`, `vtconfig`, `cli`
+2. Runtime: `tractor-rs`, `tractor-ts`, `plugin-manifest`
+3. Contracts/storage/sync: `*-contract-v1`, `storage-*`, `sync-*`
+
+### Colony concurrency baseline
+
+Initial concurrency:
+- default: **3 workers**
+- max under stable CI: **4 workers**
+
+Scale up when:
+- 3 consecutive slices with smoke gate green
+- zero unresolved merge collision in serialized packages
+- CI quality lane remains green across 2 consecutive runs
+
+Scale down when:
+- any regression in protected branch checks
+- repeated collision on serialized areas (`packages/tractor*`, `.project/**`, workflows)
+- preflight complete starts failing intermittently
+
 ---
 
 ## Docker & Container Notes

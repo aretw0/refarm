@@ -726,6 +726,117 @@ The project supports a dynamic resolution switcher to balance speed and rigor:
 - **Source Mode (`node scripts/reso.mjs src`)**: Instant DX with direct `src/` imports.
 - **Dist Mode (`node scripts/reso.mjs dist`)**: CI/Release verification against build artifacts.
 
+### 3. Política operacional src/dist (obrigatória)
+
+- Durante iteração diária, operar em **`reso src`**.
+- Antes de merge em branch protegida, validar em **`reso dist`**.
+- `node scripts/reso.mjs status` é obrigatório no início da task e antes de finalizar PR.
+
+Fluxo mínimo recomendado:
+
+```bash
+# início da task
+node scripts/reso.mjs status
+node scripts/reso.mjs src
+
+# validação final
+node scripts/reso.mjs dist
+npm run type-check
+npm run test:unit
+node scripts/reso.mjs status
+```
+
+---
+
+## Planejamento da colônia (baseline de execução)
+
+### Macro-domínios e ownership (paralelização segura)
+
+| Domínio | Ownership sugerido | Pacotes/arquivos principais | Regra de concorrência |
+|---|---|---|---|
+| Runtime Core | worker-runtime | `packages/tractor/**`, `packages/tractor-ts/**` | serializar por boundary |
+| Contracts & Storage/Sync | worker-contracts | `packages/*-contract-v1/**`, `packages/storage-*/**`, `packages/sync-*/**` | até 2 workers em pacotes distintos |
+| Plugin Platform | worker-plugin | `packages/plugin-manifest/**`, `packages/barn/**` | serializar mudanças no contrato |
+| Governance & CI | worker-governance | `.project/**`, `.github/workflows/**`, `docs/**` | 1 worker por vez em `.project` e workflows |
+
+### Granularidade padrão de task (PR pequeno e revisável)
+
+- Meta de diff por task: **até 300 linhas adicionadas/modificadas** (quando possível).
+- Meta de arquivos por task: **até 8 arquivos** (exceto mudanças de teste/documentação associadas).
+- Cada task deve incluir:
+  - objetivo único,
+  - critérios de aceite objetivos,
+  - comando de validação smoke.
+
+Template mínimo de acceptance criteria:
+
+```markdown
+- Comportamento X validado
+- Regressão Y coberta em teste
+- Evidência registrada em verification
+```
+
+### Fila inicial de 2 semanas (ordem e dependências)
+
+**Semana 1 (estabilização de fluxo):**
+1. `T-ENV-03` preflight de ambiente
+2. `T-ENV-04` política src/dist
+3. `T-PIPE-01` baseline de type-check
+4. `T-PLAN-01` macro-domínios e ownership
+5. `T-PLAN-02` granularidade padrão
+
+**Semana 2 (execução paralela governada):**
+1. `T-PLAN-03` fila de execução inicial
+2. `T-PLAN-04` anti-colisão/locks
+3. `T-PLAN-05` branch naming + commits atômicos
+4. `T-PLAN-06` limite de concorrência e escala
+5. `T-PLAN-07` prompt padrão para workers
+
+### Política anti-colisão (arquivos/pacotes críticos)
+
+Pacotes/áreas serializadas:
+- `packages/tractor/**`
+- `packages/tractor-ts/**`
+- `packages/plugin-manifest/**`
+- `.project/**`
+- `.github/workflows/**`
+
+Regra de lock operacional:
+- antes de iniciar task em área serializada, anunciar claim no handoff;
+- somente 1 task ativa por área serializada;
+- handoff de lock obrigatório ao trocar responsável.
+
+### Prompt de entrada padrão para workers
+
+Template canônico: `docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md`.
+
+Prompt obrigatório deve conter:
+- objetivo,
+- escopo (arquivos permitidos),
+- restrições (source sovereignty, sem artefatos),
+- validação mínima (smoke/full),
+- critério de escalonamento (quando parar e pedir humano).
+
+### Ritual semanal de triagem de bloqueios
+
+Cadência: **1x por semana** (segunda-feira, 30min).
+
+Roteiro:
+1. listar tasks `planned/in_progress` com dependências quebradas;
+2. classificar bloqueio: ambiente, dependência técnica, decisão pendente;
+3. definir ação: desbloquear, reatribuir, escalonar para humano, ou cancelar;
+4. atualizar `.project/tasks.json` + `.project/handoff.json`.
+
+Critérios de desbloqueio:
+- dependência concluída e validada;
+- ambiente reproduzível no preflight;
+- decisão arquitetural registrada em `.project/decisions.json`.
+
+Fluxo de reassign:
+- marcar owner atual no handoff,
+- reatribuir task no board,
+- anexar comando de retomada e último estado de validação.
+
 ---
 
 **See Also**:
