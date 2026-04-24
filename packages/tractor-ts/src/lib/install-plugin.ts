@@ -37,6 +37,7 @@ import {
 import {
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
 	type RuntimeDescriptorRevocationProfile,
+	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
 	type RuntimeDescriptorRevocationUnavailablePolicy,
 } from "./runtime-descriptor-revocation-policy";
 
@@ -183,7 +184,7 @@ function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 
 function resolveInstallRevocationUnavailablePolicy(
 	options: InstallPluginOptions,
-): BrowserRuntimeDescriptorRevocationUnavailablePolicy {
+): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
 	const runtimePolicyOverride = (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	const runtimeProfileOverride = (globalThis as any)
@@ -191,7 +192,7 @@ function resolveInstallRevocationUnavailablePolicy(
 	const viteEnv = (import.meta as any).env;
 	const nodeEnv = (globalThis as any)?.process?.env;
 
-	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
+	return resolveRuntimeDescriptorRevocationUnavailablePolicy({
 		explicitPolicy: options.descriptorRevocationUnavailablePolicy,
 		explicitProfile: options.descriptorRevocationProfile,
 		environmentPolicy:
@@ -204,8 +205,6 @@ function resolveInstallRevocationUnavailablePolicy(
 			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
 		fallbackPolicy: "fail-closed",
 	});
-
-	return resolved.policy;
 }
 
 function buildReleaseAssetDescriptorUrl(
@@ -287,7 +286,15 @@ async function assertDescriptorNotRevoked(
 	descriptor: BrowserRuntimeModuleDescriptor,
 	options: InstallPluginOptions,
 ): Promise<void> {
-	const unavailablePolicy = resolveInstallRevocationUnavailablePolicy(options);
+	const policyResolution = resolveInstallRevocationUnavailablePolicy(options);
+	const unavailablePolicy = policyResolution.policy;
+
+	for (const invalid of policyResolution.invalidInputs ?? []) {
+		console.warn(
+			`[install-plugin] Ignoring invalid revocation ${invalid.slot} value '${invalid.value}' for ${manifest.id}.`,
+		);
+	}
+
 	const revocationInput =
 		options.descriptorRevocationList ??
 		resolveAutoRevocationListReference(manifest, descriptor, options);

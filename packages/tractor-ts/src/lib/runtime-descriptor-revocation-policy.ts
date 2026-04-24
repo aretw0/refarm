@@ -15,6 +15,17 @@ export type RuntimeDescriptorRevocationPolicyResolutionSource =
 	| "environment-profile"
 	| "fallback";
 
+export type RuntimeDescriptorRevocationConfigInputSlot =
+	| "explicit-policy"
+	| "explicit-profile"
+	| "environment-policy"
+	| "environment-profile";
+
+export interface RuntimeDescriptorRevocationInvalidInput {
+	slot: RuntimeDescriptorRevocationConfigInputSlot;
+	value: string;
+}
+
 export interface ResolveRuntimeDescriptorRevocationUnavailablePolicyInput {
 	explicitPolicy?: string;
 	explicitProfile?: string;
@@ -27,6 +38,7 @@ export interface ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
 	policy: RuntimeDescriptorRevocationUnavailablePolicy;
 	source: RuntimeDescriptorRevocationPolicyResolutionSource;
 	profile?: RuntimeDescriptorRevocationProfile;
+	invalidInputs?: RuntimeDescriptorRevocationInvalidInput[];
 }
 
 const PROFILE_POLICY: Record<
@@ -102,25 +114,83 @@ export function getRuntimeDescriptorRevocationPolicyForProfile(
 export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 	input: ResolveRuntimeDescriptorRevocationUnavailablePolicyInput,
 ): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
+	const invalidInputs: RuntimeDescriptorRevocationInvalidInput[] = [];
+
+	if (
+		typeof input.explicitPolicy === "string" &&
+		input.explicitPolicy.trim().length > 0 &&
+		!normalizeRuntimeDescriptorRevocationUnavailablePolicy(input.explicitPolicy)
+	) {
+		invalidInputs.push({
+			slot: "explicit-policy",
+			value: input.explicitPolicy,
+		});
+	}
+
+	if (
+		typeof input.explicitProfile === "string" &&
+		input.explicitProfile.trim().length > 0 &&
+		!normalizeRuntimeDescriptorRevocationProfile(input.explicitProfile)
+	) {
+		invalidInputs.push({
+			slot: "explicit-profile",
+			value: input.explicitProfile,
+		});
+	}
+
+	if (
+		typeof input.environmentPolicy === "string" &&
+		input.environmentPolicy.trim().length > 0 &&
+		!normalizeRuntimeDescriptorRevocationUnavailablePolicy(
+			input.environmentPolicy,
+		)
+	) {
+		invalidInputs.push({
+			slot: "environment-policy",
+			value: input.environmentPolicy,
+		});
+	}
+
+	if (
+		typeof input.environmentProfile === "string" &&
+		input.environmentProfile.trim().length > 0 &&
+		!normalizeRuntimeDescriptorRevocationProfile(input.environmentProfile)
+	) {
+		invalidInputs.push({
+			slot: "environment-profile",
+			value: input.environmentProfile,
+		});
+	}
+
+	const withInvalidInputs = (
+		result: ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
+	): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult => {
+		if (invalidInputs.length === 0) return result;
+		return {
+			...result,
+			invalidInputs,
+		};
+	};
+
 	const explicitPolicy = normalizeRuntimeDescriptorRevocationUnavailablePolicy(
 		input.explicitPolicy,
 	);
 	if (explicitPolicy) {
-		return {
+		return withInvalidInputs({
 			policy: explicitPolicy,
 			source: "explicit-policy",
-		};
+		});
 	}
 
 	const explicitProfile = normalizeRuntimeDescriptorRevocationProfile(
 		input.explicitProfile,
 	);
 	if (explicitProfile) {
-		return {
+		return withInvalidInputs({
 			policy: getRuntimeDescriptorRevocationPolicyForProfile(explicitProfile),
 			source: "explicit-profile",
 			profile: explicitProfile,
-		};
+		});
 	}
 
 	const environmentPolicy =
@@ -128,26 +198,26 @@ export function resolveRuntimeDescriptorRevocationUnavailablePolicy(
 			input.environmentPolicy,
 		);
 	if (environmentPolicy) {
-		return {
+		return withInvalidInputs({
 			policy: environmentPolicy,
 			source: "environment-policy",
-		};
+		});
 	}
 
 	const environmentProfile = normalizeRuntimeDescriptorRevocationProfile(
 		input.environmentProfile,
 	);
 	if (environmentProfile) {
-		return {
+		return withInvalidInputs({
 			policy:
 				getRuntimeDescriptorRevocationPolicyForProfile(environmentProfile),
 			source: "environment-profile",
 			profile: environmentProfile,
-		};
+		});
 	}
 
-	return {
+	return withInvalidInputs({
 		policy: input.fallbackPolicy,
 		source: "fallback",
-	};
+	});
 }

@@ -347,6 +347,20 @@ export class PluginHost {
 	): Promise<void> {
 		const policyResolution = resolveRuntimeRevocationUnavailablePolicy();
 		const unavailablePolicy = policyResolution.policy;
+
+		if ((policyResolution.invalidInputs?.length ?? 0) > 0) {
+			this.emit({
+				event: "system:descriptor_revocation_config_invalid",
+				pluginId: manifest.id,
+				payload: {
+					invalidInputs: policyResolution.invalidInputs,
+					resolvedPolicy: unavailablePolicy,
+					policySource: policyResolution.source,
+					profile: policyResolution.profile,
+				},
+			});
+		}
+
 		const descriptor = metadata.browserRuntimeDescriptor;
 		const provenance = metadata.browserRuntimeProvenance;
 		if (!descriptor || descriptor.source !== "descriptor") return;
