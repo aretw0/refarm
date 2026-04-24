@@ -327,8 +327,13 @@ Browser runtime load policy for revocation-source unavailability can be configur
 Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
 Accepted profile values: `dev`, `staging`, `production-sensitive`.
 
+Conflict behavior:
+- dedicated profile (`...REVOCATION_PROFILE`) has precedence over generic environment (`...ENVIRONMENT`)
+- when both are valid but map to different profiles, runtime emits conflict observability and install warns while keeping the dedicated profile
+
 Runtime observability events for revocation flow:
 - `system:descriptor_revocation_config_invalid` when policy/profile inputs are invalid and ignored by deterministic resolution
+- `system:descriptor_revocation_config_conflict` when dedicated profile conflicts with generic environment mapping and precedence is applied
 - `system:descriptor_revocation_stale_cache_used` when stale cache is used after revocation fetch failure
 - `system:descriptor_revocation_unavailable` when fail-open bypass is applied
 

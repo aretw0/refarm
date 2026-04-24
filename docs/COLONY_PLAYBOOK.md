@@ -139,7 +139,15 @@ Templates recomendados:
 - `docs/templates/COLONY_WORKER_EVIDENCE_REPORT_TEMPLATE.md`
 - `docs/templates/COLONY_REVIEWER_HANDOFF_TEMPLATE.md`
 
-## 8) Checkpoint antes de compactação
+## 8) Incidentes de revogação de descriptor (`external-signed`)
+
+Quando o incidente envolver descriptor comprometido, hash revogado ou indisponibilidade de revocation list, use o runbook dedicado:
+
+- `docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`
+
+Ele define timeline `<24h`, comandos canônicos de bundle/release-smoke e checklist de comunicação.
+
+## 9) Checkpoint antes de compactação
 
 Quando a sessão estiver próxima do limite de contexto:
 

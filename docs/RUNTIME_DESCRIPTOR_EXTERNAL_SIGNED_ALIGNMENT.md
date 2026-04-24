@@ -102,7 +102,7 @@ Retention model:
 10. Add explicit opt-out to force manual URL.
 11. Implement revocation list fetch + local cache behavior. ✅ (`installPlugin` + browser runtime load consomem `runtime-descriptor-revocations.json` com cache TTL local)
 12. Add runtime block behavior for revoked descriptors. ✅ (install/runtime bloqueiam `descriptorHash` revogado com erro explícito)
-13. Add docs/playbook for rollback incident handling.
+13. Add docs/playbook for rollback incident handling. ✅ (`docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`)
 14. Add CI smoke for release descriptor end-to-end path. ✅ (`runtime-descriptor:release-smoke` cobre export + publish dry-run + resolver tests)
 15. Add governance checkpoint (`.project` verification + handoff).
 
@@ -151,5 +151,7 @@ Notas:
   - fallback de profile por ambiente genérico: `REFARM_ENVIRONMENT`/`NODE_ENV` (install) e `VITE_REFARM_ENVIRONMENT` (browser runtime)
   - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
 - precedência implementada: `policy explícita` > `profile explícito` > `policy de ambiente` > `profile de ambiente` > fallback local do caller.
-- observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
-- decisão final de default por ambiente segue em revisão (DEC-026) até fechamento de ADR/rollout.
+- observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), conflito de configuração (`system:descriptor_revocation_config_conflict`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
+- conflito entre profile dedicado e ambiente genérico é resolvido de forma determinística (profile dedicado vence) com sinalização explícita.
+- defaults por ambiente e precedência foram formalizados no fechamento DEC-026/ADR-051.
+- runbook operacional de incidente: `docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`.

@@ -1,6 +1,6 @@
 # ADR-051: External-Signed Revocation Offline Policy Profiles
 
-**Status**: Proposed  
+**Status**: Accepted  
 **Date**: 2026-04-24  
 **Deciders**: Refarm Core Team  
 **Related**: [ADR-044](ADR-044-wasm-plugin-loading-browser-strategy.md), [DEC-018](../../.project/decisions.json), [DEC-026](../../.project/decisions.json), [Runtime Descriptor External-Signed Alignment](../../docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md)
@@ -41,8 +41,13 @@ Precedence target:
 Operational observability target:
 
 - emit explicit signal when configuration inputs are invalid (`system:descriptor_revocation_config_invalid`)
+- emit explicit signal when dedicated profile conflicts with generic environment (`system:descriptor_revocation_config_conflict`)
 - emit explicit signal when stale cache fallback is used (`system:descriptor_revocation_stale_cache_used`)
 - emit explicit signal when fail-open bypass is applied (`system:descriptor_revocation_unavailable`)
+
+Canonical conflict rule:
+
+- when dedicated profile and generic environment are both valid but disagree, dedicated profile wins and conflict is surfaced explicitly.
 
 ---
 
@@ -127,6 +132,8 @@ Operational observability target:
 2. Wire install/runtime consumers to the resolver.
 3. Add unit coverage for mapping + precedence.
 4. Record rollout defaults by environment and promote `DEC-026` once accepted.
+
+**Rollout status**: completed in phase 10 (`NEXT2`→`NEXT7`) with resolver precedence, generic environment fallback, stale/config-invalid/config-conflict observability, and CI release-path smoke gating.
 
 **Timeline**: staged rollout in phase 10 (transition-checkpoint) with verification slices.
 

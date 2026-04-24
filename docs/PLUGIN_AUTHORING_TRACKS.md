@@ -130,3 +130,4 @@ Quando um descriptor externo precisar ser invalidado:
 5. Registrar incidente e janela de revogação no changelog/release notes.
 
 Playbook operacional do bundle é gerado em CI por `scripts/ci/export-runtime-descriptor-bundle.mjs`.
+Runbook de incidente e rollback/revogação: `docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`.
