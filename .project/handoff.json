@@ -1,22 +1,22 @@
 {
-	"context": "Lote NEXT7 (~30 slices) concluído: conflito de configuração de revogação agora é observável/determinístico, runbook de incidente foi formalizado e DEC-026 foi fechado.",
-	"timestamp": "2026-04-24T16:40:37.379Z",
+	"context": "NEXT8 (~15 slices) concluído: diagnóstico agregado de revogação adicionado ao TelemetryHost, falha de CI pós-push triada/corrigida e observação de CI confirmada em sucesso.",
+	"timestamp": "2026-04-24T18:11:34.914Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT7 concluído (T-NEXT-91..120) com validações técnicas verdes e guardrail CI adicional.",
-		"ADR-051 aceito e DEC-026 promovido para decided.",
-		"Checkpoint de compactação atualizado: VER-CHECKPOINT-COMPACTION-12-20260424."
+		"NEXT8 concluído (T-NEXT-121..135) com validações locais e CI pós-fix observadas.",
+		"Run CI falho 24904014545 documentado com causa raiz e run de recuperação 24904319323 em success.",
+		"Checkpoints atualizados: VER-CHECKPOINT-NEXT8-20260424 e VER-CHECKPOINT-COMPACTION-13-20260424."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; branch local segue ahead aguardando push/observação de CI conforme rotina."
+		"Sem bloqueio técnico imediato; pendência arquitetural remanescente principal continua em DEC-010 (ADR-012 Proposed)."
 	],
 	"next_actions": [
-		"Executar push do stack local (NEXT5..NEXT7) para origin/develop quando autorizado.",
-		"Rodar observação curta de CI pós-push (DEC-024) e registrar evidência no board.",
-		"Planejar próximo lote operacional focado em automação de incident response e telemetria agregada de eventos de revogação."
+		"Planejar lote seguinte para instrumentar coleta periódica do summary (`descriptor-revocation-summary`) em rotina operacional.",
+		"Avaliar se o workflow `test.yml` deve reduzir custo de e2e para mudanças estritas em `packages/tractor-ts` (otimização de throughput).",
+		"Quando o contexto voltar a pressionar, executar novo checkpoint de compactação antes de iniciar NEXT9."
 	],
 	"open_questions": [
-		"Qual dashboard/canal canônico consolidará métricas dos eventos de revogação (invalid/conflict/stale/unavailable) para operação diária?"
+		"Qual canal persistirá snapshots do summary de revogação (artefato CI, issue bot, ou storage interno do runtime)?"
 	],
 	"key_decisions_pending": [
 		"DEC-010"
@@ -27,21 +27,10 @@
 		".project/requirements.json",
 		".project/decisions.json",
 		".project/handoff.json",
-		".github/workflows/test.yml",
-		"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
-		"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts",
-		"packages/tractor-ts/src/lib/install-plugin.ts",
+		"packages/tractor-ts/src/lib/telemetry.ts",
+		"packages/tractor-ts/test/telemetry.test.ts",
 		"packages/tractor-ts/src/index.browser.ts",
-		"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts",
-		"packages/tractor-ts/test/install-plugin.test.ts",
-		"packages/tractor-ts/test/browser-plugin-host.test.ts",
 		"packages/tractor-ts/README.md",
-		"docs/ARCHITECTURE.md",
-		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
-		"docs/COLONY_PLAYBOOK.md",
-		"docs/PLUGIN_AUTHORING_TRACKS.md",
-		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
-		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md",
-		"specs/ADRs/README.md"
+		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
 	]
 }

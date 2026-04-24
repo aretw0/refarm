@@ -3908,6 +3908,269 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-120-20260424",
 			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-121",
+			"description": "Adicionar catálogo tipado de eventos de revogação no módulo de telemetry.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Constantes de eventos de revogação exportadas",
+				"Tipo union dos eventos derivado das constantes",
+				"Compatibilidade com TelemetryEvent preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-121-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-122",
+			"description": "Implementar sumarizador de telemetry para eventos de revogação (contagens por evento/política/source/profile).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Resumo agrega apenas eventos de revogação",
+				"Contagem por policy/policySource/profile disponível",
+				"Plugins afetados retornados de forma determinística"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-122-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-123",
+			"description": "Expor comando `system:diagnostics:descriptor-revocation-summary` no TelemetryHost.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"CommandHost registra comando de resumo",
+				"Saída retorna summary consolidado",
+				"Não remove comando existente de export bruto"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-123-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-124",
+			"description": "Adicionar teste unitário para sumarizador de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Teste cobre eventos múltiplos e evento irrelevante",
+				"Contagens por evento/política/source validadas",
+				"Plugins afetados ordenados deterministicamente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-124-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-125",
+			"description": "Adicionar teste de integração do comando de resumo no TelemetryHost.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Comando `descriptor-revocation-summary` executa via Tractor.commands",
+				"Resumo retorna total esperado",
+				"Evento revocation_unavailable refletido no resultado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-125-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-126",
+			"description": "Atualizar README do tractor-ts com comando de resumo de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Observability docs citam novo comando",
+				"Comando antigo de export continua documentado",
+				"Texto alinhado com uso operacional"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-126-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-127",
+			"description": "Atualizar runbook de incidente para incluir o comando de resumo consolidado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Runbook passa a mencionar command summary",
+				"Posição em seção de verificação pós-correção",
+				"Sem remover checklist existente"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-127-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-128",
+			"description": "Executar type-check do tractor-ts após inclusão de resumo de telemetry.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"tsc sem erros",
+				"Sem regressão em tipos públicos",
+				"Resultado registrado em verificação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-128-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-129",
+			"description": "Executar suíte unitária focada (telemetry + revogação/install/browser).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/**"
+			],
+			"acceptance_criteria": [
+				"Suites focadas executadas com sucesso",
+				"Novos testes de telemetry passam",
+				"Sem regressão dos testes de revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-129-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-130",
+			"description": "Executar runtime-descriptor release smoke local após adição de command summary.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"release-smoke local passa",
+				"Resolver suites continuam verdes",
+				"Cleanup automático de artefatos confirmado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-130-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-131",
+			"description": "Registrar observação pós-push com falha CI inicial no step release-path smoke e triagem de causa raiz.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Run de CI 24904014545 analisado",
+				"Falha mapeada para resolução eager de `@refarm.dev/registry` via index.browser",
+				"Ação corretiva planejada/registrada"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-131-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-132",
+			"description": "Corrigir index.browser para lazy-load de Tractor e evitar resolução eager em testes browser-only.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Re-export estático de Tractor removido",
+				"Proxy lazy import implementado",
+				"Compatibilidade de `Tractor.boot` preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-132-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-133",
+			"description": "Revalidar localmente após correção (type-check, tests focados, release-smoke, gate runtime).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**",
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Type-check verde pós-fix",
+				"Testes focados verdes pós-fix",
+				"release-smoke e gate:smoke:runtime verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-133-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-134",
+			"description": "Publicar correção e observar CI pós-push até sucesso no workflow Test & Quality.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml",
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Push realizado para develop",
+				"Run 24904319323 observado até status success",
+				"Step release-path smoke confirmado verde no CI"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-134-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-135",
+			"description": "Consolidar NEXT8 (~15 slices) no board com checkpoint e handoff atualizado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/requirements.json",
+				".project/decisions.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks/verifications NEXT8 registradas",
+				"REQ/DEC alinhados ao novo capability de telemetry summary",
+				"Checkpoint NEXT8 e COMPACTION-13 registrados"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-135-20260424",
+			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
 		}
 	]
 }

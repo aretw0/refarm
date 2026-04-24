@@ -5865,6 +5865,363 @@
 					"evidence": "Task T-NEXT-120 aponta verification VER-NEXT-120-20260424."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-121-20260424",
+			"target": "T-NEXT-121",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Constantes/tipos de eventos de revogação adicionados em `src/lib/telemetry.ts`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Constantes/tipos de eventos de revogação adicionados em `src/lib/telemetry.ts`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-121 referencia VER-NEXT-121-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-122-20260424",
+			"target": "T-NEXT-122",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "`summarizeRuntimeDescriptorRevocationTelemetry(...)` implementado com agregações por evento/política/source/profile.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`summarizeRuntimeDescriptorRevocationTelemetry(...)` implementado com agregações por evento/política/source/profile."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-122 referencia VER-NEXT-122-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-123-20260424",
+			"target": "T-NEXT-123",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "`TelemetryHost.register(...)` agora inclui `system:diagnostics:descriptor-revocation-summary`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`TelemetryHost.register(...)` agora inclui `system:diagnostics:descriptor-revocation-summary`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-123 referencia VER-NEXT-123-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-124-20260424",
+			"target": "T-NEXT-124",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Teste em `test/telemetry.test.ts` valida contagem e filtragem do sumarizador.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste em `test/telemetry.test.ts` valida contagem e filtragem do sumarizador."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-124 referencia VER-NEXT-124-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-125-20260424",
+			"target": "T-NEXT-125",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Teste em `test/telemetry.test.ts` valida execução do comando summary via CommandHost.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste em `test/telemetry.test.ts` valida execução do comando summary via CommandHost."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-125 referencia VER-NEXT-125-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-126-20260424",
+			"target": "T-NEXT-126",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "README atualizado com comando `system:diagnostics:descriptor-revocation-summary`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "README atualizado com comando `system:diagnostics:descriptor-revocation-summary`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-126 referencia VER-NEXT-126-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-127-20260424",
+			"target": "T-NEXT-127",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Runbook atualizado para recomendar comando summary na verificação pós-correção.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Runbook atualizado para recomendar comando summary na verificação pós-correção."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-127 referencia VER-NEXT-127-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-128-20260424",
+			"target": "T-NEXT-128",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run type-check`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run type-check`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-128 referencia VER-NEXT-128-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-129-20260424",
+			"target": "T-NEXT-129",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run test:unit -- telemetry runtime-descriptor-revocation-policy install-plugin browser-plugin-host runtime-descriptor-revocation`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run test:unit -- telemetry runtime-descriptor-revocation-policy install-plugin browser-plugin-host runtime-descriptor-revocation`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-129 referencia VER-NEXT-129-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-130-20260424",
+			"target": "T-NEXT-130",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Executado com sucesso: `npm run -s runtime-descriptor:release-smoke` com cleanup de `.artifacts/runtime-descriptor-smoke`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm run -s runtime-descriptor:release-smoke` com cleanup de `.artifacts/runtime-descriptor-smoke`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-130 referencia VER-NEXT-130-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-131-20260424",
+			"target": "T-NEXT-131",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Run 24904014545 analisado; falha no step `Runtime descriptor release-path smoke` por resolução eager de `@refarm.dev/registry` via import estático de Tractor em `index.browser.ts`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Run 24904014545 analisado; falha no step `Runtime descriptor release-path smoke` por resolução eager de `@refarm.dev/registry` via import estático de Tractor em `index.browser.ts`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-131 referencia VER-NEXT-131-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-132-20260424",
+			"target": "T-NEXT-132",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "`index.browser.ts` migrou para proxy lazy de Tractor (`import(\"./index\")` sob demanda) eliminando resolução eager.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`index.browser.ts` migrou para proxy lazy de Tractor (`import(\"./index\")` sob demanda) eliminando resolução eager."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-132 referencia VER-NEXT-132-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-133-20260424",
+			"target": "T-NEXT-133",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Executados com sucesso pós-fix: type-check + suite focada + release-smoke + `npm run gate:smoke:runtime`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executados com sucesso pós-fix: type-check + suite focada + release-smoke + `npm run gate:smoke:runtime`."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-133 referencia VER-NEXT-133-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-134-20260424",
+			"target": "T-NEXT-134",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Push da correção efetuado (`694a12e3`) e run CI 24904319323 observado até success com `Runtime descriptor release-path smoke` verde.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Push da correção efetuado (`694a12e3`) e run CI 24904319323 observado até success com `Runtime descriptor release-path smoke` verde."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-134 referencia VER-NEXT-134-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-135-20260424",
+			"target": "T-NEXT-135",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Board NEXT8 consolidado com requisitos/decisões/handoff e checkpoints de continuidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Board NEXT8 consolidado com requisitos/decisões/handoff e checkpoints de continuidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-135 referencia VER-NEXT-135-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT8-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Checkpoint NEXT8 concluído com telemetry summary operacional + correção do CI release-path smoke + observação pós-push bem-sucedida.",
+			"criteria_results": [
+				{
+					"criterion": "Validações técnicas do lote concluídas",
+					"status": "passed",
+					"evidence": "type-check, tests focados, runtime-descriptor:release-smoke e gate:smoke:runtime executados com sucesso."
+				},
+				{
+					"criterion": "Observação pós-push registrada",
+					"status": "passed",
+					"evidence": "Run 24904014545 (falha inicial) e 24904319323 (sucesso após fix) registrados no board."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-13-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:11:34.914Z",
+			"evidence": "Checkpoint de compactação pós-NEXT8 preparado para continuidade segura sob pressão de contexto.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico verificado antes da compactação",
+					"status": "passed",
+					"evidence": "Validações principais executadas e CI pós-fix observado até success."
+				},
+				{
+					"criterion": "Handoff atualizado para próxima sessão",
+					"status": "passed",
+					"evidence": "Contexto, próximos passos e decisão pendente registrados em `.project/handoff.json`."
+				}
+			]
 		}
 	]
 }

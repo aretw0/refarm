@@ -511,7 +511,35 @@
 				"T-NEXT-102",
 				"T-NEXT-104",
 				"T-NEXT-114",
-				"T-NEXT-118"
+				"T-NEXT-118",
+				"T-NEXT-131",
+				"T-NEXT-132",
+				"T-NEXT-133",
+				"T-NEXT-134"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-008",
+			"description": "Operação de revogação external-signed deve ter diagnóstico agregado canônico para incident response e auditoria rápida.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Comando de diagnóstico agregado disponível no host (`system:diagnostics:descriptor-revocation-summary`)",
+				"Resumo inclui contagens por evento, policy, policySource e profile",
+				"Runbook operacional referencia o comando para triagem pós-correção"
+			],
+			"traces_to": [
+				"T-NEXT-121",
+				"T-NEXT-122",
+				"T-NEXT-123",
+				"T-NEXT-124",
+				"T-NEXT-125",
+				"T-NEXT-126",
+				"T-NEXT-127",
+				"T-NEXT-129",
+				"T-NEXT-133"
 			]
 		}
 	]
