@@ -299,15 +299,30 @@ Distribution policy at install-time:
   - explicit `browserRuntimeModuleDescriptor.url` still overrides auto-resolve
 
 Install-time environment overrides (when install options omit policy/profile):
-- `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
-- `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
-- browser-compatible aliases: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` / `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
-- global overrides: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__` / `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+- dedicated revocation vars:
+  - `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- generic environment fallback (mapped to profile):
+  - `REFARM_ENVIRONMENT` or `NODE_ENV`
+- browser-compatible aliases:
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+  - `VITE_REFARM_ENVIRONMENT`
+- global overrides:
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+  - `globalThis.__REFARM_ENVIRONMENT__`
 
 Browser runtime load policy for revocation-source unavailability can be configured with:
-- `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
-- `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
-- runtime overrides: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__` and `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+- dedicated revocation vars:
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- generic environment fallback:
+  - `VITE_REFARM_ENVIRONMENT`
+- runtime overrides:
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+  - `globalThis.__REFARM_ENVIRONMENT__`
 
 Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
 Accepted profile values: `dev`, `staging`, `production-sensitive`.

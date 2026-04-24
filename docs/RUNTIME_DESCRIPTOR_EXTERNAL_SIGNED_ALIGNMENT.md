@@ -148,6 +148,7 @@ Notas:
 - implementação atual já expõe knobs operacionais:
   - install-time: `descriptorRevocationUnavailablePolicy` (`fail-closed`|`stale-allowed`|`fail-open`)
   - install/runtime: `descriptorRevocationProfile` / `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE` (`dev`|`staging`|`production-sensitive`) com mapeamento determinístico para política
+  - fallback de profile por ambiente genérico: `REFARM_ENVIRONMENT`/`NODE_ENV` (install) e `VITE_REFARM_ENVIRONMENT` (browser runtime)
   - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
 - precedência implementada: `policy explícita` > `profile explícito` > `policy de ambiente` > `profile de ambiente` > fallback local do caller.
 - observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).

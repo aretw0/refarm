@@ -35,7 +35,7 @@ Precedence target:
 1. explicit policy
 2. explicit profile
 3. environment policy
-4. environment profile
+4. environment profile (including canonical generic env fallback mapping)
 5. caller fallback
 
 Operational observability target:
