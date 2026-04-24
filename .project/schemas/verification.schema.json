@@ -3,9 +3,7 @@
 	"description": "Evidence that work meets its criteria. Per-task, per-phase, or per-requirement completion evidence. The accountability record linking implementation to acceptance.",
 	"title": "Verification",
 	"type": "object",
-	"required": [
-		"verifications"
-	],
+	"required": ["verifications"],
 	"properties": {
 		"verifications": {
 			"type": "array",
@@ -16,7 +14,10 @@
 					"target",
 					"target_type",
 					"status",
-					"method"
+					"method",
+					"timestamp",
+					"evidence",
+					"criteria_results"
 				],
 				"properties": {
 					"id": {
@@ -28,28 +29,15 @@
 					},
 					"target_type": {
 						"type": "string",
-						"enum": [
-							"task",
-							"phase",
-							"requirement"
-						]
+						"enum": ["task", "phase", "requirement"]
 					},
 					"status": {
 						"type": "string",
-						"enum": [
-							"passed",
-							"failed",
-							"partial",
-							"skipped"
-						]
+						"enum": ["passed", "failed", "partial", "skipped"]
 					},
 					"method": {
 						"type": "string",
-						"enum": [
-							"command",
-							"inspect",
-							"test"
-						]
+						"enum": ["command", "inspect", "test"]
 					},
 					"evidence": {
 						"type": "string",
@@ -62,21 +50,14 @@
 						"type": "array",
 						"items": {
 							"type": "object",
-							"required": [
-								"criterion",
-								"status"
-							],
+							"required": ["criterion", "status"],
 							"properties": {
 								"criterion": {
 									"type": "string"
 								},
 								"status": {
 									"type": "string",
-									"enum": [
-										"passed",
-										"failed",
-										"skipped"
-									]
+									"enum": ["passed", "failed", "skipped"]
 								},
 								"evidence": {
 									"type": "string"
@@ -84,7 +65,25 @@
 							}
 						}
 					}
-				}
+				},
+				"examples": [
+					{
+						"id": "VER-EXAMPLE-001",
+						"target": "T-EXAMPLE-01",
+						"target_type": "task",
+						"status": "passed",
+						"method": "command",
+						"timestamp": "2026-04-24T00:00:00.000Z",
+						"evidence": "Comando executado com saída verde e critérios validados.",
+						"criteria_results": [
+							{
+								"criterion": "Critério de aceite 1",
+								"status": "passed",
+								"evidence": "Trecho da saída do comando"
+							}
+						]
+					}
+				]
 			}
 		}
 	}

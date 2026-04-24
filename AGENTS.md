@@ -92,6 +92,15 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 > *Active Inference*: a build that crashes the container produces zero information. Constraining parallelism is not slower — crashing and restarting is slower.
 
+## 8. Agent Guardrails & Explicit Confirmation
+
+- **No silent high-impact actions**: before destructive or wide-impact operations (mass edits, deletes, branch-wide rewrites), require explicit human confirmation.
+- **Protected surfaces**: changes under `.project/**`, `.github/workflows/**`, `packages/tractor/**`, `packages/tractor-ts/**`, and `packages/plugin-manifest/**` should follow serialized lock/handoff policy.
+- **Unauthorized action monitor**: `.pi/monitors/unauthorized-action/*` is the first line of defense and must remain enabled/calibrated.
+- **If intent is ambiguous, stop and ask**: do not infer permission for operations outside the user-declared scope.
+
+> *Active Inference*: in uncertain conditions, information-gathering (ask/confirm) is lower-risk than irreversible action.
+
 ---
 
 > "We cultivate the code as we cultivate the soil: with patience, honesty, and respect for the cycle."

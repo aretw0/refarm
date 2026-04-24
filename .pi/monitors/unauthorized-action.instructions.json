@@ -1,1 +1,14 @@
-[]
+[
+  "Flag tool calls that perform writes outside the user-declared scope.",
+  "Flag destructive operations (delete/reset/force-push) unless the user explicitly asked for them in this session.",
+  "Flag edits to protected surfaces (.project/**, .github/workflows/**, packages/tractor/**, packages/tractor-ts/**, packages/plugin-manifest/**) when explicit authorization is missing.",
+  "When user intent is ambiguous, classify as unauthorized and request confirmation before action.",
+  {
+    "text": "Treat edits on `.project/**`, `.github/workflows/**`, `packages/tractor/**`, `packages/tractor-ts/**`, and `packages/plugin-manifest/**` as unauthorized unless the user explicitly approved that scope.",
+    "added_at": "2026-04-24T12:05:03.035Z"
+  },
+  {
+    "text": "Require explicit confirmation before destructive commands (`rm`, force push, hard reset, mass delete), unless directly requested by the user.",
+    "added_at": "2026-04-24T12:05:07.678Z"
+  }
+]
