@@ -277,7 +277,7 @@
 				"Perfis local/staging/prod definidos",
 				"Comportamento fail-open/stale-allowed/fail-closed explicitado",
 				"Resolução com precedência determinística (policy/profile/env/fallback) implementada e testada",
-				"Decisão marcada para fechamento formal em ADR/DEC"
+				"Decisão formalizada em ADR/DEC com status accepted/decided."
 			],
 			"source": "analysis",
 			"traces_to": [
@@ -357,7 +357,36 @@
 				"T-NEXT-86",
 				"T-NEXT-87",
 				"T-NEXT-88",
-				"T-NEXT-89"
+				"T-NEXT-89",
+				"T-NEXT-91",
+				"T-NEXT-92",
+				"T-NEXT-93",
+				"T-NEXT-94",
+				"T-NEXT-95",
+				"T-NEXT-96",
+				"T-NEXT-97",
+				"T-NEXT-98",
+				"T-NEXT-99",
+				"T-NEXT-100",
+				"T-NEXT-101",
+				"T-NEXT-102",
+				"T-NEXT-103",
+				"T-NEXT-104",
+				"T-NEXT-105",
+				"T-NEXT-106",
+				"T-NEXT-107",
+				"T-NEXT-108",
+				"T-NEXT-109",
+				"T-NEXT-110",
+				"T-NEXT-111",
+				"T-NEXT-112",
+				"T-NEXT-113",
+				"T-NEXT-114",
+				"T-NEXT-115",
+				"T-NEXT-116",
+				"T-NEXT-117",
+				"T-NEXT-118",
+				"T-NEXT-119"
 			]
 		},
 		{
@@ -453,7 +482,36 @@
 				"T-NEXT-84",
 				"T-NEXT-85",
 				"T-NEXT-86",
-				"T-NEXT-89"
+				"T-NEXT-89",
+				"T-NEXT-92",
+				"T-NEXT-103",
+				"T-NEXT-114"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-007",
+			"description": "Conflitos entre profile dedicado e ambiente genérico devem ser observáveis e não ambíguos em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Quando dedicated profile e generic environment divergirem, dedicated profile prevalece deterministicamente",
+				"Install registra warning explícito de conflito de configuração",
+				"Browser runtime emite telemetry `system:descriptor_revocation_config_conflict`",
+				"CI executa smoke release-path em mudanças tractor para detectar regressões de resolver"
+			],
+			"traces_to": [
+				"T-NEXT-91",
+				"T-NEXT-92",
+				"T-NEXT-96",
+				"T-NEXT-97",
+				"T-NEXT-98",
+				"T-NEXT-99",
+				"T-NEXT-102",
+				"T-NEXT-104",
+				"T-NEXT-114",
+				"T-NEXT-118"
 			]
 		}
 	]

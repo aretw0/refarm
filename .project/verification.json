@@ -5193,6 +5193,678 @@
 					"evidence": "Contexto, pendências e próximos passos registrados em .project/handoff.json."
 				}
 			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT7-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:40:37.379Z",
+			"evidence": "Checkpoint NEXT7 concluído com 30 slices (conflito de configuração + runbook + guardrail CI + fechamento DEC-026).",
+			"criteria_results": [
+				{
+					"criterion": "Lote técnico validado",
+					"status": "passed",
+					"evidence": "Type-check, testes focados, release-smoke e gate:smoke:runtime executados com sucesso."
+				},
+				{
+					"criterion": "Governança sincronizada",
+					"status": "passed",
+					"evidence": "ADR-051 aceito e DEC-026 fechado em decided."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-12-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:40:37.379Z",
+			"evidence": "Checkpoint de compactação pós-NEXT7 preparado para continuidade de execução sem perda de contexto.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico verificado",
+					"status": "passed",
+					"evidence": "Validações-chave do lote concluídas e registradas."
+				},
+				{
+					"criterion": "Handoff atualizado para próxima retomada",
+					"status": "passed",
+					"evidence": "Pendências e próximos passos registrados em .project/handoff.json."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-91-20260424",
+			"target": "T-NEXT-91",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Tipos de conflito de configuração adicionados ao resolver de revogação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Tipos de conflito de configuração adicionados ao resolver de revogação."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-91 aponta verification VER-NEXT-91-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-92-20260424",
+			"target": "T-NEXT-92",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Resolvedor de profile por ambiente agora detecta conflito dedicated vs generic.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Resolvedor de profile por ambiente agora detecta conflito dedicated vs generic."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-92 aponta verification VER-NEXT-92-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-93-20260424",
+			"target": "T-NEXT-93",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "invalidInputs é preservado para auditoria mesmo com precedência definida.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "invalidInputs é preservado para auditoria mesmo com precedência definida."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-93 aponta verification VER-NEXT-93-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-94-20260424",
+			"target": "T-NEXT-94",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Helper de dedupe para invalidInputs implementado e exportado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Helper de dedupe para invalidInputs implementado e exportado."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-94 aponta verification VER-NEXT-94-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-95-20260424",
+			"target": "T-NEXT-95",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Helper de dedupe para conflitos implementado e exportado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Helper de dedupe para conflitos implementado e exportado."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-95 aponta verification VER-NEXT-95-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-96-20260424",
+			"target": "T-NEXT-96",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Install resolver passou a mesclar/deduplicar invalidInputs e conflitos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Install resolver passou a mesclar/deduplicar invalidInputs e conflitos."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-96 aponta verification VER-NEXT-96-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-97-20260424",
+			"target": "T-NEXT-97",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Install agora registra warning explícito para conflito de configuração.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Install agora registra warning explícito para conflito de configuração."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-97 aponta verification VER-NEXT-97-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-98-20260424",
+			"target": "T-NEXT-98",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Browser resolver passou a mesclar/deduplicar invalidInputs e conflitos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Browser resolver passou a mesclar/deduplicar invalidInputs e conflitos."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-98 aponta verification VER-NEXT-98-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-99-20260424",
+			"target": "T-NEXT-99",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Browser runtime emite `system:descriptor_revocation_config_conflict` quando aplicável.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Browser runtime emite `system:descriptor_revocation_config_conflict` quando aplicável."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-99 aponta verification VER-NEXT-99-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-100-20260424",
+			"target": "T-NEXT-100",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Testes de política cobrem conflito dedicated/generic e caso equivalente sem conflito.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Testes de política cobrem conflito dedicated/generic e caso equivalente sem conflito."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-100 aponta verification VER-NEXT-100-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-101-20260424",
+			"target": "T-NEXT-101",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Testes validam dedupe de invalidInputs e conflitos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Testes validam dedupe de invalidInputs e conflitos."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-101 aponta verification VER-NEXT-101-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-102-20260424",
+			"target": "T-NEXT-102",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Teste install cobre conflito dedicado vs ambiente genérico com precedência preservada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste install cobre conflito dedicado vs ambiente genérico com precedência preservada."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-102 aponta verification VER-NEXT-102-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-103-20260424",
+			"target": "T-NEXT-103",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Teste install cobre fallback via NODE_ENV quando demais inputs ausentes.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste install cobre fallback via NODE_ENV quando demais inputs ausentes."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-103 aponta verification VER-NEXT-103-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-104-20260424",
+			"target": "T-NEXT-104",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Teste browser cobre emissão de telemetry de conflito e continuidade fail-open.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste browser cobre emissão de telemetry de conflito e continuidade fail-open."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-104 aponta verification VER-NEXT-104-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-105-20260424",
+			"target": "T-NEXT-105",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "README do tractor-ts atualizado com semântica de conflito e novo evento.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "README do tractor-ts atualizado com semântica de conflito e novo evento."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-105 aponta verification VER-NEXT-105-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-106-20260424",
+			"target": "T-NEXT-106",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Arquitetura atualizada para incluir evento config_conflict na observabilidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Arquitetura atualizada para incluir evento config_conflict na observabilidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-106 aponta verification VER-NEXT-106-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-107-20260424",
+			"target": "T-NEXT-107",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Alignment doc atualizado com defaults finalizados + conflito determinístico + runbook.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Alignment doc atualizado com defaults finalizados + conflito determinístico + runbook."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-107 aponta verification VER-NEXT-107-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-108-20260424",
+			"target": "T-NEXT-108",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Runbook de incidente de revogação criado com timeline, comandos e checklist.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Runbook de incidente de revogação criado com timeline, comandos e checklist."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-108 aponta verification VER-NEXT-108-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-109-20260424",
+			"target": "T-NEXT-109",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "COLONY_PLAYBOOK recebeu referência explícita ao runbook de incidente.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "COLONY_PLAYBOOK recebeu referência explícita ao runbook de incidente."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-109 aponta verification VER-NEXT-109-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-110-20260424",
+			"target": "T-NEXT-110",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "PLUGIN_AUTHORING_TRACKS referencia runbook canônico de rollback/revogação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "PLUGIN_AUTHORING_TRACKS referencia runbook canônico de rollback/revogação."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-110 aponta verification VER-NEXT-110-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-111-20260424",
+			"target": "T-NEXT-111",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "ADR-051 promovido para Accepted com regra canônica de conflito.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "ADR-051 promovido para Accepted com regra canônica de conflito."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-111 aponta verification VER-NEXT-111-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-112-20260424",
+			"target": "T-NEXT-112",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Índice de ADRs sincronizado para status Accepted do ADR-051.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Índice de ADRs sincronizado para status Accepted do ADR-051."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-112 aponta verification VER-NEXT-112-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-113-20260424",
+			"target": "T-NEXT-113",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Smoke release-path ganhou cleanup automático com opção keep-artifacts.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Smoke release-path ganhou cleanup automático com opção keep-artifacts."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-113 aponta verification VER-NEXT-113-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-114-20260424",
+			"target": "T-NEXT-114",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Workflow `test.yml` ganhou step de release-path smoke sob tractor_gates.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Workflow `test.yml` ganhou step de release-path smoke sob tractor_gates."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-114 aponta verification VER-NEXT-114-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-115-20260424",
+			"target": "T-NEXT-115",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Type-check do tractor-ts executado e aprovado após mudanças.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Type-check do tractor-ts executado e aprovado após mudanças."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-115 aponta verification VER-NEXT-115-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-116-20260424",
+			"target": "T-NEXT-116",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Suite unitária focada de revogação/install/browser executada e aprovada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Suite unitária focada de revogação/install/browser executada e aprovada."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-116 aponta verification VER-NEXT-116-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-117-20260424",
+			"target": "T-NEXT-117",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Runtime-descriptor release smoke executado e confirmou cleanup de artefatos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Runtime-descriptor release smoke executado e confirmou cleanup de artefatos."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-117 aponta verification VER-NEXT-117-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-118-20260424",
+			"target": "T-NEXT-118",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "gate:smoke:runtime executado e aprovado no lote NEXT7.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "gate:smoke:runtime executado e aprovado no lote NEXT7."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-118 aponta verification VER-NEXT-118-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-119-20260424",
+			"target": "T-NEXT-119",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "DEC-026 fechado como decided após aceite ADR-051 e defaults canônicos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "DEC-026 fechado como decided após aceite ADR-051 e defaults canônicos."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-119 aponta verification VER-NEXT-119-20260424."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-120-20260424",
+			"target": "T-NEXT-120",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T16:41:16.197Z",
+			"evidence": "Board consolidado com checkpoints NEXT7 + COMPACTION-12 prontos para continuidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Board consolidado com checkpoints NEXT7 + COMPACTION-12 prontos para continuidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação correspondente",
+					"status": "passed",
+					"evidence": "Task T-NEXT-120 aponta verification VER-NEXT-120-20260424."
+				}
+			]
 		}
 	]
 }

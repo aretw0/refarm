@@ -3393,6 +3393,521 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-90-20260424",
 			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-91",
+			"description": "Introduzir contrato explícito de conflitos de configuração de profile de revogação no resolver.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Tipo de conflito exposto para consumo em install/runtime",
+				"Conflito identifica source preferido e source ignorado",
+				"Schema de resultado preserva compatibilidade retroativa"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-91-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-92",
+			"description": "Detectar conflito dedicado vs ambiente genérico no resolvedor de profile por ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Conflitos detectados quando ambos válidos e divergentes",
+				"Profile dedicado mantém precedência",
+				"Conflito disponível no resultado da resolução"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-92-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-93",
+			"description": "Registrar invalidInputs para dedicated/generic mesmo com precedência definida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Entradas inválidas mantidas para auditoria",
+				"Sem quebrar resolução determinística",
+				"Cobertura de casos inválidos preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-93-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-94",
+			"description": "Adicionar helper de dedupe para invalidInputs no módulo de política de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Dedupe por slot+value implementado",
+				"Helper reutilizável exportado",
+				"Sem alteração semântica do resolvedor principal"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-94-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-95",
+			"description": "Adicionar helper de dedupe para conflitos de configuração.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Conflitos duplicados removidos deterministicamente",
+				"Chave de dedupe cobre campos relevantes",
+				"Helper exportado para install/runtime"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-95-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-96",
+			"description": "Integrar merge+ddupe de invalidInputs/conflitos no install resolver.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Install resolve inclui conflitos agregados",
+				"Dedupe aplicado após merge",
+				"Retorno mantém policy/profile/source atuais"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-96-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-97",
+			"description": "Emitir warning explícito em install quando houver conflito dedicado vs ambiente genérico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Mensagem identifica source mantido e source ignorado",
+				"Warning não altera fluxo de policy efetiva",
+				"Formato legível para triagem operacional"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-97-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-98",
+			"description": "Integrar merge+ddupe de invalidInputs/conflitos no browser runtime resolver.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Resolver browser carrega conflitos agregados",
+				"Dedupe aplicado no payload final",
+				"Compatível com eventos existentes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-98-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-99",
+			"description": "Emitir evento `system:descriptor_revocation_config_conflict` no browser runtime.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Evento inclui conflitos e policy resolvida",
+				"Sem regressão de eventos existentes",
+				"Payload auditável para observabilidade"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-99-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-100",
+			"description": "Expandir testes do resolvedor para conflito dedicated vs generic e aliases equivalentes.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"Caso divergente gera conflicts",
+				"Caso equivalente não gera conflict",
+				"Expectativas determinísticas mantidas"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-100-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-101",
+			"description": "Adicionar cobertura unitária para helpers de dedupe de invalidInputs/conflitos.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"Dedupe invalidInputs validado",
+				"Dedupe conflitos validado",
+				"Sem falsos positivos de duplicação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-101-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-102",
+			"description": "Adicionar teste install para conflito dedicado vs ambiente genérico com precedence preservada.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Install continua com policy do profile dedicado",
+				"Warning de conflito emitido",
+				"Cenário com revocation indisponível coberto"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-102-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-103",
+			"description": "Adicionar teste install para fallback NODE_ENV quando variáveis dedicadas e ambiente genérico não estão setados.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"NODE_ENV=production resulta em fail-closed",
+				"Falha esperada em indisponibilidade de revocation list",
+				"Restauração de env no teste garantida"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-103-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-104",
+			"description": "Adicionar teste browser para evento de conflito de configuração com continuidade fail-open.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Evento config_conflict emitido",
+				"Payload inclui conflito detalhado",
+				"Plugin load segue com profile dedicado (dev)"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-104-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-105",
+			"description": "Atualizar README do tractor-ts com semântica de conflito e novo evento de observabilidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Precedência dedicated vs generic documentada",
+				"Novo evento config_conflict listado",
+				"Guia de conflito alinhado com comportamento real"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-105-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-106",
+			"description": "Atualizar documentação de arquitetura com evento de conflito de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Tabela de arquitetura inclui config_conflict",
+				"Descrição de observabilidade atualizada",
+				"Referências de componentes preservadas"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-106-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-107",
+			"description": "Atualizar alignment doc com estado final de defaults e conflito determinístico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Notas incluem conflito dedicado vs genérico",
+				"Referência a defaults finalizados adicionada",
+				"Observabilidade atualizada com novo evento"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-107-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-108",
+			"description": "Criar runbook operacional de incidente para revogação de descriptor external-signed.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Runbook define gatilho/severidade/timeline <24h",
+				"Comandos canônicos de bundle/smoke listados",
+				"Checklist de comunicação e fechamento incluído"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-108-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-109",
+			"description": "Referenciar runbook de incidente no playbook de colônia.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/COLONY_PLAYBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Sessão dedicada de incidente adicionada",
+				"Link para runbook incluído",
+				"Sequência de checkpoint preservada"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-109-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-110",
+			"description": "Referenciar runbook de incidente no guia de trilhas de autoria de plugin.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/PLUGIN_AUTHORING_TRACKS.md"
+			],
+			"acceptance_criteria": [
+				"Seção de rollback aponta runbook canônico",
+				"Semântica external-signed preservada",
+				"Documento mantém fluxo existente"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-110-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-111",
+			"description": "Promover ADR-051 para Accepted e registrar regra de conflito canônica.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+			],
+			"acceptance_criteria": [
+				"Status alterado para Accepted",
+				"Observabilidade inclui config_conflict",
+				"Regra de conflito dedicada formalizada"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-111-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-112",
+			"description": "Sincronizar índice de ADRs para refletir aceite do ADR-051.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/README.md"
+			],
+			"acceptance_criteria": [
+				"Linha ADR-051 marcada como Accepted",
+				"Índice consistente com arquivo ADR",
+				"Sem alteração em outros ADRs"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-112-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-113",
+			"description": "Adicionar cleanup automático no smoke de release-path de runtime descriptors.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Script aceita keep-artifacts opcional",
+				"Cleanup padrão remove diretório temporário",
+				"Execução mantém resultado de smoke inalterado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-113-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-114",
+			"description": "Adicionar guardrail no workflow de testes para rodar release-path smoke quando tractor_gates=true.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Step dedicado adicionado em quality job",
+				"Condicional usa tractor_gates",
+				"Comando usa runtime-descriptor:release-smoke com SHA do CI"
+			],
+			"assigned_agent": "worker-devops",
+			"verification": "VER-NEXT-114-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-115",
+			"description": "Validar type-check do tractor-ts após ajustes de conflito/política.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"Type-check executado sem erros",
+				"Sem regressão de tipos públicos",
+				"Resultado registrado na verificação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-115-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-116",
+			"description": "Validar suíte unitária focada de revogação/install/browser/resolver após ajustes.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/**"
+			],
+			"acceptance_criteria": [
+				"Suites focadas executadas e verdes",
+				"Cobertura dos novos cenários confirmada",
+				"Sem regressão nos cenários anteriores"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-116-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-117",
+			"description": "Validar smoke de release descriptor path com cleanup automático de artefatos.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"release-smoke executa verde",
+				"Diretório .artifacts/runtime-descriptor-smoke removido ao final",
+				"Fluxo dry-run de publish preservado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-117-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-118",
+			"description": "Executar gate:smoke:runtime completo após lote NEXT7.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor/**",
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"Cargo checks/tests verdes",
+				"tractor-ts build/type-check/runtime-module:ci verdes",
+				"Sem regressões detectadas no gate runtime"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-118-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-119",
+			"description": "Fechar DEC-026 com defaults canônicos formalizados e ADR-051 aceito.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/decisions.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"DEC-026 passa para decided",
+				"Contexto menciona precedence/fallback/conflito/observabilidade",
+				"Handoff remove dependência pendente de DEC-026"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-119-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
+		},
+		{
+			"id": "T-NEXT-120",
+			"description": "Consolidar NEXT7 (30 slices) em board/verification/handoff com checkpoint de compactação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/requirements.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks/verifications NEXT7 registradas",
+				"Checkpoints NEXT7 e COMPACTION-12 criados",
+				"Estado pronto para nova compactação sem perda de continuidade"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-120-20260424",
+			"notes": "Concluído no lote NEXT7 (~30 slices) em 2026-04-24T16:40:37.379Z."
 		}
 	]
 }

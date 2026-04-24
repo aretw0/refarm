@@ -204,9 +204,9 @@
 			"id": "DEC-026",
 			"decision": "Política offline de revogação external-signed será profile-driven: fail-open em dev, stale-allowed em staging e fail-closed em produção sensível.",
 			"rationale": "Equilibra DX/throughput nos ambientes de entrega e hardening em ambientes críticos.",
-			"status": "revisit",
+			"status": "decided",
 			"phase": 10,
-			"context": "Implementação NEXT2→NEXT6 entregue: knobs policy/profile, fallback genérico por ambiente (REFARM_ENVIRONMENT/NODE_ENV/VITE_REFARM_ENVIRONMENT), resolvedor determinístico e observabilidade de config inválida/stale/bypass. Mantém revisit até aceite ADR-051 e defaults canônicos finais por ambiente."
+			"context": "Fechado em NEXT7 após aceite ADR-051: precedence canônica (policy explícita > profile explícito > policy ambiente > profile ambiente > fallback), fallback genérico por ambiente (REFARM_ENVIRONMENT/NODE_ENV/VITE_REFARM_ENVIRONMENT), regra de conflito (dedicated profile vence generic environment) e observabilidade completa (invalid/conflict/stale/unavailable) com guardrail CI de release-path smoke em mudanças tractor."
 		}
 	]
 }

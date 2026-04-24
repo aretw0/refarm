@@ -1,25 +1,25 @@
 {
-	"context": "Lote NEXT6 (~15 slices) concluído: source-of-truth canônico via fallback de ambiente genérico foi integrado em install/runtime com cobertura de testes e documentação. Checkpoint de compactação pronto.",
-	"timestamp": "2026-04-24T14:19:25.594Z",
+	"context": "Lote NEXT7 (~30 slices) concluído: conflito de configuração de revogação agora é observável/determinístico, runbook de incidente foi formalizado e DEC-026 foi fechado.",
+	"timestamp": "2026-04-24T16:40:37.379Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT6 concluído (T-NEXT-76..90) com validações técnicas verdes.",
-		"Checkpoints registrados: VER-CHECKPOINT-NEXT6-20260424 e VER-CHECKPOINT-COMPACTION-11-20260424.",
-		"DEC-026 permanece revisit pendente de fechamento formal com defaults finais por ambiente."
+		"NEXT7 concluído (T-NEXT-91..120) com validações técnicas verdes e guardrail CI adicional.",
+		"ADR-051 aceito e DEC-026 promovido para decided.",
+		"Checkpoint de compactação atualizado: VER-CHECKPOINT-COMPACTION-12-20260424."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; decisão arquitetural pendente para promover DEC-026 de revisit para decided."
+		"Sem bloqueio técnico imediato; branch local segue ahead aguardando push/observação de CI conforme rotina."
 	],
 	"next_actions": [
-		"Após compactação, finalizar defaults canônicos por ambiente e aprovar ADR-051 para fechamento de DEC-026.",
-		"Executar próximo lote operacional (playbook de incidentes + governança de configuração canônica em CI).",
-		"Quando desejado, push dos commits locais e observação curta de CI em develop."
+		"Executar push do stack local (NEXT5..NEXT7) para origin/develop quando autorizado.",
+		"Rodar observação curta de CI pós-push (DEC-024) e registrar evidência no board.",
+		"Planejar próximo lote operacional focado em automação de incident response e telemetria agregada de eventos de revogação."
 	],
 	"open_questions": [
-		"Qual prioridade final entre variáveis dedicadas e configuração versionada de ambiente será tratada como canônica no rollout final?"
+		"Qual dashboard/canal canônico consolidará métricas dos eventos de revogação (invalid/conflict/stale/unavailable) para operação diária?"
 	],
 	"key_decisions_pending": [
-		"DEC-026"
+		"DEC-010"
 	],
 	"files_in_flux": [
 		".project/tasks.json",
@@ -27,16 +27,21 @@
 		".project/requirements.json",
 		".project/decisions.json",
 		".project/handoff.json",
+		".github/workflows/test.yml",
+		"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
 		"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts",
 		"packages/tractor-ts/src/lib/install-plugin.ts",
 		"packages/tractor-ts/src/index.browser.ts",
 		"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts",
-		"packages/tractor-ts/test/runtime-descriptor-revocation.test.ts",
 		"packages/tractor-ts/test/install-plugin.test.ts",
 		"packages/tractor-ts/test/browser-plugin-host.test.ts",
 		"packages/tractor-ts/README.md",
-		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
 		"docs/ARCHITECTURE.md",
-		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+		"docs/COLONY_PLAYBOOK.md",
+		"docs/PLUGIN_AUTHORING_TRACKS.md",
+		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
+		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md",
+		"specs/ADRs/README.md"
 	]
 }
