@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+	dedupeRuntimeDescriptorRevocationConfigConflicts,
+	dedupeRuntimeDescriptorRevocationInvalidInputs,
 	getRuntimeDescriptorRevocationPolicyForProfile,
 	normalizeRuntimeDescriptorRevocationEnvironmentName,
 	normalizeRuntimeDescriptorRevocationProfile,
@@ -84,6 +86,17 @@ describe("runtime-descriptor-revocation-policy", () => {
 		).toEqual({
 			profile: "staging",
 			source: "dedicated-profile",
+			conflicts: [
+				{
+					slot: "environment-profile",
+					preferredSource: "dedicated-profile",
+					preferredValue: "staging",
+					preferredProfile: "staging",
+					ignoredSource: "generic-environment",
+					ignoredValue: "production",
+					ignoredProfile: "production-sensitive",
+				},
+			],
 		});
 
 		expect(
@@ -110,6 +123,48 @@ describe("runtime-descriptor-revocation-policy", () => {
 				{ slot: "environment-profile", value: "invalid-env" },
 			],
 		});
+
+		expect(
+			resolveRuntimeDescriptorRevocationEnvironmentProfile({
+				dedicatedProfile: "dev",
+				genericEnvironment: "test",
+			}),
+		).toEqual({
+			profile: "dev",
+			source: "dedicated-profile",
+		});
+	});
+
+	it("dedupes invalid inputs and conflict entries", () => {
+		expect(
+			dedupeRuntimeDescriptorRevocationInvalidInputs([
+				{ slot: "environment-profile", value: "prod" },
+				{ slot: "environment-profile", value: "prod" },
+			]),
+		).toEqual([{ slot: "environment-profile", value: "prod" }]);
+
+		expect(
+			dedupeRuntimeDescriptorRevocationConfigConflicts([
+				{
+					slot: "environment-profile",
+					preferredSource: "dedicated-profile",
+					preferredValue: "dev",
+					preferredProfile: "dev",
+					ignoredSource: "generic-environment",
+					ignoredValue: "production",
+					ignoredProfile: "production-sensitive",
+				},
+				{
+					slot: "environment-profile",
+					preferredSource: "dedicated-profile",
+					preferredValue: "dev",
+					preferredProfile: "dev",
+					ignoredSource: "generic-environment",
+					ignoredValue: "production",
+					ignoredProfile: "production-sensitive",
+				},
+			]),
+		).toHaveLength(1);
 	});
 
 	it("resolves policy precedence: explicit policy > explicit profile > env policy > env profile > fallback", () => {

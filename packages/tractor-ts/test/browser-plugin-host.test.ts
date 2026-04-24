@@ -734,6 +734,85 @@ describe("browser PluginHost runtime paths", () => {
 		);
 	});
 
+	it("emits config-conflict telemetry when dedicated revocation profile conflicts with generic environment", async () => {
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ = "dev";
+		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-conflict'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-config-conflict",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-config-conflict",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.11",
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-conflict");
+
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_config_conflict",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					resolvedPolicy: "fail-open",
+					policySource: "environment-profile",
+					profile: "dev",
+					conflicts: [
+						{
+							slot: "environment-profile",
+							preferredSource: "dedicated-profile",
+							preferredValue: "dev",
+							preferredProfile: "dev",
+							ignoredSource: "generic-environment",
+							ignoredValue: "production",
+							ignoredProfile: "production-sensitive",
+						},
+					],
+				}),
+			}),
+		);
+	});
+
 	it("emits config-invalid telemetry when runtime policy/profile overrides are invalid", async () => {
 		(
 			globalThis as any
