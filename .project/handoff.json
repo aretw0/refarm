@@ -1,22 +1,22 @@
 {
-	"context": "Lote NEXT3 (20 slices) concluído: política offline de revogação ganhou resolvedor determinístico profile-driven, cobertura de testes ampliada e ADR-051 proposto para fechamento arquitetural.",
-	"timestamp": "2026-04-24T13:17:20.502Z",
+	"context": "Lote NEXT4 (20 slices) concluído com foco em observabilidade do fallback stale na revogação external-signed e isolamento determinístico de cache em testes.",
+	"timestamp": "2026-04-24T13:37:37.069Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT3 concluído (T-NEXT-21..40) com code/docs/governance sincronizados.",
-		"Checkpoint intermediário registrado: VER-CHECKPOINT-NEXT3-20260424.",
-		"DEC-026 permanece revisit aguardando aceite formal do ADR-051."
+		"NEXT4 concluído (T-NEXT-41..60) com código, testes, docs e governança sincronizados.",
+		"Checkpoint intermediário registrado: VER-CHECKPOINT-NEXT4-20260424.",
+		"DEC-026 segue revisit aguardando fechamento formal via ADR-051."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; pendência principal é decisão final de defaults canônicos (DEC-026/ADR-051)."
+		"Sem bloqueio técnico imediato; pendente definição final de defaults canônicos e aceite ADR-051 para encerrar DEC-026."
 	],
 	"next_actions": [
-		"Discutir e fixar defaults finais por ambiente para DEC-026 e promover revisit->decided após aceite de ADR-051.",
-		"Executar novo lote técnico focado em rollout operacional (playbook de incidentes + observabilidade por profile).",
-		"Quando autorizado, push dos commits locais e observação curta de CI em develop."
+		"Fechar DEC-026 com defaults finais por ambiente e promoção revisit->decided após aceite ADR-051.",
+		"Executar próximo lote (~20 slices) em rollout operacional: playbook de incidentes, métricas e integração de perfil canônico.",
+		"Quando solicitado, preparar checkpoint de compactação antes de novo limite de contexto."
 	],
 	"open_questions": [
-		"Quais variáveis/inputs serão considerados canônicos para profile em produção (env, config runtime, ou ambos)?"
+		"Qual fonte de verdade canônica para profile em produção: env-only, config runtime versionada, ou estratégia híbrida?"
 	],
 	"key_decisions_pending": [
 		"DEC-026"
@@ -27,17 +27,16 @@
 		".project/requirements.json",
 		".project/decisions.json",
 		".project/handoff.json",
-		"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts",
+		"packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts",
 		"packages/tractor-ts/src/lib/install-plugin.ts",
 		"packages/tractor-ts/src/index.browser.ts",
-		"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts",
+		"packages/tractor-ts/test/runtime-descriptor-revocation.test.ts",
 		"packages/tractor-ts/test/install-plugin.test.ts",
 		"packages/tractor-ts/test/browser-plugin-host.test.ts",
 		"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
 		"packages/tractor-ts/README.md",
 		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
 		"docs/ARCHITECTURE.md",
-		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md",
-		"specs/ADRs/README.md"
+		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
 	]
 }

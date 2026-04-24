@@ -206,7 +206,7 @@
 			"rationale": "Equilibra DX/throughput nos ambientes de entrega e hardening em ambientes críticos.",
 			"status": "revisit",
 			"phase": 10,
-			"context": "Implementação inicial entregue no lote NEXT2/NEXT3 (policy/profile knobs + resolver determinístico + testes). Mantém status revisit até aceite formal do ADR-051 e definição final de defaults canônicos por ambiente."
+			"context": "Implementação NEXT2+NEXT3+NEXT4 entregue: knobs policy/profile, resolvedor determinístico e observabilidade de fallback stale/bypass. Permanece revisit até aceite formal ADR-051 e defaults canônicos finais por ambiente."
 		}
 	]
 }

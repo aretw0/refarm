@@ -2529,6 +2529,349 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-40-20260424",
 			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-41",
+			"description": "Adicionar callback observável para fallback stale em fetch de revocation list.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts"
+			],
+			"acceptance_criteria": [
+				"Fetch options aceitam onStaleFallback",
+				"Fallback stale reporta url/erro/cacheAgeMs",
+				"Sem quebra de contrato de retorno"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-41-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-42",
+			"description": "Registrar fetchedAt no cache e expor limpeza explícita de cache de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts"
+			],
+			"acceptance_criteria": [
+				"Cache inclui fetchedAt para cálculo de idade",
+				"API clearRuntimeDescriptorRevocationListCache exportada",
+				"Base pronta para isolamento de testes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-42-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-43",
+			"description": "Integrar callback stale no install-plugin com warning operacional.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Install loga fallback stale com idade de cache",
+				"Policy stale-allowed preservada",
+				"Fail-open/fail-closed permanecem consistentes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-43-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-44",
+			"description": "Integrar callback stale no browser runtime com evento de telemetry dedicado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Evento system:descriptor_revocation_stale_cache_used emitido",
+				"Payload inclui policy/source/profile/cacheAgeMs",
+				"Sem regressão de enforcement de revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-44-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-45",
+			"description": "Adicionar suíte unitária de runtime-descriptor-revocation (cache/url/stale fallback).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation.test.ts"
+			],
+			"acceptance_criteria": [
+				"Cobre coordenação GitHub/release URL",
+				"Cobre cache quente e fallback stale",
+				"Cobre erro sem fallback"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-45-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-46",
+			"description": "Isolar testes de install-plugin limpando cache de revogação entre casos.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"beforeEach limpa revocation cache",
+				"Reduz acoplamento entre casos",
+				"Evita flakiness por estado global"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-46-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-47",
+			"description": "Adicionar teste install para stale-allowed mantendo bloqueio de descriptor revogado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Cache stale usado quando fetch falha",
+				"Descriptor revogado continua bloqueando install",
+				"Warning de stale cache observado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-47-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-48",
+			"description": "Adicionar teste install para stale-allowed permitindo descriptor não revogado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Install continua com lista stale não revogada",
+				"Fallback stale gera warning",
+				"Fluxo de cache sidecar permanece funcional"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-48-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-49",
+			"description": "Isolar testes do browser host limpando cache de revogação entre casos.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"afterEach limpa revocation cache",
+				"Remoção de vazamento de estado entre testes",
+				"Base para cenários de TTL/stale"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-49-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-50",
+			"description": "Adicionar teste browser para stale fallback com continuidade de load.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load continua em stale-allowed com cache expirado",
+				"Evento stale_cache_used emitido",
+				"Payload contém policySource/cacheAgeMs"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-50-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-51",
+			"description": "Adicionar teste browser para stale fallback com descriptor revogado continuar bloqueado.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Cache stale contendo hash revogado bloqueia load",
+				"Evento stale_cache_used ainda emitido",
+				"Enforcement não relaxa em fallback"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-51-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-52",
+			"description": "Atualizar release-smoke de runtime descriptor para incluir suíte de revocation core.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Filtro inclui runtime-descriptor-revocation",
+				"Smoke mantém cobertura install/browser/policy/revocation",
+				"Dry-run release smoke permanece verde"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-52-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-53",
+			"description": "Atualizar README do tractor-ts com eventos de observabilidade de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Eventos stale_cache_used e unavailable documentados",
+				"Semântica operacional clara para operadores",
+				"Doc alinhada com comportamento implementado"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-53-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-54",
+			"description": "Atualizar doc alignment external-signed com observabilidade de fallback/bypass.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Eventos operacionais adicionados no plano",
+				"Alinhamento continua consistente com DEC-026",
+				"Precedência permanece explícita"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-54-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-55",
+			"description": "Atualizar snapshot de arquitetura com eventos de revogação e fonte de implementação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Snapshot inclui stale_cache_used/unavailable",
+				"Referência ao módulo revocation core adicionada",
+				"Tabela mantém consistência do estado atual"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-55-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-56",
+			"description": "Atualizar ADR-051 com alvo de observabilidade operacional de fallback/bypass.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+			],
+			"acceptance_criteria": [
+				"ADR registra sinais operacionais obrigatórios",
+				"Contexto conecta rollout e auditoria",
+				"Status Proposed preservado"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-56-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-57",
+			"description": "Adicionar requirement de observabilidade para fallback stale no runtime descriptor path.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-004 criado e aceito",
+				"Critérios de aceitação cobrem eventos e testes",
+				"Traces_to apontam para slices NEXT4 relevantes"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-57-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-58",
+			"description": "Sincronizar DEC-026 com avanço NEXT4 (stale observability + enforcement mantido).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/decisions.json"
+			],
+			"acceptance_criteria": [
+				"DEC-026 mantém revisit",
+				"Contexto cita avanço NEXT4",
+				"Coerência DEC↔ADR preservada"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-58-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-59",
+			"description": "Executar validação técnica do lote NEXT4 (type-check/tests/gates/smoke).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**",
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Type-check verde",
+				"Suites de teste ampliadas verdes",
+				"gate:smoke:runtime + runtime-descriptor:release-smoke verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-59-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-60",
+			"description": "Consolidar board/handoff do NEXT4 e registrar checkpoint intermediário de continuidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks/verification NEXT4 consistentes",
+				"Checkpoint VER-CHECKPOINT-NEXT4 registrado",
+				"Handoff pronto para próximo lote de ~20 slices"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-60-20260424",
+			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
 		}
 	]
 }

@@ -310,7 +310,26 @@
 				"T-NEXT-36",
 				"T-NEXT-37",
 				"T-NEXT-38",
-				"T-NEXT-39"
+				"T-NEXT-39",
+				"T-NEXT-41",
+				"T-NEXT-42",
+				"T-NEXT-43",
+				"T-NEXT-44",
+				"T-NEXT-45",
+				"T-NEXT-46",
+				"T-NEXT-47",
+				"T-NEXT-48",
+				"T-NEXT-49",
+				"T-NEXT-50",
+				"T-NEXT-51",
+				"T-NEXT-52",
+				"T-NEXT-53",
+				"T-NEXT-54",
+				"T-NEXT-55",
+				"T-NEXT-56",
+				"T-NEXT-57",
+				"T-NEXT-58",
+				"T-NEXT-59"
 			]
 		},
 		{
@@ -330,6 +349,28 @@
 				"T-NEXT-26",
 				"T-NEXT-31",
 				"T-NEXT-39"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-004",
+			"description": "Fallback stale de revogação deve gerar sinais de observabilidade auditáveis no install/runtime browser.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Evento explícito para uso de stale cache no runtime browser",
+				"Warning explícito no install quando stale fallback ocorre",
+				"Cobertura de testes para fallback stale com descriptor revogado e não revogado"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-43",
+				"T-NEXT-44",
+				"T-NEXT-47",
+				"T-NEXT-48",
+				"T-NEXT-50",
+				"T-NEXT-51",
+				"T-NEXT-59"
 			]
 		}
 	]

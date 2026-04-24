@@ -4059,6 +4059,447 @@
 					"evidence": "Handoff atualizado com próximos passos e DEC-026 pendente para fechamento formal."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-41-20260424",
+			"target": "T-NEXT-41",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "`fetchRuntimeDescriptorRevocationList` agora aceita callback `onStaleFallback` com metadados de fallback.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "`fetchRuntimeDescriptorRevocationList` agora aceita callback `onStaleFallback` com metadados de fallback."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-42-20260424",
+			"target": "T-NEXT-42",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Cache de revogação passou a registrar `fetchedAt` e expõe `clearRuntimeDescriptorRevocationListCache()`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Cache de revogação passou a registrar `fetchedAt` e expõe `clearRuntimeDescriptorRevocationListCache()`."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-43-20260424",
+			"target": "T-NEXT-43",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Install path registra warning explícito quando fallback stale é aplicado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Install path registra warning explícito quando fallback stale é aplicado."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-44-20260424",
+			"target": "T-NEXT-44",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Browser runtime emite `system:descriptor_revocation_stale_cache_used` com payload operacional.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Browser runtime emite `system:descriptor_revocation_stale_cache_used` com payload operacional."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-45-20260424",
+			"target": "T-NEXT-45",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Nova suíte `runtime-descriptor-revocation.test.ts` cobre URL/cache/stale/error.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Nova suíte `runtime-descriptor-revocation.test.ts` cobre URL/cache/stale/error."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-46-20260424",
+			"target": "T-NEXT-46",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "`install-plugin.test.ts` limpa cache global de revogação em `beforeEach` para isolamento.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "`install-plugin.test.ts` limpa cache global de revogação em `beforeEach` para isolamento."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-47-20260424",
+			"target": "T-NEXT-47",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Teste confirma que stale fallback não remove bloqueio para descriptor revogado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste confirma que stale fallback não remove bloqueio para descriptor revogado."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-48-20260424",
+			"target": "T-NEXT-48",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Teste confirma continuidade quando stale list não contém hash do descriptor.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste confirma continuidade quando stale list não contém hash do descriptor."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-49-20260424",
+			"target": "T-NEXT-49",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "`browser-plugin-host.test.ts` limpa cache de revogação em `afterEach`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "`browser-plugin-host.test.ts` limpa cache de revogação em `afterEach`."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-50-20260424",
+			"target": "T-NEXT-50",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Teste browser valida continuidade de load e emissão de evento stale_cache_used.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida continuidade de load e emissão de evento stale_cache_used."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-51-20260424",
+			"target": "T-NEXT-51",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Teste browser valida que hash revogado continua bloqueando mesmo com fallback stale.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida que hash revogado continua bloqueando mesmo com fallback stale."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-52-20260424",
+			"target": "T-NEXT-52",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Release smoke atualizado para incluir suíte `runtime-descriptor-revocation`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Release smoke atualizado para incluir suíte `runtime-descriptor-revocation`."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-53-20260424",
+			"target": "T-NEXT-53",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "README do tractor-ts atualizado com eventos de observabilidade de revogação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "README do tractor-ts atualizado com eventos de observabilidade de revogação."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-54-20260424",
+			"target": "T-NEXT-54",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Alignment external-signed atualizado com sinais operacionais de fallback/bypass.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Alignment external-signed atualizado com sinais operacionais de fallback/bypass."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-55-20260424",
+			"target": "T-NEXT-55",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Snapshot de arquitetura atualizado com eventos e fonte de implementação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Snapshot de arquitetura atualizado com eventos e fonte de implementação."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-56-20260424",
+			"target": "T-NEXT-56",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "ADR-051 atualizado com alvo explícito de observabilidade operacional.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "ADR-051 atualizado com alvo explícito de observabilidade operacional."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-57-20260424",
+			"target": "T-NEXT-57",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "REQ-RUNTIME-004 adicionado para observabilidade e auditabilidade de fallback stale.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-004 adicionado para observabilidade e auditabilidade de fallback stale."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-58-20260424",
+			"target": "T-NEXT-58",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "DEC-026 contexto sincronizado com progresso NEXT4 mantendo status revisit.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "DEC-026 contexto sincronizado com progresso NEXT4 mantendo status revisit."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-59-20260424",
+			"target": "T-NEXT-59",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Executados com sucesso: type-check + testes unitários focados + gate:smoke:runtime + runtime-descriptor:release-smoke.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Executados com sucesso: type-check + testes unitários focados + gate:smoke:runtime + runtime-descriptor:release-smoke."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-60-20260424",
+			"target": "T-NEXT-60",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Board/handoff atualizados e checkpoint intermediário NEXT4 registrado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Board/handoff atualizados e checkpoint intermediário NEXT4 registrado."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification preenchido na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT4-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:37:37.069Z",
+			"evidence": "Checkpoint intermediário NEXT4 concluído com observabilidade de revogação stale e validações técnicas verdes.",
+			"criteria_results": [
+				{
+					"criterion": "Validações técnicas executadas e aprovadas",
+					"status": "passed",
+					"evidence": "Type-check, testes direcionados, gate:smoke:runtime e runtime-descriptor:release-smoke passaram."
+				},
+				{
+					"criterion": "Continuidade de execução garantida para próximo lote",
+					"status": "passed",
+					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026 explícita."
+				}
+			]
 		}
 	]
 }
