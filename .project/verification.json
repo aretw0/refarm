@@ -2222,6 +2222,32 @@
           "evidence": "`docs/PLUGIN_AUTHORING_TRACKS.md` seção de rollback/revogação + template `bundle.revocations.template.json` no bundle exportado."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-25-20260424",
+      "target": "T-RUNTIME-25",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-24T00:26:18.012Z",
+      "evidence": "Decisões de endpoint/trust/SLA/estratégia registradas em doc de alinhamento e projetadas para execução das tasks T-RUNTIME-26..29.",
+      "criteria_results": [
+        {
+          "criterion": "Escolha explícita entre GitHub Release assets / CDN / bucket documentada e decidida",
+          "status": "passed",
+          "evidence": "Escolha A (GitHub Release Assets) registrada em docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md."
+        },
+        {
+          "criterion": "Política de trust por ambiente definida (repository-derived vs strict-manual)",
+          "status": "passed",
+          "evidence": "Política B definida: repository-derived em dev/staging e strict-manual em produção sensível."
+        },
+        {
+          "criterion": "SLA de revogação definido e refletido em docs operacionais",
+          "status": "passed",
+          "evidence": "SLA B (<24h) com timeline operacional incluída no documento de alinhamento."
+        }
+      ]
     }
   ]
 }

@@ -1,26 +1,23 @@
 {
-  "context": "Alinhamento Option A iniciado com plano dedicado para external-signed (`docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`). T-RUNTIME-24 entrou em execução no modo discovery para fechar endpoint canônico, trust por ambiente e SLA de revogação antes da implementação final.",
-  "timestamp": "2026-04-24T00:09:28.710Z",
+  "context": "Defaults de Option A foram decididos e registrados (DEC-016): endpoint GitHub Release Assets, trust híbrido por ambiente, SLA de revogação <24h e resolução híbrida. T-RUNTIME-25 foi concluída e T-RUNTIME-26 está em execução.",
+  "timestamp": "2026-04-24T00:26:18.012Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-24 em andamento: discovery/alinhamento de endpoint público estável para descriptors external-signed.",
-    "Plano de rollout em 15 slices publicado em `docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`.",
-    "Backlog detalhado criado: T-RUNTIME-25..T-RUNTIME-29 (decisão -> publish -> resolver -> revogação -> e2e/governança)."
+    "T-RUNTIME-25 concluída (`VER-RUNTIME-25-20260424`): decisões de endpoint/trust/SLA/estratégia formalizadas.",
+    "T-RUNTIME-24 segue em andamento com discovery encerrado e execução direcionada pelos defaults definidos.",
+    "T-RUNTIME-26 em execução: publish de bundle em Release Assets + validação pós-publish."
   ],
   "blockers": [
-    "Falta decisão explícita do endpoint canônico (Release assets vs CDN vs bucket).",
-    "ISS-020 aberto até endpoint público estável + resolvedor automático serem entregues.",
+    "ISS-020 permanece aberto até concluir publish público estável + validação pós-publish no workflow.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Coletar decisão de endpoint/política por ambiente via checklist do plano.",
-    "Executar T-RUNTIME-26 para publicar bundle em endpoint público versionado.",
-    "Implementar resolvedor automático external-signed (T-RUNTIME-27) após definição de endpoint."
+    "Implementar passos de upload do bundle em GitHub Release Assets no release workflow.",
+    "Adicionar verificação de presença/shape do asset após publish.",
+    "Avançar para resolvedor automático external-signed (T-RUNTIME-27)."
   ],
   "open_questions": [
-    "Endpoint oficial será GitHub Release assets, CDN ou bucket?",
-    "Produção usa repository-derived ou strict-manual por default?",
-    "SLA de revogação alvo: imediato, <24h, ou próximo release?"
+    "Definir convenção final de naming do asset por release (por package release ou aggregate por commit)."
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

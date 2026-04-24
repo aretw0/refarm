@@ -119,6 +119,14 @@
       "status": "decided",
       "phase": 6,
       "context": "Entrega de T-RUNTIME-23 com política de distribuição e provenance já consolidadas em T-RUNTIME-21/T-RUNTIME-22."
+    },
+    {
+      "id": "DEC-016",
+      "decision": "Para external-signed, adotar GitHub Release Assets como endpoint canônico inicial, trust híbrido por ambiente (repository-derived em dev/staging e strict-manual em produção sensível), SLA de revogação <24h e resolução híbrida (convenção + override explícito).",
+      "rationale": "Maximiza velocidade de entrega usando infraestrutura já existente, preservando hardening em produção e reduzindo risco operacional com SLA explícito de revogação.",
+      "status": "decided",
+      "phase": 6,
+      "context": "Alinhamento de T-RUNTIME-25 para destravar implementação T-RUNTIME-26..29 sem depender de nova infraestrutura dedicada."
     }
   ]
 }

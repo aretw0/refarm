@@ -34,6 +34,13 @@ Current status:
    - B. consume explicit endpoint from plugin metadata
    - C. hybrid (metadata override + convention fallback)
 
+### Decision Record (2026-04-24)
+
+- ✅ **Canonical public endpoint (Gate 1): A — GitHub Release Assets**
+- ✅ **Environment policy (Gate 2): B — `repository-derived` in dev/staging + `strict-manual` in prod**
+- ✅ **Revocation SLA (Gate 3): B — within 24h**
+- ✅ **Resolution strategy (Gate 4): C — hybrid (auto-resolve by convention + explicit metadata override)**
+
 ---
 
 ## Option Matrix
@@ -50,8 +57,8 @@ Current status:
 
 ### Phase 1 (now)
 - Canonical endpoint: **GitHub Release Assets**.
-- Keep trust mode default: **`repository-derived`**.
-- Add strict-manual override for sensitive envs.
+- Keep trust mode default: **`repository-derived`** for dev/staging.
+- Use **`strict-manual`** in production-sensitive environments.
 - Publish descriptor bundle per release with versioned manifest + revocation template.
 
 ### Phase 2 (optional)
@@ -82,7 +89,25 @@ Current status:
 
 ## Minimal Inputs Required from Product/Platform
 
-- Which endpoint is canonical now (A/B/C)?
-- Which trust mode for prod defaults?
-- What revocation SLA must be met?
-- Should runtime auto-resolve by default, or remain explicit by descriptor URL?
+Resolved in this alignment session:
+- Endpoint: **GitHub Release Assets**
+- Trust policy: **hybrid by environment** (`repository-derived` dev/staging, `strict-manual` prod)
+- Revocation SLA: **within 24h**
+- Resolution strategy: **hybrid auto-resolve + explicit override**
+
+---
+
+## Revocation SLA (`<24h`) — Operational Meaning
+
+The SLA here is a **security response target**, not system uptime.
+
+- **What is covered:** time between confirmed descriptor compromise/misconfiguration and published revocation artifact + communication.
+- **Target:** publish revocation update within **24 hours**.
+
+Suggested timeline:
+
+1. **T+0h → T+2h**: triage + confirm impact (descriptor hash / affected plugins/releases).
+2. **T+2h → T+8h**: generate/publish revocation update (bundle revocation list + replacement descriptor when available).
+3. **T+8h → T+24h**: propagate, force reinstall guidance, and incident communication.
+
+If risk is critical, treat as hotfix and act immediately (faster than SLA target).

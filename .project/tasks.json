@@ -1655,12 +1655,12 @@
         "T-RUNTIME-23"
       ],
       "assigned_agent": "worker-runtime",
-      "notes": "Alignment/discovery iniciado em `docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`; aguardando decisão de endpoint canônico para execução final."
+      "notes": "Discovery consolidado com defaults decididos: endpoint canônico GitHub Release Assets, trust híbrido por ambiente (repository-derived dev/staging; strict-manual prod), SLA de revogação <24h e resolução híbrida (convenção + override explícito)."
     },
     {
       "id": "T-RUNTIME-25",
       "description": "Decidir endpoint canônico para descriptor external-signed e política por ambiente (trust/revogação).",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
@@ -1673,14 +1673,16 @@
         "SLA de revogação definido e refletido em docs operacionais"
       ],
       "depends_on": [
-        "T-RUNTIME-24"
+        "T-RUNTIME-23"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-25-20260424",
+      "notes": "Decisão formalizada no alinhamento: endpoint A (Release Assets), trust policy B (híbrida), SLA B (<24h), estratégia C (auto-resolve + override)."
     },
     {
       "id": "T-RUNTIME-26",
       "description": "Publicar bundle de descriptors como Release Asset versionado e validar presença pós-publish.",
-      "status": "planned",
+      "status": "in_progress",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
@@ -1695,7 +1697,8 @@
       "depends_on": [
         "T-RUNTIME-25"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "notes": "Execução iniciada para publicar bundle em GitHub Release Assets com naming versionado e validação pós-publish."
     },
     {
       "id": "T-RUNTIME-27",
