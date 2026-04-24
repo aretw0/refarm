@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
 	getRuntimeDescriptorRevocationPolicyForProfile,
+	normalizeRuntimeDescriptorRevocationEnvironmentName,
 	normalizeRuntimeDescriptorRevocationProfile,
 	normalizeRuntimeDescriptorRevocationUnavailablePolicy,
+	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
 } from "../src/lib/runtime-descriptor-revocation-policy";
 
@@ -52,6 +54,62 @@ describe("runtime-descriptor-revocation-policy", () => {
 		expect(
 			getRuntimeDescriptorRevocationPolicyForProfile("production-sensitive"),
 		).toBe("fail-closed");
+	});
+
+	it("normalizes generic environment names to revocation profiles", () => {
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("development")).toBe(
+			"dev",
+		);
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("testing")).toBe(
+			"dev",
+		);
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("preview")).toBe(
+			"staging",
+		);
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("production")).toBe(
+			"production-sensitive",
+		);
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("live")).toBe(
+			"production-sensitive",
+		);
+		expect(normalizeRuntimeDescriptorRevocationEnvironmentName("unknown")).toBeNull();
+	});
+
+	it("resolves environment profile preferring dedicated profile over generic environment", () => {
+		expect(
+			resolveRuntimeDescriptorRevocationEnvironmentProfile({
+				dedicatedProfile: "staging",
+				genericEnvironment: "production",
+			}),
+		).toEqual({
+			profile: "staging",
+			source: "dedicated-profile",
+		});
+
+		expect(
+			resolveRuntimeDescriptorRevocationEnvironmentProfile({
+				dedicatedProfile: "invalid-profile",
+				genericEnvironment: "production",
+			}),
+		).toEqual({
+			profile: "production-sensitive",
+			source: "generic-environment",
+			invalidInputs: [
+				{ slot: "environment-profile", value: "invalid-profile" },
+			],
+		});
+
+		expect(
+			resolveRuntimeDescriptorRevocationEnvironmentProfile({
+				dedicatedProfile: "invalid-profile",
+				genericEnvironment: "invalid-env",
+			}),
+		).toEqual({
+			invalidInputs: [
+				{ slot: "environment-profile", value: "invalid-profile" },
+				{ slot: "environment-profile", value: "invalid-env" },
+			],
+		});
 	});
 
 	it("resolves policy precedence: explicit policy > explicit profile > env policy > env profile > fallback", () => {

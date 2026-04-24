@@ -62,6 +62,7 @@ afterEach(async () => {
 	delete (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	delete (globalThis as any).__REFARM_ENVIRONMENT__;
 	await evictPlugin("@acme/wasm-plugin");
 	await evictPlugin("@acme/component-plugin");
 });
@@ -546,7 +547,7 @@ describe("browser PluginHost runtime paths", () => {
 				pluginId: "@acme/component-plugin",
 				payload: expect.objectContaining({
 					policy: "fail-open",
-					policySource: "explicit-profile",
+					policySource: "environment-profile",
 					profile: "dev",
 				}),
 			}),
@@ -612,9 +613,131 @@ describe("browser PluginHost runtime paths", () => {
 		);
 	});
 
+	it("derives runtime revocation policy from generic environment=development", async () => {
+		(globalThis as any).__REFARM_ENVIRONMENT__ = "development";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-env-development'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-env-development",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-env-development",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.9",
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-env-development");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_unavailable",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					policy: "fail-open",
+					policySource: "environment-profile",
+					profile: "dev",
+				}),
+			}),
+		);
+	});
+
+	it("derives runtime revocation policy from generic environment=production", async () => {
+		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+
+		const host = new PluginHost(vi.fn(), {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-env-production'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-env-production",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-env-production",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.10",
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"Unable to verify runtime descriptor revocation status",
+		);
+	});
+
 	it("emits config-invalid telemetry when runtime policy/profile overrides are invalid", async () => {
-		(globalThis as any)
-			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
+		(
+			globalThis as any
+		).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
 			"invalid-policy";
 		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"dev";
@@ -658,7 +781,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -676,7 +802,7 @@ describe("browser PluginHost runtime paths", () => {
 				pluginId: "@acme/component-plugin",
 				payload: expect.objectContaining({
 					resolvedPolicy: "fail-open",
-					policySource: "explicit-profile",
+					policySource: "environment-profile",
 					profile: "dev",
 					invalidInputs: [
 						{
@@ -732,7 +858,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -754,7 +883,7 @@ describe("browser PluginHost runtime paths", () => {
 					policySource: "fallback",
 					invalidInputs: [
 						{
-							slot: "explicit-profile",
+							slot: "environment-profile",
 							value: "unknown-profile",
 						},
 					],
@@ -832,7 +961,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -933,7 +1065,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
