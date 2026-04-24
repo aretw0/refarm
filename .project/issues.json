@@ -230,7 +230,7 @@
     {
       "id": "ISS-020",
       "title": "Promover bundle de descriptors para endpoint público estável de release",
-      "body": "Decisão tomada: GitHub Release Assets será o endpoint canônico inicial. Gap restante é automatizar publish/validação pós-publish e acoplar resolvedor oficial no install external-signed.",
+      "body": "Endpoint canônico foi definido e workflow já publica bundle versionado em GitHub Release Assets com validação pós-upload. Gap remanescente: resolvedor automático no install external-signed e revogação runtime/install.",
       "location": "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md:1",
       "status": "open",
       "category": "capability",

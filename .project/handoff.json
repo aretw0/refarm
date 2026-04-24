@@ -1,23 +1,23 @@
 {
-  "context": "Defaults de Option A foram decididos e registrados (DEC-016): endpoint GitHub Release Assets, trust híbrido por ambiente, SLA de revogação <24h e resolução híbrida. T-RUNTIME-25 foi concluída e T-RUNTIME-26 está em execução.",
-  "timestamp": "2026-04-24T00:26:18.012Z",
+  "context": "T-RUNTIME-26 concluída: release workflow agora publica bundle de descriptors em GitHub Release Assets e valida presença obrigatória dos assets. Próximo foco é T-RUNTIME-27 (resolvedor automático external-signed) seguido de T-RUNTIME-28 (revogação runtime/install).",
+  "timestamp": "2026-04-24T00:47:43.768Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-25 concluída (`VER-RUNTIME-25-20260424`): decisões de endpoint/trust/SLA/estratégia formalizadas.",
-    "T-RUNTIME-24 segue em andamento com discovery encerrado e execução direcionada pelos defaults definidos.",
-    "T-RUNTIME-26 em execução: publish de bundle em Release Assets + validação pós-publish."
+    "T-RUNTIME-26 concluída (`VER-RUNTIME-26-20260424`): assets públicos versionados + verificação pós-upload no release workflow.",
+    "T-RUNTIME-24 segue em execução com endpoint público já operacional; faltam resolvedor/fallback e revogação operacional.",
+    "T-RUNTIME-27 pronta para execução: resolver endpoint oficial external-signed com fallback controlado."
   ],
   "blockers": [
-    "ISS-020 permanece aberto até concluir publish público estável + validação pós-publish no workflow.",
+    "ISS-020 parcialmente resolvida: falta acoplar resolvedor automático no install external-signed + bloqueio de revogação em runtime/install.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Implementar passos de upload do bundle em GitHub Release Assets no release workflow.",
-    "Adicionar verificação de presença/shape do asset após publish.",
-    "Avançar para resolvedor automático external-signed (T-RUNTIME-27)."
+    "Implementar T-RUNTIME-27 (auto-resolve por convenção de release assets + override explícito).",
+    "Definir política de comportamento quando asset/bundle não existe por ambiente (warn/fail).",
+    "Iniciar T-RUNTIME-28 para revogação com lista publicada e bloqueio em install/runtime."
   ],
   "open_questions": [
-    "Definir convenção final de naming do asset por release (por package release ou aggregate por commit)."
+    "Convenção final do identificador de release para resolução automática: por pacote (`name@version`) ou agregada por commit release?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

@@ -2248,6 +2248,32 @@
           "evidence": "SLA B (<24h) com timeline operacional incluída no documento de alinhamento."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-26-20260424",
+      "target": "T-RUNTIME-26",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-24T00:47:43.768Z",
+      "evidence": "Workflow release-changesets inclui publish/verify de assets públicos para descriptor bundle e scripts de automação foram validados em dry-run local.",
+      "criteria_results": [
+        {
+          "criterion": "Release workflow publica bundle em release pública versionada",
+          "status": "passed",
+          "evidence": "Novo step executa `publish-runtime-descriptor-release-assets.mjs` após `changesets` published=true, anexando assets `runtime-descriptor-*-${\"${sha}\"}` em release tags."
+        },
+        {
+          "criterion": "Check automatizado falha quando asset obrigatório não está presente",
+          "status": "passed",
+          "evidence": "Script valida assets esperados via `gh release view --json assets` e lança erro caso ausentes."
+        },
+        {
+          "criterion": "Naming convention e retenção documentados",
+          "status": "passed",
+          "evidence": "`docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md` documenta naming (`bundle/manifest/revocations`) e retenção (Release Assets + artifact interno de 30 dias)."
+        }
+      ]
     }
   ]
 }

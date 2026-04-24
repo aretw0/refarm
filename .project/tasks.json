@@ -1655,7 +1655,7 @@
         "T-RUNTIME-23"
       ],
       "assigned_agent": "worker-runtime",
-      "notes": "Discovery consolidado com defaults decididos: endpoint canônico GitHub Release Assets, trust híbrido por ambiente (repository-derived dev/staging; strict-manual prod), SLA de revogação <24h e resolução híbrida (convenção + override explícito)."
+      "notes": "Endpoint canônico definido (Release Assets) e publish público iniciado via T-RUNTIME-26; próximos passos: resolvedor automático (T-RUNTIME-27) e revogação runtime/install (T-RUNTIME-28)."
     },
     {
       "id": "T-RUNTIME-25",
@@ -1682,7 +1682,7 @@
     {
       "id": "T-RUNTIME-26",
       "description": "Publicar bundle de descriptors como Release Asset versionado e validar presença pós-publish.",
-      "status": "in_progress",
+      "status": "completed",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
@@ -1698,7 +1698,8 @@
         "T-RUNTIME-25"
       ],
       "assigned_agent": "worker-runtime",
-      "notes": "Execução iniciada para publicar bundle em GitHub Release Assets com naming versionado e validação pós-publish."
+      "notes": "Release workflow agora publica bundle versionado em GitHub Release Assets e valida presença pós-upload com falha explícita quando asset obrigatório está ausente.",
+      "verification": "VER-RUNTIME-26-20260424"
     },
     {
       "id": "T-RUNTIME-27",
