@@ -27,6 +27,23 @@ const dump = await tractor.commands.execute("system:diagnostics:export");
 console.log(dump.events); // The sanitized chronological list of the last 1000 events
 ```
 
+For runtime descriptor revocation incidents, Tractor also exposes higher-level diagnostics:
+
+```javascript
+const summary = await tractor.commands.execute(
+  "system:diagnostics:descriptor-revocation-summary",
+  { pluginId: "@acme/plugin-a", limit: 200 }
+);
+
+const diagnostics = await tractor.commands.execute(
+  "system:diagnostics:descriptor-revocation-alerts",
+  { unavailableCriticalAt: 2, configDriftWarnAt: 1 }
+);
+
+console.log(summary.summary);
+console.log(diagnostics.alerts);
+```
+
 ### Sanitization Policy
 The export process automatically protects user data by applying sanitization hooks to the JSON payload:
 1. **Redaction:** Known sensitive keys (`secretKey`, `token`, `password`, `sas`, etc.) are replaced with `[REDACTED]`.

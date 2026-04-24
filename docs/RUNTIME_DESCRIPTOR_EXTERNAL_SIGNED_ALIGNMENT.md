@@ -152,6 +152,8 @@ Notas:
   - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
 - precedência implementada: `policy explícita` > `profile explícito` > `policy de ambiente` > `profile de ambiente` > fallback local do caller.
 - observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), conflito de configuração (`system:descriptor_revocation_config_conflict`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
+- comandos de diagnóstico operacional: `system:diagnostics:descriptor-revocation-summary` (agregado) e `system:diagnostics:descriptor-revocation-alerts` (priorização por severidade).
+- automação de dashboard/artefato: `npm run runtime-descriptor:revocation-report -- --input <telemetry-export.json>` gera `summary.json` + `summary.md` para anexar em incidentes/CI.
 - conflito entre profile dedicado e ambiente genérico é resolvido de forma determinística (profile dedicado vence) com sinalização explícita.
-- defaults por ambiente e precedência foram formalizados no fechamento DEC-026/ADR-051.
+- defaults por ambiente, severidade operacional e precedência foram formalizados no fechamento DEC-026/ADR-051/DEC-027.
 - runbook operacional de incidente: `docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`.

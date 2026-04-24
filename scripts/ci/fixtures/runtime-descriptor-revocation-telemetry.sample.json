@@ -1,0 +1,31 @@
+{
+	"events": [
+		{
+			"event": "system:descriptor_revocation_unavailable",
+			"pluginId": "@acme/plugin-a",
+			"payload": {
+				"policy": "fail-open",
+				"policySource": "environment-profile",
+				"profile": "staging"
+			}
+		},
+		{
+			"event": "system:descriptor_revocation_config_conflict",
+			"pluginId": "@acme/plugin-a",
+			"payload": {
+				"resolvedPolicy": "fail-open",
+				"policySource": "environment-profile",
+				"profile": "staging"
+			}
+		},
+		{
+			"event": "system:descriptor_revocation_stale_cache_used",
+			"pluginId": "@acme/plugin-b",
+			"payload": {
+				"policy": "stale-allowed",
+				"policySource": "fallback",
+				"profile": "dev"
+			}
+		}
+	]
+}

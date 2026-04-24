@@ -74,7 +74,21 @@ Confirmar sinais esperados em runtime/install:
 
 Opcional (quando disponível no host Tractor):
 
-- executar `system:diagnostics:descriptor-revocation-summary` para consolidar contagens por evento/política/source/profile durante a janela do incidente.
+- executar `system:diagnostics:descriptor-revocation-summary` para consolidar contagens por evento/política/source/profile durante a janela do incidente;
+- executar `system:diagnostics:descriptor-revocation-alerts` para priorização por severidade (`info`/`warn`/`critical`) com thresholds explícitos.
+
+Automação CI/ops (a partir de export JSON do telemetry dump):
+
+```bash
+npm run runtime-descriptor:revocation-report -- \
+  --input /path/to/telemetry-export.json \
+  --out-dir .artifacts/runtime-descriptor-revocation-report \
+  --fail-on-severity critical
+```
+
+Saídas geradas:
+- `.artifacts/runtime-descriptor-revocation-report/summary.json`
+- `.artifacts/runtime-descriptor-revocation-report/summary.md`
 
 ## 6) Comunicação mínima
 

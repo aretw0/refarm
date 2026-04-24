@@ -194,6 +194,10 @@ jobs:
         if: needs.changes.outputs.tractor_gates == 'true'
         run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
+      - name: Revocation diagnostics report smoke (Tractor TS)
+        if: needs.changes.outputs.tractor_gates == 'true'
+        run: npm run runtime-descriptor:revocation-report:sample
+
       - name: Verify (Full Turbo)
         if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
@@ -372,6 +376,15 @@ jobs:
           files: ./coverage/coverage-final.json
           flags: unittests
           name: codecov-refarm
+
+      - name: Upload revocation diagnostics report
+        if: always() && needs.changes.outputs.tractor_gates == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: runtime-descriptor-revocation-report
+          path: .artifacts/runtime-descriptor-revocation-report
+          retention-days: 14
+          if-no-files-found: warn
 
   build:
     runs-on: ubuntu-latest
