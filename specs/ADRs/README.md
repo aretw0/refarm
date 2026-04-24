@@ -47,6 +47,7 @@ Architecture Decision Records for Refarm.
 | [047](ADR-047-tractor-native-rust-host.md) | tractor-native — Native Rust Plugin Host | Accepted | 2026-03-19 |
 | [048](ADR-048-tractor-graduation.md) | Tractor Graduation (tractor-native becomes canonical tractor) | Accepted | 2026-03-19 |
 | [049](ADR-049-post-graduation-horizon.md) | Post-Graduation Horizon (tractor Rust roadmap) | Accepted | 2026-03-19 |
+| [051](ADR-051-external-signed-revocation-offline-policy.md) | External-Signed Revocation Offline Policy Profiles | Proposed | 2026-04-24 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 

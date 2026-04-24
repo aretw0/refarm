@@ -147,5 +147,7 @@ Notas:
 - política deve ser explícita por profile de ambiente;
 - implementação atual já expõe knobs operacionais:
   - install-time: `descriptorRevocationUnavailablePolicy` (`fail-closed`|`stale-allowed`|`fail-open`)
+  - install/runtime: `descriptorRevocationProfile` / `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE` (`dev`|`staging`|`production-sensitive`) com mapeamento determinístico para política
   - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
+- precedência implementada: `policy explícita` > `profile explícito` > `policy de ambiente` > `profile de ambiente` > fallback local do caller.
 - decisão final de default por ambiente segue em revisão (DEC-026) até fechamento de ADR/rollout.

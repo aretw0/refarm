@@ -291,13 +291,26 @@ Distribution policy at install-time:
     - `fail-closed` (default): reject install
     - `stale-allowed`: allow stale cache only (if available)
     - `fail-open`: continue install with warning
+  - or choose by profile with `descriptorRevocationProfile`:
+    - `dev` → `fail-open`
+    - `staging` → `stale-allowed`
+    - `production-sensitive` → `fail-closed`
+  - explicit `descriptorRevocationUnavailablePolicy` takes precedence over `descriptorRevocationProfile`
   - explicit `browserRuntimeModuleDescriptor.url` still overrides auto-resolve
+
+Install-time environment overrides (when install options omit policy/profile):
+- `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+- `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- browser-compatible aliases: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` / `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- global overrides: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__` / `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
 
 Browser runtime load policy for revocation-source unavailability can be configured with:
 - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
-- or runtime override: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+- `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- runtime overrides: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__` and `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
 
-Accepted values: `fail-closed`, `stale-allowed` (default), `fail-open`.
+Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
+Accepted profile values: `dev`, `staging`, `production-sensitive`.
 
 ### Profile Performance
 
