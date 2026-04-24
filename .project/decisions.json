@@ -127,6 +127,14 @@
       "status": "decided",
       "phase": 6,
       "context": "Alinhamento de T-RUNTIME-25 para destravar implementação T-RUNTIME-26..29 sem depender de nova infraestrutura dedicada."
+    },
+    {
+      "id": "DEC-017",
+      "decision": "Padronizar resolução automática external-signed via manifesto estável `runtime-descriptor-manifest.json` em GitHub Release Assets por tag `<manifest.id>@<manifest.version>`, mantendo override explícito de URL.",
+      "rationale": "Reduz configuração manual por pacote e mantém controle operacional para exceções, sem bloquear ambientes com requisitos específicos.",
+      "status": "decided",
+      "phase": 6,
+      "context": "Execução de T-RUNTIME-27 após defaults de endpoint/trust/SLA definidos em DEC-016."
     }
   ]
 }

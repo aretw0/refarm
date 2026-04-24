@@ -1,23 +1,23 @@
 {
-  "context": "T-RUNTIME-26 concluída: release workflow agora publica bundle de descriptors em GitHub Release Assets e valida presença obrigatória dos assets. Próximo foco é T-RUNTIME-27 (resolvedor automático external-signed) seguido de T-RUNTIME-28 (revogação runtime/install).",
-  "timestamp": "2026-04-24T00:47:43.768Z",
+  "context": "T-RUNTIME-27 concluída: install external-signed agora resolve automaticamente `runtime-descriptor-manifest.json` por convenção de Release Assets e mantém override explícito. Próxima frente é T-RUNTIME-28 (revogação runtime/install).",
+  "timestamp": "2026-04-24T01:05:31.692Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-26 concluída (`VER-RUNTIME-26-20260424`): assets públicos versionados + verificação pós-upload no release workflow.",
-    "T-RUNTIME-24 segue em execução com endpoint público já operacional; faltam resolvedor/fallback e revogação operacional.",
-    "T-RUNTIME-27 pronta para execução: resolver endpoint oficial external-signed com fallback controlado."
+    "T-RUNTIME-27 concluída (`VER-RUNTIME-27-20260424`): resolvedor automático + fallback explícito entregues.",
+    "T-RUNTIME-24 permanece aberta apenas para consolidar revogação operacional e fechamento e2e.",
+    "T-RUNTIME-28 é o próximo slice: revocation list com bloqueio runtime/install."
   ],
   "blockers": [
-    "ISS-020 parcialmente resolvida: falta acoplar resolvedor automático no install external-signed + bloqueio de revogação em runtime/install.",
+    "ISS-020 ainda aberta até fechar revogação runtime/install e smoke final de release path.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Implementar T-RUNTIME-27 (auto-resolve por convenção de release assets + override explícito).",
-    "Definir política de comportamento quando asset/bundle não existe por ambiente (warn/fail).",
-    "Iniciar T-RUNTIME-28 para revogação com lista publicada e bloqueio em install/runtime."
+    "Implementar T-RUNTIME-28: consumo de revocation list + bloqueio de descriptor revogado.",
+    "Propagar docs de incidente/rollback com janela de SLA <24h.",
+    "Preparar checkpoint de compactação após concluir T-RUNTIME-28/T-RUNTIME-29."
   ],
   "open_questions": [
-    "Convenção final do identificador de release para resolução automática: por pacote (`name@version`) ou agregada por commit release?"
+    "Lista de revogação será consumida sempre do alias estável (`runtime-descriptor-revocations.json`) ou por versão (`-<sha>.json`) com pin explícito?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

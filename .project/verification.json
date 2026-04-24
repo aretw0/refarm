@@ -2274,6 +2274,32 @@
           "evidence": "`docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md` documenta naming (`bundle/manifest/revocations`) e retenção (Release Assets + artifact interno de 30 dias)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-27-20260424",
+      "target": "T-RUNTIME-27",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-24T01:05:31.692Z",
+      "evidence": "Resolvedor automático de descriptor external-signed implementado e coberto por testes de sucesso/fallback/erros de bundle.",
+      "criteria_results": [
+        {
+          "criterion": "Install external-signed resolve endpoint por convenção oficial sem URL manual por pacote",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` deriva URL `.../releases/download/<manifest.id@version>/runtime-descriptor-manifest.json` a partir de `descriptorSourceRepository`."
+        },
+        {
+          "criterion": "Fallback para URL explícita permanece disponível e testado",
+          "status": "passed",
+          "evidence": "Teste `prefers explicit descriptor URL...` comprova override via `browserRuntimeModuleDescriptor.url`."
+        },
+        {
+          "criterion": "Resolver cobre erro de ausência/shape inválido de bundle",
+          "status": "passed",
+          "evidence": "Testes novos cobrem bundle malformado e ausência de entrada de descriptor para plugin/version."
+        }
+      ]
     }
   ]
 }

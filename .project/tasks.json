@@ -1655,7 +1655,7 @@
         "T-RUNTIME-23"
       ],
       "assigned_agent": "worker-runtime",
-      "notes": "Endpoint canônico definido (Release Assets) e publish público iniciado via T-RUNTIME-26; próximos passos: resolvedor automático (T-RUNTIME-27) e revogação runtime/install (T-RUNTIME-28)."
+      "notes": "Endpoint canônico + publish público em Release Assets já ativos (T-RUNTIME-26) e resolvedor automático external-signed entregue (T-RUNTIME-27). Resta consolidar revogação operacional runtime/install (T-RUNTIME-28)."
     },
     {
       "id": "T-RUNTIME-25",
@@ -1704,12 +1704,17 @@
     {
       "id": "T-RUNTIME-27",
       "description": "Adicionar resolvedor de endpoint oficial para external-signed com fallback controlado.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         "packages/tractor-ts/src/lib/install-plugin.ts",
         "packages/tractor-ts/test/install-plugin.test.ts",
-        "packages/tractor-ts/README.md"
+        "packages/tractor-ts/README.md",
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "scripts/ci/publish-runtime-descriptor-release-assets.mjs",
+        "docs/ARCHITECTURE.md",
+        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
         "Install external-signed resolve endpoint por convenção oficial sem URL manual por pacote",
@@ -1719,7 +1724,9 @@
       "depends_on": [
         "T-RUNTIME-26"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-27-20260424",
+      "notes": "Install external-signed agora auto-resolve `runtime-descriptor-manifest.json` via `descriptorSourceRepository` (GitHub Release Assets convention), com fallback explícito por `browserRuntimeModuleDescriptor.url`. Bundle manifest inclui payload inline de descriptor para resolver sem fetch adicional de arquivo individual."
     },
     {
       "id": "T-RUNTIME-28",
