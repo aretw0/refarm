@@ -206,7 +206,7 @@
 			"rationale": "Equilibra DX/throughput nos ambientes de entrega e hardening em ambientes críticos.",
 			"status": "revisit",
 			"phase": 10,
-			"context": "Documentado como próximo passo de hardening; enforcement depende de implementação e ADR dedicada."
+			"context": "Implementação inicial entregue no lote NEXT2/NEXT3 (policy/profile knobs + resolver determinístico + testes). Mantém status revisit até aceite formal do ADR-051 e definição final de defaults canônicos por ambiente."
 		}
 	]
 }

@@ -275,8 +275,9 @@
 			"priority": "should",
 			"acceptance_criteria": [
 				"Perfis local/staging/prod definidos",
-				"Comportamento fail-open/fail-closed explicitado",
-				"Decisão marcada para enforcement futuro"
+				"Comportamento fail-open/stale-allowed/fail-closed explicitado",
+				"Resolução com precedência determinística (policy/profile/env/fallback) implementada e testada",
+				"Decisão marcada para fechamento formal em ADR/DEC"
 			],
 			"source": "analysis",
 			"traces_to": [
@@ -290,7 +291,45 @@
 				"T-NEXT-15",
 				"T-NEXT-16",
 				"T-NEXT-17",
-				"T-NEXT-18"
+				"T-NEXT-18",
+				"T-NEXT-21",
+				"T-NEXT-22",
+				"T-NEXT-23",
+				"T-NEXT-24",
+				"T-NEXT-25",
+				"T-NEXT-26",
+				"T-NEXT-27",
+				"T-NEXT-28",
+				"T-NEXT-29",
+				"T-NEXT-30",
+				"T-NEXT-31",
+				"T-NEXT-32",
+				"T-NEXT-33",
+				"T-NEXT-34",
+				"T-NEXT-35",
+				"T-NEXT-36",
+				"T-NEXT-37",
+				"T-NEXT-38",
+				"T-NEXT-39"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-003",
+			"description": "Resolução de política offline de revogação deve ser determinística, auditável e coberta por testes no path de release smoke.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Resolvedor único para policy/profile com precedência explícita",
+				"Testes unitários cobrindo normalização e precedência",
+				"Release smoke inclui suíte de policy resolver"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-21",
+				"T-NEXT-26",
+				"T-NEXT-31",
+				"T-NEXT-39"
 			]
 		}
 	]

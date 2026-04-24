@@ -2185,6 +2185,350 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-20-20260424",
 			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-21",
+			"description": "Criar resolvedor compartilhado de política/profile para indisponibilidade de revocation list.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Tipos de policy/profile centralizados",
+				"Mapeamento profile->policy determinístico",
+				"Precedência de resolução codificada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-21-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-22",
+			"description": "Integrar resolver no install-plugin com fallback fail-closed e leitura de overrides de ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Install usa resolvedor compartilhado",
+				"Fallback local mantém fail-closed",
+				"Overridess de env/global suportados"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-22-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-23",
+			"description": "Expandir contrato público de install para aceitar descriptorRevocationProfile.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts",
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Novo campo descriptorRevocationProfile disponível",
+				"Type aliases exportados no browser entry",
+				"Sem quebra de compatibilidade do contrato existente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-23-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-24",
+			"description": "Aplicar resolver compartilhado no runtime browser com suporte a profile/env.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Runtime browser resolve policy/profile de forma determinística",
+				"Fallback local preserva stale-allowed",
+				"Sem regressão no fluxo de revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-24-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-25",
+			"description": "Enriquecer telemetry fail-open com metadados de source/profile da resolução.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Evento inclui policySource",
+				"Evento inclui profile quando disponível",
+				"Payload mantém campo policy e erro"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-25-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-26",
+			"description": "Adicionar suíte unitária para normalização e precedência do resolvedor de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"Cobertura de aliases de profile",
+				"Cobertura de valores policy válidos/inválidos",
+				"Precedência documentada em teste"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-26-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-27",
+			"description": "Adicionar teste install-plugin para mapeamento descriptorRevocationProfile=dev (fail-open).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Revocation indisponível não bloqueia install com profile dev",
+				"Sidecar segue cacheado",
+				"Evidência explícita do comportamento"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-27-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-28",
+			"description": "Adicionar testes install-plugin para profile por ambiente e precedência de policy explícita.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Profile por env global aplicado quando opções ausentes",
+				"Policy explícita sobrepõe profile",
+				"Falha esperada em precedence fail-closed"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-28-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-29",
+			"description": "Adicionar teste browser host para profile dev derivar fail-open em runtime.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load permitido quando revocation indisponível e profile dev",
+				"Telemetry contém source/profile",
+				"Sem regressão no host"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-29-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-30",
+			"description": "Adicionar teste browser host para profile production-sensitive derivar fail-closed.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load bloqueado com revocation indisponível sob profile sensível",
+				"Erro explícito de verificação de revogação",
+				"Comportamento alinhado à matriz de risco"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-30-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-31",
+			"description": "Atualizar release smoke de runtime descriptor para incluir suíte de policy resolver.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Novo filtro de teste incluído",
+				"Smoke cobre install/browser/policy resolver",
+				"Dry-run release smoke permanece verde"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-31-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-32",
+			"description": "Atualizar README do tractor-ts com profile mapping e precedência policy/profile/env.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Knobs de profile/policy documentados",
+				"Precedência explícita no guia",
+				"Variáveis de ambiente listadas"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-32-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-33",
+			"description": "Atualizar alignment external-signed com precedência operacional implementada.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Precedência registrada no plano",
+				"Profiles e knobs refletidos",
+				"DEC-026 permanece explicitamente em revisão"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-33-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-34",
+			"description": "Atualizar snapshot de arquitetura com política de revogação profile-driven.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Snapshot menciona profile-driven revocation policy",
+				"Fonte de implementação inclui novo resolvedor",
+				"Tabela permanece consistente"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-34-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-35",
+			"description": "Redigir ADR-051 para formalizar política offline de revogação external-signed.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+			],
+			"acceptance_criteria": [
+				"ADR cobre contexto/decisão/alternativas",
+				"Mapeamento por ambiente explicitado",
+				"Precedência determinística registrada"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-35-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-36",
+			"description": "Atualizar índice de ADRs com referência ao ADR-051.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/README.md"
+			],
+			"acceptance_criteria": [
+				"ADR-051 listado no índice",
+				"Status e data alinhados",
+				"Navegação de arquitetura preservada"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-36-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-37",
+			"description": "Evoluir requirement runtime para incluir precedência determinística e nova rastreabilidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-002 atualizado com escopo de enforcement",
+				"REQ-RUNTIME-003 adicionado",
+				"Traces_to cobrem lote NEXT-21..31"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-37-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-38",
+			"description": "Sincronizar DEC-026 com estado atual (ADR-051 proposto + enforcement parcial).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/decisions.json"
+			],
+			"acceptance_criteria": [
+				"DEC-026 mantém status revisit",
+				"Contexto referencia ADR-051",
+				"Sem quebra de consistência DEC↔ADR"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-38-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-39",
+			"description": "Executar validação técnica completa do lote NEXT3 (type-check/tests/gates/smoke).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**",
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Type-check verde",
+				"Suites de teste relevantes verdes",
+				"gate:smoke:runtime e runtime-descriptor:release-smoke verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-39-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
+		},
+		{
+			"id": "T-NEXT-40",
+			"description": "Consolidar board/handoff do lote NEXT3 com checkpoint intermediário de continuidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks NEXT-21..40 registradas como completas",
+				"Checkpoint VER-CHECKPOINT-NEXT3 registrado",
+				"Handoff pronto para próximo lote sem perda de contexto"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-40-20260424",
+			"notes": "Concluído no lote NEXT3 (20 slices) em 2026-04-24T13:17:20.502Z."
 		}
 	]
 }

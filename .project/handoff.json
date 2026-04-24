@@ -1,28 +1,43 @@
 {
-	"context": "Checkpoint de compactação solicitado com 79% de contexto: lote NEXT2 concluído e registrado; estado pronto para resumir/compactar sem perda de continuidade.",
-	"timestamp": "2026-04-24T12:54:18.437Z",
+	"context": "Lote NEXT3 (20 slices) concluído: política offline de revogação ganhou resolvedor determinístico profile-driven, cobertura de testes ampliada e ADR-051 proposto para fechamento arquitetural.",
+	"timestamp": "2026-04-24T13:17:20.502Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"Checkpoint registrado: VER-CHECKPOINT-COMPACTION-10-20260424.",
-		"Lote NEXT2 (T-NEXT-11..20) consolidado em tasks/verification/handoff.",
-		"Trilha pi agora vs Refarm futuro preservada com DEC-026 pendente de decisão final."
+		"NEXT3 concluído (T-NEXT-21..40) com code/docs/governance sincronizados.",
+		"Checkpoint intermediário registrado: VER-CHECKPOINT-NEXT3-20260424.",
+		"DEC-026 permanece revisit aguardando aceite formal do ADR-051."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; definição final de defaults da política offline (DEC-026) segue pendente."
+		"Sem bloqueio técnico imediato; pendência principal é decisão final de defaults canônicos (DEC-026/ADR-051)."
 	],
 	"next_actions": [
-		"Após compactação, decidir defaults finais de DEC-026 por ambiente e promover revisit->decided quando apropriado.",
-		"Rodar novo lote técnico (~10 slices) focado em enforcement/rollout da política de revogação offline.",
-		"Opcional: push dos 4 commits locais quando desejado para observação de CI."
+		"Discutir e fixar defaults finais por ambiente para DEC-026 e promover revisit->decided após aceite de ADR-051.",
+		"Executar novo lote técnico focado em rollout operacional (playbook de incidentes + observabilidade por profile).",
+		"Quando autorizado, push dos commits locais e observação curta de CI em develop."
 	],
 	"open_questions": [
-		"Qual default final por ambiente para revocation-unavailable será canônico no rollout de produção sensível?"
+		"Quais variáveis/inputs serão considerados canônicos para profile em produção (env, config runtime, ou ambos)?"
 	],
 	"key_decisions_pending": [
 		"DEC-026"
 	],
 	"files_in_flux": [
+		".project/tasks.json",
+		".project/verification.json",
+		".project/requirements.json",
+		".project/decisions.json",
 		".project/handoff.json",
-		".project/verification.json"
+		"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts",
+		"packages/tractor-ts/src/lib/install-plugin.ts",
+		"packages/tractor-ts/src/index.browser.ts",
+		"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts",
+		"packages/tractor-ts/test/install-plugin.test.ts",
+		"packages/tractor-ts/test/browser-plugin-host.test.ts",
+		"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
+		"packages/tractor-ts/README.md",
+		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+		"docs/ARCHITECTURE.md",
+		"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md",
+		"specs/ADRs/README.md"
 	]
 }

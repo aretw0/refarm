@@ -3618,6 +3618,447 @@
 					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026 para fechamento de defaults por ambiente."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-21-20260424",
+			"target": "T-NEXT-21",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Novo módulo `runtime-descriptor-revocation-policy.ts` centraliza normalização, mapeamento por profile e precedência determinística.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Novo módulo `runtime-descriptor-revocation-policy.ts` centraliza normalização, mapeamento por profile e precedência determinística."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-22-20260424",
+			"target": "T-NEXT-22",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "`install-plugin.ts` agora resolve política via helper compartilhado com fallback fail-closed e leitura de overrides de ambiente/global.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "`install-plugin.ts` agora resolve política via helper compartilhado com fallback fail-closed e leitura de overrides de ambiente/global."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-23-20260424",
+			"target": "T-NEXT-23",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Contrato `InstallPluginOptions` inclui `descriptorRevocationProfile` e browser entry reexporta os novos tipos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Contrato `InstallPluginOptions` inclui `descriptorRevocationProfile` e browser entry reexporta os novos tipos."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-24-20260424",
+			"target": "T-NEXT-24",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "`index.browser.ts` usa resolvedor compartilhado para policy/profile de revogação indisponível.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "`index.browser.ts` usa resolvedor compartilhado para policy/profile de revogação indisponível."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-25-20260424",
+			"target": "T-NEXT-25",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Evento `system:descriptor_revocation_unavailable` inclui `policySource` e `profile` quando aplicável.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Evento `system:descriptor_revocation_unavailable` inclui `policySource` e `profile` quando aplicável."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-26-20260424",
+			"target": "T-NEXT-26",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Suíte `runtime-descriptor-revocation-policy.test.ts` cobre normalização/mapeamento/precedência.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Suíte `runtime-descriptor-revocation-policy.test.ts` cobre normalização/mapeamento/precedência."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-27-20260424",
+			"target": "T-NEXT-27",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Teste de install valida `descriptorRevocationProfile=dev` derivando fail-open em indisponibilidade da lista.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste de install valida `descriptorRevocationProfile=dev` derivando fail-open em indisponibilidade da lista."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-28-20260424",
+			"target": "T-NEXT-28",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Testes de install cobrem profile por ambiente e precedência de `descriptorRevocationUnavailablePolicy` explícita.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Testes de install cobrem profile por ambiente e precedência de `descriptorRevocationUnavailablePolicy` explícita."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-29-20260424",
+			"target": "T-NEXT-29",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Teste browser host valida profile dev derivando fail-open + telemetry com source/profile.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser host valida profile dev derivando fail-open + telemetry com source/profile."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-30-20260424",
+			"target": "T-NEXT-30",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Teste browser host valida profile production-sensitive derivando fail-closed em revocation indisponível.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser host valida profile production-sensitive derivando fail-closed em revocation indisponível."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-31-20260424",
+			"target": "T-NEXT-31",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Release smoke passou incluindo suíte `runtime-descriptor-revocation-policy` no filtro de testes.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Release smoke passou incluindo suíte `runtime-descriptor-revocation-policy` no filtro de testes."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-32-20260424",
+			"target": "T-NEXT-32",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "README do tractor-ts atualizado com knobs de profile/policy, precedência e variáveis de ambiente.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "README do tractor-ts atualizado com knobs de profile/policy, precedência e variáveis de ambiente."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-33-20260424",
+			"target": "T-NEXT-33",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Alignment doc external-signed atualizado com precedência implementada e mapeamento de profiles.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Alignment doc external-signed atualizado com precedência implementada e mapeamento de profiles."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-34-20260424",
+			"target": "T-NEXT-34",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Snapshot de arquitetura passou a explicitar política de revogação profile-driven e novo módulo de resolução.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Snapshot de arquitetura passou a explicitar política de revogação profile-driven e novo módulo de resolução."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-35-20260424",
+			"target": "T-NEXT-35",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "ADR-051 criado com status Proposed e caminho de rollout para DEC-026.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "ADR-051 criado com status Proposed e caminho de rollout para DEC-026."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-36-20260424",
+			"target": "T-NEXT-36",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Índice ADR atualizado para incluir ADR-051 com status/data.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Índice ADR atualizado para incluir ADR-051 com status/data."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-37-20260424",
+			"target": "T-NEXT-37",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Requirements atualizados com novo requisito de precedência determinística e rastreabilidade para lote NEXT3.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Requirements atualizados com novo requisito de precedência determinística e rastreabilidade para lote NEXT3."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-38-20260424",
+			"target": "T-NEXT-38",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "DEC-026 sincronizado com ADR-051 mantendo status revisit conforme regra DEC-021.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "DEC-026 sincronizado com ADR-051 mantendo status revisit conforme regra DEC-021."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-39-20260424",
+			"target": "T-NEXT-39",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Executados com sucesso: `tractor-ts type-check`; `tractor-ts test:unit -- install-plugin browser-plugin-host runtime-descriptor-revocation-policy`; `gate:smoke:runtime`; `runtime-descriptor:release-smoke`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Executados com sucesso: `tractor-ts type-check`; `tractor-ts test:unit -- install-plugin browser-plugin-host runtime-descriptor-revocation-policy`; `gate:smoke:runtime`; `runtime-descriptor:release-smoke`."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-40-20260424",
+			"target": "T-NEXT-40",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Board atualizado com NEXT3 completo + checkpoint intermediário registrado para continuidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Board atualizado com NEXT3 completo + checkpoint intermediário registrado para continuidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` atualizado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT3-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:17:20.502Z",
+			"evidence": "Checkpoint intermediário NEXT3 concluído após lote de 20 slices com validações técnicas e governança atualizadas.",
+			"criteria_results": [
+				{
+					"criterion": "Validações técnicas do lote executadas",
+					"status": "passed",
+					"evidence": "Type-check, testes unitários focados, gate:smoke:runtime e runtime-descriptor:release-smoke passaram."
+				},
+				{
+					"criterion": "Continuidade operacional garantida",
+					"status": "passed",
+					"evidence": "Handoff atualizado com próximos passos e DEC-026 pendente para fechamento formal."
+				}
+			]
 		}
 	]
 }
