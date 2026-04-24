@@ -52,6 +52,22 @@ Useful references:
 
 - Governance policy: `docs/PR_QUALITY_GOVERNANCE.md`
 - Branch protection setup: `docs/BRANCH_PROTECTION_SETUP.md`
+- Colony playbook: `docs/COLONY_PLAYBOOK.md`
+
+### Smoke + Full gates
+
+Comandos operacionais:
+
+```bash
+npm run gate:smoke:foundation
+npm run gate:smoke:contracts
+npm run gate:smoke:runtime
+npm run gate:full:colony
+```
+
+Regra:
+- PR atômico: smoke do domínio alterado.
+- Consolidação de lote: full gate obrigatório.
 
 ### Atomic Commit Pattern
 

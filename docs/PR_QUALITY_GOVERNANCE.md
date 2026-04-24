@@ -472,6 +472,34 @@ Template de acceptance no PR:
 - [ ] Evidência anexada (comandos + saída)
 ```
 
+### Reviewer checklist para lotes de colônia
+
+#### Smoke (obrigatório por PR)
+
+- [ ] `npm run gate:smoke:<domínio>` executado e anexado
+- [ ] Escopo do smoke corresponde aos arquivos alterados
+- [ ] Sem alteração manual em artefatos (`dist/`, `build/`, `.turbo/`)
+
+#### Full (obrigatório para consolidação de lote)
+
+- [ ] `npm run gate:full:colony` verde
+- [ ] `.project/verification.json` atualizado com evidência por task
+- [ ] Rastreabilidade confirmada: task → commit(s) → verification
+
+### Política de merge em lote
+
+Use merge em lote apenas quando:
+
+- todas as PRs do lote passaram smoke;
+- uma rodada full foi executada após rebase com `develop`;
+- rollback por lote está definido (ordem de revert + owner responsável).
+
+Regra de rollback:
+
+1. Reverter primeiro PRs de boundary crítico (`tractor*`, `.project`, workflows).
+2. Reexecutar smoke de domínio afetado.
+3. Reexecutar full gate antes de retomar merges.
+
 ---
 
 ## 7. Próximos Passos

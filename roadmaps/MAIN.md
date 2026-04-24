@@ -41,6 +41,11 @@ Each release follows: **SDD → BDD → TDD → DDD** (see [Workflow Guide](../d
 ### Phase 6: Sync & Execution Stabilization 🚧 (CURRENT)
 *Consolidating the engine's core capabilities (CRDT and Plugin runtime) based on the Snapshot Plan.*
 
+Operational governance baseline (factory/cross-agent):
+- ✅ Domain gates standardized (`gate:smoke:foundation`, `gate:smoke:contracts`, `gate:smoke:runtime`, `gate:full:colony`).
+- ✅ Colony playbook published (`docs/COLONY_PLAYBOOK.md`) with preflight, escalation, and reviewer handoff templates.
+- ✅ Transition policy documented for pi-now operations vs Refarm-agent migration path (decision alignment in `.project/decisions.json`).
+
 - ✅ **ADR-045: Loro CRDT Adoption**
   - Replaced hand-written CRDT with binary Loro deltas.
   - `LoroCRDTStorage` implementing Storage and Sync contracts via CQRS + SQLite.

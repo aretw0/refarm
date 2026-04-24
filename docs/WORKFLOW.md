@@ -711,6 +711,40 @@ Regra prática:
 - **Task PR**: smoke obrigatório.
 - **Merge de lote / boundary sensível**: smoke + full obrigatórios.
 
+### Formato padrão de evidence (`.project/verification.json`)
+
+Campos obrigatórios por entrada de verificação:
+
+- `id`
+- `target`
+- `target_type`
+- `status`
+- `method`
+- `timestamp`
+- `evidence`
+- `criteria_results[]`
+
+Exemplo mínimo:
+
+```json
+{
+  "id": "VER-EXAMPLE-001",
+  "target": "T-PIPE-02",
+  "target_type": "task",
+  "status": "passed",
+  "method": "test",
+  "timestamp": "2026-04-24T12:00:00.000Z",
+  "evidence": "Comandos smoke executados com resultado verde.",
+  "criteria_results": [
+    {
+      "criterion": "Type-check passa nos pacotes Foundation",
+      "status": "passed",
+      "evidence": "gate:smoke:foundation verde"
+    }
+  ]
+}
+```
+
 ---
 
 ## Source Sovereignty & Hygiene
@@ -810,6 +844,10 @@ Regra de lock operacional:
 
 Template canônico: `docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md`.
 
+Templates complementares:
+- saída do worker: `docs/superpowers/COLONY_WORKER_OUTPUT_TEMPLATE.md`
+- pacote de templates para operação/review: `docs/templates/COLONY_*_TEMPLATE.md`
+
 Prompt obrigatório deve conter:
 - objetivo,
 - escopo (arquivos permitidos),
@@ -837,12 +875,53 @@ Fluxo de reassign:
 - reatribuir task no board,
 - anexar comando de retomada e último estado de validação.
 
+### Estratégia src/dist (quando alternar)
+
+Use esta matriz rápida:
+
+| Situação | Modo recomendado | Motivo |
+|---|---|---|
+| Implementação diária / iteração curta | `reso src` | DX e navegação direta ao código-fonte |
+| Pré-merge em branch protegida | `reso dist` | valida superfície distribuível |
+| Diagnóstico de ambiente | `reso status` | calibra estado real antes de agir |
+| Mudança de topology alias | `reso sync-tsconfig` | mantém paths consistentes |
+
+Exemplo operacional:
+
+```bash
+node scripts/reso.mjs status
+node scripts/reso.mjs src
+# ...trabalho local...
+node scripts/reso.mjs dist
+npm run gate:smoke:foundation
+node scripts/reso.mjs status
+```
+
+### Escalonamento de bloqueios (runbook)
+
+Quando **escalar para humano**:
+- conflito de decisão arquitetural sem ADR/DEC resolvida;
+- falha persistente de preflight após tentativa reprodutível;
+- colisão recorrente em área serializada.
+
+Quando **abrir/atualizar issue**:
+- bloqueio reproduzível,
+- afeta múltiplas tasks,
+- não cabe no slice atual sem desvio de escopo.
+
+Quando **cancelar task**:
+- requisito invalidado por decisão posterior,
+- caminho alternativo já aprovado,
+- custo/risco não justifica execução no ciclo atual.
+
 ---
 
 **See Also**:
 
+- [docs/COLONY_PLAYBOOK.md](./COLONY_PLAYBOOK.md) — Operação ponta-a-ponta (preflight, execução, consolidação)
+- [docs/DEVELOPMENT_RESOLUTION.md](./DEVELOPMENT_RESOLUTION.md) — Estratégia detalhada src/dist
 - [roadmaps/MAIN.md](../roadmaps/MAIN.md) — How this workflow applies to releases
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — Developer workflow
 - [specs/ADRs/](../specs/ADRs/) — Architecture decisions
 
-**Last Updated**: March 2026
+**Last Updated**: April 2026

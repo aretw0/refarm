@@ -295,6 +295,30 @@ Mitigacao:
 
 ---
 
+## 10. Checklist operacional (operadores)
+
+Use esta sequência para evitar drift entre desenvolvimento e validação:
+
+```bash
+# 1) Início da task
+node scripts/reso.mjs status
+node scripts/reso.mjs src
+
+# 2) Antes de abrir PR
+node scripts/reso.mjs dist
+npm run gate:smoke:foundation
+
+# 3) Pré-merge em branch protegida
+node scripts/reso.mjs status
+npm run gate:full:colony
+```
+
+### Critérios de alternância
+
+- Mude para **src** quando estiver implementando/refatorando localmente.
+- Mude para **dist** quando precisar validar superfície de publicação/integração.
+- Sempre rode **status** antes de concluir ou transferir uma task.
+
 ## Referencias
 
 - docs/STRATIFICATION.md
