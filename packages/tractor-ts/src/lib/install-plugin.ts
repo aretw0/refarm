@@ -35,6 +35,7 @@ import {
 	resolveGithubRepoCoordinates,
 } from "./runtime-descriptor-revocation";
 import {
+	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
 	type RuntimeDescriptorRevocationProfile,
 	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
@@ -189,22 +190,54 @@ function resolveInstallRevocationUnavailablePolicy(
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	const runtimeProfileOverride = (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const runtimeEnvironmentOverride = (globalThis as any)
+		.__REFARM_ENVIRONMENT__;
 	const viteEnv = (import.meta as any).env;
 	const nodeEnv = (globalThis as any)?.process?.env;
 
-	return resolveRuntimeDescriptorRevocationUnavailablePolicy({
+	const environmentProfileResolution =
+		resolveRuntimeDescriptorRevocationEnvironmentProfile({
+			dedicatedProfile:
+				runtimeProfileOverride ??
+				viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE ??
+				nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+			genericEnvironment:
+				runtimeEnvironmentOverride ??
+				viteEnv?.VITE_REFARM_ENVIRONMENT ??
+				nodeEnv?.REFARM_ENVIRONMENT ??
+				nodeEnv?.NODE_ENV,
+		});
+
+	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
 		explicitPolicy: options.descriptorRevocationUnavailablePolicy,
 		explicitProfile: options.descriptorRevocationProfile,
 		environmentPolicy:
 			runtimePolicyOverride ??
 			viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY ??
 			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
-		environmentProfile:
-			runtimeProfileOverride ??
-			viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE ??
-			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		environmentProfile: environmentProfileResolution.profile,
 		fallbackPolicy: "fail-closed",
 	});
+
+	const invalidInputs = [
+		...(resolved.invalidInputs ?? []),
+		...(environmentProfileResolution.invalidInputs ?? []),
+	];
+
+	if (invalidInputs.length === 0) return resolved;
+
+	const dedupedInvalidInputs = invalidInputs.filter(
+		(input, index, all) =>
+			all.findIndex(
+				(candidate) =>
+					candidate.slot === input.slot && candidate.value === input.value,
+			) === index,
+	);
+
+	return {
+		...resolved,
+		invalidInputs: dedupedInvalidInputs,
+	};
 }
 
 function buildReleaseAssetDescriptorUrl(

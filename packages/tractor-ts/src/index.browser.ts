@@ -43,6 +43,7 @@ import {
 import {
 	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
 	type RuntimeDescriptorRevocationUnavailablePolicy,
+	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
 } from "./lib/runtime-descriptor-revocation-policy";
 import type { TelemetryEvent } from "./lib/telemetry";
@@ -64,17 +65,45 @@ function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRe
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	const runtimeProfileOverride = (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const runtimeEnvironmentOverride = (globalThis as any).__REFARM_ENVIRONMENT__;
 	const env = (import.meta as any).env;
 
-	return resolveRuntimeDescriptorRevocationUnavailablePolicy({
+	const environmentProfileResolution =
+		resolveRuntimeDescriptorRevocationEnvironmentProfile({
+			dedicatedProfile:
+				runtimeProfileOverride ??
+				env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+			genericEnvironment:
+				runtimeEnvironmentOverride ?? env?.VITE_REFARM_ENVIRONMENT,
+		});
+
+	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
 		explicitPolicy:
 			runtimePolicyOverride ??
 			env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
-		explicitProfile:
-			runtimeProfileOverride ??
-			env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		environmentProfile: environmentProfileResolution.profile,
 		fallbackPolicy: DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY,
 	});
+
+	const invalidInputs = [
+		...(resolved.invalidInputs ?? []),
+		...(environmentProfileResolution.invalidInputs ?? []),
+	];
+
+	if (invalidInputs.length === 0) return resolved;
+
+	const dedupedInvalidInputs = invalidInputs.filter(
+		(input, index, all) =>
+			all.findIndex(
+				(candidate) =>
+					candidate.slot === input.slot && candidate.value === input.value,
+			) === index,
+	);
+
+	return {
+		...resolved,
+		invalidInputs: dedupedInvalidInputs,
+	};
 }
 
 /**

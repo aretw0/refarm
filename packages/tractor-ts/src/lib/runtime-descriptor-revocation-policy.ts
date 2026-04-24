@@ -26,6 +26,21 @@ export interface RuntimeDescriptorRevocationInvalidInput {
 	value: string;
 }
 
+export type RuntimeDescriptorRevocationEnvironmentProfileSource =
+	| "dedicated-profile"
+	| "generic-environment";
+
+export interface ResolveRuntimeDescriptorRevocationEnvironmentProfileInput {
+	dedicatedProfile?: string;
+	genericEnvironment?: string;
+}
+
+export interface ResolveRuntimeDescriptorRevocationEnvironmentProfileResult {
+	profile?: RuntimeDescriptorRevocationProfile;
+	source?: RuntimeDescriptorRevocationEnvironmentProfileSource;
+	invalidInputs?: RuntimeDescriptorRevocationInvalidInput[];
+}
+
 export interface ResolveRuntimeDescriptorRevocationUnavailablePolicyInput {
 	explicitPolicy?: string;
 	explicitProfile?: string;
@@ -103,6 +118,93 @@ export function normalizeRuntimeDescriptorRevocationProfile(
 	}
 
 	return null;
+}
+
+export function normalizeRuntimeDescriptorRevocationEnvironmentName(
+	value: string | undefined,
+): RuntimeDescriptorRevocationProfile | null {
+	const candidate = normalizeValue(value);
+
+	if (
+		candidate === "dev" ||
+		candidate === "development" ||
+		candidate === "local" ||
+		candidate === "test" ||
+		candidate === "testing"
+	) {
+		return "dev";
+	}
+
+	if (
+		candidate === "staging" ||
+		candidate === "stage" ||
+		candidate === "qa" ||
+		candidate === "preview" ||
+		candidate === "preprod" ||
+		candidate === "pre-production"
+	) {
+		return "staging";
+	}
+
+	if (
+		candidate === "production" ||
+		candidate === "prod" ||
+		candidate === "live" ||
+		candidate === "production-sensitive"
+	) {
+		return "production-sensitive";
+	}
+
+	return null;
+}
+
+export function resolveRuntimeDescriptorRevocationEnvironmentProfile(
+	input: ResolveRuntimeDescriptorRevocationEnvironmentProfileInput,
+): ResolveRuntimeDescriptorRevocationEnvironmentProfileResult {
+	const invalidInputs: RuntimeDescriptorRevocationInvalidInput[] = [];
+
+	if (
+		typeof input.dedicatedProfile === "string" &&
+		input.dedicatedProfile.trim().length > 0
+	) {
+		const profile = normalizeRuntimeDescriptorRevocationProfile(
+			input.dedicatedProfile,
+		);
+		if (profile) {
+			return {
+				profile,
+				source: "dedicated-profile",
+			};
+		}
+		invalidInputs.push({
+			slot: "environment-profile",
+			value: input.dedicatedProfile,
+		});
+	}
+
+	if (
+		typeof input.genericEnvironment === "string" &&
+		input.genericEnvironment.trim().length > 0
+	) {
+		const profile = normalizeRuntimeDescriptorRevocationEnvironmentName(
+			input.genericEnvironment,
+		);
+		if (profile) {
+			return {
+				profile,
+				source: "generic-environment",
+				invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
+			};
+		}
+		invalidInputs.push({
+			slot: "environment-profile",
+			value: input.genericEnvironment,
+		});
+	}
+
+	return {
+		invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
+	};
 }
 
 export function getRuntimeDescriptorRevocationPolicyForProfile(
