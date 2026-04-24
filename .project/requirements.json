@@ -329,7 +329,21 @@
 				"T-NEXT-56",
 				"T-NEXT-57",
 				"T-NEXT-58",
-				"T-NEXT-59"
+				"T-NEXT-59",
+				"T-NEXT-61",
+				"T-NEXT-62",
+				"T-NEXT-63",
+				"T-NEXT-64",
+				"T-NEXT-65",
+				"T-NEXT-66",
+				"T-NEXT-67",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-70",
+				"T-NEXT-71",
+				"T-NEXT-72",
+				"T-NEXT-73",
+				"T-NEXT-74"
 			]
 		},
 		{
@@ -370,7 +384,36 @@
 				"T-NEXT-48",
 				"T-NEXT-50",
 				"T-NEXT-51",
-				"T-NEXT-59"
+				"T-NEXT-59",
+				"T-NEXT-64",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-71",
+				"T-NEXT-74"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-005",
+			"description": "Inputs inválidos de policy/profile para revogação devem ser detectados, ignorados de forma determinística e observáveis em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Resolvedor retorna metadados de inputs inválidos",
+				"Install registra warning para configuração inválida ignorada",
+				"Browser runtime emite evento telemetry para configuração inválida"
+			],
+			"traces_to": [
+				"T-NEXT-61",
+				"T-NEXT-63",
+				"T-NEXT-64",
+				"T-NEXT-65",
+				"T-NEXT-66",
+				"T-NEXT-67",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-74"
 			]
 		}
 	]

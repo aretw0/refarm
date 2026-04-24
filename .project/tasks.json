@@ -2872,6 +2872,265 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-60-20260424",
 			"notes": "Concluído no lote NEXT4 (20 slices) em 2026-04-24T13:37:37.069Z."
+		},
+		{
+			"id": "T-NEXT-61",
+			"description": "Expandir resolvedor de política de revogação com rastreamento de inputs inválidos por slot.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Resultado inclui invalidInputs quando aplicável",
+				"Slots inválidos são identificados de forma explícita",
+				"Precedência determinística preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-61-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-62",
+			"description": "Adicionar tipos explícitos para slot/estrutura de configuração inválida no resolvedor.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Tipos públicos de invalid input definidos",
+				"Consumo tipado em install/runtime habilitado",
+				"Sem quebra de APIs existentes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-62-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-63",
+			"description": "Integrar warning de configuração inválida no install path de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Install loga invalid slot/value ignorado",
+				"Resolução efetiva continua determinística",
+				"Fluxo fail-open/stale/fail-closed intacto"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-63-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-64",
+			"description": "Emitir telemetry de configuração inválida no browser runtime descriptor path.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Evento system:descriptor_revocation_config_invalid emitido",
+				"Payload contém invalidInputs/resolvedPolicy/source/profile",
+				"Sem regressão de bloqueio por revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-64-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-65",
+			"description": "Cobrir em unit test do resolver cenários com inputs inválidos + precedência válida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"Teste de invalidInputs adicionado",
+				"Precedência continua correta com inputs inválidos",
+				"Fallback inválido é reportado adequadamente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-65-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-66",
+			"description": "Adicionar teste install para política explícita inválida com fallback por profile.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Install segue com descriptorRevocationProfile válido",
+				"Warning de explicit-policy inválida observado",
+				"Sem bloqueio indevido em modo derivado fail-open"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-66-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-67",
+			"description": "Adicionar teste install para profile de ambiente inválido com fallback fail-closed.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Install falha fechado quando profile env inválido e sem overrides válidos",
+				"Warning de environment-profile inválido observado",
+				"Comportamento de segurança preservado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-67-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-68",
+			"description": "Adicionar teste browser para invalid policy + profile válido com telemetry de config inválida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load continua via fail-open derivado do profile",
+				"Evento config_invalid emitido com invalidInputs",
+				"Runtime mantém evento de unavailable quando aplicável"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-68-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-69",
+			"description": "Adicionar teste browser para profile inválido isolado com fallback fail-closed + telemetry.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load bloqueia por fallback fail-closed",
+				"Evento config_invalid emitido antes da falha",
+				"Mensagem de erro de verificação de revogação preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-69-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-70",
+			"description": "Atualizar README do tractor-ts com novo evento de configuração inválida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Evento config_invalid documentado",
+				"Semântica de ignorar input inválido explícita",
+				"Seção de observabilidade mantém consistência"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-70-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-71",
+			"description": "Atualizar docs de alignment e arquitetura com telemetry de configuração inválida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Alignment menciona config_invalid",
+				"Architecture snapshot inclui sinal novo",
+				"Narrativa operacional permanece coerente"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-71-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-72",
+			"description": "Atualizar ADR-051 com objetivo explícito de observabilidade para configuração inválida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+			],
+			"acceptance_criteria": [
+				"ADR inclui config_invalid no alvo operacional",
+				"Status Proposed preservado",
+				"Conexão com rollout DEC-026 reforçada"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-72-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-73",
+			"description": "Adicionar requirement de validação/observabilidade para inputs inválidos de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-005 adicionado e aceito",
+				"Critérios cobrem warnings + telemetry + testes",
+				"Traces_to apontam para slices NEXT5"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-73-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-74",
+			"description": "Executar validação técnica NEXT5 (type-check, testes focados, gates e release smoke).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**",
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Type-check verde",
+				"Suites focadas verdes",
+				"gate:smoke:runtime e runtime-descriptor:release-smoke verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-74-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-75",
+			"description": "Consolidar board/handoff NEXT5 e registrar checkpoint intermediário para continuidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks/verifications NEXT5 registradas",
+				"VER-CHECKPOINT-NEXT5 registrado",
+				"Handoff preparado para próximo lote"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-75-20260424",
+			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
 		}
 	]
 }

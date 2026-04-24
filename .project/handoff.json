@@ -1,22 +1,22 @@
 {
-	"context": "Lote NEXT4 (20 slices) concluído com foco em observabilidade do fallback stale na revogação external-signed e isolamento determinístico de cache em testes.",
-	"timestamp": "2026-04-24T13:37:37.069Z",
+	"context": "Lote NEXT5 (~15 slices) concluído com hardening de validação de configuração inválida em revocation policy (install + runtime browser + telemetry).",
+	"timestamp": "2026-04-24T13:50:32.156Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT4 concluído (T-NEXT-41..60) com código, testes, docs e governança sincronizados.",
-		"Checkpoint intermediário registrado: VER-CHECKPOINT-NEXT4-20260424.",
-		"DEC-026 segue revisit aguardando fechamento formal via ADR-051."
+		"NEXT5 concluído (T-NEXT-61..75) com testes e docs sincronizados.",
+		"Checkpoint intermediário registrado: VER-CHECKPOINT-NEXT5-20260424.",
+		"DEC-026 permanece revisit aguardando aceite ADR-051 e defaults finais por ambiente."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; pendente definição final de defaults canônicos e aceite ADR-051 para encerrar DEC-026."
+		"Sem bloqueio técnico imediato; falta decisão final canônica para fechamento de DEC-026."
 	],
 	"next_actions": [
-		"Fechar DEC-026 com defaults finais por ambiente e promoção revisit->decided após aceite ADR-051.",
-		"Executar próximo lote (~20 slices) em rollout operacional: playbook de incidentes, métricas e integração de perfil canônico.",
-		"Quando solicitado, preparar checkpoint de compactação antes de novo limite de contexto."
+		"Fechar defaults canônicos de DEC-026 (source-of-truth de profile por ambiente) e promover revisit->decided quando aprovado.",
+		"Próximo lote técnico: operacionalizar guardrails (checklist CI/config, incident playbook e métricas de aderência por profile).",
+		"Preparar checkpoint de compactação quando contexto se aproximar do limite novamente."
 	],
 	"open_questions": [
-		"Qual fonte de verdade canônica para profile em produção: env-only, config runtime versionada, ou estratégia híbrida?"
+		"Qual mecanismo canônico de configuração por ambiente terá precedência final para runtime profile (env, config versionada ou híbrido)?"
 	],
 	"key_decisions_pending": [
 		"DEC-026"
@@ -27,13 +27,13 @@
 		".project/requirements.json",
 		".project/decisions.json",
 		".project/handoff.json",
-		"packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts",
+		"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts",
 		"packages/tractor-ts/src/lib/install-plugin.ts",
 		"packages/tractor-ts/src/index.browser.ts",
+		"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts",
 		"packages/tractor-ts/test/runtime-descriptor-revocation.test.ts",
 		"packages/tractor-ts/test/install-plugin.test.ts",
 		"packages/tractor-ts/test/browser-plugin-host.test.ts",
-		"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
 		"packages/tractor-ts/README.md",
 		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
 		"docs/ARCHITECTURE.md",

@@ -4500,6 +4500,342 @@
 					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026 explícita."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-61-20260424",
+			"target": "T-NEXT-61",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Resolvedor de política agora retorna `invalidInputs` quando recebe valores inválidos em slots de entrada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Resolvedor de política agora retorna `invalidInputs` quando recebe valores inválidos em slots de entrada."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-62-20260424",
+			"target": "T-NEXT-62",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Tipos `RuntimeDescriptorRevocationConfigInputSlot` e `RuntimeDescriptorRevocationInvalidInput` adicionados ao contrato do resolvedor.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Tipos `RuntimeDescriptorRevocationConfigInputSlot` e `RuntimeDescriptorRevocationInvalidInput` adicionados ao contrato do resolvedor."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-63-20260424",
+			"target": "T-NEXT-63",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Install path passou a logar warning para configuração inválida ignorada sem quebrar resolução.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Install path passou a logar warning para configuração inválida ignorada sem quebrar resolução."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-64-20260424",
+			"target": "T-NEXT-64",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Browser runtime emite `system:descriptor_revocation_config_invalid` com contexto de resolução.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Browser runtime emite `system:descriptor_revocation_config_invalid` com contexto de resolução."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-65-20260424",
+			"target": "T-NEXT-65",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Suíte policy resolver cobre cenários de precedência com inputs inválidos e fallback.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Suíte policy resolver cobre cenários de precedência com inputs inválidos e fallback."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-66-20260424",
+			"target": "T-NEXT-66",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Teste install valida fallback por profile quando explicit policy é inválida com warning observado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste install valida fallback por profile quando explicit policy é inválida com warning observado."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-67-20260424",
+			"target": "T-NEXT-67",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Teste install valida fail-closed + warning quando profile de ambiente é inválido.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste install valida fail-closed + warning quando profile de ambiente é inválido."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-68-20260424",
+			"target": "T-NEXT-68",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Teste browser valida evento config_invalid com invalid policy + profile válido (dev).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida evento config_invalid com invalid policy + profile válido (dev)."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-69-20260424",
+			"target": "T-NEXT-69",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Teste browser valida evento config_invalid com profile inválido e fallback fail-closed.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida evento config_invalid com profile inválido e fallback fail-closed."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-70-20260424",
+			"target": "T-NEXT-70",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "README atualizado com `system:descriptor_revocation_config_invalid` no catálogo de eventos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "README atualizado com `system:descriptor_revocation_config_invalid` no catálogo de eventos."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-71-20260424",
+			"target": "T-NEXT-71",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Docs de alignment/architecture atualizadas para incluir observabilidade de configuração inválida.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Docs de alignment/architecture atualizadas para incluir observabilidade de configuração inválida."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-72-20260424",
+			"target": "T-NEXT-72",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "ADR-051 atualizado com objetivo operacional de telemetry para config inválida.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "ADR-051 atualizado com objetivo operacional de telemetry para config inválida."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-73-20260424",
+			"target": "T-NEXT-73",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "REQ-RUNTIME-005 adicionado para formalizar validação/observabilidade de inputs inválidos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-005 adicionado para formalizar validação/observabilidade de inputs inválidos."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-74-20260424",
+			"target": "T-NEXT-74",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Executados com sucesso: type-check + testes unitários focados + gate:smoke:runtime + runtime-descriptor:release-smoke.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Executados com sucesso: type-check + testes unitários focados + gate:smoke:runtime + runtime-descriptor:release-smoke."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-75-20260424",
+			"target": "T-NEXT-75",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Board/handoff atualizados com lote NEXT5 e checkpoint de continuidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Board/handoff atualizados com lote NEXT5 e checkpoint de continuidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT5-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T13:50:32.156Z",
+			"evidence": "Checkpoint NEXT5 concluído com foco em validação de config inválida e observabilidade determinística do runtime descriptor path.",
+			"criteria_results": [
+				{
+					"criterion": "Validação técnica do lote concluída",
+					"status": "passed",
+					"evidence": "Type-check, testes focados, gate:smoke:runtime e runtime-descriptor:release-smoke passaram."
+				},
+				{
+					"criterion": "Continuidade para próximo lote preservada",
+					"status": "passed",
+					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026."
+				}
+			]
 		}
 	]
 }
