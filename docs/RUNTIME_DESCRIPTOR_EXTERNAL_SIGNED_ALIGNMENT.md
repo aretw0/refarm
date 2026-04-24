@@ -65,9 +65,15 @@ Current status:
 
 For each publish run (identified by `github.sha`), attach these assets to every published package tag release:
 
+Versioned assets:
 - `runtime-descriptor-bundle-<sha>.tar.gz`
 - `runtime-descriptor-manifest-<sha>.json`
 - `runtime-descriptor-revocations-<sha>.json`
+
+Stable alias assets (for runtime resolver):
+- `runtime-descriptor-bundle.tar.gz`
+- `runtime-descriptor-manifest.json` (contains inline descriptor payloads keyed by pluginId/componentWasmUrl)
+- `runtime-descriptor-revocations.json`
 
 Validation rule: release workflow must fail if any required asset is missing after upload.
 
@@ -92,7 +98,7 @@ Retention model:
 6. Define runtime resolver inputs (repo, plugin id/version, release tag).
 7. Implement resolver helper for GitHub Release assets.
 8. Add resolver unit tests (happy path + missing asset + malformed manifest).
-9. Wire resolver into `installPlugin` external-signed path (optional URL auto-resolve).
+9. Wire resolver into `installPlugin` external-signed path (optional URL auto-resolve). ✅ (`descriptorSourceRepository` + convention over release assets, explicit URL override preserved)
 10. Add explicit opt-out to force manual URL.
 11. Implement revocation list fetch + local cache behavior.
 12. Add runtime block behavior for revoked descriptors.
