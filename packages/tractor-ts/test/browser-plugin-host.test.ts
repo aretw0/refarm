@@ -59,6 +59,7 @@ afterEach(async () => {
 	vi.restoreAllMocks();
 	delete (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
 	await evictPlugin("@acme/wasm-plugin");
 	await evictPlugin("@acme/component-plugin");
 });
@@ -135,28 +136,17 @@ describe("browser PluginHost runtime paths", () => {
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
 		const wasmBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x01,
-			0x00,
-			0x00,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
 		]).buffer;
 		const integrity = await computeIntegrity(wasmBytes);
-		await cachePlugin(
-			"@acme/wasm-plugin",
-			wasmBytes,
-			{
-				pluginId: "@acme/wasm-plugin",
-				wasmUrl: "https://example.test/plugin.wasm",
-				integrity,
-				wasmHash: integrity,
-				cachedAt: Date.now(),
-				artifactKind: "module",
-			},
-		);
+		await cachePlugin("@acme/wasm-plugin", wasmBytes, {
+			pluginId: "@acme/wasm-plugin",
+			wasmUrl: "https://example.test/plugin.wasm",
+			integrity,
+			wasmHash: integrity,
+			cachedAt: Date.now(),
+			artifactKind: "module",
+		});
 
 		vi.spyOn(WebAssembly, "instantiate").mockResolvedValue({
 			instance: {
@@ -191,14 +181,7 @@ describe("browser PluginHost runtime paths", () => {
 	it("rejects cached wasm component artifacts in browser runtime", async () => {
 		const host = new PluginHost(vi.fn(), {});
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const integrity = await computeIntegrity(componentBytes);
 
@@ -225,17 +208,11 @@ describe("browser PluginHost runtime paths", () => {
 	it("rejects component artifacts without browser runtime descriptor metadata", async () => {
 		const host = new PluginHost(vi.fn(), {});
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
-		const runtimeModuleSource = "export default { async ping(){ return 'x'; } }";
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
 		const runtimeModuleIntegrity = await computeIntegrity(
 			new TextEncoder().encode(runtimeModuleSource).buffer,
 		);
@@ -253,7 +230,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -269,17 +249,11 @@ describe("browser PluginHost runtime paths", () => {
 	it("rejects component artifacts without browser runtime provenance metadata", async () => {
 		const host = new PluginHost(vi.fn(), {});
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
-		const runtimeModuleSource = "export default { async ping(){ return 'x'; } }";
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
 		const runtimeModuleIntegrity = await computeIntegrity(
 			new TextEncoder().encode(runtimeModuleSource).buffer,
 		);
@@ -303,7 +277,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -321,14 +298,7 @@ describe("browser PluginHost runtime paths", () => {
 		const host = new PluginHost(emit, {});
 		mockRevocationListFetch();
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
 		const runtimeModuleSource =
@@ -362,7 +332,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -390,14 +363,7 @@ describe("browser PluginHost runtime paths", () => {
 		mockRevocationListFetch([descriptorHash]);
 
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
 		const runtimeModuleSource =
@@ -431,7 +397,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -444,23 +413,16 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("allows cached component load when revocation list is unavailable under fail-open runtime policy", async () => {
-		(globalThis as any)
-			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
-			"fail-open";
+		(
+			globalThis as any
+		).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ = "fail-open";
 
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
 		mockRevocationListUnavailableFetch();
 
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
 		const runtimeModuleSource =
@@ -494,7 +456,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -509,7 +474,147 @@ describe("browser PluginHost runtime paths", () => {
 			expect.objectContaining({
 				event: "system:descriptor_revocation_unavailable",
 				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					policySource: "explicit-policy",
+				}),
 			}),
+		);
+	});
+
+	it("derives fail-open from runtime revocation profile=dev", async () => {
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+			"dev";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-component-profile-dev'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-non-revoked-descriptor-profile-dev",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-profile-dev",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.3",
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-component-profile-dev");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_unavailable",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					policy: "fail-open",
+					policySource: "explicit-profile",
+					profile: "dev",
+				}),
+			}),
+		);
+	});
+
+	it("derives fail-closed from runtime revocation profile=production-sensitive", async () => {
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+			"production-sensitive";
+
+		const host = new PluginHost(vi.fn(), {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-component-profile-prod'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-non-revoked-descriptor-profile-prod",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-profile-prod",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.4",
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"Unable to verify runtime descriptor revocation status",
 		);
 	});
 

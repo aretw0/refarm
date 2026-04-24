@@ -69,6 +69,9 @@ describe("installPlugin", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
+		delete (globalThis as any)
+			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+		delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
 		(getCachedPlugin as any).mockResolvedValue(null);
 		(cachePlugin as any).mockResolvedValue(undefined);
 
@@ -912,6 +915,207 @@ describe("installPlugin", () => {
 				descriptorRevocationList: {
 					url: "https://revocation.example/runtime-revocations.json",
 				},
+				descriptorRevocationUnavailablePolicy: "fail-closed",
+			}),
+		).rejects.toThrow("Failed to resolve runtime descriptor revocation list");
+	});
+
+	it("derives fail-open from descriptorRevocationProfile=dev", async () => {
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-profile-dev",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			if (url === "https://revocation.example/runtime-revocations.json") {
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationProfile: "dev",
+			}),
+		).resolves.toBeTruthy();
+	});
+
+	it("uses environment revocation profile when install options omit explicit policy", async () => {
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+			"dev";
+
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-env-profile-dev",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			if (url === "https://revocation.example/runtime-revocations.json") {
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+			}),
+		).resolves.toBeTruthy();
+	});
+
+	it("keeps explicit descriptorRevocationUnavailablePolicy precedence over profile", async () => {
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-precedence-explicit-policy",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			if (url === "https://revocation.example/runtime-revocations.json") {
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationProfile: "dev",
 				descriptorRevocationUnavailablePolicy: "fail-closed",
 			}),
 		).rejects.toThrow("Failed to resolve runtime descriptor revocation list");

@@ -40,6 +40,11 @@ import {
 	fetchRuntimeDescriptorRevocationList,
 	isDescriptorHashRevoked,
 } from "./lib/runtime-descriptor-revocation";
+import {
+	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
+	type RuntimeDescriptorRevocationUnavailablePolicy,
+	resolveRuntimeDescriptorRevocationUnavailablePolicy,
+} from "./lib/runtime-descriptor-revocation-policy";
 import type { TelemetryEvent } from "./lib/telemetry";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 import type { TractorLogger } from "./lib/types";
@@ -51,33 +56,25 @@ const BROWSER_ERROR =
 const RUNTIME_DESCRIPTOR_REVOCATION_ASSET =
 	"runtime-descriptor-revocations.json";
 const RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
-const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY = "stale-allowed";
+const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY: RuntimeDescriptorRevocationUnavailablePolicy =
+	"stale-allowed";
 
-type RuntimeRevocationUnavailablePolicy =
-	| "fail-closed"
-	| "stale-allowed"
-	| "fail-open";
-
-function resolveRuntimeRevocationUnavailablePolicy(): RuntimeRevocationUnavailablePolicy {
-	const runtimeOverride = (globalThis as any)
+function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
+	const runtimePolicyOverride = (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-	const envOverride = (import.meta as any).env
-		?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY;
-	const candidate = String(
-		runtimeOverride ??
-			envOverride ??
-			DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY,
-	).toLowerCase();
+	const runtimeProfileOverride = (globalThis as any)
+		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const env = (import.meta as any).env;
 
-	if (
-		candidate === "fail-closed" ||
-		candidate === "stale-allowed" ||
-		candidate === "fail-open"
-	) {
-		return candidate;
-	}
-
-	return DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY;
+	return resolveRuntimeDescriptorRevocationUnavailablePolicy({
+		explicitPolicy:
+			runtimePolicyOverride ??
+			env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
+		explicitProfile:
+			runtimeProfileOverride ??
+			env?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		fallbackPolicy: DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY,
+	});
 }
 
 /**
@@ -348,7 +345,8 @@ export class PluginHost {
 		manifest: PluginManifest,
 		metadata: PluginArtifactMetadata,
 	): Promise<void> {
-		const unavailablePolicy = resolveRuntimeRevocationUnavailablePolicy();
+		const policyResolution = resolveRuntimeRevocationUnavailablePolicy();
+		const unavailablePolicy = policyResolution.policy;
 		const descriptor = metadata.browserRuntimeDescriptor;
 		const provenance = metadata.browserRuntimeProvenance;
 		if (!descriptor || descriptor.source !== "descriptor") return;
@@ -385,6 +383,8 @@ export class PluginHost {
 					pluginId: manifest.id,
 					payload: {
 						policy: unavailablePolicy,
+						policySource: policyResolution.source,
+						profile: policyResolution.profile,
 						error: error?.message ?? String(error),
 					},
 				});
@@ -581,6 +581,8 @@ export class PluginHost {
 export type {
 	BrowserRuntimeDescriptorRevocationList,
 	BrowserRuntimeDescriptorRevocationListReference,
+	BrowserRuntimeDescriptorRevocationProfile,
+	BrowserRuntimeDescriptorRevocationUnavailablePolicy,
 	BrowserRuntimeModuleDescriptor,
 	BrowserRuntimeModuleDescriptorReference,
 	BrowserRuntimeModuleInstallInput,

@@ -34,6 +34,11 @@ import {
 	type RuntimeDescriptorRevocationListReference,
 	resolveGithubRepoCoordinates,
 } from "./runtime-descriptor-revocation";
+import {
+	resolveRuntimeDescriptorRevocationUnavailablePolicy,
+	type RuntimeDescriptorRevocationProfile,
+	type RuntimeDescriptorRevocationUnavailablePolicy,
+} from "./runtime-descriptor-revocation-policy";
 
 const OPFS_CACHE_ADAPTER: PluginBinaryCacheAdapter = {
 	get: getCachedPlugin,
@@ -86,9 +91,10 @@ export type BrowserRuntimeDescriptorDistributionPolicy =
 	| "external-signed";
 
 export type BrowserRuntimeDescriptorRevocationUnavailablePolicy =
-	| "fail-closed"
-	| "stale-allowed"
-	| "fail-open";
+	RuntimeDescriptorRevocationUnavailablePolicy;
+
+export type BrowserRuntimeDescriptorRevocationProfile =
+	RuntimeDescriptorRevocationProfile;
 
 export type BrowserRuntimeDescriptorTrustMode =
 	| "strict-manual"
@@ -109,6 +115,7 @@ export interface InstallPluginOptions {
 	descriptorRevocationAssetName?: string;
 	descriptorRevocationCacheTtlMs?: number;
 	descriptorRevocationUnavailablePolicy?: BrowserRuntimeDescriptorRevocationUnavailablePolicy;
+	descriptorRevocationProfile?: BrowserRuntimeDescriptorRevocationProfile;
 	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
 	descriptorTrustedOrigins?: string[];
 	descriptorTrustMode?: BrowserRuntimeDescriptorTrustMode;
@@ -172,6 +179,33 @@ function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 		if (parsed?.origin) normalized.add(parsed.origin);
 	}
 	return normalized;
+}
+
+function resolveInstallRevocationUnavailablePolicy(
+	options: InstallPluginOptions,
+): BrowserRuntimeDescriptorRevocationUnavailablePolicy {
+	const runtimePolicyOverride = (globalThis as any)
+		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimeProfileOverride = (globalThis as any)
+		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const viteEnv = (import.meta as any).env;
+	const nodeEnv = (globalThis as any)?.process?.env;
+
+	const resolved = resolveRuntimeDescriptorRevocationUnavailablePolicy({
+		explicitPolicy: options.descriptorRevocationUnavailablePolicy,
+		explicitProfile: options.descriptorRevocationProfile,
+		environmentPolicy:
+			runtimePolicyOverride ??
+			viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY ??
+			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY,
+		environmentProfile:
+			runtimeProfileOverride ??
+			viteEnv?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE ??
+			nodeEnv?.REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE,
+		fallbackPolicy: "fail-closed",
+	});
+
+	return resolved.policy;
 }
 
 function buildReleaseAssetDescriptorUrl(
@@ -253,8 +287,7 @@ async function assertDescriptorNotRevoked(
 	descriptor: BrowserRuntimeModuleDescriptor,
 	options: InstallPluginOptions,
 ): Promise<void> {
-	const unavailablePolicy =
-		options.descriptorRevocationUnavailablePolicy ?? "fail-closed";
+	const unavailablePolicy = resolveInstallRevocationUnavailablePolicy(options);
 	const revocationInput =
 		options.descriptorRevocationList ??
 		resolveAutoRevocationListReference(manifest, descriptor, options);
