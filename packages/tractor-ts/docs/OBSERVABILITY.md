@@ -44,15 +44,21 @@ console.log(summary.summary);
 console.log(diagnostics.alerts);
 ```
 
-For historical triage in CI/ops, you can aggregate multiple report snapshots and compute latest delta:
+For historical triage in CI/ops, generate the current snapshot, attempt baseline lookup from the previous successful run, and then compute delta:
 
 ```bash
+npm run runtime-descriptor:revocation-report -- --input /path/to/telemetry-export.json
+npm run runtime-descriptor:revocation-baseline -- \
+  --current-report .artifacts/runtime-descriptor-revocation-report/summary.json \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt
 npm run runtime-descriptor:revocation-history -- \
-  --reports report-a.json,report-b.json \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
   --out-dir .artifacts/runtime-descriptor-revocation-history
 ```
 
 This generates:
+- `.artifacts/runtime-descriptor-revocation-baseline/baseline.json`
+- `.artifacts/runtime-descriptor-revocation-baseline/previous-summary.json` (when found)
 - `.artifacts/runtime-descriptor-revocation-history/history.json`
 - `.artifacts/runtime-descriptor-revocation-history/history.md`
 

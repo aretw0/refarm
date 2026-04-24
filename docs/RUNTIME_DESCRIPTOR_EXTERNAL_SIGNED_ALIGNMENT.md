@@ -154,7 +154,7 @@ Notas:
 - observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), conflito de configuração (`system:descriptor_revocation_config_conflict`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
 - comandos de diagnóstico operacional: `system:diagnostics:descriptor-revocation-summary` (agregado) e `system:diagnostics:descriptor-revocation-alerts` (priorização por severidade).
 - automação de dashboard/artefato: `npm run runtime-descriptor:revocation-report -- --input <telemetry-export.json>` gera `summary.json` + `summary.md` para anexar em incidentes/CI.
-- análise histórica/delta entre snapshots: `npm run runtime-descriptor:revocation-history -- --reports <summary-a.json,summary-b.json>` (ou `--history-dir`) gera `history.json` + `history.md` com variação de eventos/alerts/plugins.
+- análise histórica/delta entre snapshots: `npm run runtime-descriptor:revocation-baseline -- --current-report <summary.json> --reports-file <reports.txt>` seguido de `npm run runtime-descriptor:revocation-history -- --reports-file <reports.txt>` gera `baseline.json` + `history.json` + `history.md` com variação de eventos/alerts/plugins entre runs.
 - conflito entre profile dedicado e ambiente genérico é resolvido de forma determinística (profile dedicado vence) com sinalização explícita.
 - defaults por ambiente, severidade operacional e precedência foram formalizados no fechamento DEC-026/ADR-051/DEC-027.
 - runbook operacional de incidente: `docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md`.

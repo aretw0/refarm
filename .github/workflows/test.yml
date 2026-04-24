@@ -198,9 +198,24 @@ jobs:
         if: needs.changes.outputs.tractor_gates == 'true'
         run: npm run runtime-descriptor:revocation-report:sample
 
+      - name: Revocation diagnostics baseline lookup (Tractor TS)
+        if: needs.changes.outputs.tractor_gates == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs \
+            --workflow-name "${{ github.workflow }}" \
+            --branch "${{ github.ref_name }}" \
+            --exclude-run-id "${{ github.run_id }}" \
+            --current-report .artifacts/runtime-descriptor-revocation-report/summary.json \
+            --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt
+
       - name: Revocation diagnostics history smoke (Tractor TS)
         if: needs.changes.outputs.tractor_gates == 'true'
-        run: npm run runtime-descriptor:revocation-history:sample
+        run: |
+          npm run runtime-descriptor:revocation-history -- \
+            --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
+            --out-dir .artifacts/runtime-descriptor-revocation-history
 
       - name: Verify (Full Turbo)
         if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
@@ -388,6 +403,7 @@ jobs:
           name: runtime-descriptor-revocation-report
           path: |
             .artifacts/runtime-descriptor-revocation-report
+            .artifacts/runtime-descriptor-revocation-baseline
             .artifacts/runtime-descriptor-revocation-history
           retention-days: 14
           if-no-files-found: warn

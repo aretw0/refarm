@@ -1,8 +1,17 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
-import { rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { runRevocationBaselineResolution } from "./runtime-descriptor-revocation-baseline-fetch-lib.mjs";
+import {
+	buildHistoryReportsList,
+	findRevocationSummaryPath,
+	selectArtifactByName,
+	selectPreviousSuccessfulRun,
+	summarizeBaselineResolution,
+} from "./runtime-descriptor-revocation-baseline-lib.mjs";
 import {
 	evaluateHistoryFailurePolicy,
 	resolveReportPaths,
@@ -279,4 +288,143 @@ test("evaluateHistoryFailurePolicy throws on configured unavailable delta", () =
 			}),
 		/failure policy triggered/,
 	);
+});
+
+test("selectPreviousSuccessfulRun filters by workflow, branch and excludeRunId", () => {
+	const selected = selectPreviousSuccessfulRun(
+		[
+			{
+				id: 101,
+				name: "Other Workflow",
+				head_branch: "develop",
+				status: "completed",
+				conclusion: "success",
+				created_at: "2026-04-24T09:00:00.000Z",
+			},
+			{
+				id: 102,
+				name: "Test & Quality",
+				head_branch: "develop",
+				status: "completed",
+				conclusion: "success",
+				created_at: "2026-04-24T10:00:00.000Z",
+			},
+			{
+				id: 103,
+				name: "Test & Quality",
+				head_branch: "develop",
+				status: "completed",
+				conclusion: "success",
+				created_at: "2026-04-24T11:00:00.000Z",
+			},
+		],
+		{ workflowName: "Test & Quality", branch: "develop", excludeRunId: 103 },
+	);
+
+	assert.equal(selected?.id, 102);
+});
+
+test("selectArtifactByName ignores expired artifacts and picks latest", () => {
+	const selected = selectArtifactByName(
+		[
+			{
+				id: 1,
+				name: "runtime-descriptor-revocation-report",
+				expired: true,
+				created_at: "2026-04-24T08:00:00.000Z",
+			},
+			{
+				id: 2,
+				name: "runtime-descriptor-revocation-report",
+				expired: false,
+				created_at: "2026-04-24T09:00:00.000Z",
+			},
+		],
+		"runtime-descriptor-revocation-report",
+	);
+
+	assert.equal(selected?.id, 2);
+});
+
+test("findRevocationSummaryPath prefers canonical runtime report summary path", () => {
+	const selected = findRevocationSummaryPath([
+		"/tmp/other/summary.json",
+		"/tmp/runtime-descriptor-revocation-report/summary.json",
+	]);
+
+	assert.equal(
+		selected,
+		"/tmp/runtime-descriptor-revocation-report/summary.json",
+	);
+});
+
+test("buildHistoryReportsList deduplicates and preserves current-first order", () => {
+	const reports = buildHistoryReportsList({
+		currentReport: "/tmp/current.json",
+		baselineReport: "/tmp/current.json",
+	});
+
+	assert.deepEqual(reports, ["/tmp/current.json"]);
+});
+
+test("summarizeBaselineResolution reports resolved status and metadata", () => {
+	const summary = summarizeBaselineResolution({
+		repo: "acme/refarm",
+		branch: "develop",
+		workflowName: "Test & Quality",
+		excludeRunId: "123",
+		artifactName: "runtime-descriptor-revocation-report",
+		baselineRun: {
+			id: 456,
+			name: "Test & Quality",
+			head_branch: "develop",
+			head_sha: "abc",
+			created_at: "2026-04-24T12:00:00.000Z",
+			updated_at: "2026-04-24T12:01:00.000Z",
+		},
+		artifact: {
+			id: 789,
+			name: "runtime-descriptor-revocation-report",
+			size_in_bytes: 2048,
+			expired: false,
+			created_at: "2026-04-24T12:00:00.000Z",
+			updated_at: "2026-04-24T12:01:00.000Z",
+		},
+		baselineSummaryPath:
+			"/tmp/runtime-descriptor-revocation-baseline/previous-summary.json",
+	});
+
+	assert.equal(summary.status, "resolved");
+	assert.equal(summary.baselineRun?.id, 456);
+	assert.equal(summary.artifact?.id, 789);
+});
+
+test("runRevocationBaselineResolution writes metadata and reports file when context is missing", async () => {
+	const tempDir = await mkdtemp(
+		path.join(os.tmpdir(), "revocation-baseline-resolution-"),
+	);
+	const currentReport = path.join(tempDir, "current-summary.json");
+	await writeFile(currentReport, "{}\n", "utf8");
+
+	try {
+		const result = await runRevocationBaselineResolution({
+			args: {
+				"out-dir": path.join(tempDir, "out"),
+				"reports-file": path.join(tempDir, "out/reports.txt"),
+				"current-report": currentReport,
+			},
+			root: tempDir,
+			env: {},
+		});
+
+		assert.equal(result.metadata.status, "missing");
+		assert.match(result.metadata.reason, /missing repo\/branch\/token context/);
+		assert.equal(result.reportEntries.length, 1);
+		assert.equal(result.reportEntries[0], currentReport);
+
+		const writtenReports = await readFile(result.config.reportsFile, "utf8");
+		assert.match(writtenReports, /current-summary\.json/);
+	} finally {
+		await rm(tempDir, { recursive: true, force: true });
+	}
 });

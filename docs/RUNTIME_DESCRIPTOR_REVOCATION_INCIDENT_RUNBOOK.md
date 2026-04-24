@@ -90,15 +90,20 @@ Saídas geradas:
 - `.artifacts/runtime-descriptor-revocation-report/summary.json`
 - `.artifacts/runtime-descriptor-revocation-report/summary.md`
 
-Para comparar com snapshots anteriores e obter delta automático:
+Para comparar com snapshots anteriores e obter delta automático entre runs:
 
 ```bash
+npm run runtime-descriptor:revocation-baseline -- \
+  --current-report .artifacts/runtime-descriptor-revocation-report/summary.json \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt
 npm run runtime-descriptor:revocation-history -- \
-  --history-dir .artifacts/runtime-descriptor-revocation-report \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
   --out-dir .artifacts/runtime-descriptor-revocation-history
 ```
 
 Saídas históricas:
+- `.artifacts/runtime-descriptor-revocation-baseline/baseline.json`
+- `.artifacts/runtime-descriptor-revocation-baseline/previous-summary.json` (quando encontrado)
 - `.artifacts/runtime-descriptor-revocation-history/history.json`
 - `.artifacts/runtime-descriptor-revocation-history/history.md`
 

@@ -353,7 +353,7 @@ Refarm Tractor uses a "Black Box Recorder" pattern designed to give diagnostics 
 - You can get an aggregated summary for revocation incidents with `system:diagnostics:descriptor-revocation-summary` (supports filters: `pluginId`, `policy`, `profile`, `limit`).
 - You can evaluate severity-ranked alerts with `system:diagnostics:descriptor-revocation-alerts` (supports threshold overrides).
 - CI/ops can generate markdown+JSON report artifacts from exports via `npm run runtime-descriptor:revocation-report:sample` (or `runtime-descriptor:revocation-report` with `--input`).
-- CI/ops can also aggregate **history + latest delta** across reports with `npm run runtime-descriptor:revocation-history:sample` (or `runtime-descriptor:revocation-history -- --reports <a.json,b.json>` / `--history-dir <dir>`).
+- CI/ops can aggregate **history + latest delta** across runs by resolving the prior artifact (`npm run runtime-descriptor:revocation-baseline -- --current-report <summary.json> --reports-file <reports.txt>`) and then running `runtime-descriptor:revocation-history -- --reports-file <reports.txt>`.
 - Sensitive fields like `secretKey` or `token` are masked automatically (`[REDACTED]`).
 - Massive payloads and strings are elegantly truncated.
 - **For a detailed architecture, read [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md)**.
