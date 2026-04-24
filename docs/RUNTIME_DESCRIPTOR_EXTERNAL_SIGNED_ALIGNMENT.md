@@ -132,3 +132,17 @@ Suggested timeline:
 3. **T+8h → T+24h**: propagate, force reinstall guidance, and incident communication.
 
 If risk is critical, treat as hotfix and act immediately (faster than SLA target).
+
+## Offline Revocation Policy (next hardening step)
+
+Adoção recomendada por ambiente:
+
+| Ambiente | Comportamento quando revocation list está indisponível | Objetivo |
+|---|---|---|
+| local/dev | **fail-open com warning** (usa cache TTL) | manter DX sem bloquear fluxo de desenvolvimento |
+| staging | **stale-allowed com warning alto** | detectar problemas operacionais sem travar toda validação |
+| produção sensível | **fail-closed** após TTL expirar | minimizar janela de exposição a descriptor comprometido |
+
+Notas:
+- política deve ser explícita por profile de ambiente;
+- decisão final será registrada em ADR/DEC dedicado antes de enforcement rígido.

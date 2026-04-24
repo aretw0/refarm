@@ -634,6 +634,20 @@ git push origin feature/minha-feature
 4. Os pacotes são publicados no npm/crates.io.
 5. O `sync-develop.yml` rebasa `develop` novamente.
 
+### Observação pós-push (ritual curto)
+
+Após `git push origin develop` em lote relevante, acompanhar CI com:
+
+```bash
+gh run list --branch develop --limit 5
+gh run watch --exit-status
+```
+
+Se `gh` não estiver disponível no ambiente, registrar no handoff:
+- hash pushado,
+- checks esperados,
+- owner humano que ficará observando o CI.
+
 ### Sync automático falhou?
 
 Se há conflitos no rebase (commits simultâneas em `develop` e `main` com mudanças na mesma região), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:

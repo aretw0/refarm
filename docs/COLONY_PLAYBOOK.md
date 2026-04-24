@@ -138,3 +138,15 @@ Templates recomendados:
 - `docs/templates/COLONY_TASK_INPUT_TEMPLATE.md`
 - `docs/templates/COLONY_WORKER_EVIDENCE_REPORT_TEMPLATE.md`
 - `docs/templates/COLONY_REVIEWER_HANDOFF_TEMPLATE.md`
+
+## 8) Checkpoint antes de compactação
+
+Quando a sessão estiver próxima do limite de contexto:
+
+1. consolidar tasks/verifications do lote atual;
+2. atualizar `.project/handoff.json` com `next_actions` objetivos;
+3. registrar um `VER-CHECKPOINT-*` em `.project/verification.json`;
+4. validar consistência (`npm run project:validate --silent`);
+5. parar em estado limpo (sem mudanças pendentes fora do checkpoint).
+
+Resultado esperado: próxima sessão retoma sem depender de memória implícita.
