@@ -1,23 +1,26 @@
 {
-  "context": "T-RUNTIME-23 concluída: release pipeline agora exporta bundle versionado de descriptors com manifest/revogação template; install external-signed adotou trust mode repository-derived por default. Próximo passo é promover bundle para endpoint público estável (T-RUNTIME-24).",
-  "timestamp": "2026-04-23T23:39:57.212Z",
+  "context": "Alinhamento Option A iniciado com plano dedicado para external-signed (`docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`). T-RUNTIME-24 entrou em execução no modo discovery para fechar endpoint canônico, trust por ambiente e SLA de revogação antes da implementação final.",
+  "timestamp": "2026-04-24T00:09:28.710Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-23 concluída (`VER-RUNTIME-23-20260423`): bundle versionado de descriptor exportado no release workflow.",
-    "DEC-015 decidida: trust `repository-derived` padrão e `strict-manual` opt-in para external-signed.",
-    "T-RUNTIME-24 planejada para endpoint público estável de descriptor bundle."
+    "T-RUNTIME-24 em andamento: discovery/alinhamento de endpoint público estável para descriptors external-signed.",
+    "Plano de rollout em 15 slices publicado em `docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`.",
+    "Backlog detalhado criado: T-RUNTIME-25..T-RUNTIME-29 (decisão -> publish -> resolver -> revogação -> e2e/governança)."
   ],
   "blockers": [
-    "ISS-020: bundle ainda está no canal de artifact interno; falta endpoint público estável por release.",
+    "Falta decisão explícita do endpoint canônico (Release assets vs CDN vs bucket).",
+    "ISS-020 aberto até endpoint público estável + resolvedor automático serem entregues.",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Executar T-RUNTIME-24 para publicar bundle em release assets/CDN versionado.",
-    "Definir política de resolução do endpoint oficial external-signed por ambiente.",
-    "Registrar checkpoint antes de nova compactação se avançar em publish infra."
+    "Coletar decisão de endpoint/política por ambiente via checklist do plano.",
+    "Executar T-RUNTIME-26 para publicar bundle em endpoint público versionado.",
+    "Implementar resolvedor automático external-signed (T-RUNTIME-27) após definição de endpoint."
   ],
   "open_questions": [
-    "Endpoint oficial será GitHub Release assets, registry dedicado ou CDN do projeto para bundles de descriptor?"
+    "Endpoint oficial será GitHub Release assets, CDN ou bucket?",
+    "Produção usa repository-derived ou strict-manual por default?",
+    "SLA de revogação alvo: imediato, <24h, ou próximo release?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [

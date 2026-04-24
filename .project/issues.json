@@ -230,8 +230,8 @@
     {
       "id": "ISS-020",
       "title": "Promover bundle de descriptors para endpoint público estável de release",
-      "body": "Fluxo atual publica bundle versionado como artifact de workflow. Falta elevar para endpoint público estável (release asset/CDN) com consumo padronizado em runtime external-signed.",
-      "location": ".github/workflows/release-changesets.yml:1",
+      "body": "Fluxo atual exporta bundle versionado e publica como artifact de workflow. Falta decisão final do endpoint público estável (Release Asset/CDN/bucket) e resolvedor automático no install external-signed.",
+      "location": "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md:1",
       "status": "open",
       "category": "capability",
       "priority": "medium",

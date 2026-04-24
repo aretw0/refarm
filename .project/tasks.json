@@ -1636,12 +1636,13 @@
     {
       "id": "T-RUNTIME-24",
       "description": "Promover bundle de descriptor para endpoint público estável (release assets/CDN) com política de revogação operacional.",
-      "status": "planned",
+      "status": "in_progress",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
         ".github/workflows/publish-packages.yml",
         "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
         "docs/PLUGIN_AUTHORING_TRACKS.md",
         "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
@@ -1652,6 +1653,109 @@
       ],
       "depends_on": [
         "T-RUNTIME-23"
+      ],
+      "assigned_agent": "worker-runtime",
+      "notes": "Alignment/discovery iniciado em `docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`; aguardando decisão de endpoint canônico para execução final."
+    },
+    {
+      "id": "T-RUNTIME-25",
+      "description": "Decidir endpoint canônico para descriptor external-signed e política por ambiente (trust/revogação).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+        ".project/decisions.json",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
+      ],
+      "acceptance_criteria": [
+        "Escolha explícita entre GitHub Release assets / CDN / bucket documentada e decidida",
+        "Política de trust por ambiente definida (repository-derived vs strict-manual)",
+        "SLA de revogação definido e refletido em docs operacionais"
+      ],
+      "depends_on": [
+        "T-RUNTIME-24"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-26",
+      "description": "Publicar bundle de descriptors como Release Asset versionado e validar presença pós-publish.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        ".github/workflows/release-changesets.yml",
+        ".github/workflows/publish-packages.yml",
+        "scripts/ci/export-runtime-descriptor-bundle.mjs"
+      ],
+      "acceptance_criteria": [
+        "Release workflow publica bundle em release pública versionada",
+        "Check automatizado falha quando asset obrigatório não está presente",
+        "Naming convention e retenção documentados"
+      ],
+      "depends_on": [
+        "T-RUNTIME-25"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-27",
+      "description": "Adicionar resolvedor de endpoint oficial para external-signed com fallback controlado.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/README.md"
+      ],
+      "acceptance_criteria": [
+        "Install external-signed resolve endpoint por convenção oficial sem URL manual por pacote",
+        "Fallback para URL explícita permanece disponível e testado",
+        "Resolver cobre erro de ausência/shape inválido de bundle"
+      ],
+      "depends_on": [
+        "T-RUNTIME-26"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-28",
+      "description": "Implementar fluxo operacional de revogação (lista revogada + bloqueio em runtime/install).",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "packages/tractor-ts/src/lib/install-plugin.ts",
+        "docs/PLUGIN_AUTHORING_TRACKS.md",
+        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+      ],
+      "acceptance_criteria": [
+        "Lista de revogação publicada junto ao bundle versionado",
+        "Runtime/install bloqueia descriptor revogado com erro explícito",
+        "Playbook de rollback cobre janela de propagação e comunicação"
+      ],
+      "depends_on": [
+        "T-RUNTIME-27"
+      ],
+      "assigned_agent": "worker-runtime"
+    },
+    {
+      "id": "T-RUNTIME-29",
+      "description": "Fechar e2e smoke de descriptor external-signed no release path com checkpoint de governança.",
+      "status": "planned",
+      "phase": 6,
+      "files": [
+        ".github/workflows/release-changesets.yml",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        ".project/verification.json",
+        ".project/handoff.json"
+      ],
+      "acceptance_criteria": [
+        "Smoke release cobre export + publish + resolução de descriptor external-signed",
+        "Falhas críticas bloqueiam publish no pipeline",
+        "Checkpoint de governança registrado antes da próxima compactação"
+      ],
+      "depends_on": [
+        "T-RUNTIME-28"
       ],
       "assigned_agent": "worker-runtime"
     }
