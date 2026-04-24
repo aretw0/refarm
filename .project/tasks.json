@@ -2012,6 +2012,179 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-10-20260424",
 			"notes": "Checkpoint final preparado para compactação após novo lote."
+		},
+		{
+			"id": "T-NEXT-11",
+			"description": "Implementar política de indisponibilidade de revogação no install-plugin (fail-closed|stale-allowed|fail-open).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Opção de política adicionada",
+				"Fallback fail-open suportado com warning",
+				"Comportamento default preservado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-11-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-12",
+			"description": "Aplicar política de indisponibilidade de revogação no browser runtime host com override por ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Política runtime resolvida por env/global override",
+				"Fail-open evita bloqueio e emite telemetry",
+				"Fail-closed/stale-allowed preservam segurança"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-12-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-13",
+			"description": "Adicionar testes de install-plugin para revocation source indisponível (fail-open/fail-closed).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"Teste fail-open passa",
+				"Teste fail-closed falha como esperado",
+				"Cobertura revocation-unavailable ampliada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-13-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-14",
+			"description": "Adicionar teste de browser PluginHost para revocation list indisponível com fail-open.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load de component permitido em fail-open",
+				"Evento de telemetry emitido",
+				"Cobertura browser path ampliada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-14-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-15",
+			"description": "Atualizar README do tractor-ts com knobs de política offline de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Install-time policy documentada",
+				"Runtime env override documentado",
+				"Valores aceitos explicitados"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-15-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-16",
+			"description": "Atualizar alignment doc external-signed com knobs implementados e status DEC-026.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Knobs de install/runtime documentados",
+				"Status revisit de DEC-026 explícito",
+				"Próximo passo de ADR/rollout descrito"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-16-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-17",
+			"description": "Atualizar requirement REQ-RUNTIME-002 para traçar implementação inicial da política offline.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"Traces_to incluem tasks NEXT de implementação",
+				"Requirement permanece accepted",
+				"Sem regressão de schema"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-17-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-18",
+			"description": "Executar validação técnica da slice runtime (type-check + testes direcionados).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"Type-check verde",
+				"Suites install-plugin/browser-plugin-host verdes",
+				"Sem regressão unitária no pacote"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-18-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-19",
+			"description": "Atualizar board/verifications para o lote NEXT-11..18.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks concluídas com verification",
+				"Evidence objetiva por task",
+				"Project validate limpo"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-19-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
+		},
+		{
+			"id": "T-NEXT-20",
+			"description": "Registrar checkpoint intermediário antes da próxima compactação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Checkpoint VER-CHECKPOINT-NEXT2 registrado",
+				"Handoff com próximos passos claro",
+				"Estado pronto para compactação sob comando do usuário"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-20-20260424",
+			"notes": "Concluído no lote runtime-offline-revocation em 2026-04-24T12:48:53.622Z."
 		}
 	]
 }

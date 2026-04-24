@@ -1,22 +1,22 @@
 {
-	"context": "Push realizado em develop e lote NEXT (~10 slices) concluído com foco em preparação do próximo ciclo + checkpoint de compactação.",
-	"timestamp": "2026-04-24T12:32:56.272Z",
+	"context": "Lote NEXT2 executado após push: política offline de revogação ganhou implementação inicial em install/runtime + testes e documentação, mantendo DEC-026 em revisit para definição final de defaults por ambiente.",
+	"timestamp": "2026-04-24T12:48:53.622Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"Lote NEXT concluído (T-NEXT-01..10).",
-		"Políticas pós-push, checkpoint e revogação offline documentadas.",
-		"Board pronto para compactação e retomada do próximo lote técnico."
+		"T-NEXT-11..14 concluídas: implementação + testes da política revocation-unavailable no runtime descriptor path.",
+		"T-NEXT-15..17 concluídas: documentação e rastreabilidade de requirements atualizadas.",
+		"Checkpoint intermediário VER-CHECKPOINT-NEXT2-20260424 registrado."
 	],
 	"blockers": [
-		"Sem blockers operacionais imediatos; decisão DEC-026 aguarda enforcement técnico futuro."
+		"Sem bloqueio técnico imediato; decisão DEC-026 continua pendente de fechamento final (defaults por ambiente + ADR)."
 	],
 	"next_actions": [
-		"Compactar contexto e retomar com novo lote técnico de ~10 slices.",
-		"Criar tasks de implementação para policy offline de revogação (DEC-026).",
-		"Iniciar fatia técnica de migração incremental pi→Refarm-agent com parity de governança."
+		"Definir defaults finais de DEC-026 (promover revisit->decided) com critério de ambiente e rollout.",
+		"Rodar gate runtime completo (`npm run gate:smoke:runtime`) no próximo lote de consolidação.",
+		"Preparar checkpoint final quando o usuário solicitar compactação."
 	],
 	"open_questions": [
-		"Quando promover DEC-026 de revisit para decided (gatilho técnico + ADR correspondente)?"
+		"Qual default final de política offline por ambiente será canônico para produção sensível no rollout DEC-026?"
 	],
 	"key_decisions_pending": [
 		"DEC-026"
@@ -31,6 +31,11 @@
 		"docs/WORKFLOW.md",
 		"docs/COLONY_PLAYBOOK.md",
 		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
-		"docs/COLONY_NEXT_BATCH.md"
+		"docs/COLONY_NEXT_BATCH.md",
+		"packages/tractor-ts/src/lib/install-plugin.ts",
+		"packages/tractor-ts/src/index.browser.ts",
+		"packages/tractor-ts/test/install-plugin.test.ts",
+		"packages/tractor-ts/test/browser-plugin-host.test.ts",
+		"packages/tractor-ts/README.md"
 	]
 }

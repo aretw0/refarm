@@ -3366,6 +3366,237 @@
 					"evidence": "`handoff.json` atualizado com contexto do próximo lote e decisão pendente."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-11-20260424",
+			"target": "T-NEXT-11",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "InstallPlugin agora aceita `descriptorRevocationUnavailablePolicy` e implementa fallback fail-open com warning para fonte de revogação indisponível.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "InstallPlugin agora aceita `descriptorRevocationUnavailablePolicy` e implementa fallback fail-open com warning para fonte de revogação indisponível."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-12-20260424",
+			"target": "T-NEXT-12",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Browser PluginHost agora resolve política de indisponibilidade de revogação por override (`VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` / global) e emite evento em fail-open.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Browser PluginHost agora resolve política de indisponibilidade de revogação por override (`VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` / global) e emite evento em fail-open."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-13-20260424",
+			"target": "T-NEXT-13",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Novos testes cobrem comportamento do install-plugin para revocation source indisponível em fail-open e fail-closed.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Novos testes cobrem comportamento do install-plugin para revocation source indisponível em fail-open e fail-closed."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-14-20260424",
+			"target": "T-NEXT-14",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Novo teste de browser host valida load de component com revocation indisponível em fail-open e emissão de telemetry.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Novo teste de browser host valida load de component com revocation indisponível em fail-open e emissão de telemetry."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-15-20260424",
+			"target": "T-NEXT-15",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "README do tractor-ts atualizado com opções de política offline de revogação em install/runtime.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "README do tractor-ts atualizado com opções de política offline de revogação em install/runtime."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-16-20260424",
+			"target": "T-NEXT-16",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Documento de alignment external-signed atualizado com knobs implementados e status de decisão pendente.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Documento de alignment external-signed atualizado com knobs implementados e status de decisão pendente."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-17-20260424",
+			"target": "T-NEXT-17",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "REQ-RUNTIME-002 atualizado para rastrear tasks de implementação inicial da política offline.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-002 atualizado para rastrear tasks de implementação inicial da política offline."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-18-20260424",
+			"target": "T-NEXT-18",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Validação técnica executada: `npm --prefix packages/tractor-ts run type-check` + `npm --prefix packages/tractor-ts run test:unit -- install-plugin browser-plugin-host`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Validação técnica executada: `npm --prefix packages/tractor-ts run type-check` + `npm --prefix packages/tractor-ts run test:unit -- install-plugin browser-plugin-host`."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-19-20260424",
+			"target": "T-NEXT-19",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Board/verifications/handoff atualizados para refletir lote NEXT-11..18 com evidência e rastreabilidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Board/verifications/handoff atualizados para refletir lote NEXT-11..18 com evidência e rastreabilidade."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-20-20260424",
+			"target": "T-NEXT-20",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Checkpoint intermediário preparado para compactação futura com estado consistente e próximos passos definidos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Checkpoint intermediário preparado para compactação futura com estado consistente e próximos passos definidos."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo `verification` presente na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT2-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:48:53.622Z",
+			"evidence": "Checkpoint intermediário do lote NEXT2 (offline revocation policy) concluído com validações verdes e board consistente.",
+			"criteria_results": [
+				{
+					"criterion": "Type-check e testes direcionados verdes",
+					"status": "passed",
+					"evidence": "tractor-ts type-check + install-plugin/browser-plugin-host tests passaram."
+				},
+				{
+					"criterion": "Board consistente para retomada",
+					"status": "passed",
+					"evidence": "project validate permanece clean após atualização."
+				}
+			]
 		}
 	]
 }
