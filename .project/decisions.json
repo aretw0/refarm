@@ -143,6 +143,22 @@
       "status": "decided",
       "phase": 6,
       "context": "Fechamento de T-RUNTIME-28/T-RUNTIME-29 após auto-resolve external-signed (DEC-017)."
+    },
+    {
+      "id": "DEC-019",
+      "decision": "Serializar mudanças em áreas críticas (tractor, plugin-manifest, workflows, blocos .project) com lock operacional por domínio e handoff explícito.",
+      "rationale": "Reduz colisões em superfícies de alto acoplamento e mantém revisão auditável em lotes paralelos.",
+      "status": "decided",
+      "phase": 3,
+      "context": "Execução de T-PLAN-04 para anti-colisão em operação de colônia."
+    },
+    {
+      "id": "DEC-020",
+      "decision": "Adotar concorrência inicial de 3 workers (escala máxima 4 sob estabilidade) com critérios explícitos de scale up/down.",
+      "rationale": "Equilibra throughput e previsibilidade de CI/preflight em monorepo híbrido com boundaries sensíveis.",
+      "status": "decided",
+      "phase": 3,
+      "context": "Execução de T-PLAN-06 para governança de capacidade da colônia."
     }
   ]
 }

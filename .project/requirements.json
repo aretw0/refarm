@@ -1,251 +1,206 @@
 {
-  "requirements": [
-    {
-      "id": "REQ-ENV-001",
-      "description": "Garantir toolchain Rust estável e funcional para builds dos pacotes runtime/WASM.",
-      "type": "constraint",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "rustc e cargo executam sem erro de manifest",
-        "Targets wasm32-wasip1 e wasm32-unknown-unknown instalados",
-        "Build de pacote Rust prioritário executa localmente"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-ENV-01",
-        "T-ENV-02",
-        "T-PIPE-04"
-      ]
-    },
-    {
-      "id": "REQ-ENV-002",
-      "description": "Definir preflight de ambiente antes de iniciar lote de colônia.",
-      "type": "non-functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Checklist de comandos mínimo publicado",
-        "Critério go/no-go para soltar workers definido",
-        "Bloqueios viram issue + task"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-ENV-03",
-        "T-OPS-05"
-      ]
-    },
-    {
-      "id": "REQ-RESO-001",
-      "description": "Padronizar uso de reso.mjs para alternância src/dist conforme contexto.",
-      "type": "constraint",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Modo src para desenvolvimento documentado",
-        "Modo dist para validação final documentado",
-        "Comando status incluído nos gates"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-ENV-04",
-        "T-DOC-02"
-      ]
-    },
-    {
-      "id": "REQ-PIPE-001",
-      "description": "Type-check baseline do monorepo deve ser reproduzível e rastreável por domínio.",
-      "type": "non-functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Falhas mapeadas por pacote",
-        "Plano de correção priorizado",
-        "Execução canônica documentada"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PIPE-01",
-        "T-PIPE-02"
-      ]
-    },
-    {
-      "id": "REQ-PIPE-002",
-      "description": "Build baseline dos domínios críticos deve estar estável ou com bloqueios explicitamente rastreados.",
-      "type": "non-functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Runtime, contracts e storage/sync com status claro",
-        "Nenhum workaround em artefato gerado",
-        "Bloqueios convertidos em tasks"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PIPE-03",
-        "T-PIPE-04",
-        "T-PIPE-05"
-      ]
-    },
-    {
-      "id": "REQ-PIPE-003",
-      "description": "Definir gate de validação em dois níveis: smoke (rápido) e full (integração).",
-      "type": "functional",
-      "status": "accepted",
-      "priority": "should",
-      "acceptance_criteria": [
-        "Comandos smoke definidos",
-        "Comandos full definidos",
-        "Reviewer aplica gate full em lote"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PIPE-06",
-        "T-DOC-03"
-      ]
-    },
-    {
-      "id": "REQ-WORK-001",
-      "description": "Backlog deve ser composto por tarefas atômicas com escopo e aceite objetivos.",
-      "type": "functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Cada task tem objetivo único",
-        "Cada task define arquivos/pacotes alvo",
-        "Cada task define acceptance_criteria"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PLAN-01",
-        "T-PLAN-02"
-      ]
-    },
-    {
-      "id": "REQ-WORK-002",
-      "description": "Modelo operacional precisa evitar colisão entre workers em pacotes críticos.",
-      "type": "constraint",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Pacotes serializados listados",
-        "Regra 1 task = 1 branch = 1 PR aplicada",
-        "Handoff entre workers documentado"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PLAN-03",
-        "T-PLAN-04",
-        "T-PLAN-05"
-      ]
-    },
-    {
-      "id": "REQ-WORK-003",
-      "description": "Cada task concluída precisa ter evidência verificável.",
-      "type": "non-functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Task concluída aponta Verification ID",
-        "Evidence inclui comando e resultado",
-        "Critérios possuem status passed/failed/skipped"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-OPS-01",
-        "T-OPS-02"
-      ]
-    },
-    {
-      "id": "REQ-RUNTIME-001",
-      "description": "Estabilizar runtime Tractor (boot, ws, lifecycle plugin) com plano rastreável.",
-      "type": "integration",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Fluxo de boot mapeado",
-        "Smoke de daemon/ws disponível",
-        "Gaps viram tasks priorizadas"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-RUNTIME-01",
-        "T-RUNTIME-02",
-        "T-RUNTIME-03"
-      ]
-    },
-    {
-      "id": "REQ-CONTRACT-001",
-      "description": "Garantir conformance mensurável para contratos storage/sync/identity/plugin.",
-      "type": "integration",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Suites inventariadas",
-        "Lacunas viram tasks",
-        "Resultados registrados"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-CONTRACT-01",
-        "T-CONTRACT-02",
-        "T-CONTRACT-03",
-        "T-CONTRACT-04"
-      ]
-    },
-    {
-      "id": "REQ-PLUGIN-001",
-      "description": "Pipeline de instalação de plugins deve validar integridade (SHA-256) e cache.",
-      "type": "functional",
-      "status": "accepted",
-      "priority": "should",
-      "acceptance_criteria": [
-        "Fluxo install/cache/verify mapeado",
-        "Falha de hash bloqueia instalação",
-        "Testes cobrem cache hit/miss"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-PLUGIN-01",
-        "T-PLUGIN-02",
-        "T-PLUGIN-03"
-      ]
-    },
-    {
-      "id": "REQ-DOC-001",
-      "description": "Documentação operacional deve permitir onboarding rápido de workers.",
-      "type": "non-functional",
-      "status": "accepted",
-      "priority": "must",
-      "acceptance_criteria": [
-        "Playbook de colônia publicado",
-        "Templates de prompt/reporte publicados",
-        "Fluxo de escalonamento documentado"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-DOC-01",
-        "T-DOC-03",
-        "T-DOC-04"
-      ]
-    },
-    {
-      "id": "REQ-GOV-001",
-      "description": "Governança de merge deve preservar atomicidade e rastreabilidade de decisões.",
-      "type": "constraint",
-      "status": "accepted",
-      "priority": "should",
-      "acceptance_criteria": [
-        "Checklist de reviewer padronizado",
-        "Decisões registradas e revisitáveis",
-        "Risco operacional monitorado em issues"
-      ],
-      "source": "analysis",
-      "traces_to": [
-        "T-OPS-03",
-        "T-OPS-04",
-        "T-DEC-01"
-      ]
-    }
-  ]
+	"requirements": [
+		{
+			"id": "REQ-ENV-001",
+			"description": "Garantir toolchain Rust estável e funcional para builds dos pacotes runtime/WASM.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"rustc e cargo executam sem erro de manifest",
+				"Targets wasm32-wasip1 e wasm32-unknown-unknown instalados",
+				"Build de pacote Rust prioritário executa localmente"
+			],
+			"source": "analysis",
+			"traces_to": ["T-ENV-01", "T-ENV-02", "T-PIPE-04"]
+		},
+		{
+			"id": "REQ-ENV-002",
+			"description": "Definir preflight de ambiente antes de iniciar lote de colônia.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Checklist de comandos mínimo publicado",
+				"Critério go/no-go para soltar workers definido",
+				"Bloqueios viram issue + task"
+			],
+			"source": "analysis",
+			"traces_to": ["T-ENV-03", "T-OPS-05"]
+		},
+		{
+			"id": "REQ-RESO-001",
+			"description": "Padronizar uso de reso.mjs para alternância src/dist conforme contexto.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Modo src para desenvolvimento documentado",
+				"Modo dist para validação final documentado",
+				"Comando status incluído nos gates"
+			],
+			"source": "analysis",
+			"traces_to": ["T-ENV-04", "T-DOC-02"]
+		},
+		{
+			"id": "REQ-PIPE-001",
+			"description": "Type-check baseline do monorepo deve ser reproduzível e rastreável por domínio.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Falhas mapeadas por pacote",
+				"Plano de correção priorizado",
+				"Execução canônica documentada"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PIPE-01", "T-PIPE-02"]
+		},
+		{
+			"id": "REQ-PIPE-002",
+			"description": "Build baseline dos domínios críticos deve estar estável ou com bloqueios explicitamente rastreados.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Runtime, contracts e storage/sync com status claro",
+				"Nenhum workaround em artefato gerado",
+				"Bloqueios convertidos em tasks"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PIPE-03", "T-PIPE-04", "T-PIPE-05"]
+		},
+		{
+			"id": "REQ-PIPE-003",
+			"description": "Definir gate de validação em dois níveis: smoke (rápido) e full (integração).",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Comandos smoke definidos",
+				"Comandos full definidos",
+				"Reviewer aplica gate full em lote"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PIPE-06", "T-DOC-03"]
+		},
+		{
+			"id": "REQ-WORK-001",
+			"description": "Backlog deve ser composto por tarefas atômicas com escopo, ownership e aceite objetivos.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Cada task tem objetivo único",
+				"Cada task define arquivos/pacotes alvo",
+				"Cada task define acceptance_criteria",
+				"Backlog explicita macro-domínios e owners para paralelização"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PLAN-01", "T-PLAN-02", "T-PLAN-03"]
+		},
+		{
+			"id": "REQ-WORK-002",
+			"description": "Modelo operacional precisa evitar colisão entre workers em pacotes críticos.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Pacotes serializados listados",
+				"Regra 1 task = 1 branch = 1 PR aplicada",
+				"Handoff entre workers documentado"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PLAN-03", "T-PLAN-04", "T-PLAN-05"]
+		},
+		{
+			"id": "REQ-WORK-003",
+			"description": "Cada task concluída precisa ter evidência verificável.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Task concluída aponta Verification ID",
+				"Evidence inclui comando e resultado",
+				"Critérios possuem status passed/failed/skipped"
+			],
+			"source": "analysis",
+			"traces_to": ["T-OPS-01", "T-OPS-02"]
+		},
+		{
+			"id": "REQ-RUNTIME-001",
+			"description": "Estabilizar runtime Tractor (boot, ws, lifecycle plugin) com plano rastreável.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Fluxo de boot mapeado",
+				"Smoke de daemon/ws disponível",
+				"Gaps viram tasks priorizadas"
+			],
+			"source": "analysis",
+			"traces_to": ["T-RUNTIME-01", "T-RUNTIME-02", "T-RUNTIME-03"]
+		},
+		{
+			"id": "REQ-CONTRACT-001",
+			"description": "Garantir conformance mensurável para contratos storage/sync/identity/plugin.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Suites inventariadas",
+				"Lacunas viram tasks",
+				"Resultados registrados"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-CONTRACT-01",
+				"T-CONTRACT-02",
+				"T-CONTRACT-03",
+				"T-CONTRACT-04"
+			]
+		},
+		{
+			"id": "REQ-PLUGIN-001",
+			"description": "Pipeline de instalação de plugins deve validar integridade (SHA-256) e cache.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Fluxo install/cache/verify mapeado",
+				"Falha de hash bloqueia instalação",
+				"Testes cobrem cache hit/miss"
+			],
+			"source": "analysis",
+			"traces_to": ["T-PLUGIN-01", "T-PLUGIN-02", "T-PLUGIN-03"]
+		},
+		{
+			"id": "REQ-DOC-001",
+			"description": "Documentação operacional deve permitir onboarding rápido de workers.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Playbook de colônia publicado",
+				"Templates de prompt/reporte publicados",
+				"Fluxo de escalonamento documentado"
+			],
+			"source": "analysis",
+			"traces_to": ["T-DOC-01", "T-DOC-03", "T-DOC-04"]
+		},
+		{
+			"id": "REQ-GOV-001",
+			"description": "Governança de merge deve preservar atomicidade e rastreabilidade de decisões.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Checklist de reviewer padronizado",
+				"Decisões registradas e revisitáveis",
+				"Risco operacional monitorado em issues"
+			],
+			"source": "analysis",
+			"traces_to": ["T-OPS-03", "T-OPS-04", "T-DEC-01"]
+		}
+	]
 }
