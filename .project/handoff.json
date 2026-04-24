@@ -1,41 +1,28 @@
 {
-	"context": "Lote NEXT2 executado após push: política offline de revogação ganhou implementação inicial em install/runtime + testes e documentação, mantendo DEC-026 em revisit para definição final de defaults por ambiente.",
-	"timestamp": "2026-04-24T12:48:53.622Z",
+	"context": "Checkpoint de compactação solicitado com 79% de contexto: lote NEXT2 concluído e registrado; estado pronto para resumir/compactar sem perda de continuidade.",
+	"timestamp": "2026-04-24T12:54:18.437Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"T-NEXT-11..14 concluídas: implementação + testes da política revocation-unavailable no runtime descriptor path.",
-		"T-NEXT-15..17 concluídas: documentação e rastreabilidade de requirements atualizadas.",
-		"Checkpoint intermediário VER-CHECKPOINT-NEXT2-20260424 registrado."
+		"Checkpoint registrado: VER-CHECKPOINT-COMPACTION-10-20260424.",
+		"Lote NEXT2 (T-NEXT-11..20) consolidado em tasks/verification/handoff.",
+		"Trilha pi agora vs Refarm futuro preservada com DEC-026 pendente de decisão final."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; decisão DEC-026 continua pendente de fechamento final (defaults por ambiente + ADR)."
+		"Sem bloqueio técnico imediato; definição final de defaults da política offline (DEC-026) segue pendente."
 	],
 	"next_actions": [
-		"Definir defaults finais de DEC-026 (promover revisit->decided) com critério de ambiente e rollout.",
-		"Rodar gate runtime completo (`npm run gate:smoke:runtime`) no próximo lote de consolidação.",
-		"Preparar checkpoint final quando o usuário solicitar compactação."
+		"Após compactação, decidir defaults finais de DEC-026 por ambiente e promover revisit->decided quando apropriado.",
+		"Rodar novo lote técnico (~10 slices) focado em enforcement/rollout da política de revogação offline.",
+		"Opcional: push dos 4 commits locais quando desejado para observação de CI."
 	],
 	"open_questions": [
-		"Qual default final de política offline por ambiente será canônico para produção sensível no rollout DEC-026?"
+		"Qual default final por ambiente para revocation-unavailable será canônico no rollout de produção sensível?"
 	],
 	"key_decisions_pending": [
 		"DEC-026"
 	],
 	"files_in_flux": [
-		".project/requirements.json",
-		".project/tasks.json",
-		".project/decisions.json",
-		".project/verification.json",
-		".project/project.json",
 		".project/handoff.json",
-		"docs/WORKFLOW.md",
-		"docs/COLONY_PLAYBOOK.md",
-		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
-		"docs/COLONY_NEXT_BATCH.md",
-		"packages/tractor-ts/src/lib/install-plugin.ts",
-		"packages/tractor-ts/src/index.browser.ts",
-		"packages/tractor-ts/test/install-plugin.test.ts",
-		"packages/tractor-ts/test/browser-plugin-host.test.ts",
-		"packages/tractor-ts/README.md"
+		".project/verification.json"
 	]
 }

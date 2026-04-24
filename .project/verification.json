@@ -3597,6 +3597,27 @@
 					"evidence": "project validate permanece clean após atualização."
 				}
 			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-10-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:54:18.437Z",
+			"evidence": "Checkpoint de compactação preparado após lote NEXT2 (offline revocation policy), com validações verdes e board consistente para retomada.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico validado antes da compactação",
+					"status": "passed",
+					"evidence": "Executados com sucesso: `tractor-ts type-check`, testes direcionados, `gate:smoke:runtime` e `project:validate`."
+				},
+				{
+					"criterion": "Retomada pós-compactação explícita",
+					"status": "passed",
+					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026 para fechamento de defaults por ambiente."
+				}
+			]
 		}
 	]
 }
