@@ -5544,6 +5544,872 @@
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-NEXT-215-20260424",
 			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-216",
+			"description": "Criar utilitário para seleção determinística do run anterior com sucesso no mesmo workflow/branch.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Filtra por workflow e branch",
+				"Exclui run corrente por id",
+				"Escolhe run mais recente por created_at"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-216-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-217",
+			"description": "Adicionar ordenação determinística por data+id para runs/artifacts no baseline lib.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Comparator compartilhado criado",
+				"Empate resolvido por id",
+				"Sem dependência em ordenação da API"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-217-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-218",
+			"description": "Criar seleção de artifact por nome com exclusão de artifacts expirados.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Nome de artifact obrigatório",
+				"Artifacts expired são ignorados",
+				"Escolha final determinística"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-218-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-219",
+			"description": "Adicionar resolução do summary de revogação priorizando caminho canônico do artifact.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Prioriza runtime-descriptor-revocation-report/summary.json",
+				"Fallback controlado para summary.json",
+				"Retorna null quando ausente"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-219-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-220",
+			"description": "Reaproveitar coleta recursiva de JSON existente para minimizar duplicação no baseline lib.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs",
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"listFilesRecursive delega para collectJsonFilesRecursive",
+				"Sem recursão duplicada no novo módulo",
+				"Comportamento ordenado preservado"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-220-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-221",
+			"description": "Adicionar helper para lista de reports (current+baseline) com deduplicação.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Entrada vazia é ignorada",
+				"Current preserva precedência",
+				"Set evita duplicatas"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-221-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-222",
+			"description": "Adicionar resumo estruturado de resolução de baseline para auditoria operacional.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Metadata inclui run/artifact/status/reason",
+				"Paths resolvidos expostos",
+				"Timestamp de geração incluído"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-222-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-223",
+			"description": "Criar biblioteca de fetch baseline para encapsular interação com GitHub API.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Client de API isolado",
+				"Headers GitHub padronizados",
+				"Falhas HTTP geram erro explícito"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-223-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-224",
+			"description": "Implementar criação de client GitHub com endpoints de runs/artifacts/download.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"listWorkflowRuns implementado",
+				"listRunArtifacts implementado",
+				"downloadArtifactZip implementado"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-224-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-225",
+			"description": "Adicionar extração zip de artifact em diretório temporário determinístico.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"unzip -oq aplicado",
+				"Temp dir isolado por UUID",
+				"Fluxo não depende de GH CLI"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-225-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-226",
+			"description": "Implementar resolução de baseline anterior com fallbacks de ausência de run/artifact/summary.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Retorna reason para cada ausência",
+				"Não quebra pipeline por padrão",
+				"Copía summary quando encontrado"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-226-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-227",
+			"description": "Criar normalização de configuração CLI/env para baseline lookup.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Repo/branch/workflow/token resolvidos",
+				"max-runs normalizado",
+				"paths out/reports/current resolvidos"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-227-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-228",
+			"description": "Implementar orquestrador runRevocationBaselineResolution para reduzir complexidade do CLI.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Config+lookup+metadata+reports integrados",
+				"Diretórios criados automaticamente",
+				"Retorno estruturado para CLI/testes"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-228-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-229",
+			"description": "Criar CLI dedicada de baseline com logs operacionais e required gate opcional.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"Logs para metadata/baseline/reports",
+				"required=true falha quando baseline ausente",
+				"Mensagem de erro padronizada"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-229-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-230",
+			"description": "Minimizar acoplamento do CLI delegando lógica para fetch-lib.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs",
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"CLI mantém papel de casca fina",
+				"main reduz fanout",
+				"Lógica central testável no lib"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-230-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-231",
+			"description": "Adicionar script npm runtime-descriptor:revocation-baseline para uso local/CI.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"package.json"
+			],
+			"acceptance_criteria": [
+				"Script npm registrado",
+				"Sem regressão dos scripts existentes",
+				"Compatível com flags passthrough"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-231-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-232",
+			"description": "Atualizar workflow Test & Quality com step de baseline lookup em tractor_gates.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Step usa github.token",
+				"Exclui run corrente via github.run_id",
+				"Workflow name/branch passados explicitamente"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-232-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-233",
+			"description": "Atualizar step de history smoke para consumir reports-file gerado pelo baseline step.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"History usa --reports-file",
+				"Out-dir histórico preservado",
+				"Compatível sem baseline (apenas current)"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-233-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-234",
+			"description": "Expandir artifact upload do workflow para incluir diretório de baseline.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"baseline dir adicionado ao upload",
+				"retention preservado",
+				"if-no-files-found mantido"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-234-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-235",
+			"description": "Documentar fluxo baseline+history em OBSERVABILITY do tractor-ts.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"packages/tractor-ts/docs/OBSERVABILITY.md"
+			],
+			"acceptance_criteria": [
+				"Comandos em sequência documentados",
+				"Novas saídas baseline listadas",
+				"Artefatos history mantidos"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-235-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-236",
+			"description": "Atualizar runbook de incidente com passo de baseline lookup entre runs.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Comando baseline incluído",
+				"Saídas baseline+history listadas",
+				"Narrativa operacional alinhada ao CI"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-236-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-237",
+			"description": "Atualizar alignment external-signed com análise longitudinal baseada em artifacts prévios.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Fluxo baseline + history descrito",
+				"Terminologia report/report-file alinhada",
+				"Resultado delta entre runs explicitado"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-237-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-238",
+			"description": "Atualizar arquitetura para incluir script revocation-baseline no toolkit CI/ops.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Linha de arquitetura menciona três scripts",
+				"Contexto de delta entre runs adicionado",
+				"Sem alteração de contratos runtime"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-238-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-239",
+			"description": "Atualizar README tractor-ts com fluxo operacional de baseline+history.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Bullet observability atualizado",
+				"Comando baseline referenciado",
+				"Remoção de dependência apenas em fixtures"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-239-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-240",
+			"description": "Adicionar cobertura de seleção de run anterior com filtros e exclusão.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste selectPreviousSuccessfulRun adicionado",
+				"Cobre branch/workflow/exclude",
+				"Assert de run esperado"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-240-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-241",
+			"description": "Adicionar cobertura de seleção de artifact ignorando expired.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste selectArtifactByName adicionado",
+				"Valida ignore expired",
+				"Valida seleção do mais recente"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-241-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-242",
+			"description": "Adicionar cobertura da resolução de path canônico summary.json.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste findRevocationSummaryPath adicionado",
+				"Prioridade do caminho canônico validada",
+				"Fallback implícito preservado"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-242-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-243",
+			"description": "Adicionar cobertura da deduplicação current+baseline para reports list.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste buildHistoryReportsList adicionado",
+				"Evita entradas duplicadas",
+				"Ordem current-first validada"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-243-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-244",
+			"description": "Adicionar cobertura do resumo estruturado de baseline resolution.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste summarizeBaselineResolution adicionado",
+				"Campos run/artifact verificados",
+				"Status resolved validado"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-244-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-245",
+			"description": "Adicionar teste de integração leve para runRevocationBaselineResolution sem contexto GH.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Não exige token/rede",
+				"Escreve metadata + reports file",
+				"Mantém report current como única entrada"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-245-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-246",
+			"description": "Preservar cobertura existente da pipeline report/history após introdução do baseline flow.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Testes legacy mantidos verdes",
+				"Sem regressão de delta/histórico",
+				"Compatibilidade com policy fail-on preservada"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-246-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-247",
+			"description": "Validar script de teste Node após expansão de suíte para baseline flow.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"13 subtests verdes",
+				"Sem falhas/skip inesperados",
+				"Runtime curto mantém smoke viável"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-247-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-248",
+			"description": "Validar geração de report sample pós-refactor.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs"
+			],
+			"acceptance_criteria": [
+				"summary.json gerado",
+				"summary.md gerado",
+				"Sem regressão de CLI"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-248-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-249",
+			"description": "Validar baseline CLI em modo sem contexto GH (degradação graciosa).",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"baseline.json gerado com status missing",
+				"reports.txt escrito com current report",
+				"processo conclui sem erro por padrão"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-249-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-250",
+			"description": "Validar analyze history com reports-file produzido pelo baseline flow.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"history.json/history.md gerados",
+				"reports analyzed consistente",
+				"Fluxo 1-report suportado"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-250-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-251",
+			"description": "Manter smoke de history com fixtures previous/current funcional.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json",
+				"scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json"
+			],
+			"acceptance_criteria": [
+				"history:sample segue verde",
+				"Delta latest-vs-previous preservado",
+				"Compatível com novos passos CI"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-251-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-252",
+			"description": "Adicionar escrita garantida de diretórios de saída no baseline orchestrator.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"out-dir criado recursivamente",
+				"reports-file parent criado",
+				"Sem falha por path inexistente"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-252-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-253",
+			"description": "Adicionar normalização defensiva de max-runs com fallback seguro.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"maxRuns >0 obrigatório",
+				"fallback=25 aplicado",
+				"Evita query inválida"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-253-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-254",
+			"description": "Adicionar persistência de metadata baseline para auditoria mesmo sem baseline encontrado.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs",
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"baseline.json sempre escrito",
+				"reason explica ausência",
+				"logs operacionais coerentes"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-254-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-255",
+			"description": "Adicionar modo required no CLI baseline para cenários de enforcement.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"--required força falha sem baseline",
+				"mensagem inclui reason",
+				"comportamento default continua permissivo"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-255-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-256",
+			"description": "Padronizar naming/paths de artefatos baseline para consumo por workflow.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"out-dir default dedicado",
+				"output-summary default previous-summary.json",
+				"output-json default baseline.json"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-256-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-257",
+			"description": "Reduzir duplicação e complexidade estrutural movendo lógica de rede/zip para fetch-lib.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs",
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"main ficou enxuto",
+				"helpers especializados separados",
+				"manutenção facilitada"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-257-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-258",
+			"description": "Responder monitor de qualidade com redução de blast radius em símbolos exportados.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Apenas runRevocationBaselineResolution exportado",
+				"helpers internos não vazam contrato",
+				"fanout externo minimizado"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-258-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-259",
+			"description": "Responder monitor de duplicação reaproveitando utilitário recursivo pré-existente.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs",
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Sem recursão duplicada nova",
+				"reuso explícito com import",
+				"mantém consistência comportamental"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-259-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-260",
+			"description": "Responder monitor de complexidade mantendo CLI como casca fina e testável.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"main orquestra apenas parse/log/fail gate",
+				"lógica pesada externalizada",
+				"legibilidade e revisão melhoradas"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-260-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-261",
+			"description": "Garantir que baseline lookup não bloqueie history smoke quando ausente baseline.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs",
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"reports-file inclui ao menos current report",
+				"history smoke continua executando",
+				"pipeline resiliente a primeira execução"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-261-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-262",
+			"description": "Garantir rastreabilidade de baseline run/artifact para depuração de CI.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs",
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs"
+			],
+			"acceptance_criteria": [
+				"metadata inclui run id/head sha",
+				"metadata inclui artifact id/size",
+				"logs apontam arquivo metadata"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-262-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-263",
+			"description": "Executar validação combinada report+baseline+history em ambiente local.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
+				"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs",
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"report sample executado",
+				"baseline sem token executado",
+				"history com reports-file executado"
+			],
+			"assigned_agent": "worker-test",
+			"verification": "VER-NEXT-263-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-264",
+			"description": "Atualizar governança para NEXT11 registrando decisão/requisito de baseline real por artifact.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				".project/requirements.json",
+				".project/decisions.json",
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-011 criado",
+				"DEC-030 criado",
+				"tasks/verifications NEXT11 registradas"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-264-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-265",
+			"description": "Fechar lote NEXT11 com checkpoint de fase e checkpoint de compactação.",
+			"status": "completed",
+			"phase": 11,
+			"files": [
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"VER-CHECKPOINT-NEXT11-20260424 criado",
+				"VER-CHECKPOINT-COMPACTION-18-20260424 criado",
+				"handoff pronto para próximo lote"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-265-20260424",
+			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
 		}
 	]
 }

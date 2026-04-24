@@ -594,7 +594,37 @@
 				"T-NEXT-207",
 				"T-NEXT-208",
 				"T-NEXT-213",
-				"T-NEXT-215"
+				"T-NEXT-215",
+				"T-NEXT-231",
+				"T-NEXT-235",
+				"T-NEXT-236",
+				"T-NEXT-237",
+				"T-NEXT-238",
+				"T-NEXT-239"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-011",
+			"description": "A análise histórica de revogação em CI deve preferir baseline real obtido do artifact do último run bem-sucedido do mesmo workflow/branch, com degradação graciosa quando indisponível.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ferramenta baseline resolve run anterior + artifact runtime-descriptor-revocation-report e extrai summary.json canônico",
+				"Ausência de baseline não quebra o pipeline por padrão; metadata de razão é registrada",
+				"Workflow Test & Quality usa reports-file gerado para alimentar history smoke sem fixtures obrigatórias"
+			],
+			"traces_to": [
+				"T-NEXT-216",
+				"T-NEXT-218",
+				"T-NEXT-226",
+				"T-NEXT-229",
+				"T-NEXT-232",
+				"T-NEXT-233",
+				"T-NEXT-234",
+				"T-NEXT-245",
+				"T-NEXT-263"
 			]
 		}
 	]

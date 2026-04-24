@@ -231,6 +231,14 @@
 			"status": "decided",
 			"phase": 10,
 			"context": "Implementado no NEXT10 com CLI dedicado, biblioteca utilitária, fixtures de smoke e integração no workflow Test & Quality."
+		},
+		{
+			"id": "DEC-030",
+			"decision": "Para análise longitudinal de revogação, adotar baseline preferencial via artifact do último run bem-sucedido de \"Test & Quality\" na mesma branch, com fallback não-bloqueante para snapshot atual quando baseline não estiver disponível.",
+			"rationale": "Reduz dependência de fixtures e aproxima observabilidade de produção real, mantendo resiliência no primeiro run/ausência temporária de artifacts.",
+			"status": "decided",
+			"phase": 11,
+			"context": "Implementado com scripts runtime-descriptor:revocation-baseline + runtime-descriptor:revocation-history e integração no workflow test.yml."
 		}
 	]
 }

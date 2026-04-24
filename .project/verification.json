@@ -8028,6 +8028,1119 @@
 					"evidence": "`.project/handoff.json` atualizado com contexto atual, próximos passos e decisão pendente."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-216-20260424",
+			"target": "T-NEXT-216",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-216 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-216 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-216 -> VER-NEXT-216-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-217-20260424",
+			"target": "T-NEXT-217",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-217 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-217 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-217 -> VER-NEXT-217-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-218-20260424",
+			"target": "T-NEXT-218",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-218 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-218 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-218 -> VER-NEXT-218-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-219-20260424",
+			"target": "T-NEXT-219",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-219 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-219 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-219 -> VER-NEXT-219-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-220-20260424",
+			"target": "T-NEXT-220",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-220 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-220 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-220 -> VER-NEXT-220-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-221-20260424",
+			"target": "T-NEXT-221",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-221 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-221 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-221 -> VER-NEXT-221-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-222-20260424",
+			"target": "T-NEXT-222",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-222 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-222 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-222 -> VER-NEXT-222-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-223-20260424",
+			"target": "T-NEXT-223",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-223 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-223 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-223 -> VER-NEXT-223-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-224-20260424",
+			"target": "T-NEXT-224",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-224 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-224 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-224 -> VER-NEXT-224-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-225-20260424",
+			"target": "T-NEXT-225",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-225 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-225 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-225 -> VER-NEXT-225-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-226-20260424",
+			"target": "T-NEXT-226",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-226 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-226 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-226 -> VER-NEXT-226-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-227-20260424",
+			"target": "T-NEXT-227",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-227 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-227 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-227 -> VER-NEXT-227-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-228-20260424",
+			"target": "T-NEXT-228",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-228 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-228 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-228 -> VER-NEXT-228-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-229-20260424",
+			"target": "T-NEXT-229",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-229 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-229 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-229 -> VER-NEXT-229-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-230-20260424",
+			"target": "T-NEXT-230",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-230 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-230 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-230 -> VER-NEXT-230-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-231-20260424",
+			"target": "T-NEXT-231",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-231 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-231 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-231 -> VER-NEXT-231-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-232-20260424",
+			"target": "T-NEXT-232",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-232 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-232 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-232 -> VER-NEXT-232-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-233-20260424",
+			"target": "T-NEXT-233",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-233 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-233 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-233 -> VER-NEXT-233-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-234-20260424",
+			"target": "T-NEXT-234",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-234 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-234 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-234 -> VER-NEXT-234-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-235-20260424",
+			"target": "T-NEXT-235",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-235 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-235 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-235 -> VER-NEXT-235-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-236-20260424",
+			"target": "T-NEXT-236",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-236 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-236 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-236 -> VER-NEXT-236-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-237-20260424",
+			"target": "T-NEXT-237",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-237 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-237 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-237 -> VER-NEXT-237-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-238-20260424",
+			"target": "T-NEXT-238",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-238 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-238 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-238 -> VER-NEXT-238-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-239-20260424",
+			"target": "T-NEXT-239",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-239 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-239 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-239 -> VER-NEXT-239-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-240-20260424",
+			"target": "T-NEXT-240",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-240 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-240 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-240 -> VER-NEXT-240-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-241-20260424",
+			"target": "T-NEXT-241",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-241 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-241 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-241 -> VER-NEXT-241-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-242-20260424",
+			"target": "T-NEXT-242",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-242 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-242 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-242 -> VER-NEXT-242-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-243-20260424",
+			"target": "T-NEXT-243",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-243 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-243 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-243 -> VER-NEXT-243-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-244-20260424",
+			"target": "T-NEXT-244",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-244 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-244 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-244 -> VER-NEXT-244-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-245-20260424",
+			"target": "T-NEXT-245",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-245 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-245 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-245 -> VER-NEXT-245-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-246-20260424",
+			"target": "T-NEXT-246",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-246 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-246 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-246 -> VER-NEXT-246-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-247-20260424",
+			"target": "T-NEXT-247",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "`npm run runtime-descriptor:revocation-report:test` executado com 13/13 subtests pass.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`npm run runtime-descriptor:revocation-report:test` executado com 13/13 subtests pass."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-247 -> VER-NEXT-247-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-248-20260424",
+			"target": "T-NEXT-248",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "`npm run runtime-descriptor:revocation-report:sample` gerou summary.json/summary.md.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`npm run runtime-descriptor:revocation-report:sample` gerou summary.json/summary.md."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-248 -> VER-NEXT-248-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-249-20260424",
+			"target": "T-NEXT-249",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "`npm run runtime-descriptor:revocation-baseline -- --current-report ... --reports-file ...` executado sem token; baseline.json status missing + reports file gerado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`npm run runtime-descriptor:revocation-baseline -- --current-report ... --reports-file ...` executado sem token; baseline.json status missing + reports file gerado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-249 -> VER-NEXT-249-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-250-20260424",
+			"target": "T-NEXT-250",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "`npm run runtime-descriptor:revocation-history -- --reports-file ...` executado com reports analyzed=1 e artefatos history.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`npm run runtime-descriptor:revocation-history -- --reports-file ...` executado com reports analyzed=1 e artefatos history."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-250 -> VER-NEXT-250-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-251-20260424",
+			"target": "T-NEXT-251",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "`npm run runtime-descriptor:revocation-history:sample` executado com reports analyzed=2.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`npm run runtime-descriptor:revocation-history:sample` executado com reports analyzed=2."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-251 -> VER-NEXT-251-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-252-20260424",
+			"target": "T-NEXT-252",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-252 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-252 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-252 -> VER-NEXT-252-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-253-20260424",
+			"target": "T-NEXT-253",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-253 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-253 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-253 -> VER-NEXT-253-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-254-20260424",
+			"target": "T-NEXT-254",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-254 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-254 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-254 -> VER-NEXT-254-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-255-20260424",
+			"target": "T-NEXT-255",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-255 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-255 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-255 -> VER-NEXT-255-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-256-20260424",
+			"target": "T-NEXT-256",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-256 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-256 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-256 -> VER-NEXT-256-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-257-20260424",
+			"target": "T-NEXT-257",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-257 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-257 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-257 -> VER-NEXT-257-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-258-20260424",
+			"target": "T-NEXT-258",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-258 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-258 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-258 -> VER-NEXT-258-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-259-20260424",
+			"target": "T-NEXT-259",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-259 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-259 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-259 -> VER-NEXT-259-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-260-20260424",
+			"target": "T-NEXT-260",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-260 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-260 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-260 -> VER-NEXT-260-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-261-20260424",
+			"target": "T-NEXT-261",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-261 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-261 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-261 -> VER-NEXT-261-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-262-20260424",
+			"target": "T-NEXT-262",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-262 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-262 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-262 -> VER-NEXT-262-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-263-20260424",
+			"target": "T-NEXT-263",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Validação combinada local executada: report sample + baseline fallback + history via reports-file.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Validação combinada local executada: report sample + baseline fallback + history via reports-file."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-263 -> VER-NEXT-263-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-264-20260424",
+			"target": "T-NEXT-264",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-264 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-264 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-264 -> VER-NEXT-264-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-265-20260424",
+			"target": "T-NEXT-265",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Entrega registrada em T-NEXT-265 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z).",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Entrega registrada em T-NEXT-265 com evidência em código/docs/workflow e validações NEXT11 (2026-04-24T20:20:24.277Z)."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-265 -> VER-NEXT-265-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT11-20260424",
+			"target": "11",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "NEXT11 (~50 slices) concluído com baseline real via artifacts de runs anteriores + integração CI/workflow/docs/testes.",
+			"criteria_results": [
+				{
+					"criterion": "Baseline cross-run operacional entregue",
+					"status": "passed",
+					"evidence": "CLI baseline + fetch lib + baseline lib + workflow integration."
+				},
+				{
+					"criterion": "Validações de regressão executadas",
+					"status": "passed",
+					"evidence": "runtime-descriptor:revocation-report:test, report:sample, baseline fallback, history via reports-file e history:sample."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-18-20260424",
+			"target": "11",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:20:24.277Z",
+			"evidence": "Checkpoint de compactação pós-NEXT11 com estado estabilizado e handoff atualizado.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico consolidado",
+					"status": "passed",
+					"evidence": "Feature baseline+history integrada e validada."
+				},
+				{
+					"criterion": "Retomada futura facilitada",
+					"status": "passed",
+					"evidence": "Handoff com próximos passos de NEXT12 e pendências estratégicas."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-19-20260424",
+			"target": "11",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T20:21:45.173Z",
+			"evidence": "Checkpoint solicitado pelo usuário para pausar execução com estado consistente após integração baseline/history no NEXT11.",
+			"criteria_results": [
+				{
+					"criterion": "Estado .project consistente no momento da pausa",
+					"status": "passed",
+					"evidence": "project-validate clean antes do checkpoint."
+				},
+				{
+					"criterion": "Handoff atualizado para retomada direta",
+					"status": "passed",
+					"evidence": "Contexto da pausa e próximos passos registrados no handoff."
+				}
+			]
 		}
 	]
 }

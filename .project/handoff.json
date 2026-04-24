@@ -1,40 +1,42 @@
 {
-	"context": "Checkpoint de compactação preparado após NEXT10 (history/delta tooling) com CI em sucesso; pronto para compactar e retomar no NEXT11.",
-	"timestamp": "2026-04-24T19:43:30.689Z",
-	"current_phase": 10,
+	"context": "Execução pausada por solicitação do usuário após entrega técnica do NEXT11; checkpoint de compactação 19 registrado.",
+	"timestamp": "2026-04-24T20:21:45.173Z",
+	"current_phase": 11,
 	"current_tasks": [
-		"Checkpoint VER-CHECKPOINT-COMPACTION-17-20260424 registrado para compactação segura.",
-		"Estado estabilizado: NEXT10 concluído, commits publicados e CI 24907731556 verde.",
-		"Execução do NEXT11 pausada aguardando compactação e retomada."
+		"Trabalho técnico NEXT11 aplicado localmente (baseline artifact lookup + CI integration + docs + testes).",
+		"Validações locais executadas e project-validate limpo.",
+		"Pausa operacional ativa aguardando retomada do usuário."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; DEC-010 permanece pendente (ADR-012 Proposed)."
+		"Sem bloqueio técnico; pausa voluntária solicitada pelo usuário."
 	],
 	"next_actions": [
-		"Após compactação, iniciar NEXT11 focando baseline real de histórico via artifacts CI/GH API.",
-		"Avaliar otimização de throughput de e2e para mudanças estritas em tractor-ts com guardrails.",
-		"Registrar novo checkpoint quando o contexto voltar a pressionar."
+		"Na retomada: revisar diff final, commitar em lote atômico e executar push + observação DEC-024.",
+		"Se desejado, dividir em 2 commits (runtime/ci + governança) para facilitar revisão.",
+		"Após push, confirmar run Test & Quality com novos steps baseline/history verdes."
 	],
 	"open_questions": [
-		"Qual canal oficial persistirá snapshots históricos de revogação para janela >14 dias (artefatos expiram)?"
+		"Qual política de retenção/hidratação histórica será adotada quando artifact TTL expirar (14 dias)?"
 	],
 	"key_decisions_pending": [
 		"DEC-010"
 	],
 	"files_in_flux": [
+		".github/workflows/test.yml",
+		"package.json",
+		"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs",
+		"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs",
+		"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs",
+		"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
+		"packages/tractor-ts/docs/OBSERVABILITY.md",
+		"packages/tractor-ts/README.md",
+		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
+		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+		"docs/ARCHITECTURE.md",
 		".project/tasks.json",
 		".project/verification.json",
 		".project/requirements.json",
 		".project/decisions.json",
-		".project/handoff.json",
-		"scripts/ci/runtime-descriptor-revocation-report-lib.mjs",
-		"scripts/ci/runtime-descriptor-revocation-history-lib.mjs",
-		"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs",
-		"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
-		"scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json",
-		"scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json",
-		".github/workflows/test.yml",
-		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
-		"packages/tractor-ts/docs/OBSERVABILITY.md"
+		".project/handoff.json"
 	]
 }
