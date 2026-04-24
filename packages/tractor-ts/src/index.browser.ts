@@ -41,6 +41,8 @@ import {
 	isDescriptorHashRevoked,
 } from "./lib/runtime-descriptor-revocation";
 import {
+	dedupeRuntimeDescriptorRevocationConfigConflicts,
+	dedupeRuntimeDescriptorRevocationInvalidInputs,
 	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
 	type RuntimeDescriptorRevocationUnavailablePolicy,
 	resolveRuntimeDescriptorRevocationEnvironmentProfile,
@@ -89,20 +91,23 @@ function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRe
 		...(resolved.invalidInputs ?? []),
 		...(environmentProfileResolution.invalidInputs ?? []),
 	];
+	const conflicts = [
+		...(resolved.conflicts ?? []),
+		...(environmentProfileResolution.conflicts ?? []),
+	];
 
-	if (invalidInputs.length === 0) return resolved;
-
-	const dedupedInvalidInputs = invalidInputs.filter(
-		(input, index, all) =>
-			all.findIndex(
-				(candidate) =>
-					candidate.slot === input.slot && candidate.value === input.value,
-			) === index,
-	);
+	if (invalidInputs.length === 0 && conflicts.length === 0) return resolved;
 
 	return {
 		...resolved,
-		invalidInputs: dedupedInvalidInputs,
+		invalidInputs:
+			invalidInputs.length > 0
+				? dedupeRuntimeDescriptorRevocationInvalidInputs(invalidInputs)
+				: undefined,
+		conflicts:
+			conflicts.length > 0
+				? dedupeRuntimeDescriptorRevocationConfigConflicts(conflicts)
+				: undefined,
 	};
 }
 
@@ -383,6 +388,19 @@ export class PluginHost {
 				pluginId: manifest.id,
 				payload: {
 					invalidInputs: policyResolution.invalidInputs,
+					resolvedPolicy: unavailablePolicy,
+					policySource: policyResolution.source,
+					profile: policyResolution.profile,
+				},
+			});
+		}
+
+		if ((policyResolution.conflicts?.length ?? 0) > 0) {
+			this.emit({
+				event: "system:descriptor_revocation_config_conflict",
+				pluginId: manifest.id,
+				payload: {
+					conflicts: policyResolution.conflicts,
 					resolvedPolicy: unavailablePolicy,
 					policySource: policyResolution.source,
 					profile: policyResolution.profile,

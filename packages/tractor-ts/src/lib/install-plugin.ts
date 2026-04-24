@@ -35,6 +35,8 @@ import {
 	resolveGithubRepoCoordinates,
 } from "./runtime-descriptor-revocation";
 import {
+	dedupeRuntimeDescriptorRevocationConfigConflicts,
+	dedupeRuntimeDescriptorRevocationInvalidInputs,
 	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
 	type RuntimeDescriptorRevocationProfile,
@@ -223,20 +225,23 @@ function resolveInstallRevocationUnavailablePolicy(
 		...(resolved.invalidInputs ?? []),
 		...(environmentProfileResolution.invalidInputs ?? []),
 	];
+	const conflicts = [
+		...(resolved.conflicts ?? []),
+		...(environmentProfileResolution.conflicts ?? []),
+	];
 
-	if (invalidInputs.length === 0) return resolved;
-
-	const dedupedInvalidInputs = invalidInputs.filter(
-		(input, index, all) =>
-			all.findIndex(
-				(candidate) =>
-					candidate.slot === input.slot && candidate.value === input.value,
-			) === index,
-	);
+	if (invalidInputs.length === 0 && conflicts.length === 0) return resolved;
 
 	return {
 		...resolved,
-		invalidInputs: dedupedInvalidInputs,
+		invalidInputs:
+			invalidInputs.length > 0
+				? dedupeRuntimeDescriptorRevocationInvalidInputs(invalidInputs)
+				: undefined,
+		conflicts:
+			conflicts.length > 0
+				? dedupeRuntimeDescriptorRevocationConfigConflicts(conflicts)
+				: undefined,
 	};
 }
 
@@ -325,6 +330,12 @@ async function assertDescriptorNotRevoked(
 	for (const invalid of policyResolution.invalidInputs ?? []) {
 		console.warn(
 			`[install-plugin] Ignoring invalid revocation ${invalid.slot} value '${invalid.value}' for ${manifest.id}.`,
+		);
+	}
+
+	for (const conflict of policyResolution.conflicts ?? []) {
+		console.warn(
+			`[install-plugin] Conflicting revocation ${conflict.slot} inputs for ${manifest.id}; keeping ${conflict.preferredSource}='${conflict.preferredValue}' (${conflict.preferredProfile}) and ignoring ${conflict.ignoredSource}='${conflict.ignoredValue}' (${conflict.ignoredProfile}).`,
 		);
 	}
 

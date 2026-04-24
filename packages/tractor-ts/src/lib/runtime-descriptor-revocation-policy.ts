@@ -26,6 +26,16 @@ export interface RuntimeDescriptorRevocationInvalidInput {
 	value: string;
 }
 
+export interface RuntimeDescriptorRevocationConfigConflict {
+	slot: "environment-profile";
+	preferredSource: RuntimeDescriptorRevocationEnvironmentProfileSource;
+	preferredValue: string;
+	preferredProfile: RuntimeDescriptorRevocationProfile;
+	ignoredSource: RuntimeDescriptorRevocationEnvironmentProfileSource;
+	ignoredValue: string;
+	ignoredProfile: RuntimeDescriptorRevocationProfile;
+}
+
 export type RuntimeDescriptorRevocationEnvironmentProfileSource =
 	| "dedicated-profile"
 	| "generic-environment";
@@ -39,6 +49,7 @@ export interface ResolveRuntimeDescriptorRevocationEnvironmentProfileResult {
 	profile?: RuntimeDescriptorRevocationProfile;
 	source?: RuntimeDescriptorRevocationEnvironmentProfileSource;
 	invalidInputs?: RuntimeDescriptorRevocationInvalidInput[];
+	conflicts?: RuntimeDescriptorRevocationConfigConflict[];
 }
 
 export interface ResolveRuntimeDescriptorRevocationUnavailablePolicyInput {
@@ -54,6 +65,7 @@ export interface ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
 	source: RuntimeDescriptorRevocationPolicyResolutionSource;
 	profile?: RuntimeDescriptorRevocationProfile;
 	invalidInputs?: RuntimeDescriptorRevocationInvalidInput[];
+	conflicts?: RuntimeDescriptorRevocationConfigConflict[];
 }
 
 const PROFILE_POLICY: Record<
@@ -69,6 +81,36 @@ function normalizeValue(value: string | undefined): string {
 	return String(value ?? "")
 		.trim()
 		.toLowerCase();
+}
+
+export function dedupeRuntimeDescriptorRevocationInvalidInputs(
+	inputs: RuntimeDescriptorRevocationInvalidInput[],
+): RuntimeDescriptorRevocationInvalidInput[] {
+	return inputs.filter(
+		(input, index, all) =>
+			all.findIndex(
+				(candidate) =>
+					candidate.slot === input.slot && candidate.value === input.value,
+			) === index,
+	);
+}
+
+export function dedupeRuntimeDescriptorRevocationConfigConflicts(
+	conflicts: RuntimeDescriptorRevocationConfigConflict[],
+): RuntimeDescriptorRevocationConfigConflict[] {
+	return conflicts.filter(
+		(conflict, index, all) =>
+			all.findIndex(
+				(candidate) =>
+					candidate.slot === conflict.slot &&
+					candidate.preferredSource === conflict.preferredSource &&
+					candidate.preferredValue === conflict.preferredValue &&
+					candidate.preferredProfile === conflict.preferredProfile &&
+					candidate.ignoredSource === conflict.ignoredSource &&
+					candidate.ignoredValue === conflict.ignoredValue &&
+					candidate.ignoredProfile === conflict.ignoredProfile,
+			) === index,
+	);
 }
 
 export function normalizeRuntimeDescriptorRevocationUnavailablePolicy(
@@ -162,44 +204,73 @@ export function resolveRuntimeDescriptorRevocationEnvironmentProfile(
 	input: ResolveRuntimeDescriptorRevocationEnvironmentProfileInput,
 ): ResolveRuntimeDescriptorRevocationEnvironmentProfileResult {
 	const invalidInputs: RuntimeDescriptorRevocationInvalidInput[] = [];
+	const conflicts: RuntimeDescriptorRevocationConfigConflict[] = [];
 
-	if (
-		typeof input.dedicatedProfile === "string" &&
-		input.dedicatedProfile.trim().length > 0
-	) {
-		const profile = normalizeRuntimeDescriptorRevocationProfile(
-			input.dedicatedProfile,
-		);
-		if (profile) {
-			return {
-				profile,
-				source: "dedicated-profile",
-			};
-		}
+	const dedicatedProfileRaw =
+		typeof input.dedicatedProfile === "string"
+			? input.dedicatedProfile.trim()
+			: "";
+	const genericEnvironmentRaw =
+		typeof input.genericEnvironment === "string"
+			? input.genericEnvironment.trim()
+			: "";
+
+	const dedicatedProfile = dedicatedProfileRaw
+		? normalizeRuntimeDescriptorRevocationProfile(dedicatedProfileRaw)
+		: null;
+	const genericEnvironmentProfile = genericEnvironmentRaw
+		? normalizeRuntimeDescriptorRevocationEnvironmentName(genericEnvironmentRaw)
+		: null;
+
+	if (dedicatedProfileRaw.length > 0 && !dedicatedProfile) {
 		invalidInputs.push({
 			slot: "environment-profile",
-			value: input.dedicatedProfile,
+			value: input.dedicatedProfile!,
 		});
 	}
 
-	if (
-		typeof input.genericEnvironment === "string" &&
-		input.genericEnvironment.trim().length > 0
-	) {
-		const profile = normalizeRuntimeDescriptorRevocationEnvironmentName(
-			input.genericEnvironment,
-		);
-		if (profile) {
-			return {
-				profile,
-				source: "generic-environment",
-				invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
-			};
-		}
+	if (genericEnvironmentRaw.length > 0 && !genericEnvironmentProfile) {
 		invalidInputs.push({
 			slot: "environment-profile",
-			value: input.genericEnvironment,
+			value: input.genericEnvironment!,
 		});
+	}
+
+	if (dedicatedProfile && genericEnvironmentProfile) {
+		if (dedicatedProfile !== genericEnvironmentProfile) {
+			conflicts.push({
+				slot: "environment-profile",
+				preferredSource: "dedicated-profile",
+				preferredValue: input.dedicatedProfile!,
+				preferredProfile: dedicatedProfile,
+				ignoredSource: "generic-environment",
+				ignoredValue: input.genericEnvironment!,
+				ignoredProfile: genericEnvironmentProfile,
+			});
+		}
+
+		return {
+			profile: dedicatedProfile,
+			source: "dedicated-profile",
+			invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
+			conflicts: conflicts.length > 0 ? conflicts : undefined,
+		};
+	}
+
+	if (dedicatedProfile) {
+		return {
+			profile: dedicatedProfile,
+			source: "dedicated-profile",
+			invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
+		};
+	}
+
+	if (genericEnvironmentProfile) {
+		return {
+			profile: genericEnvironmentProfile,
+			source: "generic-environment",
+			invalidInputs: invalidInputs.length > 0 ? invalidInputs : undefined,
+		};
 	}
 
 	return {
