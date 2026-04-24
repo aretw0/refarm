@@ -190,6 +190,10 @@ jobs:
         if: needs.changes.outputs.tractor_gates == 'true'
         run: npm --prefix packages/tractor-ts run runtime-module:ci
 
+      - name: Runtime descriptor release-path smoke (Tractor TS)
+        if: needs.changes.outputs.tractor_gates == 'true'
+        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+
       - name: Verify (Full Turbo)
         if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo

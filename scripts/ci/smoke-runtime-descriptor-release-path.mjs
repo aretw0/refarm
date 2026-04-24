@@ -16,6 +16,9 @@ async function main() {
 		root,
 		args["out-dir"] || ".artifacts/runtime-descriptor-smoke",
 	);
+	const keepArtifacts =
+		args["keep-artifacts"] === true ||
+		args["keep-artifacts"] === "true";
 
 	await rm(outDir, { recursive: true, force: true });
 
@@ -53,6 +56,10 @@ async function main() {
 	console.log(
 		"[runtime-descriptor-release-smoke] export + publish(dry-run) + resolver tests passed",
 	);
+
+	if (!keepArtifacts) {
+		await rm(outDir, { recursive: true, force: true });
+	}
 }
 
 main().catch((error) => {
