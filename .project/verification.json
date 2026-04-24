@@ -4836,6 +4836,363 @@
 					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-76-20260424",
+			"target": "T-NEXT-76",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Resolvedor agora normaliza nomes de ambiente genérico para profile de revogação de forma determinística.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Resolvedor agora normaliza nomes de ambiente genérico para profile de revogação de forma determinística."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-77-20260424",
+			"target": "T-NEXT-77",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "API de resolução de profile por ambiente (dedicated/generic) adicionada com rastreamento de invalidInputs.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "API de resolução de profile por ambiente (dedicated/generic) adicionada com rastreamento de invalidInputs."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-78-20260424",
+			"target": "T-NEXT-78",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Install path passou a considerar `__REFARM_ENVIRONMENT__`/`REFARM_ENVIRONMENT`/`NODE_ENV` como fallback de profile.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Install path passou a considerar `__REFARM_ENVIRONMENT__`/`REFARM_ENVIRONMENT`/`NODE_ENV` como fallback de profile."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-79-20260424",
+			"target": "T-NEXT-79",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Browser runtime passou a considerar `__REFARM_ENVIRONMENT__`/`VITE_REFARM_ENVIRONMENT` no cálculo de policy.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Browser runtime passou a considerar `__REFARM_ENVIRONMENT__`/`VITE_REFARM_ENVIRONMENT` no cálculo de policy."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-80-20260424",
+			"target": "T-NEXT-80",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Combinação de invalidInputs em install/runtime agora remove duplicatas por slot+value.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Combinação de invalidInputs em install/runtime agora remove duplicatas por slot+value."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-81-20260424",
+			"target": "T-NEXT-81",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Testes unitários cobrem mapeamento de environment name para revocation profile.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Testes unitários cobrem mapeamento de environment name para revocation profile."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-82-20260424",
+			"target": "T-NEXT-82",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Testes unitários cobrem prioridade dedicatedProfile e fallback genericEnvironment com inválidos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Testes unitários cobrem prioridade dedicatedProfile e fallback genericEnvironment com inválidos."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-83-20260424",
+			"target": "T-NEXT-83",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Teste install valida fail-open derivado de ambiente genérico development.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste install valida fail-open derivado de ambiente genérico development."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-84-20260424",
+			"target": "T-NEXT-84",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Teste install valida fail-closed derivado de ambiente genérico production.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste install valida fail-closed derivado de ambiente genérico production."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-85-20260424",
+			"target": "T-NEXT-85",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Teste browser valida source=environment-profile com profile dev derivado de ambiente genérico.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida source=environment-profile com profile dev derivado de ambiente genérico."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-86-20260424",
+			"target": "T-NEXT-86",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Teste browser valida bloqueio fail-closed com ambiente genérico production.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Teste browser valida bloqueio fail-closed com ambiente genérico production."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-87-20260424",
+			"target": "T-NEXT-87",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Docs e ADR atualizados com fallback canônico por ambiente genérico e sinais operacionais.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Docs e ADR atualizados com fallback canônico por ambiente genérico e sinais operacionais."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-88-20260424",
+			"target": "T-NEXT-88",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "REQ-RUNTIME-006 adicionado para formalizar source-of-truth canônico de profile por ambiente.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-006 adicionado para formalizar source-of-truth canônico de profile por ambiente."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-89-20260424",
+			"target": "T-NEXT-89",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Executados com sucesso: type-check + testes focados + gate:smoke:runtime + runtime-descriptor:release-smoke.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Executados com sucesso: type-check + testes focados + gate:smoke:runtime + runtime-descriptor:release-smoke."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-90-20260424",
+			"target": "T-NEXT-90",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Board/handoff consolidado para NEXT6 com checkpoints de continuidade e compactação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega registrada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Board/handoff consolidado para NEXT6 com checkpoints de continuidade e compactação."
+				},
+				{
+					"criterion": "Task vinculada à verificação",
+					"status": "passed",
+					"evidence": "Campo verification registrado na task correspondente."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT6-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Checkpoint NEXT6 concluído com fallback canônico por ambiente genérico implementado e validado.",
+			"criteria_results": [
+				{
+					"criterion": "Validações técnicas do lote executadas",
+					"status": "passed",
+					"evidence": "Type-check, testes focados, gate:smoke:runtime e runtime-descriptor:release-smoke passaram."
+				},
+				{
+					"criterion": "Continuidade operacional mantida",
+					"status": "passed",
+					"evidence": "Handoff atualizado com próximos passos e decisão pendente DEC-026 explícita."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-11-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T14:19:25.594Z",
+			"evidence": "Checkpoint de compactação preparado após NEXT6 conforme solicitação de continuidade segura sob limite de contexto.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico verificado antes de compactar",
+					"status": "passed",
+					"evidence": "Validações principais executadas e verdes no lote NEXT6."
+				},
+				{
+					"criterion": "Handoff pronto para retomada pós-compactação",
+					"status": "passed",
+					"evidence": "Contexto, pendências e próximos passos registrados em .project/handoff.json."
+				}
+			]
 		}
 	]
 }

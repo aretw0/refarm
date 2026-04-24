@@ -343,7 +343,21 @@
 				"T-NEXT-71",
 				"T-NEXT-72",
 				"T-NEXT-73",
-				"T-NEXT-74"
+				"T-NEXT-74",
+				"T-NEXT-76",
+				"T-NEXT-77",
+				"T-NEXT-78",
+				"T-NEXT-79",
+				"T-NEXT-80",
+				"T-NEXT-81",
+				"T-NEXT-82",
+				"T-NEXT-83",
+				"T-NEXT-84",
+				"T-NEXT-85",
+				"T-NEXT-86",
+				"T-NEXT-87",
+				"T-NEXT-88",
+				"T-NEXT-89"
 			]
 		},
 		{
@@ -413,7 +427,33 @@
 				"T-NEXT-67",
 				"T-NEXT-68",
 				"T-NEXT-69",
-				"T-NEXT-74"
+				"T-NEXT-74",
+				"T-NEXT-80",
+				"T-NEXT-89"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-006",
+			"description": "Fallback canônico por ambiente genérico deve mapear deterministicamente para profile de revogação em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ambiente genérico (development/staging/production) mapeado para profile de revogação",
+				"Install e browser runtime aplicam o mesmo mapeamento canônico",
+				"Cobertura de testes para cenários development e production"
+			],
+			"traces_to": [
+				"T-NEXT-76",
+				"T-NEXT-77",
+				"T-NEXT-78",
+				"T-NEXT-79",
+				"T-NEXT-83",
+				"T-NEXT-84",
+				"T-NEXT-85",
+				"T-NEXT-86",
+				"T-NEXT-89"
 			]
 		}
 	]

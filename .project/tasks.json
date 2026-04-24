@@ -3131,6 +3131,268 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-75-20260424",
 			"notes": "Concluído no lote NEXT5 (~15 slices) em 2026-04-24T13:50:32.156Z."
+		},
+		{
+			"id": "T-NEXT-76",
+			"description": "Expandir resolvedor para mapear ambiente genérico (development/staging/production) em profile de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"Mapeamento de ambiente genérico implementado",
+				"Aliases comuns cobertos (test/preview/live)",
+				"Sem regressão no mapeamento profile existente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-76-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-77",
+			"description": "Adicionar resolvedor dedicado de profile por ambiente com prioridade dedicatedProfile > genericEnvironment.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts"
+			],
+			"acceptance_criteria": [
+				"API resolveRuntimeDescriptorRevocationEnvironmentProfile adicionada",
+				"Retorna source dedicated/generic quando aplicável",
+				"Reporta invalidInputs quando entradas inválidas"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-77-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-78",
+			"description": "Integrar fallback de ambiente genérico no install path (REFARM_ENVIRONMENT/NODE_ENV/global override).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts"
+			],
+			"acceptance_criteria": [
+				"Install considera __REFARM_ENVIRONMENT__ e env genérico",
+				"Profile dedicado inválido pode cair para ambiente genérico válido",
+				"Resolução final continua determinística"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-78-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-79",
+			"description": "Integrar fallback de ambiente genérico no browser runtime (VITE_REFARM_ENVIRONMENT/global override).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"Runtime browser considera __REFARM_ENVIRONMENT__/VITE_REFARM_ENVIRONMENT",
+				"Policy derivada por environment-profile quando aplicável",
+				"Sem regressão de enforcement revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-79-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-80",
+			"description": "Deduplicar invalidInputs combinando resolver principal e resolução de environment profile.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/install-plugin.ts",
+				"packages/tractor-ts/src/index.browser.ts"
+			],
+			"acceptance_criteria": [
+				"invalidInputs sem duplicatas por slot+value",
+				"Warnings/telemetry permanecem legíveis",
+				"Sem ruído redundante em logs/eventos"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-80-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-81",
+			"description": "Adicionar testes unitários para normalização de environment name no resolvedor.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"development/testing -> dev coberto",
+				"preview/preprod -> staging coberto",
+				"production/live -> production-sensitive coberto"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-81-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-82",
+			"description": "Adicionar testes unitários para resolução dedicatedProfile vs genericEnvironment com entradas inválidas.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/runtime-descriptor-revocation-policy.test.ts"
+			],
+			"acceptance_criteria": [
+				"Prioridade dedicatedProfile validada",
+				"Fallback para genericEnvironment validado",
+				"invalidInputs agregado para cenários inválidos"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-82-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-83",
+			"description": "Adicionar teste install para derivação fail-open via ambiente genérico development.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"__REFARM_ENVIRONMENT__=development deriva fail-open",
+				"Install continua com revocation source indisponível",
+				"Sem necessidade de profile dedicado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-83-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-84",
+			"description": "Adicionar teste install para derivação fail-closed via ambiente genérico production.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/install-plugin.test.ts"
+			],
+			"acceptance_criteria": [
+				"__REFARM_ENVIRONMENT__=production deriva fail-closed",
+				"Install falha quando revocation source indisponível",
+				"Comportamento seguro preservado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-84-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-85",
+			"description": "Adicionar teste browser para derivação de policy via ambiente genérico development.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load continua em ambiente development (fail-open)",
+				"Evento unavailable contém source/profile corretos",
+				"Sem profile dedicado configurado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-85-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-86",
+			"description": "Adicionar teste browser para derivação de policy via ambiente genérico production.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/browser-plugin-host.test.ts"
+			],
+			"acceptance_criteria": [
+				"Load bloqueia em ambiente production (fail-closed)",
+				"Erro de revocation status mantido",
+				"Sem override de policy explícita"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-86-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-87",
+			"description": "Atualizar docs (README/alignment/architecture/ADR) com fallback canônico por ambiente genérico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md",
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+				"docs/ARCHITECTURE.md",
+				"specs/ADRs/ADR-051-external-signed-revocation-offline-policy.md"
+			],
+			"acceptance_criteria": [
+				"Variáveis REFARM_ENVIRONMENT/NODE_ENV/VITE_REFARM_ENVIRONMENT documentadas",
+				"Precedência e sinais operacionais atualizados",
+				"ADR mantém coerência com rollout DEC-026"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-87-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-88",
+			"description": "Adicionar requirement para source-of-truth canônico de profile por ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-006 criado e aceito",
+				"Critérios incluem fallback genérico determinístico",
+				"Traces_to apontam para NEXT6"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-88-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-89",
+			"description": "Executar validação técnica NEXT6 (type-check, testes focados, gate runtime, release smoke).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**",
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs"
+			],
+			"acceptance_criteria": [
+				"Type-check verde",
+				"Suites focadas verdes",
+				"gate:smoke:runtime + runtime-descriptor:release-smoke verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-89-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
+		},
+		{
+			"id": "T-NEXT-90",
+			"description": "Consolidar board/handoff NEXT6 e preparar checkpoint pronto para compactação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/tasks.json",
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Tasks/verifications NEXT6 registradas",
+				"VER-CHECKPOINT-NEXT6 e VER-CHECKPOINT-COMPACTION-11 registrados",
+				"Handoff pronto para compactação sem perda de continuidade"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-90-20260424",
+			"notes": "Concluído no lote NEXT6 (~15 slices) em 2026-04-24T14:19:25.594Z."
 		}
 	]
 }
