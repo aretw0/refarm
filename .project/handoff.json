@@ -1,22 +1,22 @@
 {
-	"context": "NEXT9 (50 slices) concluído: automação de diagnóstico de revogação severity-aware entregue no runtime + CI/ops report artifacts + validações runtime verdes.",
-	"timestamp": "2026-04-24T18:46:29.602Z",
+	"context": "NEXT10 (~30 slices) concluído: ingestão histórica e delta de revogação adicionados ao toolkit CI/ops com smoke no workflow e docs operacionais atualizadas.",
+	"timestamp": "2026-04-24T19:22:07.237Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT9 concluído (T-NEXT-136..185) com comandos de alertas e report automation em produção de código.",
-		"Workflow quality agora executa smoke de revocation report e publica artifact `runtime-descriptor-revocation-report` quando tractor_gates=true.",
-		"Checkpoints atualizados: VER-CHECKPOINT-NEXT9-20260424 e VER-CHECKPOINT-COMPACTION-15-20260424."
+		"NEXT10 concluído (T-NEXT-186..215) com history snapshot + delta + failure policies.",
+		"Workflow quality executa smoke de histórico e publica artefatos report/history em tractor_gates.",
+		"Checkpoints atualizados: VER-CHECKPOINT-NEXT10-20260424 e VER-CHECKPOINT-COMPACTION-16-20260424."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; decisão arquitetural pendente permanece DEC-010 (ADR-012 Proposed)."
+		"Sem bloqueio técnico imediato; DEC-010 permanece pendente (ADR-012 Proposed)."
 	],
 	"next_actions": [
-		"Planejar NEXT10 para ingestão histórica dos reports (série temporal e delta automático por run).",
-		"Avaliar otimização de throughput em `test.yml` para reduzir execuções e2e quando mudanças estiverem restritas ao escopo tractor-ts.",
-		"Executar observação pós-push (DEC-024) e registrar run IDs de sucesso/falha do novo smoke de revocation report."
+		"Planejar NEXT11 para ingestão automática do último artifact de CI (via GH API) como baseline real sem fixture.",
+		"Avaliar otimização de throughput no detect de `run_e2e` para mudanças estritas em tractor-ts com guardrails.",
+		"Executar observação pós-push (DEC-024) e registrar run IDs confirmando step history smoke verde."
 	],
 	"open_questions": [
-		"Qual repositório/canal oficial armazenará histórico de `runtime-descriptor-revocation-report` para análise longitudinal (artefato CI, board, storage dedicado)?"
+		"Qual canal oficial persistirá snapshots históricos de revogação para janela >14 dias (artefatos expiram)?"
 	],
 	"key_decisions_pending": [
 		"DEC-010"
@@ -27,15 +27,14 @@
 		".project/requirements.json",
 		".project/decisions.json",
 		".project/handoff.json",
-		"packages/tractor-ts/src/lib/telemetry.ts",
-		"packages/tractor-ts/test/telemetry.test.ts",
-		".github/workflows/test.yml",
-		"scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"scripts/ci/runtime-descriptor-revocation-report-lib.mjs",
+		"scripts/ci/runtime-descriptor-revocation-history-lib.mjs",
+		"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs",
 		"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
-		"scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json",
+		"scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json",
+		"scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json",
+		".github/workflows/test.yml",
 		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
-		"packages/tractor-ts/README.md",
 		"packages/tractor-ts/docs/OBSERVABILITY.md"
 	]
 }

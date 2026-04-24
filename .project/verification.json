@@ -7335,6 +7335,678 @@
 					"evidence": "`.project/handoff.json` atualizado com contexto NEXT9 e próximos passos."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-186-20260424",
+			"target": "T-NEXT-186",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`normalizeRuntimeDescriptorRevocationReport` adicionado no report lib.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`normalizeRuntimeDescriptorRevocationReport` adicionado no report lib."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-186 -> VER-NEXT-186-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-187-20260424",
+			"target": "T-NEXT-187",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`parseGeneratedAt` normaliza datas e aplica fallback epoch.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`parseGeneratedAt` normaliza datas e aplica fallback epoch."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-187 -> VER-NEXT-187-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-188-20260424",
+			"target": "T-NEXT-188",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Normalizadores `toCounter`/`toAlertArray`/`toStringArray` implementados.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Normalizadores `toCounter`/`toAlertArray`/`toStringArray` implementados."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-188 -> VER-NEXT-188-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-189-20260424",
+			"target": "T-NEXT-189",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`summarizeRuntimeDescriptorRevocationReportTimeline` implementado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`summarizeRuntimeDescriptorRevocationReportTimeline` implementado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-189 -> VER-NEXT-189-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-190-20260424",
+			"target": "T-NEXT-190",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`buildCounterDelta` implementado com union de chaves.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`buildCounterDelta` implementado com union de chaves."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-190 -> VER-NEXT-190-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-191-20260424",
+			"target": "T-NEXT-191",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`buildRuntimeDescriptorRevocationReportDelta` implementado com from/to e deltas.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`buildRuntimeDescriptorRevocationReportDelta` implementado com from/to e deltas."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-191 -> VER-NEXT-191-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-192-20260424",
+			"target": "T-NEXT-192",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Delta agora retorna `affectedPluginsAdded` e `affectedPluginsRemoved`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Delta agora retorna `affectedPluginsAdded` e `affectedPluginsRemoved`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-192 -> VER-NEXT-192-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-193-20260424",
+			"target": "T-NEXT-193",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Delta inclui `alertSeverityDelta` e comparação por alerta-id.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Delta inclui `alertSeverityDelta` e comparação por alerta-id."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-193 -> VER-NEXT-193-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-194-20260424",
+			"target": "T-NEXT-194",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`buildRuntimeDescriptorRevocationHistorySnapshot` implementado com maxPoints/latest/previous.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`buildRuntimeDescriptorRevocationHistorySnapshot` implementado com maxPoints/latest/previous."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-194 -> VER-NEXT-194-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-195-20260424",
+			"target": "T-NEXT-195",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`renderRuntimeDescriptorRevocationHistoryMarkdown` implementado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`renderRuntimeDescriptorRevocationHistoryMarkdown` implementado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-195 -> VER-NEXT-195-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-196-20260424",
+			"target": "T-NEXT-196",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Renderer cobre saída vazia com \"No reports available\".",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Renderer cobre saída vazia com \"No reports available\"."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-196 -> VER-NEXT-196-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-197-20260424",
+			"target": "T-NEXT-197",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Nova lib `runtime-descriptor-revocation-history-lib.mjs` reduz complexidade do CLI.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Nova lib `runtime-descriptor-revocation-history-lib.mjs` reduz complexidade do CLI."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-197 -> VER-NEXT-197-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-198-20260424",
+			"target": "T-NEXT-198",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`collectJsonFilesRecursive` implementado para `--history-dir`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`collectJsonFilesRecursive` implementado para `--history-dir`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-198 -> VER-NEXT-198-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-199-20260424",
+			"target": "T-NEXT-199",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`readReportsFile` implementado com suporte a comentários.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`readReportsFile` implementado com suporte a comentários."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-199 -> VER-NEXT-199-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-200-20260424",
+			"target": "T-NEXT-200",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`evaluateHistoryFailurePolicy` implementa fail-on-* com razões agregadas.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`evaluateHistoryFailurePolicy` implementa fail-on-* com razões agregadas."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-200 -> VER-NEXT-200-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-201-20260424",
+			"target": "T-NEXT-201",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "CLI `analyze-runtime-descriptor-revocation-history.mjs` criado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "CLI `analyze-runtime-descriptor-revocation-history.mjs` criado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-201 -> VER-NEXT-201-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-202-20260424",
+			"target": "T-NEXT-202",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "CLI grava history.json/history.md em out-dir configurável.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "CLI grava history.json/history.md em out-dir configurável."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-202 -> VER-NEXT-202-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-203-20260424",
+			"target": "T-NEXT-203",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "CLI aplica policies `fail-on-total|unavailable|critical|severity`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "CLI aplica policies `fail-on-total|unavailable|critical|severity`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-203 -> VER-NEXT-203-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-204-20260424",
+			"target": "T-NEXT-204",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Fixture `runtime-descriptor-revocation-report.previous.json` adicionada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Fixture `runtime-descriptor-revocation-report.previous.json` adicionada."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-204 -> VER-NEXT-204-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-205-20260424",
+			"target": "T-NEXT-205",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Fixture `runtime-descriptor-revocation-report.current.json` adicionada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Fixture `runtime-descriptor-revocation-report.current.json` adicionada."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-205 -> VER-NEXT-205-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-206-20260424",
+			"target": "T-NEXT-206",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Scripts npm de history adicionados no `package.json`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Scripts npm de history adicionados no `package.json`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-206 -> VER-NEXT-206-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-207-20260424",
+			"target": "T-NEXT-207",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Workflow `test.yml` inclui step \"Revocation diagnostics history smoke (Tractor TS)\".",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Workflow `test.yml` inclui step \"Revocation diagnostics history smoke (Tractor TS)\"."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-207 -> VER-NEXT-207-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-208-20260424",
+			"target": "T-NEXT-208",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Artifact runtime report agora inclui diretórios report + history.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Artifact runtime report agora inclui diretórios report + history."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-208 -> VER-NEXT-208-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-209-20260424",
+			"target": "T-NEXT-209",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "`packages/tractor-ts/docs/OBSERVABILITY.md` atualizado com comando de histórico.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`packages/tractor-ts/docs/OBSERVABILITY.md` atualizado com comando de histórico."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-209 -> VER-NEXT-209-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-210-20260424",
+			"target": "T-NEXT-210",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Runbook atualizado com comando `runtime-descriptor:revocation-history`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Runbook atualizado com comando `runtime-descriptor:revocation-history`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-210 -> VER-NEXT-210-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-211-20260424",
+			"target": "T-NEXT-211",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Alignment doc atualizado com análise histórica/delta.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Alignment doc atualizado com análise histórica/delta."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-211 -> VER-NEXT-211-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-212-20260424",
+			"target": "T-NEXT-212",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Arquitetura atualizada citando scripts report+history para análise longitudinal.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Arquitetura atualizada citando scripts report+history para análise longitudinal."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-212 -> VER-NEXT-212-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-213-20260424",
+			"target": "T-NEXT-213",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Node tests expandiram cobertura para delta/historical snapshot markdown.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Node tests expandiram cobertura para delta/historical snapshot markdown."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-213 -> VER-NEXT-213-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-214-20260424",
+			"target": "T-NEXT-214",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Node tests cobrem resolveReportPaths + failure policy.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Node tests cobrem resolveReportPaths + failure policy."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-214 -> VER-NEXT-214-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-215-20260424",
+			"target": "T-NEXT-215",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Executado com sucesso: report:test, revocation-history:sample, type-check tractor-ts, tests focados, runtime-descriptor:release-smoke, gate:smoke:runtime; validação de falha controlada em history CLI com threshold unavailable=1.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: report:test, revocation-history:sample, type-check tractor-ts, tests focados, runtime-descriptor:release-smoke, gate:smoke:runtime; validação de falha controlada em history CLI com threshold unavailable=1."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-215 -> VER-NEXT-215-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT10-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "NEXT10 (~30 slices) concluído com ingestão histórica/delta para revogação e smoke CI integrado.",
+			"criteria_results": [
+				{
+					"criterion": "Tooling histórico operacional entregue",
+					"status": "passed",
+					"evidence": "CLI history + lib + fixtures + docs + workflow smoke."
+				},
+				{
+					"criterion": "Validações técnicas do lote executadas",
+					"status": "passed",
+					"evidence": "report:test, history sample, type-check, test:unit focado, release-smoke, gate:smoke:runtime."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-16-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:22:07.237Z",
+			"evidence": "Checkpoint de compactação pós-NEXT10 preparado para continuidade segura após novo lote extenso.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico consolidado antes de nova compactação",
+					"status": "passed",
+					"evidence": "Novas rotas history/delta e runtime gates validadas."
+				},
+				{
+					"criterion": "Handoff atualizado para próxima sessão",
+					"status": "passed",
+					"evidence": "hints de NEXT11 e pendências documentadas no handoff."
+				}
+			]
 		}
 	]
 }

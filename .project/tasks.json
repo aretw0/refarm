@@ -5030,6 +5030,520 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-185-20260424",
 			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-186",
+			"description": "Normalizar estrutura de report de revogação para ingestão histórica robusta.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Função de normalização exportada",
+				"Fallbacks aplicados para campos ausentes",
+				"Shape consistente para consumo em timeline/delta"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-186-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-187",
+			"description": "Adicionar parsing determinístico de generatedAt com fallback epoch para entradas inválidas.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Datas inválidas não quebram pipeline",
+				"Formato ISO normalizado",
+				"Ordenação temporal permanece determinística"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-187-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-188",
+			"description": "Introduzir normalização de counters/alerts/plugins no report lib.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Counters aceitam apenas números finitos",
+				"Alertas ganham shape seguro",
+				"affectedPlugins normalizados/sort"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-188-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-189",
+			"description": "Implementar sumarização de timeline histórica por snapshot (eventos e severidade de alertas).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Timeline inclui unavailable/configDrift/staleCache",
+				"Severidade info/warn/critical contabilizada",
+				"Formato pronto para markdown"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-189-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-190",
+			"description": "Implementar cálculo genérico de delta para contadores (union keys).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"buildCounterDelta criado",
+				"Chaves ausentes tratadas como zero",
+				"Saída ordenada deterministicamente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-190-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-191",
+			"description": "Implementar delta detalhado current vs previous para revocation reports.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Delta inclui totalEvents e counters principais",
+				"Janela temporal from/to registrada",
+				"Suporte a ausência de previous via null"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-191-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-192",
+			"description": "Adicionar detecção de plugins afetados adicionados/removidos entre snapshots.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Lista added calculada",
+				"Lista removed calculada",
+				"Ordenação alfabética preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-192-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-193",
+			"description": "Adicionar delta de severidade de alertas e comparação por id.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"alertSeverityDelta calculado",
+				"Comparação por id com current/previous count",
+				"Mudança de severidade visível no delta"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-193-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-194",
+			"description": "Implementar snapshot histórico com maxPoints e seleção de latest/previous.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"History snapshot exportado",
+				"maxPoints limita janela",
+				"latest/previous/delta resolvidos"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-194-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-195",
+			"description": "Implementar renderer markdown para histórico e delta de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Tabela timeline gerada",
+				"Seção delta por evento/severidade/plugins",
+				"Fallback sem previous documentado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-195-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-196",
+			"description": "Cobrir caso sem reports no renderer de histórico com saída explícita.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Mensagem \"No reports available\" presente",
+				"Markdown válido sem exceções",
+				"Pipeline history não quebra com entrada vazia"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-196-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-197",
+			"description": "Criar biblioteca dedicada de histórico para reduzir complexidade/fanout do CLI.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs",
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"Funções de resolução de paths extraídas",
+				"CLI permanece orquestrador enxuto",
+				"Acoplamento reduzido entre parsing e IO"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-197-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-198",
+			"description": "Implementar coleta recursiva de JSONs para modo --history-dir.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Diretórios percorridos recursivamente",
+				"Apenas .json considerados",
+				"Lista final ordenada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-198-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-199",
+			"description": "Implementar leitura de arquivo de reports (`--reports-file`) com suporte a comentários.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Linhas vazias ignoradas",
+				"Linhas iniciadas por # ignoradas",
+				"Paths resolvidos contra cwd"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-199-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-200",
+			"description": "Implementar política de falha do histórico (total/unavailable/critical/severity).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Thresholds configuráveis por args",
+				"Erro composto com razões explícitas",
+				"Sem delta => sem falha indevida"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-200-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-201",
+			"description": "Criar CLI `analyze-runtime-descriptor-revocation-history.mjs` para ingestão e análise histórica.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"Aceita reports/reports-file/history-dir",
+				"Resolve max-points e outputs",
+				"Consolida snapshot histórico"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-201-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-202",
+			"description": "Adicionar persistência de artefatos history.json/history.md no CLI de histórico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"history.json gravado",
+				"history.md gravado",
+				"Logs com paths relativos emitidos"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-202-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-203",
+			"description": "Adicionar suporte de gating no CLI histórico (`fail-on-*`).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/analyze-runtime-descriptor-revocation-history.mjs"
+			],
+			"acceptance_criteria": [
+				"fail-on-total-increase suportado",
+				"fail-on-unavailable-increase e critical supported",
+				"fail-on-severity aplicado sobre latest alerts"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-203-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-204",
+			"description": "Criar fixture de report anterior para smoke de delta histórico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json"
+			],
+			"acceptance_criteria": [
+				"Fixture inclui summary/alerts/thresholds",
+				"Timestamp canônico definido",
+				"Compatível com normalizador"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-204-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-205",
+			"description": "Criar fixture de report atual para smoke de delta histórico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json"
+			],
+			"acceptance_criteria": [
+				"Fixture amplia sinais vs previous",
+				"Inclui plugin adicional e severidade critical",
+				"Compatível com cálculo de delta"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-205-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-206",
+			"description": "Adicionar scripts npm para análise histórica e sample smoke.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"package.json"
+			],
+			"acceptance_criteria": [
+				"Script runtime-descriptor:revocation-history adicionado",
+				"Script sample com fixtures adicionado",
+				"Scripts coexistem com report workflow anterior"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-206-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-207",
+			"description": "Integrar smoke de histórico no workflow Test & Quality para tractor_gates.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Step Revocation diagnostics history smoke adicionado",
+				"Condição tractor_gates aplicada",
+				"Ordem pós report smoke preservada"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-207-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-208",
+			"description": "Atualizar upload de artifact para incluir diretório de histórico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Artifact inclui report + history dirs",
+				"retention/if-no-files-found preservados",
+				"Consumidor CI recebe pacote longitudinal"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-208-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-209",
+			"description": "Atualizar OBSERVABILITY com comando de histórico e outputs.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/docs/OBSERVABILITY.md"
+			],
+			"acceptance_criteria": [
+				"Exemplo CLI histórico adicionado",
+				"Saídas history.json/history.md documentadas",
+				"Fluxo summary/alerts mantido"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-209-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-210",
+			"description": "Atualizar runbook de incidente com passo de comparação histórica.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Comando revocation-history documentado",
+				"Saídas históricas listadas",
+				"Fluxo pós-correção ganha análise longitudinal"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-210-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-211",
+			"description": "Atualizar alignment external-signed com tooling de delta histórico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Documento menciona revocation-history",
+				"Uso via reports/history-dir descrito",
+				"Resultado history.json/history.md citado"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-211-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-212",
+			"description": "Atualizar ARCHITECTURE para refletir análises longitudinal/delta em CI/ops.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Tabela runtime cita script revocation-history",
+				"Conceito longitudinal explícito",
+				"Sem regressão de contexto external-signed"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-212-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-213",
+			"description": "Expandir suíte Node test para cobrir delta e history snapshot markdown.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste de delta counters/plugins/severity",
+				"Teste history snapshot ordering",
+				"Teste markdown de history contém seção delta"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-213-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-214",
+			"description": "Expandir suíte Node test para resolver paths e policy de falha histórica.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
+				"scripts/ci/runtime-descriptor-revocation-history-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"resolveReportPaths com reports-file coberto",
+				"evaluateHistoryFailurePolicy coberto",
+				"Cleanup de arquivo temporário garantido"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-214-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
+		},
+		{
+			"id": "T-NEXT-215",
+			"description": "Executar validações completas do lote NEXT10 (history tooling + runtime gates).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/**",
+				"packages/tractor-ts/**",
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"report:test passou",
+				"history sample passou com sucesso e falha controlada validada",
+				"type-check/tests/release-smoke/gate:smoke:runtime verdes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-215-20260424",
+			"notes": "Concluído no lote NEXT10 (~30 slices) em 2026-04-24T19:22:07.237Z."
 		}
 	]
 }

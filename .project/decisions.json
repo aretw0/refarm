@@ -223,6 +223,14 @@
 			"status": "decided",
 			"phase": 10,
 			"context": "Implementado no NEXT9 via comandos `descriptor-revocation-alerts`, report CLI e integração no workflow Test & Quality."
+		},
+		{
+			"id": "DEC-029",
+			"decision": "Padronizar análise operacional de revogação em duas camadas: snapshot (`revocation-report`) e análise longitudinal (`revocation-history`) com delta latest-vs-previous e políticas fail-on-* configuráveis.",
+			"rationale": "Separa diagnóstico instantâneo de tendência histórica, reduz tempo de triagem e permite gates automatizados orientados a regressão operacional.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Implementado no NEXT10 com CLI dedicado, biblioteca utilitária, fixtures de smoke e integração no workflow Test & Quality."
 		}
 	]
 }

@@ -567,7 +567,34 @@
 				"T-NEXT-169",
 				"T-NEXT-170",
 				"T-NEXT-174",
-				"T-NEXT-175"
+				"T-NEXT-175",
+				"T-NEXT-206",
+				"T-NEXT-209",
+				"T-NEXT-210"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-010",
+			"description": "Resposta a incidentes de revogação deve suportar análise longitudinal (histórico + delta) com políticas automatizadas de falha por tendência.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ferramenta de histórico gera timeline e delta current-vs-previous em JSON/Markdown",
+				"Pipeline CI consegue executar smoke do histórico com fixtures canônicas",
+				"Tooling suporta policies fail-on-* para bloquear regressões operacionais por tendência"
+			],
+			"traces_to": [
+				"T-NEXT-189",
+				"T-NEXT-191",
+				"T-NEXT-194",
+				"T-NEXT-201",
+				"T-NEXT-203",
+				"T-NEXT-207",
+				"T-NEXT-208",
+				"T-NEXT-213",
+				"T-NEXT-215"
 			]
 		}
 	]
