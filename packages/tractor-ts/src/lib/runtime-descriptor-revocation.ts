@@ -14,6 +14,11 @@ export interface FetchRuntimeDescriptorRevocationOptions {
 	fetchFn?: typeof fetch;
 	cacheTtlMs?: number;
 	allowStaleOnError?: boolean;
+	onStaleFallback?: (info: {
+		url: string;
+		error: unknown;
+		cacheAgeMs: number;
+	}) => void;
 }
 
 const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -21,6 +26,7 @@ const DEFAULT_CACHE_TTL_MS = 5 * 60 * 1000;
 const revocationListCache = new Map<
 	string,
 	{
+		fetchedAt: number;
 		expiresAt: number;
 		list: RuntimeDescriptorRevocationList;
 	}
@@ -128,18 +134,28 @@ export async function fetchRuntimeDescriptorRevocationList(
 		const payload = await response.json();
 		const normalized = normalizeRuntimeDescriptorRevocationList(payload, url);
 		revocationListCache.set(url, {
+			fetchedAt: now,
 			expiresAt: now + Math.max(0, cacheTtlMs),
 			list: normalized,
 		});
 		return normalized;
 	} catch (error: any) {
 		if (options.allowStaleOnError && cached) {
+			options.onStaleFallback?.({
+				url,
+				error,
+				cacheAgeMs: Math.max(0, now - cached.fetchedAt),
+			});
 			return cached.list;
 		}
 		throw new Error(
 			`Failed to resolve runtime descriptor revocation list ${url}: ${error?.message ?? error}`,
 		);
 	}
+}
+
+export function clearRuntimeDescriptorRevocationListCache(): void {
+	revocationListCache.clear();
 }
 
 export function isDescriptorHashRevoked(

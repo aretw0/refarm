@@ -374,6 +374,20 @@ export class PluginHost {
 					cacheTtlMs: RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS,
 					fetchFn: globalThis.fetch.bind(globalThis),
 					allowStaleOnError: unavailablePolicy === "stale-allowed",
+					onStaleFallback: (info) => {
+						this.emit({
+							event: "system:descriptor_revocation_stale_cache_used",
+							pluginId: manifest.id,
+							payload: {
+								policy: unavailablePolicy,
+								policySource: policyResolution.source,
+								profile: policyResolution.profile,
+								cacheAgeMs: info.cacheAgeMs,
+								error:
+									(info.error as any)?.message ?? String(info.error),
+							},
+						});
+					},
 				},
 			);
 		} catch (error: any) {

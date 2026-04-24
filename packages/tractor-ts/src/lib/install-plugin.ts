@@ -301,6 +301,11 @@ async function assertDescriptorNotRevoked(
 						cacheTtlMs: options.descriptorRevocationCacheTtlMs,
 						fetchFn: globalThis.fetch.bind(globalThis),
 						allowStaleOnError: unavailablePolicy === "stale-allowed",
+						onStaleFallback: (info) => {
+							console.warn(
+								`[install-plugin] Revocation list fetch failed for ${manifest.id}; using stale cache (${info.cacheAgeMs}ms old): ${(info.error as any)?.message ?? String(info.error)}`,
+							);
+						},
 					});
 				} catch (error: any) {
 					if (unavailablePolicy === "fail-open") {
