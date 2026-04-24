@@ -72,6 +72,10 @@ Confirmar sinais esperados em runtime/install:
 - `system:descriptor_revocation_stale_cache_used`
 - `system:descriptor_revocation_unavailable`
 
+Opcional (quando disponível no host Tractor):
+
+- executar `system:diagnostics:descriptor-revocation-summary` para consolidar contagens por evento/política/source/profile durante a janela do incidente.
+
 ## 6) Comunicação mínima
 
 - janela de impacto;

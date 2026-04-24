@@ -350,6 +350,7 @@ npm run bench:check
 Refarm Tractor uses a "Black Box Recorder" pattern designed to give diagnostics without compromising data privacy or degrading console performance.
 
 - You can export the in-memory **Telemetry Ring Buffer** to a sanitized JSON document using `system:diagnostics:export`.
+- You can also get an aggregated summary for revocation incidents with `system:diagnostics:descriptor-revocation-summary`.
 - Sensitive fields like `secretKey` or `token` are masked automatically (`[REDACTED]`).
 - Massive payloads and strings are elegantly truncated.
 - **For a detailed architecture, read [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md)**.
