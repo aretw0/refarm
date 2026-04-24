@@ -61,6 +61,21 @@ Current status:
 - Use **`strict-manual`** in production-sensitive environments.
 - Publish descriptor bundle per release with versioned manifest + revocation template.
 
+### Release Asset Naming Convention (GitHub Releases)
+
+For each publish run (identified by `github.sha`), attach these assets to every published package tag release:
+
+- `runtime-descriptor-bundle-<sha>.tar.gz`
+- `runtime-descriptor-manifest-<sha>.json`
+- `runtime-descriptor-revocations-<sha>.json`
+
+Validation rule: release workflow must fail if any required asset is missing after upload.
+
+Retention model:
+
+- **GitHub Release Assets**: retained with the release lifecycle (public endpoint of record).
+- **Workflow artifact copy** (`.artifacts/runtime-descriptors/**`): short-lived operational copy (currently 30 days).
+
 ### Phase 2 (optional)
 - Add CDN or bucket mirror.
 - Keep GitHub Releases as source-of-truth fallback until mirror proves stable.
