@@ -444,8 +444,7 @@ export class PluginHost {
 								policySource: policyResolution.source,
 								profile: policyResolution.profile,
 								cacheAgeMs: info.cacheAgeMs,
-								error:
-									(info.error as any)?.message ?? String(info.error),
+								error: (info.error as any)?.message ?? String(info.error),
 							},
 						});
 					},
@@ -679,8 +678,18 @@ export {
 export const TRACTOR_VERSION: string =
 	(import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
-// Re-export Tractor for browser consumers.
-// node:fs/promises and @bytecodealliance/jco are now dynamic imports inside
-// MainThreadRunner.instantiate() and plugin-host.ts, so this import no longer
-// pulls Node-only modules into the browser bundle.
-export { Tractor } from "./index";
+/**
+ * Browser-safe Tractor proxy.
+ *
+ * We intentionally keep this as a lazy bridge to avoid eager module resolution
+ * for Node-oriented workspace dependencies during browser-only test/runtime
+ * paths. Full Tractor implementation is loaded only when boot is requested.
+ */
+export class Tractor {
+	static readonly VERSION = TRACTOR_VERSION;
+
+	static async boot(config: any): Promise<any> {
+		const module = await import("./index");
+		return module.Tractor.boot(config);
+	}
+}
