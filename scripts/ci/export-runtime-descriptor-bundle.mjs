@@ -197,6 +197,7 @@ async function main() {
 			descriptorPath: descriptorRelative,
 			descriptorHash,
 			descriptorIntegrity: descriptor.descriptorIntegrity,
+			descriptor,
 			moduleUrl: descriptor.module.url,
 			modulePath: moduleRelativePath,
 			toolchain: descriptor.toolchain,

@@ -80,6 +80,9 @@ export interface InstallPluginOptions {
 	browserRuntimeModuleDescriptor?:
 		| BrowserRuntimeModuleDescriptor
 		| BrowserRuntimeModuleDescriptorReference;
+	descriptorSourceRepository?: string;
+	descriptorReleaseTag?: string;
+	descriptorReleaseAssetName?: string;
 	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
 	descriptorTrustedOrigins?: string[];
 	descriptorTrustMode?: BrowserRuntimeDescriptorTrustMode;
@@ -136,15 +139,72 @@ function safeParseUrl(input: string): URL | null {
 	}
 }
 
-function normalizeTrustedOrigins(
-	origins: string[] | undefined,
-): Set<string> {
+function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 	const normalized = new Set<string>();
 	for (const origin of origins ?? []) {
 		const parsed = safeParseUrl(origin);
 		if (parsed?.origin) normalized.add(parsed.origin);
 	}
 	return normalized;
+}
+
+function stripGitSuffix(repoName: string): string {
+	return repoName.endsWith(".git") ? repoName.slice(0, -4) : repoName;
+}
+
+function resolveGithubRepoCoordinates(
+	sourceRepository: string | undefined,
+): { owner: string; repo: string } | null {
+	if (!sourceRepository) return null;
+
+	try {
+		if (sourceRepository.startsWith("git@github.com:")) {
+			const value = sourceRepository.replace("git@github.com:", "");
+			const [owner, repo] = value.split("/");
+			if (!owner || !repo) return null;
+			return {
+				owner,
+				repo: stripGitSuffix(repo),
+			};
+		}
+
+		const parsed = new URL(sourceRepository);
+		if (parsed.hostname !== "github.com") return null;
+
+		const segments = parsed.pathname.split("/").filter(Boolean).slice(0, 2);
+		if (segments.length < 2) return null;
+
+		return {
+			owner: segments[0],
+			repo: stripGitSuffix(segments[1]),
+		};
+	} catch {
+		return null;
+	}
+}
+
+function buildReleaseAssetDescriptorUrl(
+	manifest: PluginManifest,
+	options: InstallPluginOptions,
+): BrowserRuntimeModuleDescriptorReference | null {
+	const sourceRepository = options.descriptorSourceRepository;
+	if (!sourceRepository) return null;
+
+	const coordinates = resolveGithubRepoCoordinates(sourceRepository);
+	if (!coordinates) {
+		throw new Error(
+			`[install-plugin] Unable to resolve GitHub repository coordinates from descriptorSourceRepository for ${manifest.id}.`,
+		);
+	}
+
+	const releaseTag =
+		options.descriptorReleaseTag ?? `${manifest.id}@${manifest.version}`;
+	const descriptorAssetName =
+		options.descriptorReleaseAssetName ?? "runtime-descriptor-manifest.json";
+
+	const releaseAssetUrl = `https://github.com/${coordinates.owner}/${coordinates.repo}/releases/download/${encodeURIComponent(releaseTag)}/${encodeURIComponent(descriptorAssetName)}`;
+
+	return { url: releaseAssetUrl };
 }
 
 function deriveTrustedOriginsFromSourceRepository(
@@ -188,9 +248,17 @@ function assertDescriptorReferencePolicy(
 		);
 	}
 
-	if (!descriptorUrl.pathname.endsWith(".runtime-descriptor.json")) {
+	const isBundleManifestPath =
+		/runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(
+			descriptorUrl.pathname,
+		);
+	const isDescriptorPath = descriptorUrl.pathname.endsWith(
+		".runtime-descriptor.json",
+	);
+
+	if (!isDescriptorPath && !isBundleManifestPath) {
 		throw new Error(
-			`[install-plugin] Browser runtime descriptor URL must end with .runtime-descriptor.json for ${manifest.id}.`,
+			`[install-plugin] Browser runtime descriptor URL must point to descriptor (*.runtime-descriptor.json) or bundle manifest (runtime-descriptor-manifest*.json) for ${manifest.id}.`,
 		);
 	}
 
@@ -221,6 +289,47 @@ function assertDescriptorReferencePolicy(
 	}
 
 	return descriptorUrl;
+}
+
+function isBundleManifestUrl(descriptorUrl: URL): boolean {
+	return /runtime-descriptor-manifest(?:-[^/]+)?\.json$/i.test(
+		descriptorUrl.pathname,
+	);
+}
+
+function extractDescriptorFromBundleManifest(
+	bundlePayload: unknown,
+	manifest: PluginManifest,
+	wasmUrl: string,
+	sourceUrl: string,
+): BrowserRuntimeModuleDescriptor {
+	const bundle = bundlePayload as {
+		schemaVersion?: number;
+		descriptors?: Array<{
+			pluginId?: string;
+			componentWasmUrl?: string;
+			descriptor?: BrowserRuntimeModuleDescriptor;
+		}>;
+	};
+
+	if (bundle?.schemaVersion !== 1 || !Array.isArray(bundle?.descriptors)) {
+		throw new Error(
+			`[install-plugin] Runtime descriptor bundle manifest is invalid for ${manifest.id}: ${sourceUrl}`,
+		);
+	}
+
+	const entry = bundle.descriptors.find(
+		(item) =>
+			item?.pluginId === manifest.id && item?.componentWasmUrl === wasmUrl,
+	);
+
+	if (!entry?.descriptor || typeof entry.descriptor !== "object") {
+		throw new Error(
+			`[install-plugin] Runtime descriptor bundle manifest missing descriptor entry for ${manifest.id} (${wasmUrl}).`,
+		);
+	}
+
+	return entry.descriptor;
 }
 
 function isDescriptorReference(
@@ -298,7 +407,10 @@ function assertDescriptorShape(
 		);
 	}
 
-	if (!descriptor.provenance?.buildId || !isFullCommitSha(descriptor.provenance?.commitSha)) {
+	if (
+		!descriptor.provenance?.buildId ||
+		!isFullCommitSha(descriptor.provenance?.commitSha)
+	) {
 		throw new Error(
 			`[install-plugin] Browser runtime descriptor for ${manifest.id} requires provenance buildId + full commitSha.`,
 		);
@@ -372,8 +484,15 @@ async function resolveDescriptorInput(
 			);
 		}
 
-		const descriptor =
-			(await response.json()) as BrowserRuntimeModuleDescriptor;
+		const payload = await response.json();
+		const descriptor = isBundleManifestUrl(descriptorUrl)
+			? extractDescriptorFromBundleManifest(
+					payload,
+					manifest,
+					wasmUrl,
+					descriptorUrl.toString(),
+				)
+			: (payload as BrowserRuntimeModuleDescriptor);
 		assertDescriptorShape(descriptor, manifest, wasmUrl);
 		assertDescriptorObjectPolicy(manifest, descriptor, policy);
 
@@ -452,9 +571,13 @@ export async function installPlugin(
 	wasmUrl: string,
 	options: InstallPluginOptions = {},
 ): Promise<InstallPluginResult> {
-	if (options.browserRuntimeModule && options.browserRuntimeModuleDescriptor) {
+	if (
+		options.browserRuntimeModule &&
+		(options.browserRuntimeModuleDescriptor ||
+			options.descriptorSourceRepository)
+	) {
 		throw new Error(
-			`[install-plugin] Provide either browserRuntimeModule or browserRuntimeModuleDescriptor (not both) for ${manifest.id}.`,
+			`[install-plugin] Provide either browserRuntimeModule or descriptor-based inputs (not both) for ${manifest.id}.`,
 		);
 	}
 
@@ -466,13 +589,19 @@ export async function installPlugin(
 	const descriptorTrustMode =
 		options.descriptorTrustMode ?? "repository-derived";
 
+	const descriptorInput =
+		options.browserRuntimeModuleDescriptor ??
+		(descriptorDistributionPolicy === "external-signed"
+			? buildReleaseAssetDescriptorUrl(manifest, options)
+			: undefined);
+
 	let runtimeModule: ResolvedBrowserRuntimeModule | null = null;
 
-	if (options.browserRuntimeModuleDescriptor) {
+	if (descriptorInput) {
 		const descriptor = await resolveDescriptorInput(
 			manifest,
 			wasmUrl,
-			options.browserRuntimeModuleDescriptor,
+			descriptorInput,
 			descriptorDistributionPolicy,
 			descriptorTrustedOrigins,
 			descriptorTrustMode,
@@ -545,7 +674,7 @@ export async function installPlugin(
 						browserRuntimeDescriptor: runtimeModule.descriptorMetadata,
 						browserRuntimeToolchain: runtimeModule.toolchainMetadata,
 						browserRuntimeProvenance: runtimeModule.provenanceMetadata,
-				  }
+					}
 				: undefined,
 		},
 		{

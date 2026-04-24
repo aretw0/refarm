@@ -128,6 +128,12 @@ async function uploadAssets(tag, assets, dryRun) {
 			path: assets.revocationsPath,
 			name: path.basename(assets.revocationsPath),
 		},
+		{ path: assets.archivePath, name: "runtime-descriptor-bundle.tar.gz" },
+		{ path: assets.manifestPath, name: "runtime-descriptor-manifest.json" },
+		{
+			path: assets.revocationsPath,
+			name: "runtime-descriptor-revocations.json",
+		},
 	];
 
 	for (const item of uploads) {
@@ -210,6 +216,9 @@ async function main() {
 		path.basename(assets.archivePath),
 		path.basename(assets.manifestPath),
 		path.basename(assets.revocationsPath),
+		"runtime-descriptor-bundle.tar.gz",
+		"runtime-descriptor-manifest.json",
+		"runtime-descriptor-revocations.json",
 	];
 
 	for (const tag of tags) {
