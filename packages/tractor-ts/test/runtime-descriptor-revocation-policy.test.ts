@@ -112,4 +112,37 @@ describe("runtime-descriptor-revocation-policy", () => {
 			source: "fallback",
 		});
 	});
+
+	it("reports invalid inputs while still resolving with deterministic precedence", () => {
+		expect(
+			resolveRuntimeDescriptorRevocationUnavailablePolicy({
+				explicitPolicy: "not-a-policy",
+				explicitProfile: "dev",
+				environmentPolicy: "also-invalid",
+				environmentProfile: "qa",
+				fallbackPolicy: "fail-closed",
+			}),
+		).toEqual({
+			policy: "fail-open",
+			source: "explicit-profile",
+			profile: "dev",
+			invalidInputs: [
+				{ slot: "explicit-policy", value: "not-a-policy" },
+				{ slot: "environment-policy", value: "also-invalid" },
+			],
+		});
+
+		expect(
+			resolveRuntimeDescriptorRevocationUnavailablePolicy({
+				environmentProfile: "invalid-profile",
+				fallbackPolicy: "stale-allowed",
+			}),
+		).toEqual({
+			policy: "stale-allowed",
+			source: "fallback",
+			invalidInputs: [
+				{ slot: "environment-profile", value: "invalid-profile" },
+			],
+		});
+	});
 });

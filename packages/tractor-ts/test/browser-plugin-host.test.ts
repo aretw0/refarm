@@ -612,6 +612,157 @@ describe("browser PluginHost runtime paths", () => {
 		);
 	});
 
+	it("emits config-invalid telemetry when runtime policy/profile overrides are invalid", async () => {
+		(globalThis as any)
+			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
+			"invalid-policy";
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+			"dev";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-invalid-config'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-non-revoked-invalid-config",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-invalid-config",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.7",
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-invalid-config");
+
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_config_invalid",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					resolvedPolicy: "fail-open",
+					policySource: "explicit-profile",
+					profile: "dev",
+					invalidInputs: [
+						{
+							slot: "explicit-policy",
+							value: "invalid-policy",
+						},
+					],
+				}),
+			}),
+		);
+	});
+
+	it("emits config-invalid telemetry and fails closed when only invalid profile is provided", async () => {
+		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+			"unknown-profile";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-invalid-profile'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-non-revoked-invalid-profile",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-invalid-profile",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.8",
+		});
+
+		await expect(host.load(manifest)).rejects.toThrow(
+			"Unable to verify runtime descriptor revocation status",
+		);
+
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_config_invalid",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					resolvedPolicy: "stale-allowed",
+					policySource: "fallback",
+					invalidInputs: [
+						{
+							slot: "explicit-profile",
+							value: "unknown-profile",
+						},
+					],
+				}),
+			}),
+		);
+	});
+
 	it("emits stale-cache telemetry and continues when stale-allowed fallback is used", async () => {
 		let now = 1_000_000;
 		vi.spyOn(Date, "now").mockImplementation(() => now);
