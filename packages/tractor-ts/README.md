@@ -285,6 +285,8 @@ Distribution policy at install-time:
   - trust mode default is `repository-derived` (derives trusted descriptor origins from `provenance.sourceRepository`, e.g. GitHub release asset domains)
   - use `descriptorTrustMode: "strict-manual"` + `descriptorTrustedOrigins` when you need explicit allowlists only
   - when `descriptorSourceRepository` is provided, install can auto-resolve `runtime-descriptor-manifest.json` from GitHub release assets (tag default: `${manifest.id}@${manifest.version}`)
+  - install checks `runtime-descriptor-revocations.json` (same release/tag convention) and blocks revoked descriptor hashes before caching runtime sidecars
+  - pass `descriptorRevocationList` (inline or URL) and/or `descriptorRevocationAssetName` when you need explicit revocation source control
   - explicit `browserRuntimeModuleDescriptor.url` still overrides auto-resolve
 
 ### Profile Performance

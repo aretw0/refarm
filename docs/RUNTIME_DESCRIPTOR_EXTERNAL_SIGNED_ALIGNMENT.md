@@ -100,10 +100,10 @@ Retention model:
 8. Add resolver unit tests (happy path + missing asset + malformed manifest).
 9. Wire resolver into `installPlugin` external-signed path (optional URL auto-resolve). ✅ (`descriptorSourceRepository` + convention over release assets, explicit URL override preserved)
 10. Add explicit opt-out to force manual URL.
-11. Implement revocation list fetch + local cache behavior.
-12. Add runtime block behavior for revoked descriptors.
+11. Implement revocation list fetch + local cache behavior. ✅ (`installPlugin` + browser runtime load consomem `runtime-descriptor-revocations.json` com cache TTL local)
+12. Add runtime block behavior for revoked descriptors. ✅ (install/runtime bloqueiam `descriptorHash` revogado com erro explícito)
 13. Add docs/playbook for rollback incident handling.
-14. Add CI smoke for release descriptor end-to-end path.
+14. Add CI smoke for release descriptor end-to-end path. ✅ (`runtime-descriptor:release-smoke` cobre export + publish dry-run + resolver tests)
 15. Add governance checkpoint (`.project` verification + handoff).
 
 ---

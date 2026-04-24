@@ -143,6 +143,7 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
    - ✅ trust mode supports `repository-derived` (default) to avoid per-package allowlists for known release origins; `strict-manual` remains available for hardened environments
    - ✅ release workflow now publishes versioned descriptor bundle assets (`runtime-descriptor-bundle-*`, manifest, revocations) to GitHub Release endpoint and verifies post-upload presence
    - ✅ install path supports `external-signed` auto-resolve from Release Assets manifest (`descriptorSourceRepository`), with explicit descriptor URL override when needed
+   - ✅ revocation enforcement wired for external-signed descriptors (`runtime-descriptor-revocations.json`) in install and browser runtime load
    - 🔲 remaining: finalize canonical transpile/runtime contract for Component Model artifacts (JCO-compatible browser runner)
 
 **Timeline**: Steps 1–2 are delivered in this ADR. Steps 3–4 are future work, tracked when OPFS integration is scheduled.
