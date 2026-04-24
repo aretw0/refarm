@@ -72,14 +72,14 @@
       "phase": 9,
       "context": "Convergência de workflow humano+agente para fonte única de verdade em planejamento/execução."
     },
-    {
-      "id": "DEC-010",
-      "decision": "Adotar estratégia híbrida de execução de modelos no harness (LLM grande + small models + Transformers.js) com roteamento por capacidade e custo.",
-      "rationale": "Usar um único modelo para tudo aumenta custo/latência e acoplamento. Roteamento por classe de tarefa preserva qualidade em planejamento/orquestração e reduz custo para classificação/extração/embeddings locais, mantendo fallback determinístico.",
-      "status": "tentative",
-      "phase": 2,
-      "context": "Pergunta do usuário sobre usar LLM para tudo versus combinar small models/transformers.js durante sprint de segurança do Tractor/Pi Agent."
-    },
+		{
+			"id": "DEC-010",
+			"decision": "Adotar estratégia híbrida de execução de modelos no harness (LLM grande + small models + Transformers.js) com roteamento por capacidade e custo.",
+			"rationale": "Usar um único modelo para tudo aumenta custo/latência e acoplamento. Roteamento por classe de tarefa preserva qualidade em planejamento/orquestração e reduz custo para classificação/extração/embeddings locais, mantendo fallback determinístico.",
+			"status": "revisit",
+			"phase": 2,
+			"context": "Alinhado ao ADR-012 (`Status: Proposed`). Permanece em revisit até aceitação explícita do ADR e rollout host-side concluído."
+		},
     {
       "id": "DEC-011",
       "decision": "Encerrar a fase de centralização quando regras compartilháveis de sensibilidade estiverem em `sensitive_aliases.rs`, mantendo locais apenas limites estruturais de boundary (shape/charset/size/order dedupe).",
@@ -152,13 +152,37 @@
       "phase": 3,
       "context": "Execução de T-PLAN-04 para anti-colisão em operação de colônia."
     },
-    {
-      "id": "DEC-020",
-      "decision": "Adotar concorrência inicial de 3 workers (escala máxima 4 sob estabilidade) com critérios explícitos de scale up/down.",
-      "rationale": "Equilibra throughput e previsibilidade de CI/preflight em monorepo híbrido com boundaries sensíveis.",
-      "status": "decided",
-      "phase": 3,
-      "context": "Execução de T-PLAN-06 para governança de capacidade da colônia."
-    }
-  ]
+		{
+			"id": "DEC-020",
+			"decision": "Adotar concorrência inicial de 3 workers (escala máxima 4 sob estabilidade) com critérios explícitos de scale up/down.",
+			"rationale": "Equilibra throughput e previsibilidade de CI/preflight em monorepo híbrido com boundaries sensíveis.",
+			"status": "decided",
+			"phase": 3,
+			"context": "Execução de T-PLAN-06 para governança de capacidade da colônia."
+		},
+		{
+			"id": "DEC-021",
+			"decision": "Sincronizar decisões do `.project` com ADRs: quando ADR estiver `Proposed`, a decisão correspondente deve ficar em `revisit` até aceite formal.",
+			"rationale": "Evita falso fechamento arquitetural no board e mantém rastreabilidade real entre roadmap, ADR e execução.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Aplicado no alinhamento DEC-010 ↔ ADR-012 durante T-DEC-01."
+		},
+		{
+			"id": "DEC-022",
+			"decision": "Adotar separação de trilhas: ajustes operacionais imediatos no `pi` atual vs decisões de produto/plataforma direcionadas ao runtime Refarm futuro.",
+			"rationale": "Permite evoluir governança/fluxo hoje sem acoplar prematuramente implementação à migração completa do agente para Refarm.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Diretriz de transição registrada após alinhamento de continuidade operacional (heads-up de migração pi → Refarm)."
+		},
+		{
+			"id": "DEC-023",
+			"decision": "Consolidar gates de fábrica (`gate:smoke:*` e `gate:full:colony`) como baseline comum para o estado atual e para a migração gradual ao agente Refarm.",
+			"rationale": "Mantém contrato de qualidade estável entre fases de transição de plataforma e reduz risco de regressão durante migração.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Sincronização roadmap operacional com `roadmaps/MAIN.md` e playbook de colônia."
+		}
+	]
 }

@@ -23,13 +23,18 @@
 			"description": "Instalar e validar targets Rust/WASM obrigatórios no ambiente de desenvolvimento.",
 			"status": "completed",
 			"phase": 1,
-			"files": ["docs/DEVOPS.md", ".devcontainer/post-create.sh"],
+			"files": [
+				"docs/DEVOPS.md",
+				".devcontainer/post-create.sh"
+			],
 			"acceptance_criteria": [
 				"wasm32-wasip1 instalado",
 				"wasm32-unknown-unknown instalado",
 				"Comandos de validação documentados"
 			],
-			"depends_on": ["T-ENV-01"],
+			"depends_on": [
+				"T-ENV-01"
+			],
 			"assigned_agent": "worker-env",
 			"verification": "VER-ENV-02-20260423"
 		},
@@ -38,13 +43,18 @@
 			"description": "Criar checklist de preflight de ambiente antes de executar colônia.",
 			"status": "completed",
 			"phase": 1,
-			"files": ["docs/DEVOPS.md", "docs/WORKFLOW.md"],
+			"files": [
+				"docs/DEVOPS.md",
+				"docs/WORKFLOW.md"
+			],
 			"acceptance_criteria": [
 				"Checklist com comandos mínimos",
 				"Checklist diferencia preflight rápido e completo",
 				"Checklist inclui critério go/no-go"
 			],
-			"depends_on": ["T-ENV-02"],
+			"depends_on": [
+				"T-ENV-02"
+			],
 			"assigned_agent": "worker-docs",
 			"verification": "VER-ENV-03-20260424",
 			"notes": "Checklist de preflight rápido/completo e critério go/no-go consolidado em `docs/WORKFLOW.md` e `docs/DEVOPS.md` para execução de lotes da colônia."
@@ -54,7 +64,10 @@
 			"description": "Formalizar política de uso de reso src/dist para desenvolvimento e validação.",
 			"status": "completed",
 			"phase": 1,
-			"files": ["docs/WORKFLOW.md", "scripts/reso.mjs"],
+			"files": [
+				"docs/WORKFLOW.md",
+				"scripts/reso.mjs"
+			],
 			"acceptance_criteria": [
 				"Fluxo src definido para iteração",
 				"Fluxo dist definido para verificação release",
@@ -69,13 +82,19 @@
 			"description": "Mapear pacotes que falham no type-check baseline e registrar ordem de ataque.",
 			"status": "completed",
 			"phase": 2,
-			"files": ["package.json", "turbo.json", "docs/DEVOPS.md"],
+			"files": [
+				"package.json",
+				"turbo.json",
+				"docs/DEVOPS.md"
+			],
 			"acceptance_criteria": [
 				"Relatório de falhas por pacote",
 				"Priorização por impacto",
 				"Backlog de correções gerado"
 			],
-			"depends_on": ["T-ENV-03"],
+			"depends_on": [
+				"T-ENV-03"
+			],
 			"assigned_agent": "worker-core",
 			"verification": "VER-PIPE-01-20260424",
 			"notes": "Baseline de type-check executado (`npm run type-check --silent`) sem falhas; priorização por impacto registrada em `docs/DEVOPS.md` com ordem de ataque para regressões."
@@ -83,7 +102,7 @@
 		{
 			"id": "T-PIPE-02",
 			"description": "Estabilizar type-check dos pacotes Foundation (config/toolbox/vtconfig/cli).",
-			"status": "planned",
+			"status": "completed",
 			"phase": 2,
 			"files": [
 				"packages/config/src/**",
@@ -96,27 +115,39 @@
 				"Sem regressão nos testes locais",
 				"Mudanças atômicas por pacote"
 			],
-			"depends_on": ["T-PIPE-01"],
-			"assigned_agent": "worker-foundation"
+			"depends_on": [
+				"T-PIPE-01"
+			],
+			"assigned_agent": "worker-foundation",
+			"verification": "VER-PIPE-02-20260424",
+			"notes": "Foundation estabilizado com gate canônico `npm run gate:smoke:foundation` (cli type-check + tests de config/toolbox/vtconfig) sem regressão."
 		},
 		{
 			"id": "T-PIPE-03",
 			"description": "Mapear baseline de build por domínio (runtime/contracts/storage/docs).",
-			"status": "planned",
+			"status": "completed",
 			"phase": 2,
-			"files": ["package.json", "turbo.json", "docs/DEVOPS.md"],
+			"files": [
+				"package.json",
+				"turbo.json",
+				"docs/DEVOPS.md"
+			],
 			"acceptance_criteria": [
 				"Matriz de build por domínio criada",
 				"Dependências entre domínios documentadas",
 				"Pacotes bloqueadores destacados"
 			],
-			"depends_on": ["T-PIPE-01"],
-			"assigned_agent": "worker-core"
+			"depends_on": [
+				"T-PIPE-01"
+			],
+			"assigned_agent": "worker-core",
+			"verification": "VER-PIPE-03-20260424",
+			"notes": "Matriz de build por domínio publicada em `docs/DEVOPS.md` e scripts canônicos adicionados ao `package.json` para smoke/full por domínio."
 		},
 		{
 			"id": "T-PIPE-04",
 			"description": "Estabilizar build de runtime (tractor-rs/tractor-ts) com foco em previsibilidade de ambiente.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 2,
 			"files": [
 				"packages/tractor/**",
@@ -128,13 +159,18 @@
 				"Falhas remanescentes registradas como issues",
 				"Sem alterações em artefatos gerados"
 			],
-			"depends_on": ["T-ENV-02", "T-PIPE-03"],
-			"assigned_agent": "worker-runtime"
+			"depends_on": [
+				"T-ENV-02",
+				"T-PIPE-03"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-PIPE-04-20260424",
+			"notes": "Build/runtime previsível validado via `npm run gate:smoke:runtime` cobrindo `tractor-rs` (cargo checks/tests + ws smoke) e `tractor-ts` (build/type-check/runtime-module)."
 		},
 		{
 			"id": "T-PIPE-05",
 			"description": "Estabilizar build dos pacotes de contrato e storage/sync prioritários.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 2,
 			"files": [
 				"packages/storage-contract-v1/**",
@@ -148,35 +184,52 @@
 				"Conformance não regride",
 				"Bloqueios viram tasks dedicadas"
 			],
-			"depends_on": ["T-PIPE-03"],
-			"assigned_agent": "worker-contracts"
+			"depends_on": [
+				"T-PIPE-03"
+			],
+			"assigned_agent": "worker-contracts",
+			"verification": "VER-PIPE-05-20260424",
+			"notes": "Pacotes prioritários de contrato/storage/sync validados com `npm run gate:smoke:contracts`; conformance e builds verdes sem bloqueios abertos."
 		},
 		{
 			"id": "T-PIPE-06",
 			"description": "Definir gate final de integração da colônia (smoke + full).",
-			"status": "planned",
+			"status": "completed",
 			"phase": 2,
-			"files": ["docs/WORKFLOW.md", "CONTRIBUTING.md"],
+			"files": [
+				"docs/WORKFLOW.md",
+				"CONTRIBUTING.md"
+			],
 			"acceptance_criteria": [
 				"Gate smoke definido para cada PR",
 				"Gate full definido para consolidação",
 				"Checklist de reviewer publicado"
 			],
-			"depends_on": ["T-PIPE-02", "T-PIPE-05"],
-			"assigned_agent": "worker-docs"
+			"depends_on": [
+				"T-PIPE-02",
+				"T-PIPE-05"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-PIPE-06-20260424",
+			"notes": "Gate final definido com scripts `gate:smoke:*` e `gate:full:colony`, checklist de reviewer e política de consolidação/rollback documentadas."
 		},
 		{
 			"id": "T-PLAN-01",
 			"description": "Separar backlog por macro-domínios independentes para paralelização segura.",
 			"status": "completed",
 			"phase": 3,
-			"files": [".project/tasks.json", ".project/requirements.json"],
+			"files": [
+				".project/tasks.json",
+				".project/requirements.json"
+			],
 			"acceptance_criteria": [
 				"Domínios claros com ownership",
 				"Dependências interdomínio explícitas",
 				"Capacidade de rodar 3-4 workers simultâneos"
 			],
-			"depends_on": ["T-PIPE-01"],
+			"depends_on": [
+				"T-PIPE-01"
+			],
 			"assigned_agent": "planner",
 			"verification": "VER-PLAN-01-20260424",
 			"notes": "Macro-domínios e ownership definidos (runtime/contracts/plugin/governance) com capacidade-alvo 3-4 workers e dependências explícitas no workflow."
@@ -186,13 +239,18 @@
 			"description": "Definir granularidade padrão de task para manter PRs pequenos e revisáveis.",
 			"status": "completed",
 			"phase": 3,
-			"files": ["docs/WORKFLOW.md", "docs/PR_QUALITY_GOVERNANCE.md"],
+			"files": [
+				"docs/WORKFLOW.md",
+				"docs/PR_QUALITY_GOVERNANCE.md"
+			],
 			"acceptance_criteria": [
 				"Regra de tamanho de diff definida",
 				"Template de acceptance_criteria padronizado",
 				"Regra de branch por task documentada"
 			],
-			"depends_on": ["T-PLAN-01"],
+			"depends_on": [
+				"T-PLAN-01"
+			],
 			"assigned_agent": "planner",
 			"verification": "VER-PLAN-02-20260424",
 			"notes": "Granularidade padrão de task/PR definida (limites de diff/arquivos + template acceptance) em `docs/WORKFLOW.md` e `docs/PR_QUALITY_GOVERNANCE.md`."
@@ -202,13 +260,18 @@
 			"description": "Criar fila de execução inicial com ordem de dependência e paralelização.",
 			"status": "completed",
 			"phase": 3,
-			"files": [".project/tasks.json"],
+			"files": [
+				".project/tasks.json"
+			],
 			"acceptance_criteria": [
 				"Fila de 2 semanas mapeada",
 				"Bloqueadores upfront priorizados",
 				"Tasks prontas para atribuição"
 			],
-			"depends_on": ["T-PLAN-01", "T-PLAN-02"],
+			"depends_on": [
+				"T-PLAN-01",
+				"T-PLAN-02"
+			],
 			"assigned_agent": "planner",
 			"verification": "VER-PLAN-03-20260424",
 			"notes": "Fila inicial de 2 semanas publicada no workflow, com priorização de bloqueadores e sequência de execução pronta para atribuição."
@@ -218,13 +281,18 @@
 			"description": "Definir políticas de anti-colisão para arquivos/pacotes críticos.",
 			"status": "completed",
 			"phase": 3,
-			"files": ["docs/WORKFLOW.md", ".project/decisions.json"],
+			"files": [
+				"docs/WORKFLOW.md",
+				".project/decisions.json"
+			],
 			"acceptance_criteria": [
 				"Pacotes serializados listados",
 				"Política de lock por domínio definida",
 				"Procedimento de handoff entre workers"
 			],
-			"depends_on": ["T-PLAN-01"],
+			"depends_on": [
+				"T-PLAN-01"
+			],
 			"assigned_agent": "planner",
 			"verification": "VER-PLAN-04-20260424",
 			"notes": "Política anti-colisão publicada (áreas serializadas + lock operacional + handoff). Decisão formal: DEC-019."
@@ -234,13 +302,18 @@
 			"description": "Definir modelo de branch naming e commit atômico para colônia.",
 			"status": "completed",
 			"phase": 3,
-			"files": ["CONTRIBUTING.md", "docs/WORKFLOW.md"],
+			"files": [
+				"CONTRIBUTING.md",
+				"docs/WORKFLOW.md"
+			],
 			"acceptance_criteria": [
 				"Padrão branch por task aprovado",
 				"Padrão de commit aplicado",
 				"Reviewer rastreia task->commit"
 			],
-			"depends_on": ["T-PLAN-02"],
+			"depends_on": [
+				"T-PLAN-02"
+			],
 			"assigned_agent": "worker-docs",
 			"verification": "VER-PLAN-05-20260424",
 			"notes": "Branch naming `task/<TASK-ID>-<slug>` e padrão de commit atômico documentados em `CONTRIBUTING.md` e `docs/WORKFLOW.md`."
@@ -250,13 +323,18 @@
 			"description": "Definir limite inicial de concorrência e critérios para escalar número de workers.",
 			"status": "completed",
 			"phase": 3,
-			"files": [".project/decisions.json", "docs/DEVOPS.md"],
+			"files": [
+				".project/decisions.json",
+				"docs/DEVOPS.md"
+			],
 			"acceptance_criteria": [
 				"Concorrência inicial definida",
 				"Métricas para subir/descer concorrência",
 				"Regra de parada em caso de regressão"
 			],
-			"depends_on": ["T-PLAN-03"],
+			"depends_on": [
+				"T-PLAN-03"
+			],
 			"assigned_agent": "planner",
 			"verification": "VER-PLAN-06-20260424",
 			"notes": "Concorrência inicial e critérios de escala/parada documentados em `docs/DEVOPS.md`; decisão formalizada em DEC-020."
@@ -266,13 +344,18 @@
 			"description": "Padronizar prompt de entrada para workers da colônia.",
 			"status": "completed",
 			"phase": 3,
-			"files": ["docs/superpowers/**", "docs/WORKFLOW.md"],
+			"files": [
+				"docs/superpowers/**",
+				"docs/WORKFLOW.md"
+			],
 			"acceptance_criteria": [
 				"Prompt inclui objetivo, escopo, restrições e validação",
 				"Prompt inclui formato de resposta esperado",
 				"Prompt inclui critério de escalonamento"
 			],
-			"depends_on": ["T-PLAN-02"],
+			"depends_on": [
+				"T-PLAN-02"
+			],
 			"assigned_agent": "worker-docs",
 			"verification": "VER-PLAN-07-20260424",
 			"notes": "Template padrão de entrada de worker publicado em `docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md` e referenciado no workflow."
@@ -292,7 +375,9 @@
 				"Falhas classificadas por severidade",
 				"Tasks de correção derivadas"
 			],
-			"depends_on": ["T-PIPE-04"],
+			"depends_on": [
+				"T-PIPE-04"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-01-20260423"
 		},
@@ -301,13 +386,18 @@
 			"description": "Criar smoke test de daemon/ws para confirmar ciclo básico de inicialização.",
 			"status": "completed",
 			"phase": 4,
-			"files": ["packages/tractor/**", "validations/**"],
+			"files": [
+				"packages/tractor/**",
+				"validations/**"
+			],
 			"acceptance_criteria": [
 				"Smoke test executa localmente",
 				"Conexão ws validada",
 				"Falhas reportadas com logs acionáveis"
 			],
-			"depends_on": ["T-RUNTIME-01"],
+			"depends_on": [
+				"T-RUNTIME-01"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-02-20260423"
 		},
@@ -316,13 +406,18 @@
 			"description": "Mapear lifecycle de plugin no runtime (setup/ingest/teardown) e gaps.",
 			"status": "completed",
 			"phase": 4,
-			"files": ["packages/tractor/**", "packages/plugin-manifest/**"],
+			"files": [
+				"packages/tractor/**",
+				"packages/plugin-manifest/**"
+			],
 			"acceptance_criteria": [
 				"Fluxo lifecycle documentado",
 				"Gaps mapeados com prioridade",
 				"Tasks de hardening criadas"
 			],
-			"depends_on": ["T-RUNTIME-01"],
+			"depends_on": [
+				"T-RUNTIME-01"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-03-20260423",
 			"notes": "Lifecycle mapeado em `packages/tractor/docs/ARCHITECTURE.md` com fluxo real de setup/ingest/teardown/on-event, gaps priorizados e tarefas de hardening derivadas (`T-RUNTIME-07`..`T-RUNTIME-10`)."
@@ -342,7 +437,10 @@
 				"Cenário offline-first validado",
 				"Resultado documentado"
 			],
-			"depends_on": ["T-RUNTIME-02", "T-CONTRACT-03"],
+			"depends_on": [
+				"T-RUNTIME-02",
+				"T-CONTRACT-03"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-04-20260423",
 			"notes": "Cenário controlado offline-first validado em `packages/tractor/tests/sync_crdt.rs::offline_first_roundtrip_preserves_all_nodes`, cobrindo escrita desconectada em dois peers, troca bidirecional de updates e convergência sem perda no read model."
@@ -363,7 +461,9 @@
 				"Lacunas de teste identificadas",
 				"Plano de cobertura priorizado"
 			],
-			"depends_on": ["T-PIPE-05"],
+			"depends_on": [
+				"T-PIPE-05"
+			],
 			"assigned_agent": "worker-contracts",
 			"verification": "VER-CONTRACT-01-20260423",
 			"notes": "Inventário v1 consolidado em `docs/CONFORMANCE_V1_INVENTORY.md` com lacunas por adapter e plano priorizado para T-CONTRACT-02/03/04."
@@ -387,7 +487,9 @@
 				"Falhas apontam comportamento esperado",
 				"Cobertura de cenários básicos + erro"
 			],
-			"depends_on": ["T-CONTRACT-01"],
+			"depends_on": [
+				"T-CONTRACT-01"
+			],
 			"assigned_agent": "worker-storage",
 			"verification": "VER-CONTRACT-02-20260423",
 			"notes": "Conformance storage:v1 expandida para `storage-memory` e `storage-rest` com suites dedicadas, cenário de erro no harness (`storage-contract-v1`) e integração no gate raiz `test:capabilities`."
@@ -397,13 +499,18 @@
 			"description": "Adicionar/ajustar testes de conformance para sync-contract-v1 e sync-loro.",
 			"status": "completed",
 			"phase": 5,
-			"files": ["packages/sync-contract-v1/**", "packages/sync-loro/**"],
+			"files": [
+				"packages/sync-contract-v1/**",
+				"packages/sync-loro/**"
+			],
 			"acceptance_criteria": [
 				"Conformance sync executa",
 				"Cenários de conflito mapeados",
 				"Resultados documentados"
 			],
-			"depends_on": ["T-CONTRACT-01"],
+			"depends_on": [
+				"T-CONTRACT-01"
+			],
 			"assigned_agent": "worker-sync",
 			"verification": "VER-CONTRACT-03-20260423",
 			"notes": "Suite `sync-v1.conformance.test.ts` adicionada em `packages/sync-loro` usando `runSyncV1Conformance` e cenário de conflito concorrente entre peers; `sync-contract-v1` recebeu cobertura de caso inválido."
@@ -423,7 +530,9 @@
 				"Regras mínimas de contrato validadas",
 				"Lacunas viram novas tasks"
 			],
-			"depends_on": ["T-CONTRACT-01"],
+			"depends_on": [
+				"T-CONTRACT-01"
+			],
 			"assigned_agent": "worker-identity",
 			"verification": "VER-CONTRACT-04-20260423",
 			"notes": "Conformance `identity:v1` adicionada em `identity-nostr` e escopo de conformance `manifest:v1` formalizado como schema/validation gate em `plugin-manifest`."
@@ -443,7 +552,9 @@
 				"Falhas apontam contrato esperado de connect/push/pull/disconnect",
 				"Gate test:capabilities cobre sync-crdt"
 			],
-			"depends_on": ["T-CONTRACT-03"],
+			"depends_on": [
+				"T-CONTRACT-03"
+			],
 			"assigned_agent": "worker-sync",
 			"verification": "VER-CONTRACT-05-20260423",
 			"notes": "Suite `test/sync-v1.conformance.test.ts` adicionada em `sync-crdt` usando `runSyncV1Conformance` e cenário de convergência concorrente entre peers; gate raiz `test:capabilities` agora inclui `sync-crdt test:conformance`."
@@ -463,7 +574,9 @@
 				"Pontos de risco identificados",
 				"Plano de hardening gerado"
 			],
-			"depends_on": ["T-RUNTIME-03"],
+			"depends_on": [
+				"T-RUNTIME-03"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-01-20260423",
 			"notes": "Fluxo install/cache/verify mapeado entre Barn + tractor-ts + tractor runtime, com riscos priorizados e plano de hardening P0/P1/P2. Divergências documentadas no audit de 2026-04-23."
@@ -488,7 +601,9 @@
 				"Falhas de integridade bloqueiam instalação",
 				"Teste cobrindo caso válido e inválido"
 			],
-			"depends_on": ["T-PLUGIN-01"],
+			"depends_on": [
+				"T-PLUGIN-01"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-02-20260423",
 			"notes": "Pipeline endurecido para SHA-256: manifesto `.wasm` agora exige `integrity` válido, `installPlugin` do tractor-ts bloqueia instalação sem digest e Barn valida formato do digest antes de qualquer fetch."
@@ -508,7 +623,9 @@
 				"Teste cobre cache hit",
 				"Teste valida hash no caminho de cache"
 			],
-			"depends_on": ["T-PLUGIN-02"],
+			"depends_on": [
+				"T-PLUGIN-02"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-03-20260423",
 			"notes": "Cache path regressions cobertas no install pipeline: cache hit revalida digest SHA-256, mismatch em cache dispara evict+refetch, suporte explícito a digest sha256 base64/hex."
@@ -538,7 +655,10 @@
 				"Layout OPFS documentado e alinhado com implementação real",
 				"Contrato de integração permite runtime consumir cache instalado sem ambiguidade"
 			],
-			"depends_on": ["T-PLUGIN-02", "T-PLUGIN-03"],
+			"depends_on": [
+				"T-PLUGIN-02",
+				"T-PLUGIN-03"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-04-20260423",
 			"notes": "Contrato único de instalação/cache/verify extraído para @refarm.dev/plugin-manifest (installWasmArtifact). Barn e Tractor passaram a consumir a mesma fronteira. Cache OPFS do tractor alinhado ao layout canônico /refarm/barn/{implements,metadata} com sidecar de metadata."
@@ -546,63 +666,92 @@
 		{
 			"id": "T-DOC-01",
 			"description": "Criar playbook operacional da colônia para o Refarm.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 7,
-			"files": ["docs/WORKFLOW.md", "docs/DEVOPS.md", "docs/superpowers/**"],
+			"files": [
+				"docs/WORKFLOW.md",
+				"docs/DEVOPS.md",
+				"docs/superpowers/**"
+			],
 			"acceptance_criteria": [
 				"Playbook com preflight, execução e consolidação",
 				"Fluxo de escalonamento de bloqueio definido",
 				"Exemplos de atribuição por task"
 			],
-			"depends_on": ["T-PLAN-03"],
-			"assigned_agent": "worker-docs"
+			"depends_on": [
+				"T-PLAN-03"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-DOC-01-20260424",
+			"notes": "Playbook operacional publicado em `docs/COLONY_PLAYBOOK.md` com preflight, execução, consolidação, lock policy e escalonamento."
 		},
 		{
 			"id": "T-DOC-02",
 			"description": "Documentar estratégia src/dist e quando alternar o modo de resolução.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 7,
-			"files": ["docs/WORKFLOW.md", "docs/DEVOPS.md"],
+			"files": [
+				"docs/WORKFLOW.md",
+				"docs/DEVOPS.md"
+			],
 			"acceptance_criteria": [
 				"Critérios de alternância documentados",
 				"Exemplos prontos para operadores",
 				"Comando reso status incluído no checklist"
 			],
-			"depends_on": ["T-ENV-04"],
-			"assigned_agent": "worker-docs"
+			"depends_on": [
+				"T-ENV-04"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-DOC-02-20260424",
+			"notes": "Estratégia src/dist consolidada em `docs/WORKFLOW.md` e `docs/DEVELOPMENT_RESOLUTION.md` com critérios de alternância e checklist do operador."
 		},
 		{
 			"id": "T-DOC-03",
 			"description": "Criar checklist de reviewer para consolidação de lotes vindos da colônia.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 7,
-			"files": ["docs/PR_QUALITY_GOVERNANCE.md", "CONTRIBUTING.md"],
+			"files": [
+				"docs/PR_QUALITY_GOVERNANCE.md",
+				"CONTRIBUTING.md"
+			],
 			"acceptance_criteria": [
 				"Checklist smoke + full",
 				"Checklist de Source Sovereignty",
 				"Checklist de rastreabilidade task->verificação"
 			],
-			"depends_on": ["T-PIPE-06"],
-			"assigned_agent": "worker-docs"
+			"depends_on": [
+				"T-PIPE-06"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-DOC-03-20260424",
+			"notes": "Checklist de reviewer para lotes da colônia publicado em `docs/PR_QUALITY_GOVERNANCE.md` e comandos de gate consolidados no `CONTRIBUTING.md`."
 		},
 		{
 			"id": "T-DOC-04",
 			"description": "Publicar templates de prompt e reporte final para workers da colônia.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 7,
-			"files": ["docs/templates/**", "docs/superpowers/**"],
+			"files": [
+				"docs/templates/**",
+				"docs/superpowers/**"
+			],
 			"acceptance_criteria": [
 				"Template de prompt por task publicado",
 				"Template de resposta com evidências publicado",
 				"Template de handoff para reviewer publicado"
 			],
-			"depends_on": ["T-PLAN-07"],
-			"assigned_agent": "worker-docs"
+			"depends_on": [
+				"T-PLAN-07"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-DOC-04-20260424",
+			"notes": "Templates de task input/report/handoff publicados em `docs/templates/` e templates de entrada/saída no `docs/superpowers/`."
 		},
 		{
 			"id": "T-OPS-01",
 			"description": "Definir formato padrão de evidência em verification para tasks finalizadas.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 8,
 			"files": [
 				".project/verification.json",
@@ -613,95 +762,138 @@
 				"Exemplos de verificação incluídos",
 				"Compatibilidade com complete-task mantida"
 			],
-			"depends_on": ["T-DOC-03"],
-			"assigned_agent": "worker-governance"
+			"depends_on": [
+				"T-DOC-03"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-OPS-01-20260424",
+			"notes": "Formato padrão de evidência formalizado no schema `verification.schema.json` (campos obrigatórios + exemplo) com compatibilidade preservada após normalizar entradas legadas."
 		},
 		{
 			"id": "T-OPS-02",
 			"description": "Criar rotina semanal de triagem de tasks bloqueadas e replanejamento.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 8,
-			"files": [".project/tasks.json", "docs/WORKFLOW.md"],
+			"files": [
+				".project/tasks.json",
+				"docs/WORKFLOW.md"
+			],
 			"acceptance_criteria": [
 				"Ritual semanal definido",
 				"Critérios de desbloqueio documentados",
 				"Fluxo de reassign para agentes pronto"
 			],
-			"depends_on": ["T-PLAN-03"],
-			"assigned_agent": "worker-governance"
+			"depends_on": [
+				"T-PLAN-03"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-OPS-02-20260424",
+			"notes": "Rotina semanal de triagem consolidada no workflow/playbook e issue histórica de triagem (`ISS-007`) encerrada com evidência."
 		},
 		{
 			"id": "T-OPS-03",
 			"description": "Definir guardrails para evitar alterações não autorizadas por agentes.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 8,
-			"files": [".pi/monitors/**", "AGENTS.md"],
+			"files": [
+				".pi/monitors/**",
+				"AGENTS.md"
+			],
 			"acceptance_criteria": [
 				"Regras de monitor revisadas",
 				"Padrões de ação bloqueada documentados",
 				"Fluxo de confirmação explícita publicado"
 			],
-			"assigned_agent": "worker-governance"
+			"assigned_agent": "worker-governance",
+			"verification": "VER-OPS-03-20260424",
+			"notes": "Guardrails reforçados em `AGENTS.md` e monitor `unauthorized-action` com instruções/padrões calibrados para operações não autorizadas."
 		},
 		{
 			"id": "T-OPS-04",
 			"description": "Estabelecer política de merge para lotes de PRs da colônia.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 8,
-			"files": ["docs/PR_QUALITY_GOVERNANCE.md", "CONTRIBUTING.md"],
+			"files": [
+				"docs/PR_QUALITY_GOVERNANCE.md",
+				"CONTRIBUTING.md"
+			],
 			"acceptance_criteria": [
 				"Critérios para merge em lote definidos",
 				"Regra de rollback por lote definida",
 				"Responsabilidades de reviewer explicitadas"
 			],
-			"depends_on": ["T-DOC-03"],
-			"assigned_agent": "worker-governance"
+			"depends_on": [
+				"T-DOC-03"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-OPS-04-20260424",
+			"notes": "Política de merge em lote e rollback por lote definida em `docs/PR_QUALITY_GOVERNANCE.md` e alinhada ao CONTRIBUTING."
 		},
 		{
 			"id": "T-OPS-05",
 			"description": "Definir estratégia de escalonamento de bloqueios para tasks de colônia.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 8,
-			"files": ["docs/WORKFLOW.md", ".project/issues.json"],
+			"files": [
+				"docs/WORKFLOW.md",
+				".project/issues.json"
+			],
 			"acceptance_criteria": [
 				"Quando escalar para humano definido",
 				"Quando abrir issue definido",
 				"Quando cancelar task definido"
 			],
-			"depends_on": ["T-PLAN-07"],
-			"assigned_agent": "worker-governance"
+			"depends_on": [
+				"T-PLAN-07"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-OPS-05-20260424",
+			"notes": "Estratégia de escalonamento de bloqueios formalizada em `docs/WORKFLOW.md` e `docs/COLONY_PLAYBOOK.md` (escalar/issue/cancelar)."
 		},
 		{
 			"id": "T-DEC-01",
 			"description": "Sincronizar decisões arquiteturais do .project com ADRs e roadmap ativo.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 9,
-			"files": [".project/decisions.json", "specs/ADRs/**", "roadmaps/MAIN.md"],
+			"files": [
+				".project/decisions.json",
+				"specs/ADRs/**",
+				"roadmaps/MAIN.md"
+			],
 			"acceptance_criteria": [
 				"Decisões do .project sem contradição com ADRs",
 				"Itens em revisit marcados",
 				"Links para docs principais adicionados"
 			],
-			"assigned_agent": "worker-architecture"
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-DEC-01-20260424",
+			"notes": "Decisions sincronizadas com ADR/roadmap: DEC-010 movida para revisit (ADR-012 Proposed), novas decisões DEC-021..023 e atualização em `roadmaps/MAIN.md`."
 		},
 		{
 			"id": "T-DEC-02",
 			"description": "Atualizar domain/rationale com conhecimento operacional para novos workers.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 9,
-			"files": [".project/domain.json", ".project/rationale.json"],
+			"files": [
+				".project/domain.json",
+				".project/rationale.json"
+			],
 			"acceptance_criteria": [
 				"Principais regras do domínio registradas",
 				"Tradeoffs explícitos para paralelização",
 				"Referências para docs existentes"
 			],
-			"depends_on": ["T-DEC-01"],
-			"assigned_agent": "worker-architecture"
+			"depends_on": [
+				"T-DEC-01"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-DEC-02-20260424",
+			"notes": "`domain.json` e `rationale.json` atualizados com conhecimento operacional de gates, escalonamento e transição pi→Refarm."
 		},
 		{
 			"id": "T-DEC-03",
 			"description": "Montar snapshot quinzenal de progresso da fábrica no .project.",
-			"status": "planned",
+			"status": "completed",
 			"phase": 9,
 			"files": [
 				".project/project.json",
@@ -713,8 +905,12 @@
 				"Riscos e próximos passos documentados",
 				"Dados prontos para handoff"
 			],
-			"depends_on": ["T-OPS-02"],
-			"assigned_agent": "worker-pm"
+			"depends_on": [
+				"T-OPS-02"
+			],
+			"assigned_agent": "worker-pm",
+			"verification": "VER-DEC-03-20260424",
+			"notes": "Snapshot quinzenal adicionado em `.project/project.json` (tasks/verification/risks/next_steps) com dados prontos para handoff."
 		},
 		{
 			"id": "T-OPS-06",
@@ -732,7 +928,9 @@
 				"Decisão de fonte canônica registrada",
 				"HANDOFF tratado apenas como resumo humano opcional"
 			],
-			"depends_on": ["T-DEC-03"],
+			"depends_on": [
+				"T-DEC-03"
+			],
 			"assigned_agent": "worker-governance",
 			"notes": "Concluído: operação diária migrou para blocos .project. HANDOFF.md da raiz deixa de ser mantido como canal agente↔agente.",
 			"verification": "VER-OPS-06-20260420"
@@ -752,7 +950,9 @@
 				"Check executa rápido antes de type-check completo",
 				"Documentado como passo de preflight local/CI"
 			],
-			"depends_on": ["T-PIPE-01"],
+			"depends_on": [
+				"T-PIPE-01"
+			],
 			"assigned_agent": "worker-core",
 			"notes": "Concluído com commits abb6981 e a897807. Validado em CI: run 24691871635 (verde) e run 24692488972 (verde).",
 			"verification": "VER-PIPE-07-20260420"
@@ -762,13 +962,18 @@
 			"description": "Atualizar ações GitHub remanescentes para variantes compatíveis com baseline Node24 e remover warnings recorrentes.",
 			"status": "completed",
 			"phase": 2,
-			"files": [".github/workflows/test.yml", ".github/actions/**"],
+			"files": [
+				".github/workflows/test.yml",
+				".github/actions/**"
+			],
 			"acceptance_criteria": [
 				"Sem warnings de Node20 deprecated nos jobs principais",
 				"Pins por SHA mantidos",
 				"Diff de workflow enxuto e auditável"
 			],
-			"depends_on": ["T-PIPE-07"],
+			"depends_on": [
+				"T-PIPE-07"
+			],
 			"assigned_agent": "worker-core",
 			"notes": "Concluído. Pins Node24 aplicados + codecov-action atualizado para v6.0.0 (57e3a13). Validação final em CI: run 24694500143 verde sem warning Node20.",
 			"verification": "VER-PIPE-08-20260420"
@@ -778,13 +983,18 @@
 			"description": "Corrigir versionamento de cache .pi-lens e fechar pendência de higiene de repositório (ISS-006).",
 			"status": "completed",
 			"phase": 8,
-			"files": [".gitignore", ".project/issues.json"],
+			"files": [
+				".gitignore",
+				".project/issues.json"
+			],
 			"acceptance_criteria": [
 				"Entradas de cache .pi-lens alinhadas no .gitignore",
 				"Arquivos de cache não aparecem em git status limpo",
 				"ISS-006 atualizado com evidência de resolução"
 			],
-			"depends_on": ["T-OPS-03"],
+			"depends_on": [
+				"T-OPS-03"
+			],
 			"assigned_agent": "worker-governance",
 			"verification": "VER-OPS-07-20260423",
 			"notes": "Verificado em 2026-04-23: `.gitignore` contém `.pi-lens/`, sem arquivos `.pi-lens` versionados e status do repositório limpo."
@@ -803,7 +1013,10 @@
 				"Startup falha explicitamente quando plugin obrigatório não carrega",
 				"Teste cobrindo modo atual (warn+continue) e modo fail-fast"
 			],
-			"depends_on": ["T-RUNTIME-01", "T-RUNTIME-02"],
+			"depends_on": [
+				"T-RUNTIME-01",
+				"T-RUNTIME-02"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-05-20260423"
 		},
@@ -822,7 +1035,10 @@
 				"Probe valida bind WS e boot mínimo do runtime",
 				"Documentação operacional com uso da probe em smoke/local"
 			],
-			"depends_on": ["T-RUNTIME-01", "T-RUNTIME-02"],
+			"depends_on": [
+				"T-RUNTIME-01",
+				"T-RUNTIME-02"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-06-20260423"
 		},
@@ -842,7 +1058,9 @@
 				"runner threads são drenadas/encerradas de forma determinística",
 				"teste de integração valida encerramento limpo com plugin carregado"
 			],
-			"depends_on": ["T-RUNTIME-03"],
+			"depends_on": [
+				"T-RUNTIME-03"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-07-20260423",
 			"notes": "`TractorNative::shutdown()` agora envia evento interno `__tractor:shutdown`, drena canais de plugin, aguarda `call_teardown()` no runner e faz join determinístico das threads registradas."
@@ -863,7 +1081,9 @@
 				"falhas de ingest retornam erro acionável sem derrubar daemon por padrão",
 				"teste cobre ciclo ingest com plugin fixture"
 			],
-			"depends_on": ["T-RUNTIME-03"],
+			"depends_on": [
+				"T-RUNTIME-03"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-08-20260423",
 			"notes": "`tractor` ganhou gatilho operacional de ingest no startup via `--ingest-on-load` (warn+continue) e `--require-plugin-ingest` (fail-fast), com helper dedicado `maybe_ingest_on_load()` testado contra fixture."
@@ -884,7 +1104,9 @@
 				"payload inclui plugin_id e fase do lifecycle",
 				"teste valida emissão mínima dos novos eventos"
 			],
-			"depends_on": ["T-RUNTIME-03"],
+			"depends_on": [
+				"T-RUNTIME-03"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-09-20260423",
 			"notes": "Lifecycle telemetry estruturada implementada em `PluginInstanceHandle` com eventos `plugin:lifecycle:start|end|error` para setup/ingest/teardown e cobertura dedicada em `tests/host_integration.rs`."
@@ -905,7 +1127,10 @@
 				"mismatch crítico retorna erro explícito de load",
 				"testes cobrem caso válido e mismatch"
 			],
-			"depends_on": ["T-RUNTIME-03", "T-CONTRACT-04"],
+			"depends_on": [
+				"T-RUNTIME-03",
+				"T-CONTRACT-04"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-10-20260423",
 			"notes": "Runtime agora valida alinhamento manifesto↔plugin no `load()` (plugin_id derivado do filename, hooks obrigatórios de observabilidade e versão metadata↔manifesto), com falha explícita em mismatch antes de ativar setup."
@@ -926,7 +1151,9 @@
 				"paths file:// e fallback HTTP permanecem funcionais",
 				"testes cobrem preferência por cache no PluginHost"
 			],
-			"depends_on": ["T-PLUGIN-04"],
+			"depends_on": [
+				"T-PLUGIN-04"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-11-20260423",
 			"notes": "PluginHost ganhou `readWasmBuffer()` com preferência por cache para entradas `.wasm`; apenas em cache miss faz fetch. Preserva file:// no Node e comportamento atual de erro em fetch não-ok."
@@ -946,7 +1173,9 @@
 				"Plugin `.js` executa setup/calls sem pipeline WASM",
 				"Testes cobrem caminho .js e mantêm regressões WASM verdes"
 			],
-			"depends_on": ["T-RUNTIME-11"],
+			"depends_on": [
+				"T-RUNTIME-11"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-12-20260423",
 			"notes": "`PluginHost.load()` agora detecta entradas `.js/.mjs`, carrega módulo via import dinâmico (com fallback fetch+data URL) e instancia `PluginInstanceHandle` sem JCO. Caminho `.wasm` permanece ativo e preferindo cache."
@@ -966,7 +1195,9 @@
 				"Política recomendada por estágio (MVP/pre-prod/prod) documentada",
 				"Arquitetura e README apontam para o guia"
 			],
-			"depends_on": ["T-PLUGIN-04"],
+			"depends_on": [
+				"T-PLUGIN-04"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-05-20260423",
 			"notes": "Novo guia `docs/PLUGIN_AUTHORING_TRACKS.md` formaliza estratégia de adoção progressiva sem bloquear equipes que ainda não usam WASM."
@@ -986,7 +1217,9 @@
 				"Estado/telemetria básica de plugin funciona no caminho browser",
 				"Entradas `.wasm` seguem bloqueadas explicitamente no browser até etapa ADR-044"
 			],
-			"depends_on": ["T-RUNTIME-12"],
+			"depends_on": [
+				"T-RUNTIME-12"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-13-20260423",
 			"notes": "`index.browser.ts` deixou de ser stub total: suporta load/call/state/dispatch para plugins JS e mantém bloqueio explícito de `.wasm` no browser."
@@ -1006,7 +1239,9 @@
 				"Conformance cobre novos formatos JS",
 				"Documentação atualizada com extensão suportada"
 			],
-			"depends_on": ["T-PLUGIN-05"],
+			"depends_on": [
+				"T-PLUGIN-05"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-06-20260423",
 			"notes": "`validatePluginManifest` agora aceita `.js/.mjs/.cjs/.wasm`; testes e README atualizados para refletir onboarding JS mais amplo."
@@ -1027,7 +1262,10 @@
 				"Matriz por ambiente (browser/node) e formato (js/mjs/cjs/wasm) com status: suportado, parcial, roadmap",
 				"Trilha de escala de plugin (L0->L3) com controles de segurança e critérios de promoção"
 			],
-			"depends_on": ["T-PLUGIN-06", "T-RUNTIME-13"],
+			"depends_on": [
+				"T-PLUGIN-06",
+				"T-RUNTIME-13"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-07-20260423",
 			"notes": "Envelope mínimo→máximo formalizado em `docs/PLUGIN_AUTHORING_TRACKS.md` com matriz por ambiente/formato e trilha L0→L3 de promoção."
@@ -1050,7 +1288,10 @@
 				"Compatibilidade por runtime (node/browser) pode ser validada por helper compartilhado",
 				"Conformance cobre helper de compatibilidade e validação continua verde"
 			],
-			"depends_on": ["T-PLUGIN-06", "T-PLUGIN-07"],
+			"depends_on": [
+				"T-PLUGIN-06",
+				"T-PLUGIN-07"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-08-20260423",
 			"notes": "Adicionados `detectEntryFormat`, `evaluateEntryRuntimeCompatibility` e `assertEntryRuntimeCompatibility` para unificar política de formatos suportados por runtime."
@@ -1071,7 +1312,10 @@
 				"PluginHost browser rejeita formatos incompatíveis com erro explícito",
 				"Testes cobrem .js/.mjs/.cjs e bloqueio de .wasm no browser"
 			],
-			"depends_on": ["T-RUNTIME-13", "T-PLUGIN-08"],
+			"depends_on": [
+				"T-RUNTIME-13",
+				"T-PLUGIN-08"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-14-20260423",
 			"notes": "Node/browser passaram a consumir `assertEntryRuntimeCompatibility`, reduzindo divergência de regras locais para formatos de plugin."
@@ -1081,13 +1325,18 @@
 			"description": "Alinhar verificação do .project ao validador CI removendo target_type não suportado em verification.",
 			"status": "completed",
 			"phase": 8,
-			"files": [".project/verification.json", ".project/handoff.json"],
+			"files": [
+				".project/verification.json",
+				".project/handoff.json"
+			],
 			"acceptance_criteria": [
 				"Nenhuma entrada de verification usa target_type não suportado pela pipeline",
 				"project:validate passa localmente com a mesma regra usada no CI",
 				"Handoff atualizado sem referências a verificação inválida"
 			],
-			"depends_on": ["T-OPS-07"],
+			"depends_on": [
+				"T-OPS-07"
+			],
 			"assigned_agent": "worker-governance",
 			"verification": "VER-OPS-09-20260423",
 			"notes": "Entradas `target_type: decision` removidas do bloco verification para compatibilidade com `npm run project:validate` da pipeline."
@@ -1107,7 +1356,9 @@
 				"testes cobrem rejeição para plugin JS com trusted-fast",
 				"documentação registra o limite de segurança atual"
 			],
-			"depends_on": ["T-RUNTIME-14"],
+			"depends_on": [
+				"T-RUNTIME-14"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-15-20260423",
 			"notes": "Guardrail adicionado: trusted-fast agora exige entry `.wasm`, reforçando alinhamento entre perfil de confiança e trilha de hardening."
@@ -1117,13 +1368,17 @@
 			"description": "Cobrir detecção de formato de entry com query/hash no conformance de plugin-manifest.",
 			"status": "completed",
 			"phase": 6,
-			"files": ["packages/plugin-manifest/src/validate.test.js"],
+			"files": [
+				"packages/plugin-manifest/src/validate.test.js"
+			],
 			"acceptance_criteria": [
 				"entry .mjs com query/hash continua válido",
 				"entry .wasm com query/hash continua exigindo integrity",
 				"suite plugin-manifest permanece verde"
 			],
-			"depends_on": ["T-PLUGIN-08"],
+			"depends_on": [
+				"T-PLUGIN-08"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-09-20260423",
 			"notes": "Conformance agora garante parsing robusto de extensão com sufixos URL sem regredir regras de integridade para `.wasm`."
@@ -1146,7 +1401,10 @@
 				"Spike mínimo validando load de `.wasm` a partir de cache instalado",
 				"Risco/tooling necessário registrado para rollout incremental"
 			],
-			"depends_on": ["T-RUNTIME-14", "T-RUNTIME-15"],
+			"depends_on": [
+				"T-RUNTIME-14",
+				"T-RUNTIME-15"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-16-20260423",
 			"notes": "Browser host agora aceita `.wasm` quando a entrada já está instalada no cache (OPFS/memory fallback), via `WebAssembly.instantiate`; conformance de compatibilidade passou a expor opção explícita `allowBrowserWasmFromCache`."
@@ -1169,7 +1427,10 @@
 				"Eliminar ambiguidade entre WASM core e WASM component no path browser",
 				"Cobertura de teste para falhas de compatibilidade/toolchain"
 			],
-			"depends_on": ["T-RUNTIME-16", "T-PLUGIN-10"],
+			"depends_on": [
+				"T-RUNTIME-16",
+				"T-PLUGIN-10"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-17-20260423",
 			"notes": "Browser host valida metadata+integridade do cache e aplica gate por `artifactKind`; modules executam direto, components seguem trilha dedicada."
@@ -1191,7 +1452,10 @@
 				"Metadata persistida inclui artifactKind para handshake install/load",
 				"Conformance cobre detecção de módulo vs componente"
 			],
-			"depends_on": ["T-PLUGIN-08", "T-PLUGIN-09"],
+			"depends_on": [
+				"T-PLUGIN-08",
+				"T-PLUGIN-09"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-10-20260423",
 			"notes": "`installWasmArtifact` agora classifica binário (`module`/`component`/`unknown`) e persiste `artifactKind` na metadata para reduzir ambiguidade de runtime browser."
@@ -1216,7 +1480,10 @@
 				"Contrato de install/load define formato de artefato final e valida assinatura/hash no bootstrap",
 				"Matriz de suporte separa claramente module path vs component path"
 			],
-			"depends_on": ["T-RUNTIME-17", "T-PLUGIN-11"],
+			"depends_on": [
+				"T-RUNTIME-17",
+				"T-PLUGIN-11"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-18-20260423",
 			"notes": "Runner browser para component passou a usar sidecar `browserRuntimeModule` (ESM cacheado com integridade verificada), mantendo wasm cache-backed + metadata handshake."
@@ -1237,7 +1504,9 @@
 				"cache hit pode atualizar metadata estendida sem refetch",
 				"testes cobrem persistência de metadataExtensions em artefatos component"
 			],
-			"depends_on": ["T-PLUGIN-10"],
+			"depends_on": [
+				"T-PLUGIN-10"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-11-20260423",
 			"notes": "Metadata extension foi adicionada ao contrato compartilhado para transportar `browserRuntimeModule` (ou equivalentes futuros) sem duplicar lógica de integridade/cache."
@@ -1265,7 +1534,10 @@
 				"Assinatura/hash do sidecar integrada ao fluxo de release",
 				"Remover ambiguidade entre sidecar manual e toolchain oficial"
 			],
-			"depends_on": ["T-RUNTIME-18", "T-PLUGIN-12"],
+			"depends_on": [
+				"T-RUNTIME-18",
+				"T-PLUGIN-12"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-19-20260423",
 			"notes": "Install/runtime agora suportam descriptor sidecar com `descriptorIntegrity`; script `runtime-module:descriptor` fornece geração determinística e handshake canônico."
@@ -1285,7 +1557,9 @@
 				"Contrato install preserva compatibilidade sem quebrar cache/integridade",
 				"Documentação explicita chaves canônicas de metadata para sidecar"
 			],
-			"depends_on": ["T-PLUGIN-11"],
+			"depends_on": [
+				"T-PLUGIN-11"
+			],
 			"assigned_agent": "worker-plugin",
 			"verification": "VER-PLUGIN-12-20260423",
 			"notes": "Metadata canônica de sidecar browser foi tipada (`browserRuntimeModule`, `browserRuntimeDescriptor`, `browserRuntimeToolchain`) para reduzir drift entre install/load."
@@ -1314,7 +1588,9 @@
 				"Validação de descriptorIntegrity roda em CI antes de publish",
 				"Fluxo de install aceita descriptor assinado/publicado sem entradas manuais ad-hoc"
 			],
-			"depends_on": ["T-RUNTIME-19"],
+			"depends_on": [
+				"T-RUNTIME-19"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-20-20260423",
 			"notes": "Workflow quality agora executa gate `runtime-module:ci`; install/runtime validam descriptor integrity + metadata obrigatória para component sidecars."
@@ -1346,7 +1622,9 @@
 				"CI valida presença e consistência de provenance antes de publish",
 				"Contrato documenta política de confiança por origem de descriptor"
 			],
-			"depends_on": ["T-RUNTIME-20"],
+			"depends_on": [
+				"T-RUNTIME-20"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-21-20260423",
 			"notes": "Descriptor now requires toolchain + provenance (commitSha/buildId); verify/install/runtime enforce metadata and release-changesets runs runtime-module gate before publish."
@@ -1372,7 +1650,9 @@
 				"Fluxo de publish documenta onde o descriptor é resolvido/baixado",
 				"Install policy reflete nível de confiança por origem de descriptor"
 			],
-			"depends_on": ["T-RUNTIME-21"],
+			"depends_on": [
+				"T-RUNTIME-21"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-22-20260423",
 			"notes": "Política aplicada: `package-embedded` é padrão canônico (same-origin + suffix `.runtime-descriptor.json`); `external-signed` é opt-in com allowlist, descriptorIntegrity e provenance/sourceRepository obrigatórios."
@@ -1400,7 +1680,9 @@
 				"Install policy consegue validar origem external-signed sem allowlists manuais por pacote",
 				"Playbook de release cobre rollback/revogação de descriptor externo"
 			],
-			"depends_on": ["T-RUNTIME-22"],
+			"depends_on": [
+				"T-RUNTIME-22"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-23-20260423",
 			"notes": "Release workflow exporta bundle versionado de descriptors (manifest + revocation template) como artifact; install external-signed usa trust mode repository-derived por default e strict-manual por opt-in."
@@ -1423,7 +1705,9 @@
 				"Instalação external-signed pode resolver endpoint oficial sem configuração manual por ambiente",
 				"Fluxo de revogação inclui publicação de lista revogada e janela de propagação documentada"
 			],
-			"depends_on": ["T-RUNTIME-23"],
+			"depends_on": [
+				"T-RUNTIME-23"
+			],
 			"assigned_agent": "worker-runtime",
 			"notes": "Endpoint público estável (Release Assets), auto-resolve por convenção (`runtime-descriptor-manifest.json`) e revogação operacional runtime/install (`runtime-descriptor-revocations.json`) concluídos nas slices T-RUNTIME-26..29.",
 			"verification": "VER-RUNTIME-24-20260424"
@@ -1443,7 +1727,9 @@
 				"Política de trust por ambiente definida (repository-derived vs strict-manual)",
 				"SLA de revogação definido e refletido em docs operacionais"
 			],
-			"depends_on": ["T-RUNTIME-23"],
+			"depends_on": [
+				"T-RUNTIME-23"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-25-20260424",
 			"notes": "Decisão formalizada no alinhamento: endpoint A (Release Assets), trust policy B (híbrida), SLA B (<24h), estratégia C (auto-resolve + override)."
@@ -1463,7 +1749,9 @@
 				"Check automatizado falha quando asset obrigatório não está presente",
 				"Naming convention e retenção documentados"
 			],
-			"depends_on": ["T-RUNTIME-25"],
+			"depends_on": [
+				"T-RUNTIME-25"
+			],
 			"assigned_agent": "worker-runtime",
 			"notes": "Release workflow agora publica bundle versionado em GitHub Release Assets e valida presença pós-upload com falha explícita quando asset obrigatório está ausente.",
 			"verification": "VER-RUNTIME-26-20260424"
@@ -1488,7 +1776,9 @@
 				"Fallback para URL explícita permanece disponível e testado",
 				"Resolver cobre erro de ausência/shape inválido de bundle"
 			],
-			"depends_on": ["T-RUNTIME-26"],
+			"depends_on": [
+				"T-RUNTIME-26"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-27-20260424",
 			"notes": "Install external-signed agora auto-resolve `runtime-descriptor-manifest.json` via `descriptorSourceRepository` (GitHub Release Assets convention), com fallback explícito por `browserRuntimeModuleDescriptor.url`. Bundle manifest inclui payload inline de descriptor para resolver sem fetch adicional de arquivo individual."
@@ -1516,7 +1806,9 @@
 				"Runtime/install bloqueia descriptor revogado com erro explícito",
 				"Playbook de rollback cobre janela de propagação e comunicação"
 			],
-			"depends_on": ["T-RUNTIME-27"],
+			"depends_on": [
+				"T-RUNTIME-27"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-28-20260424",
 			"notes": "Revogação operacional external-signed ativa: install resolve/valida `runtime-descriptor-revocations.json` (inline ou URL) e bloqueia `descriptorHash` revogado antes de cachear sidecar. Browser runtime também consulta lista (cache TTL local) e bloqueia load de component descriptor revogado."
@@ -1543,7 +1835,9 @@
 				"Falhas críticas bloqueiam publish no pipeline",
 				"Checkpoint de governança registrado antes da próxima compactação"
 			],
-			"depends_on": ["T-RUNTIME-28"],
+			"depends_on": [
+				"T-RUNTIME-28"
+			],
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-29-20260424",
 			"notes": "Smoke e2e do release path adicionado via `runtime-descriptor:release-smoke` (export bundle + publish dry-run + resolver tests install/runtime). Workflow de release agora bloqueia publish quando smoke falha."

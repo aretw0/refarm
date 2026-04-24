@@ -79,21 +79,72 @@
         "conformance"
       ]
     },
-    {
-      "id": "DOM-006",
-      "title": "Integridade de plugin via hash e cache",
-      "content": "Fluxo de instalação deve validar integridade (SHA-256) e comportamento de cache (hit/miss).",
-      "category": "domain-rule",
-      "source": "roadmaps/MAIN.md (Barn/ADR-044)",
-      "confidence": "medium",
-      "related_requirements": [
-        "REQ-PLUGIN-001"
-      ],
-      "tags": [
-        "plugins",
-        "security",
-        "barn"
-      ]
-    }
-  ]
+		{
+			"id": "DOM-006",
+			"title": "Integridade de plugin via hash e cache",
+			"content": "Fluxo de instalação deve validar integridade (SHA-256) e comportamento de cache (hit/miss).",
+			"category": "domain-rule",
+			"source": "roadmaps/MAIN.md (Barn/ADR-044)",
+			"confidence": "medium",
+			"related_requirements": [
+				"REQ-PLUGIN-001"
+			],
+			"tags": [
+				"plugins",
+				"security",
+				"barn"
+			]
+		},
+		{
+			"id": "DOM-007",
+			"title": "Gates operacionais por domínio",
+			"content": "A operação da colônia usa gates canônicos por domínio (`gate:smoke:foundation`, `gate:smoke:runtime`, `gate:smoke:contracts`) e gate full de consolidação (`gate:full:colony`).",
+			"category": "domain-rule",
+			"source": "package.json + docs/COLONY_PLAYBOOK.md",
+			"confidence": "high",
+			"related_requirements": [
+				"REQ-PIPE-002",
+				"REQ-PIPE-003"
+			],
+			"tags": [
+				"gates",
+				"operations",
+				"quality"
+			]
+		},
+		{
+			"id": "DOM-008",
+			"title": "Trilha dupla de transição (pi atual vs agente Refarm)",
+			"content": "A execução atual no pi deve preservar governança e evidências; decisões de plataforma devem ser desenhadas para migração gradual ao agente Refarm sem quebrar o fluxo atual.",
+			"category": "constraint",
+			"source": "DEC-022 + handoff operacional",
+			"confidence": "high",
+			"related_requirements": [
+				"REQ-GOV-001",
+				"REQ-DOC-001"
+			],
+			"tags": [
+				"migration",
+				"pi",
+				"refarm-agent"
+			]
+		},
+		{
+			"id": "DOM-009",
+			"title": "Escalonamento determinístico de bloqueios",
+			"content": "Bloqueios devem seguir trilha explícita: escalar para humano quando houver ambiguidade de decisão ou falha persistente; abrir issue quando for reproduzível e multi-task; cancelar task quando o requisito foi invalidado.",
+			"category": "domain-rule",
+			"source": "docs/WORKFLOW.md + docs/COLONY_PLAYBOOK.md",
+			"confidence": "high",
+			"related_requirements": [
+				"REQ-ENV-002",
+				"REQ-WORK-003"
+			],
+			"tags": [
+				"escalation",
+				"governance",
+				"operations"
+			]
+		}
+	]
 }

@@ -1,33 +1,52 @@
 {
-  "context": "Checkpoint pronto para compactação (79% contexto): baseline operacional consolidado em ENV/PIPE/PLAN, external-signed fechado e próximos slices já priorizados para execução técnica.",
-  "timestamp": "2026-04-24T11:30:47.114Z",
-  "current_phase": 6,
-  "current_tasks": [
-    "Checkpoint registrado: VER-CHECKPOINT-COMPACTION-09-20260424.",
-    "Governança de colônia concluída (T-ENV-03/04, T-PIPE-01, T-PLAN-01..07).",
-    "Bloco runtime external-signed concluído anteriormente (T-RUNTIME-24..29, ISS-020 resolvida)."
-  ],
-  "blockers": [
-    "Execução técnica de pipeline ainda pendente nas tasks T-PIPE-02..06.",
-    "Vulnerabilidades `npm audit` moderadas permanecem advisory (0 high/critical)."
-  ],
-  "next_actions": [
-    "Após compactação, iniciar T-PIPE-02 com slices pequenas por pacote Foundation (config/toolbox/vtconfig/cli).",
-    "Em seguida executar T-PIPE-03 para matriz de build por domínio e destravar T-PIPE-04/05.",
-    "Revisar necessidade de tooling adicional somente se surgirem gargalos de validação/paralelismo."
-  ],
-  "open_questions": [
-    "Há necessidade de política diferenciada de revocation-check para ambientes offline-first vs sensíveis (fail-open/fail-closed)?"
-  ],
-  "key_decisions_pending": [],
-  "files_in_flux": [
-    ".project/tasks.json",
-    ".project/verification.json",
-    ".project/handoff.json",
-    "docs/WORKFLOW.md",
-    "docs/DEVOPS.md",
-    "docs/PR_QUALITY_GOVERNANCE.md",
-    "CONTRIBUTING.md",
-    "scripts/reso.mjs"
-  ]
+	"context": "Lote ampliado concluído após compactação: PIPE-02..06, DOC-01..04, OPS-01..05 e DEC-01..03 fechados com evidência. Baseline operacional agora separa execução no pi atual e migração gradual para agente Refarm futuro.",
+	"timestamp": "2026-04-24T12:14:52.989Z",
+	"current_phase": 9,
+	"current_tasks": [
+		"Governança operacional consolidada com gates por domínio e full gate (`gate:full:colony`).",
+		"Documentação/playbook/templates de colônia publicados para execução/review/handoff.",
+		"Board .project atualizado: todas as tasks planejadas atuais concluídas e verificadas."
+	],
+	"blockers": [
+		"Nenhum blocker técnico aberto no backlog atual; monitorar regressões em futuras tasks.",
+		"ADR-012 segue Proposed; decisão DEC-010 permanece em revisit até aceitação formal."
+	],
+	"next_actions": [
+		"Abrir próximo lote de tasks técnicas (novas fases) com foco em roadmap v0.1 e integração Refarm-agent.",
+		"Executar push dos commits locais e observar CI do novo baseline de gates.",
+		"Avaliar política offline de revogação (fail-open/fail-closed) como próxima decisão arquitetural."
+	],
+	"open_questions": [
+		"Qual critério final para promoção de ADR-012 de Proposed para Accepted no ciclo de migração do agente?"
+	],
+	"key_decisions_pending": [
+		"DEC-010"
+	],
+	"files_in_flux": [
+		".project/tasks.json",
+		".project/verification.json",
+		".project/issues.json",
+		".project/decisions.json",
+		".project/domain.json",
+		".project/rationale.json",
+		".project/project.json",
+		".project/handoff.json",
+		".project/schemas/verification.schema.json",
+		"docs/WORKFLOW.md",
+		"docs/DEVOPS.md",
+		"docs/COLONY_PLAYBOOK.md",
+		"docs/PR_QUALITY_GOVERNANCE.md",
+		"docs/DEVELOPMENT_RESOLUTION.md",
+		"CONTRIBUTING.md",
+		"AGENTS.md",
+		"package.json",
+		"roadmaps/MAIN.md",
+		".pi/monitors/unauthorized-action.instructions.json",
+		".pi/monitors/unauthorized-action.patterns.json",
+		"docs/templates/COLONY_TASK_INPUT_TEMPLATE.md",
+		"docs/templates/COLONY_WORKER_EVIDENCE_REPORT_TEMPLATE.md",
+		"docs/templates/COLONY_REVIEWER_HANDOFF_TEMPLATE.md",
+		"docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md",
+		"docs/superpowers/COLONY_WORKER_OUTPUT_TEMPLATE.md"
+	]
 }

@@ -44,16 +44,48 @@
       "phase": "P0-Setup",
       "context": "Regra de engajamento central do projeto."
     },
-    {
-      "id": "RAT-005",
-      "title": "Por que exigir evidência de verificação por task",
-      "narrative": "A fábrica precisa distinguir trabalho concluído de trabalho apenas alterado. Evidence vincula critérios a resultados observáveis.",
-      "related_decisions": [
-        "DEC-003",
-        "DEC-008"
-      ],
-      "phase": "P8-Governance",
-      "context": "Consolidação segura de lotes da colônia."
-    }
-  ]
+		{
+			"id": "RAT-005",
+			"title": "Por que exigir evidência de verificação por task",
+			"narrative": "A fábrica precisa distinguir trabalho concluído de trabalho apenas alterado. Evidence vincula critérios a resultados observáveis.",
+			"related_decisions": [
+				"DEC-003",
+				"DEC-008"
+			],
+			"phase": "P8-Governance",
+			"context": "Consolidação segura de lotes da colônia."
+		},
+		{
+			"id": "RAT-006",
+			"title": "Por que formalizar gates por domínio",
+			"narrative": "Gates por domínio reduzem custo de validação incremental e permitem localizar regressões sem bloquear toda a fábrica. O gate full fica reservado para integração de lote.",
+			"related_decisions": [
+				"DEC-003",
+				"DEC-023"
+			],
+			"phase": "P2-Pipeline",
+			"context": "Estabilização de PIPE-02..06 com smoke + full explícitos."
+		},
+		{
+			"id": "RAT-007",
+			"title": "Por que manter trilha dupla pi agora vs Refarm futuro",
+			"narrative": "Migrar de plataforma em paralelo à execução diária exige desacoplar governança operacional imediata da evolução arquitetural futura. Isso preserva entrega contínua e reduz risco de big-bang migration.",
+			"related_decisions": [
+				"DEC-022"
+			],
+			"phase": "P9-DecisionSync",
+			"context": "Heads-up operacional sobre transição do agente atual (pi) para agente Refarm."
+		},
+		{
+			"id": "RAT-008",
+			"title": "Por que exigir escalation matrix explícita",
+			"narrative": "Sem critérios de escalonamento/cancelamento, tasks bloqueadas acumulam inércia e geram throughput ilusório. A matriz de escalonamento transforma incerteza em ações auditáveis.",
+			"related_decisions": [
+				"DEC-019",
+				"DEC-021"
+			],
+			"phase": "P8-Governance",
+			"context": "Rotina semanal de triagem e políticas anti-colisão/escalonamento da colônia."
+		}
+	]
 }
