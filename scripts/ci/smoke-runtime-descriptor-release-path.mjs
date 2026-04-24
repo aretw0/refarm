@@ -47,6 +47,7 @@ async function main() {
 		"install-plugin",
 		"browser-plugin-host",
 		"runtime-descriptor-revocation-policy",
+		"runtime-descriptor-revocation",
 	]);
 
 	console.log(

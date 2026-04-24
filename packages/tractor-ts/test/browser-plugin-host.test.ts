@@ -6,6 +6,7 @@ import {
 	cachePluginRuntimeModule,
 	evictPlugin,
 } from "../src/lib/opfs-plugin-cache";
+import { clearRuntimeDescriptorRevocationListCache } from "../src/lib/runtime-descriptor-revocation";
 
 async function computeIntegrity(bytes: ArrayBuffer): Promise<string> {
 	const digest = await crypto.subtle.digest("SHA-256", bytes);
@@ -57,6 +58,7 @@ function mockRevocationListUnavailableFetch(): void {
 afterEach(async () => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+	clearRuntimeDescriptorRevocationListCache();
 	delete (globalThis as any)
 		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
@@ -490,14 +492,7 @@ describe("browser PluginHost runtime paths", () => {
 		mockRevocationListUnavailableFetch();
 
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
 		const runtimeModuleSource =
@@ -531,7 +526,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -563,14 +561,7 @@ describe("browser PluginHost runtime paths", () => {
 		mockRevocationListUnavailableFetch();
 
 		const componentBytes = new Uint8Array([
-			0x00,
-			0x61,
-			0x73,
-			0x6d,
-			0x0a,
-			0x00,
-			0x01,
-			0x00,
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
 		]).buffer;
 		const componentIntegrity = await computeIntegrity(componentBytes);
 		const runtimeModuleSource =
@@ -604,7 +595,10 @@ describe("browser PluginHost runtime paths", () => {
 				format: "esm",
 			},
 		});
-		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+		await cachePluginRuntimeModule(
+			"@acme/component-plugin",
+			runtimeModuleSource,
+		);
 
 		const manifest = createMockManifest({
 			id: "@acme/component-plugin",
@@ -615,6 +609,200 @@ describe("browser PluginHost runtime paths", () => {
 
 		await expect(host.load(manifest)).rejects.toThrow(
 			"Unable to verify runtime descriptor revocation status",
+		);
+	});
+
+	it("emits stale-cache telemetry and continues when stale-allowed fallback is used", async () => {
+		let now = 1_000_000;
+		vi.spyOn(Date, "now").mockImplementation(() => now);
+
+		let revocationFetchCount = 0;
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockImplementation(async (url: string) => {
+				if (url.includes("runtime-descriptor-revocations.json")) {
+					revocationFetchCount += 1;
+					if (revocationFetchCount === 1) {
+						return {
+							ok: true,
+							statusText: "OK",
+							json: async () => ({
+								schemaVersion: 1,
+								revokedDescriptorHashes: [],
+							}),
+						};
+					}
+
+					return {
+						ok: false,
+						statusText: "Service Unavailable",
+					};
+				}
+
+				return {
+					ok: false,
+					statusText: "Not Found",
+				};
+			}),
+		);
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-stale-allowed'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-stale-allowed-descriptor",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-stale-allowed",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.5",
+		});
+
+		const host1 = new PluginHost(vi.fn(), {});
+		const first = await host1.load(manifest);
+		expect(await first.call("ping")).toBe("pong-stale-allowed");
+
+		now += 10 * 60 * 1000;
+		const emit = vi.fn();
+		const host2 = new PluginHost(emit, {});
+		const second = await host2.load(manifest);
+		expect(await second.call("ping")).toBe("pong-stale-allowed");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_stale_cache_used",
+				pluginId: "@acme/component-plugin",
+				payload: expect.objectContaining({
+					policy: "stale-allowed",
+					policySource: "fallback",
+					cacheAgeMs: expect.any(Number),
+				}),
+			}),
+		);
+	});
+
+	it("keeps revocation enforcement when stale fallback list contains descriptor hash", async () => {
+		let now = 2_000_000;
+		vi.spyOn(Date, "now").mockImplementation(() => now);
+
+		let revocationFetchCount = 0;
+		const descriptorHash = "sha256-stale-revoked-descriptor";
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockImplementation(async (url: string) => {
+				if (url.includes("runtime-descriptor-revocations.json")) {
+					revocationFetchCount += 1;
+					if (revocationFetchCount === 1) {
+						return {
+							ok: true,
+							statusText: "OK",
+							json: async () => ({
+								schemaVersion: 1,
+								revokedDescriptorHashes: [descriptorHash],
+							}),
+						};
+					}
+
+					return {
+						ok: false,
+						statusText: "Service Unavailable",
+					};
+				}
+
+				return {
+					ok: false,
+					statusText: "Not Found",
+				};
+			}),
+		);
+
+		const componentBytes = new Uint8Array([
+			0x00, 0x61, 0x73, 0x6d, 0x0a, 0x00, 0x01, 0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-stale-revoked'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash,
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-stale-revoked",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.6",
+		});
+
+		const host1 = new PluginHost(vi.fn(), {});
+		await expect(host1.load(manifest)).rejects.toThrow("is revoked");
+
+		now += 10 * 60 * 1000;
+		const emit = vi.fn();
+		const host2 = new PluginHost(emit, {});
+		await expect(host2.load(manifest)).rejects.toThrow("is revoked");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_stale_cache_used",
+				pluginId: "@acme/component-plugin",
+			}),
 		);
 	});
 

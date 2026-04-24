@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installPlugin } from "../src/lib/install-plugin";
+import { clearRuntimeDescriptorRevocationListCache } from "../src/lib/runtime-descriptor-revocation";
 
 // Mock OPFS cache module
 vi.mock("../src/lib/opfs-plugin-cache", () => ({
@@ -69,6 +70,7 @@ describe("installPlugin", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
+		clearRuntimeDescriptorRevocationListCache();
 		delete (globalThis as any)
 			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 		delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
@@ -168,6 +170,17 @@ describe("installPlugin", () => {
 			await computeSRIFromText(runtimeModuleSource);
 
 		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
+				};
+			}
+
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -219,6 +232,17 @@ describe("installPlugin", () => {
 			await computeSRIFromText(runtimeModuleSource);
 
 		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
+				};
+			}
+
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1121,6 +1145,212 @@ describe("installPlugin", () => {
 		).rejects.toThrow("Failed to resolve runtime descriptor revocation list");
 	});
 
+	it("uses stale revocation cache in stale-allowed mode and still blocks revoked descriptor", async () => {
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-stale-revoked",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		let revocationRequestCount = 0;
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			if (url === "https://revocation.example/runtime-revocations.json") {
+				revocationRequestCount += 1;
+				if (revocationRequestCount === 1) {
+					return {
+						ok: true,
+						statusText: "OK",
+						json: async () => ({
+							schemaVersion: 1,
+							revokedDescriptorHashes: [descriptorIntegrity],
+						}),
+					};
+				}
+
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationUnavailablePolicy: "stale-allowed",
+				descriptorRevocationCacheTtlMs: 0,
+			}),
+		).rejects.toThrow("is revoked by release revocation list");
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				force: true,
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationUnavailablePolicy: "stale-allowed",
+				descriptorRevocationCacheTtlMs: 0,
+			}),
+		).rejects.toThrow("is revoked by release revocation list");
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("using stale cache"),
+		);
+		warnSpy.mockRestore();
+	});
+
+	it("uses stale revocation cache in stale-allowed mode and continues for non-revoked descriptor", async () => {
+		const runtimeModuleSource =
+			"export default { async ping(){ return 'x'; } }";
+		const runtimeModuleIntegrity =
+			await computeSRIFromText(runtimeModuleSource);
+		const descriptorWithoutIntegrity = {
+			schemaVersion: 1 as const,
+			pluginId: "test-plugin",
+			componentWasmUrl: "https://example.com/test.wasm",
+			module: {
+				url: "https://cdn.example/test.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm" as const,
+			},
+			toolchain: {
+				name: "tractor-sidecar",
+				version: "0.1.0",
+			},
+			provenance: {
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-stale-non-revoked",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+		};
+		const descriptorIntegrity = await computeDescriptorIntegrity(
+			descriptorWithoutIntegrity,
+		);
+
+		let revocationRequestCount = 0;
+		(global.fetch as any).mockImplementation(async (url: string) => {
+			if (url.endsWith(".mjs")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					text: async () => runtimeModuleSource,
+				};
+			}
+
+			if (url === "https://revocation.example/runtime-revocations.json") {
+				revocationRequestCount += 1;
+				if (revocationRequestCount === 1) {
+					return {
+						ok: true,
+						statusText: "OK",
+						json: async () => ({
+							schemaVersion: 1,
+							revokedDescriptorHashes: ["sha256-other-descriptor"],
+						}),
+					};
+				}
+
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: true,
+				statusText: "OK",
+				arrayBuffer: async () => mockBuffer,
+			};
+		});
+
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationUnavailablePolicy: "stale-allowed",
+				descriptorRevocationCacheTtlMs: 0,
+			}),
+		).resolves.toBeTruthy();
+
+		await expect(
+			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
+				force: true,
+				descriptorDistributionPolicy: "external-signed",
+				browserRuntimeModuleDescriptor: {
+					...descriptorWithoutIntegrity,
+					descriptorIntegrity,
+				},
+				descriptorRevocationList: {
+					url: "https://revocation.example/runtime-revocations.json",
+				},
+				descriptorRevocationUnavailablePolicy: "stale-allowed",
+				descriptorRevocationCacheTtlMs: 0,
+			}),
+		).resolves.toBeTruthy();
+
+		expect(warnSpy).toHaveBeenCalledWith(
+			expect.stringContaining("using stale cache"),
+		);
+		warnSpy.mockRestore();
+	});
+
 	it("rejects cross-origin descriptor URL for package-embedded policy", async () => {
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
@@ -1171,6 +1401,17 @@ describe("installPlugin", () => {
 							),
 						};
 					},
+				};
+			}
+
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
 				};
 			}
 
@@ -1239,6 +1480,17 @@ describe("installPlugin", () => {
 							),
 						};
 					},
+				};
+			}
+
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
 				};
 			}
 
@@ -1314,6 +1566,17 @@ describe("installPlugin", () => {
 							),
 						};
 					},
+				};
+			}
+
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: true,
+					statusText: "OK",
+					json: async () => ({
+						schemaVersion: 1,
+						revokedDescriptorHashes: [],
+					}),
 				};
 			}
 
