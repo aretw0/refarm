@@ -1,22 +1,22 @@
 {
-	"context": "Checkpoint de compactação solicitado pelo usuário após NEXT8 e pós-push CI em sucesso; pronto para retomar com NEXT9 sem perda de continuidade.",
-	"timestamp": "2026-04-24T18:14:36.465Z",
+	"context": "NEXT9 (50 slices) concluído: automação de diagnóstico de revogação severity-aware entregue no runtime + CI/ops report artifacts + validações runtime verdes.",
+	"timestamp": "2026-04-24T18:46:29.602Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"Checkpoint de compactação VER-CHECKPOINT-COMPACTION-14-20260424 registrado.",
-		"Estado técnico estabilizado: correção de CI browser-entry aplicada e validada (run 24904319323 success).",
-		"Próximo lote (NEXT9) pausado aguardando retomada após compactação."
+		"NEXT9 concluído (T-NEXT-136..185) com comandos de alertas e report automation em produção de código.",
+		"Workflow quality agora executa smoke de revocation report e publica artifact `runtime-descriptor-revocation-report` quando tractor_gates=true.",
+		"Checkpoints atualizados: VER-CHECKPOINT-NEXT9-20260424 e VER-CHECKPOINT-COMPACTION-15-20260424."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato; pendência arquitetural remanescente principal continua em DEC-010 (ADR-012 Proposed)."
+		"Sem bloqueio técnico imediato; decisão arquitetural pendente permanece DEC-010 (ADR-012 Proposed)."
 	],
 	"next_actions": [
-		"Retomar com NEXT9 (~15 slices) focando coleta/publicação periódica do summary de revogação.",
-		"Avaliar otimização de throughput no workflow `test.yml` para mudanças estritas em tractor-ts.",
-		"Registrar novo checkpoint quando o contexto voltar a pressionar."
+		"Planejar NEXT10 para ingestão histórica dos reports (série temporal e delta automático por run).",
+		"Avaliar otimização de throughput em `test.yml` para reduzir execuções e2e quando mudanças estiverem restritas ao escopo tractor-ts.",
+		"Executar observação pós-push (DEC-024) e registrar run IDs de sucesso/falha do novo smoke de revocation report."
 	],
 	"open_questions": [
-		"Qual canal persistirá snapshots do summary de revogação (artefato CI, issue bot, ou storage interno do runtime)?"
+		"Qual repositório/canal oficial armazenará histórico de `runtime-descriptor-revocation-report` para análise longitudinal (artefato CI, board, storage dedicado)?"
 	],
 	"key_decisions_pending": [
 		"DEC-010"
@@ -29,8 +29,13 @@
 		".project/handoff.json",
 		"packages/tractor-ts/src/lib/telemetry.ts",
 		"packages/tractor-ts/test/telemetry.test.ts",
-		"packages/tractor-ts/src/index.browser.ts",
+		".github/workflows/test.yml",
+		"scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
+		"scripts/ci/runtime-descriptor-revocation-report-lib.mjs",
+		"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
+		"scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json",
+		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
 		"packages/tractor-ts/README.md",
-		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+		"packages/tractor-ts/docs/OBSERVABILITY.md"
 	]
 }

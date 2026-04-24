@@ -6243,6 +6243,1098 @@
 					"evidence": "Contexto, pendências e próximos passos atualizados em .project/handoff.json."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-136-20260424",
+			"target": "T-NEXT-136",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "`RuntimeDescriptorRevocationTelemetrySummaryOptions` adicionada no telemetry runtime.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`RuntimeDescriptorRevocationTelemetrySummaryOptions` adicionada no telemetry runtime."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-136 -> VER-NEXT-136-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-137-20260424",
+			"target": "T-NEXT-137",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Type guard `isRuntimeDescriptorRevocationTelemetryEvent` + seleção tipada eliminando index ambiguo.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Type guard `isRuntimeDescriptorRevocationTelemetryEvent` + seleção tipada eliminando index ambiguo."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-137 -> VER-NEXT-137-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-138-20260424",
+			"target": "T-NEXT-138",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Helpers de parse numérico positivo aplicados em runtime e CI report lib.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Helpers de parse numérico positivo aplicados em runtime e CI report lib."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-138 -> VER-NEXT-138-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-139-20260424",
+			"target": "T-NEXT-139",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Modelo `RuntimeDescriptorRevocationAlertSeverity`/`RuntimeDescriptorRevocationAlert` introduzido.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Modelo `RuntimeDescriptorRevocationAlertSeverity`/`RuntimeDescriptorRevocationAlert` introduzido."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-139 -> VER-NEXT-139-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-140-20260424",
+			"target": "T-NEXT-140",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Thresholds default adicionados em runtime e report lib.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Thresholds default adicionados em runtime e report lib."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-140 -> VER-NEXT-140-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-141-20260424",
+			"target": "T-NEXT-141",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "`resolveRuntimeDescriptorRevocationAlertThresholds` implementada e exportada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`resolveRuntimeDescriptorRevocationAlertThresholds` implementada e exportada."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-141 -> VER-NEXT-141-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-142-20260424",
+			"target": "T-NEXT-142",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Ordenação por severidade/ID implementada em alert detector.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Ordenação por severidade/ID implementada em alert detector."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-142 -> VER-NEXT-142-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-143-20260424",
+			"target": "T-NEXT-143",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Regra `revocation-unavailable` com escalonamento para critical implementada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Regra `revocation-unavailable` com escalonamento para critical implementada."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-143 -> VER-NEXT-143-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-144-20260424",
+			"target": "T-NEXT-144",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Regra `revocation-config-drift` implementada com contagem invalid+conflict.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Regra `revocation-config-drift` implementada com contagem invalid+conflict."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-144 -> VER-NEXT-144-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-145-20260424",
+			"target": "T-NEXT-145",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Regras `revocation-stale-cache` e `revocation-no-signals` implementadas.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Regras `revocation-stale-cache` e `revocation-no-signals` implementadas."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-145 -> VER-NEXT-145-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-146-20260424",
+			"target": "T-NEXT-146",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "`buildRuntimeDescriptorRevocationDiagnostics(...)` implementado com summary+alerts+thresholds.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`buildRuntimeDescriptorRevocationDiagnostics(...)` implementado com summary+alerts+thresholds."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-146 -> VER-NEXT-146-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-147-20260424",
+			"target": "T-NEXT-147",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Comando summary aceita args de filtro sem quebrar shape de resposta.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Comando summary aceita args de filtro sem quebrar shape de resposta."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-147 -> VER-NEXT-147-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-148-20260424",
+			"target": "T-NEXT-148",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Comando `system:diagnostics:descriptor-revocation-alerts` registrado no TelemetryHost.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Comando `system:diagnostics:descriptor-revocation-alerts` registrado no TelemetryHost."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-148 -> VER-NEXT-148-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-149-20260424",
+			"target": "T-NEXT-149",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Mapeamento de args threshold/filtro do comando alerts para builder concluído.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Mapeamento de args threshold/filtro do comando alerts para builder concluído."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-149 -> VER-NEXT-149-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-150-20260424",
+			"target": "T-NEXT-150",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Fail-closed indisponível força severity critical; cobertura adicionada em telemetry tests.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Fail-closed indisponível força severity critical; cobertura adicionada em telemetry tests."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-150 -> VER-NEXT-150-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-151-20260424",
+			"target": "T-NEXT-151",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste \"filtered revocation summaries with limit\" adicionado em telemetry.test.ts.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste \"filtered revocation summaries with limit\" adicionado em telemetry.test.ts."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-151 -> VER-NEXT-151-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-152-20260424",
+			"target": "T-NEXT-152",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste \"detect severity-ranked revocation alerts\" adicionado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste \"detect severity-ranked revocation alerts\" adicionado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-152 -> VER-NEXT-152-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-153-20260424",
+			"target": "T-NEXT-153",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste \"build diagnostics with deterministic generatedAt override\" adicionado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste \"build diagnostics with deterministic generatedAt override\" adicionado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-153 -> VER-NEXT-153-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-154-20260424",
+			"target": "T-NEXT-154",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste do comando `descriptor-revocation-alerts` via Tractor.commands adicionado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste do comando `descriptor-revocation-alerts` via Tractor.commands adicionado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-154 -> VER-NEXT-154-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-155-20260424",
+			"target": "T-NEXT-155",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste do comando summary filtrado por pluginId adicionado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste do comando summary filtrado por pluginId adicionado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-155 -> VER-NEXT-155-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-156-20260424",
+			"target": "T-NEXT-156",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Nova lib `scripts/ci/runtime-descriptor-revocation-report-lib.mjs` criada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Nova lib `scripts/ci/runtime-descriptor-revocation-report-lib.mjs` criada."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-156 -> VER-NEXT-156-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-157-20260424",
+			"target": "T-NEXT-157",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Lib implementa pipeline normalize->summary->alerts->report.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Lib implementa pipeline normalize->summary->alerts->report."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-157 -> VER-NEXT-157-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-158-20260424",
+			"target": "T-NEXT-158",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Render markdown tabular implementado para artefatos operacionais.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Render markdown tabular implementado para artefatos operacionais."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-158 -> VER-NEXT-158-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-159-20260424",
+			"target": "T-NEXT-159",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "`hasAlertAtOrAbove` implementado para gating por severidade.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "`hasAlertAtOrAbove` implementado para gating por severidade."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-159 -> VER-NEXT-159-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-160-20260424",
+			"target": "T-NEXT-160",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "CLI `generate-runtime-descriptor-revocation-report.mjs` implementado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "CLI `generate-runtime-descriptor-revocation-report.mjs` implementado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-160 -> VER-NEXT-160-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-161-20260424",
+			"target": "T-NEXT-161",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Fixture sample JSON de revogação criada em scripts/ci/fixtures.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Fixture sample JSON de revogação criada em scripts/ci/fixtures."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-161 -> VER-NEXT-161-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-162-20260424",
+			"target": "T-NEXT-162",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Teste node (`node --test`) para report lib criado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Teste node (`node --test`) para report lib criado."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-162 -> VER-NEXT-162-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-163-20260424",
+			"target": "T-NEXT-163",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Scripts npm `runtime-descriptor:revocation-report*` adicionados no package.json.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Scripts npm `runtime-descriptor:revocation-report*` adicionados no package.json."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-163 -> VER-NEXT-163-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-164-20260424",
+			"target": "T-NEXT-164",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Runbook atualizado com comandos alerts + report automation + outputs esperados.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Runbook atualizado com comandos alerts + report automation + outputs esperados."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-164 -> VER-NEXT-164-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-165-20260424",
+			"target": "T-NEXT-165",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "README do tractor-ts atualizado com summary/alerts/report commands.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "README do tractor-ts atualizado com summary/alerts/report commands."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-165 -> VER-NEXT-165-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-166-20260424",
+			"target": "T-NEXT-166",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "OBSERVABILITY.md atualizado com exemplos de summary filtrado e alerts.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "OBSERVABILITY.md atualizado com exemplos de summary filtrado e alerts."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-166 -> VER-NEXT-166-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-167-20260424",
+			"target": "T-NEXT-167",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "ARCHITECTURE.md atualizado citando commands de alerta e script report.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "ARCHITECTURE.md atualizado citando commands de alerta e script report."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-167 -> VER-NEXT-167-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-168-20260424",
+			"target": "T-NEXT-168",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Alignment doc atualizado com comandos e artefatos de dashboard de revogação.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Alignment doc atualizado com comandos e artefatos de dashboard de revogação."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-168 -> VER-NEXT-168-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-169-20260424",
+			"target": "T-NEXT-169",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Workflow test.yml ganhou step \"Revocation diagnostics report smoke (Tractor TS)\".",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Workflow test.yml ganhou step \"Revocation diagnostics report smoke (Tractor TS)\"."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-169 -> VER-NEXT-169-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-170-20260424",
+			"target": "T-NEXT-170",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Workflow test.yml ganhou upload artifact `runtime-descriptor-revocation-report`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Workflow test.yml ganhou upload artifact `runtime-descriptor-revocation-report`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-170 -> VER-NEXT-170-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-171-20260424",
+			"target": "T-NEXT-171",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Condição `if: needs.changes.outputs.tractor_gates == \"true\"` aplicada aos novos passos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Condição `if: needs.changes.outputs.tractor_gates == \"true\"` aplicada aos novos passos."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-171 -> VER-NEXT-171-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-172-20260424",
+			"target": "T-NEXT-172",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run type-check`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run type-check`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-172 -> VER-NEXT-172-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-173-20260424",
+			"target": "T-NEXT-173",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run test:unit -- telemetry runtime-descriptor-revocation-policy install-plugin browser-plugin-host runtime-descriptor-revocation`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm --prefix packages/tractor-ts run test:unit -- telemetry runtime-descriptor-revocation-policy install-plugin browser-plugin-host runtime-descriptor-revocation`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-173 -> VER-NEXT-173-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-174-20260424",
+			"target": "T-NEXT-174",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm run runtime-descriptor:revocation-report:test`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm run runtime-descriptor:revocation-report:test`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-174 -> VER-NEXT-174-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-175-20260424",
+			"target": "T-NEXT-175",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm run runtime-descriptor:revocation-report:sample`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm run runtime-descriptor:revocation-report:sample`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-175 -> VER-NEXT-175-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-176-20260424",
+			"target": "T-NEXT-176",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm run -s runtime-descriptor:release-smoke`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm run -s runtime-descriptor:release-smoke`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-176 -> VER-NEXT-176-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-177-20260424",
+			"target": "T-NEXT-177",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Executado com sucesso: `npm run gate:smoke:runtime`.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Executado com sucesso: `npm run gate:smoke:runtime`."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-177 -> VER-NEXT-177-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-178-20260424",
+			"target": "T-NEXT-178",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Validação de gating: severity=critical passou; severity=warn falhou intencionalmente com mensagem de alerts.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Validação de gating: severity=critical passou; severity=warn falhou intencionalmente com mensagem de alerts."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-178 -> VER-NEXT-178-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-179-20260424",
+			"target": "T-NEXT-179",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "CLI/report foi desacoplado em lib para reduzir acoplamento e facilitar testes.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "CLI/report foi desacoplado em lib para reduzir acoplamento e facilitar testes."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-179 -> VER-NEXT-179-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-180-20260424",
+			"target": "T-NEXT-180",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Docs/runbook explicitam thresholds e uso operacional de summary.json/summary.md.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Docs/runbook explicitam thresholds e uso operacional de summary.json/summary.md."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-180 -> VER-NEXT-180-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-181-20260424",
+			"target": "T-NEXT-181",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "REQ-RUNTIME-009 registrado para alert diagnostics automation.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-009 registrado para alert diagnostics automation."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-181 -> VER-NEXT-181-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-182-20260424",
+			"target": "T-NEXT-182",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "DEC-028 registrado como decisão de baseline de alert diagnostics e thresholds.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "DEC-028 registrado como decisão de baseline de alert diagnostics e thresholds."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-182 -> VER-NEXT-182-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-183-20260424",
+			"target": "T-NEXT-183",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Handoff atualizado com conclusão NEXT9 e próximos passos.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Handoff atualizado com conclusão NEXT9 e próximos passos."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-183 -> VER-NEXT-183-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-184-20260424",
+			"target": "T-NEXT-184",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Checkpoint de lote NEXT9 registrado em verification.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Checkpoint de lote NEXT9 registrado em verification."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-184 -> VER-NEXT-184-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-185-20260424",
+			"target": "T-NEXT-185",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Checkpoint de compactação 15 registrado em verification/handoff.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega aplicada no(s) arquivo(s) alvo",
+					"status": "passed",
+					"evidence": "Checkpoint de compactação 15 registrado em verification/handoff."
+				},
+				{
+					"criterion": "Vinculação task/verificação consistente",
+					"status": "passed",
+					"evidence": "T-NEXT-185 -> VER-NEXT-185-20260424"
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT9-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Checkpoint NEXT9 concluído com 50 slices de automação de diagnóstico de revogação (alerts + report CI/ops) e validações runtime verdes.",
+			"criteria_results": [
+				{
+					"criterion": "Validações técnicas do lote executadas",
+					"status": "passed",
+					"evidence": "type-check, test:unit focado, report:test, report:sample, runtime-descriptor:release-smoke e gate:smoke:runtime."
+				},
+				{
+					"criterion": "Artefato operacional de diagnóstico integrado",
+					"status": "passed",
+					"evidence": "Workflow quality publica runtime-descriptor-revocation-report e smoke command dedicado."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-15-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:46:29.602Z",
+			"evidence": "Checkpoint de compactação pós-NEXT9 para continuidade segura após lote extenso (50 slices).",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico consolidado antes de nova compactação",
+					"status": "passed",
+					"evidence": "Gates runtime/descriptor e testes de automação executados com sucesso."
+				},
+				{
+					"criterion": "Handoff atualizado para retomada",
+					"status": "passed",
+					"evidence": "`.project/handoff.json` atualizado com contexto NEXT9 e próximos passos."
+				}
+			]
 		}
 	]
 }

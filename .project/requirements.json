@@ -539,7 +539,35 @@
 				"T-NEXT-126",
 				"T-NEXT-127",
 				"T-NEXT-129",
-				"T-NEXT-133"
+				"T-NEXT-133",
+				"T-NEXT-147",
+				"T-NEXT-155",
+				"T-NEXT-165",
+				"T-NEXT-166"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-009",
+			"description": "Revocation incident response deve oferecer diagnóstico severity-aware e artefatos agregados (JSON/Markdown) para triagem e auditoria rápidas.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Comando runtime `system:diagnostics:descriptor-revocation-alerts` disponível com severidade determinística",
+				"Resumo filtrável continua disponível via `system:diagnostics:descriptor-revocation-summary`",
+				"Automação CI/ops gera `summary.json` e `summary.md` a partir de telemetry export e suporta fail-on-severity"
+			],
+			"traces_to": [
+				"T-NEXT-136",
+				"T-NEXT-146",
+				"T-NEXT-148",
+				"T-NEXT-156",
+				"T-NEXT-160",
+				"T-NEXT-169",
+				"T-NEXT-170",
+				"T-NEXT-174",
+				"T-NEXT-175"
 			]
 		}
 	]

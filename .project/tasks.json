@@ -4171,6 +4171,865 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-135-20260424",
 			"notes": "Concluído no lote NEXT8 (~15 slices) em 2026-04-24T18:11:34.914Z."
+		},
+		{
+			"id": "T-NEXT-136",
+			"description": "Introduzir opções de filtro (`pluginId`/`policy`/`profile`/`limit`) no sumarizador de telemetry de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Interface de opções adicionada",
+				"Summarizer aceita opções sem quebrar chamadas existentes",
+				"Compatibilidade com comando summary preservada"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-136-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-137",
+			"description": "Adicionar seleção tipada de eventos de revogação com narrowing explícito para evitar ambiguidades de índice.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Type guard dedicado criado",
+				"Eventos selecionados retornam tipo union canônico",
+				"Type-check sem TS7053"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-137-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-138",
+			"description": "Adicionar parsing robusto de inteiros positivos para limites/thresholds de diagnóstico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts",
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Helper de inteiro positivo reutilizável",
+				"Inputs string/number válidos aceitos",
+				"Inputs inválidos ignorados com fallback"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-138-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-139",
+			"description": "Definir modelo tipado de severidade de alertas de revogação (`info`/`warn`/`critical`).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Tipo de severidade exportado",
+				"Alertas usam severidade tipada",
+				"Ordenação posterior de alertas possível"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-139-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-140",
+			"description": "Definir thresholds default para alertas de revogação e contrato tipado de configuração.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts",
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Defaults documentados em código",
+				"Thresholds podem ser sobrescritos",
+				"Critical threshold normaliza >= warn"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-140-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-141",
+			"description": "Implementar normalização canônica de thresholds no runtime do Tractor.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Função resolveRuntimeDescriptorRevocationAlertThresholds exportada",
+				"Normalização determinística aplicada",
+				"Thresholds resolvidos retornam estrutura completa"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-141-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-142",
+			"description": "Implementar ranking determinístico por severidade para ordenação de alertas.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Critical > warn > info",
+				"Empate resolve por id lexicográfico",
+				"Saída estável entre execuções"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-142-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-143",
+			"description": "Implementar regra de alerta para indisponibilidade de revocation list com escalonamento para critical.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Alerta revocation-unavailable emitido quando aplicável",
+				"fail-closed indisponível força critical",
+				"Contador de unavailable refletido no alerta"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-143-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-144",
+			"description": "Implementar regra de alerta para drift de configuração (invalid+conflict).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Alerta revocation-config-drift emitido",
+				"Contagem soma invalid/conflict",
+				"Threshold configurável aplicado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-144-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-145",
+			"description": "Implementar regra de alerta para stale cache e fallback informativo sem sinais.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Alerta revocation-stale-cache emitido",
+				"Alerta revocation-no-signals emitido quando totalEvents=0",
+				"Mensagens operacionais explícitas adicionadas"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-145-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-146",
+			"description": "Introduzir builder de diagnóstico completo (generatedAt + summary + alerts + thresholds).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Função buildRuntimeDescriptorRevocationDiagnostics exportada",
+				"Timestamp gerado automaticamente com override opcional",
+				"Saída agrega resumo + alertas"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-146-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-147",
+			"description": "Expandir comando `system:diagnostics:descriptor-revocation-summary` para aceitar filtros.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Command handler aceita args opcionais",
+				"Filtros reaproveitam sumarizador",
+				"Resposta mantém shape `{ summary }`"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-147-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-148",
+			"description": "Adicionar comando `system:diagnostics:descriptor-revocation-alerts` no TelemetryHost.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Comando novo registrado",
+				"Comando retorna diagnóstico completo",
+				"Categoria/descrição documentadas no registro"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-148-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-149",
+			"description": "Propagar argumentos de threshold para comando de alertas no host.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts"
+			],
+			"acceptance_criteria": [
+				"Args de threshold mapeados para builder",
+				"Args de filtro mapeados para summary",
+				"Comportamento default permanece funcional sem args"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-149-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-150",
+			"description": "Garantir escalonamento crítico determinístico quando `fail-closed` aparece em indisponibilidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/src/lib/telemetry.ts",
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Regra explícita de fail-closed implementada",
+				"Teste cobre severidade critical mesmo com threshold alto",
+				"Ordenação mantém alerta crítico no topo"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-150-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-151",
+			"description": "Adicionar teste de resumo filtrado com limite no módulo telemetry.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Teste cobre filtro por plugin/policy",
+				"Teste cobre `limit` em últimos eventos",
+				"Contagens esperadas validadas"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-151-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-152",
+			"description": "Adicionar teste de detecção de alertas com severidade ordenada.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Teste cobre unavailable+config drift",
+				"Severidade crítica validada",
+				"Alertas esperados presentes"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-152-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-153",
+			"description": "Adicionar teste para builder de diagnóstico com `generatedAt` determinístico.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Override de timestamp coberto",
+				"Resumo e alerta retornados coerentes",
+				"Sem dependência de relógio global no teste"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-153-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-154",
+			"description": "Adicionar teste do comando `descriptor-revocation-alerts` via CommandHost.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Comando executa com args",
+				"Resumo e alertas retornam valores esperados",
+				"Fluxo cobre config drift"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-154-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-155",
+			"description": "Adicionar teste do comando summary com filtros de argumentos.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/telemetry.test.ts"
+			],
+			"acceptance_criteria": [
+				"Comando summary aceita pluginId",
+				"Eventos não filtrados excluídos",
+				"Affected plugins coerente"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-155-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-156",
+			"description": "Criar biblioteca CI para agregação de revogação (`runtime-descriptor-revocation-report-lib.mjs`).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Lib exporta funções puras de resumo/alerta/render",
+				"Constantes de eventos e defaults centralizadas",
+				"CLI passa a reutilizar lib"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-156-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-157",
+			"description": "Implementar pipeline de build de report (summary+alerts+thresholds) no utilitário CI.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Builder retorna objeto consolidado",
+				"Input suporta events array ou object.events",
+				"GeneratedAt suportado com override"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-157-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-158",
+			"description": "Implementar render markdown tabular para dashboard operacional de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Tabela por evento/policy/source/profile gerada",
+				"Seção de alertas e thresholds adicionada",
+				"Saída markdown pronta para artifact/incident note"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-158-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-159",
+			"description": "Implementar helper `hasAlertAtOrAbove` para gates operacionais por severidade.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Comparação de severidade determinística",
+				"Suporta info/warn/critical",
+				"Reuso no CLI para exit code"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-159-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-160",
+			"description": "Criar CLI `generate-runtime-descriptor-revocation-report.mjs` para gerar JSON/MD.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs"
+			],
+			"acceptance_criteria": [
+				"CLI aceita input/out-dir/fail-on-severity",
+				"Escreve summary.json e summary.md",
+				"Erro com exit non-zero quando severity mínima é atingida"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-160-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-161",
+			"description": "Adicionar fixture de telemetry export para smoke do report em CI/ops.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json"
+			],
+			"acceptance_criteria": [
+				"Fixture contém sinais unavailable/config_conflict/stale",
+				"Formato compatível com export `{ events: [...] }`",
+				"Fixture pode ser usada por script sample"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-161-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-162",
+			"description": "Adicionar cobertura de utilitário CI com `node --test` para resumo/threshold/report.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Teste cobre agregação básica",
+				"Teste cobre normalização de thresholds",
+				"Teste cobre render markdown e severidade"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-162-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-163",
+			"description": "Adicionar scripts npm para executar report, sample e test da automação de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"package.json"
+			],
+			"acceptance_criteria": [
+				"Scripts `runtime-descriptor:revocation-report*` adicionados",
+				"Comando sample aponta para fixture canônica",
+				"Comando test usa node --test"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-163-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-164",
+			"description": "Atualizar runbook de incidente com comando de alertas e automação de report.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Runbook inclui comando descriptor-revocation-alerts",
+				"Runbook inclui comando npm de geração de report",
+				"Saídas esperadas JSON/MD documentadas"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-164-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-165",
+			"description": "Atualizar README do tractor-ts com comandos de alertas/filtros e script de report.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Seção observability expandida",
+				"Comandos summary/alerts documentados",
+				"Fluxo CI/ops de report referenciado"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-165-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-166",
+			"description": "Atualizar guia OBSERVABILITY com exemplos de summary filtrado e alert diagnostics.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/docs/OBSERVABILITY.md"
+			],
+			"acceptance_criteria": [
+				"Exemplo de command args adicionado",
+				"Exemplo de alert diagnostics adicionado",
+				"Narrativa preserva sanitização existente"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-166-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-167",
+			"description": "Atualizar docs de arquitetura com novo canal de alert diagnostics/report automation.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/ARCHITECTURE.md"
+			],
+			"acceptance_criteria": [
+				"Linha de arquitetura menciona summary+alerts commands",
+				"Script de report citado como suporte incident response",
+				"Sem regressão na descrição do fluxo external-signed"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-167-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-168",
+			"description": "Atualizar alinhamento external-signed com comandos de diagnóstico e artefato de dashboard.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Documento menciona summary+alerts",
+				"Documento descreve geração summary.json/summary.md",
+				"Referência DEC-027 integrada"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-168-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-169",
+			"description": "Incluir step de smoke do report de revogação no workflow Test & Quality (tractor_gates).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Step novo executa script sample",
+				"Step condicionado por tractor_gates",
+				"Pipeline mantém ordem após release-smoke"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-169-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-170",
+			"description": "Publicar artifact de report de revogação no job quality.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Upload artifact step adicionado",
+				"Retention-days definido",
+				"Warn when no files found preservado"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-170-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-171",
+			"description": "Garantir que report smoke rode no mesmo gate de runtime descriptor sem ampliar superfícies fora de tractor_gates.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".github/workflows/test.yml"
+			],
+			"acceptance_criteria": [
+				"Condição if alinhada a tractor_gates",
+				"Sem impacto em runs sem mudanças de código runtime",
+				"Resumo de checks permanece consistente"
+			],
+			"assigned_agent": "worker-ci",
+			"verification": "VER-NEXT-171-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-172",
+			"description": "Validar type-check do tractor-ts após integração de alert diagnostics.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"`npm --prefix packages/tractor-ts run type-check` sem erros",
+				"Tipos de telemetry e comandos consistentes",
+				"Sem regressão de exports"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-172-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-173",
+			"description": "Validar suíte unitária focada de telemetry/revocation/install/browser após lote NEXT9.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor-ts/test/**"
+			],
+			"acceptance_criteria": [
+				"Suites focadas executadas com sucesso",
+				"Novos testes telemetry passaram",
+				"Sem regressão de revogação"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-173-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-174",
+			"description": "Validar suíte `node --test` da biblioteca de report de revogação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"Todos os subtests passaram",
+				"Cobertura mínima de thresholds+markdown confirmada",
+				"Execução reproduzível via script npm"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-174-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-175",
+			"description": "Validar geração sample de report de revogação com fixture canônica.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
+				"scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json"
+			],
+			"acceptance_criteria": [
+				"summary.json gerado com sucesso",
+				"summary.md gerado com sucesso",
+				"Comando sample executa sem erro"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-175-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-176",
+			"description": "Revalidar runtime-descriptor release smoke após mudanças de telemetry/report.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/smoke-runtime-descriptor-release-path.mjs",
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"`npm run -s runtime-descriptor:release-smoke` passou",
+				"Dry-run publish + resolver tests verdes",
+				"Cleanup de artefatos mantido"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-176-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-177",
+			"description": "Executar gate:smoke:runtime completo pós-lote NEXT9.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"packages/tractor/**",
+				"packages/tractor-ts/**"
+			],
+			"acceptance_criteria": [
+				"Cargo lib tests alvo passaram",
+				"tractor-ts build/type-check/runtime-module verdes",
+				"Gate completo finalizou sem erro"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-177-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-178",
+			"description": "Validar comportamento `fail-on-severity` do report CLI com threshold warn.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs"
+			],
+			"acceptance_criteria": [
+				"Comando com severity=critical passa na fixture sample",
+				"Comando com severity=warn falha intencionalmente",
+				"Mensagem de erro explicita alerts gatilhados"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-178-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-179",
+			"description": "Reduzir acoplamento operacional separando CLI e biblioteca de report para conter complexidade de manutenção.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
+				"scripts/ci/runtime-descriptor-revocation-report-lib.mjs"
+			],
+			"acceptance_criteria": [
+				"CLI ficou enxuto e orquestrador",
+				"Lógica de domínio isolada em lib pura",
+				"Reuso em testes node sem boot completo"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-179-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-180",
+			"description": "Formalizar baseline operacional de thresholds em docs/runbook para resposta rápida.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
+				"packages/tractor-ts/README.md"
+			],
+			"acceptance_criteria": [
+				"Threshold overrides documentados por comando",
+				"Operadores têm exemplo canônico de execução",
+				"Rota de evidência (summary.json/summary.md) descrita"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-180-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-181",
+			"description": "Registrar requirement para automação de diagnóstico de revogação com alertas severidade-aware.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"REQ-RUNTIME-009 criado em accepted",
+				"Critérios incluem summary+alerts+report artifacts",
+				"Traces_to apontam tasks NEXT9"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-181-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-182",
+			"description": "Registrar decisão de baseline de alert diagnostics e thresholds default no domínio runtime.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/decisions.json"
+			],
+			"acceptance_criteria": [
+				"DEC-028 registrado como decided",
+				"Rationale cobre priorização operacional",
+				"Contexto vinculado ao NEXT9"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-182-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-183",
+			"description": "Atualizar handoff com conclusão do NEXT9 (50 slices) e próximos passos pós-automação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"Contexto do lote atualizado",
+				"Próximas ações definidas para NEXT10",
+				"Perguntas abertas e decisão pendente preservadas"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-183-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-184",
+			"description": "Emitir checkpoint de lote NEXT9 com validações locais e readiness de CI documentadas.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/verification.json"
+			],
+			"acceptance_criteria": [
+				"VER-CHECKPOINT-NEXT9-20260424 registrado",
+				"Evidências cobrem type-check/tests/smokes/gate",
+				"Pronto para retomada de próximo lote"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-184-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
+		},
+		{
+			"id": "T-NEXT-185",
+			"description": "Emitir checkpoint de compactação pós-NEXT9 para continuidade sob pressão de contexto.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/verification.json",
+				".project/handoff.json"
+			],
+			"acceptance_criteria": [
+				"VER-CHECKPOINT-COMPACTION-15-20260424 registrado",
+				"Handoff aponta estado estável pós lote",
+				"Compactação futura preserva continuidade"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-185-20260424",
+			"notes": "Concluído no lote NEXT9 (50 slices) em 2026-04-24T18:46:29.602Z."
 		}
 	]
 }

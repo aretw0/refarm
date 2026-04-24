@@ -215,6 +215,14 @@
 			"status": "decided",
 			"phase": 10,
 			"context": "Implementado no NEXT8 com cobertura de testes, documentação e runbook operacional alinhados."
+		},
+		{
+			"id": "DEC-028",
+			"decision": "Adotar baseline severity-aware para observabilidade de revogação com thresholds default (unavailable warn=1/critical=3, configDrift warn=1, staleCache warn=1) e artifactação JSON/Markdown em CI/ops.",
+			"rationale": "Padroniza priorização operacional entre runtime/install, reduz tempo de triagem e habilita gates automatizados por severidade sem inspeção manual de eventos brutos.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Implementado no NEXT9 via comandos `descriptor-revocation-alerts`, report CLI e integração no workflow Test & Quality."
 		}
 	]
 }
