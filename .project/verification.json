@@ -6222,6 +6222,27 @@
 					"evidence": "Contexto, próximos passos e decisão pendente registrados em `.project/handoff.json`."
 				}
 			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-14-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T18:14:36.465Z",
+			"evidence": "Checkpoint solicitado para compactação após NEXT8 e observação de CI em sucesso; estado consolidado para retomada segura.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico recente consolidado antes da compactação",
+					"status": "passed",
+					"evidence": "Último lote (NEXT8) validado localmente e em CI (run 24904319323 success)."
+				},
+				{
+					"criterion": "Handoff preparado para retomada pós-compactação",
+					"status": "passed",
+					"evidence": "Contexto, pendências e próximos passos atualizados em .project/handoff.json."
+				}
+			]
 		}
 	]
 }

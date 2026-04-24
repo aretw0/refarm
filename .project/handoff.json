@@ -1,19 +1,19 @@
 {
-	"context": "NEXT8 (~15 slices) concluído: diagnóstico agregado de revogação adicionado ao TelemetryHost, falha de CI pós-push triada/corrigida e observação de CI confirmada em sucesso.",
-	"timestamp": "2026-04-24T18:11:34.914Z",
+	"context": "Checkpoint de compactação solicitado pelo usuário após NEXT8 e pós-push CI em sucesso; pronto para retomar com NEXT9 sem perda de continuidade.",
+	"timestamp": "2026-04-24T18:14:36.465Z",
 	"current_phase": 10,
 	"current_tasks": [
-		"NEXT8 concluído (T-NEXT-121..135) com validações locais e CI pós-fix observadas.",
-		"Run CI falho 24904014545 documentado com causa raiz e run de recuperação 24904319323 em success.",
-		"Checkpoints atualizados: VER-CHECKPOINT-NEXT8-20260424 e VER-CHECKPOINT-COMPACTION-13-20260424."
+		"Checkpoint de compactação VER-CHECKPOINT-COMPACTION-14-20260424 registrado.",
+		"Estado técnico estabilizado: correção de CI browser-entry aplicada e validada (run 24904319323 success).",
+		"Próximo lote (NEXT9) pausado aguardando retomada após compactação."
 	],
 	"blockers": [
 		"Sem bloqueio técnico imediato; pendência arquitetural remanescente principal continua em DEC-010 (ADR-012 Proposed)."
 	],
 	"next_actions": [
-		"Planejar lote seguinte para instrumentar coleta periódica do summary (`descriptor-revocation-summary`) em rotina operacional.",
-		"Avaliar se o workflow `test.yml` deve reduzir custo de e2e para mudanças estritas em `packages/tractor-ts` (otimização de throughput).",
-		"Quando o contexto voltar a pressionar, executar novo checkpoint de compactação antes de iniciar NEXT9."
+		"Retomar com NEXT9 (~15 slices) focando coleta/publicação periódica do summary de revogação.",
+		"Avaliar otimização de throughput no workflow `test.yml` para mudanças estritas em tractor-ts.",
+		"Registrar novo checkpoint quando o contexto voltar a pressionar."
 	],
 	"open_questions": [
 		"Qual canal persistirá snapshots do summary de revogação (artefato CI, issue bot, ou storage interno do runtime)?"
