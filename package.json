@@ -27,6 +27,7 @@
 		"project:validate": "node scripts/ci/project-block-consistency.mjs",
 		"runtime-descriptor:bundle": "node scripts/ci/export-runtime-descriptor-bundle.mjs --out-dir .artifacts/runtime-descriptors --version local",
 		"runtime-descriptor:release-assets:dry": "node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha local --tags @refarm.dev/plugin-manifest@0.1.0 --dry-run",
+		"runtime-descriptor:release-smoke": "node scripts/ci/smoke-runtime-descriptor-release-path.mjs --sha local",
 		"clean:derivatives": "git clean -fX packages/*/src apps/*/src validations/*/src",
 		"clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
 		"clean:rust": "bash scripts/rust-clean.sh",

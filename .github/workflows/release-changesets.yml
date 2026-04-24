@@ -54,6 +54,9 @@ jobs:
           retention-days: "30"
           if-no-files-found: warn
 
+      - name: Smoke release descriptor path (export + publish dry-run + resolver)
+        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+
       - name: Create Release PR or Publish
         id: changesets
         uses: changesets/action@v1

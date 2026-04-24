@@ -1,42 +1,8 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
 import { access, copyFile, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "./runtime-descriptor-cli.mjs";
-
-function run(command, commandArgs, options = {}) {
-	return new Promise((resolve, reject) => {
-		const child = spawn(command, commandArgs, {
-			cwd: options.cwd,
-			env: options.env,
-			stdio: options.captureOutput ? ["ignore", "pipe", "pipe"] : "inherit",
-		});
-
-		let stdout = "";
-		let stderr = "";
-		if (options.captureOutput) {
-			child.stdout.on("data", (chunk) => {
-				stdout += chunk.toString();
-			});
-			child.stderr.on("data", (chunk) => {
-				stderr += chunk.toString();
-			});
-		}
-
-		child.on("error", reject);
-		child.on("exit", (code) => {
-			if (code === 0) {
-				resolve({ stdout, stderr });
-				return;
-			}
-
-			const details = options.captureOutput
-				? `${stderr || stdout || "unknown error"}`
-				: `${command} exited with code ${code}`;
-			reject(new Error(details.trim()));
-		});
-	});
-}
+import { runSubprocess } from "./subprocess-utils.mjs";
 
 function parsePublishedPackages(input) {
 	if (!input || !input.trim()) return [];
@@ -72,10 +38,12 @@ async function ensureReleaseExists(tag, dryRun) {
 	}
 
 	try {
-		await run("gh", ["release", "view", tag], { captureOutput: true });
+		await runSubprocess("gh", ["release", "view", tag], {
+			captureOutput: true,
+		});
 		return;
 	} catch {
-		await run("gh", [
+		await runSubprocess("gh", [
 			"release",
 			"create",
 			tag,
@@ -96,7 +64,7 @@ async function ensureBundleArchive(bundleDir, sha) {
 		outDir,
 		`runtime-descriptor-bundle-${sha}.tar.gz`,
 	);
-	await run("tar", ["-czf", archivePath, "-C", bundleDir, "."]);
+	await runSubprocess("tar", ["-czf", archivePath, "-C", bundleDir, "."]);
 
 	const manifestPath = path.join(
 		outDir,
@@ -108,10 +76,28 @@ async function ensureBundleArchive(bundleDir, sha) {
 	);
 
 	await copyFile(path.join(bundleDir, "bundle.manifest.json"), manifestPath);
-	await copyFile(
+
+	const revocationsSourceCandidates = [
+		path.join(bundleDir, "bundle.revocations.json"),
 		path.join(bundleDir, "bundle.revocations.template.json"),
-		revocationsPath,
-	);
+	];
+
+	let copied = false;
+	for (const candidate of revocationsSourceCandidates) {
+		try {
+			await copyFile(candidate, revocationsPath);
+			copied = true;
+			break;
+		} catch {
+			// try next candidate
+		}
+	}
+
+	if (!copied) {
+		throw new Error(
+			`Missing revocations bundle file in ${bundleDir} (expected bundle.revocations.json or bundle.revocations.template.json)`,
+		);
+	}
 
 	return {
 		archivePath,
@@ -144,7 +130,7 @@ async function uploadAssets(tag, assets, dryRun) {
 			continue;
 		}
 
-		await run("gh", [
+		await runSubprocess("gh", [
 			"release",
 			"upload",
 			tag,
@@ -162,7 +148,7 @@ async function verifyAssets(tag, expectedNames, dryRun) {
 		return;
 	}
 
-	const { stdout } = await run(
+	const { stdout } = await runSubprocess(
 		"gh",
 		["release", "view", tag, "--json", "assets"],
 		{ captureOutput: true },
@@ -209,7 +195,11 @@ async function main() {
 	}
 
 	await ensureFile(path.join(bundleDir, "bundle.manifest.json"));
-	await ensureFile(path.join(bundleDir, "bundle.revocations.template.json"));
+	try {
+		await ensureFile(path.join(bundleDir, "bundle.revocations.json"));
+	} catch {
+		await ensureFile(path.join(bundleDir, "bundle.revocations.template.json"));
+	}
 
 	const assets = await ensureBundleArchive(bundleDir, sha);
 	const expectedNames = [

@@ -215,6 +215,7 @@ async function main() {
 		descriptors,
 		revocation: {
 			status: "active",
+			listPath: "bundle.revocations.json",
 			notes:
 				"To revoke a descriptor, ship a new bundle manifest marking descriptorHash as revoked and bump bundle version.",
 		},
@@ -226,23 +227,28 @@ async function main() {
 		`${JSON.stringify(manifest, null, 2)}\n`,
 		"utf8",
 	);
+	const revocationPayload = {
+		schemaVersion: 1,
+		updatedAt: new Date().toISOString(),
+		revokedDescriptorHashes: [],
+		notes:
+			"Fill revokedDescriptorHashes with descriptorHash values from bundle.manifest.json when rolling back external descriptors.",
+	};
+
+	const revocationListPath = path.join(outDir, "bundle.revocations.json");
+	await writeFile(
+		revocationListPath,
+		`${JSON.stringify(revocationPayload, null, 2)}\n`,
+		"utf8",
+	);
+
 	const revocationTemplatePath = path.join(
 		outDir,
 		"bundle.revocations.template.json",
 	);
 	await writeFile(
 		revocationTemplatePath,
-		`${JSON.stringify(
-			{
-				schemaVersion: 1,
-				updatedAt: new Date().toISOString(),
-				revokedDescriptorHashes: [],
-				notes:
-					"Fill revokedDescriptorHashes with descriptorHash values from bundle.manifest.json when rolling back external descriptors.",
-			},
-			null,
-			2,
-		)}\n`,
+		`${JSON.stringify(revocationPayload, null, 2)}\n`,
 		"utf8",
 	);
 
