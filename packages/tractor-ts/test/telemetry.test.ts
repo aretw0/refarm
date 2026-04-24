@@ -2,7 +2,10 @@ import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { describe, expect, it, vi } from "vitest";
 import { SecretHost, Tractor } from "../src/index";
-import { TelemetryRingBuffer } from "../src/lib/telemetry";
+import {
+  summarizeRuntimeDescriptorRevocationTelemetry,
+  TelemetryRingBuffer,
+} from "../src/lib/telemetry";
 
 describe("Tractor Telemetry", () => {
   const mockStorage: StorageAdapter = {
@@ -176,6 +179,57 @@ describe("TelemetryRingBuffer", () => {
     expect(payload.bigArray).toBe("[Array(100)]");
     expect(payload.smallArray).toEqual([1, 2, 3]);
   });
+
+  it("should summarize runtime descriptor revocation telemetry events", () => {
+    const summary = summarizeRuntimeDescriptorRevocationTelemetry([
+      {
+        event: "system:descriptor_revocation_unavailable",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          policy: "fail-open",
+          policySource: "environment-profile",
+          profile: "dev",
+        },
+      },
+      {
+        event: "system:descriptor_revocation_config_invalid",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          resolvedPolicy: "stale-allowed",
+          policySource: "fallback",
+        },
+      },
+      {
+        event: "system:descriptor_revocation_config_conflict",
+        pluginId: "@acme/plugin-b",
+        payload: {
+          resolvedPolicy: "fail-open",
+          policySource: "environment-profile",
+          profile: "dev",
+        },
+      },
+      {
+        event: "storage:io",
+        pluginId: "@acme/plugin-c",
+        payload: { action: "store" },
+      },
+    ]);
+
+    expect(summary.totalEvents).toBe(3);
+    expect(summary.byEvent["system:descriptor_revocation_unavailable"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_config_invalid"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_config_conflict"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_stale_cache_used"]).toBe(0);
+    expect(summary.byPolicy["fail-open"]).toBe(2);
+    expect(summary.byPolicy["stale-allowed"]).toBe(1);
+    expect(summary.byPolicySource["environment-profile"]).toBe(2);
+    expect(summary.byPolicySource.fallback).toBe(1);
+    expect(summary.byProfile.dev).toBe(2);
+    expect(summary.affectedPlugins).toEqual([
+      "@acme/plugin-a",
+      "@acme/plugin-b",
+    ]);
+  });
 });
 
 describe("TelemetryHost", () => {
@@ -194,5 +248,40 @@ describe("TelemetryHost", () => {
     expect(dump.events.length).toBeGreaterThan(0);
     expect(dump.events.some((e: any) => e.event === "storage:io")).toBe(true);
   });
-});
 
+  it("should expose descriptor revocation summary command", async () => {
+    const mockStorage: any = {
+      ensureSchema: vi.fn(),
+      queryNodes: vi.fn().mockResolvedValue([]),
+    };
+    const mockIdentity: any = {
+      getSigningPublicKey: vi.fn().mockResolvedValue("key"),
+    };
+
+    const tractor = await Tractor.boot({
+      storage: mockStorage,
+      identity: mockIdentity,
+      namespace: "test-telemetry-revocation-summary",
+    });
+
+    tractor.telemetry.push({
+      event: "system:descriptor_revocation_unavailable",
+      pluginId: "@acme/plugin-a",
+      payload: {
+        policy: "fail-open",
+        policySource: "environment-profile",
+        profile: "dev",
+      },
+    });
+
+    const result = await tractor.commands.execute(
+      "system:diagnostics:descriptor-revocation-summary",
+    );
+
+    expect(result.summary.totalEvents).toBe(1);
+    expect(
+      result.summary.byEvent["system:descriptor_revocation_unavailable"],
+    ).toBe(1);
+    expect(result.summary.affectedPlugins).toEqual(["@acme/plugin-a"]);
+  });
+});

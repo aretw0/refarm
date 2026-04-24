@@ -12,6 +12,83 @@ export interface TelemetryEvent {
   payload?: any;
 }
 
+export const RUNTIME_DESCRIPTOR_REVOCATION_EVENTS = [
+  "system:descriptor_revocation_config_invalid",
+  "system:descriptor_revocation_config_conflict",
+  "system:descriptor_revocation_stale_cache_used",
+  "system:descriptor_revocation_unavailable",
+] as const;
+
+export type RuntimeDescriptorRevocationEventName =
+  (typeof RUNTIME_DESCRIPTOR_REVOCATION_EVENTS)[number];
+
+export interface RuntimeDescriptorRevocationTelemetrySummary {
+  totalEvents: number;
+  byEvent: Record<RuntimeDescriptorRevocationEventName, number>;
+  byPolicy: Record<string, number>;
+  byPolicySource: Record<string, number>;
+  byProfile: Record<string, number>;
+  affectedPlugins: string[];
+}
+
+function isRuntimeDescriptorRevocationEvent(
+  eventName: string,
+): eventName is RuntimeDescriptorRevocationEventName {
+  return (RUNTIME_DESCRIPTOR_REVOCATION_EVENTS as readonly string[]).includes(
+    eventName,
+  );
+}
+
+function incrementCounter(counter: Record<string, number>, key: string): void {
+  if (!key) return;
+  counter[key] = (counter[key] ?? 0) + 1;
+}
+
+export function summarizeRuntimeDescriptorRevocationTelemetry(
+  events: TelemetryEvent[],
+): RuntimeDescriptorRevocationTelemetrySummary {
+  const byEvent: Record<RuntimeDescriptorRevocationEventName, number> = {
+    "system:descriptor_revocation_config_invalid": 0,
+    "system:descriptor_revocation_config_conflict": 0,
+    "system:descriptor_revocation_stale_cache_used": 0,
+    "system:descriptor_revocation_unavailable": 0,
+  };
+
+  const byPolicy: Record<string, number> = {};
+  const byPolicySource: Record<string, number> = {};
+  const byProfile: Record<string, number> = {};
+  const affectedPlugins = new Set<string>();
+
+  let totalEvents = 0;
+  for (const event of events) {
+    if (!isRuntimeDescriptorRevocationEvent(event.event)) continue;
+    totalEvents += 1;
+    byEvent[event.event] += 1;
+
+    if (typeof event.pluginId === "string" && event.pluginId.trim().length > 0) {
+      affectedPlugins.add(event.pluginId);
+    }
+
+    const payload = event.payload ?? {};
+    if (typeof payload === "object" && payload !== null) {
+      incrementCounter(byPolicy, String(payload.policy ?? payload.resolvedPolicy ?? ""));
+      incrementCounter(byPolicySource, String(payload.policySource ?? ""));
+      incrementCounter(byProfile, String(payload.profile ?? ""));
+    }
+  }
+
+  return {
+    totalEvents,
+    byEvent,
+    byPolicy,
+    byPolicySource,
+    byProfile,
+    affectedPlugins: Array.from(affectedPlugins).sort((a, b) =>
+      a.localeCompare(b),
+    ),
+  };
+}
+
 export type TelemetryListener = (data: TelemetryEvent) => void;
 
 export class EventEmitter {
@@ -177,6 +254,17 @@ export class TelemetryHost {
         return { events: this.dump() };
       },
     });
+
+    commands.register({
+      id: "system:diagnostics:descriptor-revocation-summary",
+      title: "Export Descriptor Revocation Summary",
+      category: "System",
+      description:
+        "Summarizes runtime descriptor revocation telemetry events from the ring buffer.",
+      handler: () => {
+        const events = this.dump();
+        return { summary: summarizeRuntimeDescriptorRevocationTelemetry(events) };
+      },
+    });
   }
 }
-
