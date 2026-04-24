@@ -1636,7 +1636,7 @@
     {
       "id": "T-RUNTIME-24",
       "description": "Promover bundle de descriptor para endpoint público estável (release assets/CDN) com política de revogação operacional.",
-      "status": "in_progress",
+      "status": "completed",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
@@ -1655,7 +1655,8 @@
         "T-RUNTIME-23"
       ],
       "assigned_agent": "worker-runtime",
-      "notes": "Endpoint canônico + publish público em Release Assets já ativos (T-RUNTIME-26) e resolvedor automático external-signed entregue (T-RUNTIME-27). Resta consolidar revogação operacional runtime/install (T-RUNTIME-28)."
+      "notes": "Endpoint público estável (Release Assets), auto-resolve por convenção (`runtime-descriptor-manifest.json`) e revogação operacional runtime/install (`runtime-descriptor-revocations.json`) concluídos nas slices T-RUNTIME-26..29.",
+      "verification": "VER-RUNTIME-24-20260424"
     },
     {
       "id": "T-RUNTIME-25",
@@ -1731,13 +1732,20 @@
     {
       "id": "T-RUNTIME-28",
       "description": "Implementar fluxo operacional de revogação (lista revogada + bloqueio em runtime/install).",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
-        "scripts/ci/export-runtime-descriptor-bundle.mjs",
         "packages/tractor-ts/src/lib/install-plugin.ts",
-        "docs/PLUGIN_AUTHORING_TRACKS.md",
-        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+        "packages/tractor-ts/src/index.browser.ts",
+        "packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts",
+        "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "scripts/ci/publish-runtime-descriptor-release-assets.mjs",
+        "packages/tractor-ts/README.md",
+        "docs/ARCHITECTURE.md",
+        "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+        "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md"
       ],
       "acceptance_criteria": [
         "Lista de revogação publicada junto ao bundle versionado",
@@ -1747,16 +1755,24 @@
       "depends_on": [
         "T-RUNTIME-27"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-28-20260424",
+      "notes": "Revogação operacional external-signed ativa: install resolve/valida `runtime-descriptor-revocations.json` (inline ou URL) e bloqueia `descriptorHash` revogado antes de cachear sidecar. Browser runtime também consulta lista (cache TTL local) e bloqueia load de component descriptor revogado."
     },
     {
       "id": "T-RUNTIME-29",
       "description": "Fechar e2e smoke de descriptor external-signed no release path com checkpoint de governança.",
-      "status": "planned",
+      "status": "completed",
       "phase": 6,
       "files": [
         ".github/workflows/release-changesets.yml",
+        "package.json",
+        "scripts/ci/smoke-runtime-descriptor-release-path.mjs",
+        "scripts/ci/subprocess-utils.mjs",
+        "scripts/ci/export-runtime-descriptor-bundle.mjs",
+        "scripts/ci/publish-runtime-descriptor-release-assets.mjs",
         "packages/tractor-ts/test/install-plugin.test.ts",
+        "packages/tractor-ts/test/browser-plugin-host.test.ts",
         ".project/verification.json",
         ".project/handoff.json"
       ],
@@ -1768,7 +1784,9 @@
       "depends_on": [
         "T-RUNTIME-28"
       ],
-      "assigned_agent": "worker-runtime"
+      "assigned_agent": "worker-runtime",
+      "verification": "VER-RUNTIME-29-20260424",
+      "notes": "Smoke e2e do release path adicionado via `runtime-descriptor:release-smoke` (export bundle + publish dry-run + resolver tests install/runtime). Workflow de release agora bloqueia publish quando smoke falha."
     }
   ]
 }

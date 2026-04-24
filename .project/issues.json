@@ -230,13 +230,14 @@
     {
       "id": "ISS-020",
       "title": "Promover bundle de descriptors para endpoint público estável de release",
-      "body": "Publish em Release Assets + resolvedor automático external-signed foram implementados. Gap restante para fechar o ciclo é revogação operacional com bloqueio runtime/install (T-RUNTIME-28).",
+      "body": "Endpoint público em Release Assets, auto-resolve external-signed e revogação operacional runtime/install concluídos. Fluxo coberto por smoke de release e gate no workflow.",
       "location": "docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md:1",
-      "status": "open",
+      "status": "resolved",
       "category": "capability",
       "priority": "medium",
       "package": "tractor-ts",
-      "source": "agent"
+      "source": "agent",
+      "resolved_by": "VER-RUNTIME-29-20260424"
     }
   ]
 }

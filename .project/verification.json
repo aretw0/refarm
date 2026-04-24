@@ -2321,6 +2321,84 @@
           "evidence": "Backlog aponta T-RUNTIME-28 (revogação runtime/install) e T-RUNTIME-29 (smoke e2e + checkpoint final)."
         }
       ]
+    },
+    {
+      "id": "VER-RUNTIME-28-20260424",
+      "target": "T-RUNTIME-28",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-24T01:28:38.070Z",
+      "evidence": "Revogação external-signed implementada em install + browser runtime com consumo de lista oficial `runtime-descriptor-revocations.json` e bloqueio explícito por descriptor hash.",
+      "criteria_results": [
+        {
+          "criterion": "Lista de revogação publicada junto ao bundle versionado",
+          "status": "passed",
+          "evidence": "`export-runtime-descriptor-bundle.mjs` agora gera `bundle.revocations.json` (mantendo compatibilidade com template) e `publish-runtime-descriptor-release-assets.mjs` publica aliases estáveis de revocation list."
+        },
+        {
+          "criterion": "Runtime/install bloqueia descriptor revogado com erro explícito",
+          "status": "passed",
+          "evidence": "`install-plugin.ts` valida revocation list para external-signed e falha em hash revogado; `index.browser.ts` consulta revocation list no load de component descriptor e bloqueia descriptor revogado."
+        },
+        {
+          "criterion": "Playbook de rollback cobre janela de propagação e comunicação",
+          "status": "passed",
+          "evidence": "`docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md`, `docs/ARCHITECTURE.md` e `packages/tractor-ts/README.md` atualizados com política de revogação e comportamento operacional."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-29-20260424",
+      "target": "T-RUNTIME-29",
+      "target_type": "task",
+      "status": "passed",
+      "method": "test",
+      "timestamp": "2026-04-24T01:28:38.070Z",
+      "evidence": "Release path smoke e governança concluídos: export/publish dry-run + testes de resolução/revogação automatizados e gate no workflow de release.",
+      "criteria_results": [
+        {
+          "criterion": "Smoke release cobre export + publish + resolução de descriptor external-signed",
+          "status": "passed",
+          "evidence": "Novo script `runtime-descriptor:release-smoke` executa export bundle, publish dry-run e testes `install-plugin` + `browser-plugin-host`."
+        },
+        {
+          "criterion": "Falhas críticas bloqueiam publish no pipeline",
+          "status": "passed",
+          "evidence": "`.github/workflows/release-changesets.yml` executa `runtime-descriptor:release-smoke` antes de `changesets publish`; falha aborta fluxo."
+        },
+        {
+          "criterion": "Checkpoint de governança registrado antes da próxima compactação",
+          "status": "passed",
+          "evidence": "Blocos `.project/tasks`, `.project/verification`, `.project/handoff` atualizados com fechamento de T-RUNTIME-28/T-RUNTIME-29 e próximos passos pós-ISS-020."
+        }
+      ]
+    },
+    {
+      "id": "VER-RUNTIME-24-20260424",
+      "target": "T-RUNTIME-24",
+      "target_type": "task",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-24T01:28:38.070Z",
+      "evidence": "Objetivo macro de endpoint público estável + revogação operacional encerrado após execução T-RUNTIME-26..29.",
+      "criteria_results": [
+        {
+          "criterion": "Bundle publicado em endpoint público versionado",
+          "status": "passed",
+          "evidence": "Release assets versionados + aliases estáveis entregues em T-RUNTIME-26."
+        },
+        {
+          "criterion": "Instalação external-signed resolve endpoint oficial sem configuração manual por ambiente",
+          "status": "passed",
+          "evidence": "Auto-resolve por `descriptorSourceRepository` entregue em T-RUNTIME-27."
+        },
+        {
+          "criterion": "Fluxo de revogação operacional ativo e documentado",
+          "status": "passed",
+          "evidence": "Revocation list consumida/enforced em install/runtime em T-RUNTIME-28 e smoke final em T-RUNTIME-29."
+        }
+      ]
     }
   ]
 }

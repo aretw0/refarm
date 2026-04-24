@@ -135,6 +135,14 @@
       "status": "decided",
       "phase": 6,
       "context": "Execução de T-RUNTIME-27 após defaults de endpoint/trust/SLA definidos em DEC-016."
+    },
+    {
+      "id": "DEC-018",
+      "decision": "Aplicar enforcement de revogação por `descriptorHash` para external-signed em install e browser runtime, usando lista oficial `runtime-descriptor-revocations.json` com cache local TTL.",
+      "rationale": "Fecha janela operacional de distribuição pública: impede novos installs e bloqueia loads de descriptors revogados sem depender de allowlist manual por pacote.",
+      "status": "decided",
+      "phase": 6,
+      "context": "Fechamento de T-RUNTIME-28/T-RUNTIME-29 após auto-resolve external-signed (DEC-017)."
     }
   ]
 }
