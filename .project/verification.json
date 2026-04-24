@@ -2300,6 +2300,27 @@
           "evidence": "Testes novos cobrem bundle malformado e ausência de entrada de descriptor para plugin/version."
         }
       ]
+    },
+    {
+      "id": "VER-CHECKPOINT-COMPACTION-08-20260424",
+      "target": "6",
+      "target_type": "phase",
+      "status": "passed",
+      "method": "inspect",
+      "timestamp": "2026-04-24T01:07:38.888Z",
+      "evidence": "Checkpoint preparado após fechamento de T-RUNTIME-27 (resolvedor automático external-signed) e avanço do release path público com Release Assets.",
+      "criteria_results": [
+        {
+          "criterion": "Estado técnico reproduzível antes de compactação",
+          "status": "passed",
+          "evidence": "Commits: 29f4cebe (resolver), 9aa02145 (docs), f904b829 (governança). Validações locais green (tests/type-check/runtime-descriptor:dry/project:validate)."
+        },
+        {
+          "criterion": "Próximos passos claros para retomada",
+          "status": "passed",
+          "evidence": "Backlog aponta T-RUNTIME-28 (revogação runtime/install) e T-RUNTIME-29 (smoke e2e + checkpoint final)."
+        }
+      ]
     }
   ]
 }

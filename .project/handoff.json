@@ -1,23 +1,23 @@
 {
-  "context": "T-RUNTIME-27 concluída: install external-signed agora resolve automaticamente `runtime-descriptor-manifest.json` por convenção de Release Assets e mantém override explícito. Próxima frente é T-RUNTIME-28 (revogação runtime/install).",
-  "timestamp": "2026-04-24T01:05:31.692Z",
+  "context": "Checkpoint pronto para compactação: T-RUNTIME-27 concluída com auto-resolve external-signed via Release Assets manifest e fallback explícito. Pipeline já publica/valida assets públicos; próxima frente é revogação operacional (T-RUNTIME-28).",
+  "timestamp": "2026-04-24T01:07:38.888Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-RUNTIME-27 concluída (`VER-RUNTIME-27-20260424`): resolvedor automático + fallback explícito entregues.",
-    "T-RUNTIME-24 permanece aberta apenas para consolidar revogação operacional e fechamento e2e.",
-    "T-RUNTIME-28 é o próximo slice: revocation list com bloqueio runtime/install."
+    "T-RUNTIME-27 concluída (`VER-RUNTIME-27-20260424`): resolvedor automático external-signed por convenção + override explícito.",
+    "T-RUNTIME-26 concluída (`VER-RUNTIME-26-20260424`): publish/verify de assets públicos em Release Assets.",
+    "Checkpoint registrado (`VER-CHECKPOINT-COMPACTION-08-20260424`)."
   ],
   "blockers": [
-    "ISS-020 ainda aberta até fechar revogação runtime/install e smoke final de release path.",
+    "ISS-020 ainda aberta até fechamento de revogação runtime/install (T-RUNTIME-28) e smoke final (T-RUNTIME-29).",
     "Vulnerabilidades `npm audit` moderadas persistem como aviso não-bloqueante (0 high/critical)."
   ],
   "next_actions": [
-    "Implementar T-RUNTIME-28: consumo de revocation list + bloqueio de descriptor revogado.",
-    "Propagar docs de incidente/rollback com janela de SLA <24h.",
-    "Preparar checkpoint de compactação após concluir T-RUNTIME-28/T-RUNTIME-29."
+    "Executar T-RUNTIME-28: consumir revocation list e bloquear descriptor revogado em install/runtime.",
+    "Executar T-RUNTIME-29: smoke e2e release path com gate de falha crítica.",
+    "Reavaliar necessidade de compactação após novo checkpoint pós-T-RUNTIME-29."
   ],
   "open_questions": [
-    "Lista de revogação será consumida sempre do alias estável (`runtime-descriptor-revocations.json`) ou por versão (`-<sha>.json`) com pin explícito?"
+    "Revocation list deve ser sempre lida do alias estável (`runtime-descriptor-revocations.json`) ou por versão pinada com fallback?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
