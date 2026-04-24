@@ -313,6 +313,7 @@ Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
 Accepted profile values: `dev`, `staging`, `production-sensitive`.
 
 Runtime observability events for revocation flow:
+- `system:descriptor_revocation_config_invalid` when policy/profile inputs are invalid and ignored by deterministic resolution
 - `system:descriptor_revocation_stale_cache_used` when stale cache is used after revocation fetch failure
 - `system:descriptor_revocation_unavailable` when fail-open bypass is applied
 

@@ -40,6 +40,7 @@ Precedence target:
 
 Operational observability target:
 
+- emit explicit signal when configuration inputs are invalid (`system:descriptor_revocation_config_invalid`)
 - emit explicit signal when stale cache fallback is used (`system:descriptor_revocation_stale_cache_used`)
 - emit explicit signal when fail-open bypass is applied (`system:descriptor_revocation_unavailable`)
 

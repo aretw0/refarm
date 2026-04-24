@@ -150,5 +150,5 @@ Notas:
   - install/runtime: `descriptorRevocationProfile` / `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE` (`dev`|`staging`|`production-sensitive`) com mapeamento determinístico para política
   - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
 - precedência implementada: `policy explícita` > `profile explícito` > `policy de ambiente` > `profile de ambiente` > fallback local do caller.
-- observabilidade operacional adicionada para fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
+- observabilidade operacional adicionada para: configuração inválida (`system:descriptor_revocation_config_invalid`), fallback stale (`system:descriptor_revocation_stale_cache_used`) e bypass fail-open (`system:descriptor_revocation_unavailable`).
 - decisão final de default por ambiente segue em revisão (DEC-026) até fechamento de ADR/rollout.
