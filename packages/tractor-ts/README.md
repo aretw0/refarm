@@ -312,6 +312,10 @@ Browser runtime load policy for revocation-source unavailability can be configur
 Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
 Accepted profile values: `dev`, `staging`, `production-sensitive`.
 
+Runtime observability events for revocation flow:
+- `system:descriptor_revocation_stale_cache_used` when stale cache is used after revocation fetch failure
+- `system:descriptor_revocation_unavailable` when fail-open bypass is applied
+
 ### Profile Performance
 
 ```bash
