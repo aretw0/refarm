@@ -85,6 +85,11 @@ export type BrowserRuntimeDescriptorDistributionPolicy =
 	| "package-embedded"
 	| "external-signed";
 
+export type BrowserRuntimeDescriptorRevocationUnavailablePolicy =
+	| "fail-closed"
+	| "stale-allowed"
+	| "fail-open";
+
 export type BrowserRuntimeDescriptorTrustMode =
 	| "strict-manual"
 	| "repository-derived";
@@ -103,6 +108,7 @@ export interface InstallPluginOptions {
 		| BrowserRuntimeDescriptorRevocationListReference;
 	descriptorRevocationAssetName?: string;
 	descriptorRevocationCacheTtlMs?: number;
+	descriptorRevocationUnavailablePolicy?: BrowserRuntimeDescriptorRevocationUnavailablePolicy;
 	descriptorDistributionPolicy?: BrowserRuntimeDescriptorDistributionPolicy;
 	descriptorTrustedOrigins?: string[];
 	descriptorTrustMode?: BrowserRuntimeDescriptorTrustMode;
@@ -247,6 +253,8 @@ async function assertDescriptorNotRevoked(
 	descriptor: BrowserRuntimeModuleDescriptor,
 	options: InstallPluginOptions,
 ): Promise<void> {
+	const unavailablePolicy =
+		options.descriptorRevocationUnavailablePolicy ?? "fail-closed";
 	const revocationInput =
 		options.descriptorRevocationList ??
 		resolveAutoRevocationListReference(manifest, descriptor, options);
@@ -254,11 +262,26 @@ async function assertDescriptorNotRevoked(
 	if (!revocationInput) return;
 
 	const revocationList = isRevocationListReference(revocationInput)
-		? await fetchRuntimeDescriptorRevocationList(revocationInput, {
-				cacheTtlMs: options.descriptorRevocationCacheTtlMs,
-				fetchFn: globalThis.fetch.bind(globalThis),
-			})
+		? await (async () => {
+				try {
+					return await fetchRuntimeDescriptorRevocationList(revocationInput, {
+						cacheTtlMs: options.descriptorRevocationCacheTtlMs,
+						fetchFn: globalThis.fetch.bind(globalThis),
+						allowStaleOnError: unavailablePolicy === "stale-allowed",
+					});
+				} catch (error: any) {
+					if (unavailablePolicy === "fail-open") {
+						console.warn(
+							`[install-plugin] Revocation list unavailable for ${manifest.id}; continuing due fail-open policy: ${error?.message ?? error}`,
+						);
+						return null;
+					}
+					throw error;
+				}
+		  })()
 		: normalizeRuntimeDescriptorRevocationList(revocationInput, "inline");
+
+	if (!revocationList) return;
 
 	if (isDescriptorHashRevoked(descriptorHash, revocationList)) {
 		throw new Error(

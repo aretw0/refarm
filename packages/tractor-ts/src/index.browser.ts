@@ -51,6 +51,34 @@ const BROWSER_ERROR =
 const RUNTIME_DESCRIPTOR_REVOCATION_ASSET =
 	"runtime-descriptor-revocations.json";
 const RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY = "stale-allowed";
+
+type RuntimeRevocationUnavailablePolicy =
+	| "fail-closed"
+	| "stale-allowed"
+	| "fail-open";
+
+function resolveRuntimeRevocationUnavailablePolicy(): RuntimeRevocationUnavailablePolicy {
+	const runtimeOverride = (globalThis as any)
+		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const envOverride = (import.meta as any).env
+		?.VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY;
+	const candidate = String(
+		runtimeOverride ??
+			envOverride ??
+			DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY,
+	).toLowerCase();
+
+	if (
+		candidate === "fail-closed" ||
+		candidate === "stale-allowed" ||
+		candidate === "fail-open"
+	) {
+		return candidate;
+	}
+
+	return DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY;
+}
 
 /**
  * Browser stub for PluginHost.
@@ -320,6 +348,7 @@ export class PluginHost {
 		manifest: PluginManifest,
 		metadata: PluginArtifactMetadata,
 	): Promise<void> {
+		const unavailablePolicy = resolveRuntimeRevocationUnavailablePolicy();
 		const descriptor = metadata.browserRuntimeDescriptor;
 		const provenance = metadata.browserRuntimeProvenance;
 		if (!descriptor || descriptor.source !== "descriptor") return;
@@ -346,10 +375,22 @@ export class PluginHost {
 				{
 					cacheTtlMs: RUNTIME_DESCRIPTOR_REVOCATION_CACHE_TTL_MS,
 					fetchFn: globalThis.fetch.bind(globalThis),
-					allowStaleOnError: true,
+					allowStaleOnError: unavailablePolicy === "stale-allowed",
 				},
 			);
 		} catch (error: any) {
+			if (unavailablePolicy === "fail-open") {
+				this.emit({
+					event: "system:descriptor_revocation_unavailable",
+					pluginId: manifest.id,
+					payload: {
+						policy: unavailablePolicy,
+						error: error?.message ?? String(error),
+					},
+				});
+				return;
+			}
+
 			throw new Error(
 				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error?.message ?? error}`,
 			);

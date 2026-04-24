@@ -287,7 +287,17 @@ Distribution policy at install-time:
   - when `descriptorSourceRepository` is provided, install can auto-resolve `runtime-descriptor-manifest.json` from GitHub release assets (tag default: `${manifest.id}@${manifest.version}`)
   - install checks `runtime-descriptor-revocations.json` (same release/tag convention) and blocks revoked descriptor hashes before caching runtime sidecars
   - pass `descriptorRevocationList` (inline or URL) and/or `descriptorRevocationAssetName` when you need explicit revocation source control
+  - choose behavior when revocation source is unavailable with `descriptorRevocationUnavailablePolicy`:
+    - `fail-closed` (default): reject install
+    - `stale-allowed`: allow stale cache only (if available)
+    - `fail-open`: continue install with warning
   - explicit `browserRuntimeModuleDescriptor.url` still overrides auto-resolve
+
+Browser runtime load policy for revocation-source unavailability can be configured with:
+- `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+- or runtime override: `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+
+Accepted values: `fail-closed`, `stale-allowed` (default), `fail-open`.
 
 ### Profile Performance
 

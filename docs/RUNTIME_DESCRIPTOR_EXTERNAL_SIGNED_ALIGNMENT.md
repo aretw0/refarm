@@ -145,4 +145,7 @@ Adoção recomendada por ambiente:
 
 Notas:
 - política deve ser explícita por profile de ambiente;
-- decisão final será registrada em ADR/DEC dedicado antes de enforcement rígido.
+- implementação atual já expõe knobs operacionais:
+  - install-time: `descriptorRevocationUnavailablePolicy` (`fail-closed`|`stale-allowed`|`fail-open`)
+  - runtime browser: `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY` (ou override global)
+- decisão final de default por ambiente segue em revisão (DEC-026) até fechamento de ADR/rollout.

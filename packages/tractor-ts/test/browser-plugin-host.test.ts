@@ -35,9 +35,30 @@ function mockRevocationListFetch(revokedDescriptorHashes: string[] = []): void {
 	);
 }
 
+function mockRevocationListUnavailableFetch(): void {
+	vi.stubGlobal(
+		"fetch",
+		vi.fn().mockImplementation(async (url: string) => {
+			if (url.includes("runtime-descriptor-revocations.json")) {
+				return {
+					ok: false,
+					statusText: "Service Unavailable",
+				};
+			}
+
+			return {
+				ok: false,
+				statusText: "Not Found",
+			};
+		}),
+	);
+}
+
 afterEach(async () => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+	delete (globalThis as any)
+		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
 	await evictPlugin("@acme/wasm-plugin");
 	await evictPlugin("@acme/component-plugin");
 });
@@ -420,6 +441,76 @@ describe("browser PluginHost runtime paths", () => {
 		});
 
 		await expect(host.load(manifest)).rejects.toThrow("is revoked");
+	});
+
+	it("allows cached component load when revocation list is unavailable under fail-open runtime policy", async () => {
+		(globalThis as any)
+			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
+			"fail-open";
+
+		const emit = vi.fn();
+		const host = new PluginHost(emit, {});
+		mockRevocationListUnavailableFetch();
+
+		const componentBytes = new Uint8Array([
+			0x00,
+			0x61,
+			0x73,
+			0x6d,
+			0x0a,
+			0x00,
+			0x01,
+			0x00,
+		]).buffer;
+		const componentIntegrity = await computeIntegrity(componentBytes);
+		const runtimeModuleSource =
+			"export default { async setup(){return 'ok'}, async ping(){return 'pong-component-fail-open'} }";
+		const runtimeModuleIntegrity = await computeIntegrity(
+			new TextEncoder().encode(runtimeModuleSource).buffer,
+		);
+
+		await cachePlugin("@acme/component-plugin", componentBytes, {
+			pluginId: "@acme/component-plugin",
+			wasmUrl: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			wasmHash: componentIntegrity,
+			cachedAt: Date.now(),
+			artifactKind: "component",
+			browserRuntimeDescriptor: {
+				schemaVersion: 1,
+				descriptorHash: "sha256-non-revoked-descriptor",
+				componentWasmUrl: "https://example.test/component.wasm",
+				source: "descriptor",
+			},
+			browserRuntimeProvenance: {
+				source: "descriptor",
+				commitSha: "1111111111111111111111111111111111111111",
+				buildId: "build-123",
+				sourceRepository: "https://github.com/refarm-dev/refarm",
+			},
+			browserRuntimeModule: {
+				url: "https://example.test/component.browser.mjs",
+				integrity: runtimeModuleIntegrity,
+				format: "esm",
+			},
+		});
+		await cachePluginRuntimeModule("@acme/component-plugin", runtimeModuleSource);
+
+		const manifest = createMockManifest({
+			id: "@acme/component-plugin",
+			entry: "https://example.test/component.wasm",
+			integrity: componentIntegrity,
+			version: "0.1.2",
+		});
+
+		const instance = await host.load(manifest);
+		expect(await instance.call("ping")).toBe("pong-component-fail-open");
+		expect(emit).toHaveBeenCalledWith(
+			expect.objectContaining({
+				event: "system:descriptor_revocation_unavailable",
+				pluginId: "@acme/component-plugin",
+			}),
+		);
 	});
 
 	it("rejects .cjs entries in browser runtime", async () => {
