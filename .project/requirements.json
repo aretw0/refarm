@@ -12,7 +12,11 @@
 				"Build de pacote Rust prioritário executa localmente"
 			],
 			"source": "analysis",
-			"traces_to": ["T-ENV-01", "T-ENV-02", "T-PIPE-04"]
+			"traces_to": [
+				"T-ENV-01",
+				"T-ENV-02",
+				"T-PIPE-04"
+			]
 		},
 		{
 			"id": "REQ-ENV-002",
@@ -26,7 +30,10 @@
 				"Bloqueios viram issue + task"
 			],
 			"source": "analysis",
-			"traces_to": ["T-ENV-03", "T-OPS-05"]
+			"traces_to": [
+				"T-ENV-03",
+				"T-OPS-05"
+			]
 		},
 		{
 			"id": "REQ-RESO-001",
@@ -40,7 +47,10 @@
 				"Comando status incluído nos gates"
 			],
 			"source": "analysis",
-			"traces_to": ["T-ENV-04", "T-DOC-02"]
+			"traces_to": [
+				"T-ENV-04",
+				"T-DOC-02"
+			]
 		},
 		{
 			"id": "REQ-PIPE-001",
@@ -54,7 +64,10 @@
 				"Execução canônica documentada"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PIPE-01", "T-PIPE-02"]
+			"traces_to": [
+				"T-PIPE-01",
+				"T-PIPE-02"
+			]
 		},
 		{
 			"id": "REQ-PIPE-002",
@@ -68,7 +81,11 @@
 				"Bloqueios convertidos em tasks"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PIPE-03", "T-PIPE-04", "T-PIPE-05"]
+			"traces_to": [
+				"T-PIPE-03",
+				"T-PIPE-04",
+				"T-PIPE-05"
+			]
 		},
 		{
 			"id": "REQ-PIPE-003",
@@ -82,7 +99,10 @@
 				"Reviewer aplica gate full em lote"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PIPE-06", "T-DOC-03"]
+			"traces_to": [
+				"T-PIPE-06",
+				"T-DOC-03"
+			]
 		},
 		{
 			"id": "REQ-WORK-001",
@@ -97,7 +117,11 @@
 				"Backlog explicita macro-domínios e owners para paralelização"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PLAN-01", "T-PLAN-02", "T-PLAN-03"]
+			"traces_to": [
+				"T-PLAN-01",
+				"T-PLAN-02",
+				"T-PLAN-03"
+			]
 		},
 		{
 			"id": "REQ-WORK-002",
@@ -111,7 +135,11 @@
 				"Handoff entre workers documentado"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PLAN-03", "T-PLAN-04", "T-PLAN-05"]
+			"traces_to": [
+				"T-PLAN-03",
+				"T-PLAN-04",
+				"T-PLAN-05"
+			]
 		},
 		{
 			"id": "REQ-WORK-003",
@@ -125,7 +153,10 @@
 				"Critérios possuem status passed/failed/skipped"
 			],
 			"source": "analysis",
-			"traces_to": ["T-OPS-01", "T-OPS-02"]
+			"traces_to": [
+				"T-OPS-01",
+				"T-OPS-02"
+			]
 		},
 		{
 			"id": "REQ-RUNTIME-001",
@@ -139,7 +170,11 @@
 				"Gaps viram tasks priorizadas"
 			],
 			"source": "analysis",
-			"traces_to": ["T-RUNTIME-01", "T-RUNTIME-02", "T-RUNTIME-03"]
+			"traces_to": [
+				"T-RUNTIME-01",
+				"T-RUNTIME-02",
+				"T-RUNTIME-03"
+			]
 		},
 		{
 			"id": "REQ-CONTRACT-001",
@@ -172,7 +207,11 @@
 				"Testes cobrem cache hit/miss"
 			],
 			"source": "analysis",
-			"traces_to": ["T-PLUGIN-01", "T-PLUGIN-02", "T-PLUGIN-03"]
+			"traces_to": [
+				"T-PLUGIN-01",
+				"T-PLUGIN-02",
+				"T-PLUGIN-03"
+			]
 		},
 		{
 			"id": "REQ-DOC-001",
@@ -186,7 +225,11 @@
 				"Fluxo de escalonamento documentado"
 			],
 			"source": "analysis",
-			"traces_to": ["T-DOC-01", "T-DOC-03", "T-DOC-04"]
+			"traces_to": [
+				"T-DOC-01",
+				"T-DOC-03",
+				"T-DOC-04"
+			]
 		},
 		{
 			"id": "REQ-GOV-001",
@@ -200,7 +243,47 @@
 				"Risco operacional monitorado em issues"
 			],
 			"source": "analysis",
-			"traces_to": ["T-OPS-03", "T-OPS-04", "T-DEC-01"]
+			"traces_to": [
+				"T-OPS-03",
+				"T-OPS-04",
+				"T-DEC-01"
+			]
+		},
+		{
+			"id": "REQ-MIG-001",
+			"description": "Operação atual no pi deve permanecer compatível com a migração incremental para o agente Refarm.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Diferença entre ajustes imediatos (pi) e de migração (Refarm) documentada",
+				"Backlog de transição explícito no .project",
+				"Handoff inclui próximos passos para fase de migração"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-04",
+				"T-NEXT-06",
+				"T-NEXT-10"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-002",
+			"description": "Política de revogação external-signed deve diferenciar comportamento offline por ambiente.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Perfis local/staging/prod definidos",
+				"Comportamento fail-open/fail-closed explicitado",
+				"Decisão marcada para enforcement futuro"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-02",
+				"T-NEXT-05",
+				"T-NEXT-06"
+			]
 		}
 	]
 }

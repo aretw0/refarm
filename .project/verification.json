@@ -3135,6 +3135,237 @@
 					"evidence": "Snapshot foi alinhado ao handoff atualizado desta rodada."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-01-20260424",
+			"target": "T-NEXT-01",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Observação pós-push documentada no WORKFLOW.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Observação pós-push documentada no WORKFLOW."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-02-20260424",
+			"target": "T-NEXT-02",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Política offline de revogação adicionada no alignment doc.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Política offline de revogação adicionada no alignment doc."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-03-20260424",
+			"target": "T-NEXT-03",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Protocolo de checkpoint pré-compactação adicionado no playbook.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Protocolo de checkpoint pré-compactação adicionado no playbook."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-04-20260424",
+			"target": "T-NEXT-04",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "REQ-MIG-001 adicionada e rastreada.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-MIG-001 adicionada e rastreada."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-05-20260424",
+			"target": "T-NEXT-05",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "REQ-RUNTIME-002 adicionada com critérios por ambiente.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "REQ-RUNTIME-002 adicionada com critérios por ambiente."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-06-20260424",
+			"target": "T-NEXT-06",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "DEC-024..026 registradas.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "DEC-024..026 registradas."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-07-20260424",
+			"target": "T-NEXT-07",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Plano do próximo lote publicado.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Plano do próximo lote publicado."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-08-20260424",
+			"target": "T-NEXT-08",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Snapshot de progresso atualizado para próximo ciclo.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Snapshot de progresso atualizado para próximo ciclo."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-09-20260424",
+			"target": "T-NEXT-09",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Verifications NEXT registradas com formato padrão.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Verifications NEXT registradas com formato padrão."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-NEXT-10-20260424",
+			"target": "T-NEXT-10",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Checkpoint e handoff final de compactação preparados.",
+			"criteria_results": [
+				{
+					"criterion": "Entrega documentada no arquivo alvo",
+					"status": "passed",
+					"evidence": "Checkpoint e handoff final de compactação preparados."
+				},
+				{
+					"criterion": "Rastreabilidade task->verification preservada",
+					"status": "passed",
+					"evidence": "Task contém referência de verification e notes do slice."
+				}
+			]
+		},
+		{
+			"id": "VER-CHECKPOINT-NEXT-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T12:32:56.272Z",
+			"evidence": "Checkpoint final do lote NEXT preparado para compactação com board consistente e handoff atualizado.",
+			"criteria_results": [
+				{
+					"criterion": "Board consistente",
+					"status": "passed",
+					"evidence": "Tasks/verifications/decisions/requirements atualizados e validados por `project:validate`."
+				},
+				{
+					"criterion": "Handoff pronto para retomada",
+					"status": "passed",
+					"evidence": "`handoff.json` atualizado com contexto do próximo lote e decisão pendente."
+				}
+			]
 		}
 	]
 }

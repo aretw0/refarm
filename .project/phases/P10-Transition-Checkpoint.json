@@ -1,0 +1,21 @@
+{
+	"number": 10,
+	"name": "Transition-Checkpoint",
+	"intent": "Preparar transição incremental pi→Refarm e encerrar ciclos com checkpoint explícito para compactação segura.",
+	"status": "planned",
+	"success_criteria": [
+		{
+			"criterion": "Ritual pós-push e protocolo de checkpoint documentados e rastreáveis",
+			"verify_method": "inspect"
+		},
+		{
+			"criterion": "Lote de transição concluído com verificação e handoff prontos para compactação",
+			"verify_method": "test"
+		}
+	],
+	"outputs": [
+		"Playbook/workflow atualizados",
+		"Decisions/requirements/tasks/verifications da fase 10",
+		"Checkpoint final de compactação"
+	]
+}

@@ -84,27 +84,27 @@
 		}
 	],
 	"progress_snapshot": {
-		"id": "SNAPSHOT-2026-04-24-A",
-		"window": "quinzenal",
+		"id": "SNAPSHOT-2026-04-24-B",
+		"window": "checkpoint-lote-next",
 		"tasks": {
-			"planned": 17,
+			"planned": 0,
 			"in_progress": 0,
-			"completed": 63
+			"completed": 90
 		},
 		"verification": {
-			"passed": 85,
+			"passed": 114,
 			"partial": 17,
 			"failed": 0,
 			"skipped": 1
 		},
 		"risks": [
-			"Execução técnica de PIPE-02..06 ainda pendente por domínio.",
-			"ADR-012 ainda em Proposed; decisão correspondente permanece em revisit."
+			"DEC-026 permanece em revisit até enforcement técnico da política offline de revogação.",
+			"Novo ciclo técnico deve abrir tasks frescas para evitar backlog zerado artificial."
 		],
 		"next_steps": [
-			"Executar T-PIPE-02 com slices por pacote Foundation.",
-			"Consolidar T-PIPE-03..06 com gates canônicos e checklist de reviewer.",
-			"Aplicar rotina semanal de triagem para zerar backlog bloqueado."
+			"Executar compactação e retomar com lote técnico novo (~10 slices) partindo do plano publicado.",
+			"Abrir tasks de implementação para policy offline revocation e migração progressiva pi→Refarm.",
+			"Monitorar CI pós-push com ritual curto e registrar evidência no handoff."
 		]
 	},
 	"status": "development",

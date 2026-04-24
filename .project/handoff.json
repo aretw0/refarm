@@ -1,52 +1,36 @@
 {
-	"context": "Lote ampliado concluído após compactação: PIPE-02..06, DOC-01..04, OPS-01..05 e DEC-01..03 fechados com evidência. Baseline operacional agora separa execução no pi atual e migração gradual para agente Refarm futuro.",
-	"timestamp": "2026-04-24T12:14:52.989Z",
-	"current_phase": 9,
+	"context": "Push realizado em develop e lote NEXT (~10 slices) concluído com foco em preparação do próximo ciclo + checkpoint de compactação.",
+	"timestamp": "2026-04-24T12:32:56.272Z",
+	"current_phase": 10,
 	"current_tasks": [
-		"Governança operacional consolidada com gates por domínio e full gate (`gate:full:colony`).",
-		"Documentação/playbook/templates de colônia publicados para execução/review/handoff.",
-		"Board .project atualizado: todas as tasks planejadas atuais concluídas e verificadas."
+		"Lote NEXT concluído (T-NEXT-01..10).",
+		"Políticas pós-push, checkpoint e revogação offline documentadas.",
+		"Board pronto para compactação e retomada do próximo lote técnico."
 	],
 	"blockers": [
-		"Nenhum blocker técnico aberto no backlog atual; monitorar regressões em futuras tasks.",
-		"ADR-012 segue Proposed; decisão DEC-010 permanece em revisit até aceitação formal."
+		"Sem blockers operacionais imediatos; decisão DEC-026 aguarda enforcement técnico futuro."
 	],
 	"next_actions": [
-		"Abrir próximo lote de tasks técnicas (novas fases) com foco em roadmap v0.1 e integração Refarm-agent.",
-		"Executar push dos commits locais e observar CI do novo baseline de gates.",
-		"Avaliar política offline de revogação (fail-open/fail-closed) como próxima decisão arquitetural."
+		"Compactar contexto e retomar com novo lote técnico de ~10 slices.",
+		"Criar tasks de implementação para policy offline de revogação (DEC-026).",
+		"Iniciar fatia técnica de migração incremental pi→Refarm-agent com parity de governança."
 	],
 	"open_questions": [
-		"Qual critério final para promoção de ADR-012 de Proposed para Accepted no ciclo de migração do agente?"
+		"Quando promover DEC-026 de revisit para decided (gatilho técnico + ADR correspondente)?"
 	],
 	"key_decisions_pending": [
-		"DEC-010"
+		"DEC-026"
 	],
 	"files_in_flux": [
+		".project/requirements.json",
 		".project/tasks.json",
-		".project/verification.json",
-		".project/issues.json",
 		".project/decisions.json",
-		".project/domain.json",
-		".project/rationale.json",
+		".project/verification.json",
 		".project/project.json",
 		".project/handoff.json",
-		".project/schemas/verification.schema.json",
 		"docs/WORKFLOW.md",
-		"docs/DEVOPS.md",
 		"docs/COLONY_PLAYBOOK.md",
-		"docs/PR_QUALITY_GOVERNANCE.md",
-		"docs/DEVELOPMENT_RESOLUTION.md",
-		"CONTRIBUTING.md",
-		"AGENTS.md",
-		"package.json",
-		"roadmaps/MAIN.md",
-		".pi/monitors/unauthorized-action.instructions.json",
-		".pi/monitors/unauthorized-action.patterns.json",
-		"docs/templates/COLONY_TASK_INPUT_TEMPLATE.md",
-		"docs/templates/COLONY_WORKER_EVIDENCE_REPORT_TEMPLATE.md",
-		"docs/templates/COLONY_REVIEWER_HANDOFF_TEMPLATE.md",
-		"docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md",
-		"docs/superpowers/COLONY_WORKER_OUTPUT_TEMPLATE.md"
+		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
+		"docs/COLONY_NEXT_BATCH.md"
 	]
 }

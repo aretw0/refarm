@@ -1841,6 +1841,177 @@
 			"assigned_agent": "worker-runtime",
 			"verification": "VER-RUNTIME-29-20260424",
 			"notes": "Smoke e2e do release path adicionado via `runtime-descriptor:release-smoke` (export bundle + publish dry-run + resolver tests install/runtime). Workflow de release agora bloqueia publish quando smoke falha."
+		},
+		{
+			"id": "T-NEXT-01",
+			"description": "Documentar ritual pós-push para observação de CI em lote.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/WORKFLOW.md"
+			],
+			"acceptance_criteria": [
+				"Comando de observação pós-push documentado",
+				"Fallback sem gh CLI documentado",
+				"Ritual curto aplicável ao lote"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-01-20260424",
+			"notes": "Seção de observação pós-push adicionada em WORKFLOW."
+		},
+		{
+			"id": "T-NEXT-02",
+			"description": "Documentar política offline de revogação external-signed por ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md"
+			],
+			"acceptance_criteria": [
+				"Tabela de ambientes e comportamento offline publicada",
+				"Fail-open/fail-closed explicitado",
+				"Próximo passo de enforcement indicado"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-02-20260424",
+			"notes": "Seção `Offline Revocation Policy` adicionada no alinhamento external-signed."
+		},
+		{
+			"id": "T-NEXT-03",
+			"description": "Adicionar protocolo de checkpoint pré-compactação no playbook.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/COLONY_PLAYBOOK.md"
+			],
+			"acceptance_criteria": [
+				"Passos de checkpoint documentados",
+				"Validação project:validate incluída",
+				"Resultado esperado descrito"
+			],
+			"assigned_agent": "worker-docs",
+			"verification": "VER-NEXT-03-20260424",
+			"notes": "Seção `Checkpoint antes de compactação` adicionada ao playbook."
+		},
+		{
+			"id": "T-NEXT-04",
+			"description": "Registrar requirement de trilha dupla pi atual vs Refarm futuro.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"Requirement de migração adicionado",
+				"Traços para tasks definidos",
+				"Status accepted"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-04-20260424",
+			"notes": "REQ-MIG-001 adicionado e ligado ao lote atual."
+		},
+		{
+			"id": "T-NEXT-05",
+			"description": "Registrar requirement para política offline de revogação por ambiente.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/requirements.json"
+			],
+			"acceptance_criteria": [
+				"Requirement de revogação offline criado",
+				"Critérios de aceite por profile definidos",
+				"Traços para tasks e decisões definidos"
+			],
+			"assigned_agent": "worker-runtime",
+			"verification": "VER-NEXT-05-20260424",
+			"notes": "REQ-RUNTIME-002 adicionado no board."
+		},
+		{
+			"id": "T-NEXT-06",
+			"description": "Registrar decisões operacionais do novo ciclo (pós-push, checkpoint e revogação offline).",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/decisions.json"
+			],
+			"acceptance_criteria": [
+				"Decisões adicionadas sem conflito",
+				"Itens pendentes marcados revisit",
+				"Contexto do ciclo registrado"
+			],
+			"assigned_agent": "worker-architecture",
+			"verification": "VER-NEXT-06-20260424",
+			"notes": "DEC-024..026 adicionadas, com DEC-026 em revisit."
+		},
+		{
+			"id": "T-NEXT-07",
+			"description": "Publicar plano enxuto do próximo lote (~10 slices) com critério de saída.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				"docs/COLONY_NEXT_BATCH.md"
+			],
+			"acceptance_criteria": [
+				"Plano com 10 slices publicado",
+				"Critério de saída definido",
+				"Foco em checkpoint declarado"
+			],
+			"assigned_agent": "worker-pm",
+			"verification": "VER-NEXT-07-20260424",
+			"notes": "Documento `docs/COLONY_NEXT_BATCH.md` publicado com plano de 10 slices e critério de saída."
+		},
+		{
+			"id": "T-NEXT-08",
+			"description": "Atualizar snapshot de progresso com estado pós-push e próximo ciclo.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/project.json"
+			],
+			"acceptance_criteria": [
+				"Snapshot atualizado",
+				"Riscos e próximos passos do novo ciclo descritos",
+				"Status do projeto mantido consistente"
+			],
+			"assigned_agent": "worker-pm",
+			"verification": "VER-NEXT-08-20260424",
+			"notes": "Snapshot quinzenal atualizado para estado pós-push e lote de checkpoint."
+		},
+		{
+			"id": "T-NEXT-09",
+			"description": "Registrar verifications do lote NEXT-01..08.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/verification.json"
+			],
+			"acceptance_criteria": [
+				"Verifications criadas com formato padrão",
+				"Cada task aponta evidence objetiva",
+				"Sem campos obrigatórios faltando"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-09-20260424",
+			"notes": "Verifications do lote NEXT adicionadas com schema obrigatório completo."
+		},
+		{
+			"id": "T-NEXT-10",
+			"description": "Encerrar lote com checkpoint e handoff pronto para compactação.",
+			"status": "completed",
+			"phase": 10,
+			"files": [
+				".project/handoff.json",
+				".project/verification.json"
+			],
+			"acceptance_criteria": [
+				"Checkpoint VER-CHECKPOINT-NEXT registrado",
+				"Handoff com próximos passos e decisão pendente",
+				"Estado consistente validado"
+			],
+			"assigned_agent": "worker-governance",
+			"verification": "VER-NEXT-10-20260424",
+			"notes": "Checkpoint final preparado para compactação após novo lote."
 		}
 	]
 }
