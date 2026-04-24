@@ -8007,6 +8007,27 @@
 					"evidence": "hints de NEXT11 e pendências documentadas no handoff."
 				}
 			]
+		},
+		{
+			"id": "VER-CHECKPOINT-COMPACTION-17-20260424",
+			"target": "10",
+			"target_type": "phase",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-24T19:43:30.689Z",
+			"evidence": "Checkpoint de compactação solicitado após NEXT10 concluído e CI 24907731556 em success; estado consolidado para retomada segura.",
+			"criteria_results": [
+				{
+					"criterion": "Estado técnico consolidado antes da compactação",
+					"status": "passed",
+					"evidence": "NEXT10 entregue com validações locais e workflow Test & Quality 24907731556 em success."
+				},
+				{
+					"criterion": "Handoff preparado para retomada pós-compactação",
+					"status": "passed",
+					"evidence": "`.project/handoff.json` atualizado com contexto atual, próximos passos e decisão pendente."
+				}
+			]
 		}
 	]
 }
