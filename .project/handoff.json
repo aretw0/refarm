@@ -1,46 +1,33 @@
 {
-  "context": "Lote de planejamento/governança executado: baseline de preflight + política src/dist + type-check baseline + cadeia PLAN-01..07 concluída para destravar paralelização segura da colônia.",
-  "timestamp": "2026-04-24T01:50:22.774Z",
+  "context": "Checkpoint pronto para compactação (79% contexto): baseline operacional consolidado em ENV/PIPE/PLAN, external-signed fechado e próximos slices já priorizados para execução técnica.",
+  "timestamp": "2026-04-24T11:30:47.114Z",
   "current_phase": 6,
   "current_tasks": [
-    "T-ENV-03/04 concluídas: checklist preflight e política reso src/dist formalizadas.",
-    "T-PIPE-01 concluída: baseline de type-check mapeado e priorização de ataque registrada.",
-    "T-PLAN-01..07 concluídas: macro-domínios, granularidade, fila 2 semanas, anti-colisão, branch policy, concorrência e prompt padrão definidos."
+    "Checkpoint registrado: VER-CHECKPOINT-COMPACTION-09-20260424.",
+    "Governança de colônia concluída (T-ENV-03/04, T-PIPE-01, T-PLAN-01..07).",
+    "Bloco runtime external-signed concluído anteriormente (T-RUNTIME-24..29, ISS-020 resolvida)."
   ],
   "blockers": [
-    "Fases de execução técnica subsequentes (PIPE-02..06) ainda exigem implementação por domínio.",
+    "Execução técnica de pipeline ainda pendente nas tasks T-PIPE-02..06.",
     "Vulnerabilidades `npm audit` moderadas permanecem advisory (0 high/critical)."
   ],
   "next_actions": [
-    "Executar T-PIPE-02: estabilizar type-check Foundation (config/toolbox/vtconfig/cli) com slices atômicas.",
-    "Executar T-PIPE-03 e T-PIPE-04: baseline de build por domínio + runtime previsível.",
-    "Avaliar conclusão de T-DOC-01/T-OPS-02 em lote dedicado após avanço de PIPE-02/03."
+    "Após compactação, iniciar T-PIPE-02 com slices pequenas por pacote Foundation (config/toolbox/vtconfig/cli).",
+    "Em seguida executar T-PIPE-03 para matriz de build por domínio e destravar T-PIPE-04/05.",
+    "Revisar necessidade de tooling adicional somente se surgirem gargalos de validação/paralelismo."
   ],
   "open_questions": [
-    "Precisamos diferenciar estratégia de revocation-check para ambientes offline-first (ex.: stale-only) versus ambientes sensíveis (fail-closed estrito)?"
+    "Há necessidade de política diferenciada de revocation-check para ambientes offline-first vs sensíveis (fail-open/fail-closed)?"
   ],
   "key_decisions_pending": [],
   "files_in_flux": [
-    ".github/workflows/release-changesets.yml",
-    ".github/workflows/test.yml",
-    "packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs",
-    "packages/tractor-ts/scripts/verify-browser-runtime-module-descriptor.mjs",
-    "packages/tractor-ts/scripts/smoke-browser-runtime-module-descriptor.mjs",
-    "packages/tractor-ts/src/lib/install-plugin.ts",
-    "packages/tractor-ts/src/index.browser.ts",
-    "packages/tractor-ts/test/install-plugin.test.ts",
-    "packages/tractor-ts/test/browser-plugin-host.test.ts",
-    "packages/tractor-ts/package.json",
-    "packages/tractor-ts/README.md",
-    "packages/plugin-manifest/src/index.d.ts",
-    "packages/plugin-manifest/src/install-contract.js",
-    "packages/plugin-manifest/README.md",
-    "docs/ARCHITECTURE.md",
-    "docs/PLUGIN_AUTHORING_TRACKS.md",
-    "specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md",
     ".project/tasks.json",
-    ".project/issues.json",
     ".project/verification.json",
-    ".project/handoff.json"
+    ".project/handoff.json",
+    "docs/WORKFLOW.md",
+    "docs/DEVOPS.md",
+    "docs/PR_QUALITY_GOVERNANCE.md",
+    "CONTRIBUTING.md",
+    "scripts/reso.mjs"
   ]
 }
