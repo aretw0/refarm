@@ -44,6 +44,18 @@ console.log(summary.summary);
 console.log(diagnostics.alerts);
 ```
 
+For historical triage in CI/ops, you can aggregate multiple report snapshots and compute latest delta:
+
+```bash
+npm run runtime-descriptor:revocation-history -- \
+  --reports report-a.json,report-b.json \
+  --out-dir .artifacts/runtime-descriptor-revocation-history
+```
+
+This generates:
+- `.artifacts/runtime-descriptor-revocation-history/history.json`
+- `.artifacts/runtime-descriptor-revocation-history/history.md`
+
 ### Sanitization Policy
 The export process automatically protects user data by applying sanitization hooks to the JSON payload:
 1. **Redaction:** Known sensitive keys (`secretKey`, `token`, `password`, `sas`, etc.) are replaced with `[REDACTED]`.

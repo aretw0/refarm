@@ -278,3 +278,319 @@ export function buildRuntimeDescriptorRevocationReport({
 		thresholds,
 	};
 }
+
+function toCounter(input) {
+	if (!input || typeof input !== "object") return {};
+	const counter = {};
+	for (const [key, value] of Object.entries(input)) {
+		if (typeof value === "number" && Number.isFinite(value)) {
+			counter[key] = value;
+		}
+	}
+	return counter;
+}
+
+function toStringArray(input) {
+	if (!Array.isArray(input)) return [];
+	return input.filter((value) => typeof value === "string");
+}
+
+function toAlertArray(input) {
+	if (!Array.isArray(input)) return [];
+	return input
+		.filter((alert) => alert && typeof alert === "object")
+		.map((alert) => ({
+			id: String(alert.id ?? ""),
+			severity: String(alert.severity ?? "info"),
+			title: String(alert.title ?? ""),
+			message: String(alert.message ?? ""),
+			count:
+				typeof alert.count === "number" && Number.isFinite(alert.count)
+					? alert.count
+					: 0,
+			event:
+				typeof alert.event === "string" && alert.event.trim().length > 0
+					? alert.event
+					: undefined,
+		}));
+}
+
+function parseGeneratedAt(generatedAt, fallback) {
+	if (typeof generatedAt === "string" && generatedAt.trim().length > 0) {
+		const timestamp = Date.parse(generatedAt);
+		if (Number.isFinite(timestamp)) {
+			return new Date(timestamp).toISOString();
+		}
+	}
+	return fallback;
+}
+
+function resolveAlertCountBySeverity(alerts) {
+	const bySeverity = {
+		info: 0,
+		warn: 0,
+		critical: 0,
+	};
+	for (const alert of alerts) {
+		if (alert.severity === "critical") {
+			bySeverity.critical += 1;
+			continue;
+		}
+		if (alert.severity === "warn") {
+			bySeverity.warn += 1;
+			continue;
+		}
+		bySeverity.info += 1;
+	}
+	return bySeverity;
+}
+
+export function normalizeRuntimeDescriptorRevocationReport(input, sourcePath) {
+	const generatedAt = parseGeneratedAt(input?.generatedAt, new Date(0).toISOString());
+	const fallbackThresholds = resolveRevocationReportThresholds();
+	const thresholds = resolveRevocationReportThresholds(input?.thresholds ?? {});
+	return {
+		generatedAt,
+		inputPath:
+			typeof input?.inputPath === "string" ? input.inputPath : sourcePath ?? null,
+		sourcePath: sourcePath ?? null,
+		summary: {
+			totalEvents:
+				typeof input?.summary?.totalEvents === "number"
+					? input.summary.totalEvents
+					: 0,
+			byEvent: {
+				...summarizeRevocationEvents([]).byEvent,
+				...toCounter(input?.summary?.byEvent),
+			},
+			byPolicy: toCounter(input?.summary?.byPolicy),
+			byPolicySource: toCounter(input?.summary?.byPolicySource),
+			byProfile: toCounter(input?.summary?.byProfile),
+			affectedPlugins: toStringArray(input?.summary?.affectedPlugins).sort((a, b) =>
+				a.localeCompare(b),
+			),
+		},
+		alerts: toAlertArray(input?.alerts),
+		thresholds: {
+			unavailableWarnAt:
+				thresholds.unavailableWarnAt ?? fallbackThresholds.unavailableWarnAt,
+			unavailableCriticalAt:
+				thresholds.unavailableCriticalAt ??
+				fallbackThresholds.unavailableCriticalAt,
+			configDriftWarnAt:
+				thresholds.configDriftWarnAt ?? fallbackThresholds.configDriftWarnAt,
+			staleCacheWarnAt:
+				thresholds.staleCacheWarnAt ?? fallbackThresholds.staleCacheWarnAt,
+		},
+	};
+}
+
+export function summarizeRuntimeDescriptorRevocationReportTimeline(reports) {
+	return reports.map((report) => {
+		const bySeverity = resolveAlertCountBySeverity(report.alerts);
+		return {
+			generatedAt: report.generatedAt,
+			totalEvents: report.summary.totalEvents,
+			unavailable:
+				report.summary.byEvent["system:descriptor_revocation_unavailable"] ?? 0,
+			configDrift:
+				(report.summary.byEvent[
+					"system:descriptor_revocation_config_invalid"
+				] ?? 0) +
+				(report.summary.byEvent[
+					"system:descriptor_revocation_config_conflict"
+				] ?? 0),
+			staleCache:
+				report.summary.byEvent[
+					"system:descriptor_revocation_stale_cache_used"
+				] ?? 0,
+			alerts: {
+				...bySeverity,
+				total: report.alerts.length,
+			},
+		};
+	});
+}
+
+export function buildCounterDelta(current = {}, previous = {}) {
+	const keys = new Set([...Object.keys(current), ...Object.keys(previous)]);
+	const delta = {};
+	for (const key of Array.from(keys).sort((a, b) => a.localeCompare(b))) {
+		delta[key] = (current[key] ?? 0) - (previous[key] ?? 0);
+	}
+	return delta;
+}
+
+export function buildRuntimeDescriptorRevocationReportDelta(current, previous) {
+	if (!current || !previous) return null;
+
+	const currentAlertsById = Object.fromEntries(
+		current.alerts.map((alert) => [alert.id, alert]),
+	);
+	const previousAlertsById = Object.fromEntries(
+		previous.alerts.map((alert) => [alert.id, alert]),
+	);
+	const alertIds = Array.from(
+		new Set([
+			...Object.keys(currentAlertsById),
+			...Object.keys(previousAlertsById),
+		]),
+	).sort((a, b) => a.localeCompare(b));
+
+	const bySeverityCurrent = resolveAlertCountBySeverity(current.alerts);
+	const bySeverityPrevious = resolveAlertCountBySeverity(previous.alerts);
+
+	const currentPlugins = new Set(current.summary.affectedPlugins);
+	const previousPlugins = new Set(previous.summary.affectedPlugins);
+
+	return {
+		fromGeneratedAt: previous.generatedAt,
+		toGeneratedAt: current.generatedAt,
+		totalEventsDelta: current.summary.totalEvents - previous.summary.totalEvents,
+		byEventDelta: buildCounterDelta(current.summary.byEvent, previous.summary.byEvent),
+		byPolicyDelta: buildCounterDelta(
+			current.summary.byPolicy,
+			previous.summary.byPolicy,
+		),
+		byPolicySourceDelta: buildCounterDelta(
+			current.summary.byPolicySource,
+			previous.summary.byPolicySource,
+		),
+		byProfileDelta: buildCounterDelta(
+			current.summary.byProfile,
+			previous.summary.byProfile,
+		),
+		affectedPluginsAdded: Array.from(currentPlugins)
+			.filter((pluginId) => !previousPlugins.has(pluginId))
+			.sort((a, b) => a.localeCompare(b)),
+		affectedPluginsRemoved: Array.from(previousPlugins)
+			.filter((pluginId) => !currentPlugins.has(pluginId))
+			.sort((a, b) => a.localeCompare(b)),
+		alertSeverityDelta: {
+			info: bySeverityCurrent.info - bySeverityPrevious.info,
+			warn: bySeverityCurrent.warn - bySeverityPrevious.warn,
+			critical: bySeverityCurrent.critical - bySeverityPrevious.critical,
+		},
+		alerts: alertIds.map((id) => {
+			const currentAlert = currentAlertsById[id];
+			const previousAlert = previousAlertsById[id];
+			return {
+				id,
+				currentCount: currentAlert?.count ?? 0,
+				previousCount: previousAlert?.count ?? 0,
+				deltaCount: (currentAlert?.count ?? 0) - (previousAlert?.count ?? 0),
+				currentSeverity: currentAlert?.severity ?? null,
+				previousSeverity: previousAlert?.severity ?? null,
+			};
+		}),
+	};
+}
+
+export function buildRuntimeDescriptorRevocationHistorySnapshot(
+	reports,
+	options = {},
+) {
+	const normalized = (Array.isArray(reports) ? reports : [])
+		.map((report, index) =>
+			normalizeRuntimeDescriptorRevocationReport(
+				report,
+				report?.sourcePath ?? `report-${index + 1}`,
+			),
+		)
+		.sort((a, b) => a.generatedAt.localeCompare(b.generatedAt));
+
+	const maxPoints =
+		toPositiveInteger(options.maxPoints) ??
+		(options.maxPoints === 0 ? 0 : normalized.length);
+	const selected =
+		maxPoints > 0 && normalized.length > maxPoints
+			? normalized.slice(-maxPoints)
+			: normalized;
+
+	const latest = selected.at(-1) ?? null;
+	const previous = selected.length > 1 ? selected.at(-2) : null;
+	const delta =
+		latest && previous
+			? buildRuntimeDescriptorRevocationReportDelta(latest, previous)
+			: null;
+
+	return {
+		generatedAt: options.generatedAt ?? new Date().toISOString(),
+		reportsAnalyzed: selected.length,
+		timeline: summarizeRuntimeDescriptorRevocationReportTimeline(selected),
+		latest,
+		previous,
+		delta,
+	};
+}
+
+export function renderRuntimeDescriptorRevocationHistoryMarkdown(snapshot) {
+	const lines = [];
+	lines.push("# Runtime Descriptor Revocation History");
+	lines.push("");
+	lines.push(`Generated at: ${snapshot.generatedAt}`);
+	lines.push(`Reports analyzed: ${snapshot.reportsAnalyzed}`);
+	lines.push("");
+
+	if (snapshot.reportsAnalyzed === 0) {
+		lines.push("No reports available.");
+		lines.push("");
+		return lines.join("\n");
+	}
+
+	lines.push("## Timeline");
+	lines.push("");
+	lines.push(
+		"| generatedAt | totalEvents | unavailable | configDrift | staleCache | alerts(critical/warn/info) |",
+	);
+	lines.push("|---|---:|---:|---:|---:|---|");
+	for (const point of snapshot.timeline) {
+		lines.push(
+			`| ${point.generatedAt} | ${point.totalEvents} | ${point.unavailable} | ${point.configDrift} | ${point.staleCache} | ${point.alerts.critical}/${point.alerts.warn}/${point.alerts.info} |`,
+		);
+	}
+	lines.push("");
+
+	if (!snapshot.delta) {
+		lines.push("No previous report available to compute delta.");
+		lines.push("");
+		return lines.join("\n");
+	}
+
+	lines.push("## Latest delta (current vs previous)");
+	lines.push("");
+	lines.push(`- from: ${snapshot.delta.fromGeneratedAt}`);
+	lines.push(`- to: ${snapshot.delta.toGeneratedAt}`);
+	lines.push(`- totalEvents delta: **${snapshot.delta.totalEventsDelta}**`);
+	lines.push("");
+
+	lines.push("### Event deltas");
+	lines.push("");
+	lines.push("| Event | Delta |");
+	lines.push("|---|---:|");
+	for (const [event, delta] of Object.entries(snapshot.delta.byEventDelta)) {
+		lines.push(`| ${event} | ${delta} |`);
+	}
+	lines.push("");
+
+	lines.push("### Alert severity deltas");
+	lines.push("");
+	lines.push("| Severity | Delta |");
+	lines.push("|---|---:|");
+	lines.push(`| critical | ${snapshot.delta.alertSeverityDelta.critical} |`);
+	lines.push(`| warn | ${snapshot.delta.alertSeverityDelta.warn} |`);
+	lines.push(`| info | ${snapshot.delta.alertSeverityDelta.info} |`);
+	lines.push("");
+
+	lines.push("### Affected plugin changes");
+	lines.push("");
+	lines.push(
+		`- added: ${snapshot.delta.affectedPluginsAdded.join(", ") || "(none)"}`,
+	);
+	lines.push(
+		`- removed: ${snapshot.delta.affectedPluginsRemoved.join(", ") || "(none)"}`,
+	);
+	lines.push("");
+
+	return lines.join("\n");
+}

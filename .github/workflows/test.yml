@@ -198,6 +198,10 @@ jobs:
         if: needs.changes.outputs.tractor_gates == 'true'
         run: npm run runtime-descriptor:revocation-report:sample
 
+      - name: Revocation diagnostics history smoke (Tractor TS)
+        if: needs.changes.outputs.tractor_gates == 'true'
+        run: npm run runtime-descriptor:revocation-history:sample
+
       - name: Verify (Full Turbo)
         if: needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
@@ -382,7 +386,9 @@ jobs:
         uses: ./.github/actions/upload-artifact
         with:
           name: runtime-descriptor-revocation-report
-          path: .artifacts/runtime-descriptor-revocation-report
+          path: |
+            .artifacts/runtime-descriptor-revocation-report
+            .artifacts/runtime-descriptor-revocation-history
           retention-days: 14
           if-no-files-found: warn
 

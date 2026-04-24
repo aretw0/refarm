@@ -90,6 +90,18 @@ Saídas geradas:
 - `.artifacts/runtime-descriptor-revocation-report/summary.json`
 - `.artifacts/runtime-descriptor-revocation-report/summary.md`
 
+Para comparar com snapshots anteriores e obter delta automático:
+
+```bash
+npm run runtime-descriptor:revocation-history -- \
+  --history-dir .artifacts/runtime-descriptor-revocation-report \
+  --out-dir .artifacts/runtime-descriptor-revocation-history
+```
+
+Saídas históricas:
+- `.artifacts/runtime-descriptor-revocation-history/history.json`
+- `.artifacts/runtime-descriptor-revocation-history/history.md`
+
 ## 6) Comunicação mínima
 
 - janela de impacto;

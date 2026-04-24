@@ -1,10 +1,20 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
+import { rm, writeFile } from "node:fs/promises";
+import path from "node:path";
 import test from "node:test";
 import {
+	evaluateHistoryFailurePolicy,
+	resolveReportPaths,
+} from "./runtime-descriptor-revocation-history-lib.mjs";
+import {
+	buildRuntimeDescriptorRevocationHistorySnapshot,
 	buildRuntimeDescriptorRevocationReport,
+	buildRuntimeDescriptorRevocationReportDelta,
 	hasAlertAtOrAbove,
+	normalizeRuntimeDescriptorRevocationReport,
 	renderRevocationReportMarkdown,
+	renderRuntimeDescriptorRevocationHistoryMarkdown,
 	resolveRevocationReportThresholds,
 	summarizeRevocationEvents,
 } from "./runtime-descriptor-revocation-report-lib.mjs";
@@ -94,4 +104,179 @@ test("buildRuntimeDescriptorRevocationReport creates critical alert for fail-clo
 	assert.ok(markdown.includes("# Runtime Descriptor Revocation Report"));
 	assert.ok(markdown.includes("revocation-unavailable"));
 	assert.ok(markdown.includes("fail-closed"));
+});
+
+test("buildRuntimeDescriptorRevocationReportDelta computes deterministic counter deltas", () => {
+	const previous = normalizeRuntimeDescriptorRevocationReport({
+		generatedAt: "2026-04-24T08:00:00.000Z",
+		summary: {
+			totalEvents: 1,
+			byEvent: {
+				"system:descriptor_revocation_config_invalid": 0,
+				"system:descriptor_revocation_config_conflict": 0,
+				"system:descriptor_revocation_stale_cache_used": 0,
+				"system:descriptor_revocation_unavailable": 1,
+			},
+			byPolicy: { "fail-open": 1 },
+			byPolicySource: { fallback: 1 },
+			byProfile: { staging: 1 },
+			affectedPlugins: ["@acme/plugin-a"],
+		},
+		alerts: [
+			{
+				id: "revocation-unavailable",
+				severity: "warn",
+				count: 1,
+			},
+		],
+	});
+
+	const current = normalizeRuntimeDescriptorRevocationReport({
+		generatedAt: "2026-04-24T12:00:00.000Z",
+		summary: {
+			totalEvents: 3,
+			byEvent: {
+				"system:descriptor_revocation_config_invalid": 1,
+				"system:descriptor_revocation_config_conflict": 0,
+				"system:descriptor_revocation_stale_cache_used": 1,
+				"system:descriptor_revocation_unavailable": 1,
+			},
+			byPolicy: { "fail-open": 1, "stale-allowed": 2 },
+			byPolicySource: { fallback: 1, "environment-profile": 2 },
+			byProfile: { staging: 2, dev: 1 },
+			affectedPlugins: ["@acme/plugin-a", "@acme/plugin-b"],
+		},
+		alerts: [
+			{
+				id: "revocation-unavailable",
+				severity: "warn",
+				count: 1,
+			},
+			{
+				id: "revocation-stale-cache",
+				severity: "warn",
+				count: 1,
+			},
+		],
+	});
+
+	const delta = buildRuntimeDescriptorRevocationReportDelta(current, previous);
+	assert.equal(delta.totalEventsDelta, 2);
+	assert.equal(
+		delta.byEventDelta["system:descriptor_revocation_config_invalid"],
+		1,
+	);
+	assert.deepEqual(delta.affectedPluginsAdded, ["@acme/plugin-b"]);
+	assert.equal(delta.alertSeverityDelta.warn, 1);
+});
+
+test("buildRuntimeDescriptorRevocationHistorySnapshot orders reports and renders timeline markdown", () => {
+	const snapshot = buildRuntimeDescriptorRevocationHistorySnapshot(
+		[
+			{
+				generatedAt: "2026-04-24T12:00:00.000Z",
+				summary: {
+					totalEvents: 2,
+					byEvent: {
+						"system:descriptor_revocation_config_invalid": 1,
+						"system:descriptor_revocation_config_conflict": 0,
+						"system:descriptor_revocation_stale_cache_used": 0,
+						"system:descriptor_revocation_unavailable": 1,
+					},
+					byPolicy: { "fail-open": 2 },
+					byPolicySource: { fallback: 2 },
+					byProfile: { staging: 2 },
+					affectedPlugins: ["@acme/plugin-a"],
+				},
+				alerts: [],
+			},
+			{
+				generatedAt: "2026-04-24T08:00:00.000Z",
+				summary: {
+					totalEvents: 1,
+					byEvent: {
+						"system:descriptor_revocation_config_invalid": 0,
+						"system:descriptor_revocation_config_conflict": 0,
+						"system:descriptor_revocation_stale_cache_used": 0,
+						"system:descriptor_revocation_unavailable": 1,
+					},
+					byPolicy: { "fail-open": 1 },
+					byPolicySource: { fallback: 1 },
+					byProfile: { staging: 1 },
+					affectedPlugins: ["@acme/plugin-a"],
+				},
+				alerts: [
+					{
+						id: "revocation-unavailable",
+						severity: "warn",
+						count: 1,
+					},
+				],
+			},
+		],
+		{ maxPoints: 2, generatedAt: "2026-04-24T13:00:00.000Z" },
+	);
+
+	assert.equal(snapshot.generatedAt, "2026-04-24T13:00:00.000Z");
+	assert.equal(snapshot.reportsAnalyzed, 2);
+	assert.equal(snapshot.timeline[0].generatedAt, "2026-04-24T08:00:00.000Z");
+	assert.equal(snapshot.delta.totalEventsDelta, 1);
+
+	const markdown = renderRuntimeDescriptorRevocationHistoryMarkdown(snapshot);
+	assert.ok(markdown.includes("# Runtime Descriptor Revocation History"));
+	assert.ok(markdown.includes("Latest delta"));
+});
+
+test("resolveReportPaths supports explicit reports and reports-file", async () => {
+	const cwd = process.cwd();
+	const reportsFile = path.resolve(
+		cwd,
+		".tmp-runtime-descriptor-report-paths.txt",
+	);
+	await writeFile(
+		reportsFile,
+		"scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json\n",
+	);
+
+	try {
+		const reportPaths = await resolveReportPaths({
+			root: cwd,
+			reports:
+				"scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json",
+			reportsFile,
+		});
+
+		assert.equal(reportPaths.length, 2);
+		assert.equal(
+			reportPaths.some((entry) =>
+				entry.endsWith("runtime-descriptor-revocation-report.current.json"),
+			),
+			true,
+		);
+	} finally {
+		await rm(reportsFile, { force: true });
+	}
+});
+
+test("evaluateHistoryFailurePolicy throws on configured unavailable delta", () => {
+	const snapshot = {
+		delta: {
+			totalEventsDelta: 0,
+			byEventDelta: {
+				"system:descriptor_revocation_unavailable": 2,
+			},
+			alertSeverityDelta: {
+				critical: 0,
+			},
+		},
+		latest: { alerts: [] },
+	};
+
+	assert.throws(
+		() =>
+			evaluateHistoryFailurePolicy(snapshot, {
+				"fail-on-unavailable-increase": 2,
+			}),
+		/failure policy triggered/,
+	);
 });
