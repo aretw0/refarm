@@ -104,6 +104,38 @@ Requires [`cargo-component`](https://github.com/bytecodealliance/cargo-component
 
 ---
 
+## Run
+
+After building, start the tractor daemon with pi-agent loaded:
+
+```bash
+# From repo root — set your LLM provider via env vars (LLM_* are forwarded to the plugin)
+export ANTHROPIC_API_KEY=sk-ant-...           # if using Anthropic
+export LLM_PROVIDER=anthropic                 # or: ollama (no key needed, requires local Ollama)
+export LLM_MODEL=claude-sonnet-4-6            # optional model override
+
+TRACTOR=packages/tractor/target/release/tractor
+WASM=packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
+
+# Start daemon (Ctrl+C to stop)
+$TRACTOR --plugin "$WASM" --log-level info
+
+# In a second terminal — send a prompt and wait for response
+$TRACTOR prompt --agent pi_agent --payload "list the files in packages/pi-agent/"
+
+# Watch for new responses (polling mode)
+$TRACTOR watch
+```
+
+**Important**: `--agent` must be `pi_agent` (underscore), matching the `.wasm` filename stem.
+
+**Note on `.refarm/config.json`**: The `provider`/`model` fields there document intent but
+LLM routing uses environment variables (`LLM_PROVIDER`, `LLM_MODEL`). Set those before
+starting the daemon. The `LLM_FS_ROOT` and `LLM_SHELL_ALLOWLIST` fields ARE loaded from
+config.json by the `agent-tools` policy layer.
+
+---
+
 ## Test
 
 ```bash
