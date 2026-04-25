@@ -26,6 +26,14 @@ retry() {
 
 log "Starting post-create setup..."
 
+# 0) Git symlink support — must run before any checkout/npm ci
+# core.symlinks=false (Windows NTFS default) materializes symlinks as regular files.
+# In a Linux devcontainer the filesystem supports symlinks natively, so enable it
+# and re-checkout any tracked symlinks so they resolve correctly.
+log "Ensuring git core.symlinks=true for Linux devcontainer..."
+git config core.symlinks true
+git ls-files -s | awk '/^120000/ {print $4}' | xargs -r git checkout -- 2>/dev/null || true
+
 # 1) Cache and tool directories
 log "Preparing cache directories and permissions..."
 for dir in \
