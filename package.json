@@ -65,7 +65,11 @@
 		"task:sync-labels": "refarm-task sync-labels",
 		"scope:status": "node packages/toolbox/src/cli.mjs scope status",
 		"scope:to:personal": "node packages/toolbox/src/cli.mjs scope apply --profile personal --set-active",
-		"scope:to:organization": "node packages/toolbox/src/cli.mjs scope apply --profile organization --set-active"
+		"scope:to:organization": "node packages/toolbox/src/cli.mjs scope apply --profile organization --set-active",
+		"agent:keys": "node scripts/setup-llm-keys.mjs",
+		"agent:keys:status": "node scripts/setup-llm-keys.mjs --status",
+		"agent:start": "bash scripts/tractor-start.sh",
+		"agent:prompt": "packages/tractor/target/release/tractor prompt --agent pi_agent"
 	},
 	"repository": {
 		"type": "git",
