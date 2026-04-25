@@ -626,6 +626,43 @@
 				"T-NEXT-245",
 				"T-NEXT-263"
 			]
+		},
+		{
+			"id": "REQ-AGENT-001",
+			"description": "O pi-agent deve ter acesso a ferramentas de leitura e escrita de arquivos estruturados (JSON, TOML, YAML, código) via interface centralizada e schema-aware — evitando que o agente faça parsing/escrita manual que pode estourar contexto ou introduzir erros de formato.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Análogo a não deixar agentes escrever SQL na mão: a interface centralizada garante invariantes de formato e reduz tokens gastos em serialização. Inspirado no projeto loam (aretw0/loam) que centraliza parsers/writers de arquivos estruturados para humanos e agentes. A ideia pode se expandir para APIs além do filesystem.",
+			"acceptance_criteria": [
+				"pi-agent tem tool `read_structured(path, schema?)` que retorna payload tipado sem expor bytes brutos",
+				"pi-agent tem tool `write_structured(path, schema, data)` que valida antes de persistir",
+				"Leitura de arquivo grande não estoura o budget de contexto — paginação ou summarização automática",
+				"Interface é um contrato WIT separado (`structured-io`) reutilizável por outros plugins"
+			],
+			"traces_to": [
+				"T-NEXT-266"
+			]
+		},
+		{
+			"id": "REQ-AGENT-002",
+			"description": "Operações de edição de código pelo pi-agent devem ser semânticas quando possível (renomear símbolo, mover função, extrair variável) em vez de substituição de texto — eliminando erros de inconsistência que surgem quando o agente tenta acertar todas as ocorrências na mão.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Um desenvolvedor com IDE usa 'rename symbol' e confia que o LSP vai propagar para o projeto inteiro. O agente precisa da mesma garantia. Tentar substituir todas as ocorrências via write_file é uma fonte sistemática de erros — especialmente em renomeações ou mudanças de assinatura que cruzam módulos.",
+			"acceptance_criteria": [
+				"pi-agent tem tool `rename_symbol(file, line, col, new_name)` via LSP",
+				"pi-agent tem tool `find_references(file, line, col)` para validar escopo de uma mudança antes de aplicá-la",
+				"Operações semânticas são atômicas e reversíveis (backup antes de aplicar)",
+				"Interface exposta como contrato WIT `code-ops` separado para não acoplar ao LSP específico"
+			],
+			"traces_to": [
+				"T-NEXT-267",
+				"T-NEXT-268"
+			]
 		}
 	]
 }

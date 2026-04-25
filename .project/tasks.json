@@ -6410,6 +6410,54 @@
 			"assigned_agent": "worker-governance",
 			"verification": "VER-NEXT-265-20260424",
 			"notes": "Concluído no lote NEXT11 (baseline artifact integration) em 2026-04-24T20:20:24.277Z."
+		},
+		{
+			"id": "T-NEXT-266",
+			"description": "Avaliar loam (aretw0/loam) como referência de design para REQ-AGENT-001: analisar cobertura de formatos (JSON/TOML/YAML/código), API surface, modelo de extensão para além do filesystem, e grau de reuso como contrato WIT `structured-io` no pi-agent.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/agent-tools/wit/",
+				"packages/pi-agent/src/lib.rs"
+			],
+			"acceptance_criteria": [
+				"Análise de loam documentada: o que reaproveitar, o que adaptar, o que descartar",
+				"Esboço de WIT `structured-io` com 3–5 operações mínimas viáveis",
+				"Decisão registrada: integrar loam vs criar contrato próprio"
+			],
+			"notes": "Backlog estratégico — não bloqueia nenhum item corrente. Referência: aretw0/loam no GitHub."
+		},
+		{
+			"id": "T-NEXT-267",
+			"description": "Definir roadmap de semantic code tools para pi-agent (REQ-AGENT-002): especificar contrato WIT `code-ops` com operações rename_symbol, find_references e move_symbol via LSP, identificar qual LSP server usar (rust-analyzer, tsserver, etc.) e como wrapear como capability do tractor.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/agent-tools/wit/",
+				"packages/pi-agent/ROADMAP.md"
+			],
+			"acceptance_criteria": [
+				"Contrato WIT `code-ops` esboçado com pelo menos rename_symbol e find_references",
+				"Decisão de integração LSP documentada (in-process vs subprocess vs MCP)",
+				"Roadmap adicionado ao pi-agent ROADMAP.md como v0.3.0"
+			],
+			"notes": "Backlog estratégico — depende de pi-agent v0.2.0 estável antes de executar."
+		},
+		{
+			"id": "T-NEXT-268",
+			"description": "Prototipar tool `read_structured` no pi-agent: aceita path + formato (json|toml|yaml) e retorna payload tipado com paginação automática para arquivos grandes — evitando explosão de contexto em arquivos como package.json, Cargo.toml ou tasks.json do projeto.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/agent-tools/src/lib.rs",
+				"packages/agent-tools/wit/"
+			],
+			"acceptance_criteria": [
+				"Tool `read_structured(path, format, page_size?)` implementada em agent-tools",
+				"Arquivos > 50KB retornam sumário + primeiros N campos por padrão",
+				"Teste cobre leitura de tasks.json (arquivo grande do projeto) sem estourar limite de tokens"
+			],
+			"notes": "Backlog estratégico — prototipagem pode começar em paralelo com pi-agent v0.2.0."
 		}
 	]
 }
