@@ -6462,7 +6462,7 @@
     {
       "id": "T-NEXT-269",
       "description": "Definir nó CRDT `Session` no schema do tractor: campos id, leaf_entry_id, name, parent_session_id (nullable), created_at_ns. Documentar schema em SCHEMA.md e garantir que store_node aceita @type=Session.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/tractor/src/",
@@ -6479,7 +6479,7 @@
     {
       "id": "T-NEXT-270",
       "description": "Definir nó CRDT `SessionEntry` no schema do tractor: campos id, session_id, parent_entry_id (nullable), kind (user|agent|tool_call|tool_result), content, timestamp_ns. Inserção automática usa leaf_entry_id da Session como parent.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/tractor/src/",

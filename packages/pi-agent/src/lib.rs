@@ -350,6 +350,93 @@ fn budget_exceeded_for_provider(provider_name: &str) -> bool {
     sum_provider_spend_usd(&records, provider_name, now_ns(), WINDOW_30D_NS) >= budget
 }
 
+// ── Session primitives (pure — testable on native) ───────────────────────────
+
+/// Build a Session node JSON payload.
+/// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
+/// `parent_session_id`: set when this session is a fork of another (None for root).
+fn session_node(
+    id: &str,
+    name: Option<&str>,
+    leaf_entry_id: Option<&str>,
+    parent_session_id: Option<&str>,
+    created_at_ns: u64,
+) -> serde_json::Value {
+    serde_json::json!({
+        "@type":             "Session",
+        "@id":               id,
+        "name":              name,
+        "leaf_entry_id":     leaf_entry_id,
+        "parent_session_id": parent_session_id,
+        "created_at_ns":     created_at_ns,
+    })
+}
+
+/// Build a SessionEntry node JSON payload.
+/// `parent_entry_id`: previous entry in the conversation chain (None for tree root).
+/// `kind`: one of "user" | "agent" | "tool_call" | "tool_result".
+fn session_entry_node(
+    id: &str,
+    session_id: &str,
+    parent_entry_id: Option<&str>,
+    kind: &str,
+    content: &str,
+    timestamp_ns: u64,
+) -> serde_json::Value {
+    serde_json::json!({
+        "@type":           "SessionEntry",
+        "@id":             id,
+        "session_id":      session_id,
+        "parent_entry_id": parent_entry_id,
+        "kind":            kind,
+        "content":         content,
+        "timestamp_ns":    timestamp_ns,
+    })
+}
+
+/// Create and persist a new Session. Returns the session `@id`.
+#[cfg(target_arch = "wasm32")]
+fn store_new_session(name: Option<&str>) -> Option<String> {
+    let session_id = format!("urn:pi-agent:session-{}", new_id());
+    let node = session_node(&session_id, name, None, None, now_ns());
+    tractor_bridge::store_node(&node.to_string()).ok()?;
+    Some(session_id)
+}
+
+/// Append a SessionEntry under `session_id`, wiring `parent_entry_id` from the
+/// current `leaf_entry_id` read from the stored Session node. Updates the session
+/// leaf pointer after successful store. Returns the new entry `@id`.
+#[cfg(target_arch = "wasm32")]
+fn append_to_session(session_id: &str, kind: &str, content: &str) -> Option<String> {
+    let current_leaf = tractor_bridge::get_node(session_id).ok().and_then(|raw| {
+        serde_json::from_str::<serde_json::Value>(&raw).ok()?
+            .get("leaf_entry_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_owned())
+    });
+
+    let entry_id = format!("urn:pi-agent:entry-{}", new_id());
+    let entry = session_entry_node(
+        &entry_id,
+        session_id,
+        current_leaf.as_deref(),
+        kind,
+        content,
+        now_ns(),
+    );
+    tractor_bridge::store_node(&entry.to_string()).ok()?;
+
+    // Update session leaf pointer (read-modify-write: preserve other fields).
+    if let Ok(raw) = tractor_bridge::get_node(session_id) {
+        if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&raw) {
+            v["leaf_entry_id"] = serde_json::Value::String(entry_id.clone());
+            let _ = tractor_bridge::store_node(&v.to_string());
+        }
+    }
+
+    Some(entry_id)
+}
+
 // ── edit_file core logic (pure — testable on native) ─────────────────────────
 
 /// Apply ordered string replacements to `content`. Returns `Err` with a human message
@@ -990,6 +1077,79 @@ mod tests {
             assert!(node["llm"].get(sub).is_some(), "llm missing: {sub}");
         }
     }
+
+    // ── Session schema tests ──────────────────────────────────────────────────
+
+    #[test]
+    fn session_node_has_required_fields() {
+        let ts = 1_700_000_000_000_000_000_u64;
+        let node = session_node("urn:pi-agent:session-abc", Some("test"), None, None, ts);
+        assert_eq!(node["@type"], "Session");
+        assert_eq!(node["@id"],   "urn:pi-agent:session-abc");
+        assert_eq!(node["name"],  "test");
+        assert!(node["leaf_entry_id"].is_null(), "new session has no leaf yet");
+        assert!(node["parent_session_id"].is_null(), "root session has no parent");
+        assert_eq!(node["created_at_ns"], ts);
+    }
+
+    #[test]
+    fn session_node_with_leaf_and_parent() {
+        let node = session_node(
+            "urn:pi-agent:session-fork",
+            Some("fork"),
+            Some("urn:pi-agent:entry-42"),
+            Some("urn:pi-agent:session-root"),
+            42,
+        );
+        assert_eq!(node["leaf_entry_id"],     "urn:pi-agent:entry-42");
+        assert_eq!(node["parent_session_id"], "urn:pi-agent:session-root");
+    }
+
+    #[test]
+    fn session_entry_node_root_has_null_parent() {
+        let entry = session_entry_node(
+            "urn:pi-agent:entry-001",
+            "urn:pi-agent:session-s1",
+            None,
+            "user",
+            "hello",
+            100,
+        );
+        assert_eq!(entry["@type"],           "SessionEntry");
+        assert_eq!(entry["@id"],             "urn:pi-agent:entry-001");
+        assert_eq!(entry["session_id"],      "urn:pi-agent:session-s1");
+        assert!(entry["parent_entry_id"].is_null(), "root entry has no parent");
+        assert_eq!(entry["kind"],            "user");
+        assert_eq!(entry["content"],         "hello");
+        assert_eq!(entry["timestamp_ns"],    100);
+    }
+
+    #[test]
+    fn session_entry_chain_has_correct_parents() {
+        let e1 = session_entry_node("urn:pi-agent:entry-001", "urn:pi-agent:session-s1", None,                            "user",  "hi",   10);
+        let e2 = session_entry_node("urn:pi-agent:entry-002", "urn:pi-agent:session-s1", Some("urn:pi-agent:entry-001"), "agent", "hello", 20);
+        let e3 = session_entry_node("urn:pi-agent:entry-003", "urn:pi-agent:session-s1", Some("urn:pi-agent:entry-002"), "user",  "more",  30);
+
+        assert!(e1["parent_entry_id"].is_null());
+        assert_eq!(e2["parent_entry_id"], "urn:pi-agent:entry-001");
+        assert_eq!(e3["parent_entry_id"], "urn:pi-agent:entry-002");
+    }
+
+    #[test]
+    fn session_entry_branch_shares_ancestor() {
+        // Two branches from the same parent — simulates navigate-back + new message
+        let root = session_entry_node("urn:pi-agent:entry-root", "urn:pi-agent:session-s1", None,                             "user",  "start", 1);
+        let branch_a = session_entry_node("urn:pi-agent:entry-a",    "urn:pi-agent:session-s1", Some("urn:pi-agent:entry-root"), "agent", "path A", 2);
+        let branch_b = session_entry_node("urn:pi-agent:entry-b",    "urn:pi-agent:session-s1", Some("urn:pi-agent:entry-root"), "agent", "path B", 3);
+
+        // Both branches reference the same root parent
+        assert_eq!(branch_a["parent_entry_id"], root["@id"]);
+        assert_eq!(branch_b["parent_entry_id"], root["@id"]);
+        // But have different identities
+        assert_ne!(branch_a["@id"], branch_b["@id"]);
+    }
+
+    // ── /new_id / now_ns ─────────────────────────────────────────────────────
 
     #[test]
     fn new_id_is_unique() {
