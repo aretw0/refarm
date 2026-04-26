@@ -163,11 +163,20 @@ function checkRateLimit() {
 function queryNodes(type, limit = 100) {
   const r = spawnSync(
     TRACTOR,
-    ['query', '--type', type, '--limit', String(limit), '--ws-port', WS_PORT, '--namespace', NS, '--format', 'json'],
+    ['query', '--type', type, '--limit', String(limit), '--namespace', NS, '--format', 'json'],
     { encoding: 'utf8', timeout: 5000, env: process.env }
   );
   if (r.status !== 0) return [];
   try { return JSON.parse(r.stdout || '[]'); } catch { return []; }
+}
+
+function storeNode(payload) {
+  const r = spawnSync(
+    TRACTOR,
+    ['store-node', '--payload', JSON.stringify(payload), '--namespace', NS],
+    { encoding: 'utf8', timeout: 5000, env: process.env }
+  );
+  return r.status === 0;
 }
 
 function printTree() {
@@ -260,21 +269,78 @@ function printSessions() {
   console.log('');
 }
 
+// ── /fork and /navigate ───────────────────────────────────────────────────────
+
+function newHexId() {
+  const ts = BigInt(Date.now()) * 1_000_000n;
+  const seq = Math.floor(Math.random() * 0xffff);
+  return ts.toString(16).padStart(16, '0') + seq.toString(16).padStart(4, '0');
+}
+
+function activeSession() {
+  const sessions = queryNodes('Session', 10);
+  if (sessions.length === 0) return null;
+  sessions.sort((a, b) => (b.created_at_ns || 0) - (a.created_at_ns || 0));
+  return sessions[0];
+}
+
+function forkSession(name) {
+  const session = activeSession();
+  if (!session) {
+    console.log(`\n${c.red}No active session found. Start a conversation first.${c.reset}\n`);
+    return;
+  }
+  const forkId = `urn:pi-agent:session-${newHexId()}`;
+  const forkNode = {
+    '@type': 'Session',
+    '@id': forkId,
+    'name': name || null,
+    'leaf_entry_id': session.leaf_entry_id || null,
+    'parent_session_id': session['@id'],
+    'created_at_ns': Date.now() * 1_000_000,
+  };
+  const ok = storeNode(forkNode);
+  if (ok) {
+    console.log(`\n${c.green}Forked:${c.reset} ${c.cyan}${forkId}${c.reset}`);
+    console.log(`${c.dim}Parent: ${session['@id']}  leaf: ${session.leaf_entry_id || '(empty)'}${c.reset}\n`);
+  } else {
+    console.log(`\n${c.red}Fork failed — is tractor running?${c.reset}\n`);
+  }
+}
+
+function navigateSession(entryId) {
+  const session = activeSession();
+  if (!session) {
+    console.log(`\n${c.red}No active session found.${c.reset}\n`);
+    return;
+  }
+  const updated = { ...session, leaf_entry_id: entryId };
+  const ok = storeNode(updated);
+  if (ok) {
+    console.log(`\n${c.green}Navigated:${c.reset} ${c.dim}leaf = ${entryId}${c.reset}\n`);
+  } else {
+    console.log(`\n${c.red}Navigate failed — is tractor running?${c.reset}\n`);
+  }
+}
+
 // ── slash commands ────────────────────────────────────────────────────────────
 
 function handleSlashCommand(line) {
-  const cmd = line.trim().toLowerCase();
+  const trimmed = line.trim();
+  const cmd = trimmed.toLowerCase();
   if (cmd === '/quit' || cmd === '/exit') {
     console.log(`\n${c.dim}Goodbye.${c.reset}\n`);
     process.exit(0);
   }
   if (cmd === '/help') {
     console.log(`\n${c.bold}Commands:${c.reset}`);
-    console.log(`  ${c.cyan}/help${c.reset}      — show this message`);
-    console.log(`  ${c.cyan}/quit${c.reset}      — exit the REPL`);
-    console.log(`  ${c.cyan}/clear${c.reset}     — clear the screen`);
-    console.log(`  ${c.cyan}/tree${c.reset}      — show session branch tree (most recent session)`);
-    console.log(`  ${c.cyan}/sessions${c.reset}  — list all sessions with id, name, and date`);
+    console.log(`  ${c.cyan}/help${c.reset}               — show this message`);
+    console.log(`  ${c.cyan}/quit${c.reset}               — exit the REPL`);
+    console.log(`  ${c.cyan}/clear${c.reset}              — clear the screen`);
+    console.log(`  ${c.cyan}/tree${c.reset}               — show session branch tree (most recent session)`);
+    console.log(`  ${c.cyan}/sessions${c.reset}           — list all sessions with id, name, and date`);
+    console.log(`  ${c.cyan}/fork [name]${c.reset}        — fork current session at its current leaf`);
+    console.log(`  ${c.cyan}/navigate <entry_id>${c.reset} — move session pointer to a specific entry`);
     console.log(`\n${c.dim}Everything else is sent as a prompt to pi-agent.${c.reset}\n`);
     return true;
   }
@@ -288,6 +354,20 @@ function handleSlashCommand(line) {
   }
   if (cmd === '/sessions') {
     printSessions();
+    return true;
+  }
+  if (cmd.startsWith('/fork')) {
+    const name = trimmed.slice(5).trim() || null;
+    forkSession(name);
+    return true;
+  }
+  if (cmd.startsWith('/navigate ')) {
+    const entryId = trimmed.slice(10).trim();
+    if (!entryId) {
+      console.log(`${c.yellow}Usage: /navigate <entry_id>${c.reset}`);
+    } else {
+      navigateSession(entryId);
+    }
     return true;
   }
   return false;

@@ -36,6 +36,10 @@ enum Command {
     Watch(WatchArgs),
     /// Validate runtime boot + daemon websocket readiness.
     Health(HealthArgs),
+    /// Query CRDT nodes by type from local storage (no daemon required).
+    Query(QueryArgs),
+    /// Store a raw CRDT node payload into local storage (no daemon required).
+    StoreNode(StoreNodeArgs),
 }
 
 #[derive(Args, Debug, Clone)]
@@ -232,6 +236,36 @@ struct HealthArgs {
     skip_boot_probe: bool,
 }
 
+#[derive(Args, Debug)]
+struct QueryArgs {
+    /// Node type to query (e.g. Session, SessionEntry, AgentResponse).
+    #[arg(long)]
+    r#type: String,
+
+    /// Maximum number of nodes to return.
+    #[arg(long, default_value_t = 100)]
+    limit: usize,
+
+    /// Storage namespace.
+    #[arg(long, default_value = "default")]
+    namespace: String,
+
+    /// Output format: json (array of payloads) or plain (one payload per line).
+    #[arg(long, default_value = "json")]
+    format: String,
+}
+
+#[derive(Args, Debug)]
+struct StoreNodeArgs {
+    /// JSON payload of the node to store (must contain @type and @id).
+    #[arg(long)]
+    payload: String,
+
+    /// Storage namespace.
+    #[arg(long, default_value = "default")]
+    namespace: String,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum OutputFormat {
     #[default]
@@ -266,10 +300,12 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Command::Prompt(args)) => run_prompt(args).await,
-        Some(Command::Watch(args)) => run_watch(args).await,
-        Some(Command::Health(args)) => run_health(args).await,
-        None => run_daemon(cli.daemon).await,
+        Some(Command::Prompt(args))    => run_prompt(args).await,
+        Some(Command::Watch(args))     => run_watch(args).await,
+        Some(Command::Health(args))    => run_health(args).await,
+        Some(Command::Query(args))     => run_query(args),
+        Some(Command::StoreNode(args)) => run_store_node(args),
+        None                           => run_daemon(cli.daemon).await,
     }
 }
 
@@ -479,6 +515,48 @@ async fn send_user_prompt(port: u16, agent: &str, payload: &str) -> Result<()> {
         .context("send user:prompt")?;
 
     let _ = sink.close().await;
+    Ok(())
+}
+
+fn run_query(args: QueryArgs) -> Result<()> {
+    let storage = NativeStorage::open(&args.namespace)
+        .with_context(|| format!("open storage namespace '{}'", args.namespace))?;
+
+    let rows = storage.query_nodes(&args.r#type)?;
+    let rows: Vec<_> = rows.into_iter().take(args.limit).collect();
+
+    if args.format.eq_ignore_ascii_case("json") {
+        let payloads: Vec<serde_json::Value> = rows.iter()
+            .filter_map(|r| serde_json::from_str(&r.payload).ok())
+            .collect();
+        println!("{}", serde_json::to_string(&payloads).unwrap_or_else(|_| "[]".into()));
+    } else {
+        for row in &rows {
+            println!("{}", row.payload);
+        }
+    }
+    Ok(())
+}
+
+fn run_store_node(args: StoreNodeArgs) -> Result<()> {
+    // Validate: payload must be valid JSON with @type and @id.
+    let v: serde_json::Value = serde_json::from_str(&args.payload)
+        .context("--payload must be valid JSON")?;
+    let node_type = v["@type"].as_str()
+        .ok_or_else(|| anyhow::anyhow!("payload must contain @type field"))?;
+    let node_id = v["@id"].as_str()
+        .ok_or_else(|| anyhow::anyhow!("payload must contain @id field"))?;
+
+    let storage = NativeStorage::open(&args.namespace)
+        .with_context(|| format!("open storage namespace '{}'", args.namespace))?;
+
+    let sync = tractor::NativeSync::new(storage, &args.namespace)
+        .context("create NativeSync for store-node")?;
+
+    sync.store_node(node_id, node_type, None, &args.payload, Some("tractor-cli"))
+        .context("store_node failed")?;
+
+    println!("stored {node_type} {node_id}");
     Ok(())
 }
 
