@@ -87,12 +87,17 @@ Context engineering follows the pi-test-harness model:
 ### Daily-driver CLI
 > Inspired by Pi CLI and Claude Code: invoke the agent from a terminal without a WebSocket client.
 - [x] `tractor prompt --agent pi-agent "do something"` subcommand
-  - Connects to a running daemon (`--port`, default 42000), sends `user:prompt`, and supports waiting for final `AgentResponse`
-  - Implementado em `packages/tractor/src/main.rs` com subcomando `prompt`
-  - Inclui fallback operacional por storage quando necessário (modo resiliente de sessão)
-- [x] `tractor watch` — loop de observação das respostas do agente
-  - Implementado em `packages/tractor/src/main.rs` com subcomando `watch`
-  - Usa polling de storage SQLite como fallback resiliente para acompanhar `AgentResponse`
+- [x] `tractor watch` — polling loop for AgentResponse nodes
+- [x] `tractor query --type <T> --namespace <N>` — read CRDT nodes from local storage (no daemon)
+- [x] `tractor store-node --payload <JSON>` — store raw CRDT node (no daemon)
+- [x] `npm run agent:daemon` — start tractor in background with PID file
+- [x] `npm run agent:stop` — graceful stop via PID file
+- [x] `npm run agent:status` — health check: daemon, keys, WASM age, LLM config, LLM_FS_ROOT safety
+- [x] `npm run agent:repl` — interactive multi-turn REPL with history, `/tree`, `/sessions`, `/fork`, `/navigate`
+  - ANSI stripping + 200-line output truncation per response
+  - Soft rate limit warning from CRDT UsageRecord nodes (yellow >20/h, red >40/h)
+  - `/fork [name]` — branch current session at leaf, writes to CRDT directly
+  - `/navigate <entry_id>` — move session pointer, writes to CRDT directly
 
 ### Streaming token output
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
@@ -111,16 +116,22 @@ Context engineering follows the pi-test-harness model:
 ### Expanded tools
 - [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, agents-lab curated)
 - [x] `list_dir` — directory listing via `bash ls -1`
-- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeez pipeline: strip ANSI → dedup → truncate
-- [x] ANSI stripping, consecutive line dedup, cross-call FNV-1a dedup
-- [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches via `bash grep -rn`; exit 1 with no output → friendly "no matches" message
-- [x] `LLM_TOOL_OUTPUT_MAX_LINES` harness scenario: assert truncation header in AgentResponse tool_calls
+- [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches
+- [x] `LLM_TOOL_OUTPUT_MAX_LINES` — squeeze pipeline: strip ANSI → dedup → truncate
+- [x] `read_structured` — parse JSON/TOML/YAML with `page_size`/`page_offset` pagination
+- [x] `write_structured` — validate JSON/TOML/YAML then write atomically (rejects invalid before touching file)
+- [x] `list_sessions` / `current_session` — LLM can inspect its own session tree
+- [x] `navigate` / `fork` — LLM can rewind and branch its own conversation
 
 ### Harness expansion
 - [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged
 - [x] Fallback scenario: anthropic fails → ollama mock serves
 - [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
 - [x] `.refarm/config.json` scenario: write config to temp dir, assert `LLM_PROVIDER` injected into plugin
+- [x] Session wiring scenario: two prompts → leaf_entry_id advances, SessionEntry count grows
+- [x] write_structured scenario: mock tool call → file created on disk with valid JSON
+- [x] read_structured scenario: mock tool call → pagination header in tool result
+- [x] LLM_AGENT_ID scenario: all new_id() nodes carry `urn:farmhand:<id>:` prefix
 
 ---
 
@@ -128,59 +139,15 @@ Context engineering follows the pi-test-harness model:
 
 **Scope**: refarm-stack compatibility, distro enablement, multi-agent coordination, semantic code tools.
 
-### Structured I/O tools (`structured-io`)
-> REQ-AGENT-001 — T-NEXT-266/268
+### Structured I/O tools (`structured-io`) ✅ DONE
+> REQ-AGENT-001 — T-NEXT-266/268/275/278/284
 
-**Loam evaluation** (`aretw0/loam` — Go library, local-first document store):
-
-| Property | Loam | structured-io (to build) |
-|---|---|---|
-| Formats | JSON, YAML, Markdown+frontmatter, CSV | JSON, TOML, YAML, Markdown (add TOML — critical for Cargo.toml) |
-| Large files | No pagination | `page_size` + `page_offset` required |
-| Typed API | `OpenTypedRepository[T]()` generics | WIT records (type-safe at component boundary) |
-| Audit trail | `ChangeReasonKey` on every write | `reason` field in `write-opts` — same concept |
-| WIT interface | None (Go-only) | Must invent — no prior art in WASM ecosystem |
-| File watching | `Watch()` reactive | Not needed for agent use case |
-
-**Decision**: adopt audit-trail and auto-detect patterns; invent the WIT interface and pagination.
-
-**WIT interface sketch** (`interface structured-io` in `agent-tools/wit/`):
-```wit
-interface structured-io {
-    enum file-format { json, toml, yaml, markdown }
-
-    record read-opts {
-        format: option<file-format>,  // auto-detect from extension if none
-        page-size: option<u32>,       // none = return all (may overflow LLM context)
-        page-offset: option<u32>,
-    }
-
-    record read-result {
-        content: string,   // canonical JSON representation of parsed document
-        total-lines: u32,
-        truncated: bool,
-    }
-
-    record write-opts {
-        format: option<file-format>,
-        validate: bool,    // reject malformed before write
-        reason: string,    // audit trail (loam's ChangeReasonKey pattern)
-    }
-
-    /// Parse a structured file and return its content as canonical JSON.
-    /// Large files are paginated by page-size if specified.
-    read-structured:  func(path: string, opts: read-opts)  -> result<read-result, string>;
-
-    /// Validate and write content to a structured file (atomic).
-    write-structured: func(path: string, content: string, opts: write-opts) -> result<_, string>;
-}
-```
-
-- [ ] Add `structured-io` interface to `packages/agent-tools/wit/world.wit`
-- [ ] Implement in `packages/agent-tools/src/lib.rs`: JSON (serde_json), TOML (toml crate), YAML (serde_yaml)
-- [ ] `page_size > 0`: return first N lines of re-serialized content + `truncated: true`
-- [ ] Expose as pi-agent tool: `read_structured(path, format?, page_size?)`
-- [ ] Test: read `tasks.json` (>6K lines) with `page_size=50` — assert `truncated: true`
+- [x] `read_structured` pi-agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
+- [x] `write_structured` pi-agent tool: validate-before-write for all three formats (T-NEXT-278)
+- [x] `structured-io` WIT interface in `agent-tools/wit/world.wit` (T-NEXT-284)
+  - `read-structured` and `write-structured` exported from `agent-tools-provider` world
+  - Shared layer: any plugin or host-facing tool imports without duplicating parse logic
+- [x] 93 unit tests total across formats, pagination, and validation paths
 
 ### Semantic code operations (`code-ops`)
 > REQ-AGENT-002 — T-NEXT-267/268
@@ -245,10 +212,12 @@ interface code-ops {
 - [x] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
 
 ### Multi-agent (swarm)
+- [x] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:<hex>`) (T-NEXT-282)
+  - `new_id()` prefixes with agent namespace when `LLM_AGENT_ID` is set; backward-compatible
+  - A5 extensibility axiom: 3 tests covering absent/set/uniqueness cases
+  - Harness scenario verifying Session/SessionEntry @id carry agent namespace (T-NEXT-283)
 - [ ] Multiple farmhand instances in the same tractor process
 - [ ] Cross-agent coordination via CRDT: agent B reads agent A's `AgentResponse` nodes
-- [ ] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:resp-<seq>`)
-  - Implementation: prefix `new_id()` namespace; `query_nodes` filter by `@id` prefix
 - [ ] Swarm harness scenario: two plugins, agent B queries agent A's output
 
 ### Zig Pi-Nano host
