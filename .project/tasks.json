@@ -6631,7 +6631,7 @@
     {
       "id": "T-NEXT-279",
       "description": "Adicionar comando /sessions ao agent-repl: lista todas as sessões do CRDT com id, nome, data de criação e indicador de qual é a ativa. Puro JS, sem rebuild.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "scripts/agent-repl.mjs"

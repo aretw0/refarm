@@ -194,6 +194,36 @@ function printTree() {
   console.log('');
 }
 
+// ── /sessions listing ─────────────────────────────────────────────────────────
+
+function formatTs(ns) {
+  if (!ns) return '(unknown)';
+  const ms = Math.floor(Number(ns) / 1_000_000);
+  return new Date(ms).toLocaleString();
+}
+
+function printSessions() {
+  const sessions = queryNodes('Session', 50);
+  if (sessions.length === 0) {
+    console.log(`\n${c.dim}No sessions found. Start a conversation first.${c.reset}\n`);
+    return;
+  }
+
+  sessions.sort((a, b) => (b.created_at_ns || 0) - (a.created_at_ns || 0));
+  const activeId = sessions[0]['@id'];
+
+  console.log(`\n${c.bold}Sessions${c.reset}  ${c.dim}(${sessions.length} total, most recent first)${c.reset}`);
+  for (const s of sessions) {
+    const id   = s['@id'] || '?';
+    const name = s.name || c.dim + '(unnamed)' + c.reset;
+    const ts   = formatTs(s.created_at_ns);
+    const leaf = s.leaf_entry_id ? c.dim + s.leaf_entry_id.slice(0, 8) + '…' + c.reset : c.dim + '(empty)' + c.reset;
+    const marker = id === activeId ? `${c.green}*${c.reset}` : ' ';
+    console.log(`  ${marker} ${c.cyan}${id.slice(0, 8)}…${c.reset}  ${name}  ${c.dim}${ts}${c.reset}  leaf=${leaf}`);
+  }
+  console.log('');
+}
+
 // ── slash commands ────────────────────────────────────────────────────────────
 
 function handleSlashCommand(line) {
@@ -204,10 +234,11 @@ function handleSlashCommand(line) {
   }
   if (cmd === '/help') {
     console.log(`\n${c.bold}Commands:${c.reset}`);
-    console.log(`  ${c.cyan}/help${c.reset}    — show this message`);
-    console.log(`  ${c.cyan}/quit${c.reset}    — exit the REPL`);
-    console.log(`  ${c.cyan}/clear${c.reset}   — clear the screen`);
-    console.log(`  ${c.cyan}/tree${c.reset}    — show session branch tree`);
+    console.log(`  ${c.cyan}/help${c.reset}      — show this message`);
+    console.log(`  ${c.cyan}/quit${c.reset}      — exit the REPL`);
+    console.log(`  ${c.cyan}/clear${c.reset}     — clear the screen`);
+    console.log(`  ${c.cyan}/tree${c.reset}      — show session branch tree (most recent session)`);
+    console.log(`  ${c.cyan}/sessions${c.reset}  — list all sessions with id, name, and date`);
     console.log(`\n${c.dim}Everything else is sent as a prompt to pi-agent.${c.reset}\n`);
     return true;
   }
@@ -217,6 +248,10 @@ function handleSlashCommand(line) {
   }
   if (cmd === '/tree') {
     printTree();
+    return true;
+  }
+  if (cmd === '/sessions') {
+    printSessions();
     return true;
   }
   return false;
