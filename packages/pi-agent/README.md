@@ -63,12 +63,19 @@ The file is optional — missing file is silently ignored.
 <!-- {=env_vars} -->
 | Variable | Default | Description |
 |---|---|---|
-| `LLM_PROVIDER` | — | `anthropic` \| `ollama` \| `openai` \| any OpenAI-compat name |
+| `LLM_PROVIDER` | — | `anthropic` \| `openai` \| `groq` \| `mistral` \| `xai` \| `deepseek` \| `together` \| `openrouter` \| `gemini` \| `ollama` \| any OpenAI-compat name |
 | `LLM_DEFAULT_PROVIDER` | — | Personal sovereign default when `LLM_PROVIDER` unset |
 | `LLM_MODEL` | provider default | Model ID override |
 | `LLM_BASE_URL` | provider default | Base URL override (required for custom OpenAI-compat) |
 | `ANTHROPIC_API_KEY` | — | Required when `LLM_PROVIDER=anthropic` |
-| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` |
+| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai`; fallback for unknown compat providers |
+| `GROQ_API_KEY` | — | Required when `LLM_PROVIDER=groq` |
+| `MISTRAL_API_KEY` | — | Required when `LLM_PROVIDER=mistral` |
+| `XAI_API_KEY` | — | Required when `LLM_PROVIDER=xai` |
+| `DEEPSEEK_API_KEY` | — | Required when `LLM_PROVIDER=deepseek` |
+| `TOGETHER_API_KEY` | — | Required when `LLM_PROVIDER=together` |
+| `OPENROUTER_API_KEY` | — | Required when `LLM_PROVIDER=openrouter` |
+| `GEMINI_API_KEY` | — | Required when `LLM_PROVIDER=gemini` |
 | `LLM_MAX_CONTEXT_TOKENS` | unlimited | Block prompts estimated above this token count |
 | `LLM_FALLBACK_PROVIDER` | — | Retry with this provider on primary error or budget block |
 | `LLM_BUDGET_<PROVIDER>_USD` | unlimited | Rolling 30-day cap, e.g. `LLM_BUDGET_ANTHROPIC_USD=5.0` |

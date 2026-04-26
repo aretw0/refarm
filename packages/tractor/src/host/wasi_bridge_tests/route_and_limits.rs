@@ -123,6 +123,43 @@
     }
 
     #[test]
+    fn expected_route_known_providers_get_base_url_without_llm_base_url() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let cases = [
+            ("groq",       "https://api.groq.com",                          "/openai/v1/chat/completions"),
+            ("mistral",    "https://api.mistral.ai",                        "/v1/chat/completions"),
+            ("xai",        "https://api.x.ai",                              "/v1/chat/completions"),
+            ("deepseek",   "https://api.deepseek.com",                      "/v1/chat/completions"),
+            ("together",   "https://api.together.xyz",                      "/v1/chat/completions"),
+            ("openrouter", "https://openrouter.ai",                         "/api/v1/chat/completions"),
+            ("gemini",     "https://generativelanguage.googleapis.com",     "/v1beta/openai/chat/completions"),
+        ];
+        for (provider, expected_base, expected_path) in cases {
+            reset_llm_env();
+            std::env::set_var("LLM_PROVIDER", provider);
+            let route = expected_llm_route_from_env();
+            assert_eq!(route.provider, provider, "provider mismatch for {provider}");
+            assert_eq!(route.base_url, expected_base, "base_url mismatch for {provider}");
+            assert_eq!(route.path, expected_path, "path mismatch for {provider}");
+        }
+        reset_llm_env();
+    }
+
+    #[test]
+    fn expected_route_llm_base_url_overrides_known_provider_default() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        reset_llm_env();
+        std::env::set_var("LLM_PROVIDER", "groq");
+        std::env::set_var("LLM_BASE_URL", "https://my-proxy.example.com");
+
+        let route = expected_llm_route_from_env();
+        assert_eq!(route.base_url, "https://my-proxy.example.com");
+        assert_eq!(route.path, "/openai/v1/chat/completions");
+
+        reset_llm_env();
+    }
+
+    #[test]
     fn enforce_route_blocks_provider_mismatch() {
         let expected = LlmRoute {
             provider: "openai".to_string(),

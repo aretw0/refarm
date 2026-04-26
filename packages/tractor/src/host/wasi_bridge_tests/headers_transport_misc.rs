@@ -500,31 +500,33 @@
     #[test]
     fn auth_policy_treats_trimmed_ollama_as_no_host_auth() {
         assert!(!use_anthropic_auth("ollama"));
-        assert!(!use_openai_auth("ollama"));
+        assert!(!is_openai_provider_family("ollama"));
 
         assert!(!use_anthropic_auth(" ollama "));
-        assert!(!use_openai_auth(" ollama "));
+        assert!(!is_openai_provider_family(" ollama "));
     }
 
     #[test]
     fn auth_policy_treats_trimmed_anthropic_as_anthropic_auth() {
         assert!(use_anthropic_auth("anthropic"));
-        assert!(!use_openai_auth("anthropic"));
+        assert!(!is_openai_provider_family("anthropic"));
 
         assert!(use_anthropic_auth(" anthropic "));
-        assert!(!use_openai_auth(" anthropic "));
+        assert!(!is_openai_provider_family(" anthropic "));
 
         assert!(use_anthropic_auth("Anthropic"));
-        assert!(!use_openai_auth("Anthropic"));
+        assert!(!is_openai_provider_family("Anthropic"));
     }
 
     #[test]
-    fn auth_policy_allows_openai_family_only() {
-        assert!(use_openai_auth("openai"));
-        assert!(use_openai_auth("openai-codex"));
-        assert!(use_openai_auth("OpenAI-Codex"));
-        assert!(!use_openai_auth("custom-openai-compatible"));
-        assert!(!use_openai_auth("ollama"));
+    fn auth_policy_openai_family_detection() {
+        assert!(is_openai_provider_family("openai"));
+        assert!(is_openai_provider_family("openai-codex"));
+        assert!(is_openai_provider_family("OpenAI-Codex"));
+        assert!(!is_openai_provider_family("custom-openai-compatible"));
+        assert!(!is_openai_provider_family("ollama"));
+        assert!(!is_openai_provider_family("groq"));
+        assert!(!is_openai_provider_family("mistral"));
     }
 
     #[test]
@@ -547,20 +549,20 @@
     }
 
     #[test]
-    fn openai_auth_header_from_env_requires_valid_token_when_set() {
+    fn bearer_key_for_openai_provider_reads_env_key() {
         let _guard = ENV_LOCK.lock().unwrap();
         let prev = std::env::var("OPENAI_API_KEY").ok();
 
         std::env::remove_var("OPENAI_API_KEY");
-        assert_eq!(openai_auth_header_from_env().unwrap(), None);
+        assert_eq!(bearer_key_for_provider("openai").unwrap(), None);
 
         std::env::set_var("OPENAI_API_KEY", " key123 ");
-        let err = openai_auth_header_from_env().unwrap_err();
+        let err = bearer_key_for_provider("openai").unwrap_err();
         assert!(err.contains("invalid OPENAI_API_KEY"));
 
         std::env::set_var("OPENAI_API_KEY", "key123");
         assert_eq!(
-            openai_auth_header_from_env().unwrap(),
+            bearer_key_for_provider("openai").unwrap(),
             Some("Bearer key123".to_string())
         );
 
@@ -569,6 +571,49 @@
         } else {
             std::env::remove_var("OPENAI_API_KEY");
         }
+    }
+
+    #[test]
+    fn bearer_key_for_groq_uses_groq_key_then_falls_back_to_openai() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev_groq = std::env::var("GROQ_API_KEY").ok();
+        let prev_openai = std::env::var("OPENAI_API_KEY").ok();
+
+        std::env::remove_var("GROQ_API_KEY");
+        std::env::remove_var("OPENAI_API_KEY");
+        assert_eq!(bearer_key_for_provider("groq").unwrap(), None);
+
+        // Falls back to OPENAI_API_KEY when GROQ_API_KEY absent
+        std::env::set_var("OPENAI_API_KEY", "fallback-key");
+        assert_eq!(
+            bearer_key_for_provider("groq").unwrap(),
+            Some("Bearer fallback-key".to_string())
+        );
+
+        // GROQ_API_KEY takes precedence
+        std::env::set_var("GROQ_API_KEY", "groq-key");
+        assert_eq!(
+            bearer_key_for_provider("groq").unwrap(),
+            Some("Bearer groq-key".to_string())
+        );
+
+        if let Some(k) = prev_groq { std::env::set_var("GROQ_API_KEY", k); } else { std::env::remove_var("GROQ_API_KEY"); }
+        if let Some(k) = prev_openai { std::env::set_var("OPENAI_API_KEY", k); } else { std::env::remove_var("OPENAI_API_KEY"); }
+    }
+
+    #[test]
+    fn bearer_key_for_ollama_returns_none_without_any_key() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        let prev_ollama = std::env::var("OLLAMA_API_KEY").ok();
+        let prev_openai = std::env::var("OPENAI_API_KEY").ok();
+
+        std::env::remove_var("OLLAMA_API_KEY");
+        std::env::remove_var("OPENAI_API_KEY");
+        // ollama derives OLLAMA_API_KEY (not set) → fallback OPENAI_API_KEY (not set) → None
+        assert_eq!(bearer_key_for_provider("ollama").unwrap(), None);
+
+        if let Some(k) = prev_ollama { std::env::set_var("OLLAMA_API_KEY", k); } else { std::env::remove_var("OLLAMA_API_KEY"); }
+        if let Some(k) = prev_openai { std::env::set_var("OPENAI_API_KEY", k); } else { std::env::remove_var("OPENAI_API_KEY"); }
     }
 
     #[test]

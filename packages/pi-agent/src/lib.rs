@@ -1,12 +1,19 @@
 //! Pi Agent — sovereign AI agent for edge nodes and Raspberry Pi.
 //!
 //! # Provider selection (env vars)
-//!   LLM_PROVIDER=anthropic|ollama|openai  (default: last-resort ollama)
+//!   LLM_PROVIDER=anthropic|openai|groq|mistral|xai|deepseek|together|openrouter|gemini|ollama
 //!   LLM_DEFAULT_PROVIDER=<name>            (user's sovereign default, overrides ollama floor)
 //!   LLM_MODEL=<model-id>                   (provider-specific default if unset)
-//!   LLM_BASE_URL=<url>                     (optional override; required for openai-compat)
+//!   LLM_BASE_URL=<url>                     (optional override for any provider)
 //!   ANTHROPIC_API_KEY=sk-ant-...
-//!   OPENAI_API_KEY=sk-...                  (also used for any OpenAI-compat provider)
+//!   OPENAI_API_KEY=sk-...                  (openai; also fallback for unknown compat providers)
+//!   GROQ_API_KEY=gsk_...
+//!   MISTRAL_API_KEY=...
+//!   XAI_API_KEY=xai-...
+//!   DEEPSEEK_API_KEY=sk-...
+//!   TOGETHER_API_KEY=...
+//!   OPENROUTER_API_KEY=sk-or-...
+//!   GEMINI_API_KEY=AIza...
 //!   LLM_MAX_CONTEXT_TOKENS=<u32>           (blocks prompts estimated above this size)
 //!   LLM_FALLBACK_PROVIDER=<name>           (retried once on primary provider error/budget block)
 //!   LLM_BUDGET_<PROVIDER>_USD=<f64>        (rolling 30-day spend cap per provider, e.g. LLM_BUDGET_ANTHROPIC_USD=5.0)
@@ -522,24 +529,70 @@ mod provider {
         OpenAiCompat { provider: String, base_url: String, model: String },
     }
 
+    // Providers with non-standard OpenAI-compat paths; all others use /v1/chat/completions.
+    fn openai_compat_path(provider: &str) -> &'static str {
+        match provider {
+            "groq"       => "/openai/v1/chat/completions",
+            "openrouter" => "/api/v1/chat/completions",
+            "gemini"     => "/v1beta/openai/chat/completions",
+            _            => "/v1/chat/completions",
+        }
+    }
+
     impl Provider {
         /// Build provider from env vars injected by the tractor host.
         pub fn from_env() -> Self {
             let model = std::env::var("LLM_MODEL").unwrap_or_default();
+            let base = |default: &'static str| {
+                std::env::var("LLM_BASE_URL").unwrap_or_else(|_| default.into())
+            };
             match super::provider_name_from_env().as_str() {
                 "anthropic" => Provider::Anthropic {
                     model: if model.is_empty() { "claude-sonnet-4-6".into() } else { model },
                 },
                 "openai" => Provider::OpenAiCompat {
                     provider: "openai".into(),
-                    base_url: std::env::var("LLM_BASE_URL")
-                        .unwrap_or_else(|_| "https://api.openai.com".into()),
+                    base_url: base("https://api.openai.com"),
                     model: if model.is_empty() { "gpt-4o-mini".into() } else { model },
+                },
+                "groq" => Provider::OpenAiCompat {
+                    provider: "groq".into(),
+                    base_url: base("https://api.groq.com"),
+                    model: if model.is_empty() { "llama-3.3-70b-versatile".into() } else { model },
+                },
+                "mistral" => Provider::OpenAiCompat {
+                    provider: "mistral".into(),
+                    base_url: base("https://api.mistral.ai"),
+                    model: if model.is_empty() { "mistral-large-latest".into() } else { model },
+                },
+                "xai" => Provider::OpenAiCompat {
+                    provider: "xai".into(),
+                    base_url: base("https://api.x.ai"),
+                    model: if model.is_empty() { "grok-3".into() } else { model },
+                },
+                "deepseek" => Provider::OpenAiCompat {
+                    provider: "deepseek".into(),
+                    base_url: base("https://api.deepseek.com"),
+                    model: if model.is_empty() { "deepseek-chat".into() } else { model },
+                },
+                "together" => Provider::OpenAiCompat {
+                    provider: "together".into(),
+                    base_url: base("https://api.together.xyz"),
+                    model: if model.is_empty() { "meta-llama/Llama-3-70b-chat-hf".into() } else { model },
+                },
+                "openrouter" => Provider::OpenAiCompat {
+                    provider: "openrouter".into(),
+                    base_url: base("https://openrouter.ai"),
+                    model: if model.is_empty() { "anthropic/claude-sonnet-4-5".into() } else { model },
+                },
+                "gemini" => Provider::OpenAiCompat {
+                    provider: "gemini".into(),
+                    base_url: base("https://generativelanguage.googleapis.com"),
+                    model: if model.is_empty() { "gemini-2.0-flash".into() } else { model },
                 },
                 provider => Provider::OpenAiCompat { // ollama is the sovereign default
                     provider: provider.into(),
-                    base_url: std::env::var("LLM_BASE_URL")
-                        .unwrap_or_else(|_| "http://localhost:11434".into()),
+                    base_url: base("http://localhost:11434"),
                     model: if model.is_empty() { "llama3.2".into() } else { model },
                 },
             }
@@ -690,7 +743,7 @@ mod provider {
             let bytes = http_post_via_host(
                 provider,
                 base_url,
-                "/v1/chat/completions",
+                openai_compat_path(provider),
                 &base_hdrs,
                 body.as_bytes(),
             )?;

@@ -183,10 +183,8 @@ fn llm_complete_http(
     if use_anthropic_auth(&provider) {
         let key = anthropic_api_key_from_env()?;
         req = req.set("x-api-key", &key);
-    } else if use_openai_auth(&provider) {
-        if let Some(header) = openai_auth_header_from_env()? {
-            req = req.set("authorization", &header);
-        }
+    } else if let Some(header) = bearer_key_for_provider(&provider)? {
+        req = req.set("authorization", &header);
     }
 
     match req.send_bytes(body) {
@@ -216,6 +214,55 @@ fn use_anthropic_auth(provider: &str) -> bool {
     provider.trim().eq_ignore_ascii_case("anthropic")
 }
 
+// Registry of known providers that need no LLM_BASE_URL to work.
+fn known_provider_base_url(provider: &str) -> Option<&'static str> {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "groq"       => Some("https://api.groq.com"),
+        "mistral"    => Some("https://api.mistral.ai"),
+        "xai"        => Some("https://api.x.ai"),
+        "deepseek"   => Some("https://api.deepseek.com"),
+        "together"   => Some("https://api.together.xyz"),
+        "openrouter" => Some("https://openrouter.ai"),
+        "gemini"     => Some("https://generativelanguage.googleapis.com"),
+        _            => None,
+    }
+}
+
+// Some providers diverge from the standard /v1/chat/completions path.
+fn known_provider_api_path(provider: &str) -> &'static str {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "groq"       => "/openai/v1/chat/completions",
+        "openrouter" => "/api/v1/chat/completions",
+        "gemini"     => "/v1beta/openai/chat/completions",
+        _            => "/v1/chat/completions",
+    }
+}
+
+// Derive a Bearer auth header for any non-Anthropic provider.
+// Resolution order: {PROVIDER_UPPER}_API_KEY → OPENAI_API_KEY (generic compat) → None (ollama).
+fn bearer_key_for_provider(provider: &str) -> Result<Option<String>, String> {
+    let normalized = normalize_provider_name(provider);
+
+    let primary_env_var = if is_openai_provider_family(&normalized) {
+        "OPENAI_API_KEY".to_string()
+    } else {
+        format!("{}_API_KEY", normalized.to_ascii_uppercase().replace('-', "_"))
+    };
+
+    let (raw_key, used_var): (String, String) = match std::env::var(&primary_env_var) {
+        Ok(k) => (k, primary_env_var),
+        Err(_) if primary_env_var != "OPENAI_API_KEY" => match std::env::var("OPENAI_API_KEY") {
+            Ok(k) => (k, "OPENAI_API_KEY".to_string()),
+            Err(_) => return Ok(None),
+        },
+        Err(_) => return Ok(None),
+    };
+
+    let key = sanitize_auth_token_for_header(&raw_key)
+        .ok_or_else(|| format!("[blocked: invalid {used_var}]"))?;
+    Ok(Some(format!("Bearer {key}")))
+}
+
 fn enforce_llm_request_body(body: &[u8]) -> Result<(), String> {
     const MAX_LLM_REQUEST_BODY_LEN: usize = 1024 * 1024;
     if body.len() > MAX_LLM_REQUEST_BODY_LEN {
@@ -227,10 +274,6 @@ fn enforce_llm_request_body(body: &[u8]) -> Result<(), String> {
 fn is_openai_provider_family(provider: &str) -> bool {
     let provider = provider.trim().to_ascii_lowercase();
     provider == "openai" || provider.starts_with("openai-")
-}
-
-fn use_openai_auth(provider: &str) -> bool {
-    is_openai_provider_family(provider)
 }
 
 fn sanitize_auth_token_for_header(token: &str) -> Option<String> {
@@ -253,15 +296,6 @@ fn anthropic_api_key_from_env() -> Result<String, String> {
         .map_err(|_| "ANTHROPIC_API_KEY not set".to_string())?;
     sanitize_auth_token_for_header(&key)
         .ok_or_else(|| "[blocked: invalid ANTHROPIC_API_KEY]".to_string())
-}
-
-fn openai_auth_header_from_env() -> Result<Option<String>, String> {
-    let Ok(key) = std::env::var("OPENAI_API_KEY") else {
-        return Ok(None);
-    };
-    let key = sanitize_auth_token_for_header(&key)
-        .ok_or_else(|| "[blocked: invalid OPENAI_API_KEY]".to_string())?;
-    Ok(Some(format!("Bearer {key}")))
 }
 
 fn provider_name_from_env() -> String {
@@ -301,19 +335,18 @@ fn expected_llm_route_from_env() -> LlmRoute {
         };
     }
 
+    let path = known_provider_api_path(&provider).to_string();
     let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| {
-        if is_openai_provider_family(&provider) {
+        if let Some(url) = known_provider_base_url(&provider) {
+            url.to_string()
+        } else if is_openai_provider_family(&provider) {
             "https://api.openai.com".to_string()
         } else {
             "http://localhost:11434".to_string()
         }
     });
 
-    LlmRoute {
-        provider,
-        base_url,
-        path: "/v1/chat/completions".to_string(),
-    }
+    LlmRoute { provider, base_url, path }
 }
 
 fn enforce_llm_route(
