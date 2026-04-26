@@ -6684,6 +6684,20 @@
         "Testes: id contém agent_id quando var configurada, sem agent_id → padrão antigo"
       ],
       "notes": "Pré-requisito para multi-agent swarm (v0.3.0). Pura função, zero dependência nova."
+    },
+    {
+      "id": "T-NEXT-283",
+      "description": "Harness test para LLM_AGENT_ID: verificar que Session e SessionEntry armazenados no CRDT têm @id com prefixo urn:farmhand:<agent_id> quando LLM_AGENT_ID está configurado.",
+      "status": "completed",
+      "phase": null,
+      "files": ["packages/tractor/tests/pi_agent_harness.rs"],
+      "acceptance_criteria": [
+        "harness_agent_id_namespaces_crdt_nodes passa (ignored, requer cargo component build)",
+        "Session e SessionEntry @id começam com urn:farmhand:test-agent-alpha:",
+        "AgentResponse existe (pipeline completo rodou)",
+        "LLM_AGENT_ID adicionado a clean_llm_env()"
+      ],
+      "notes": "Cobertura de integração para T-NEXT-282."
     }
   ]
 }

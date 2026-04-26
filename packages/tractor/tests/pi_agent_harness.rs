@@ -131,6 +131,7 @@ fn clean_llm_env() {
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
                 "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM",
+                "LLM_AGENT_ID","LLM_SESSION_ID",
                 "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
         std::env::remove_var(var);
     }
@@ -506,6 +507,50 @@ async fn harness_refarm_config_json_injects_provider() {
     let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
     assert_eq!(v["content"], "config injetado",
         "response content must match mock — plugin must have used ollama from config.json");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_agent_id_namespaces_crdt_nodes() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    let port = mock_llm_server(openai_response("namespaced response", 5, 3)).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_AGENT_ID", "test-agent-alpha");
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("hello from test-agent-alpha")).await.expect("on_event");
+
+    // All stored nodes whose @id is emitted by new_id() must carry the agent namespace.
+    let session_nodes = sync.query_nodes("Session").expect("query Session");
+    let entry_nodes = sync.query_nodes("SessionEntry").expect("query SessionEntry");
+
+    // At least one Session and SessionEntry must exist after the prompt.
+    assert!(!session_nodes.is_empty(), "at least one Session must be stored");
+    assert!(!entry_nodes.is_empty(), "at least one SessionEntry must be stored");
+
+    for node in session_nodes.iter().chain(entry_nodes.iter()) {
+        let v: serde_json::Value = serde_json::from_str(&node.payload).unwrap();
+        let id = v["@id"].as_str().unwrap_or("");
+        assert!(
+            id.starts_with("urn:farmhand:test-agent-alpha:"),
+            "node @id must carry agent namespace: {id}"
+        );
+    }
+
+    // AgentResponse itself is stored with a content hash as @id (not new_id), so we
+    // only assert it exists to confirm the full pipeline ran.
+    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!responses.is_empty(), "AgentResponse must be stored");
 
     clean_llm_env();
 }
