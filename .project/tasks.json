@@ -6698,6 +6698,25 @@
         "LLM_AGENT_ID adicionado a clean_llm_env()"
       ],
       "notes": "Cobertura de integração para T-NEXT-282."
+    },
+    {
+      "id": "T-NEXT-284",
+      "description": "Adicionar interface structured-io ao agent-tools: read-structured e write-structured como WIT exports. Implementação em agent-tools/src/lib.rs com serde_json/toml/serde_yaml. Expõe structured I/O como serviço compartilhado entre todos os plugins.",
+      "status": "planned",
+      "phase": null,
+      "files": [
+        "packages/agent-tools/wit/world.wit",
+        "packages/agent-tools/src/lib.rs",
+        "packages/agent-tools/Cargo.toml"
+      ],
+      "acceptance_criteria": [
+        "interface structured-io com read-structured e write-structured no WIT",
+        "agent-tools-provider world exporta structured-io",
+        "read-structured: lê via agent-fs, parseia JSON/TOML/YAML, pagina",
+        "write-structured: valida, escreve via agent-fs atomicamente",
+        "pi-agent pode importar o serviço sem duplicar a lógica (pi-agent tool dispatch delega para WIT)"
+      ],
+      "notes": "Seguindo o princípio de APIs compartilhadas: structured I/O é util para humanos e agentes. agent-tools é a camada correta."
     }
   ]
 }
