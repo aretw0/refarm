@@ -1336,7 +1336,11 @@ static SEQ: AtomicU64 = AtomicU64::new(0);
 
 fn new_id() -> String {
     let seq = SEQ.fetch_add(1, Ordering::Relaxed);
-    format!("{:016x}{:04x}", now_ns(), seq)
+    let hex = format!("{:016x}{:04x}", now_ns(), seq);
+    match std::env::var("LLM_AGENT_ID") {
+        Ok(agent_id) if !agent_id.is_empty() => format!("urn:farmhand:{agent_id}:{hex}"),
+        _ => hex,
+    }
 }
 
 fn now_ns() -> u64 {
@@ -1847,10 +1851,10 @@ jobs:
     }
 
     #[test]
-    fn new_id_format_is_hex() {
+    fn new_id_format_is_non_empty_and_unique() {
         let id = new_id();
-        assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "not hex: {id}");
-        assert!(id.len() >= 20);
+        assert!(!id.is_empty(), "new_id must not be empty");
+        assert!(id.len() >= 20, "new_id must be at least 20 chars: {id}");
     }
 
     #[test]
@@ -2312,5 +2316,34 @@ mod extensibility_contract {
             tool_names_from_openai(&tools_openai()).into_iter().collect();
         assert_eq!(anthropic_names, openai_names,
             "tools_anthropic and tools_openai must expose the same tool set");
+    }
+
+    // A5 — LLM_AGENT_ID namespacing: absent → plain hex; set → urn:farmhand:<id>:<hex>
+    #[test]
+    fn a5_agent_id_absent_produces_plain_hex() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::remove_var("LLM_AGENT_ID");
+        let id = new_id();
+        assert!(!id.starts_with("urn:"), "without LLM_AGENT_ID, id must not be a URN: {id}");
+        assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "must be plain hex: {id}");
+    }
+
+    #[test]
+    fn a5_agent_id_set_produces_urn_prefix() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("LLM_AGENT_ID", "myagent");
+        let id = new_id();
+        std::env::remove_var("LLM_AGENT_ID");
+        assert!(id.starts_with("urn:farmhand:myagent:"), "must have URN prefix: {id}");
+    }
+
+    #[test]
+    fn a5_agent_id_uniqueness_preserved_across_instances() {
+        let _guard = ENV_LOCK.lock().unwrap();
+        std::env::set_var("LLM_AGENT_ID", "agent-alpha");
+        let ids: Vec<_> = (0..10).map(|_| new_id()).collect();
+        std::env::remove_var("LLM_AGENT_ID");
+        let unique: std::collections::HashSet<_> = ids.iter().collect();
+        assert_eq!(ids.len(), unique.len(), "agent-namespaced IDs must still be unique");
     }
 }

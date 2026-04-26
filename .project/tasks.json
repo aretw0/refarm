@@ -6674,7 +6674,7 @@
     {
       "id": "T-NEXT-282",
       "description": "Implementar LLM_AGENT_ID: prefixar @id dos nós CRDT com o agent ID para namespacing multi-agente. new_id() passa a retornar 'urn:farmhand:{agent_id}:{hex}' quando LLM_AGENT_ID está configurado.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": ["packages/pi-agent/src/lib.rs"],
       "acceptance_criteria": [
