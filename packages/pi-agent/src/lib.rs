@@ -712,6 +712,25 @@ fn parse_and_page_yaml(bytes: &[u8], total_bytes: usize, page_size: usize, page_
         .replacen("| json |", "| yaml |", 1)
 }
 
+// ── write_structured validation (pure — testable on native) ──────────────────
+
+/// Validate `content` as `format` (json/toml/yaml). Returns `Ok(())` when valid,
+/// `Err(message)` with a human-readable parse error when invalid.
+pub(crate) fn validate_structured(content: &str, format: &str) -> Result<(), String> {
+    match format {
+        "json" => serde_json::from_str::<serde_json::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("JSON parse error: {e}")),
+        "toml" => toml::from_str::<toml::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("TOML parse error: {e}")),
+        "yaml" => serde_yaml::from_str::<serde_yaml::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("YAML parse error: {e}")),
+        other => Err(format!("unsupported format: {other}")),
+    }
+}
+
 // ── edit_file core logic (pure — testable on native) ─────────────────────────
 
 /// Apply ordered string replacements to `content`. Returns `Err` with a human message
@@ -747,6 +766,8 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}},
         {"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) and return its content with automatic pagination for large files. Use page_size to control how many items/keys to return. Returns a metadata header followed by content.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"format":{"type":"string","enum":["json","toml","yaml"],"description":"File format (auto-detected from extension if omitted)"},"page_size":{"type":"integer","description":"Max items/keys to return (default 50; 0 = return all)"},"page_offset":{"type":"integer","description":"Skip this many items/keys before returning (default 0)"}},"required":["path"]}},
+        {"name":"write_structured","description":"Validate and write structured content (JSON, TOML, YAML) to a file atomically. Validates syntax before writing — invalid content returns an error without touching the file.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to write"},"content":{"type":"string","description":"The structured content to write"},"format":{"type":"string","enum":["json","toml","yaml"],"description":"Format for validation (auto-detected from extension if omitted)"}},"required":["path","content"]}},
         {"name":"list_sessions","description":"List all conversation sessions stored in the CRDT. Shows id, name, leaf_entry_id, and which session is currently active.",
          "input_schema":{"type":"object","properties":{}}},
         {"name":"current_session","description":"Return metadata about the currently active conversation session, including its id and current leaf_entry_id (tip of the conversation tree).",
@@ -774,6 +795,8 @@ pub(crate) fn tools_openai() -> serde_json::Value {
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}},
         {"type":"function","function":{"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) with automatic pagination.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"format":{"type":"string","enum":["json","toml","yaml"]},"page_size":{"type":"integer"},"page_offset":{"type":"integer"}},"required":["path"]}}},
+        {"type":"function","function":{"name":"write_structured","description":"Validate and write structured content (JSON, TOML, YAML) atomically. Rejects invalid syntax before touching the file.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"},"format":{"type":"string","enum":["json","toml","yaml"]}},"required":["path","content"]}}},
         {"type":"function","function":{"name":"list_sessions","description":"List all conversation sessions stored in the CRDT.",
          "parameters":{"type":"object","properties":{}}}},
         {"type":"function","function":{"name":"current_session","description":"Return metadata about the currently active conversation session.",
@@ -915,6 +938,20 @@ mod provider {
                 super::compress_tool_output(&super::read_structured_parse(
                     &bytes, fmt, page_size, page_offset,
                 ))
+            }
+
+            "write_structured" => {
+                let path    = input["path"].as_str().unwrap_or("");
+                let content = input["content"].as_str().unwrap_or("");
+                let fmt     = input["format"].as_str()
+                    .unwrap_or_else(|| super::detect_format(path));
+                if let Err(e) = super::validate_structured(content, fmt) {
+                    return format!("[write_structured error] {e}");
+                }
+                match agent_fs::write(path, content.as_bytes()) {
+                    Ok(()) => format!("wrote {} bytes to {path} (validated as {fmt})", content.len()),
+                    Err(e) => format!("[error writing {path}] {e}"),
+                }
             }
 
             // ── Session management tools ──────────────────────────────────────
@@ -1751,6 +1788,53 @@ jobs:
     fn read_structured_invalid_json_returns_error() {
         let result = read_structured_parse(b"{not valid json", "json", 50, 0);
         assert!(result.contains("parse error"), "must report parse error: {result}");
+    }
+
+    // ── validate_structured ──────────────────────────────────────────────────
+
+    #[test]
+    fn validate_structured_json_valid() {
+        assert!(validate_structured(r#"{"key":"value","n":42}"#, "json").is_ok());
+    }
+
+    #[test]
+    fn validate_structured_json_invalid_returns_error() {
+        let result = validate_structured("{not json}", "json");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("JSON parse error"));
+    }
+
+    #[test]
+    fn validate_structured_toml_valid() {
+        let toml = "[package]\nname = \"pi-agent\"\nversion = \"0.1.0\"\n";
+        assert!(validate_structured(toml, "toml").is_ok());
+    }
+
+    #[test]
+    fn validate_structured_toml_invalid_returns_error() {
+        let result = validate_structured("name = missing_quotes\n[[[bad", "toml");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("TOML parse error"));
+    }
+
+    #[test]
+    fn validate_structured_yaml_valid() {
+        let yaml = "name: pi-agent\nversion: 0.1.0\n";
+        assert!(validate_structured(yaml, "yaml").is_ok());
+    }
+
+    #[test]
+    fn validate_structured_yaml_invalid_returns_error() {
+        let result = validate_structured("key: [unclosed bracket", "yaml");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("YAML parse error"));
+    }
+
+    #[test]
+    fn validate_structured_unknown_format_returns_error() {
+        let result = validate_structured("data", "xml");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("unsupported format"));
     }
 
     // ── /new_id / now_ns ─────────────────────────────────────────────────────

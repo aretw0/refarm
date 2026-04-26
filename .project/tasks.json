@@ -6614,7 +6614,7 @@
     {
       "id": "T-NEXT-278",
       "description": "Adicionar tool write_structured ao pi-agent: valida JSON/TOML/YAML antes de escrever, grava atomicamente via agent_fs::write. Complemento natural de read_structured.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs"
