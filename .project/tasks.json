@@ -6547,7 +6547,7 @@
     {
       "id": "T-NEXT-274",
       "description": "Adicionar comando `/tree` ao agent-repl: mostra estrutura de branches da session atual — entradas com filhos múltiplos marcadas como bifurcações, entrada atual destacada.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "scripts/agent-repl.mjs"

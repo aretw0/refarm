@@ -122,6 +122,80 @@ function printBanner(provider) {
 
 // ── special commands ──────────────────────────────────────────────────────────
 
+// ── /tree rendering ───────────────────────────────────────────────────────────
+
+function queryNodes(type, limit = 100) {
+  const r = spawnSync(
+    TRACTOR,
+    ['query', '--type', type, '--limit', String(limit), '--ws-port', WS_PORT, '--namespace', NS, '--format', 'json'],
+    { encoding: 'utf8', timeout: 5000, env: process.env }
+  );
+  if (r.status !== 0) return [];
+  try { return JSON.parse(r.stdout || '[]'); } catch { return []; }
+}
+
+function printTree() {
+  const sessions = queryNodes('Session', 10);
+  if (sessions.length === 0) {
+    console.log(`\n${c.dim}No sessions found. Start a conversation first.${c.reset}\n`);
+    return;
+  }
+
+  // Most recent session first
+  sessions.sort((a, b) => (b.created_at_ns || 0) - (a.created_at_ns || 0));
+  const session = sessions[0];
+  const sessionName = session.name || session['@id'] || '(unnamed)';
+  const leaf = session.leaf_entry_id;
+
+  console.log(`\n${c.bold}Session tree${c.reset}  ${c.dim}${sessionName}${c.reset}`);
+  if (!leaf) {
+    console.log(`  ${c.dim}(empty session)${c.reset}\n`);
+    return;
+  }
+
+  const entries = queryNodes('SessionEntry', 200);
+  if (entries.length === 0) {
+    console.log(`  ${c.dim}(no entries yet)${c.reset}\n`);
+    return;
+  }
+
+  // Build index + child map
+  const byId = {};
+  for (const e of entries) if (e['@id']) byId[e['@id']] = e;
+
+  const children = {};
+  for (const e of entries) {
+    const pid = e.parent_entry_id;
+    if (!children[pid]) children[pid] = [];
+    children[pid].push(e['@id']);
+  }
+
+  // Find roots (no parent_entry_id or parent not in set)
+  const roots = entries.filter(e => !e.parent_entry_id || !byId[e.parent_entry_id]).map(e => e['@id']);
+
+  const kindIcon = { user: '>', agent: '<', tool_call: '[', tool_result: ']' };
+
+  function printNode(id, prefix, isLast) {
+    const e = byId[id];
+    if (!e) return;
+    const icon = kindIcon[e.kind] || '?';
+    const isCurrent = id === leaf;
+    const snippet = (e.content || '').replace(/\n/g, ' ').slice(0, 55);
+    const marker = isCurrent ? `${c.green}*${c.reset} ` : '  ';
+    const branchChar = isLast ? '└─' : '├─';
+    console.log(`${prefix}${branchChar} ${marker}${c.dim}${icon}${c.reset} ${isCurrent ? c.bold : c.dim}${snippet}${c.reset}`);
+
+    const kids = children[id] || [];
+    const childPrefix = prefix + (isLast ? '   ' : '│  ');
+    kids.forEach((kid, i) => printNode(kid, childPrefix, i === kids.length - 1));
+  }
+
+  roots.forEach((rid, i) => printNode(rid, '  ', i === roots.length - 1));
+  console.log('');
+}
+
+// ── slash commands ────────────────────────────────────────────────────────────
+
 function handleSlashCommand(line) {
   const cmd = line.trim().toLowerCase();
   if (cmd === '/quit' || cmd === '/exit') {
@@ -133,11 +207,16 @@ function handleSlashCommand(line) {
     console.log(`  ${c.cyan}/help${c.reset}    — show this message`);
     console.log(`  ${c.cyan}/quit${c.reset}    — exit the REPL`);
     console.log(`  ${c.cyan}/clear${c.reset}   — clear the screen`);
+    console.log(`  ${c.cyan}/tree${c.reset}    — show session branch tree`);
     console.log(`\n${c.dim}Everything else is sent as a prompt to pi-agent.${c.reset}\n`);
     return true;
   }
   if (cmd === '/clear') {
     process.stdout.write('\x1b[2J\x1b[H');
+    return true;
+  }
+  if (cmd === '/tree') {
+    printTree();
     return true;
   }
   return false;
