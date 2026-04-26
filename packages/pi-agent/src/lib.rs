@@ -555,7 +555,7 @@ pub(crate) fn detect_format(path: &str) -> &'static str {
 
 /// Parse `bytes` as `format`, paginate to `page_size` top-level items/keys.
 /// Returns a metadata header line followed by the content.
-/// `page_size = 0` → return everything. YAML not yet supported.
+/// `page_size = 0` → return everything.
 pub(crate) fn read_structured_parse(
     bytes: &[u8],
     format: &str,
@@ -566,10 +566,8 @@ pub(crate) fn read_structured_parse(
     match format {
         "json" => parse_and_page_json(bytes, total_bytes, page_size, page_offset),
         "toml" => parse_and_page_toml(bytes, total_bytes, page_size, page_offset),
-        "yaml" => format!(
-            "[read_structured | yaml | {total_bytes}B | not yet supported — use read_file for now]"
-        ),
-        other => format!("[read_structured | unknown format: {other}]"),
+        "yaml" => parse_and_page_yaml(bytes, total_bytes, page_size, page_offset),
+        other  => format!("[read_structured | unknown format: {other}]"),
     }
 }
 
@@ -640,6 +638,24 @@ fn parse_and_page_toml(bytes: &[u8], total_bytes: usize, page_size: usize, page_
     };
     page_json_value(json_val, total_bytes, page_size, page_offset)
         .replacen("| json |", "| toml |", 1)
+}
+
+fn parse_and_page_yaml(bytes: &[u8], total_bytes: usize, page_size: usize, page_offset: usize) -> String {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return "[read_structured | yaml | invalid UTF-8]".into(),
+    };
+    let yaml_val: serde_yaml::Value = match serde_yaml::from_str(text) {
+        Ok(v) => v,
+        Err(e) => return format!("[read_structured | yaml | parse error: {e}]"),
+    };
+    // Convert YAML → JSON for uniform pagination (serde_yaml::Value → serde_json::Value).
+    let json_val: serde_json::Value = match serde_json::to_value(&yaml_val) {
+        Ok(v) => v,
+        Err(e) => return format!("[read_structured | yaml | conversion error: {e}]"),
+    };
+    page_json_value(json_val, total_bytes, page_size, page_offset)
+        .replacen("| json |", "| yaml |", 1)
 }
 
 // ── edit_file core logic (pure — testable on native) ─────────────────────────
@@ -1561,9 +1577,44 @@ serde_json = "1"
     }
 
     #[test]
-    fn read_structured_yaml_returns_informative_error() {
-        let result = read_structured_parse(b"key: value", "yaml", 50, 0);
-        assert!(result.contains("not yet supported"), "should explain yaml not supported: {result}");
+    fn read_structured_yaml_simple_mapping() {
+        let yaml = b"name: pi-agent\nversion: 0.1.0\nauthor: arthur\n";
+        let result = read_structured_parse(yaml, "yaml", 0, 0);
+        assert!(result.contains("yaml"), "header must say yaml: {result}");
+        assert!(result.contains("pi-agent"), "content must include value: {result}");
+    }
+
+    #[test]
+    fn read_structured_yaml_sequence_paginated() {
+        let items: Vec<String> = (1..=50).map(|i| format!("- item{i}")).collect();
+        let yaml = items.join("\n").into_bytes();
+        let result = read_structured_parse(&yaml, "yaml", 10, 0);
+        assert!(result.contains("yaml"),          "header: {result}");
+        assert!(result.contains("items 1-10 of 50"), "pagination: {result}");
+        assert!(result.contains("truncated"),     "truncation: {result}");
+    }
+
+    #[test]
+    fn read_structured_yaml_github_actions_workflow() {
+        let workflow = b"
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo test
+";
+        let result = read_structured_parse(workflow, "yaml", 0, 0);
+        assert!(result.contains("yaml"),    "header: {result}");
+        assert!(result.contains("CI") || result.contains("name"), "content: {result}");
+    }
+
+    #[test]
+    fn read_structured_yaml_detect_from_extension() {
+        assert_eq!(detect_format("/path/to/.github/workflows/ci.yml"), "yaml");
+        assert_eq!(detect_format("/path/to/docker-compose.yaml"),      "yaml");
     }
 
     #[test]

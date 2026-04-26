@@ -6563,7 +6563,7 @@
     {
       "id": "T-NEXT-275",
       "description": "Adicionar suporte YAML ao read_structured: dep serde_yaml (pure-rust unsafe-libyaml, WASM-safe), implementar parse_and_page_yaml seguindo o mesmo padrão page_json_value. Atualizar testes para cobrir .yaml files.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs",
