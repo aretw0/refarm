@@ -557,6 +557,21 @@ fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
         .map_err(|e| format!("navigate: store error: {e:?}"))
 }
 
+/// Read-only version of active session ID — never creates a new session.
+/// Used for display purposes (e.g., list_sessions showing which is active).
+#[cfg(target_arch = "wasm32")]
+pub(super) fn get_or_create_session_id_readonly() -> String {
+    if let Ok(id) = std::env::var("LLM_SESSION_ID") {
+        if !id.is_empty() { return id; }
+    }
+    tractor_bridge::query_nodes("Session", 20).unwrap_or_default()
+        .iter()
+        .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .max_by_key(|v| v["created_at_ns"].as_u64().unwrap_or(0))
+        .and_then(|v| v["@id"].as_str().map(|s| s.to_owned()))
+        .unwrap_or_default()
+}
+
 /// Return the active session ID for this agent instance.
 ///
 /// Priority:
@@ -731,7 +746,15 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}},
         {"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) and return its content with automatic pagination for large files. Use page_size to control how many items/keys to return. Returns a metadata header followed by content.",
-         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"format":{"type":"string","enum":["json","toml","yaml"],"description":"File format (auto-detected from extension if omitted)"},"page_size":{"type":"integer","description":"Max items/keys to return (default 50; 0 = return all)"},"page_offset":{"type":"integer","description":"Skip this many items/keys before returning (default 0)"}},"required":["path"]}}
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"format":{"type":"string","enum":["json","toml","yaml"],"description":"File format (auto-detected from extension if omitted)"},"page_size":{"type":"integer","description":"Max items/keys to return (default 50; 0 = return all)"},"page_offset":{"type":"integer","description":"Skip this many items/keys before returning (default 0)"}},"required":["path"]}},
+        {"name":"list_sessions","description":"List all conversation sessions stored in the CRDT. Shows id, name, leaf_entry_id, and which session is currently active.",
+         "input_schema":{"type":"object","properties":{}}},
+        {"name":"current_session","description":"Return metadata about the currently active conversation session, including its id and current leaf_entry_id (tip of the conversation tree).",
+         "input_schema":{"type":"object","properties":{}}},
+        {"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree. Use this to resume from an earlier point (e.g., before trying a different approach).",
+         "input_schema":{"type":"object","properties":{"session_id":{"type":"string","description":"Session to navigate"},"entry_id":{"type":"string","description":"Target entry to set as new leaf"}},"required":["session_id","entry_id"]}},
+        {"name":"fork","description":"Create a new session branching from a specific entry of an existing session. The original session is unchanged. Use before exploring a risky approach.",
+         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}}
     ])
 }
 
@@ -750,7 +773,15 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}},
         {"type":"function","function":{"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) with automatic pagination.",
-         "parameters":{"type":"object","properties":{"path":{"type":"string"},"format":{"type":"string","enum":["json","toml","yaml"]},"page_size":{"type":"integer"},"page_offset":{"type":"integer"}},"required":["path"]}}}
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"format":{"type":"string","enum":["json","toml","yaml"]},"page_size":{"type":"integer"},"page_offset":{"type":"integer"}},"required":["path"]}}},
+        {"type":"function","function":{"name":"list_sessions","description":"List all conversation sessions stored in the CRDT.",
+         "parameters":{"type":"object","properties":{}}}},
+        {"type":"function","function":{"name":"current_session","description":"Return metadata about the currently active conversation session.",
+         "parameters":{"type":"object","properties":{}}}},
+        {"type":"function","function":{"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree.",
+         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"}},"required":["session_id","entry_id"]}}},
+        {"type":"function","function":{"name":"fork","description":"Create a new session branching from a specific entry of an existing session.",
+         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}}
     ])
 }
 
@@ -885,6 +916,66 @@ mod provider {
                     &bytes, fmt, page_size, page_offset,
                 ))
             }
+
+            // ── Session management tools ──────────────────────────────────────
+            "list_sessions" => {
+                let sessions = tractor_bridge::query_nodes("Session", 50).unwrap_or_default();
+                let active_id = super::get_or_create_session_id_readonly();
+                let items: Vec<serde_json::Value> = sessions.iter()
+                    .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+                    .map(|v| serde_json::json!({
+                        "id":            v["@id"],
+                        "name":          v["name"],
+                        "leaf_entry_id": v["leaf_entry_id"],
+                        "created_at_ns": v["created_at_ns"],
+                        "is_active":     v["@id"].as_str() == Some(&active_id),
+                    }))
+                    .collect();
+                serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
+            }
+
+            "current_session" => {
+                let session_id = get_or_create_session();
+                match tractor_bridge::get_node(&session_id) {
+                    Ok(raw) => {
+                        let v: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
+                        serde_json::to_string_pretty(&serde_json::json!({
+                            "id":            v["@id"],
+                            "name":          v["name"],
+                            "leaf_entry_id": v["leaf_entry_id"],
+                            "created_at_ns": v["created_at_ns"],
+                        })).unwrap_or_default()
+                    }
+                    Err(e) => format!("[error] current_session: {e:?}"),
+                }
+            }
+
+            "navigate" => {
+                let session_id = input["session_id"].as_str()
+                    .unwrap_or_else(|| "");
+                let entry_id   = input["entry_id"].as_str().unwrap_or("");
+                if session_id.is_empty() || entry_id.is_empty() {
+                    return "[error] navigate requires session_id and entry_id".into();
+                }
+                match navigate_session(session_id, entry_id) {
+                    Ok(()) => format!("navigated session {session_id} to entry {entry_id}"),
+                    Err(e) => format!("[error] {e}"),
+                }
+            }
+
+            "fork" => {
+                let session_id = input["session_id"].as_str().unwrap_or("");
+                let entry_id   = input["entry_id"].as_str().unwrap_or("");
+                let name       = input["name"].as_str();
+                if session_id.is_empty() || entry_id.is_empty() {
+                    return "[error] fork requires session_id and entry_id".into();
+                }
+                match fork_session(session_id, entry_id, name) {
+                    Some(new_id) => format!("forked → new session {new_id}"),
+                    None         => "[error] fork: failed to create session".into(),
+                }
+            }
+
             other => format!("[error] unknown tool: {other}"),
         }
     }
@@ -2067,5 +2158,69 @@ mod extensibility_contract {
         assert!(spend > 0.0, "spend is computed correctly");
         // Without LLM_BUDGET_ANTHROPIC_USD set, budget_exceeded_for_provider returns false.
         // That path is wasm32-only, but the env-var absence → no-op contract is documented here.
+    }
+
+    // ── session tool schema tests ─────────────────────────────────────────────
+
+    fn tool_names_from_anthropic(tools: &serde_json::Value) -> Vec<String> {
+        tools.as_array().unwrap().iter()
+            .map(|t| t["name"].as_str().unwrap_or("").to_string())
+            .collect()
+    }
+
+    fn tool_names_from_openai(tools: &serde_json::Value) -> Vec<String> {
+        tools.as_array().unwrap().iter()
+            .map(|t| t["function"]["name"].as_str().unwrap_or("").to_string())
+            .collect()
+    }
+
+    #[test]
+    fn tools_anthropic_includes_session_tools() {
+        let tools = tools_anthropic();
+        let names = tool_names_from_anthropic(&tools);
+        for name in ["list_sessions", "current_session", "navigate", "fork"] {
+            assert!(names.contains(&name.to_string()), "tools_anthropic missing: {name}");
+        }
+    }
+
+    #[test]
+    fn tools_openai_includes_session_tools() {
+        let tools = tools_openai();
+        let names = tool_names_from_openai(&tools);
+        for name in ["list_sessions", "current_session", "navigate", "fork"] {
+            assert!(names.contains(&name.to_string()), "tools_openai missing: {name}");
+        }
+    }
+
+    #[test]
+    fn tools_anthropic_navigate_has_required_fields() {
+        let tools = tools_anthropic();
+        let nav = tools.as_array().unwrap().iter()
+            .find(|t| t["name"] == "navigate").expect("navigate not found");
+        let required = nav["input_schema"]["required"].as_array().unwrap();
+        let req_strs: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(req_strs.contains(&"session_id"), "navigate must require session_id");
+        assert!(req_strs.contains(&"entry_id"), "navigate must require entry_id");
+    }
+
+    #[test]
+    fn tools_openai_fork_has_required_fields() {
+        let tools = tools_openai();
+        let fork = tools.as_array().unwrap().iter()
+            .find(|t| t["function"]["name"] == "fork").expect("fork not found");
+        let required = fork["function"]["parameters"]["required"].as_array().unwrap();
+        let req_strs: Vec<&str> = required.iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(req_strs.contains(&"session_id"), "fork must require session_id");
+        assert!(req_strs.contains(&"entry_id"), "fork must require entry_id");
+    }
+
+    #[test]
+    fn tools_anthropic_and_openai_have_same_tool_count() {
+        let anthropic_names: std::collections::HashSet<String> =
+            tool_names_from_anthropic(&tools_anthropic()).into_iter().collect();
+        let openai_names: std::collections::HashSet<String> =
+            tool_names_from_openai(&tools_openai()).into_iter().collect();
+        assert_eq!(anthropic_names, openai_names,
+            "tools_anthropic and tools_openai must expose the same tool set");
     }
 }

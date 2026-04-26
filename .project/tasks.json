@@ -6597,7 +6597,7 @@
     {
       "id": "T-NEXT-277",
       "description": "Expor session management como agent tools no dispatch_tool: list_sessions() → query_nodes(Session), current_session() → get_or_create_session + leaf, navigate(session_id, entry_id), fork(session_id, entry_id, name?) — para o LLM gerenciar sua própria árvore de conversação.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs"
