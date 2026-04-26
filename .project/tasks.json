@@ -6580,7 +6580,7 @@
     {
       "id": "T-NEXT-276",
       "description": "Wiring de handle_prompt nas Session primitives: substituir store direto de UserPrompt/AgentResponse por append_to_session(). get_or_create_session() usa query_nodes(\"Session\",1) para reusar sessão existente ou cria nova. Histórico via tree-walk passa a funcionar em produção.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs"

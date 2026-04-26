@@ -73,15 +73,20 @@ impl IntegrationGuest for PiAgent {
     fn on_event(event: String, payload: Option<String>) {
         if event != "user:prompt" { return; }
         let Some(prompt) = payload else { return; };
+        #[cfg(target_arch = "wasm32")]
         handle_prompt(prompt);
+        #[cfg(not(target_arch = "wasm32"))]
+        let _ = prompt;
     }
 }
 
 // ── Prompt pipeline ───────────────────────────────────────────────────────────
 
+#[cfg(target_arch = "wasm32")]
 fn handle_prompt(prompt: String) {
     let prompt_ref = format!("urn:pi-agent:prompt-{}", new_id());
 
+    // Legacy node — kept for backward compat with harness and pre-session namespaces.
     let prompt_node = serde_json::json!({
         "@type":        "UserPrompt",
         "@id":          prompt_ref,
@@ -92,10 +97,15 @@ fn handle_prompt(prompt: String) {
         return;
     }
 
+    // Session tree: append user turn, capture entry_id for linking agent response.
+    let session_id    = get_or_create_session();
+    let user_entry_id = append_to_session(&session_id, "user", &prompt);
+
     let t0 = now_ns();
     let (content, tool_calls, tokens_in, tokens_out, tokens_cached, tokens_reasoning, model, usage_raw) = react(&prompt);
     let duration_ms = now_ns().saturating_sub(t0) / 1_000_000;
 
+    // Legacy AgentResponse node — preserved for harness assertions.
     let response = serde_json::json!({
         "@type":        "AgentResponse",
         "@id":          format!("urn:pi-agent:resp-{}", new_id()),
@@ -112,8 +122,12 @@ fn handle_prompt(prompt: String) {
             "duration_ms": duration_ms,
         },
     });
-
     let _ = tractor_bridge::store_node(&response.to_string());
+
+    // Session tree: append agent turn. parent_entry_id = user_entry_id (from append_to_session
+    // internal state via leaf), so tree is user → agent naturally.
+    let _ = append_to_session(&session_id, "agent", &content);
+    let _ = user_entry_id; // used for ordering guarantee via CRDT leaf pointer
 
     let provider_name = provider_name_from_env();
     let usage = serde_json::json!({
@@ -541,6 +555,31 @@ fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
     v["leaf_entry_id"] = serde_json::Value::String(entry_id.to_owned());
     tractor_bridge::store_node(&v.to_string())
         .map_err(|e| format!("navigate: store error: {e:?}"))
+}
+
+/// Return the active session ID for this agent instance.
+///
+/// Priority:
+///   1. `LLM_SESSION_ID` env var — explicit override (e.g. tractor passes it per-call)
+///   2. Most recently created Session node in the CRDT — resume across restarts
+///   3. Create a fresh Session — first run in this namespace
+#[cfg(target_arch = "wasm32")]
+fn get_or_create_session() -> String {
+    if let Ok(id) = std::env::var("LLM_SESSION_ID") {
+        if !id.is_empty() { return id; }
+    }
+
+    if let Ok(sessions) = tractor_bridge::query_nodes("Session", 20) {
+        if let Some(latest_id) = sessions.iter()
+            .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+            .max_by_key(|v| v["created_at_ns"].as_u64().unwrap_or(0))
+            .and_then(|v| v["@id"].as_str().map(|s| s.to_owned()))
+        {
+            return latest_id;
+        }
+    }
+
+    store_new_session(None).unwrap_or_else(|| format!("urn:pi-agent:session-{}", new_id()))
 }
 
 // ── read_structured (pure — testable on native) ───────────────────────────────
