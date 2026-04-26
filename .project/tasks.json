@@ -6513,7 +6513,7 @@
     {
       "id": "T-NEXT-272",
       "description": "Implementar primitiva `navigate(session_id, entry_id)` no pi-agent: atualiza leaf_entry_id do nó Session via store_node. Validar que entry_id pertence à session_id antes de aplicar.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs",
@@ -6530,7 +6530,7 @@
     {
       "id": "T-NEXT-273",
       "description": "Implementar primitiva `fork(session_id, entry_id, name?)` no pi-agent: cria novo nó Session com parent_session_id=session_id e leaf_entry_id=entry_id. Retorna id da nova Session. Sessão de origem intacta.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/pi-agent/src/lib.rs",

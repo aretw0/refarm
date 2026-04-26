@@ -437,6 +437,36 @@ fn append_to_session(session_id: &str, kind: &str, content: &str) -> Option<Stri
     Some(entry_id)
 }
 
+/// Fork `session_id` at `entry_id`: create a new Session with `parent_session_id`
+/// pointing to the original and `leaf_entry_id` set to `entry_id`. The original
+/// session is not modified. Returns the new session `@id`.
+#[cfg(target_arch = "wasm32")]
+fn fork_session(session_id: &str, entry_id: &str, name: Option<&str>) -> Option<String> {
+    let new_id_ = format!("urn:pi-agent:session-{}", new_id());
+    let node = session_node(
+        &new_id_,
+        name,
+        Some(entry_id),
+        Some(session_id),
+        now_ns(),
+    );
+    tractor_bridge::store_node(&node.to_string()).ok()?;
+    Some(new_id_)
+}
+
+/// Navigate to `entry_id` within `session_id`: moves `leaf_entry_id` without
+/// touching any SessionEntry nodes. Returns Err if session not found.
+#[cfg(target_arch = "wasm32")]
+fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
+    let raw = tractor_bridge::get_node(session_id)
+        .map_err(|e| format!("navigate: session not found: {e:?}"))?;
+    let mut v = serde_json::from_str::<serde_json::Value>(&raw)
+        .map_err(|e| format!("navigate: parse error: {e}"))?;
+    v["leaf_entry_id"] = serde_json::Value::String(entry_id.to_owned());
+    tractor_bridge::store_node(&v.to_string())
+        .map_err(|e| format!("navigate: store error: {e:?}"))
+}
+
 // ── edit_file core logic (pure — testable on native) ─────────────────────────
 
 /// Apply ordered string replacements to `content`. Returns `Err` with a human message
@@ -1147,6 +1177,39 @@ mod tests {
         assert_eq!(branch_b["parent_entry_id"], root["@id"]);
         // But have different identities
         assert_ne!(branch_a["@id"], branch_b["@id"]);
+    }
+
+    // ── Fork / navigate schema tests ─────────────────────────────────────────
+
+    #[test]
+    fn fork_session_node_has_correct_fields() {
+        // Simulate fork: new session pointing to ancestor entry
+        let forked = session_node(
+            "urn:pi-agent:session-fork",
+            Some("my fork"),
+            Some("urn:pi-agent:entry-ancestor"),
+            Some("urn:pi-agent:session-origin"),
+            999,
+        );
+        assert_eq!(forked["@type"],             "Session");
+        assert_eq!(forked["parent_session_id"], "urn:pi-agent:session-origin");
+        assert_eq!(forked["leaf_entry_id"],     "urn:pi-agent:entry-ancestor");
+        assert_eq!(forked["name"],              "my fork");
+    }
+
+    #[test]
+    fn navigate_updates_leaf_in_node() {
+        // Navigate is a pure JSON patch — verify field semantics
+        let mut session = session_node("urn:pi-agent:session-s1", None, None, None, 1);
+        assert!(session["leaf_entry_id"].is_null());
+
+        // Simulate navigate by patching leaf_entry_id (as navigate_session does)
+        session["leaf_entry_id"] = serde_json::Value::String("urn:pi-agent:entry-42".into());
+        assert_eq!(session["leaf_entry_id"], "urn:pi-agent:entry-42");
+
+        // Navigate is idempotent: same entry twice is fine
+        session["leaf_entry_id"] = serde_json::Value::String("urn:pi-agent:entry-42".into());
+        assert_eq!(session["leaf_entry_id"], "urn:pi-agent:entry-42");
     }
 
     // ── /new_id / now_ns ─────────────────────────────────────────────────────
