@@ -663,6 +663,79 @@
 				"T-NEXT-267",
 				"T-NEXT-268"
 			]
+		},
+		{
+			"id": "REQ-AGENT-003",
+			"description": "O sistema de sessões do pi-agent deve ser modelado como um nó CRDT `Session` com ponteiro `leaf_entry_id` — a primitiva mínima que sustenta histórico, navegação e fork sem nenhuma feature adicional.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Inspirado no modelo do pi-mono (badlogic): sessão é um JSONL append-only com `leafId` como ponteiro móvel. Traduzido para CRDT Loro: Session é um nó com `leaf_entry_id` editável. Navegar é mover esse ponteiro. Forkar é criar nova Session apontando para um ancestral. Nenhuma dessas operações precisa de código especial além do schema — elas emergem das primitivas.",
+			"acceptance_criteria": [
+				"Nó `Session` definido no schema CRDT com campos: id, leaf_entry_id, name, parent_session_id (nullable), created_at_ns",
+				"Session pode ser criada via store_node com @type=Session",
+				"leaf_entry_id é atualizável via store_node (operação de navigate)",
+				"Schema documentado em packages/tractor ou packages/pi-agent/SCHEMA.md"
+			],
+			"traces_to": [
+				"T-NEXT-269"
+			]
+		},
+		{
+			"id": "REQ-AGENT-004",
+			"description": "Cada mensagem (usuário ou agente) deve ser um nó CRDT `SessionEntry` com `parent_entry_id` — formando uma árvore imutável que preserva branches automaticamente quando o usuário navega de volta e continua.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Em pi-mono, navegar para um ponto anterior e enviar mensagem cria um branch no mesmo arquivo JSONL (parentId = leafId atual, que foi movido). No CRDT: mesmo mecanismo — SessionEntry.parent_entry_id = Session.leaf_entry_id no momento de inserção. O branch é criado automaticamente pela estrutura de árvore; não é uma feature separada.",
+			"acceptance_criteria": [
+				"Nó `SessionEntry` definido com campos: id, session_id, parent_entry_id (nullable para raiz), kind (user|agent|tool_call|tool_result), content, timestamp_ns",
+				"Inserção de SessionEntry usa leaf_entry_id atual da Session como parent_entry_id automaticamente",
+				"Histórico de contexto (LLM_HISTORY_TURNS) percorre a cadeia parent_entry_id em vez de sort por timestamp",
+				"Branches preservados — nó ancestral tem múltiplos filhos naturalmente no grafo"
+			],
+			"traces_to": [
+				"T-NEXT-270",
+				"T-NEXT-271"
+			]
+		},
+		{
+			"id": "REQ-AGENT-005",
+			"description": "O pi-agent deve expor a primitiva `navigate(session_id, entry_id)` que move o ponteiro `leaf_entry_id` de uma Session para qualquer entrada existente na árvore — sem desfazer histórico.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Navigate é uma store_node que atualiza apenas leaf_entry_id. O histórico existente não é tocado. O próximo prompt usará a cadeia parent_entry_id a partir do novo leaf como contexto. Isso é tudo que /tree + clique num nó faz no pi-mono.",
+			"acceptance_criteria": [
+				"Tool `navigate(session_id, entry_id)` disponível no pi-agent",
+				"Após navigate, próxima chamada ao agente usa context chain a partir de entry_id",
+				"entry_id inválido retorna erro descritivo (não silencia)",
+				"navigate é idempotente (chamar duas vezes com mesmo entry_id é safe)"
+			],
+			"traces_to": [
+				"T-NEXT-272"
+			]
+		},
+		{
+			"id": "REQ-AGENT-006",
+			"description": "O pi-agent deve expor a primitiva `fork(session_id, entry_id)` que cria uma nova Session a partir de um ponto ancestral — preservando a sessão original intacta.",
+			"type": "functional",
+			"status": "planned",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Fork cria nova Session com parent_session_id = session_id original e leaf_entry_id = entry_id especificado. A sessão de origem não é alterada. O histórico do fork começa na cadeia parent_entry_id do ponto especificado — o contexto LLM é o mesmo que o usuário viu até aquele ponto. Diferente de navigate, fork é uma operação explícita e cria identidade separada (nome, id próprios).",
+			"acceptance_criteria": [
+				"Tool `fork(session_id, entry_id, name?)` cria nova Session com parent_session_id preenchido",
+				"Sessão original inalterada após fork",
+				"Nova Session inicia com leaf_entry_id = entry_id especificado",
+				"fork retorna o id da nova Session para o cliente"
+			],
+			"traces_to": [
+				"T-NEXT-273"
+			]
 		}
 	]
 }

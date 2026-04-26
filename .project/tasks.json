@@ -6458,6 +6458,107 @@
 				"Teste cobre leitura de tasks.json (arquivo grande do projeto) sem estourar limite de tokens"
 			],
 			"notes": "Backlog estratégico — prototipagem pode começar em paralelo com pi-agent v0.2.0."
+		},
+		{
+			"id": "T-NEXT-269",
+			"description": "Definir nó CRDT `Session` no schema do tractor: campos id, leaf_entry_id, name, parent_session_id (nullable), created_at_ns. Documentar schema em SCHEMA.md e garantir que store_node aceita @type=Session.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/tractor/src/",
+				"packages/pi-agent/SCHEMA.md"
+			],
+			"acceptance_criteria": [
+				"@type=Session aceito pelo store_node do tractor",
+				"leaf_entry_id atualizável via store_node (sem campos read-only extras)",
+				"SCHEMA.md descreve todos os campos e invariantes",
+				"Teste unitário: criar Session, ler de volta, verificar campos"
+			],
+			"notes": "REQ-AGENT-003. Pré-requisito para T-NEXT-270 e T-NEXT-272."
+		},
+		{
+			"id": "T-NEXT-270",
+			"description": "Definir nó CRDT `SessionEntry` no schema do tractor: campos id, session_id, parent_entry_id (nullable), kind (user|agent|tool_call|tool_result), content, timestamp_ns. Inserção automática usa leaf_entry_id da Session como parent.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/tractor/src/",
+				"packages/pi-agent/SCHEMA.md"
+			],
+			"acceptance_criteria": [
+				"@type=SessionEntry aceito pelo store_node",
+				"parent_entry_id=null para entradas raiz, preenchido automaticamente para demais",
+				"Schema documentado em SCHEMA.md junto com Session",
+				"Teste: criar 3 entradas encadeadas e verificar cadeia parent_entry_id"
+			],
+			"notes": "REQ-AGENT-004. Depende de T-NEXT-269 (Session deve existir primeiro)."
+		},
+		{
+			"id": "T-NEXT-271",
+			"description": "Migrar LLM_HISTORY_TURNS de sort-por-timestamp para tree-walk via parent_entry_id: ao montar contexto para o LLM, percorrer a cadeia parent_entry_id a partir de leaf_entry_id da Session atual, coletando N entradas anteriores.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/tractor/src/host/wasi_bridge/core.rs",
+				"packages/pi-agent/src/lib.rs"
+			],
+			"acceptance_criteria": [
+				"Contexto LLM usa cadeia parent_entry_id em vez de ORDER BY timestamp",
+				"LLM_HISTORY_TURNS=10 coleta exatamente os 10 ancestrais mais próximos",
+				"Branches divergentes NÃO aparecem no contexto (apenas o caminho do leaf atual)",
+				"Teste: 2 branches na mesma session, verificar que contexto só inclui branch ativo"
+			],
+			"notes": "REQ-AGENT-004. Depende de T-NEXT-270."
+		},
+		{
+			"id": "T-NEXT-272",
+			"description": "Implementar primitiva `navigate(session_id, entry_id)` no pi-agent: atualiza leaf_entry_id do nó Session via store_node. Validar que entry_id pertence à session_id antes de aplicar.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/pi-agent/src/lib.rs",
+				"packages/pi-agent/wit/"
+			],
+			"acceptance_criteria": [
+				"Tool navigate disponível no pi-agent via WIT",
+				"Após navigate, próximo prompt usa context chain a partir do entry_id especificado",
+				"entry_id de session diferente retorna erro descritivo",
+				"Operação idempotente (navigate para leaf atual não falha)"
+			],
+			"notes": "REQ-AGENT-005. Depende de T-NEXT-270."
+		},
+		{
+			"id": "T-NEXT-273",
+			"description": "Implementar primitiva `fork(session_id, entry_id, name?)` no pi-agent: cria novo nó Session com parent_session_id=session_id e leaf_entry_id=entry_id. Retorna id da nova Session. Sessão de origem intacta.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"packages/pi-agent/src/lib.rs",
+				"packages/pi-agent/wit/"
+			],
+			"acceptance_criteria": [
+				"Tool fork disponível no pi-agent via WIT",
+				"Nova Session criada com parent_session_id e leaf_entry_id corretos",
+				"Sessão de origem não é modificada após fork",
+				"fork retorna novo session_id para o cliente (REPL ou tractor prompt)"
+			],
+			"notes": "REQ-AGENT-006. Depende de T-NEXT-269."
+		},
+		{
+			"id": "T-NEXT-274",
+			"description": "Adicionar comando `/tree` ao agent-repl: mostra estrutura de branches da session atual — entradas com filhos múltiplos marcadas como bifurcações, entrada atual destacada.",
+			"status": "planned",
+			"phase": null,
+			"files": [
+				"scripts/agent-repl.mjs"
+			],
+			"acceptance_criteria": [
+				"/tree imprime árvore ASCII da session ativa no REPL",
+				"Leaf atual marcado com indicador visual (ex: `*`)",
+				"Bifurcações (nó com >1 filho) claramente indicadas",
+				"Funciona com sessions sem branches (lista linear)"
+			],
+			"notes": "Depende de T-NEXT-270 (SessionEntry) e T-NEXT-272 (navigate). Feature de UX — backlog após schema estável."
 		}
 	]
 }
