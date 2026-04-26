@@ -85,6 +85,7 @@ The file is optional — missing file is silently ignored.
 | `LLM_SHELL_ALLOWLIST` | unset (permissive) | Comma-separated allowlist for `agent_shell::spawn`; if set, commands outside list are rejected with `[blocked: <cmd> not in allowlist]` |
 | `LLM_FS_ROOT` | unset (permissive) | Restrict `agent_fs::{read,write,edit}` to this subtree; paths outside are rejected with `[blocked: path outside LLM_FS_ROOT]` |
 | `LLM_SYSTEM` | built-in default | System prompt override — distros and stacks inject persona/role here without recompiling |
+| `LLM_SESSION_ID` | — | Pin the active session by CRDT `@id`; auto-selects most recent session when unset |
 <!-- {/env_vars} -->
 
 **Provider resolution order** (first wins):
@@ -209,6 +210,12 @@ Every action writes to the CRDT via `tractor_bridge::store_node`. Nothing is eph
 | `list_dir` | agent-shell (ls) | List files and directories at a path |
 | `search_files` | agent-shell (grep) | Search for regex pattern in files; optional `glob` filter; returns `file:line` matches |
 | `bash` | agent-shell | Run command via structured argv — no shell injection |
+| `read_structured` | agent-fs | Parse JSON/TOML/YAML with pagination: `{path, format?, page_size?, page_offset?}` |
+| `write_structured` | agent-fs | Validate then write JSON/TOML/YAML atomically — rejects invalid syntax before touching the file |
+| `list_sessions` | CRDT | List all conversation sessions with id, name, leaf, and which is active |
+| `current_session` | CRDT | Return metadata of the currently active session (id, leaf_entry_id) |
+| `navigate` | CRDT | Move session pointer to a specific entry: `{session_id, entry_id}` |
+| `fork` | CRDT | Branch a new session from an existing entry: `{session_id, entry_id, name?}` |
 <!-- {/tools} -->
 
 `query_nodes("UsageRecord", limit)` powers the rolling budget check.
