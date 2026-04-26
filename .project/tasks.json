@@ -6643,6 +6643,47 @@
         "Fallback gracioso quando não há sessões"
       ],
       "notes": "Complemento de /tree (T-NEXT-274). Puro JS."
+    },
+    {
+      "id": "T-NEXT-280",
+      "description": "Sanitizar output do REPL: strip ANSI escape codes da resposta do agente + limitar a 200 linhas visíveis por turno. Puro JS, sem rebuild.",
+      "status": "completed",
+      "phase": null,
+      "files": ["scripts/agent-repl.mjs"],
+      "acceptance_criteria": [
+        "ANSI codes strip via regex antes de imprimir no terminal",
+        "Resposta truncada a 200 linhas com rodapé '[... N linhas omitidas]'",
+        "Metadados de tokens/custo nunca são truncados"
+      ],
+      "notes": "Item de hardening do plano principal. Evita que output verboso do agente inunde o terminal."
+    },
+    {
+      "id": "T-NEXT-281",
+      "description": "Soft rate limit no REPL: avisar quando UsageRecord indica >20 prompts na última hora, sem bloquear. Usa queryNodes('UsageRecord') do CRDT.",
+      "status": "completed",
+      "phase": null,
+      "files": ["scripts/agent-repl.mjs"],
+      "acceptance_criteria": [
+        "Após cada resposta, verificar UsageRecords da última hora",
+        "Aviso amarelo quando count > 20 e count <= 40",
+        "Aviso vermelho quando count > 40 (risco de budget elevado)",
+        "Sem bloquear — só aviso visual"
+      ],
+      "notes": "Item de hardening do plano principal. Complemento ao LLM_BUDGET_*_USD."
+    },
+    {
+      "id": "T-NEXT-282",
+      "description": "Implementar LLM_AGENT_ID: prefixar @id dos nós CRDT com o agent ID para namespacing multi-agente. new_id() passa a retornar 'urn:farmhand:{agent_id}:{hex}' quando LLM_AGENT_ID está configurado.",
+      "status": "planned",
+      "phase": null,
+      "files": ["packages/pi-agent/src/lib.rs"],
+      "acceptance_criteria": [
+        "LLM_AGENT_ID ausente → comportamento atual inalterado",
+        "LLM_AGENT_ID=myagent → @id = 'urn:farmhand:myagent:{hex}'",
+        "Session e SessionEntry usam o mesmo new_id() e herdam o namespace",
+        "Testes: id contém agent_id quando var configurada, sem agent_id → padrão antigo"
+      ],
+      "notes": "Pré-requisito para multi-agent swarm (v0.3.0). Pura função, zero dependência nova."
     }
   ]
 }

@@ -82,6 +82,20 @@ function appendHistory(line) {
   } catch { /* best-effort */ }
 }
 
+// ── output sanitization ───────────────────────────────────────────────────────
+
+const REPL_MAX_LINES = 200;
+const ANSI_RE = /\x1b\[[0-9;]*[a-zA-Z]/g;
+
+function sanitizeOutput(text) {
+  const stripped = text.replace(ANSI_RE, '');
+  const lines = stripped.split('\n');
+  if (lines.length <= REPL_MAX_LINES) return stripped;
+  const omitted = lines.length - REPL_MAX_LINES;
+  return lines.slice(0, REPL_MAX_LINES).join('\n') +
+    `\n${c.dim}[... ${omitted} lines omitted — set REPL_MAX_LINES to see more]${c.reset}`;
+}
+
 function sendPrompt(payload) {
   const r = spawnSync(
     TRACTOR,
@@ -121,6 +135,28 @@ function printBanner(provider) {
 }
 
 // ── special commands ──────────────────────────────────────────────────────────
+
+// ── rate limit soft warning ───────────────────────────────────────────────────
+
+const RATE_WARN_YELLOW = 20;
+const RATE_WARN_RED    = 40;
+const HOUR_MS = 60 * 60 * 1000;
+
+function checkRateLimit() {
+  const records = queryNodes('UsageRecord', 200);
+  if (records.length === 0) return;
+  const cutoff = Date.now() - HOUR_MS;
+  const recent = records.filter(r => {
+    const ts = Number(r.timestamp_ns || 0) / 1_000_000;
+    return ts >= cutoff;
+  });
+  const count = recent.length;
+  if (count > RATE_WARN_RED) {
+    console.log(`${c.red}[rate] ${count} prompts in the last hour — budget risk high${c.reset}`);
+  } else if (count > RATE_WARN_YELLOW) {
+    console.log(`${c.yellow}[rate] ${count} prompts in the last hour${c.reset}`);
+  }
+}
 
 // ── /tree rendering ───────────────────────────────────────────────────────────
 
@@ -307,9 +343,9 @@ async function main() {
     const { ok, output, meta } = sendPrompt(trimmed);
 
     if (!ok) {
-      console.log(`\n${c.red}${output}${c.reset}\n`);
+      console.log(`\n${c.red}${sanitizeOutput(output)}${c.reset}\n`);
     } else {
-      console.log(`\n${output}`);
+      console.log(`\n${sanitizeOutput(output)}`);
       if (meta) {
         // Strip the "sending to..." line, keep only the token metadata line
         const metaLines = meta.split('\n').filter(l => l.startsWith('#'));
@@ -317,6 +353,7 @@ async function main() {
           console.log(`${c.dim}${metaLines.join(' ')}${c.reset}`);
         }
       }
+      checkRateLimit();
       console.log('');
     }
 
