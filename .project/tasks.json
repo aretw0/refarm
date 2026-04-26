@@ -6721,7 +6721,7 @@
     {
       "id": "T-NEXT-285",
       "description": "Harness tests para session wiring: (1) dois prompts → dois SessionEntry por turno; (2) write_structured via tool call → arquivo criado; (3) read_structured via tool call → resposta paginada.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": ["packages/tractor/tests/pi_agent_harness.rs"],
       "acceptance_criteria": [

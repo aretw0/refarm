@@ -554,3 +554,191 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
 
     clean_llm_env();
 }
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_session_entries_stored_for_each_turn() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    let port = mock_llm_server(openai_response("turn response", 5, 3)).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    // Send first prompt.
+    handle.call_on_event("user:prompt", Some("first message")).await.expect("on_event turn 1");
+
+    let entries_after_1 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 1");
+    let sessions_after_1 = sync.query_nodes("Session").expect("query Session turn 1");
+
+    assert!(!sessions_after_1.is_empty(), "Session must exist after first prompt");
+    // Each prompt stores: user SessionEntry + agent SessionEntry (at minimum)
+    assert!(entries_after_1.len() >= 2, "at least 2 SessionEntry after first turn: {}", entries_after_1.len());
+
+    let leaf_after_1 = {
+        let v: serde_json::Value = serde_json::from_str(&sessions_after_1[0].payload).unwrap();
+        v["leaf_entry_id"].as_str().unwrap_or("").to_string()
+    };
+    assert!(!leaf_after_1.is_empty(), "leaf_entry_id must be set after first turn");
+
+    // Send second prompt to same handle (same session).
+    handle.call_on_event("user:prompt", Some("second message")).await.expect("on_event turn 2");
+
+    let entries_after_2 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 2");
+    let sessions_after_2 = sync.query_nodes("Session").expect("query Session turn 2");
+
+    assert!(entries_after_2.len() > entries_after_1.len(),
+        "more SessionEntry nodes after second turn: {} > {}", entries_after_2.len(), entries_after_1.len());
+
+    // leaf_entry_id must have advanced.
+    let leaf_after_2 = {
+        let v: serde_json::Value = serde_json::from_str(&sessions_after_2[0].payload).unwrap();
+        v["leaf_entry_id"].as_str().unwrap_or("").to_string()
+    };
+    assert_ne!(leaf_after_1, leaf_after_2, "leaf_entry_id must advance between turns");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_write_structured_tool_creates_file() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    let dir = tempfile::tempdir().unwrap();
+    let out_file = dir.path().join("output.json");
+    let out_path = out_file.to_str().unwrap().to_string();
+    let json_content = r#"{"result":"ok","value":42}"#;
+
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-ws",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_ws",
+                    "type": "function",
+                    "function": {
+                        "name": "write_structured",
+                        "arguments": serde_json::json!({
+                            "path": out_path,
+                            "content": json_content,
+                            "format": "json"
+                        }).to_string()
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("file written", 15, 5);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_FS_ROOT", dir.path().to_str().unwrap());
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("write structured json")).await.expect("on_event");
+
+    // File must exist and contain valid JSON.
+    assert!(out_file.exists(), "write_structured must create the file at {out_path}");
+    let written = std::fs::read_to_string(&out_file).unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&written)
+        .expect("written content must be valid JSON");
+    assert_eq!(parsed["result"], "ok");
+    assert_eq!(parsed["value"], 42);
+
+    clean_llm_env();
+    std::env::remove_var("LLM_FS_ROOT");
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_read_structured_tool_returns_paginated_header() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    clean_llm_env();
+
+    let dir = tempfile::tempdir().unwrap();
+    let json_file = dir.path().join("data.json");
+    // Write a JSON array with 10 items to the temp file.
+    let data: Vec<serde_json::Value> = (0..10).map(|i| serde_json::json!({"n": i})).collect();
+    std::fs::write(&json_file, serde_json::to_string(&data).unwrap()).unwrap();
+
+    let file_path = json_file.to_str().unwrap().to_string();
+
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-rs",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_rs",
+                    "type": "function",
+                    "function": {
+                        "name": "read_structured",
+                        "arguments": serde_json::json!({
+                            "path": file_path,
+                            "format": "json",
+                            "page_size": 3,
+                            "page_offset": 0
+                        }).to_string()
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("read structured done", 15, 5);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_FS_ROOT", dir.path().to_str().unwrap());
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("read the json file")).await.expect("on_event");
+
+    // The tool result (fed back to LLM) must contain the pagination header.
+    // It is stored in AgentResponse.tool_calls[0].result.
+    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!responses.is_empty(), "AgentResponse must exist");
+
+    let v: serde_json::Value = serde_json::from_str(&responses[0].payload).unwrap();
+    let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
+    assert!(!tool_calls.is_empty(), "at least one tool call must be logged");
+
+    let result_str = tool_calls[0]["result"].as_str().unwrap_or("");
+    assert!(
+        result_str.contains("read_structured") || result_str.contains("total="),
+        "tool result must contain structured-io header: {result_str}"
+    );
+
+    clean_llm_env();
+    std::env::remove_var("LLM_FS_ROOT");
+}
