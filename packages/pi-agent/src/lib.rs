@@ -2183,11 +2183,16 @@ jobs:
 #[cfg(test)]
 mod extensibility_contract {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serializes all env-var-mutating tests in this module to prevent race conditions.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     // A1 — any provider name not in the explicit list must pass through to OpenAI compat
     // (base_url driven by LLM_BASE_URL), enabling Groq, Mistral, Perplexity, etc. with zero code.
     #[test]
     fn a1_unknown_provider_name_passes_through_without_code_change() {
+        let _guard = ENV_LOCK.lock().unwrap();
         for name in ["groq", "mistral", "perplexity", "together", "anyrandom"] {
             std::env::set_var("LLM_PROVIDER", name);
             assert_eq!(provider_name_from_env(), name,
@@ -2201,6 +2206,7 @@ mod extensibility_contract {
     // A2 — zero env vars → agent returns a response, no panic.
     #[test]
     fn a2_zero_config_boot_returns_response() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::remove_var("LLM_PROVIDER");
         std::env::remove_var("LLM_DEFAULT_PROVIDER");
         std::env::remove_var("LLM_MODEL");
