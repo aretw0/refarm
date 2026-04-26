@@ -176,6 +176,10 @@ struct PromptArgs {
     /// Poll interval for storage watcher while waiting
     #[arg(long, default_value_t = 250)]
     poll_interval_ms: u64,
+
+    /// Output format: json (full record) or plain (content text + metadata comment)
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Args, Debug)]
@@ -203,6 +207,10 @@ struct WatchArgs {
     /// Exit when a final response (`is_final=true`) arrives
     #[arg(long, default_value_t = false)]
     until_final: bool,
+
+    /// Output format: json (full record) or plain (content text + metadata comment)
+    #[arg(long, default_value = "json")]
+    format: String,
 }
 
 #[derive(Args, Debug)]
@@ -224,6 +232,19 @@ struct HealthArgs {
     skip_boot_probe: bool,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+enum OutputFormat {
+    #[default]
+    Json,
+    Plain,
+}
+
+impl OutputFormat {
+    fn from_str(s: &str) -> Self {
+        if s.eq_ignore_ascii_case("plain") { Self::Plain } else { Self::Json }
+    }
+}
+
 #[derive(Debug)]
 struct AgentResponseEvent {
     id: String,
@@ -234,6 +255,10 @@ struct AgentResponseEvent {
     prompt_ref: Option<String>,
     content: String,
     timestamp_ns: u64,
+    llm_tokens_in: u64,
+    llm_tokens_out: u64,
+    llm_estimated_usd: f64,
+    llm_duration_ms: u64,
 }
 
 #[tokio::main]
@@ -308,13 +333,19 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 }
 
 async fn run_prompt(args: PromptArgs) -> Result<()> {
+    let format = OutputFormat::from_str(&args.format);
     let mut seen = snapshot_seen_response_ids(&args.namespace, &args.agent)?;
     send_user_prompt(args.ws_port, &args.agent, &args.payload).await?;
 
-    println!(
-        "prompt sent: agent={} ws_port={} namespace={}",
-        args.agent, args.ws_port, args.namespace
-    );
+    // In plain mode status goes to stderr so stdout stays clean for piping.
+    if format == OutputFormat::Json {
+        println!(
+            "prompt sent: agent={} ws_port={} namespace={}",
+            args.agent, args.ws_port, args.namespace
+        );
+    } else {
+        eprintln!("sending to {}…", args.agent);
+    }
 
     if args.wait_timeout_ms == 0 {
         return Ok(());
@@ -328,6 +359,7 @@ async fn run_prompt(args: PromptArgs) -> Result<()> {
         Some(Duration::from_millis(args.wait_timeout_ms)),
         false,
         true,
+        format,
     )
     .await?;
 
@@ -342,6 +374,7 @@ async fn run_prompt(args: PromptArgs) -> Result<()> {
 }
 
 async fn run_watch(args: WatchArgs) -> Result<()> {
+    let format = OutputFormat::from_str(&args.format);
     let mut seen = snapshot_seen_response_ids(&args.namespace, &args.agent)?;
     let timeout = if args.timeout_ms == 0 {
         None
@@ -357,6 +390,7 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
         timeout,
         args.once,
         args.until_final,
+        format,
     )
     .await?;
 
@@ -496,6 +530,12 @@ fn collect_new_response_events(
             .map(ToOwned::to_owned);
         let timestamp_ns = v.get("timestamp_ns").and_then(|x| x.as_u64()).unwrap_or(0);
 
+        let llm = v.get("llm").and_then(|x| x.as_object());
+        let llm_tokens_in  = llm.and_then(|m| m.get("tokens_in")).and_then(|x| x.as_u64()).unwrap_or(0);
+        let llm_tokens_out = llm.and_then(|m| m.get("tokens_out")).and_then(|x| x.as_u64()).unwrap_or(0);
+        let llm_estimated_usd = llm.and_then(|m| m.get("estimated_usd")).and_then(|x| x.as_f64()).unwrap_or(0.0);
+        let llm_duration_ms   = llm.and_then(|m| m.get("duration_ms")).and_then(|x| x.as_u64()).unwrap_or(0);
+
         out.push(AgentResponseEvent {
             id: row.id,
             source_plugin: row.source_plugin,
@@ -505,6 +545,10 @@ fn collect_new_response_events(
             prompt_ref,
             content,
             timestamp_ns,
+            llm_tokens_in,
+            llm_tokens_out,
+            llm_estimated_usd,
+            llm_duration_ms,
         });
     }
 
@@ -526,6 +570,7 @@ async fn poll_agent_responses(
     timeout: Option<Duration>,
     stop_after_first: bool,
     stop_on_final: bool,
+    format: OutputFormat,
 ) -> Result<bool> {
     let deadline = timeout.map(|d| Instant::now() + d);
 
@@ -541,17 +586,42 @@ async fn poll_agent_responses(
 
         for event in events {
             seen.insert(event.id.clone());
-            let line = serde_json::json!({
-                "id": event.id,
-                "source_plugin": event.source_plugin,
-                "updated_at": event.updated_at,
-                "sequence": event.sequence,
-                "is_final": event.is_final,
-                "prompt_ref": event.prompt_ref,
-                "timestamp_ns": event.timestamp_ns,
-                "content": event.content,
-            });
-            println!("{}", line);
+
+            match format {
+                OutputFormat::Json => {
+                    let line = serde_json::json!({
+                        "id": event.id,
+                        "source_plugin": event.source_plugin,
+                        "updated_at": event.updated_at,
+                        "sequence": event.sequence,
+                        "is_final": event.is_final,
+                        "prompt_ref": event.prompt_ref,
+                        "timestamp_ns": event.timestamp_ns,
+                        "content": event.content,
+                    });
+                    println!("{}", line);
+                }
+                OutputFormat::Plain => {
+                    println!("{}", event.content);
+                    if event.is_final {
+                        // Dim metadata line: tokens in→out, cost, duration
+                        let meta = if event.llm_tokens_in > 0 || event.llm_tokens_out > 0 {
+                            format!(
+                                "# {}→{} tokens  ${:.4}  {}ms",
+                                event.llm_tokens_in,
+                                event.llm_tokens_out,
+                                event.llm_estimated_usd,
+                                event.llm_duration_ms,
+                            )
+                        } else {
+                            String::new()
+                        };
+                        if !meta.is_empty() {
+                            eprintln!("{}", meta);
+                        }
+                    }
+                }
+            }
 
             if event.is_final {
                 got_final = true;

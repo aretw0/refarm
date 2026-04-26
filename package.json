@@ -69,6 +69,10 @@
 		"agent:keys": "node scripts/setup-llm-keys.mjs",
 		"agent:keys:status": "node scripts/setup-llm-keys.mjs --status",
 		"agent:start": "bash scripts/tractor-start.sh",
+		"agent:daemon": "bash scripts/tractor-start.sh --background",
+		"agent:stop": "node scripts/agent-stop.mjs",
+		"agent:status": "node scripts/agent-status.mjs",
+		"agent:repl": "node scripts/agent-repl.mjs",
 		"agent:prompt": "packages/tractor/target/release/tractor prompt --agent pi_agent"
 	},
 	"repository": {

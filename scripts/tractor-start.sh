@@ -2,12 +2,14 @@
 # tractor-start.sh — start the tractor daemon with pi-agent, auto-loading .refarm/.env
 #
 # Usage:
-#   ./scripts/tractor-start.sh                          # default namespace + port
+#   ./scripts/tractor-start.sh                          # foreground (default)
+#   ./scripts/tractor-start.sh --background             # background with PID file
 #   ./scripts/tractor-start.sh --namespace myproject    # custom namespace
 #   LLM_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
 #
 # Keys are loaded from .refarm/.env (gitignored).
-# Run `node scripts/setup-llm-keys.mjs` to configure them.
+# Run `npm run agent:keys` to configure them.
+# Run `npm run agent:stop` to stop a backgrounded daemon.
 
 set -euo pipefail
 
@@ -15,6 +17,21 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.refarm/.env"
 TRACTOR="$ROOT/packages/tractor/target/release/tractor"
 PI_AGENT="$ROOT/packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"
+PID_FILE="$ROOT/.refarm/tractor.pid"
+LOG_FILE="$ROOT/.refarm/tractor.log"
+
+# ── parse --background flag (strip before forwarding to tractor) ──────────────
+
+BACKGROUND=0
+FORWARDED_ARGS=()
+for arg in "$@"; do
+  if [ "$arg" = "--background" ]; then
+    BACKGROUND=1
+  else
+    FORWARDED_ARGS+=("$arg")
+  fi
+done
+set -- "${FORWARDED_ARGS[@]+"${FORWARDED_ARGS[@]}"}"
 
 # ── preflight checks ──────────────────────────────────────────────────────────
 
@@ -59,33 +76,61 @@ fi
 
 # ── key check ─────────────────────────────────────────────────────────────────
 
+require_key() {
+  local var="$1"
+  if [ -z "${!var:-}" ]; then
+    echo "  LLM_PROVIDER=$LLM_PROVIDER but $var is not set."
+    echo "   Run: npm run agent:keys"
+    exit 1
+  fi
+}
+
 case "$LLM_PROVIDER" in
-  anthropic)
-    if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-      echo "❌  LLM_PROVIDER=anthropic but ANTHROPIC_API_KEY is not set."
-      echo "   Run: node scripts/setup-llm-keys.mjs"
-      exit 1
-    fi
-    ;;
-  openai*)
-    if [ -z "${OPENAI_API_KEY:-}" ]; then
-      echo "❌  LLM_PROVIDER=$LLM_PROVIDER but OPENAI_API_KEY is not set."
-      echo "   Run: node scripts/setup-llm-keys.mjs"
-      exit 1
-    fi
-    ;;
+  anthropic)   require_key ANTHROPIC_API_KEY ;;
+  openai*)     require_key OPENAI_API_KEY ;;
+  groq)        require_key GROQ_API_KEY ;;
+  mistral)     require_key MISTRAL_API_KEY ;;
+  xai)         require_key XAI_API_KEY ;;
+  deepseek)    require_key DEEPSEEK_API_KEY ;;
+  together)    require_key TOGETHER_API_KEY ;;
+  openrouter)  require_key OPENROUTER_API_KEY ;;
+  gemini)      require_key GEMINI_API_KEY ;;
   ollama)
-    echo "ℹ   LLM_PROVIDER=ollama (sovereign default — no API key needed)"
+    echo "   LLM_PROVIDER=ollama (sovereign default — no API key needed)"
     echo "   Ensure Ollama is running: ollama serve"
     ;;
 esac
 
 # ── start daemon ──────────────────────────────────────────────────────────────
 
-echo "🚜  Starting tractor daemon"
+echo "   Starting tractor daemon"
 echo "   provider : $LLM_PROVIDER"
 echo "   plugin   : $PI_AGENT"
-echo "   args     : $*"
-echo ""
+[ $# -gt 0 ] && echo "   extra    : $*"
 
-exec "$TRACTOR" --plugin "$PI_AGENT" "$@"
+mkdir -p "$(dirname "$PID_FILE")"
+
+if [ "$BACKGROUND" = "1" ]; then
+  # Kill any existing daemon from a previous run
+  if [ -f "$PID_FILE" ]; then
+    OLD_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+      echo "   Stopping previous daemon (pid $OLD_PID)..."
+      kill "$OLD_PID" 2>/dev/null || true
+      sleep 0.5
+    fi
+    rm -f "$PID_FILE"
+  fi
+
+  echo "   Log      : $LOG_FILE"
+  nohup "$TRACTOR" --plugin "$PI_AGENT" "$@" > "$LOG_FILE" 2>&1 &
+  echo $! > "$PID_FILE"
+  echo "   Started  : pid $(cat "$PID_FILE")"
+  echo ""
+  echo "   Check status : npm run agent:status"
+  echo "   Stop daemon  : npm run agent:stop"
+  echo "   Follow log   : tail -f $LOG_FILE"
+else
+  echo ""
+  exec "$TRACTOR" --plugin "$PI_AGENT" "$@"
+fi
