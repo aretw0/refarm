@@ -6717,6 +6717,65 @@
         "pi-agent pode importar o serviço sem duplicar a lógica (pi-agent tool dispatch delega para WIT)"
       ],
       "notes": "Seguindo o princípio de APIs compartilhadas: structured I/O é util para humanos e agentes. agent-tools é a camada correta."
+    },
+    {
+      "id": "T-NEXT-285",
+      "description": "Harness tests para session wiring: (1) dois prompts → dois SessionEntry por turno; (2) write_structured via tool call → arquivo criado; (3) read_structured via tool call → resposta paginada.",
+      "status": "planned",
+      "phase": null,
+      "files": ["packages/tractor/tests/pi_agent_harness.rs"],
+      "acceptance_criteria": [
+        "harness_session_entries_stored_for_each_turn: 2 prompts → ≥2 SessionEntry, leaf_entry_id avança",
+        "harness_write_structured_tool_call: mock LLM retorna write_structured → arquivo existe no disco",
+        "harness_read_structured_tool_call: mock LLM retorna read_structured → resposta contém metadata header"
+      ],
+      "notes": "Cobertura de integração para T-NEXT-276 (session wiring), T-NEXT-278 (write_structured), T-NEXT-268 (read_structured)."
+    },
+    {
+      "id": "T-NEXT-286",
+      "description": "Adicionar /fork e /navigate ao agent-repl: /fork [nome] cria nova sessão a partir do leaf atual e imprime o ID; /navigate <entry_id> move o pointer da sessão ativa. Puro JS.",
+      "status": "planned",
+      "phase": null,
+      "files": ["scripts/agent-repl.mjs"],
+      "acceptance_criteria": [
+        "/fork [name] chama tractor com payload fork para a sessão ativa",
+        "/navigate <id> chama tractor com payload navigate",
+        "/help atualizado para incluir /fork e /navigate",
+        "Feedback visual após cada operação"
+      ],
+      "notes": "REPL surface para as primitivas fork/navigate implementadas em T-NEXT-272/273."
+    },
+    {
+      "id": "T-NEXT-287",
+      "description": "Importar structured-io de agent-tools em pi-agent via WIT: adicionar structured-io ao refarm-plugin-host.wit e world.wit, e fazer dispatch_tool delegar para o import em vez de duplicar a lógica.",
+      "status": "planned",
+      "phase": null,
+      "files": [
+        "packages/pi-agent/wit/refarm-plugin-host.wit",
+        "packages/pi-agent/wit/world.wit",
+        "packages/pi-agent/src/lib.rs"
+      ],
+      "acceptance_criteria": [
+        "pi-agent importa structured-io no WIT",
+        "dispatch_tool chama wasm32 import em vez de chamar parse functions locais",
+        "Testes nativos existentes continuam passando (pure functions mantidas para testes)",
+        "cargo component build --release passa"
+      ],
+      "notes": "Completa o princípio de camada compartilhada: pi-agent não duplica lógica de agent-tools."
+    },
+    {
+      "id": "T-NEXT-288",
+      "description": "Atualizar ROADMAP.md com itens completados: marcar [x] nos itens de v0.2.0 e v0.3.0 concluídos neste ciclo (structured-io, session primitives, REPL, budget, multi-provider).",
+      "status": "planned",
+      "phase": null,
+      "files": ["packages/pi-agent/ROADMAP.md"],
+      "acceptance_criteria": [
+        "structured-io marcado como [x]",
+        "Session primitives (fork, navigate, list, current) marcados como [x]",
+        "REPL items marcados como [x]",
+        "LLM_AGENT_ID marcado como [x]"
+      ],
+      "notes": "Housekeeping — mantém o ROADMAP como fonte de verdade do estado atual."
     }
   ]
 }
