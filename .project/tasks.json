@@ -6496,7 +6496,7 @@
     {
       "id": "T-NEXT-271",
       "description": "Migrar LLM_HISTORY_TURNS de sort-por-timestamp para tree-walk via parent_entry_id: ao montar contexto para o LLM, percorrer a cadeia parent_entry_id a partir de leaf_entry_id da Session atual, coletando N entradas anteriores.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/tractor/src/host/wasi_bridge/core.rs",

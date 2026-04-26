@@ -325,6 +325,75 @@ fn history_from_nodes(nodes: &[String], max_turns: usize) -> Vec<(String, String
 /// Fetch conversation history from the CRDT store (wasm32 only).
 /// Controlled by LLM_HISTORY_TURNS env var (default: 0 = disabled).
 /// Returns up to that many (role, content) pairs, oldest first.
+/// Walk the parent_entry_id chain from `leaf_id`, collecting up to `max_turns`
+/// user/agent entries. Pure function — `nodes` is a flat list of SessionEntry JSON
+/// strings; a HashMap index is built internally. Returns oldest-first pairs.
+fn history_from_tree(nodes: &[String], leaf_id: &str, max_turns: usize) -> Vec<(String, String)> {
+    let index: std::collections::HashMap<String, serde_json::Value> = nodes.iter()
+        .filter_map(|raw| {
+            let v = serde_json::from_str::<serde_json::Value>(raw).ok()?;
+            let id = v["@id"].as_str()?.to_owned();
+            Some((id, v))
+        })
+        .collect();
+
+    let mut chain: Vec<(String, String)> = Vec::new();
+    let mut current = Some(leaf_id.to_owned());
+    while let Some(id) = current.take() {
+        if chain.len() >= max_turns { break; }
+        let Some(v) = index.get(&id) else { break; };
+        let role = match v["kind"].as_str().unwrap_or("") {
+            "user"  => "user",
+            "agent" => "assistant",
+            _ => {
+                current = v["parent_entry_id"].as_str().map(|s| s.to_owned());
+                continue;
+            }
+        };
+        let content = v["content"].as_str().unwrap_or("").to_owned();
+        chain.push((role.to_string(), content));
+        current = v["parent_entry_id"].as_str().map(|s| s.to_owned());
+    }
+    chain.reverse(); // oldest first for LLM context window
+    chain
+}
+
+/// Try to build history by walking the active Session's entry tree.
+/// Returns None when no Session exists (falls back to timestamp-sort).
+#[cfg(target_arch = "wasm32")]
+fn query_history_from_session(max_turns: usize) -> Option<Vec<(String, String)>> {
+    let sessions = tractor_bridge::query_nodes("Session", 10).ok()?;
+    let leaf_id = sessions.iter()
+        .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .filter_map(|v| {
+            let ts  = v["created_at_ns"].as_u64().unwrap_or(0);
+            let lid = v["leaf_entry_id"].as_str()?.to_owned();
+            Some((ts, lid))
+        })
+        .max_by_key(|(ts, _)| *ts)
+        .map(|(_, lid)| lid)?;
+
+    // Walk the chain via get_node to avoid pagination limits on query_nodes.
+    let mut chain: Vec<(String, String)> = Vec::new();
+    let mut current = Some(leaf_id);
+    while let Some(id) = current.take() {
+        if chain.len() >= max_turns { break; }
+        let raw = tractor_bridge::get_node(&id).ok()?;
+        let v = serde_json::from_str::<serde_json::Value>(&raw).ok()?;
+        let role = match v["kind"].as_str().unwrap_or("") {
+            "user"  => "user",
+            "agent" => "assistant",
+            _ => { current = v["parent_entry_id"].as_str().map(|s| s.to_owned()); continue; }
+        };
+        let content = v["content"].as_str().unwrap_or("").to_owned();
+        chain.push((role.to_string(), content));
+        current = v["parent_entry_id"].as_str().map(|s| s.to_owned());
+    }
+    if chain.is_empty() { return None; }
+    chain.reverse();
+    Some(chain)
+}
+
 #[cfg(target_arch = "wasm32")]
 fn query_history() -> Vec<(String, String)> {
     let max_turns = std::env::var("LLM_HISTORY_TURNS")
@@ -332,7 +401,14 @@ fn query_history() -> Vec<(String, String)> {
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(0);
     if max_turns == 0 { return vec![]; }
-    let limit = (max_turns * 2) as u32; // fetch 2× to cover interleaved user/assistant
+
+    // Tree-walk via Session.leaf_entry_id → parent_entry_id chain (preferred).
+    if let Some(history) = query_history_from_session(max_turns) {
+        return history;
+    }
+
+    // Legacy fallback: timestamp-sort for pre-session UserPrompt/AgentResponse nodes.
+    let limit = (max_turns * 2) as u32;
     let mut nodes = tractor_bridge::query_nodes("UserPrompt", limit).unwrap_or_default();
     nodes.extend(tractor_bridge::query_nodes("AgentResponse", limit).unwrap_or_default());
     history_from_nodes(&nodes, max_turns)
@@ -1210,6 +1286,67 @@ mod tests {
         // Navigate is idempotent: same entry twice is fine
         session["leaf_entry_id"] = serde_json::Value::String("urn:pi-agent:entry-42".into());
         assert_eq!(session["leaf_entry_id"], "urn:pi-agent:entry-42");
+    }
+
+    // ── history_from_tree tests ───────────────────────────────────────────────
+
+    fn make_entry(id: &str, sid: &str, parent: Option<&str>, kind: &str, content: &str) -> String {
+        session_entry_node(id, sid, parent, kind, content, 0).to_string()
+    }
+
+    #[test]
+    fn tree_walk_linear_chain() {
+        let nodes = vec![
+            make_entry("urn:e1", "urn:s1", None,         "user",  "hello"),
+            make_entry("urn:e2", "urn:s1", Some("urn:e1"), "agent", "world"),
+            make_entry("urn:e3", "urn:s1", Some("urn:e2"), "user",  "more"),
+        ];
+        let history = history_from_tree(&nodes, "urn:e3", 10);
+        assert_eq!(history.len(), 3);
+        assert_eq!(history[0], ("user".into(),      "hello".into())); // oldest first
+        assert_eq!(history[1], ("assistant".into(), "world".into()));
+        assert_eq!(history[2], ("user".into(),      "more".into()));
+    }
+
+    #[test]
+    fn tree_walk_caps_at_max_turns() {
+        let nodes: Vec<String> = (1..=10_u8).map(|i| {
+            let id = format!("urn:e{i:02}");
+            let parent = if i == 1 { None } else { Some(format!("urn:e{:02}", i-1)) };
+            make_entry(&id, "urn:s1", parent.as_deref(), "user", &format!("msg{i}"))
+        }).collect();
+        let history = history_from_tree(&nodes, "urn:e10", 4);
+        assert_eq!(history.len(), 4);
+        assert_eq!(history[0].1, "msg7"); // oldest of the last 4
+        assert_eq!(history[3].1, "msg10");
+    }
+
+    #[test]
+    fn tree_walk_skips_tool_entries() {
+        let nodes = vec![
+            make_entry("urn:e1", "urn:s1", None,         "user",        "q"),
+            make_entry("urn:e2", "urn:s1", Some("urn:e1"), "tool_call",  "tool"),
+            make_entry("urn:e3", "urn:s1", Some("urn:e2"), "agent",      "answer"),
+        ];
+        let history = history_from_tree(&nodes, "urn:e3", 10);
+        assert_eq!(history.len(), 2, "tool_call must be skipped");
+        assert_eq!(history[0].0, "user");
+        assert_eq!(history[1].0, "assistant");
+    }
+
+    #[test]
+    fn tree_walk_only_active_branch() {
+        // Branch A: e1 → e2a; Branch B: e1 → e2b (navigate back, new msg)
+        let nodes = vec![
+            make_entry("urn:e1",  "urn:s1", None,          "user",  "start"),
+            make_entry("urn:e2a", "urn:s1", Some("urn:e1"), "agent", "path A"),
+            make_entry("urn:e2b", "urn:s1", Some("urn:e1"), "agent", "path B"),
+        ];
+        // leaf = e2b (user navigated back and chose path B)
+        let history = history_from_tree(&nodes, "urn:e2b", 10);
+        assert_eq!(history.len(), 2);
+        assert_eq!(history[0].1, "start");
+        assert_eq!(history[1].1, "path B"); // e2a NOT included
     }
 
     // ── /new_id / now_ns ─────────────────────────────────────────────────────
