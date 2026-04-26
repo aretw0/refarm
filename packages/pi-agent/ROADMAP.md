@@ -126,7 +126,117 @@ Context engineering follows the pi-test-harness model:
 
 ## v0.3.0 — Ecosystem integration
 
-**Scope**: refarm-stack compatibility, distro enablement, multi-agent coordination.
+**Scope**: refarm-stack compatibility, distro enablement, multi-agent coordination, semantic code tools.
+
+### Structured I/O tools (`structured-io`)
+> REQ-AGENT-001 — T-NEXT-266/268
+
+**Loam evaluation** (`aretw0/loam` — Go library, local-first document store):
+
+| Property | Loam | structured-io (to build) |
+|---|---|---|
+| Formats | JSON, YAML, Markdown+frontmatter, CSV | JSON, TOML, YAML, Markdown (add TOML — critical for Cargo.toml) |
+| Large files | No pagination | `page_size` + `page_offset` required |
+| Typed API | `OpenTypedRepository[T]()` generics | WIT records (type-safe at component boundary) |
+| Audit trail | `ChangeReasonKey` on every write | `reason` field in `write-opts` — same concept |
+| WIT interface | None (Go-only) | Must invent — no prior art in WASM ecosystem |
+| File watching | `Watch()` reactive | Not needed for agent use case |
+
+**Decision**: adopt audit-trail and auto-detect patterns; invent the WIT interface and pagination.
+
+**WIT interface sketch** (`interface structured-io` in `agent-tools/wit/`):
+```wit
+interface structured-io {
+    enum file-format { json, toml, yaml, markdown }
+
+    record read-opts {
+        format: option<file-format>,  // auto-detect from extension if none
+        page-size: option<u32>,       // none = return all (may overflow LLM context)
+        page-offset: option<u32>,
+    }
+
+    record read-result {
+        content: string,   // canonical JSON representation of parsed document
+        total-lines: u32,
+        truncated: bool,
+    }
+
+    record write-opts {
+        format: option<file-format>,
+        validate: bool,    // reject malformed before write
+        reason: string,    // audit trail (loam's ChangeReasonKey pattern)
+    }
+
+    /// Parse a structured file and return its content as canonical JSON.
+    /// Large files are paginated by page-size if specified.
+    read-structured:  func(path: string, opts: read-opts)  -> result<read-result, string>;
+
+    /// Validate and write content to a structured file (atomic).
+    write-structured: func(path: string, content: string, opts: write-opts) -> result<_, string>;
+}
+```
+
+- [ ] Add `structured-io` interface to `packages/agent-tools/wit/world.wit`
+- [ ] Implement in `packages/agent-tools/src/lib.rs`: JSON (serde_json), TOML (toml crate), YAML (serde_yaml)
+- [ ] `page_size > 0`: return first N lines of re-serialized content + `truncated: true`
+- [ ] Expose as pi-agent tool: `read_structured(path, format?, page_size?)`
+- [ ] Test: read `tasks.json` (>6K lines) with `page_size=50` — assert `truncated: true`
+
+### Semantic code operations (`code-ops`)
+> REQ-AGENT-002 — T-NEXT-267/268
+
+Instead of asking the agent to "replace all occurrences of X" (fragile, misses imports, breaks across modules), expose LSP-backed operations as host-provided WIT imports. The host (tractor) manages the LSP server process; the plugin calls clean primitives.
+
+**Integration approach**: subprocess (not in-process, not MCP)
+- Tractor spawns `rust-analyzer` / `typescript-language-server` on demand via `tokio::process`
+- Communicates over stdin/stdout JSON-RPC (LSP spec) — no extra dep, works offline
+- LSP server lifetime tied to tractor process; plugin calls are synchronous from plugin POV
+- MCP is considered an extension point for future IDE integration, not the primary path
+
+**WIT interface sketch** (`interface code-ops` in `refarm-plugin-host.wit`):
+```wit
+interface code-ops {
+    record symbol-location {
+        file: string,
+        line: u32,
+        column: u32,
+    }
+
+    record reference {
+        file: string,
+        line: u32,
+        column: u32,
+        kind: string,   // "definition" | "reference" | "implementation"
+    }
+
+    record rename-result {
+        files-changed: u32,
+        edits-applied: u32,
+    }
+
+    /// Rename symbol at location across entire project (LSP workspace/rename).
+    rename-symbol:   func(loc: symbol-location, new-name: string) -> result<rename-result, string>;
+
+    /// Find all references to symbol at location (LSP textDocument/references).
+    find-references: func(loc: symbol-location) -> result<list<reference>, string>;
+
+    /// Move a top-level item to another file (LSP workspace edit — language-server-dependent).
+    move-symbol:     func(loc: symbol-location, target-file: string) -> result<_, string>;
+}
+```
+
+**Open questions before implementation**:
+- Which LSP servers to ship first? rust-analyzer (already used by devcontainer) is the natural v1.
+- `move-symbol` is not standard LSP — needs `workspace/applyEdit` workaround per server.
+- Should operations be atomic (backup + rollback on partial failure)?
+
+**Dependency**: agent-tools package (T-NEXT-268) should exist before this is wired.
+
+- [ ] Add `code-ops` interface to `refarm-plugin-host.wit`
+- [ ] Implement tractor-side LSP subprocess manager (`packages/tractor/src/host/lsp_bridge.rs`)
+- [ ] Expose `rename-symbol` and `find-references` for rust-analyzer as v1
+- [ ] Add to pi-agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)`
+- [ ] Integration test: rename a Rust symbol via pi-agent, assert all references updated
 
 ### refarm-stack (agents-lab)
 - [ ] `refarm-stack` package in `aretw0/agents-lab` uses farmhand as engine
