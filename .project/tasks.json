@@ -6559,6 +6559,40 @@
         "Funciona com sessions sem branches (lista linear)"
       ],
       "notes": "Depende de T-NEXT-270 (SessionEntry) e T-NEXT-272 (navigate). Feature de UX — backlog após schema estável."
+    },
+    {
+      "id": "T-NEXT-275",
+      "description": "Adicionar suporte YAML ao read_structured: dep serde_yaml (pure-rust unsafe-libyaml, WASM-safe), implementar parse_and_page_yaml seguindo o mesmo padrão page_json_value. Atualizar testes para cobrir .yaml files.",
+      "status": "planned",
+      "phase": null,
+      "files": [
+        "packages/pi-agent/src/lib.rs",
+        "packages/pi-agent/Cargo.toml"
+      ],
+      "acceptance_criteria": [
+        "read_structured_parse(bytes, \"yaml\", ...) retorna conteúdo parseado em vez de erro",
+        "Auto-detect funciona para .yaml e .yml",
+        "Teste cobre YAML simples (ex: GitHub Actions workflow)",
+        "Teste cobre YAML com array no root paginado"
+      ],
+      "notes": "Depende de T-NEXT-268 (concluído). serde_yaml 0.9 usa unsafe-libyaml mas é WASM-safe (sem OS syscalls)."
+    },
+    {
+      "id": "T-NEXT-276",
+      "description": "Wiring de handle_prompt nas Session primitives: substituir store direto de UserPrompt/AgentResponse por append_to_session(). get_or_create_session() usa query_nodes(\"Session\",1) para reusar sessão existente ou cria nova. Histórico via tree-walk passa a funcionar em produção.",
+      "status": "planned",
+      "phase": null,
+      "files": [
+        "packages/pi-agent/src/lib.rs"
+      ],
+      "acceptance_criteria": [
+        "handle_prompt chama append_to_session para user turn e agent turn",
+        "get_or_create_session() reutiliza sessão mais recente do CRDT",
+        "query_history_from_session retorna histórico correto após 2+ turns",
+        "UsageRecord continua sendo armazenado separadamente (sem mudança de schema)",
+        "Fallback legacy (UserPrompt/AgentResponse) preservado para namespaces sem sessão"
+      ],
+      "notes": "Depende de T-NEXT-271 (tree-walk) e T-NEXT-270 (append_to_session). Primeira task que requer WASM build para teste de integração completo."
     }
   ]
 }
