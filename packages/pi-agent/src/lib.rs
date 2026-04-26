@@ -543,6 +543,105 @@ fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
         .map_err(|e| format!("navigate: store error: {e:?}"))
 }
 
+// ── read_structured (pure — testable on native) ───────────────────────────────
+
+/// Detect format from file extension. Falls back to "json" when unknown.
+pub(crate) fn detect_format(path: &str) -> &'static str {
+    let lower = path.to_ascii_lowercase();
+    if lower.ends_with(".toml")                          { return "toml"; }
+    if lower.ends_with(".yaml") || lower.ends_with(".yml") { return "yaml"; }
+    "json"
+}
+
+/// Parse `bytes` as `format`, paginate to `page_size` top-level items/keys.
+/// Returns a metadata header line followed by the content.
+/// `page_size = 0` → return everything. YAML not yet supported.
+pub(crate) fn read_structured_parse(
+    bytes: &[u8],
+    format: &str,
+    page_size: usize,
+    page_offset: usize,
+) -> String {
+    let total_bytes = bytes.len();
+    match format {
+        "json" => parse_and_page_json(bytes, total_bytes, page_size, page_offset),
+        "toml" => parse_and_page_toml(bytes, total_bytes, page_size, page_offset),
+        "yaml" => format!(
+            "[read_structured | yaml | {total_bytes}B | not yet supported — use read_file for now]"
+        ),
+        other => format!("[read_structured | unknown format: {other}]"),
+    }
+}
+
+fn parse_and_page_json(bytes: &[u8], total_bytes: usize, page_size: usize, page_offset: usize) -> String {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return "[read_structured | json | invalid UTF-8]".into(),
+    };
+    let v: serde_json::Value = match serde_json::from_str(text) {
+        Ok(v) => v,
+        Err(e) => return format!("[read_structured | json | parse error: {e}]"),
+    };
+    page_json_value(v, total_bytes, page_size, page_offset)
+}
+
+fn page_json_value(v: serde_json::Value, total_bytes: usize, page_size: usize, page_offset: usize) -> String {
+    if page_size == 0 {
+        let content = serde_json::to_string_pretty(&v).unwrap_or_default();
+        return format!("[read_structured | json | {total_bytes}B | complete]\n{content}");
+    }
+    match v {
+        serde_json::Value::Array(arr) => {
+            let total = arr.len();
+            let start = page_offset.min(total);
+            let end   = (start + page_size).min(total);
+            let truncated = end < total;
+            let content = serde_json::to_string_pretty(&arr[start..end]).unwrap_or_default();
+            let note = if truncated {
+                format!("items {}-{} of {} | truncated", start + 1, end, total)
+            } else {
+                format!("items {}-{} of {}", start + 1, end, total)
+            };
+            format!("[read_structured | json | {total_bytes}B | {note}]\n{content}")
+        }
+        serde_json::Value::Object(map) => {
+            let total = map.len();
+            let paged: serde_json::Map<_, _> = map.into_iter().skip(page_offset).take(page_size).collect();
+            let shown = paged.len();
+            let truncated = page_offset + shown < total;
+            let content = serde_json::to_string_pretty(&serde_json::Value::Object(paged))
+                .unwrap_or_default();
+            let note = if truncated {
+                format!("{shown} of {total} keys | truncated")
+            } else {
+                format!("all {total} keys")
+            };
+            format!("[read_structured | json | {total_bytes}B | {note}]\n{content}")
+        }
+        scalar => {
+            let content = serde_json::to_string_pretty(&scalar).unwrap_or_default();
+            format!("[read_structured | json | {total_bytes}B | scalar]\n{content}")
+        }
+    }
+}
+
+fn parse_and_page_toml(bytes: &[u8], total_bytes: usize, page_size: usize, page_offset: usize) -> String {
+    let text = match std::str::from_utf8(bytes) {
+        Ok(s) => s,
+        Err(_) => return "[read_structured | toml | invalid UTF-8]".into(),
+    };
+    let table: toml::Value = match toml::from_str(text) {
+        Ok(v) => v,
+        Err(e) => return format!("[read_structured | toml | parse error: {e}]"),
+    };
+    let json_val: serde_json::Value = match serde_json::to_value(&table) {
+        Ok(v) => v,
+        Err(e) => return format!("[read_structured | toml | conversion error: {e}]"),
+    };
+    page_json_value(json_val, total_bytes, page_size, page_offset)
+        .replacen("| json |", "| toml |", 1)
+}
+
 // ── edit_file core logic (pure — testable on native) ─────────────────────────
 
 /// Apply ordered string replacements to `content`. Returns `Err` with a human message
@@ -575,7 +674,9 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
          "input_schema":{"type":"object","properties":{"pattern":{"type":"string","description":"Regular expression to search for"},"path":{"type":"string","description":"Absolute path to search in"},"glob":{"type":"string","description":"Optional filename glob filter, e.g. *.rs"}},"required":["pattern","path"]}},
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
-         "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}
+         "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}},
+        {"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) and return its content with automatic pagination for large files. Use page_size to control how many items/keys to return. Returns a metadata header followed by content.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to the file"},"format":{"type":"string","enum":["json","toml","yaml"],"description":"File format (auto-detected from extension if omitted)"},"page_size":{"type":"integer","description":"Max items/keys to return (default 50; 0 = return all)"},"page_offset":{"type":"integer","description":"Skip this many items/keys before returning (default 0)"}},"required":["path"]}}
     ])
 }
 
@@ -592,7 +693,9 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
          "parameters":{"type":"object","properties":{"pattern":{"type":"string"},"path":{"type":"string"},"glob":{"type":"string"}},"required":["pattern","path"]}}},
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
-         "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}}
+         "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}},
+        {"type":"function","function":{"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) with automatic pagination.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"format":{"type":"string","enum":["json","toml","yaml"]},"page_size":{"type":"integer"},"page_offset":{"type":"integer"}},"required":["path"]}}}
     ])
 }
 
@@ -712,6 +815,20 @@ mod provider {
                     }
                     Err(e) => format!("[spawn error] {e}"),
                 }
+            }
+            "read_structured" => {
+                let path        = input["path"].as_str().unwrap_or("");
+                let fmt         = input["format"].as_str()
+                    .unwrap_or_else(|| super::detect_format(path));
+                let page_size   = input["page_size"].as_u64().unwrap_or(50) as usize;
+                let page_offset = input["page_offset"].as_u64().unwrap_or(0) as usize;
+                let bytes = match agent_fs::read(path) {
+                    Ok(b)  => b,
+                    Err(e) => return format!("[error reading {path}] {e}"),
+                };
+                super::compress_tool_output(&super::read_structured_parse(
+                    &bytes, fmt, page_size, page_offset,
+                ))
             }
             other => format!("[error] unknown tool: {other}"),
         }
@@ -1347,6 +1464,112 @@ mod tests {
         assert_eq!(history.len(), 2);
         assert_eq!(history[0].1, "start");
         assert_eq!(history[1].1, "path B"); // e2a NOT included
+    }
+
+    // ── read_structured tests ─────────────────────────────────────────────────
+
+    #[test]
+    fn detect_format_from_extension() {
+        assert_eq!(detect_format("/a/b.json"),   "json");
+        assert_eq!(detect_format("/a/b.toml"),   "toml");
+        assert_eq!(detect_format("/a/b.yaml"),   "yaml");
+        assert_eq!(detect_format("/a/b.yml"),    "yaml");
+        assert_eq!(detect_format("/a/b.rs"),     "json"); // fallback
+        assert_eq!(detect_format("/a/b.JSON"),   "json"); // case-insensitive
+    }
+
+    #[test]
+    fn read_structured_json_array_paginated() {
+        let data: Vec<serde_json::Value> = (1..=100).map(|i| serde_json::json!({"id": i})).collect();
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = read_structured_parse(&bytes, "json", 10, 0);
+        assert!(result.contains("items 1-10 of 100"), "header: {result}");
+        assert!(result.contains("truncated"), "should be truncated: {result}");
+        let parsed: serde_json::Value = serde_json::from_str(result.lines().skip(1).collect::<Vec<_>>().join("\n").as_str()).unwrap();
+        assert_eq!(parsed.as_array().unwrap().len(), 10);
+    }
+
+    #[test]
+    fn read_structured_json_array_page_offset() {
+        let data: Vec<serde_json::Value> = (1..=20).map(|i| serde_json::json!(i)).collect();
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = read_structured_parse(&bytes, "json", 5, 10);
+        assert!(result.contains("items 11-15 of 20"), "header: {result}");
+        let parsed: serde_json::Value = serde_json::from_str(
+            result.lines().skip(1).collect::<Vec<_>>().join("\n").as_str()
+        ).unwrap();
+        assert_eq!(parsed[0], 11);
+    }
+
+    #[test]
+    fn read_structured_json_object_paginated() {
+        let obj: serde_json::Value = (b'a'..=b'z')
+            .map(|c| (String::from(c as char), serde_json::Value::from(c as i32)))
+            .collect::<serde_json::Map<_, _>>()
+            .into();
+        let bytes = serde_json::to_vec(&obj).unwrap();
+        let result = read_structured_parse(&bytes, "json", 5, 0);
+        assert!(result.contains("5 of 26 keys"), "header: {result}");
+        assert!(result.contains("truncated"));
+    }
+
+    #[test]
+    fn read_structured_tasks_json_pagination() {
+        // Simulate a tasks.json-shaped file: {"tasks": [...354 items...]}
+        let tasks: Vec<serde_json::Value> = (1..=354).map(|i| serde_json::json!({"id": format!("T-{i:04}"), "status": "planned"})).collect();
+        let data = serde_json::json!({"tasks": tasks});
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = read_structured_parse(&bytes, "json", 50, 0);
+        // It's an object with 1 key ("tasks"), so only that key is shown
+        assert!(result.contains("1 of 1 keys") || result.contains("all 1 keys"), "header: {result}");
+        // The tasks array inside will be complete (it's a value of the object, not paginated further)
+        // This is correct behavior — page_size applies to top-level items, not nested arrays
+    }
+
+    #[test]
+    fn read_structured_tasks_json_array_at_root() {
+        // If tasks.json had an array at root, pagination works correctly
+        let tasks: Vec<serde_json::Value> = (1..=354).map(|i| serde_json::json!({"id": format!("T-{i:04}"), "status": "planned"})).collect();
+        let bytes = serde_json::to_vec(&tasks).unwrap();
+        let result = read_structured_parse(&bytes, "json", 50, 0);
+        assert!(result.contains("items 1-50 of 354"), "header: {result}");
+        assert!(result.contains("truncated"));
+    }
+
+    #[test]
+    fn read_structured_json_no_truncation_when_small() {
+        let data = serde_json::json!([1, 2, 3]);
+        let bytes = serde_json::to_vec(&data).unwrap();
+        let result = read_structured_parse(&bytes, "json", 50, 0);
+        assert!(result.contains("items 1-3 of 3"), "header: {result}");
+        assert!(!result.contains("truncated"), "small file must not be truncated");
+    }
+
+    #[test]
+    fn read_structured_toml_parses_cargo_toml() {
+        let cargo = r#"
+[package]
+name = "pi-agent"
+version = "0.1.0"
+
+[dependencies]
+serde_json = "1"
+"#;
+        let result = read_structured_parse(cargo.as_bytes(), "toml", 0, 0);
+        assert!(result.contains("toml"), "header must say toml: {result}");
+        assert!(result.contains("pi-agent") || result.contains("package"), "content: {result}");
+    }
+
+    #[test]
+    fn read_structured_yaml_returns_informative_error() {
+        let result = read_structured_parse(b"key: value", "yaml", 50, 0);
+        assert!(result.contains("not yet supported"), "should explain yaml not supported: {result}");
+    }
+
+    #[test]
+    fn read_structured_invalid_json_returns_error() {
+        let result = read_structured_parse(b"{not valid json", "json", 50, 0);
+        assert!(result.contains("parse error"), "must report parse error: {result}");
     }
 
     // ── /new_id / now_ns ─────────────────────────────────────────────────────

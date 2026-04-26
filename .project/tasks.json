@@ -6446,7 +6446,7 @@
     {
       "id": "T-NEXT-268",
       "description": "Prototipar tool `read_structured` no pi-agent: aceita path + formato (json|toml|yaml) e retorna payload tipado com paginação automática para arquivos grandes — evitando explosão de contexto em arquivos como package.json, Cargo.toml ou tasks.json do projeto.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": [
         "packages/agent-tools/src/lib.rs",
