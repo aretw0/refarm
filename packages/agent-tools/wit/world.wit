@@ -73,6 +73,39 @@ interface host-spawn {
     ) -> result<tuple<list<u8>, list<u8>, s32, bool>, string>;
 }
 
+// ─── Structured I/O ──────────────────────────────────────────────────────────
+//
+// Parse and write structured files (JSON, TOML, YAML) with validation and
+// pagination. This service sits in agent-tools so both human-facing tools
+// (CLIs, UIs) and agent plugins share the same implementation without
+// duplicating the parsing logic per consumer.
+
+interface structured-io {
+    /// Supported structured file formats.
+    enum file-format { json, toml, yaml }
+
+    /// Parse a structured file and return paginated content as canonical JSON.
+    /// - format: auto-detected from path extension if absent
+    /// - page-size: number of top-level items/keys to return (0 = all)
+    /// - page-offset: skip this many items before returning
+    ///
+    /// Returns the paginated content string with a metadata header, or an error.
+    read-structured: func(
+        path: string,
+        format: option<file-format>,
+        page-size: u32,
+        page-offset: u32,
+    ) -> result<string, string>;
+
+    /// Validate `content` as `format` and write it atomically to `path`.
+    /// Returns an error without writing if the content fails validation.
+    write-structured: func(
+        path: string,
+        content: string,
+        format: option<file-format>,
+    ) -> result<_, string>;
+}
+
 // ─── World ────────────────────────────────────────────────────────────────────
 
 world agent-tools-provider {
@@ -82,4 +115,5 @@ world agent-tools-provider {
     /// This component provides filesystem and shell tools to agent plugins.
     export agent-fs;
     export agent-shell;
+    export structured-io;
 }
