@@ -1381,6 +1381,34 @@ fn provider_runtime_response_and_phase_from_state_with_passes_state_fields_to_cl
 }
 
 #[test]
+fn provider_runtime_response_phase_contract_from_state_with_builds_contract() {
+    let mut state = crate::provider_runtime::provider_loop_state(vec![serde_json::json!({
+        "role": "user",
+        "content": "hello-contract"
+    })]);
+
+    let contract = crate::provider_runtime::response_phase_contract_from_state_with(
+        &"ctx-contract",
+        "m-contract",
+        &[("h".to_string(), "v".to_string())],
+        &mut state,
+        |ctx, model, headers, wire_msgs, usage_totals| {
+            assert_eq!(*ctx, "ctx-contract");
+            assert_eq!(model, "m-contract");
+            assert_eq!(headers[0].1, "v");
+            assert_eq!(wire_msgs.len(), 1);
+            usage_totals.tokens_out += 6;
+            Ok((serde_json::json!({"ok": "contract"}), 24_u8))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(contract.response["ok"], "contract");
+    assert_eq!(contract.phase, 24);
+    assert_eq!(state.usage_totals.tokens_out, 6);
+}
+
+#[test]
 fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
     let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
     let phase = 7_u8;
