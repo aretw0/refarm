@@ -18,6 +18,7 @@ use crate::host::agent_tools_bindings::refarm::agent_tools::host_spawn::Host as 
 use crate::host::plugin_host::refarm::plugin::{
     agent_fs::Host as AgentFsHost,
     agent_shell::{Host as AgentShellHost, SpawnRequest, SpawnResult},
+    code_ops::{CodeReference, Host as CodeOpsHost, RenameResult, SymbolLocation},
     structured_io::{FileFormat, Host as StructuredIoHost},
 };
 use crate::host::wasi_bridge::TractorNativeBindings;
@@ -472,3 +473,26 @@ fn host_page_json(val: &serde_json::Value, total_bytes: usize, fmt: &str, page_s
     }
 }
 
+
+// ── code-ops (LSP stub — returns "not connected" until LSP bridge is wired) ──
+//
+// Stub satisfies the WIT import contract while the LSP subprocess manager is
+// being built (ROADMAP v0.3.0). pi-agent tools degrade gracefully on error.
+
+#[wasmtime::component::__internal::async_trait]
+impl CodeOpsHost for TractorNativeBindings {
+    async fn rename_symbol(
+        &mut self,
+        _loc: SymbolLocation,
+        _new_name: String,
+    ) -> Result<RenameResult, String> {
+        Err("lsp not connected — install and start a language server to enable rename".into())
+    }
+
+    async fn find_references(
+        &mut self,
+        _loc: SymbolLocation,
+    ) -> Result<Vec<CodeReference>, String> {
+        Err("lsp not connected — install and start a language server to enable find-references".into())
+    }
+}

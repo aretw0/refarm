@@ -151,6 +151,42 @@ interface structured-io {
     ) -> result<_, string>;
 }
 
+/// Semantic code operations via LSP (rename, find-references).
+///
+/// Host manages the LSP server subprocess; plugin calls clean primitives without
+/// knowing whether the backend is rust-analyzer, typescript-language-server, etc.
+/// Returns "lsp not connected" stub until tractor-side LSP bridge is implemented
+/// (ROADMAP v0.3.0 code-ops section).
+interface code-ops {
+    /// Location of a symbol in source code.
+    record symbol-location {
+        file:   string,
+        line:   u32,
+        column: u32,
+    }
+
+    /// A reference to a symbol found by LSP.
+    record code-reference {
+        file:   string,
+        line:   u32,
+        column: u32,
+        /// "definition" | "reference" | "implementation"
+        kind:   string,
+    }
+
+    /// Summary of a rename operation.
+    record rename-result {
+        files-changed: u32,
+        edits-applied: u32,
+    }
+
+    /// Rename symbol at loc across the entire project (LSP workspace/rename).
+    rename-symbol: func(loc: symbol-location, new-name: string) -> result<rename-result, string>;
+
+    /// Find all references to symbol at loc (LSP textDocument/references).
+    find-references: func(loc: symbol-location) -> result<list<code-reference>, string>;
+}
+
 // ─── Host-side World ─────────────────────────────────────────────────────────
 
 /// Minimal world for host-side bindgen! (tractor-native).
@@ -161,5 +197,6 @@ world refarm-plugin-host {
     import agent-fs;
     import agent-shell;
     import structured-io;
+    import code-ops;
     export integration;
 }

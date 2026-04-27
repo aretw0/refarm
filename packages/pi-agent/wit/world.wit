@@ -8,5 +8,6 @@ world pi-agent {
     import agent-fs;
     import agent-shell;
     import structured-io;
+    import code-ops;
     export integration;
 }

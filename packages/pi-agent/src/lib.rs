@@ -776,7 +776,11 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree. Use this to resume from an earlier point (e.g., before trying a different approach).",
          "input_schema":{"type":"object","properties":{"session_id":{"type":"string","description":"Session to navigate"},"entry_id":{"type":"string","description":"Target entry to set as new leaf"}},"required":["session_id","entry_id"]}},
         {"name":"fork","description":"Create a new session branching from a specific entry of an existing session. The original session is unchanged. Use before exploring a risky approach.",
-         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}}
+         "input_schema":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string","description":"Optional name for the new fork"}},"required":["session_id","entry_id"]}},
+        {"name":"find_references","description":"Find all references to a symbol at a given location in source code. Requires a language server (LSP) to be connected to the project.",
+         "input_schema":{"type":"object","properties":{"file":{"type":"string","description":"Absolute path to the source file"},"line":{"type":"integer","description":"0-based line number"},"column":{"type":"integer","description":"0-based column number"}},"required":["file","line","column"]}},
+        {"name":"rename_symbol","description":"Rename a symbol at a given location across the entire project. Requires a language server (LSP). Returns files changed and edit count.",
+         "input_schema":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"},"new_name":{"type":"string","description":"New name for the symbol"}},"required":["file","line","column","new_name"]}}
     ])
 }
 
@@ -805,7 +809,11 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"navigate","description":"Move the active session's conversation pointer to a specific entry in the tree.",
          "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"}},"required":["session_id","entry_id"]}}},
         {"type":"function","function":{"name":"fork","description":"Create a new session branching from a specific entry of an existing session.",
-         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}}
+         "parameters":{"type":"object","properties":{"session_id":{"type":"string"},"entry_id":{"type":"string"},"name":{"type":"string"}},"required":["session_id","entry_id"]}}},
+        {"type":"function","function":{"name":"find_references","description":"Find all references to a symbol at a given source location. Requires LSP.",
+         "parameters":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"}},"required":["file","line","column"]}}},
+        {"type":"function","function":{"name":"rename_symbol","description":"Rename a symbol across the entire project. Requires LSP. Returns files changed and edit count.",
+         "parameters":{"type":"object","properties":{"file":{"type":"string"},"line":{"type":"integer"},"column":{"type":"integer"},"new_name":{"type":"string"}},"required":["file","line","column","new_name"]}}}
     ])
 }
 
@@ -1013,6 +1021,40 @@ mod provider {
                 match super::fork_session(session_id, entry_id, name) {
                     Some(new_id) => format!("forked → new session {new_id}"),
                     None         => "[error] fork: failed to create session".into(),
+                }
+            }
+
+            // ── LSP code-ops tools ────────────────────────────────────────────
+            "find_references" => {
+                use crate::refarm::plugin::code_ops::{self, SymbolLocation};
+                let file   = input["file"].as_str().unwrap_or("");
+                let line   = input["line"].as_u64().unwrap_or(0) as u32;
+                let column = input["column"].as_u64().unwrap_or(0) as u32;
+                let loc = SymbolLocation { file: file.to_string(), line, column };
+                match code_ops::find_references(&loc) {
+                    Ok(refs) => {
+                        let items: Vec<_> = refs.iter().map(|r| {
+                            serde_json::json!({"file": r.file, "line": r.line, "column": r.column, "kind": r.kind})
+                        }).collect();
+                        serde_json::to_string_pretty(&items).unwrap_or_else(|_| "[]".into())
+                    }
+                    Err(e) => format!("[find_references error] {e}"),
+                }
+            }
+
+            "rename_symbol" => {
+                use crate::refarm::plugin::code_ops::{self, SymbolLocation};
+                let file     = input["file"].as_str().unwrap_or("");
+                let line     = input["line"].as_u64().unwrap_or(0) as u32;
+                let column   = input["column"].as_u64().unwrap_or(0) as u32;
+                let new_name = input["new_name"].as_str().unwrap_or("");
+                if new_name.is_empty() {
+                    return "[error] rename_symbol requires new_name".into();
+                }
+                let loc = SymbolLocation { file: file.to_string(), line, column };
+                match code_ops::rename_symbol(&loc, new_name) {
+                    Ok(r)  => format!("renamed: {} files changed, {} edits applied", r.files_changed, r.edits_applied),
+                    Err(e) => format!("[rename_symbol error] {e}"),
                 }
             }
 
@@ -2329,6 +2371,45 @@ mod extensibility_contract {
         let id = new_id();
         assert!(!id.starts_with("urn:"), "without LLM_AGENT_ID, id must not be a URN: {id}");
         assert!(id.chars().all(|c| c.is_ascii_hexdigit()), "must be plain hex: {id}");
+    }
+
+    #[test]
+    fn tools_anthropic_includes_code_ops() {
+        let tools = tools_anthropic();
+        let names = tool_names_from_anthropic(&tools);
+        for name in ["find_references", "rename_symbol"] {
+            assert!(names.contains(&name.to_string()), "tools_anthropic missing: {name}");
+        }
+    }
+
+    #[test]
+    fn tools_openai_includes_code_ops() {
+        let tools = tools_openai();
+        let names = tool_names_from_openai(&tools);
+        for name in ["find_references", "rename_symbol"] {
+            assert!(names.contains(&name.to_string()), "tools_openai missing: {name}");
+        }
+    }
+
+    #[test]
+    fn tools_find_references_has_required_fields() {
+        let tools = tools_anthropic();
+        let t = tools.as_array().unwrap().iter()
+            .find(|t| t["name"] == "find_references").expect("find_references not found");
+        let req: Vec<&str> = t["input_schema"]["required"].as_array().unwrap()
+            .iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(req.contains(&"file") && req.contains(&"line") && req.contains(&"column"),
+            "find_references must require file, line, column");
+    }
+
+    #[test]
+    fn tools_rename_symbol_has_required_fields() {
+        let tools = tools_anthropic();
+        let t = tools.as_array().unwrap().iter()
+            .find(|t| t["name"] == "rename_symbol").expect("rename_symbol not found");
+        let req: Vec<&str> = t["input_schema"]["required"].as_array().unwrap()
+            .iter().map(|v| v.as_str().unwrap()).collect();
+        assert!(req.contains(&"new_name"), "rename_symbol must require new_name");
     }
 
     #[test]
