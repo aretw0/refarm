@@ -1187,6 +1187,67 @@ where
     )
 }
 
+pub(crate) fn run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch<
+    P,
+    C,
+    D,
+    FR,
+    FS,
+>(
+    common: ProviderRunnerCommonConfig<'_>,
+    context: C,
+    mut response_and_phase_fn: FR,
+    mut step_fn: FS,
+    dispatch: D,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &C,
+        &str,
+        &[(String, String)],
+        &[serde_json::Value],
+        &mut UsageTotals,
+    ) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_common_config_and_context_with_dispatch(
+        common,
+        context,
+        |context, model, headers, state| {
+            response_and_phase_from_state_with(
+                context,
+                model,
+                headers,
+                state,
+                |context, model, headers, wire_msgs, usage_totals| {
+                    response_and_phase_fn(context, model, headers, wire_msgs, usage_totals)
+                },
+            )
+        },
+        |_context, state, phase, iter_idx, max_iter, response, dispatch_fn| {
+            step_from_state_with_dispatch(
+                state,
+                phase,
+                iter_idx,
+                max_iter,
+                response,
+                dispatch_fn,
+                |state, phase, iter_idx, max_iter, response, dispatch_fn| {
+                    step_fn(state, phase, iter_idx, max_iter, response, dispatch_fn)
+                },
+            )
+        },
+        dispatch,
+    )
+}
+
 pub(crate) struct CompletionLoopOutcome {
     pub state: ProviderLoopState,
     pub response: serde_json::Value,
@@ -1267,7 +1328,7 @@ pub(crate) fn finalize_completion_from_outcome(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn run_wasm_completion_loop_from_common_config_and_context_with_dispatch<
+pub(crate) fn run_wasm_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch<
     P,
     C,
     D,
@@ -1276,8 +1337,8 @@ pub(crate) fn run_wasm_completion_loop_from_common_config_and_context_with_dispa
 >(
     common: ProviderRunnerCommonConfig<'_>,
     context: C,
-    response_and_phase_from_state: FR,
-    step_with_dispatch: FS,
+    response_and_phase_fn: FR,
+    step_fn: FS,
     dispatch: D,
 ) -> Result<crate::provider::CompletionResult, String>
 where
@@ -1285,10 +1346,10 @@ where
         &C,
         &str,
         &[(String, String)],
-        &mut ProviderLoopState,
+        &[serde_json::Value],
+        &mut UsageTotals,
     ) -> Result<(serde_json::Value, P), String>,
     FS: FnMut(
-        &C,
         &mut ProviderLoopState,
         &P,
         u32,
@@ -1297,13 +1358,14 @@ where
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    let outcome = run_completion_loop_from_common_config_and_context_with_dispatch(
-        common,
-        context,
-        response_and_phase_from_state,
-        step_with_dispatch,
-        dispatch,
-    )?;
+    let outcome =
+        run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
+            common,
+            context,
+            response_and_phase_fn,
+            step_fn,
+            dispatch,
+        )?;
     Ok(finalize_completion_from_outcome(outcome))
 }
 
@@ -1315,37 +1377,19 @@ pub(crate) fn run_anthropic_completion_loop_from_config_with_dispatch<D>(
 where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
-    run_wasm_completion_loop_from_common_config_and_context_with_dispatch(
+    run_wasm_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
         config.common,
         config.system,
-        |system, model, headers, state| {
-            response_and_phase_from_state_with(
-                system,
+        |system, model, headers, wire_msgs, usage_totals| {
+            anthropic_iteration_response_and_phase(
                 model,
+                system,
+                wire_msgs,
                 headers,
-                state,
-                |system, model, headers, wire_msgs, usage_totals| {
-                    anthropic_iteration_response_and_phase(
-                        model,
-                        system,
-                        wire_msgs,
-                        headers,
-                        usage_totals,
-                    )
-                },
+                usage_totals,
             )
         },
-        |_system, state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            step_from_state_with_dispatch(
-                state,
-                phase,
-                iter_idx,
-                max_iter,
-                response,
-                dispatch_fn,
-                anthropic_step_from_phase_with_dispatch,
-            )
-        },
+        anthropic_step_from_phase_with_dispatch,
         dispatch,
     )
 }
@@ -1358,38 +1402,20 @@ pub(crate) fn run_openai_completion_loop_from_config_with_dispatch<D>(
 where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
-    run_wasm_completion_loop_from_common_config_and_context_with_dispatch(
+    run_wasm_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
         config.common,
         (config.provider, config.base_url),
-        |(provider, base_url), model, headers, state| {
-            response_and_phase_from_state_with(
-                &(provider, base_url),
+        |&(provider, base_url), model, headers, wire_msgs, usage_totals| {
+            openai_iteration_response_and_phase(
+                provider,
+                base_url,
                 model,
+                wire_msgs,
                 headers,
-                state,
-                |(provider, base_url), model, headers, wire_msgs, usage_totals| {
-                    openai_iteration_response_and_phase(
-                        provider,
-                        base_url,
-                        model,
-                        wire_msgs,
-                        headers,
-                        usage_totals,
-                    )
-                },
+                usage_totals,
             )
         },
-        |(_provider, _base_url), state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            step_from_state_with_dispatch(
-                state,
-                phase,
-                iter_idx,
-                max_iter,
-                response,
-                dispatch_fn,
-                openai_step_from_phase_with_dispatch,
-            )
-        },
+        openai_step_from_phase_with_dispatch,
         dispatch,
     )
 }

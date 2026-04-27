@@ -1445,3 +1445,41 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_disp
     assert_eq!(out.response["ctx"], 7);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_and_context_with_state_primitives_uses_state_bindings(
+) {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-sp",
+        vec![("h".to_string(), "v".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
+        common,
+        "ctx-sp",
+        |ctx, model, headers, wire_msgs, usage_totals| {
+            assert_eq!(*ctx, "ctx-sp");
+            assert_eq!(model, "model-sp");
+            assert_eq!(headers[0].0, "h");
+            assert_eq!(wire_msgs.len(), 0);
+            usage_totals.tokens_out += 2;
+            Ok((serde_json::json!({"ok": true}), 9_u8))
+        },
+        |state, phase, iter_idx, max_iter, response, dispatch| {
+            assert_eq!(*phase, 9);
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            assert_eq!(response["ok"], true);
+            state.wire_msgs.push(serde_json::json!({"role": "assistant"}));
+            *dispatch += 1;
+            Ok(Some(format!("state-primitives-{dispatch}")))
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "state-primitives-1");
+    assert_eq!(out.state.usage_totals.tokens_out, 2);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
