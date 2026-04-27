@@ -339,3 +339,67 @@ fn provider_runtime_anthropic_tool_result_shape() {
     assert_eq!(r["tool_use_id"], "id-1");
     assert_eq!(r["content"], "ok");
 }
+
+#[test]
+fn provider_runtime_require_anthropic_text_content_returns_error_when_missing() {
+    let content_arr = vec![serde_json::json!({"type":"tool_use","name":"x"})];
+    let response = serde_json::json!({"error": {"message": "boom"}});
+    let err = crate::provider_runtime::require_anthropic_text_content(&content_arr, &response)
+        .unwrap_err();
+    assert_eq!(err, "boom");
+}
+
+#[test]
+fn provider_runtime_openai_choice_message_reads_first_choice_message() {
+    let response = serde_json::json!({
+        "choices": [{"message": {"content": "hello"}}]
+    });
+    let msg = crate::provider_runtime::openai_choice_message(&response);
+    assert_eq!(msg["content"], "hello");
+}
+
+#[test]
+fn provider_runtime_require_openai_message_content_returns_error_when_missing() {
+    let msg = serde_json::json!({});
+    let response = serde_json::json!({"error": {"message": "nope"}});
+    let err = crate::provider_runtime::require_openai_message_content(&msg, &response).unwrap_err();
+    assert_eq!(err, "nope");
+}
+
+#[test]
+fn provider_runtime_record_anthropic_tool_execution_updates_calls_and_result() {
+    let mut executed_calls = Vec::new();
+    let tool_use = crate::provider_runtime::ParsedAnthropicToolUse {
+        name: "read_file".to_string(),
+        input: serde_json::json!({"path":"README.md"}),
+        id: "t-1".to_string(),
+    };
+
+    let result = crate::provider_runtime::record_anthropic_tool_execution(
+        &mut executed_calls,
+        &tool_use,
+        "ok",
+    );
+
+    assert_eq!(executed_calls.len(), 1);
+    assert_eq!(executed_calls[0]["name"], "read_file");
+    assert_eq!(result["tool_use_id"], "t-1");
+    assert_eq!(result["content"], "ok");
+}
+
+#[test]
+fn provider_runtime_record_openai_tool_execution_updates_calls() {
+    let mut executed_calls = Vec::new();
+    let tool_call = crate::provider_runtime::ParsedOpenAiToolCall {
+        name: "search_files".to_string(),
+        input: serde_json::json!({"pattern":"TODO"}),
+        id: "call-1".to_string(),
+    };
+
+    crate::provider_runtime::record_openai_tool_execution(&mut executed_calls, &tool_call, "done");
+
+    assert_eq!(executed_calls.len(), 1);
+    assert_eq!(executed_calls[0]["name"], "search_files");
+    assert_eq!(executed_calls[0]["input"]["pattern"], "TODO");
+    assert_eq!(executed_calls[0]["result"], "done");
+}

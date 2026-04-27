@@ -33,7 +33,7 @@ pub(crate) fn complete(
         let usage = &v["usage"];
         usage_totals.ingest_openai_usage(usage);
 
-        let msg = &v["choices"][0]["message"];
+        let msg = crate::provider_runtime::openai_choice_message(&v);
         let tool_calls_json = crate::provider_runtime::openai_tool_calls_array(msg);
 
         if crate::provider_runtime::should_terminate_tool_loop(
@@ -41,8 +41,7 @@ pub(crate) fn complete(
             iter_idx,
             max_iter,
         ) {
-            let content = crate::provider_runtime::openai_message_content(msg)
-                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no content"))?;
+            let content = crate::provider_runtime::require_openai_message_content(msg, &v)?;
             return Ok(crate::provider_runtime::completion_result(
                 content,
                 executed_calls,
@@ -61,10 +60,9 @@ pub(crate) fn complete(
         for tc in parsed_calls {
             let result =
                 crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
-            crate::provider_runtime::push_executed_call(
+            crate::provider_runtime::record_openai_tool_execution(
                 &mut executed_calls,
-                &tc.name,
-                tc.input,
+                &tc,
                 &result,
             );
             crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, &tc.id, result);

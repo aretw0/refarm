@@ -143,12 +143,48 @@ pub(crate) fn openai_message_content(msg: &serde_json::Value) -> Option<String> 
     msg["content"].as_str().map(ToOwned::to_owned)
 }
 
+pub(crate) fn require_anthropic_text_content(
+    content_arr: &[serde_json::Value],
+    response: &serde_json::Value,
+) -> Result<String, String> {
+    anthropic_text_content(content_arr)
+        .ok_or_else(|| error_message(response, "no text in response"))
+}
+
+pub(crate) fn openai_choice_message(response: &serde_json::Value) -> &serde_json::Value {
+    &response["choices"][0]["message"]
+}
+
+pub(crate) fn require_openai_message_content(
+    msg: &serde_json::Value,
+    response: &serde_json::Value,
+) -> Result<String, String> {
+    openai_message_content(msg).ok_or_else(|| error_message(response, "no content"))
+}
+
 pub(crate) fn anthropic_tool_result(tool_use_id: &str, content: String) -> serde_json::Value {
     serde_json::json!({
         "type": "tool_result",
         "tool_use_id": tool_use_id,
         "content": content,
     })
+}
+
+pub(crate) fn record_anthropic_tool_execution(
+    executed_calls: &mut Vec<serde_json::Value>,
+    tool_use: &ParsedAnthropicToolUse,
+    result: &str,
+) -> serde_json::Value {
+    push_executed_call(executed_calls, &tool_use.name, tool_use.input.clone(), result);
+    anthropic_tool_result(&tool_use.id, result.to_owned())
+}
+
+pub(crate) fn record_openai_tool_execution(
+    executed_calls: &mut Vec<serde_json::Value>,
+    tool_call: &ParsedOpenAiToolCall,
+    result: &str,
+) {
+    push_executed_call(executed_calls, &tool_call.name, tool_call.input.clone(), result);
 }
 
 pub(crate) fn dedup_tool_output(

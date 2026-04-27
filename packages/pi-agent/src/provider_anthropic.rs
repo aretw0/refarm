@@ -43,8 +43,7 @@ pub(crate) fn complete(
             iter_idx,
             max_iter,
         ) {
-            let text = crate::provider_runtime::anthropic_text_content(&content_arr)
-                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no text in response"))?;
+            let text = crate::provider_runtime::require_anthropic_text_content(&content_arr, &v)?;
             return Ok(crate::provider_runtime::completion_result(
                 text,
                 executed_calls,
@@ -59,14 +58,10 @@ pub(crate) fn complete(
         for tc in &tool_uses {
             let result =
                 crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
-            crate::provider_runtime::push_executed_call(
+            tool_results.push(crate::provider_runtime::record_anthropic_tool_execution(
                 &mut executed_calls,
-                &tc.name,
-                tc.input.clone(),
+                tc,
                 &result,
-            );
-            tool_results.push(crate::provider_runtime::anthropic_tool_result(
-                &tc.id, result,
             ));
         }
         crate::provider_runtime::append_anthropic_tool_results_message(
