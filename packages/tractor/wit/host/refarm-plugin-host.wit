@@ -124,6 +124,33 @@ interface agent-shell {
     spawn: func(req: spawn-request) -> result<spawn-result, string>;
 }
 
+/// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
+///
+/// Defined here (refarm:plugin package) so pi-agent can import it as a host capability.
+/// The agent-tools.wasm component exports the same interface under refarm:agent-tools;
+/// tractor satisfies pi-agent's import natively until full Component Model composition
+/// is wired (HANDOFF.md Tarefa 2B follow-up).
+interface structured-io {
+    enum file-format { json, toml, yaml }
+
+    /// Parse a structured file and return paginated content as canonical JSON.
+    /// format is auto-detected from path extension when absent.
+    read-structured: func(
+        path: string,
+        format: option<file-format>,
+        page-size: u32,
+        page-offset: u32,
+    ) -> result<string, string>;
+
+    /// Validate content as format then write atomically to path.
+    /// Returns error without touching the file if content fails validation.
+    write-structured: func(
+        path: string,
+        content: string,
+        format: option<file-format>,
+    ) -> result<_, string>;
+}
+
 // ─── Host-side World ─────────────────────────────────────────────────────────
 
 /// Minimal world for host-side bindgen! (tractor-native).
@@ -133,5 +160,6 @@ world refarm-plugin-host {
     import llm-bridge;
     import agent-fs;
     import agent-shell;
+    import structured-io;
     export integration;
 }

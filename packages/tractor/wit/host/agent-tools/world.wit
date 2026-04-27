@@ -13,6 +13,12 @@ package refarm:agent-tools@0.1.0;
 
 // ─── Interfaces (mirrored from packages/agent-tools/wit/world.wit) ───────────
 
+interface structured-io {
+    enum file-format { json, toml, yaml }
+    read-structured: func(path: string, format: option<file-format>, page-size: u32, page-offset: u32) -> result<string, string>;
+    write-structured: func(path: string, content: string, format: option<file-format>) -> result<_, string>;
+}
+
 interface agent-fs {
     read:  func(path: string)                    -> result<list<u8>, string>;
     write: func(path: string, content: list<u8>) -> result<_, string>;
@@ -58,4 +64,5 @@ world agent-tools-host {
     /// Tractor calls these on agent-tools.wasm to compose with pi-agent.
     export agent-fs;
     export agent-shell;
+    export structured-io;
 }

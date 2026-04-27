@@ -7,5 +7,6 @@ world pi-agent {
     import llm-bridge;
     import agent-fs;
     import agent-shell;
+    import structured-io;
     export integration;
 }

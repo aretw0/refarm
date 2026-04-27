@@ -498,7 +498,7 @@ fn store_new_session(name: Option<&str>) -> Option<String> {
 /// leaf pointer after successful store. Returns the new entry `@id`.
 #[cfg(target_arch = "wasm32")]
 fn append_to_session(session_id: &str, kind: &str, content: &str) -> Option<String> {
-    let current_leaf = tractor_bridge::get_node(session_id).ok().and_then(|raw| {
+    let current_leaf = tractor_bridge::get_node(&session_id.to_string()).ok().and_then(|raw| {
         serde_json::from_str::<serde_json::Value>(&raw).ok()?
             .get("leaf_entry_id")
             .and_then(|v| v.as_str())
@@ -517,7 +517,7 @@ fn append_to_session(session_id: &str, kind: &str, content: &str) -> Option<Stri
     tractor_bridge::store_node(&entry.to_string()).ok()?;
 
     // Update session leaf pointer (read-modify-write: preserve other fields).
-    if let Ok(raw) = tractor_bridge::get_node(session_id) {
+    if let Ok(raw) = tractor_bridge::get_node(&session_id.to_string()) {
         if let Ok(mut v) = serde_json::from_str::<serde_json::Value>(&raw) {
             v["leaf_entry_id"] = serde_json::Value::String(entry_id.clone());
             let _ = tractor_bridge::store_node(&v.to_string());
@@ -548,19 +548,20 @@ fn fork_session(session_id: &str, entry_id: &str, name: Option<&str>) -> Option<
 /// touching any SessionEntry nodes. Returns Err if session not found.
 #[cfg(target_arch = "wasm32")]
 fn navigate_session(session_id: &str, entry_id: &str) -> Result<(), String> {
-    let raw = tractor_bridge::get_node(session_id)
+    let raw = tractor_bridge::get_node(&session_id.to_string())
         .map_err(|e| format!("navigate: session not found: {e:?}"))?;
     let mut v = serde_json::from_str::<serde_json::Value>(&raw)
         .map_err(|e| format!("navigate: parse error: {e}"))?;
     v["leaf_entry_id"] = serde_json::Value::String(entry_id.to_owned());
     tractor_bridge::store_node(&v.to_string())
+        .map(|_| ())
         .map_err(|e| format!("navigate: store error: {e:?}"))
 }
 
 /// Read-only version of active session ID — never creates a new session.
 /// Used for display purposes (e.g., list_sessions showing which is active).
 #[cfg(target_arch = "wasm32")]
-pub(super) fn get_or_create_session_id_readonly() -> String {
+fn get_or_create_session_id_readonly() -> String {
     if let Ok(id) = std::env::var("LLM_SESSION_ID") {
         if !id.is_empty() { return id; }
     }
@@ -823,10 +824,10 @@ mod provider {
         pub usage_raw: String,
     }
 
-    // ── Tool dispatch (wasm32: calls agent_fs / agent_shell WIT imports) ──────
+    // ── Tool dispatch (wasm32: calls WIT imports — agent_fs, agent_shell, structured_io) ──
 
     pub fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
-        use crate::refarm::plugin::{agent_fs, agent_shell};
+        use crate::refarm::plugin::{agent_fs, agent_shell, structured_io, tractor_bridge};
         match name {
             "read_file" => {
                 let path = input["path"].as_str().unwrap_or("");
@@ -927,30 +928,32 @@ mod provider {
             }
             "read_structured" => {
                 let path        = input["path"].as_str().unwrap_or("");
-                let fmt         = input["format"].as_str()
-                    .unwrap_or_else(|| super::detect_format(path));
-                let page_size   = input["page_size"].as_u64().unwrap_or(50) as usize;
-                let page_offset = input["page_offset"].as_u64().unwrap_or(0) as usize;
-                let bytes = match agent_fs::read(path) {
-                    Ok(b)  => b,
-                    Err(e) => return format!("[error reading {path}] {e}"),
-                };
-                super::compress_tool_output(&super::read_structured_parse(
-                    &bytes, fmt, page_size, page_offset,
-                ))
+                let fmt_opt     = input["format"].as_str().and_then(|s| match s {
+                    "json" => Some(structured_io::FileFormat::Json),
+                    "toml" => Some(structured_io::FileFormat::Toml),
+                    "yaml" => Some(structured_io::FileFormat::Yaml),
+                    _      => None,
+                });
+                let page_size   = input["page_size"].as_u64().unwrap_or(50) as u32;
+                let page_offset = input["page_offset"].as_u64().unwrap_or(0) as u32;
+                match structured_io::read_structured(path, fmt_opt, page_size, page_offset) {
+                    Ok(content) => super::compress_tool_output(&content),
+                    Err(e)      => format!("[read_structured error] {e}"),
+                }
             }
 
             "write_structured" => {
                 let path    = input["path"].as_str().unwrap_or("");
                 let content = input["content"].as_str().unwrap_or("");
-                let fmt     = input["format"].as_str()
-                    .unwrap_or_else(|| super::detect_format(path));
-                if let Err(e) = super::validate_structured(content, fmt) {
-                    return format!("[write_structured error] {e}");
-                }
-                match agent_fs::write(path, content.as_bytes()) {
-                    Ok(()) => format!("wrote {} bytes to {path} (validated as {fmt})", content.len()),
-                    Err(e) => format!("[error writing {path}] {e}"),
+                let fmt_opt = input["format"].as_str().and_then(|s| match s {
+                    "json" => Some(structured_io::FileFormat::Json),
+                    "toml" => Some(structured_io::FileFormat::Toml),
+                    "yaml" => Some(structured_io::FileFormat::Yaml),
+                    _      => None,
+                });
+                match structured_io::write_structured(path, content, fmt_opt) {
+                    Ok(())  => format!("wrote {} bytes to {path} (validated)", content.len()),
+                    Err(e)  => format!("[write_structured error] {e}"),
                 }
             }
 
@@ -972,7 +975,7 @@ mod provider {
             }
 
             "current_session" => {
-                let session_id = get_or_create_session();
+                let session_id = super::get_or_create_session();
                 match tractor_bridge::get_node(&session_id) {
                     Ok(raw) => {
                         let v: serde_json::Value = serde_json::from_str(&raw).unwrap_or_default();
@@ -994,7 +997,7 @@ mod provider {
                 if session_id.is_empty() || entry_id.is_empty() {
                     return "[error] navigate requires session_id and entry_id".into();
                 }
-                match navigate_session(session_id, entry_id) {
+                match super::navigate_session(session_id, entry_id) {
                     Ok(()) => format!("navigated session {session_id} to entry {entry_id}"),
                     Err(e) => format!("[error] {e}"),
                 }
@@ -1007,7 +1010,7 @@ mod provider {
                 if session_id.is_empty() || entry_id.is_empty() {
                     return "[error] fork requires session_id and entry_id".into();
                 }
-                match fork_session(session_id, entry_id, name) {
+                match super::fork_session(session_id, entry_id, name) {
                     Some(new_id) => format!("forked → new session {new_id}"),
                     None         => "[error] fork: failed to create session".into(),
                 }

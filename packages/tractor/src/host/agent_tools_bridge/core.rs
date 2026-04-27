@@ -18,6 +18,7 @@ use crate::host::agent_tools_bindings::refarm::agent_tools::host_spawn::Host as 
 use crate::host::plugin_host::refarm::plugin::{
     agent_fs::Host as AgentFsHost,
     agent_shell::{Host as AgentShellHost, SpawnRequest, SpawnResult},
+    structured_io::{FileFormat, Host as StructuredIoHost},
 };
 use crate::host::wasi_bridge::TractorNativeBindings;
 
@@ -310,5 +311,164 @@ fn is_safe_spawn_env_key(key: &str) -> bool {
 
 fn is_blocked_spawn_env_key(key: &str) -> bool {
     crate::host::sensitive_aliases::is_spawn_sensitive_env_key(key)
+}
+
+// ── structured-io (host primitive for pi-agent WIT import) ───────────────────
+//
+// Tractor provides structured-io natively so pi-agent's WIT import is satisfied
+// without full Component Model composition. Once agent-tools.wasm is composed
+// (HANDOFF.md Tarefa 2B), tractor can delegate to its exported structured-io.
+
+#[wasmtime::component::__internal::async_trait]
+impl StructuredIoHost for TractorNativeBindings {
+    async fn read_structured(
+        &mut self,
+        path: String,
+        format: Option<FileFormat>,
+        page_size: u32,
+        page_offset: u32,
+    ) -> Result<String, String> {
+        enforce_fs_root(&path)?;
+        let bytes = tokio::fs::read(&path)
+            .await
+            .map_err(|e| format!("read({path}): {e}"))?;
+        let fmt = match format {
+            Some(FileFormat::Json) => "json",
+            Some(FileFormat::Toml) => "toml",
+            Some(FileFormat::Yaml) => "yaml",
+            None => host_detect_format(&path),
+        };
+        Ok(host_read_structured_parse(&bytes, fmt, page_size as usize, page_offset as usize))
+    }
+
+    async fn write_structured(
+        &mut self,
+        path: String,
+        content: String,
+        format: Option<FileFormat>,
+    ) -> Result<(), String> {
+        enforce_fs_root(&path)?;
+        let fmt = match format {
+            Some(FileFormat::Json) => "json",
+            Some(FileFormat::Toml) => "toml",
+            Some(FileFormat::Yaml) => "yaml",
+            None => host_detect_format(&path),
+        };
+        host_validate_structured(&content, fmt)?;
+        atomic_write(&path, content.as_bytes())
+            .await
+            .map_err(|e| format!("write({path}): {e}"))
+    }
+}
+
+fn host_detect_format(path: &str) -> &'static str {
+    if path.ends_with(".toml") { "toml" } else if path.ends_with(".yaml") || path.ends_with(".yml") { "yaml" } else { "json" }
+}
+
+fn host_validate_structured(content: &str, format: &str) -> Result<(), String> {
+    match format {
+        "json" => serde_json::from_str::<serde_json::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("JSON parse error: {e}")),
+        "toml" => toml::from_str::<toml::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("TOML parse error: {e}")),
+        "yaml" => serde_yaml::from_str::<serde_yaml::Value>(content)
+            .map(|_| ())
+            .map_err(|e| format!("YAML parse error: {e}")),
+        other => Err(format!("unsupported format: {other}")),
+    }
+}
+
+fn host_read_structured_parse(bytes: &[u8], fmt: &str, page_size: usize, page_offset: usize) -> String {
+    let total_bytes = bytes.len();
+    match fmt {
+        "json" => {
+            let Ok(text) = std::str::from_utf8(bytes) else {
+                return "[read_structured | json | invalid UTF-8]".into();
+            };
+            let Ok(val) = serde_json::from_str::<serde_json::Value>(text) else {
+                return "[read_structured | json | parse error]".into();
+            };
+            host_page_json(&val, total_bytes, "json", page_size, page_offset)
+        }
+        "toml" => {
+            let Ok(text) = std::str::from_utf8(bytes) else {
+                return "[read_structured | toml | invalid UTF-8]".into();
+            };
+            let Ok(val) = toml::from_str::<toml::Value>(text) else {
+                return "[read_structured | toml | parse error]".into();
+            };
+            let Ok(json_val) = serde_json::to_value(&val) else {
+                return "[read_structured | toml | conversion error]".into();
+            };
+            host_page_json(&json_val, total_bytes, "toml", page_size, page_offset)
+        }
+        "yaml" => {
+            let Ok(text) = std::str::from_utf8(bytes) else {
+                return "[read_structured | yaml | invalid UTF-8]".into();
+            };
+            let Ok(val) = serde_yaml::from_str::<serde_yaml::Value>(text) else {
+                return "[read_structured | yaml | parse error]".into();
+            };
+            let Ok(json_val) = serde_json::to_value(val) else {
+                return "[read_structured | yaml | conversion error]".into();
+            };
+            host_page_json(&json_val, total_bytes, "yaml", page_size, page_offset)
+        }
+        other => format!("[read_structured | unknown format: {other}]"),
+    }
+}
+
+fn host_page_json(val: &serde_json::Value, total_bytes: usize, fmt: &str, page_size: usize, page_offset: usize) -> String {
+    match val {
+        serde_json::Value::Object(map) => {
+            let keys: Vec<_> = map.keys().collect();
+            let total = keys.len();
+            if page_size == 0 || (page_offset == 0 && page_size >= total) {
+                let note = format!("{total_bytes}B | complete");
+                return format!(
+                    "[read_structured | {fmt} | {note}]\n{}",
+                    serde_json::to_string_pretty(val).unwrap_or_default()
+                );
+            }
+            let page: serde_json::Map<_, _> = keys
+                .iter()
+                .skip(page_offset)
+                .take(page_size)
+                .filter_map(|k| map.get(*k).map(|v| ((*k).clone(), v.clone())))
+                .collect();
+            let shown = page.len();
+            let note = format!("{total_bytes}B | keys {page_offset}..{} of {total}", page_offset + shown);
+            format!(
+                "[read_structured | {fmt} | {note}]\n{}",
+                serde_json::to_string_pretty(&serde_json::Value::Object(page)).unwrap_or_default()
+            )
+        }
+        serde_json::Value::Array(arr) => {
+            let total = arr.len();
+            if page_size == 0 || (page_offset == 0 && page_size >= total) {
+                let note = format!("{total_bytes}B | complete");
+                return format!(
+                    "[read_structured | {fmt} | {note}]\n{}",
+                    serde_json::to_string_pretty(val).unwrap_or_default()
+                );
+            }
+            let page: Vec<_> = arr.iter().skip(page_offset).take(page_size).cloned().collect();
+            let shown = page.len();
+            let note = format!("{total_bytes}B | items {page_offset}..{} of {total}", page_offset + shown);
+            format!(
+                "[read_structured | {fmt} | {note}]\n{}",
+                serde_json::to_string_pretty(&serde_json::Value::Array(page)).unwrap_or_default()
+            )
+        }
+        _ => {
+            let note = format!("{total_bytes}B | scalar");
+            format!(
+                "[read_structured | {fmt} | {note}]\n{}",
+                serde_json::to_string_pretty(val).unwrap_or_default()
+            )
+        }
+    }
 }
 
