@@ -171,14 +171,14 @@ This is the "let the plugin be the plugin" model from
 ### Source layout (modular primitives)
 
 - `src/lib.rs` — plugin wiring + event entrypoint
-- `src/runtime.rs` — prompt pipeline orchestration (`react`, `handle_prompt`)
+- `src/runtime/` — prompt pipeline orchestration split by concern (`react_loop.rs`, `prompt_handler.rs`)
 - `src/session/` — session primitives split into pure + wasm ops (`pure.rs`, `wasm_ops.rs`)
 - `src/provider.rs` — provider selection/facade (`Provider::from_env`, `complete`)
 - `src/provider_config.rs` — pure provider defaults/model selection primitives
 - `src/provider_anthropic.rs` — Anthropic wire format + agentic loop
 - `src/provider_openai_compat.rs` — OpenAI-compatible wire format + agentic loop
 - `src/tool_dispatch/` — tool execution bridge split by domain (`fs_shell`, `session_tools`, `code_ops_tools`)
-- `src/session.rs`, `src/structured_io.rs`, `src/compress.rs`, `src/utils.rs` — pure primitives
+- `src/session/pure.rs`, `src/structured_io.rs`, `src/compress.rs`, `src/utils.rs` — pure primitives
 - `src/response_nodes.rs` — CRDT node builders for `UserPrompt`, `AgentResponse`, `UsageRecord`
 - `src/tests.rs`, `src/tests/*.rs`, `src/extensibility_contract.rs` — unit + contract tests (domain-sliced)
 

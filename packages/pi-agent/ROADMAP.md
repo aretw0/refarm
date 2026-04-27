@@ -76,6 +76,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Extract pure provider defaults/model-selection helpers (`provider_config.rs`)
 - [x] Extract CRDT response node builders (`response_nodes.rs`) for reusable schema-safe writes
 - [x] Split tool dispatch into domain modules (`tool_dispatch/fs_shell.rs`, `session_tools.rs`, `code_ops_tools.rs`)
+- [x] Split runtime module into react loop + prompt handler (`runtime/react_loop.rs`, `runtime/prompt_handler.rs`)
 - [x] Split session module into pure primitives + wasm-only ops (`session/pure.rs`, `session/wasm_ops.rs`)
 - [x] Move large unit suites out of `lib.rs` into `tests.rs` + `extensibility_contract.rs`
 - [x] Split `tests.rs` into domain submodules under `src/tests/` (compress, session, structured_io, provider/env, tools, usage, response nodes)
