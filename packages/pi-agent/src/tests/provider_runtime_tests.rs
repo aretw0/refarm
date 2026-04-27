@@ -312,6 +312,73 @@ fn provider_runtime_openai_step_text_or_advance_with_advances_when_continuing() 
 }
 
 #[test]
+fn provider_runtime_anthropic_step_from_phase_with_dispatch_advances_when_continuing() {
+    let mut state = crate::provider_runtime::anthropic_loop_state(&[]);
+    let response = serde_json::json!({
+        "content": [
+            {"type":"text","text":"thinking"},
+            {"type":"tool_use","name":"read_file","input":{"path":"README.md"},"id":"t1"}
+        ]
+    });
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&response);
+    let mut dispatch = |name: &str,
+                        input: &serde_json::Value,
+                        _seen: &mut std::collections::HashSet<u64>| {
+        format!("{name}:{}", input["path"].as_str().unwrap_or(""))
+    };
+
+    let out = crate::provider_runtime::anthropic_step_from_phase_with_dispatch(
+        &mut state,
+        &phase,
+        1,
+        5,
+        &response,
+        &mut dispatch,
+    )
+    .unwrap();
+
+    assert!(out.is_none());
+    assert_eq!(state.wire_msgs.len(), 2);
+    assert_eq!(state.executed_calls.len(), 1);
+}
+
+#[test]
+fn provider_runtime_openai_step_from_phase_with_dispatch_advances_when_continuing() {
+    let mut state = crate::provider_runtime::openai_loop_state("sys", &[]);
+    let response = serde_json::json!({
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-1",
+                    "function":{"name":"search_files","arguments":"{\"pattern\":\"TODO\"}"}
+                }]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&response);
+    let mut dispatch = |name: &str,
+                        input: &serde_json::Value,
+                        _seen: &mut std::collections::HashSet<u64>| {
+        format!("{name}:{}", input["pattern"].as_str().unwrap_or(""))
+    };
+
+    let out = crate::provider_runtime::openai_step_from_phase_with_dispatch(
+        &mut state,
+        &phase,
+        1,
+        5,
+        &response,
+        &mut dispatch,
+    )
+    .unwrap();
+
+    assert!(out.is_none());
+    assert_eq!(state.wire_msgs.len(), 3);
+    assert_eq!(state.executed_calls.len(), 1);
+}
+
+#[test]
 fn provider_runtime_error_message_uses_fallback_when_missing() {
     let v = serde_json::json!({});
     assert_eq!(
