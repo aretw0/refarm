@@ -1697,3 +1697,41 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_cont
     assert_eq!(out.state.usage_totals.tokens_in, 5);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_and_context_with_contract_primitives_without_dispatch_works(
+) {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-contract-ctx-no-dispatch",
+        vec![("hctx2".to_string(), "vctx2".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_contract_primitives(
+        common,
+        "ctx-contract-no-dispatch",
+        |ctx, model, headers, state| {
+            assert_eq!(*ctx, "ctx-contract-no-dispatch");
+            assert_eq!(model, "model-contract-ctx-no-dispatch");
+            assert_eq!(headers[0].0, "hctx2");
+            state.usage_totals.tokens_cached += 7;
+            Ok(crate::provider_runtime::provider_response_phase_contract(
+                serde_json::json!({"ok": "ctx-contract-no-dispatch"}),
+                31_u8,
+            ))
+        },
+        |_ctx, state, contract| {
+            assert_eq!(*contract.phase, 31);
+            assert_eq!(contract.iter_idx, 0);
+            assert_eq!(contract.max_iter, 0);
+            assert_eq!(contract.response["ok"], "ctx-contract-no-dispatch");
+            state.wire_msgs.push(serde_json::json!({"role": "assistant"}));
+            Ok(Some("ctx-contract-no-dispatch-done".to_string()))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "ctx-contract-no-dispatch-done");
+    assert_eq!(out.state.usage_totals.tokens_cached, 7);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
