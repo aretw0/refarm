@@ -95,6 +95,19 @@ pub(crate) fn anthropic_iteration_response(
 }
 
 #[cfg(target_arch = "wasm32")]
+pub(crate) fn anthropic_iteration_response_and_phase(
+    model: &str,
+    system: &str,
+    wire_msgs: &[serde_json::Value],
+    headers: &[(String, String)],
+    usage_totals: &mut UsageTotals,
+) -> Result<(serde_json::Value, AnthropicIterationPhase), String> {
+    let response = anthropic_iteration_response(model, system, wire_msgs, headers)?;
+    let phase = anthropic_phase_after_usage(usage_totals, &response);
+    Ok((response, phase))
+}
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn openai_iteration_response(
     provider: &str,
     base_url: &str,
@@ -110,6 +123,20 @@ pub(crate) fn openai_iteration_response(
         headers,
         &body,
     )
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn openai_iteration_response_and_phase(
+    provider: &str,
+    base_url: &str,
+    model: &str,
+    wire_msgs: &[serde_json::Value],
+    headers: &[(String, String)],
+    usage_totals: &mut UsageTotals,
+) -> Result<(serde_json::Value, OpenAiIterationPhase), String> {
+    let response = openai_iteration_response(provider, base_url, model, wire_msgs, headers)?;
+    let phase = openai_phase_after_usage(usage_totals, &response);
+    Ok((response, phase))
 }
 
 pub(crate) fn initial_anthropic_wire_messages(

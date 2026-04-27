@@ -14,15 +14,14 @@ pub(crate) fn complete(
     let mut state = crate::provider_runtime::openai_loop_state(system, messages);
 
     for iter_idx in 0..=max_iter {
-        let v = crate::provider_runtime::openai_iteration_response(
+        let (v, phase) = crate::provider_runtime::openai_iteration_response_and_phase(
             provider,
             base_url,
             model,
             &state.wire_msgs,
             &base_hdrs,
+            &mut state.usage_totals,
         )?;
-
-        let phase = crate::provider_runtime::openai_phase_after_usage(&mut state.usage_totals, &v);
 
         if let Some(content) = crate::provider_runtime::openai_completion_text_if_terminate(
             &phase, iter_idx, max_iter, &v,

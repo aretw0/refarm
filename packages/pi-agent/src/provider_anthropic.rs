@@ -12,15 +12,13 @@ pub(crate) fn complete(
     let mut state = crate::provider_runtime::anthropic_loop_state(messages);
 
     for iter_idx in 0..=max_iter {
-        let v = crate::provider_runtime::anthropic_iteration_response(
+        let (v, phase) = crate::provider_runtime::anthropic_iteration_response_and_phase(
             model,
             system,
             &state.wire_msgs,
             &hdrs,
+            &mut state.usage_totals,
         )?;
-
-        let phase =
-            crate::provider_runtime::anthropic_phase_after_usage(&mut state.usage_totals, &v);
 
         if let Some(text) = crate::provider_runtime::anthropic_completion_text_if_terminate(
             &phase, iter_idx, max_iter, &v,
