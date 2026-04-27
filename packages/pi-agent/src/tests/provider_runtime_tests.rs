@@ -860,3 +860,48 @@ fn provider_runtime_openai_loop_state_prepends_system_message() {
     assert_eq!(state.wire_msgs[0]["role"], "system");
     assert_eq!(state.wire_msgs[1]["role"], "user");
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_with_returns_text_and_final_state() {
+    let state = crate::provider_runtime::provider_loop_state(Vec::new());
+
+    let (state, response, text) = crate::provider_runtime::run_completion_loop_with(
+        5,
+        state,
+        |state| {
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role":"assistant"}));
+            Ok((serde_json::json!({"ok": true}), 0_u8))
+        },
+        |state, _phase, iter_idx, _max_iter, _response| {
+            state
+                .executed_calls
+                .push(serde_json::json!({"iter": iter_idx}));
+            Ok(Some("done".to_string()))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(text, "done");
+    assert_eq!(response["ok"], true);
+    assert_eq!(state.wire_msgs.len(), 1);
+    assert_eq!(state.executed_calls.len(), 1);
+}
+
+#[test]
+fn provider_runtime_run_completion_loop_with_propagates_step_error() {
+    let state = crate::provider_runtime::provider_loop_state(Vec::new());
+
+    let out = crate::provider_runtime::run_completion_loop_with(
+        5,
+        state,
+        |_state| Ok((serde_json::json!({"ok": true}), 0_u8)),
+        |_state, _phase, _iter_idx, _max_iter, _response| Err("boom".to_string()),
+    );
+
+    match out {
+        Ok(_) => panic!("expected step error"),
+        Err(err) => assert_eq!(err, "boom"),
+    }
+}

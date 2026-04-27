@@ -683,6 +683,31 @@ pub(crate) fn error_message(v: &serde_json::Value, fallback: &str) -> String {
         .to_owned()
 }
 
+pub(crate) fn run_completion_loop_with<P, FR, FS>(
+    max_iter: u32,
+    mut state: ProviderLoopState,
+    mut response_and_phase: FR,
+    mut step: FS,
+) -> Result<(ProviderLoopState, serde_json::Value, String), String>
+where
+    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+    ) -> Result<Option<String>, String>,
+{
+    for iter_idx in 0..=max_iter {
+        let (response, phase) = response_and_phase(&mut state)?;
+        if let Some(text) = step(&mut state, &phase, iter_idx, max_iter, &response)? {
+            return Ok((state, response, text));
+        }
+    }
+    unreachable!()
+}
+
 #[derive(Default)]
 pub(crate) struct UsageTotals {
     pub tokens_in: u32,
@@ -757,29 +782,31 @@ pub(crate) fn run_anthropic_completion_loop(
 ) -> Result<crate::provider::CompletionResult, String> {
     let hdrs = anthropic_headers();
     let max_iter = tool_loop_max_iter();
-    let mut state = anthropic_loop_state(messages);
-
-    for iter_idx in 0..=max_iter {
-        let (response, phase) = anthropic_iteration_response_and_phase(
-            model,
-            system,
-            &state.wire_msgs,
-            &hdrs,
-            &mut state.usage_totals,
-        )?;
-
-        if let Some(text) = anthropic_step_text_or_advance_with(
-            &mut state,
-            &phase,
-            iter_idx,
-            max_iter,
-            &response,
-            dispatch_tool_dedup,
-        )? {
-            return Ok(finalize_completion_from_response(text, &response, state));
-        }
-    }
-    unreachable!()
+    let state = anthropic_loop_state(messages);
+    let (state, response, text) = run_completion_loop_with(
+        max_iter,
+        state,
+        |state| {
+            anthropic_iteration_response_and_phase(
+                model,
+                system,
+                &state.wire_msgs,
+                &hdrs,
+                &mut state.usage_totals,
+            )
+        },
+        |state, phase, iter_idx, max_iter, response| {
+            anthropic_step_text_or_advance_with(
+                state,
+                phase,
+                iter_idx,
+                max_iter,
+                response,
+                dispatch_tool_dedup,
+            )
+        },
+    )?;
+    Ok(finalize_completion_from_response(text, &response, state))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -792,28 +819,30 @@ pub(crate) fn run_openai_completion_loop(
 ) -> Result<crate::provider::CompletionResult, String> {
     let headers = openai_compat_headers();
     let max_iter = tool_loop_max_iter();
-    let mut state = openai_loop_state(system, messages);
-
-    for iter_idx in 0..=max_iter {
-        let (response, phase) = openai_iteration_response_and_phase(
-            provider,
-            base_url,
-            model,
-            &state.wire_msgs,
-            &headers,
-            &mut state.usage_totals,
-        )?;
-
-        if let Some(text) = openai_step_text_or_advance_with(
-            &mut state,
-            &phase,
-            iter_idx,
-            max_iter,
-            &response,
-            dispatch_tool_dedup,
-        )? {
-            return Ok(finalize_completion_from_response(text, &response, state));
-        }
-    }
-    unreachable!()
+    let state = openai_loop_state(system, messages);
+    let (state, response, text) = run_completion_loop_with(
+        max_iter,
+        state,
+        |state| {
+            openai_iteration_response_and_phase(
+                provider,
+                base_url,
+                model,
+                &state.wire_msgs,
+                &headers,
+                &mut state.usage_totals,
+            )
+        },
+        |state, phase, iter_idx, max_iter, response| {
+            openai_step_text_or_advance_with(
+                state,
+                phase,
+                iter_idx,
+                max_iter,
+                response,
+                dispatch_tool_dedup,
+            )
+        },
+    )?;
+    Ok(finalize_completion_from_response(text, &response, state))
 }
