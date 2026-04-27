@@ -22,10 +22,7 @@ fn try_fallback_completion(
     primary_err: &str,
 ) -> Option<ReactResult> {
     let fallback_name = std::env::var("LLM_FALLBACK_PROVIDER").ok()?;
-    let original_provider = crate::provider_name_from_env();
-    std::env::set_var("LLM_PROVIDER", &fallback_name);
-    let fb = crate::provider::Provider::from_env();
-    std::env::set_var("LLM_PROVIDER", original_provider);
+    let fb = crate::provider::Provider::from_provider_name(&fallback_name);
     let fb_model = fb.model().to_owned();
 
     Some(match fb.complete(system, messages) {

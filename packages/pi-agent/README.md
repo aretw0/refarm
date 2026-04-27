@@ -184,8 +184,10 @@ This is the "let the plugin be the plugin" model from
 
 ### Provider abstraction
 
-`Provider::from_env()` selects the implementation at runtime. Adding a new OpenAI-compat
-provider requires zero code: set `LLM_PROVIDER=groq` + `LLM_BASE_URL=https://api.groq.com`.
+`Provider::from_env()` selects the implementation at runtime. `Provider::from_provider_name(name)`
+allows explicit provider selection (used by fallback flow) without mutating process env.
+Adding a new OpenAI-compat provider requires zero code: set `LLM_PROVIDER=groq` +
+`LLM_BASE_URL=https://api.groq.com`.
 
 ```
 Anthropic ──┐

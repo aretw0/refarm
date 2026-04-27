@@ -23,10 +23,8 @@ pub enum Provider {
 }
 
 impl Provider {
-    /// Build provider from env vars injected by the tractor host.
-    pub fn from_env() -> Self {
+    pub fn from_provider_name(provider_name: &str) -> Self {
         let explicit_model = std::env::var("LLM_MODEL").unwrap_or_default();
-        let provider_name = super::provider_name_from_env();
 
         if provider_name == "anthropic" {
             return Provider::Anthropic {
@@ -34,13 +32,19 @@ impl Provider {
             };
         }
 
-        let (default_base, default_model) = crate::openai_compat_defaults(&provider_name);
+        let (default_base, default_model) = crate::openai_compat_defaults(provider_name);
         let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
         Provider::OpenAiCompat {
-            provider: provider_name,
+            provider: provider_name.to_owned(),
             base_url,
             model: crate::choose_model(&explicit_model, default_model),
         }
+    }
+
+    /// Build provider from env vars injected by the tractor host.
+    pub fn from_env() -> Self {
+        let provider_name = super::provider_name_from_env();
+        Self::from_provider_name(&provider_name)
     }
 
     pub fn model(&self) -> &str {

@@ -74,6 +74,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Split monolithic `lib.rs` into runtime/provider/tool/session/structured modules
 - [x] Split provider engine into `provider_anthropic.rs` and `provider_openai_compat.rs`
 - [x] Extract pure provider defaults/model-selection helpers (`provider_config.rs`)
+- [x] Add explicit provider factory (`Provider::from_provider_name`) to avoid env mutation in fallback routing
 - [x] Extract CRDT response node builders (`response_nodes.rs`) for reusable schema-safe writes
 - [x] Split tool dispatch into domain modules (`tool_dispatch/fs_shell.rs`, `session_tools.rs`, `code_ops_tools.rs`)
 - [x] Further split fs/shell/structured tool handlers into focused modules (`tool_dispatch/fs_tools.rs`, `shell_tools.rs`, `structured_tools.rs`)
