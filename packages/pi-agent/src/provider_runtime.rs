@@ -809,6 +809,32 @@ where
     run_completion_loop_with(plan.max_iter, plan.state, response_and_phase, step)
 }
 
+pub(crate) fn run_completion_loop_from_plan_with_dispatch<P, FR, FS, D>(
+    plan: ProviderLoopPlan,
+    response_and_phase: FR,
+    mut step_with_dispatch: FS,
+    mut dispatch: D,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_plan_with(
+        plan,
+        response_and_phase,
+        |state, phase, iter_idx, max_iter, response| {
+            step_with_dispatch(state, phase, iter_idx, max_iter, response, &mut dispatch)
+        },
+    )
+}
+
 pub(crate) struct CompletionLoopOutcome {
     pub state: ProviderLoopState,
     pub response: serde_json::Value,
@@ -889,10 +915,11 @@ pub(crate) fn finalize_completion_from_outcome(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn run_wasm_provider_loop_with<P, FR, FS>(
+pub(crate) fn run_wasm_provider_loop_with_dispatch<P, FR, FS, D>(
     plan: ProviderLoopPlan,
     response_and_phase: FR,
-    step: FS,
+    step_with_dispatch: FS,
+    dispatch: D,
 ) -> Result<crate::provider::CompletionResult, String>
 where
     FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
@@ -902,9 +929,11 @@ where
         u32,
         u32,
         &serde_json::Value,
+        &mut D,
     ) -> Result<Option<String>, String>,
 {
-    let outcome = run_completion_loop_from_plan_with(plan, response_and_phase, step)?;
+    let outcome =
+        run_completion_loop_from_plan_with_dispatch(plan, response_and_phase, step_with_dispatch, dispatch)?;
     Ok(finalize_completion_from_outcome(outcome))
 }
 
@@ -914,8 +943,21 @@ pub(crate) fn run_anthropic_completion_loop(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
+    run_anthropic_completion_loop_with_dispatch(model, system, messages, dispatch_tool_dedup)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn run_anthropic_completion_loop_with_dispatch<D>(
+    model: &str,
+    system: &str,
+    messages: &[(String, String)],
+    mut dispatch: D,
+) -> Result<crate::provider::CompletionResult, String>
+where
+    D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
     let config = anthropic_runner_config(model, system, messages);
-    run_wasm_provider_loop_with(
+    run_wasm_provider_loop_with_dispatch(
         config.plan,
         |state| {
             anthropic_iteration_response_and_phase(
@@ -926,16 +968,17 @@ pub(crate) fn run_anthropic_completion_loop(
                 &mut state.usage_totals,
             )
         },
-        |state, phase, iter_idx, max_iter, response| {
+        |state, phase, iter_idx, max_iter, response, dispatch_fn| {
             anthropic_step_text_or_advance_with(
                 state,
                 phase,
                 iter_idx,
                 max_iter,
                 response,
-                dispatch_tool_dedup,
+                |name, input, seen_hashes| dispatch_fn(name, input, seen_hashes),
             )
         },
+        &mut dispatch,
     )
 }
 
@@ -947,8 +990,30 @@ pub(crate) fn run_openai_completion_loop(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
+    run_openai_completion_loop_with_dispatch(
+        provider,
+        base_url,
+        model,
+        system,
+        messages,
+        dispatch_tool_dedup,
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn run_openai_completion_loop_with_dispatch<D>(
+    provider: &str,
+    base_url: &str,
+    model: &str,
+    system: &str,
+    messages: &[(String, String)],
+    mut dispatch: D,
+) -> Result<crate::provider::CompletionResult, String>
+where
+    D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
     let config = openai_runner_config(provider, base_url, model, system, messages);
-    run_wasm_provider_loop_with(
+    run_wasm_provider_loop_with_dispatch(
         config.plan,
         |state| {
             openai_iteration_response_and_phase(
@@ -960,15 +1025,16 @@ pub(crate) fn run_openai_completion_loop(
                 &mut state.usage_totals,
             )
         },
-        |state, phase, iter_idx, max_iter, response| {
+        |state, phase, iter_idx, max_iter, response, dispatch_fn| {
             openai_step_text_or_advance_with(
                 state,
                 phase,
                 iter_idx,
                 max_iter,
                 response,
-                dispatch_tool_dedup,
+                |name, input, seen_hashes| dispatch_fn(name, input, seen_hashes),
             )
         },
+        &mut dispatch,
     )
 }

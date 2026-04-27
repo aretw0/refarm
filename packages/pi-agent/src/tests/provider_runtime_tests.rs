@@ -995,3 +995,43 @@ fn provider_runtime_run_completion_loop_from_plan_with_uses_plan_max_iter() {
 
     assert_eq!(outcome.text, "done");
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_plan_with_dispatch_uses_dispatch_state() {
+    let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
+
+    let outcome = crate::provider_runtime::run_completion_loop_from_plan_with_dispatch(
+        plan,
+        |state| {
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role":"assistant"}));
+            Ok((serde_json::json!({"ok": true}), 0_u8))
+        },
+        |_state, _phase, _iter_idx, _max_iter, _response, dispatch_count| {
+            *dispatch_count += 1;
+            Ok(Some(format!("done-{}", *dispatch_count)))
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(outcome.text, "done-1");
+}
+
+#[test]
+fn provider_runtime_run_completion_loop_from_plan_with_dispatch_propagates_step_error() {
+    let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
+
+    let out = crate::provider_runtime::run_completion_loop_from_plan_with_dispatch(
+        plan,
+        |_state| Ok((serde_json::json!({"ok": true}), 0_u8)),
+        |_state, _phase, _iter_idx, _max_iter, _response, _dispatch| Err("boom".to_string()),
+        (),
+    );
+
+    match out {
+        Ok(_) => panic!("expected step error"),
+        Err(err) => assert_eq!(err, "boom"),
+    }
+}
