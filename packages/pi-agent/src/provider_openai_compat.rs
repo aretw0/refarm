@@ -18,15 +18,8 @@ pub(crate) fn complete(
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
     for iter_idx in 0..=max_iter {
-        let body =
-            crate::provider_runtime::build_openai_body(model, &wire_msgs, crate::tools_openai());
-
-        let v = crate::provider_runtime::execute_json_request(
-            provider,
-            base_url,
-            crate::provider_runtime::openai_compat_path(provider),
-            &base_hdrs,
-            &body,
+        let v = crate::provider_runtime::openai_iteration_response(
+            provider, base_url, model, &wire_msgs, &base_hdrs,
         )?;
 
         crate::provider_runtime::ingest_openai_usage_from_response(&mut usage_totals, &v);

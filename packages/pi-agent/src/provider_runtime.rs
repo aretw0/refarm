@@ -77,6 +77,41 @@ pub(crate) fn execute_json_request(
     parse_response_json(&bytes)
 }
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn anthropic_iteration_response(
+    model: &str,
+    system: &str,
+    wire_msgs: &[serde_json::Value],
+    headers: &[(String, String)],
+) -> Result<serde_json::Value, String> {
+    let body = build_anthropic_body(model, system, wire_msgs, crate::tools_anthropic());
+    execute_json_request(
+        "anthropic",
+        "https://api.anthropic.com",
+        "/v1/messages",
+        headers,
+        &body,
+    )
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn openai_iteration_response(
+    provider: &str,
+    base_url: &str,
+    model: &str,
+    wire_msgs: &[serde_json::Value],
+    headers: &[(String, String)],
+) -> Result<serde_json::Value, String> {
+    let body = build_openai_body(model, wire_msgs, crate::tools_openai());
+    execute_json_request(
+        provider,
+        base_url,
+        openai_compat_path(provider),
+        headers,
+        &body,
+    )
+}
+
 pub(crate) fn initial_anthropic_wire_messages(
     messages: &[(String, String)],
 ) -> Vec<serde_json::Value> {

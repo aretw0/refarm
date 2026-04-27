@@ -16,19 +16,8 @@ pub(crate) fn complete(
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
     for iter_idx in 0..=max_iter {
-        let body = crate::provider_runtime::build_anthropic_body(
-            model,
-            system,
-            &wire_msgs,
-            crate::tools_anthropic(),
-        );
-
-        let v = crate::provider_runtime::execute_json_request(
-            "anthropic",
-            "https://api.anthropic.com",
-            "/v1/messages",
-            &hdrs,
-            &body,
+        let v = crate::provider_runtime::anthropic_iteration_response(
+            model, system, &wire_msgs, &hdrs,
         )?;
 
         crate::provider_runtime::ingest_anthropic_usage_from_response(&mut usage_totals, &v);
