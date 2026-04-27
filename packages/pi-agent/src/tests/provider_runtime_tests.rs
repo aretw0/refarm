@@ -1381,6 +1381,34 @@ fn provider_runtime_response_and_phase_from_state_with_passes_state_fields_to_cl
 }
 
 #[test]
+fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
+    let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
+    let phase = 7_u8;
+    let response = serde_json::json!({"ok": true});
+    let mut dispatch_count = 0_u32;
+
+    let out = crate::provider_runtime::step_from_state_with_dispatch(
+        &mut state,
+        &phase,
+        2,
+        5,
+        &response,
+        &mut dispatch_count,
+        |_state, phase, iter_idx, max_iter, response, dispatch| {
+            assert_eq!(*phase, 7);
+            assert_eq!(iter_idx, 2);
+            assert_eq!(max_iter, 5);
+            assert_eq!(response["ok"], true);
+            *dispatch += 1;
+            Ok(Some(format!("done-{dispatch}")))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(out.as_deref(), Some("done-1"));
+}
+
+#[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_dispatch_uses_context() {
     let common = crate::provider_runtime::provider_runner_common_config(
         "model-y",

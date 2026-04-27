@@ -1123,6 +1123,28 @@ where
     )
 }
 
+pub(crate) fn step_from_state_with_dispatch<P, D, FS>(
+    state: &mut ProviderLoopState,
+    phase: &P,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &serde_json::Value,
+    dispatch: &mut D,
+    mut step_fn: FS,
+) -> Result<Option<String>, String>
+where
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    step_fn(state, phase, iter_idx, max_iter, response, dispatch)
+}
+
 pub(crate) fn run_completion_loop_from_common_config_and_context_with_dispatch<P, C, D, FR, FS>(
     common: ProviderRunnerCommonConfig<'_>,
     context: C,
@@ -1314,13 +1336,14 @@ where
             )
         },
         |_system, state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            anthropic_step_from_phase_with_dispatch(
+            step_from_state_with_dispatch(
                 state,
                 phase,
                 iter_idx,
                 max_iter,
                 response,
                 dispatch_fn,
+                anthropic_step_from_phase_with_dispatch,
             )
         },
         dispatch,
@@ -1357,13 +1380,14 @@ where
             )
         },
         |(_provider, _base_url), state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            openai_step_from_phase_with_dispatch(
+            step_from_state_with_dispatch(
                 state,
                 phase,
                 iter_idx,
                 max_iter,
                 response,
                 dispatch_fn,
+                openai_step_from_phase_with_dispatch,
             )
         },
         dispatch,
