@@ -1349,3 +1349,41 @@ fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_co
     assert_eq!(out.response["ok"], true);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_and_context_with_dispatch_uses_context() {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-y",
+        vec![("h2".to_string(), "v2".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_dispatch(
+        common,
+        ("ctx-a", 7_u32),
+        |ctx, model, headers, state| {
+            assert_eq!(ctx.0, "ctx-a");
+            assert_eq!(ctx.1, 7);
+            assert_eq!(model, "model-y");
+            assert_eq!(headers[0].0, "h2");
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role":"assistant","ctx":ctx.0}));
+            Ok((serde_json::json!({"ok": true, "ctx": ctx.1}), 0_u8))
+        },
+        |ctx, _state, _phase, iter_idx, max_iter, _response, dispatch_count| {
+            assert_eq!(ctx.0, "ctx-a");
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            *dispatch_count += ctx.1;
+            Ok(Some(format!("done-{dispatch_count}")))
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "done-7");
+    assert_eq!(out.response["ok"], true);
+    assert_eq!(out.response["ctx"], 7);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
