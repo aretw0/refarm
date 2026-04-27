@@ -1098,6 +1098,31 @@ where
     )
 }
 
+pub(crate) fn response_and_phase_from_state_with<C, P, FR>(
+    context: &C,
+    model: &str,
+    headers: &[(String, String)],
+    state: &mut ProviderLoopState,
+    mut response_and_phase_fn: FR,
+) -> Result<(serde_json::Value, P), String>
+where
+    FR: FnMut(
+        &C,
+        &str,
+        &[(String, String)],
+        &[serde_json::Value],
+        &mut UsageTotals,
+    ) -> Result<(serde_json::Value, P), String>,
+{
+    response_and_phase_fn(
+        context,
+        model,
+        headers,
+        &state.wire_msgs,
+        &mut state.usage_totals,
+    )
+}
+
 pub(crate) fn run_completion_loop_from_common_config_and_context_with_dispatch<P, C, D, FR, FS>(
     common: ProviderRunnerCommonConfig<'_>,
     context: C,
@@ -1272,12 +1297,20 @@ where
         config.common,
         config.system,
         |system, model, headers, state| {
-            anthropic_iteration_response_and_phase(
-                model,
+            response_and_phase_from_state_with(
                 system,
-                &state.wire_msgs,
+                model,
                 headers,
-                &mut state.usage_totals,
+                state,
+                |system, model, headers, wire_msgs, usage_totals| {
+                    anthropic_iteration_response_and_phase(
+                        model,
+                        system,
+                        wire_msgs,
+                        headers,
+                        usage_totals,
+                    )
+                },
             )
         },
         |_system, state, phase, iter_idx, max_iter, response, dispatch_fn| {
@@ -1306,13 +1339,21 @@ where
         config.common,
         (config.provider, config.base_url),
         |(provider, base_url), model, headers, state| {
-            openai_iteration_response_and_phase(
-                provider,
-                base_url,
+            response_and_phase_from_state_with(
+                &(provider, base_url),
                 model,
-                &state.wire_msgs,
                 headers,
-                &mut state.usage_totals,
+                state,
+                |(provider, base_url), model, headers, wire_msgs, usage_totals| {
+                    openai_iteration_response_and_phase(
+                        provider,
+                        base_url,
+                        model,
+                        wire_msgs,
+                        headers,
+                        usage_totals,
+                    )
+                },
             )
         },
         |(_provider, _base_url), state, phase, iter_idx, max_iter, response, dispatch_fn| {

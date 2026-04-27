@@ -1351,6 +1351,36 @@ fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_co
 }
 
 #[test]
+fn provider_runtime_response_and_phase_from_state_with_passes_state_fields_to_closure() {
+    let mut state = crate::provider_runtime::provider_loop_state(vec![serde_json::json!({
+        "role": "user",
+        "content": "hello"
+    })]);
+    let model = "m1";
+    let headers = vec![("h".to_string(), "v".to_string())];
+
+    let (response, phase) = crate::provider_runtime::response_and_phase_from_state_with(
+        &"ctx",
+        model,
+        &headers,
+        &mut state,
+        |ctx, model, headers, wire_msgs, usage_totals| {
+            assert_eq!(*ctx, "ctx");
+            assert_eq!(model, "m1");
+            assert_eq!(headers[0].0, "h");
+            assert_eq!(wire_msgs.len(), 1);
+            usage_totals.tokens_in += 3;
+            Ok((serde_json::json!({"ok": true}), 42_u8))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(response["ok"], true);
+    assert_eq!(phase, 42);
+    assert_eq!(state.usage_totals.tokens_in, 3);
+}
+
+#[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_dispatch_uses_context() {
     let common = crate::provider_runtime::provider_runner_common_config(
         "model-y",
