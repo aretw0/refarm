@@ -1248,6 +1248,45 @@ where
     )
 }
 
+#[cfg(test)]
+pub(crate) fn run_completion_loop_from_common_config_and_context_with_state_primitives<
+    P,
+    C,
+    FR,
+    FS,
+>(
+    common: ProviderRunnerCommonConfig<'_>,
+    context: C,
+    response_and_phase_fn: FR,
+    mut step_fn: FS,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &C,
+        &str,
+        &[(String, String)],
+        &[serde_json::Value],
+        &mut UsageTotals,
+    ) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
+        common,
+        context,
+        response_and_phase_fn,
+        |state, phase, iter_idx, max_iter, response, _unit_dispatch: &mut ()| {
+            step_fn(state, phase, iter_idx, max_iter, response)
+        },
+        (),
+    )
+}
+
 pub(crate) struct CompletionLoopOutcome {
     pub state: ProviderLoopState,
     pub response: serde_json::Value,

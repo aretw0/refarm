@@ -1483,3 +1483,34 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_stat
     assert_eq!(out.state.usage_totals.tokens_out, 2);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_and_context_with_state_primitives_without_dispatch_works(
+) {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-sp2",
+        vec![("h2".to_string(), "v2".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives(
+        common,
+        "ctx-no-dispatch",
+        |ctx, model, _headers, _wire_msgs, usage_totals| {
+            assert_eq!(*ctx, "ctx-no-dispatch");
+            assert_eq!(model, "model-sp2");
+            usage_totals.tokens_in += 1;
+            Ok((serde_json::json!({"ok": true}), 3_u8))
+        },
+        |_state, phase, iter_idx, max_iter, _response| {
+            assert_eq!(*phase, 3);
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            Ok(Some("done-no-dispatch".to_string()))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "done-no-dispatch");
+    assert_eq!(out.state.usage_totals.tokens_in, 1);
+}
