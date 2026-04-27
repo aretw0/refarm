@@ -41,20 +41,16 @@ pub(crate) fn complete(
             ));
         }
 
-        crate::provider_runtime::append_openai_assistant_message(
+        let parsed_calls = crate::provider_runtime::parse_openai_tool_calls(&tool_calls_json);
+        crate::provider_runtime::advance_openai_tool_phase_with(
             &mut wire_msgs,
             &msg["content"],
             &tool_calls_json,
-        );
-
-        let parsed_calls = crate::provider_runtime::parse_openai_tool_calls(&tool_calls_json);
-        let tool_messages = crate::provider_runtime::execute_openai_tools_with(
             &parsed_calls,
             &mut executed_calls,
             &mut seen_hashes,
             crate::provider_runtime::dispatch_tool_dedup,
         );
-        crate::provider_runtime::append_openai_tool_messages(&mut wire_msgs, tool_messages);
     }
     unreachable!()
 }

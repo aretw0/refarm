@@ -541,3 +541,61 @@ fn provider_runtime_append_openai_tool_messages_appends_all() {
     assert_eq!(wire_msgs[0]["tool_call_id"], "call-1");
     assert_eq!(wire_msgs[1]["content"], "second");
 }
+
+#[test]
+fn provider_runtime_advance_anthropic_tool_phase_with_appends_and_records() {
+    let mut wire_msgs = Vec::new();
+    let content_arr = vec![serde_json::json!({"type":"text","text":"thinking"})];
+    let tool_uses = vec![crate::provider_runtime::ParsedAnthropicToolUse {
+        name: "read_file".to_string(),
+        input: serde_json::json!({"path":"README.md"}),
+        id: "tool-1".to_string(),
+    }];
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    crate::provider_runtime::advance_anthropic_tool_phase_with(
+        &mut wire_msgs,
+        &content_arr,
+        &tool_uses,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["path"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(wire_msgs[0]["role"], "assistant");
+    assert_eq!(wire_msgs[1]["role"], "user");
+    assert_eq!(wire_msgs[1]["content"][0]["tool_use_id"], "tool-1");
+    assert_eq!(executed_calls.len(), 1);
+}
+
+#[test]
+fn provider_runtime_advance_openai_tool_phase_with_appends_and_records() {
+    let mut wire_msgs = Vec::new();
+    let content = serde_json::json!("partial");
+    let tool_calls_json = vec![serde_json::json!({"id":"call-1"})];
+    let parsed_calls = vec![crate::provider_runtime::ParsedOpenAiToolCall {
+        name: "search_files".to_string(),
+        input: serde_json::json!({"pattern":"TODO"}),
+        id: "call-1".to_string(),
+    }];
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    crate::provider_runtime::advance_openai_tool_phase_with(
+        &mut wire_msgs,
+        &content,
+        &tool_calls_json,
+        &parsed_calls,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["pattern"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(wire_msgs[0]["role"], "assistant");
+    assert_eq!(wire_msgs[1]["role"], "tool");
+    assert_eq!(wire_msgs[1]["tool_call_id"], "call-1");
+    assert_eq!(executed_calls.len(), 1);
+}

@@ -292,6 +292,43 @@ pub(crate) fn append_openai_tool_messages(
     }
 }
 
+pub(crate) fn advance_anthropic_tool_phase_with<F>(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    content_arr: &[serde_json::Value],
+    tool_uses: &[ParsedAnthropicToolUse],
+    executed_calls: &mut Vec<serde_json::Value>,
+    seen_hashes: &mut std::collections::HashSet<u64>,
+    dispatch: F,
+) where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    append_anthropic_assistant_message(wire_msgs, content_arr);
+    let tool_results = execute_anthropic_tools_with(
+        tool_uses,
+        executed_calls,
+        seen_hashes,
+        dispatch,
+    );
+    append_anthropic_tool_results_message(wire_msgs, tool_results);
+}
+
+pub(crate) fn advance_openai_tool_phase_with<F>(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    content: &serde_json::Value,
+    tool_calls_json: &[serde_json::Value],
+    parsed_calls: &[ParsedOpenAiToolCall],
+    executed_calls: &mut Vec<serde_json::Value>,
+    seen_hashes: &mut std::collections::HashSet<u64>,
+    dispatch: F,
+) where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    append_openai_assistant_message(wire_msgs, content, tool_calls_json);
+    let tool_messages =
+        execute_openai_tools_with(parsed_calls, executed_calls, seen_hashes, dispatch);
+    append_openai_tool_messages(wire_msgs, tool_messages);
+}
+
 pub(crate) fn response_usage(response: &serde_json::Value) -> &serde_json::Value {
     &response["usage"]
 }

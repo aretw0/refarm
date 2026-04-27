@@ -39,17 +39,13 @@ pub(crate) fn complete(
             ));
         }
 
-        crate::provider_runtime::append_anthropic_assistant_message(&mut wire_msgs, &content_arr);
-
-        let tool_results = crate::provider_runtime::execute_anthropic_tools_with(
+        crate::provider_runtime::advance_anthropic_tool_phase_with(
+            &mut wire_msgs,
+            &content_arr,
             &tool_uses,
             &mut executed_calls,
             &mut seen_hashes,
             crate::provider_runtime::dispatch_tool_dedup,
-        );
-        crate::provider_runtime::append_anthropic_tool_results_message(
-            &mut wire_msgs,
-            tool_results,
         );
     }
     unreachable!()
