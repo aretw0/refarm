@@ -1063,6 +1063,41 @@ where
     )
 }
 
+pub(crate) fn run_completion_loop_from_common_config_with_dispatch<P, D, FR, FS>(
+    common: ProviderRunnerCommonConfig<'_>,
+    mut response_and_phase_from_state: FR,
+    step_with_dispatch: FS,
+    dispatch: D,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &str,
+        &[(String, String)],
+        &mut ProviderLoopState,
+    ) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    let ProviderRunnerCommonConfig {
+        model,
+        headers,
+        plan,
+    } = common;
+
+    run_completion_loop_from_plan_with_dispatch(
+        plan,
+        |state| response_and_phase_from_state(model, &headers, state),
+        step_with_dispatch,
+        dispatch,
+    )
+}
+
 pub(crate) struct CompletionLoopOutcome {
     pub state: ProviderLoopState,
     pub response: serde_json::Value,
@@ -1143,14 +1178,18 @@ pub(crate) fn finalize_completion_from_outcome(
 }
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) fn run_wasm_provider_loop_with_dispatch<P, FR, FS, D>(
-    plan: ProviderLoopPlan,
-    response_and_phase: FR,
+pub(crate) fn run_wasm_completion_loop_from_common_config_with_dispatch<P, D, FR, FS>(
+    common: ProviderRunnerCommonConfig<'_>,
+    response_and_phase_from_state: FR,
     step_with_dispatch: FS,
     dispatch: D,
 ) -> Result<crate::provider::CompletionResult, String>
 where
-    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
+    FR: FnMut(
+        &str,
+        &[(String, String)],
+        &mut ProviderLoopState,
+    ) -> Result<(serde_json::Value, P), String>,
     FS: FnMut(
         &mut ProviderLoopState,
         &P,
@@ -1160,9 +1199,9 @@ where
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    let outcome = run_completion_loop_from_plan_with_dispatch(
-        plan,
-        response_and_phase,
+    let outcome = run_completion_loop_from_common_config_with_dispatch(
+        common,
+        response_and_phase_from_state,
         step_with_dispatch,
         dispatch,
     )?;
@@ -1177,14 +1216,14 @@ pub(crate) fn run_anthropic_completion_loop_from_config_with_dispatch<D>(
 where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
-    run_wasm_provider_loop_with_dispatch(
-        config.common.plan,
-        |state| {
+    run_wasm_completion_loop_from_common_config_with_dispatch(
+        config.common,
+        |model, headers, state| {
             anthropic_iteration_response_and_phase(
-                config.common.model,
+                model,
                 config.system,
                 &state.wire_msgs,
-                &config.common.headers,
+                headers,
                 &mut state.usage_totals,
             )
         },
@@ -1210,15 +1249,15 @@ pub(crate) fn run_openai_completion_loop_from_config_with_dispatch<D>(
 where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
-    run_wasm_provider_loop_with_dispatch(
-        config.common.plan,
-        |state| {
+    run_wasm_completion_loop_from_common_config_with_dispatch(
+        config.common,
+        |model, headers, state| {
             openai_iteration_response_and_phase(
                 config.provider,
                 config.base_url,
-                config.common.model,
+                model,
                 &state.wire_msgs,
-                &config.common.headers,
+                headers,
                 &mut state.usage_totals,
             )
         },

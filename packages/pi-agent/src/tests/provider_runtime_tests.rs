@@ -1316,3 +1316,36 @@ fn provider_runtime_run_completion_loop_from_plan_with_dispatch_propagates_step_
         Err(err) => assert_eq!(err, "boom"),
     }
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_common_fields() {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-z",
+        vec![("h".to_string(), "v".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_with_dispatch(
+        common,
+        |model, headers, state| {
+            assert_eq!(model, "model-z");
+            assert_eq!(headers[0].0, "h");
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role":"assistant"}));
+            Ok((serde_json::json!({"ok": true}), 0_u8))
+        },
+        |_state, _phase, iter_idx, max_iter, _response, dispatch_count| {
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            *dispatch_count += 1;
+            Ok(Some(format!("done-{dispatch_count}")))
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "done-1");
+    assert_eq!(out.response["ok"], true);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
