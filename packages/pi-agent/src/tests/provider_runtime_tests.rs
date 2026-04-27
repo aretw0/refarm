@@ -1514,3 +1514,39 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_stat
     assert_eq!(out.text, "done-no-dispatch");
     assert_eq!(out.state.usage_totals.tokens_in, 1);
 }
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_with_state_primitives_and_dispatch_works(
+) {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-sp3",
+        vec![("h3".to_string(), "v3".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_with_state_primitives_and_dispatch(
+        common,
+        |model, headers, wire_msgs, usage_totals| {
+            assert_eq!(model, "model-sp3");
+            assert_eq!(headers[0].1, "v3");
+            assert_eq!(wire_msgs.len(), 0);
+            usage_totals.tokens_cached += 4;
+            Ok((serde_json::json!({"ok": true}), 11_u8))
+        },
+        |state, phase, iter_idx, max_iter, response, dispatch| {
+            assert_eq!(*phase, 11);
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            assert_eq!(response["ok"], true);
+            state.wire_msgs.push(serde_json::json!({"role": "assistant"}));
+            *dispatch += 1;
+            Ok(Some(format!("done-dispatch-{dispatch}")))
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "done-dispatch-1");
+    assert_eq!(out.state.usage_totals.tokens_cached, 4);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
