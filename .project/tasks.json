@@ -6805,9 +6805,31 @@
     {
       "id": "T-NEXT-291",
       "description": "Atualizar ROADMAP.md com itens completados neste ciclo: T-NEXT-287 (structured-io WIT), T-NEXT-289 (code-ops), T-NEXT-290 (swarm harness). Registrar A2A como tópico de pesquisa.",
-      "status": "planned",
+      "status": "completed",
       "phase": null,
       "files": ["packages/pi-agent/ROADMAP.md"]
+    },
+    {
+      "id": "T-NEXT-292",
+      "description": "Pesquisa A2A (Agent-to-Agent): avaliar Google A2A, MCP em modo agente, JSON-LD como rendezvous schema. Produzir ADR com primitivas candidatas para o CRDT do farmhand.",
+      "status": "planned",
+      "phase": null,
+      "files": ["packages/pi-agent/ROADMAP.md", "docs/ADR-A2A.md"],
+      "notes": "Solicitado pelo usuário. CRDT já é ponto de encontro natural — questão é convenção de schema e roteamento. Não implementar nada sem pesquisa e ADR primeiro."
+    },
+    {
+      "id": "T-NEXT-293",
+      "description": "Revisão de qualidade Rust + split de arquivos grandes: packages/pi-agent/src/lib.rs (~2400 linhas) dividir em session.rs, tools.rs, provider.rs, compress.rs. Aplicar clippy lints e verificar idiomas Rust.",
+      "status": "planned",
+      "phase": null,
+      "files": [
+        "packages/pi-agent/src/lib.rs",
+        "packages/pi-agent/src/session.rs",
+        "packages/pi-agent/src/tools.rs",
+        "packages/pi-agent/src/provider.rs",
+        "packages/pi-agent/src/compress.rs"
+      ],
+      "notes": "Solicitado pelo usuário como housekeeping de processo. Garantir que todos os 97+ testes continuem passando e wasm32 compila após split."
     }
   ]
 }
