@@ -1418,6 +1418,18 @@ fn provider_runtime_provider_response_phase_contract_builder_shape() {
 }
 
 #[test]
+fn provider_runtime_provider_response_phase_contract_into_parts_splits_shape() {
+    let contract = crate::provider_runtime::provider_response_phase_contract(
+        serde_json::json!({"ok": "parts"}),
+        8_u8,
+    );
+
+    let (response, phase) = crate::provider_runtime::provider_response_phase_contract_into_parts(contract);
+    assert_eq!(response["ok"], "parts");
+    assert_eq!(phase, 8);
+}
+
+#[test]
 fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
     let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
     let phase = 7_u8;
@@ -1653,6 +1665,44 @@ fn provider_runtime_run_completion_loop_from_common_config_with_contract_primiti
 
     assert_eq!(out.text, "contract-loop-1");
     assert_eq!(out.state.usage_totals.tokens_reasoning, 2);
+    assert_eq!(out.state.wire_msgs.len(), 1);
+}
+
+#[test]
+fn provider_runtime_run_completion_loop_from_common_config_with_contract_primitives_without_dispatch_works(
+) {
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-contract-loop-no-dispatch",
+        vec![("hcn".to_string(), "vcn".to_string())],
+        crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+    );
+
+    let out = crate::provider_runtime::run_completion_loop_from_common_config_with_contract_primitives(
+        common,
+        |model, headers, state| {
+            assert_eq!(model, "model-contract-loop-no-dispatch");
+            assert_eq!(headers[0].0, "hcn");
+            state.usage_totals.tokens_reasoning += 3;
+            Ok(crate::provider_runtime::provider_response_phase_contract(
+                serde_json::json!({"ok": "contract-loop-no-dispatch"}),
+                14_u8,
+            ))
+        },
+        |state, contract| {
+            assert_eq!(*contract.phase, 14);
+            assert_eq!(contract.iter_idx, 0);
+            assert_eq!(contract.max_iter, 0);
+            assert_eq!(contract.response["ok"], "contract-loop-no-dispatch");
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role": "assistant", "mode": "contract-no-dispatch"}));
+            Ok(Some("contract-loop-no-dispatch-done".to_string()))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(out.text, "contract-loop-no-dispatch-done");
+    assert_eq!(out.state.usage_totals.tokens_reasoning, 3);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
 

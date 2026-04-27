@@ -1124,7 +1124,7 @@ where
             response_and_phase_fn(context, model, headers, wire_msgs, usage_totals)
         },
     )?;
-    Ok((contract.response, contract.phase))
+    Ok(provider_response_phase_contract_into_parts(contract))
 }
 
 pub(crate) struct ProviderResponsePhaseContract<P> {
@@ -1137,6 +1137,12 @@ pub(crate) fn provider_response_phase_contract<P>(
     phase: P,
 ) -> ProviderResponsePhaseContract<P> {
     ProviderResponsePhaseContract { response, phase }
+}
+
+pub(crate) fn provider_response_phase_contract_into_parts<P>(
+    contract: ProviderResponsePhaseContract<P>,
+) -> (serde_json::Value, P) {
+    (contract.response, contract.phase)
 }
 
 pub(crate) fn response_phase_contract_from_state_with<C, P, FR>(
@@ -1383,7 +1389,7 @@ pub(crate) fn run_completion_loop_from_common_config_and_context_with_contract_p
 >(
     common: ProviderRunnerCommonConfig<'_>,
     context: C,
-    response_phase_contract_fn: FR,
+    mut response_phase_contract_fn: FR,
     mut step_contract_fn: FS,
 ) -> Result<CompletionLoopOutcome, String>
 where
@@ -1399,13 +1405,34 @@ where
         ProviderIterationContract<'_, P>,
     ) -> Result<Option<String>, String>,
 {
-    run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch(
+    run_completion_loop_from_common_config_with_contract_primitives(
         common,
-        context,
+        |model, headers, state| response_phase_contract_fn(&context, model, headers, state),
+        |state, contract| step_contract_fn(&context, state, contract),
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn run_completion_loop_from_common_config_with_contract_primitives<P, FR, FS>(
+    common: ProviderRunnerCommonConfig<'_>,
+    response_phase_contract_fn: FR,
+    mut step_contract_fn: FS,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &str,
+        &[(String, String)],
+        &mut ProviderLoopState,
+    ) -> Result<ProviderResponsePhaseContract<P>, String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        ProviderIterationContract<'_, P>,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_common_config_with_contract_primitives_and_dispatch(
+        common,
         response_phase_contract_fn,
-        |context, state, contract, _unit_dispatch: &mut ()| {
-            step_contract_fn(context, state, contract)
-        },
+        |state, contract, _unit_dispatch: &mut ()| step_contract_fn(state, contract),
         (),
     )
 }
@@ -1493,7 +1520,7 @@ where
         (),
         |_unit, model, headers, state| {
             let contract = response_phase_contract_fn(model, headers, state)?;
-            Ok((contract.response, contract.phase))
+            Ok(provider_response_phase_contract_into_parts(contract))
         },
         |_unit, state, phase, iter_idx, max_iter, response, dispatch_fn| {
             step_from_state_with_dispatch_contract(
