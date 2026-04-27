@@ -77,11 +77,11 @@ pub(crate) fn complete(
             ));
         }
 
-        wire_msgs.push(serde_json::json!({
-            "role": "assistant",
-            "content": msg["content"],
-            "tool_calls": tool_calls_json,
-        }));
+        crate::provider_runtime::append_openai_assistant_message(
+            &mut wire_msgs,
+            &msg["content"],
+            &tool_calls_json,
+        );
 
         for tc in &tool_calls_json {
             let fn_obj = &tc["function"];
@@ -93,8 +93,7 @@ pub(crate) fn complete(
             let result =
                 crate::provider_runtime::dispatch_tool_dedup(name, &input, &mut seen_hashes);
             crate::provider_runtime::push_executed_call(&mut executed_calls, name, input, &result);
-            wire_msgs
-                .push(serde_json::json!({"role": "tool", "tool_call_id": id, "content": result}));
+            crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, id, result);
         }
     }
     unreachable!()

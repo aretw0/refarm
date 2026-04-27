@@ -43,6 +43,50 @@ pub(crate) fn parse_json_arguments(arguments: &str) -> serde_json::Value {
     serde_json::from_str(arguments).unwrap_or_else(|_| serde_json::json!({}))
 }
 
+pub(crate) fn append_anthropic_assistant_message(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    content_arr: &[serde_json::Value],
+) {
+    wire_msgs.push(serde_json::json!({
+        "role": "assistant",
+        "content": content_arr,
+    }));
+}
+
+pub(crate) fn append_anthropic_tool_results_message(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    tool_results: Vec<serde_json::Value>,
+) {
+    wire_msgs.push(serde_json::json!({
+        "role": "user",
+        "content": tool_results,
+    }));
+}
+
+pub(crate) fn append_openai_assistant_message(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    content: &serde_json::Value,
+    tool_calls_json: &[serde_json::Value],
+) {
+    wire_msgs.push(serde_json::json!({
+        "role": "assistant",
+        "content": content,
+        "tool_calls": tool_calls_json,
+    }));
+}
+
+pub(crate) fn append_openai_tool_message(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    tool_call_id: &str,
+    content: String,
+) {
+    wire_msgs.push(serde_json::json!({
+        "role": "tool",
+        "tool_call_id": tool_call_id,
+        "content": content,
+    }));
+}
+
 pub(crate) fn should_terminate_tool_loop(
     has_tool_calls: bool,
     iter_idx: u32,

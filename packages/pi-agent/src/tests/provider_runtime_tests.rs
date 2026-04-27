@@ -123,3 +123,52 @@ fn provider_runtime_error_message_prefers_payload_message() {
         "boom"
     );
 }
+
+#[test]
+fn provider_runtime_append_anthropic_assistant_message_shape() {
+    let mut wire_msgs = Vec::new();
+    let blocks = vec![serde_json::json!({"type":"text","text":"hello"})];
+    crate::provider_runtime::append_anthropic_assistant_message(&mut wire_msgs, &blocks);
+
+    assert_eq!(wire_msgs.len(), 1);
+    assert_eq!(wire_msgs[0]["role"], "assistant");
+    assert_eq!(wire_msgs[0]["content"][0]["text"], "hello");
+}
+
+#[test]
+fn provider_runtime_append_anthropic_tool_results_message_shape() {
+    let mut wire_msgs = Vec::new();
+    let tool_results = vec![serde_json::json!({"type":"tool_result","content":"ok"})];
+    crate::provider_runtime::append_anthropic_tool_results_message(&mut wire_msgs, tool_results);
+
+    assert_eq!(wire_msgs.len(), 1);
+    assert_eq!(wire_msgs[0]["role"], "user");
+    assert_eq!(wire_msgs[0]["content"][0]["type"], "tool_result");
+}
+
+#[test]
+fn provider_runtime_append_openai_assistant_message_shape() {
+    let mut wire_msgs = Vec::new();
+    let tool_calls = vec![serde_json::json!({"id":"call_1"})];
+    crate::provider_runtime::append_openai_assistant_message(
+        &mut wire_msgs,
+        &serde_json::json!("partial"),
+        &tool_calls,
+    );
+
+    assert_eq!(wire_msgs.len(), 1);
+    assert_eq!(wire_msgs[0]["role"], "assistant");
+    assert_eq!(wire_msgs[0]["content"], "partial");
+    assert_eq!(wire_msgs[0]["tool_calls"][0]["id"], "call_1");
+}
+
+#[test]
+fn provider_runtime_append_openai_tool_message_shape() {
+    let mut wire_msgs = Vec::new();
+    crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, "call_2", "done".into());
+
+    assert_eq!(wire_msgs.len(), 1);
+    assert_eq!(wire_msgs[0]["role"], "tool");
+    assert_eq!(wire_msgs[0]["tool_call_id"], "call_2");
+    assert_eq!(wire_msgs[0]["content"], "done");
+}

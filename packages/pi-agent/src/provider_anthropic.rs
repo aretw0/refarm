@@ -68,7 +68,7 @@ pub(crate) fn complete(
             ));
         }
 
-        wire_msgs.push(serde_json::json!({"role": "assistant", "content": content_arr}));
+        crate::provider_runtime::append_anthropic_assistant_message(&mut wire_msgs, &content_arr);
 
         let mut tool_results = Vec::with_capacity(tool_uses.len());
         for tc in &tool_uses {
@@ -87,7 +87,10 @@ pub(crate) fn complete(
                 serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result}),
             );
         }
-        wire_msgs.push(serde_json::json!({"role": "user", "content": tool_results}));
+        crate::provider_runtime::append_anthropic_tool_results_message(
+            &mut wire_msgs,
+            tool_results,
+        );
     }
     unreachable!()
 }
