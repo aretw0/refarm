@@ -29,6 +29,27 @@ fn provider_runtime_dedup_tool_output_marks_duplicates() {
 }
 
 #[test]
+fn provider_runtime_dispatch_and_dedup_with_passthrough_then_duplicate() {
+    let mut seen = std::collections::HashSet::new();
+
+    let first = crate::provider_runtime::dispatch_and_dedup_with(
+        "read_file",
+        &serde_json::json!({"path":"README.md"}),
+        &mut seen,
+        |name, input| format!("{name}:{}", input["path"].as_str().unwrap_or("")),
+    );
+    let second = crate::provider_runtime::dispatch_and_dedup_with(
+        "read_file",
+        &serde_json::json!({"path":"README.md"}),
+        &mut seen,
+        |name, input| format!("{name}:{}", input["path"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(first, "read_file:README.md");
+    assert!(second.contains("duplicate"));
+}
+
+#[test]
 fn provider_runtime_parse_json_arguments_invalid_falls_back_to_object() {
     let v = crate::provider_runtime::parse_json_arguments("{not-json");
     assert_eq!(v, serde_json::json!({}));
