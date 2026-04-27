@@ -134,6 +134,22 @@ pub(crate) fn initial_openai_wire_messages(
     v
 }
 
+pub(crate) struct ProviderLoopState {
+    pub wire_msgs: Vec<serde_json::Value>,
+    pub usage_totals: UsageTotals,
+    pub executed_calls: Vec<serde_json::Value>,
+    pub seen_hashes: std::collections::HashSet<u64>,
+}
+
+pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
+    ProviderLoopState {
+        wire_msgs: initial_wire_msgs,
+        usage_totals: UsageTotals::default(),
+        executed_calls: Vec::new(),
+        seen_hashes: std::collections::HashSet::new(),
+    }
+}
+
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
     v["content"].as_array().cloned().unwrap_or_default()
 }
@@ -590,4 +606,13 @@ pub(crate) fn completion_result_from_response(
     totals: UsageTotals,
 ) -> crate::provider::CompletionResult {
     completion_result(content, executed_calls, response_usage(response), totals)
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn finalize_completion_from_response(
+    content: String,
+    response: &serde_json::Value,
+    state: ProviderLoopState,
+) -> crate::provider::CompletionResult {
+    completion_result_from_response(content, state.executed_calls, response, state.usage_totals)
 }

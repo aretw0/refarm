@@ -11,18 +11,20 @@ pub(crate) fn complete(
 
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
-    let mut wire_msgs = crate::provider_runtime::initial_openai_wire_messages(system, messages);
-
-    let mut usage_totals = crate::provider_runtime::UsageTotals::default();
-    let mut executed_calls: Vec<serde_json::Value> = Vec::new();
-    let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
+    let mut state = crate::provider_runtime::provider_loop_state(
+        crate::provider_runtime::initial_openai_wire_messages(system, messages),
+    );
 
     for iter_idx in 0..=max_iter {
         let v = crate::provider_runtime::openai_iteration_response(
-            provider, base_url, model, &wire_msgs, &base_hdrs,
+            provider,
+            base_url,
+            model,
+            &state.wire_msgs,
+            &base_hdrs,
         )?;
 
-        crate::provider_runtime::ingest_openai_usage_from_response(&mut usage_totals, &v);
+        crate::provider_runtime::ingest_openai_usage_from_response(&mut state.usage_totals, &v);
 
         let phase = crate::provider_runtime::openai_iteration_phase(&v);
 
@@ -32,19 +34,16 @@ pub(crate) fn complete(
             max_iter,
             crate::provider_runtime::require_openai_message_content(&phase.msg, &v),
         )? {
-            return Ok(crate::provider_runtime::completion_result_from_response(
-                content,
-                executed_calls,
-                &v,
-                usage_totals,
+            return Ok(crate::provider_runtime::finalize_completion_from_response(
+                content, &v, state,
             ));
         }
 
         crate::provider_runtime::advance_openai_tool_phase_from_phase_with(
-            &mut wire_msgs,
+            &mut state.wire_msgs,
             &phase,
-            &mut executed_calls,
-            &mut seen_hashes,
+            &mut state.executed_calls,
+            &mut state.seen_hashes,
             crate::provider_runtime::dispatch_tool_dedup,
         );
     }

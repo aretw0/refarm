@@ -691,3 +691,16 @@ fn provider_runtime_advance_openai_tool_phase_from_phase_with_appends() {
     assert_eq!(wire_msgs[1]["tool_call_id"], "call-2");
     assert_eq!(executed_calls.len(), 1);
 }
+
+#[test]
+fn provider_runtime_provider_loop_state_initializes_empty_runtime_fields() {
+    let state = crate::provider_runtime::provider_loop_state(vec![serde_json::json!({
+        "role": "system",
+        "content": "s"
+    })]);
+
+    assert_eq!(state.wire_msgs.len(), 1);
+    assert_eq!(state.usage_totals.tokens_in, 0);
+    assert!(state.executed_calls.is_empty());
+    assert!(state.seen_hashes.is_empty());
+}
