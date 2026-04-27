@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), allow(dead_code))]
+
 /// Detect format from file extension. Falls back to "json" when unknown.
 pub(crate) fn detect_format(path: &str) -> &'static str {
     let lower = path.to_ascii_lowercase();

@@ -61,6 +61,7 @@ pub(crate) fn history_from_nodes(nodes: &[String], max_turns: usize) -> Vec<(Str
 /// Walk the parent_entry_id chain from `leaf_id`, collecting up to `max_turns`
 /// user/agent entries. Pure function — `nodes` is a flat list of SessionEntry JSON
 /// strings; a HashMap index is built internally. Returns oldest-first pairs.
+#[cfg_attr(not(test), allow(dead_code))]
 pub(crate) fn history_from_tree(
     nodes: &[String],
     leaf_id: &str,

@@ -59,26 +59,31 @@ mod utils;
 
 // Re-exports: make submodule items visible at crate root for cross-module use
 // (provider.rs calls these via `super::`, tests access them via `use super::*`).
+#[allow(unused_imports)]
 pub(crate) use compress::{compress_tool_output, dedup_lines, strip_ansi};
 pub(crate) use provider_config::{choose_model, openai_compat_defaults};
 pub(crate) use response_nodes::{
     agent_response_node, usage_record_node, user_prompt_node, AgentResponsePayload,
     UsageRecordPayload,
 };
+#[allow(unused_imports)]
 pub(crate) use runtime::react;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use session::{
     append_to_session, budget_exceeded_for_provider, fork_session, get_or_create_session,
     get_or_create_session_id_readonly, navigate_session, query_history,
 };
+#[allow(unused_imports)]
 pub(crate) use session::{
     history_from_nodes, history_from_tree, provider_name_from_env, session_entry_node,
     session_node, sum_provider_spend_usd,
 };
+#[allow(unused_imports)]
 pub(crate) use structured_io::{
     apply_edits, detect_format, read_structured_parse, validate_structured,
 };
 pub(crate) use tools::{tools_anthropic, tools_openai};
+#[allow(unused_imports)]
 pub(crate) use utils::{estimate_usd, fnv1a_hash, new_id, new_pi_urn, now_ns};
 
 use exports::refarm::plugin::integration::{
