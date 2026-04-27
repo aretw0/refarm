@@ -2185,3 +2185,81 @@ fn provider_runtime_contract_and_state_non_dispatch_response_error_are_equivalen
 
     assert_eq!(state_err, contract_err);
 }
+
+#[test]
+fn provider_runtime_response_error_does_not_execute_step_dispatch_paths() {
+    let mk_common = || {
+        crate::provider_runtime::provider_runner_common_config(
+            "model-no-step-on-response-error-dispatch",
+            vec![("hsd".to_string(), "vsd".to_string())],
+            crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+        )
+    };
+
+    let mut state_step_calls = 0_u32;
+    let _ = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
+        mk_common(),
+        "ctx-no-step-dispatch",
+        |_ctx, _model, _headers, _wire_msgs, _usage_totals| {
+            Err("response-no-step-dispatch".to_string())
+        },
+        |_state, _phase: &u8, _iter_idx, _max_iter, _response, _dispatch| {
+            state_step_calls += 1;
+            Ok(Some("unexpected".to_string()))
+        },
+        0_u32,
+    );
+
+    let mut contract_step_calls = 0_u32;
+    let _ = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch(
+        mk_common(),
+        "ctx-no-step-dispatch",
+        |_ctx, _model, _headers, _state| Err("response-no-step-dispatch".to_string()),
+        |_ctx, _state, _contract: crate::provider_runtime::ProviderIterationContract<'_, u8>, _dispatch| {
+            contract_step_calls += 1;
+            Ok(Some("unexpected".to_string()))
+        },
+        0_u32,
+    );
+
+    assert_eq!(state_step_calls, 0);
+    assert_eq!(contract_step_calls, 0);
+}
+
+#[test]
+fn provider_runtime_response_error_does_not_execute_step_non_dispatch_paths() {
+    let mk_common = || {
+        crate::provider_runtime::provider_runner_common_config(
+            "model-no-step-on-response-error-no-dispatch",
+            vec![("hsn".to_string(), "vsn".to_string())],
+            crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0),
+        )
+    };
+
+    let mut state_step_calls = 0_u32;
+    let _ = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives(
+        mk_common(),
+        "ctx-no-step-no-dispatch",
+        |_ctx, _model, _headers, _wire_msgs, _usage_totals| {
+            Err("response-no-step-no-dispatch".to_string())
+        },
+        |_state, _phase: &u8, _iter_idx, _max_iter, _response| {
+            state_step_calls += 1;
+            Ok(Some("unexpected".to_string()))
+        },
+    );
+
+    let mut contract_step_calls = 0_u32;
+    let _ = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_contract_primitives(
+        mk_common(),
+        "ctx-no-step-no-dispatch",
+        |_ctx, _model, _headers, _state| Err("response-no-step-no-dispatch".to_string()),
+        |_ctx, _state, _contract: crate::provider_runtime::ProviderIterationContract<'_, u8>| {
+            contract_step_calls += 1;
+            Ok(Some("unexpected".to_string()))
+        },
+    );
+
+    assert_eq!(state_step_calls, 0);
+    assert_eq!(contract_step_calls, 0);
+}
