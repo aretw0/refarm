@@ -9,9 +9,7 @@ pub(crate) fn complete(
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
     // In-flight messages: start from CRDT history, grow with tool call/result turns.
-    let mut state = crate::provider_runtime::provider_loop_state(
-        crate::provider_runtime::initial_anthropic_wire_messages(messages),
-    );
+    let mut state = crate::provider_runtime::anthropic_loop_state(messages);
 
     for iter_idx in 0..=max_iter {
         let v = crate::provider_runtime::anthropic_iteration_response(
@@ -21,9 +19,8 @@ pub(crate) fn complete(
             &hdrs,
         )?;
 
-        crate::provider_runtime::ingest_anthropic_usage_from_response(&mut state.usage_totals, &v);
-
-        let phase = crate::provider_runtime::anthropic_iteration_phase(&v);
+        let phase =
+            crate::provider_runtime::anthropic_phase_after_usage(&mut state.usage_totals, &v);
 
         if let Some(text) = crate::provider_runtime::anthropic_completion_text_if_terminate(
             &phase, iter_idx, max_iter, &v,

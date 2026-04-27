@@ -132,6 +132,52 @@ fn provider_runtime_ingest_openai_usage_from_response() {
 }
 
 #[test]
+fn provider_runtime_anthropic_phase_after_usage_updates_totals_and_extracts_phase() {
+    let response = serde_json::json!({
+        "usage": {
+            "input_tokens": 3,
+            "output_tokens": 2,
+            "cache_read_input_tokens": 1,
+            "cache_creation_input_tokens": 4
+        },
+        "content": [
+            {"type":"tool_use","name":"read_file","input":{"path":"README.md"},"id":"t1"}
+        ]
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    let phase = crate::provider_runtime::anthropic_phase_after_usage(&mut totals, &response);
+
+    assert_eq!(totals.tokens_in, 3);
+    assert_eq!(phase.tool_uses.len(), 1);
+}
+
+#[test]
+fn provider_runtime_openai_phase_after_usage_updates_totals_and_extracts_phase() {
+    let response = serde_json::json!({
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "prompt_tokens_details": {"cached_tokens": 2},
+            "completion_tokens_details": {"reasoning_tokens": 1}
+        },
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-1",
+                    "function":{"name":"search_files","arguments":"{}"}
+                }]
+            }
+        }]
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    let phase = crate::provider_runtime::openai_phase_after_usage(&mut totals, &response);
+
+    assert_eq!(totals.tokens_in, 5);
+    assert_eq!(phase.parsed_calls.len(), 1);
+}
+
+#[test]
 fn provider_runtime_should_terminate_tool_loop_when_no_calls() {
     assert!(crate::provider_runtime::should_terminate_tool_loop(
         false, 0, 5
@@ -737,4 +783,24 @@ fn provider_runtime_provider_loop_state_initializes_empty_runtime_fields() {
     assert_eq!(state.usage_totals.tokens_in, 0);
     assert!(state.executed_calls.is_empty());
     assert!(state.seen_hashes.is_empty());
+}
+
+#[test]
+fn provider_runtime_anthropic_loop_state_bootstraps_wire_history() {
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let state = crate::provider_runtime::anthropic_loop_state(&msgs);
+
+    assert_eq!(state.wire_msgs.len(), 1);
+    assert_eq!(state.wire_msgs[0]["role"], "user");
+    assert_eq!(state.wire_msgs[0]["content"], "hello");
+}
+
+#[test]
+fn provider_runtime_openai_loop_state_prepends_system_message() {
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let state = crate::provider_runtime::openai_loop_state("sys", &msgs);
+
+    assert_eq!(state.wire_msgs.len(), 2);
+    assert_eq!(state.wire_msgs[0]["role"], "system");
+    assert_eq!(state.wire_msgs[1]["role"], "user");
 }

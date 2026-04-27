@@ -150,6 +150,17 @@ pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> 
     }
 }
 
+pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
+    provider_loop_state(initial_anthropic_wire_messages(messages))
+}
+
+pub(crate) fn openai_loop_state(
+    system: &str,
+    messages: &[(String, String)],
+) -> ProviderLoopState {
+    provider_loop_state(initial_openai_wire_messages(system, messages))
+}
+
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
     v["content"].as_array().cloned().unwrap_or_default()
 }
@@ -462,11 +473,27 @@ pub(crate) fn ingest_anthropic_usage_from_response(
     totals.ingest_anthropic_usage(response_usage(response));
 }
 
+pub(crate) fn anthropic_phase_after_usage(
+    totals: &mut UsageTotals,
+    response: &serde_json::Value,
+) -> AnthropicIterationPhase {
+    ingest_anthropic_usage_from_response(totals, response);
+    anthropic_iteration_phase(response)
+}
+
 pub(crate) fn ingest_openai_usage_from_response(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
 ) {
     totals.ingest_openai_usage(response_usage(response));
+}
+
+pub(crate) fn openai_phase_after_usage(
+    totals: &mut UsageTotals,
+    response: &serde_json::Value,
+) -> OpenAiIterationPhase {
+    ingest_openai_usage_from_response(totals, response);
+    openai_iteration_phase(response)
 }
 
 pub(crate) fn dedup_tool_output(
