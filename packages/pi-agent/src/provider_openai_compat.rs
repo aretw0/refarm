@@ -30,8 +30,7 @@ pub(crate) fn complete(
         )?;
         let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
-        let usage = &v["usage"];
-        usage_totals.ingest_openai_usage(usage);
+        crate::provider_runtime::ingest_openai_usage_from_response(&mut usage_totals, &v);
 
         let msg = crate::provider_runtime::openai_choice_message(&v);
         let tool_calls_json = crate::provider_runtime::openai_tool_calls_array(msg);
@@ -42,10 +41,10 @@ pub(crate) fn complete(
             max_iter,
         ) {
             let content = crate::provider_runtime::require_openai_message_content(msg, &v)?;
-            return Ok(crate::provider_runtime::completion_result(
+            return Ok(crate::provider_runtime::completion_result_from_response(
                 content,
                 executed_calls,
-                usage,
+                &v,
                 usage_totals,
             ));
         }

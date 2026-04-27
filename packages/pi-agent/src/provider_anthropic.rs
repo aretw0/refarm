@@ -32,8 +32,7 @@ pub(crate) fn complete(
         )?;
         let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
-        let usage = &v["usage"];
-        usage_totals.ingest_anthropic_usage(usage);
+        crate::provider_runtime::ingest_anthropic_usage_from_response(&mut usage_totals, &v);
 
         let content_arr = crate::provider_runtime::anthropic_content_array(&v);
         let tool_uses = crate::provider_runtime::parse_anthropic_tool_uses(&content_arr);
@@ -44,10 +43,10 @@ pub(crate) fn complete(
             max_iter,
         ) {
             let text = crate::provider_runtime::require_anthropic_text_content(&content_arr, &v)?;
-            return Ok(crate::provider_runtime::completion_result(
+            return Ok(crate::provider_runtime::completion_result_from_response(
                 text,
                 executed_calls,
-                usage,
+                &v,
                 usage_totals,
             ));
         }

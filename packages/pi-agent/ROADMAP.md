@@ -73,7 +73,7 @@ Context engineering follows the pi-test-harness model:
 ### Internal modularity (maintainability)
 - [x] Split monolithic `lib.rs` into runtime/provider/tool/session/structured modules
 - [x] Split provider engine into `provider_anthropic.rs` and `provider_openai_compat.rs`
-- [x] Extract shared provider-loop helpers into `provider_runtime.rs` (headers/path/body builders, initial wire-message builders, response parse/extractors, completion content guards, tool execution recorders, loop termination, error extraction, wire-message appenders, dedup dispatch, argument parse, usage aggregation, executed-call shape)
+- [x] Extract shared provider-loop helpers into `provider_runtime.rs` (headers/path/body builders, initial wire-message builders, response parse/extractors, response-usage/finalization helpers, completion content guards, tool execution recorders, loop termination, error extraction, wire-message appenders, dedup dispatch, argument parse, usage aggregation, executed-call shape)
 - [x] Extract pure provider defaults/model-selection helpers (`provider_config.rs`)
 - [x] Add explicit provider factory (`Provider::from_provider_name`) to avoid env mutation in fallback routing
 - [x] Extract CRDT response node builders (`response_nodes.rs`) for reusable schema-safe writes

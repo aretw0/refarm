@@ -187,6 +187,24 @@ pub(crate) fn record_openai_tool_execution(
     push_executed_call(executed_calls, &tool_call.name, tool_call.input.clone(), result);
 }
 
+pub(crate) fn response_usage(response: &serde_json::Value) -> &serde_json::Value {
+    &response["usage"]
+}
+
+pub(crate) fn ingest_anthropic_usage_from_response(
+    totals: &mut UsageTotals,
+    response: &serde_json::Value,
+) {
+    totals.ingest_anthropic_usage(response_usage(response));
+}
+
+pub(crate) fn ingest_openai_usage_from_response(
+    totals: &mut UsageTotals,
+    response: &serde_json::Value,
+) {
+    totals.ingest_openai_usage(response_usage(response));
+}
+
 pub(crate) fn dedup_tool_output(
     raw: String,
     seen_hashes: &mut std::collections::HashSet<u64>,
@@ -329,4 +347,14 @@ pub(crate) fn completion_result(
         tokens_reasoning: totals.tokens_reasoning,
         usage_raw: usage.to_string(),
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn completion_result_from_response(
+    content: String,
+    executed_calls: Vec<serde_json::Value>,
+    response: &serde_json::Value,
+    totals: UsageTotals,
+) -> crate::provider::CompletionResult {
+    completion_result(content, executed_calls, response_usage(response), totals)
 }

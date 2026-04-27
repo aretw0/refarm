@@ -86,6 +86,52 @@ fn provider_runtime_usage_totals_ingest_openai_fields() {
 }
 
 #[test]
+fn provider_runtime_response_usage_returns_usage_object() {
+    let response = serde_json::json!({"usage": {"prompt_tokens": 9}});
+    assert_eq!(
+        crate::provider_runtime::response_usage(&response)["prompt_tokens"],
+        9
+    );
+}
+
+#[test]
+fn provider_runtime_ingest_anthropic_usage_from_response() {
+    let response = serde_json::json!({
+        "usage": {
+            "input_tokens": 3,
+            "output_tokens": 2,
+            "cache_read_input_tokens": 1,
+            "cache_creation_input_tokens": 4
+        }
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    crate::provider_runtime::ingest_anthropic_usage_from_response(&mut totals, &response);
+
+    assert_eq!(totals.tokens_in, 3);
+    assert_eq!(totals.tokens_out, 2);
+    assert_eq!(totals.tokens_cached, 5);
+}
+
+#[test]
+fn provider_runtime_ingest_openai_usage_from_response() {
+    let response = serde_json::json!({
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 7,
+            "prompt_tokens_details": {"cached_tokens": 2},
+            "completion_tokens_details": {"reasoning_tokens": 1}
+        }
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    crate::provider_runtime::ingest_openai_usage_from_response(&mut totals, &response);
+
+    assert_eq!(totals.tokens_in, 5);
+    assert_eq!(totals.tokens_out, 7);
+    assert_eq!(totals.tokens_cached, 2);
+    assert_eq!(totals.tokens_reasoning, 1);
+}
+
+#[test]
 fn provider_runtime_should_terminate_tool_loop_when_no_calls() {
     assert!(crate::provider_runtime::should_terminate_tool_loop(
         false, 0, 5
