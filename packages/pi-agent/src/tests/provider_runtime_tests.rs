@@ -1409,6 +1409,32 @@ fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
 }
 
 #[test]
+fn provider_runtime_step_from_state_with_dispatch_contract_passes_contract_fields() {
+    let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
+    let phase = 5_u8;
+    let response = serde_json::json!({"ok": "contract"});
+    let contract = crate::provider_runtime::provider_iteration_contract(&phase, 1, 4, &response);
+    let mut dispatch_count = 0_u32;
+
+    let out = crate::provider_runtime::step_from_state_with_dispatch_contract(
+        &mut state,
+        contract,
+        &mut dispatch_count,
+        |_state, phase, iter_idx, max_iter, response, dispatch| {
+            assert_eq!(*phase, 5);
+            assert_eq!(iter_idx, 1);
+            assert_eq!(max_iter, 4);
+            assert_eq!(response["ok"], "contract");
+            *dispatch += 1;
+            Ok(Some(format!("contract-{dispatch}")))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(out.as_deref(), Some("contract-1"));
+}
+
+#[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_dispatch_uses_context() {
     let common = crate::provider_runtime::provider_runner_common_config(
         "model-y",

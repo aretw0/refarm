@@ -1123,6 +1123,53 @@ where
     )
 }
 
+pub(crate) struct ProviderIterationContract<'a, P> {
+    pub phase: &'a P,
+    pub iter_idx: u32,
+    pub max_iter: u32,
+    pub response: &'a serde_json::Value,
+}
+
+pub(crate) fn provider_iteration_contract<'a, P>(
+    phase: &'a P,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &'a serde_json::Value,
+) -> ProviderIterationContract<'a, P> {
+    ProviderIterationContract {
+        phase,
+        iter_idx,
+        max_iter,
+        response,
+    }
+}
+
+pub(crate) fn step_from_state_with_dispatch_contract<P, D, FS>(
+    state: &mut ProviderLoopState,
+    contract: ProviderIterationContract<'_, P>,
+    dispatch: &mut D,
+    mut step_fn: FS,
+) -> Result<Option<String>, String>
+where
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    step_fn(
+        state,
+        contract.phase,
+        contract.iter_idx,
+        contract.max_iter,
+        contract.response,
+        dispatch,
+    )
+}
+
 pub(crate) fn step_from_state_with_dispatch<P, D, FS>(
     state: &mut ProviderLoopState,
     phase: &P,
@@ -1142,7 +1189,14 @@ where
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    step_fn(state, phase, iter_idx, max_iter, response, dispatch)
+    step_from_state_with_dispatch_contract(
+        state,
+        provider_iteration_contract(phase, iter_idx, max_iter, response),
+        dispatch,
+        |state, phase, iter_idx, max_iter, response, dispatch| {
+            step_fn(state, phase, iter_idx, max_iter, response, dispatch)
+        },
+    )
 }
 
 pub(crate) fn run_completion_loop_from_common_config_and_context_with_dispatch<P, C, D, FR, FS>(
