@@ -17,9 +17,7 @@ pub(crate) fn complete(
         .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
         .collect();
 
-    let mut tokens_in = 0u32;
-    let mut tokens_out = 0u32;
-    let mut tokens_cached = 0u32;
+    let mut usage_totals = crate::provider_runtime::UsageTotals::default();
     let mut executed_calls: Vec<serde_json::Value> = Vec::new();
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
@@ -42,11 +40,7 @@ pub(crate) fn complete(
             serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
 
         let usage = &v["usage"];
-        tokens_in += usage["input_tokens"].as_u64().unwrap_or(0) as u32;
-        tokens_out += usage["output_tokens"].as_u64().unwrap_or(0) as u32;
-        tokens_cached += (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
-            + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0))
-            as u32;
+        usage_totals.ingest_anthropic_usage(usage);
 
         // Collect tool_use blocks from content array.
         let content_arr = v["content"].as_array().cloned().unwrap_or_default();
@@ -67,15 +61,12 @@ pub(crate) fn complete(
                         .to_owned()
                 })?
                 .to_owned();
-            return Ok(CompletionResult {
-                content: text,
-                tool_calls: serde_json::Value::Array(executed_calls),
-                tokens_in,
-                tokens_out,
-                tokens_cached,
-                tokens_reasoning: 0,
-                usage_raw: usage.to_string(),
-            });
+            return Ok(crate::provider_runtime::completion_result(
+                text,
+                executed_calls,
+                usage,
+                usage_totals,
+            ));
         }
 
         wire_msgs.push(serde_json::json!({"role": "assistant", "content": content_arr}));

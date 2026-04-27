@@ -32,10 +32,7 @@ pub(crate) fn complete(
         v
     };
 
-    let mut tokens_in = 0u32;
-    let mut tokens_out = 0u32;
-    let mut tokens_cached = 0u32;
-    let mut tokens_reasoning = 0u32;
+    let mut usage_totals = crate::provider_runtime::UsageTotals::default();
     let mut executed_calls: Vec<serde_json::Value> = Vec::new();
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
@@ -58,14 +55,7 @@ pub(crate) fn complete(
             serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
 
         let usage = &v["usage"];
-        tokens_in += usage["prompt_tokens"].as_u64().unwrap_or(0) as u32;
-        tokens_out += usage["completion_tokens"].as_u64().unwrap_or(0) as u32;
-        tokens_cached += usage["prompt_tokens_details"]["cached_tokens"]
-            .as_u64()
-            .unwrap_or(0) as u32;
-        tokens_reasoning += usage["completion_tokens_details"]["reasoning_tokens"]
-            .as_u64()
-            .unwrap_or(0) as u32;
+        usage_totals.ingest_openai_usage(usage);
 
         let msg = &v["choices"][0]["message"];
         let tool_calls_json = msg["tool_calls"].as_array().cloned().unwrap_or_default();
@@ -80,15 +70,12 @@ pub(crate) fn complete(
                         .to_owned()
                 })?
                 .to_owned();
-            return Ok(CompletionResult {
+            return Ok(crate::provider_runtime::completion_result(
                 content,
-                tool_calls: serde_json::Value::Array(executed_calls),
-                tokens_in,
-                tokens_out,
-                tokens_cached,
-                tokens_reasoning,
-                usage_raw: usage.to_string(),
-            });
+                executed_calls,
+                usage,
+                usage_totals,
+            ));
         }
 
         wire_msgs.push(serde_json::json!({

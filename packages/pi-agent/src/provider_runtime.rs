@@ -42,3 +42,50 @@ pub(crate) fn push_executed_call(
 pub(crate) fn parse_json_arguments(arguments: &str) -> serde_json::Value {
     serde_json::from_str(arguments).unwrap_or_else(|_| serde_json::json!({}))
 }
+
+#[derive(Default)]
+pub(crate) struct UsageTotals {
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    pub tokens_cached: u32,
+    pub tokens_reasoning: u32,
+}
+
+impl UsageTotals {
+    pub(crate) fn ingest_anthropic_usage(&mut self, usage: &serde_json::Value) {
+        self.tokens_in += usage["input_tokens"].as_u64().unwrap_or(0) as u32;
+        self.tokens_out += usage["output_tokens"].as_u64().unwrap_or(0) as u32;
+        self.tokens_cached += (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
+            + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0))
+            as u32;
+    }
+
+    pub(crate) fn ingest_openai_usage(&mut self, usage: &serde_json::Value) {
+        self.tokens_in += usage["prompt_tokens"].as_u64().unwrap_or(0) as u32;
+        self.tokens_out += usage["completion_tokens"].as_u64().unwrap_or(0) as u32;
+        self.tokens_cached += usage["prompt_tokens_details"]["cached_tokens"]
+            .as_u64()
+            .unwrap_or(0) as u32;
+        self.tokens_reasoning += usage["completion_tokens_details"]["reasoning_tokens"]
+            .as_u64()
+            .unwrap_or(0) as u32;
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn completion_result(
+    content: String,
+    executed_calls: Vec<serde_json::Value>,
+    usage: &serde_json::Value,
+    totals: UsageTotals,
+) -> crate::provider::CompletionResult {
+    crate::provider::CompletionResult {
+        content,
+        tool_calls: serde_json::Value::Array(executed_calls),
+        tokens_in: totals.tokens_in,
+        tokens_out: totals.tokens_out,
+        tokens_cached: totals.tokens_cached,
+        tokens_reasoning: totals.tokens_reasoning,
+        usage_raw: usage.to_string(),
+    }
+}

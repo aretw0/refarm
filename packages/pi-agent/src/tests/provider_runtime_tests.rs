@@ -50,3 +50,37 @@ fn provider_runtime_push_executed_call_appends_schema_shape() {
     assert_eq!(entry["input"]["path"], "README.md");
     assert_eq!(entry["result"], "ok");
 }
+
+#[test]
+fn provider_runtime_usage_totals_ingest_anthropic_fields() {
+    let usage = serde_json::json!({
+        "input_tokens": 10,
+        "output_tokens": 4,
+        "cache_read_input_tokens": 3,
+        "cache_creation_input_tokens": 2
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    totals.ingest_anthropic_usage(&usage);
+
+    assert_eq!(totals.tokens_in, 10);
+    assert_eq!(totals.tokens_out, 4);
+    assert_eq!(totals.tokens_cached, 5);
+    assert_eq!(totals.tokens_reasoning, 0);
+}
+
+#[test]
+fn provider_runtime_usage_totals_ingest_openai_fields() {
+    let usage = serde_json::json!({
+        "prompt_tokens": 12,
+        "completion_tokens": 6,
+        "prompt_tokens_details": {"cached_tokens": 7},
+        "completion_tokens_details": {"reasoning_tokens": 2}
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+    totals.ingest_openai_usage(&usage);
+
+    assert_eq!(totals.tokens_in, 12);
+    assert_eq!(totals.tokens_out, 6);
+    assert_eq!(totals.tokens_cached, 7);
+    assert_eq!(totals.tokens_reasoning, 2);
+}

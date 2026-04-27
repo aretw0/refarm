@@ -177,7 +177,7 @@ This is the "let the plugin be the plugin" model from
 - `src/provider_config.rs` — pure provider defaults/model selection primitives
 - `src/provider_anthropic.rs` — Anthropic wire format + agentic loop
 - `src/provider_openai_compat.rs` — OpenAI-compatible wire format + agentic loop
-- `src/provider_runtime.rs` — provider loop helpers (max iter, tool dispatch dedup, executed-call shaping)
+- `src/provider_runtime.rs` — provider loop helpers (max iter, tool dispatch dedup, argument parse, usage aggregation, executed-call shaping)
 - `src/tool_dispatch/` — tool execution bridge split by domain (`fs_shell`, `fs_tools`, `shell_tools`, `structured_tools`, `session_tools`, `code_ops_tools`)
 - `src/session/pure.rs`, `src/structured_io.rs`, `src/compress.rs`, `src/utils.rs` — pure primitives
 - `src/response_nodes.rs` — CRDT node builders for `UserPrompt`, `AgentResponse`, `UsageRecord`
