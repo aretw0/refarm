@@ -116,6 +116,30 @@ fn provider_runtime_response_usage_returns_usage_object() {
 }
 
 #[test]
+fn provider_runtime_ingest_usage_from_response_with_uses_usage_payload() {
+    let response = serde_json::json!({
+        "usage": {
+            "prompt_tokens": 4,
+            "completion_tokens": 3,
+            "prompt_tokens_details": {"cached_tokens": 1},
+            "completion_tokens_details": {"reasoning_tokens": 2}
+        }
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+
+    crate::provider_runtime::ingest_usage_from_response_with(
+        &mut totals,
+        &response,
+        crate::provider_runtime::UsageTotals::ingest_openai_usage,
+    );
+
+    assert_eq!(totals.tokens_in, 4);
+    assert_eq!(totals.tokens_out, 3);
+    assert_eq!(totals.tokens_cached, 1);
+    assert_eq!(totals.tokens_reasoning, 2);
+}
+
+#[test]
 fn provider_runtime_ingest_anthropic_usage_from_response() {
     let response = serde_json::json!({
         "usage": {
