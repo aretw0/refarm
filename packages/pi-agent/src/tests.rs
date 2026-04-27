@@ -9,6 +9,7 @@ mod id_core_tests;
 mod id_primitives_tests;
 mod provider_config_tests;
 mod provider_env_tests;
+mod provider_runtime_tests;
 mod response_nodes_tests;
 mod runtime_cost_guard_tests;
 mod runtime_response_schema_tests;

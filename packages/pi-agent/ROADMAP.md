@@ -239,6 +239,7 @@ interface code-ops {
 - [ ] Promote `provider_config` defaults mapping into a shared host/plugin utility surface (so non-coding agents reuse the same routing defaults)
 - [ ] Promote URN builder convention (`new_pi_urn`-style) into a cross-plugin ID primitive with configurable namespace prefix
 - [ ] Evaluate moving generic tool-dispatch families (`fs/shell/session/code-ops`) into reusable shared dispatch helpers in `agent-tools`
+- [ ] Evaluate unifying public tool API into mode-aware core calls (`read/write/edit` + `mode=plain|structured|ast`) while keeping compatibility aliases to reduce LLM tool/schema context
 - [ ] Extract response-node builders into generic CRDT schema helpers (typed builders for common node metadata/timestamps)
 - [ ] Add an architectural check in reviews: "is this logic farmhand-specific or platform-primitive?" and reject plugin-local platform logic
 

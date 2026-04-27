@@ -11,10 +11,7 @@ pub(crate) fn complete(
         ("content-type".to_string(), "application/json".to_string()),
         ("anthropic-version".to_string(), "2023-06-01".to_string()),
     ];
-    let max_iter = std::env::var("LLM_TOOL_CALL_MAX_ITER")
-        .ok()
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(5);
+    let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
     // In-flight messages: start from CRDT history, grow with tool call/result turns.
     let mut wire_msgs: Vec<serde_json::Value> = messages
@@ -25,7 +22,6 @@ pub(crate) fn complete(
     let mut tokens_in = 0u32;
     let mut tokens_out = 0u32;
     let mut tokens_cached = 0u32;
-    let mut last_usage_raw = "{}".to_string();
     let mut executed_calls: Vec<serde_json::Value> = Vec::new();
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
@@ -53,7 +49,6 @@ pub(crate) fn complete(
         tokens_cached += (usage["cache_read_input_tokens"].as_u64().unwrap_or(0)
             + usage["cache_creation_input_tokens"].as_u64().unwrap_or(0))
             as u32;
-        last_usage_raw = usage.to_string();
 
         // Collect tool_use blocks from content array.
         let content_arr = v["content"].as_array().cloned().unwrap_or_default();
@@ -81,7 +76,7 @@ pub(crate) fn complete(
                 tokens_out,
                 tokens_cached,
                 tokens_reasoning: 0,
-                usage_raw: last_usage_raw,
+                usage_raw: usage.to_string(),
             });
         }
 
@@ -93,12 +88,7 @@ pub(crate) fn complete(
             let input = &tc["input"];
             let id = tc["id"].as_str().unwrap_or("");
             let raw = dispatch_tool(name, input);
-            let result = if seen_hashes.insert(crate::fnv1a_hash(&raw)) {
-                raw
-            } else {
-                "[duplicate: same output already in this context — ask for specifics if needed]"
-                    .to_string()
-            };
+            let result = crate::provider_runtime::dedup_tool_output(raw, &mut seen_hashes);
             executed_calls
                 .push(serde_json::json!({"name": name, "input": input, "result": result}));
             tool_results.push(

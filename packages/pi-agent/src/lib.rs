@@ -47,6 +47,7 @@ mod provider_anthropic;
 mod provider_config;
 #[cfg(target_arch = "wasm32")]
 mod provider_openai_compat;
+mod provider_runtime;
 mod response_nodes;
 mod runtime;
 mod session;
