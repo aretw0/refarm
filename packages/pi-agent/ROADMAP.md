@@ -77,7 +77,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Extract CRDT response node builders (`response_nodes.rs`) for reusable schema-safe writes
 - [x] Split tool dispatch into domain modules (`tool_dispatch/fs_shell.rs`, `session_tools.rs`, `code_ops_tools.rs`)
 - [x] Move large unit suites out of `lib.rs` into `tests.rs` + `extensibility_contract.rs`
-- [x] Start splitting `tests.rs` into domain submodules (`src/tests/provider_config_tests.rs`, `response_nodes_tests.rs`, `id_primitives_tests.rs`)
+- [x] Split `tests.rs` into domain submodules under `src/tests/` (compress, session, structured_io, provider/env, tools, usage, response nodes)
 
 ### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
 - [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)

@@ -179,7 +179,7 @@ This is the "let the plugin be the plugin" model from
 - `src/tool_dispatch/` — tool execution bridge split by domain (`fs_shell`, `session_tools`, `code_ops_tools`)
 - `src/session.rs`, `src/structured_io.rs`, `src/compress.rs`, `src/utils.rs` — pure primitives
 - `src/response_nodes.rs` — CRDT node builders for `UserPrompt`, `AgentResponse`, `UsageRecord`
-- `src/tests.rs`, `src/extensibility_contract.rs` — unit + contract tests
+- `src/tests.rs`, `src/tests/*.rs`, `src/extensibility_contract.rs` — unit + contract tests (domain-sliced)
 
 ### Provider abstraction
 
