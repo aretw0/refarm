@@ -862,6 +862,29 @@ fn provider_runtime_openai_loop_state_prepends_system_message() {
 }
 
 #[test]
+fn provider_runtime_anthropic_loop_plan_reads_max_iter_and_initializes_state() {
+    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "7");
+    let msgs = vec![("user".to_string(), "hi".to_string())];
+    let plan = crate::provider_runtime::anthropic_loop_plan(&msgs);
+    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+
+    assert_eq!(plan.max_iter, 7);
+    assert_eq!(plan.state.wire_msgs.len(), 1);
+    assert!(plan.state.executed_calls.is_empty());
+}
+
+#[test]
+fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter() {
+    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let plan = crate::provider_runtime::openai_loop_plan("sys", &msgs);
+
+    assert_eq!(plan.max_iter, 5);
+    assert_eq!(plan.state.wire_msgs.len(), 2);
+    assert_eq!(plan.state.wire_msgs[0]["role"], "system");
+}
+
+#[test]
 fn provider_runtime_run_completion_loop_with_returns_text_and_final_state() {
     let state = crate::provider_runtime::provider_loop_state(Vec::new());
 

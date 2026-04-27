@@ -168,6 +168,11 @@ pub(crate) struct ProviderLoopState {
     pub seen_hashes: std::collections::HashSet<u64>,
 }
 
+pub(crate) struct ProviderLoopPlan {
+    pub max_iter: u32,
+    pub state: ProviderLoopState,
+}
+
 pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
     ProviderLoopState {
         wire_msgs: initial_wire_msgs,
@@ -177,15 +182,36 @@ pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> 
     }
 }
 
+#[allow(dead_code)]
 pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
     provider_loop_state(initial_anthropic_wire_messages(messages))
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
+    ProviderLoopPlan {
+        max_iter: tool_loop_max_iter(),
+        state: provider_loop_state(initial_anthropic_wire_messages(messages)),
+    }
+}
+
+#[allow(dead_code)]
 pub(crate) fn openai_loop_state(
     system: &str,
     messages: &[(String, String)],
 ) -> ProviderLoopState {
     provider_loop_state(initial_openai_wire_messages(system, messages))
+}
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) fn openai_loop_plan(
+    system: &str,
+    messages: &[(String, String)],
+) -> ProviderLoopPlan {
+    ProviderLoopPlan {
+        max_iter: tool_loop_max_iter(),
+        state: provider_loop_state(initial_openai_wire_messages(system, messages)),
+    }
 }
 
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -798,8 +824,9 @@ pub(crate) fn run_anthropic_completion_loop(
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
     let hdrs = anthropic_headers();
-    let max_iter = tool_loop_max_iter();
-    let state = anthropic_loop_state(messages);
+    let plan = anthropic_loop_plan(messages);
+    let max_iter = plan.max_iter;
+    let state = plan.state;
     let outcome = run_completion_loop_with(
         max_iter,
         state,
@@ -835,8 +862,9 @@ pub(crate) fn run_openai_completion_loop(
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
     let headers = openai_compat_headers();
-    let max_iter = tool_loop_max_iter();
-    let state = openai_loop_state(system, messages);
+    let plan = openai_loop_plan(system, messages);
+    let max_iter = plan.max_iter;
+    let state = plan.state;
     let outcome = run_completion_loop_with(
         max_iter,
         state,
