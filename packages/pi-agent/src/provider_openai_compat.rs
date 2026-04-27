@@ -1,4 +1,4 @@
-use crate::provider::{http_post_via_host, CompletionResult};
+use crate::provider::CompletionResult;
 
 pub(crate) fn complete(
     provider: &str,
@@ -21,14 +21,13 @@ pub(crate) fn complete(
         let body =
             crate::provider_runtime::build_openai_body(model, &wire_msgs, crate::tools_openai());
 
-        let bytes = http_post_via_host(
+        let v = crate::provider_runtime::execute_json_request(
             provider,
             base_url,
             crate::provider_runtime::openai_compat_path(provider),
             &base_hdrs,
-            body.as_bytes(),
+            &body,
         )?;
-        let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
         crate::provider_runtime::ingest_openai_usage_from_response(&mut usage_totals, &v);
 

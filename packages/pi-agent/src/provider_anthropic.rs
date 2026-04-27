@@ -1,4 +1,4 @@
-use crate::provider::{http_post_via_host, CompletionResult};
+use crate::provider::CompletionResult;
 
 pub(crate) fn complete(
     model: &str,
@@ -23,14 +23,13 @@ pub(crate) fn complete(
             crate::tools_anthropic(),
         );
 
-        let bytes = http_post_via_host(
+        let v = crate::provider_runtime::execute_json_request(
             "anthropic",
             "https://api.anthropic.com",
             "/v1/messages",
             &hdrs,
-            body.as_bytes(),
+            &body,
         )?;
-        let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
         crate::provider_runtime::ingest_anthropic_usage_from_response(&mut usage_totals, &v);
 

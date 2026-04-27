@@ -59,6 +59,24 @@ pub(crate) fn parse_response_json(bytes: &[u8]) -> Result<serde_json::Value, Str
     serde_json::from_slice(bytes).map_err(|e| format!("parse: {e}"))
 }
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn execute_json_request(
+    provider: &str,
+    base_url: &str,
+    path: &str,
+    headers: &[(String, String)],
+    body: &str,
+) -> Result<serde_json::Value, String> {
+    let bytes = crate::provider::http_post_via_host(
+        provider,
+        base_url,
+        path,
+        headers,
+        body.as_bytes(),
+    )?;
+    parse_response_json(&bytes)
+}
+
 pub(crate) fn initial_anthropic_wire_messages(
     messages: &[(String, String)],
 ) -> Vec<serde_json::Value> {
