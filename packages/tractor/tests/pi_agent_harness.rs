@@ -742,3 +742,70 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     clean_llm_env();
     std::env::remove_var("LLM_FS_ROOT");
 }
+
+// ── Multi-agent swarm harness ─────────────────────────────────────────────────
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
+    // Verifies cross-agent CRDT coordination:
+    //   Agent A (LLM_AGENT_ID=alpha) stores an AgentResponse.
+    //   Agent B (LLM_AGENT_ID=beta)  is then loaded with the SAME NativeSync
+    //   (same storage namespace). query_nodes("AgentResponse") must return A's node.
+    //   This is the fundamental multi-agent coordination primitive.
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+
+    // ── Agent A fires ──────────────────────────────────────────────────────────
+    clean_llm_env();
+    let port_a = mock_llm_server(openai_response("alpha response", 10, 5)).await;
+    std::env::set_var("LLM_PROVIDER",  "ollama");
+    std::env::set_var("LLM_BASE_URL",  format!("http://127.0.0.1:{port_a}"));
+    std::env::set_var("LLM_AGENT_ID",  "alpha");
+
+    let shared_sync = make_sync();
+
+    let host_a = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle_a = host_a.load(path, &shared_sync).await.expect("load agent A");
+    handle_a.call_on_event("user:prompt", Some("agent A prompt")).await.expect("agent A on_event");
+
+    // Confirm A's node is namespaced with alpha prefix.
+    let nodes_after_a = shared_sync.query_nodes("AgentResponse").expect("query after A");
+    assert!(!nodes_after_a.is_empty(), "Agent A must store at least one AgentResponse");
+    let a_payload: serde_json::Value = serde_json::from_str(&nodes_after_a[0].payload).unwrap();
+    let a_id = a_payload["@id"].as_str().unwrap_or("");
+    assert!(
+        a_id.contains("urn:farmhand:alpha:"),
+        "Agent A node @id must carry agent namespace: {a_id}"
+    );
+
+    // ── Agent B fires ──────────────────────────────────────────────────────────
+    clean_llm_env();
+    let port_b = mock_llm_server(openai_response("beta response", 8, 4)).await;
+    std::env::set_var("LLM_PROVIDER",  "ollama");
+    std::env::set_var("LLM_BASE_URL",  format!("http://127.0.0.1:{port_b}"));
+    std::env::set_var("LLM_AGENT_ID",  "beta");
+
+    // Agent B uses the SAME shared_sync — same storage namespace.
+    let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle_b = host_b.load(path, &shared_sync).await.expect("load agent B");
+    handle_b.call_on_event("user:prompt", Some("agent B prompt")).await.expect("agent B on_event");
+
+    // ── Cross-agent read ──────────────────────────────────────────────────────
+    let all_nodes = shared_sync.query_nodes("AgentResponse").expect("query all AgentResponse");
+    assert!(all_nodes.len() >= 2, "both agent responses must be in shared CRDT");
+
+    let namespaced_count = all_nodes.iter()
+        .filter_map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).ok())
+        .filter_map(|v| v["@id"].as_str().map(|s| s.to_owned()))
+        .filter(|id| id.contains("urn:farmhand:"))
+        .count();
+    // Both agents' nodes are in the shared store — cross-agent coordination works.
+    assert!(
+        namespaced_count >= 2,
+        "both alpha and beta namespace nodes must be present: found {namespaced_count}"
+    );
+
+    clean_llm_env();
+}

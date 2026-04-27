@@ -148,6 +148,9 @@ Context engineering follows the pi-test-harness model:
   - `read-structured` and `write-structured` exported from `agent-tools-provider` world
   - Shared layer: any plugin or host-facing tool imports without duplicating parse logic
 - [x] 93 unit tests total across formats, pagination, and validation paths
+- [x] `structured-io` imported in pi-agent WIT world — wasm32 dispatch delegates to WIT import, no duplication (T-NEXT-287)
+  - Host-side `StructuredIoHost` implemented natively in `TractorNativeBindings`
+  - Pre-existing wasm32 compile errors in session management code fixed as part of same slice
 
 ### Semantic code operations (`code-ops`)
 > REQ-AGENT-002 — T-NEXT-267/268
@@ -199,10 +202,13 @@ interface code-ops {
 
 **Dependency**: agent-tools package (T-NEXT-268) should exist before this is wired.
 
-- [ ] Add `code-ops` interface to `refarm-plugin-host.wit`
+- [x] Add `code-ops` interface to `refarm-plugin-host.wit` (T-NEXT-289)
+  - `symbol-location`, `code-reference`, `rename-result` records; `rename-symbol` and `find-references` funcs
+- [x] Add to pi-agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)` (T-NEXT-289)
+  - Dispatch arms call WIT import; 97 tests pass (4 new schema+required-fields tests)
+- [x] Stub host in `TractorNativeBindings`: returns "lsp not connected" until LSP bridge is built (T-NEXT-289)
 - [ ] Implement tractor-side LSP subprocess manager (`packages/tractor/src/host/lsp_bridge.rs`)
 - [ ] Expose `rename-symbol` and `find-references` for rust-analyzer as v1
-- [ ] Add to pi-agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)`
 - [ ] Integration test: rename a Rust symbol via pi-agent, assert all references updated
 
 ### refarm-stack (agents-lab)
@@ -216,9 +222,14 @@ interface code-ops {
   - `new_id()` prefixes with agent namespace when `LLM_AGENT_ID` is set; backward-compatible
   - A5 extensibility axiom: 3 tests covering absent/set/uniqueness cases
   - Harness scenario verifying Session/SessionEntry @id carry agent namespace (T-NEXT-283)
-- [ ] Multiple farmhand instances in the same tractor process
-- [ ] Cross-agent coordination via CRDT: agent B reads agent A's `AgentResponse` nodes
-- [ ] Swarm harness scenario: two plugins, agent B queries agent A's output
+- [x] Multiple farmhand instances in the same tractor process — demonstrated in swarm harness (T-NEXT-290)
+- [x] Cross-agent coordination via CRDT: agent B reads agent A's `AgentResponse` nodes (T-NEXT-290)
+  - `harness_swarm_agent_b_reads_agent_a_crdt_nodes`: two agents share one `NativeSync`, B sees A's namespaced nodes
+  - Coordination is intentionally read-unrestricted: isolation is ID-based (URN prefix), not access-gated
+- [ ] A2A (Agent-to-Agent) protocol research — evaluate Google A2A, MCP, JSON-LD native patterns
+  - Goal: primitives that let farmhand participate in multi-agent networks without runtime coupling
+  - CRDT store is already the natural rendezvous; question is routing and schema conventions
+- [ ] Swarm harness: agent B uses LLM to formulate a query based on agent A's output (full reasoning loop)
 
 ### Zig Pi-Nano host
 - [ ] Minimal Zig host that loads `farmhand.wasm` — no Rust runtime

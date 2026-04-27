@@ -6767,15 +6767,47 @@
       "id": "T-NEXT-288",
       "description": "Atualizar ROADMAP.md com itens completados: marcar [x] nos itens de v0.2.0 e v0.3.0 concluídos neste ciclo (structured-io, session primitives, REPL, budget, multi-provider).",
       "status": "completed",
-      "phase": null,
-      "files": ["packages/pi-agent/ROADMAP.md"],
-      "acceptance_criteria": [
-        "structured-io marcado como [x]",
-        "Session primitives (fork, navigate, list, current) marcados como [x]",
-        "REPL items marcados como [x]",
-        "LLM_AGENT_ID marcado como [x]"
-      ],
       "notes": "Housekeeping — mantém o ROADMAP como fonte de verdade do estado atual."
+    },
+    {
+      "id": "T-NEXT-289",
+      "description": "Adicionar interface code-ops ao WIT (find_references, rename_symbol) + tools ao pi-agent com stub host no tractor.",
+      "status": "completed",
+      "phase": null,
+      "files": [
+        "packages/tractor/wit/host/refarm-plugin-host.wit",
+        "packages/pi-agent/wit/world.wit",
+        "packages/pi-agent/src/lib.rs",
+        "packages/tractor/src/host/agent_tools_bridge/core.rs"
+      ],
+      "acceptance_criteria": [
+        "code-ops WIT interface definida (symbol-location, code-reference, rename-result)",
+        "find_references e rename_symbol nos schemas Anthropic e OpenAI",
+        "dispatch wasm32 chama WIT import",
+        "stub host retorna 'lsp not connected'",
+        "97 testes passando (4 novos)"
+      ]
+    },
+    {
+      "id": "T-NEXT-290",
+      "description": "Harness de enxame (swarm): dois agentes com LLM_AGENT_ID distintos compartilhando o mesmo NativeSync, agent B lê os nós de agent A.",
+      "status": "completed",
+      "phase": null,
+      "files": [
+        "packages/tractor/tests/pi_agent_harness.rs"
+      ],
+      "acceptance_criteria": [
+        "harness_swarm_agent_b_reads_agent_a_crdt_nodes compila",
+        "14 harness tests ignorados (sem wasm release)",
+        "cenário demonstra coordenação cross-agent via CRDT compartilhado"
+      ]
+    },
+    {
+      "id": "T-NEXT-291",
+      "description": "Atualizar ROADMAP.md com itens completados neste ciclo: T-NEXT-287 (structured-io WIT), T-NEXT-289 (code-ops), T-NEXT-290 (swarm harness). Registrar A2A como tópico de pesquisa.",
+      "status": "planned",
+      "phase": null,
+      "files": ["packages/pi-agent/ROADMAP.md"]
     }
   ]
 }
