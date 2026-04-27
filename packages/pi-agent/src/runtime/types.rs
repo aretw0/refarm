@@ -34,3 +34,20 @@ pub(crate) fn error_result(message: String, model: String) -> ReactResult {
         "{}".to_owned(),
     )
 }
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn completion_result(
+    model: String,
+    r: crate::provider::CompletionResult,
+) -> ReactResult {
+    (
+        r.content,
+        r.tool_calls,
+        r.tokens_in,
+        r.tokens_out,
+        r.tokens_cached,
+        r.tokens_reasoning,
+        model,
+        r.usage_raw,
+    )
+}
