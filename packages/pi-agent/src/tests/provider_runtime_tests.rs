@@ -874,6 +874,17 @@ fn provider_runtime_anthropic_loop_plan_reads_max_iter_and_initializes_state() {
 }
 
 #[test]
+fn provider_runtime_provider_loop_plan_with_max_iter_applies_explicit_limit() {
+    let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(
+        vec![serde_json::json!({"role":"user","content":"x"})],
+        3,
+    );
+
+    assert_eq!(plan.max_iter, 3);
+    assert_eq!(plan.state.wire_msgs.len(), 1);
+}
+
+#[test]
 fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter() {
     std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
     let msgs = vec![("user".to_string(), "hello".to_string())];
@@ -927,4 +938,27 @@ fn provider_runtime_run_completion_loop_with_propagates_step_error() {
         Ok(_) => panic!("expected step error"),
         Err(err) => assert_eq!(err, "boom"),
     }
+}
+
+#[test]
+fn provider_runtime_run_completion_loop_from_plan_with_uses_plan_max_iter() {
+    let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
+
+    let outcome = crate::provider_runtime::run_completion_loop_from_plan_with(
+        plan,
+        |state| {
+            state
+                .wire_msgs
+                .push(serde_json::json!({"role":"assistant"}));
+            Ok((serde_json::json!({"ok": true}), 0_u8))
+        },
+        |_state, _phase, iter_idx, max_iter, _response| {
+            assert_eq!(iter_idx, 0);
+            assert_eq!(max_iter, 0);
+            Ok(Some("done".to_string()))
+        },
+    )
+    .unwrap();
+
+    assert_eq!(outcome.text, "done");
 }

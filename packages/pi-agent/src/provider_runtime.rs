@@ -182,6 +182,16 @@ pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> 
     }
 }
 
+pub(crate) fn provider_loop_plan_with_max_iter(
+    initial_wire_msgs: Vec<serde_json::Value>,
+    max_iter: u32,
+) -> ProviderLoopPlan {
+    ProviderLoopPlan {
+        max_iter,
+        state: provider_loop_state(initial_wire_msgs),
+    }
+}
+
 #[allow(dead_code)]
 pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
     provider_loop_state(initial_anthropic_wire_messages(messages))
@@ -189,10 +199,7 @@ pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoo
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: provider_loop_state(initial_anthropic_wire_messages(messages)),
-    }
+    provider_loop_plan_with_max_iter(initial_anthropic_wire_messages(messages), tool_loop_max_iter())
 }
 
 #[allow(dead_code)]
@@ -208,10 +215,10 @@ pub(crate) fn openai_loop_plan(
     system: &str,
     messages: &[(String, String)],
 ) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: provider_loop_state(initial_openai_wire_messages(system, messages)),
-    }
+    provider_loop_plan_with_max_iter(
+        initial_openai_wire_messages(system, messages),
+        tool_loop_max_iter(),
+    )
 }
 
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -738,6 +745,24 @@ where
     unreachable!()
 }
 
+pub(crate) fn run_completion_loop_from_plan_with<P, FR, FS>(
+    plan: ProviderLoopPlan,
+    response_and_phase: FR,
+    step: FS,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_with(plan.max_iter, plan.state, response_and_phase, step)
+}
+
 pub(crate) struct CompletionLoopOutcome {
     pub state: ProviderLoopState,
     pub response: serde_json::Value,
@@ -825,11 +850,8 @@ pub(crate) fn run_anthropic_completion_loop(
 ) -> Result<crate::provider::CompletionResult, String> {
     let hdrs = anthropic_headers();
     let plan = anthropic_loop_plan(messages);
-    let max_iter = plan.max_iter;
-    let state = plan.state;
-    let outcome = run_completion_loop_with(
-        max_iter,
-        state,
+    let outcome = run_completion_loop_from_plan_with(
+        plan,
         |state| {
             anthropic_iteration_response_and_phase(
                 model,
@@ -863,11 +885,8 @@ pub(crate) fn run_openai_completion_loop(
 ) -> Result<crate::provider::CompletionResult, String> {
     let headers = openai_compat_headers();
     let plan = openai_loop_plan(system, messages);
-    let max_iter = plan.max_iter;
-    let state = plan.state;
-    let outcome = run_completion_loop_with(
-        max_iter,
-        state,
+    let outcome = run_completion_loop_from_plan_with(
+        plan,
         |state| {
             openai_iteration_response_and_phase(
                 provider,
