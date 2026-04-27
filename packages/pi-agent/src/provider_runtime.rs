@@ -1195,21 +1195,11 @@ pub(crate) fn step_from_state_with_dispatch_contract<P, D, FS>(
 where
     FS: FnMut(
         &mut ProviderLoopState,
-        &P,
-        u32,
-        u32,
-        &serde_json::Value,
+        ProviderIterationContract<'_, P>,
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    step_fn(
-        state,
-        contract.phase,
-        contract.iter_idx,
-        contract.max_iter,
-        contract.response,
-        dispatch,
-    )
+    step_fn(state, contract, dispatch)
 }
 
 #[cfg(test)]
@@ -1236,8 +1226,15 @@ where
         state,
         provider_iteration_contract(phase, iter_idx, max_iter, response),
         dispatch,
-        |state, phase, iter_idx, max_iter, response, dispatch| {
-            step_fn(state, phase, iter_idx, max_iter, response, dispatch)
+        |state, contract, dispatch| {
+            step_fn(
+                state,
+                contract.phase,
+                contract.iter_idx,
+                contract.max_iter,
+                contract.response,
+                dispatch,
+            )
         },
     )
 }
@@ -1467,12 +1464,8 @@ where
                 state,
                 provider_iteration_contract(phase, iter_idx, max_iter, response),
                 dispatch_fn,
-                |state, phase, iter_idx, max_iter, response, dispatch_fn| {
-                    step_contract_fn(
-                        state,
-                        provider_iteration_contract(phase, iter_idx, max_iter, response),
-                        dispatch_fn,
-                    )
+                |state, contract, dispatch_fn| {
+                    step_contract_fn(state, contract, dispatch_fn)
                 },
             )
         },
