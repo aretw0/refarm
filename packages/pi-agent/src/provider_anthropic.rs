@@ -25,11 +25,8 @@ pub(crate) fn complete(
 
         let phase = crate::provider_runtime::anthropic_iteration_phase(&v);
 
-        if let Some(text) = crate::provider_runtime::completion_text_if_terminate(
-            crate::provider_runtime::anthropic_has_tool_calls(&phase),
-            iter_idx,
-            max_iter,
-            crate::provider_runtime::require_anthropic_text_content(&phase.content_arr, &v),
+        if let Some(text) = crate::provider_runtime::anthropic_completion_text_if_terminate(
+            &phase, iter_idx, max_iter, &v,
         )? {
             return Ok(crate::provider_runtime::finalize_completion_from_response(
                 text, &v, state,

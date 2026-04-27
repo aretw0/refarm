@@ -196,6 +196,20 @@ pub(crate) fn anthropic_has_tool_calls(phase: &AnthropicIterationPhase) -> bool 
     !phase.tool_uses.is_empty()
 }
 
+pub(crate) fn anthropic_completion_text_if_terminate(
+    phase: &AnthropicIterationPhase,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &serde_json::Value,
+) -> Result<Option<String>, String> {
+    completion_text_if_terminate(
+        anthropic_has_tool_calls(phase),
+        iter_idx,
+        max_iter,
+        require_anthropic_text_content(&phase.content_arr, response),
+    )
+}
+
 pub(crate) fn anthropic_text_content(content_arr: &[serde_json::Value]) -> Option<String> {
     content_arr
         .iter()
@@ -245,6 +259,20 @@ pub(crate) fn openai_iteration_phase(response: &serde_json::Value) -> OpenAiIter
 
 pub(crate) fn openai_has_tool_calls(phase: &OpenAiIterationPhase) -> bool {
     !phase.tool_calls_json.is_empty()
+}
+
+pub(crate) fn openai_completion_text_if_terminate(
+    phase: &OpenAiIterationPhase,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &serde_json::Value,
+) -> Result<Option<String>, String> {
+    completion_text_if_terminate(
+        openai_has_tool_calls(phase),
+        iter_idx,
+        max_iter,
+        require_openai_message_content(&phase.msg, response),
+    )
 }
 
 pub(crate) fn openai_message_content(msg: &serde_json::Value) -> Option<String> {

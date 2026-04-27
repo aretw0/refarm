@@ -28,11 +28,8 @@ pub(crate) fn complete(
 
         let phase = crate::provider_runtime::openai_iteration_phase(&v);
 
-        if let Some(content) = crate::provider_runtime::completion_text_if_terminate(
-            crate::provider_runtime::openai_has_tool_calls(&phase),
-            iter_idx,
-            max_iter,
-            crate::provider_runtime::require_openai_message_content(&phase.msg, &v),
+        if let Some(content) = crate::provider_runtime::openai_completion_text_if_terminate(
+            &phase, iter_idx, max_iter, &v,
         )? {
             return Ok(crate::provider_runtime::finalize_completion_from_response(
                 content, &v, state,

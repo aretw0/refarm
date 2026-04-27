@@ -176,6 +176,40 @@ fn provider_runtime_completion_text_if_terminate_propagates_error() {
 }
 
 #[test]
+fn provider_runtime_anthropic_completion_text_if_terminate_returns_some_on_termination() {
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&serde_json::json!({
+        "content": [{"type":"text","text":"done"}]
+    }));
+    let v = serde_json::json!({
+        "content": [{"type":"text","text":"done"}]
+    });
+
+    let out =
+        crate::provider_runtime::anthropic_completion_text_if_terminate(&phase, 0, 5, &v).unwrap();
+    assert_eq!(out.unwrap(), "done");
+}
+
+#[test]
+fn provider_runtime_openai_completion_text_if_terminate_returns_none_when_tool_calls_present() {
+    let v = serde_json::json!({
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-1",
+                    "function":{"name":"search_files","arguments":"{}"}
+                }]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&v);
+
+    let out =
+        crate::provider_runtime::openai_completion_text_if_terminate(&phase, 1, 5, &v).unwrap();
+    assert!(out.is_none());
+}
+
+#[test]
 fn provider_runtime_error_message_uses_fallback_when_missing() {
     let v = serde_json::json!({});
     assert_eq!(
