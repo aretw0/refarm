@@ -748,3 +748,72 @@ pub(crate) fn finalize_completion_from_response(
 ) -> crate::provider::CompletionResult {
     completion_result_from_response(content, state.executed_calls, response, state.usage_totals)
 }
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn run_anthropic_completion_loop(
+    model: &str,
+    system: &str,
+    messages: &[(String, String)],
+) -> Result<crate::provider::CompletionResult, String> {
+    let hdrs = anthropic_headers();
+    let max_iter = tool_loop_max_iter();
+    let mut state = anthropic_loop_state(messages);
+
+    for iter_idx in 0..=max_iter {
+        let (response, phase) = anthropic_iteration_response_and_phase(
+            model,
+            system,
+            &state.wire_msgs,
+            &hdrs,
+            &mut state.usage_totals,
+        )?;
+
+        if let Some(text) = anthropic_step_text_or_advance_with(
+            &mut state,
+            &phase,
+            iter_idx,
+            max_iter,
+            &response,
+            dispatch_tool_dedup,
+        )? {
+            return Ok(finalize_completion_from_response(text, &response, state));
+        }
+    }
+    unreachable!()
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn run_openai_completion_loop(
+    provider: &str,
+    base_url: &str,
+    model: &str,
+    system: &str,
+    messages: &[(String, String)],
+) -> Result<crate::provider::CompletionResult, String> {
+    let headers = openai_compat_headers();
+    let max_iter = tool_loop_max_iter();
+    let mut state = openai_loop_state(system, messages);
+
+    for iter_idx in 0..=max_iter {
+        let (response, phase) = openai_iteration_response_and_phase(
+            provider,
+            base_url,
+            model,
+            &state.wire_msgs,
+            &headers,
+            &mut state.usage_totals,
+        )?;
+
+        if let Some(text) = openai_step_text_or_advance_with(
+            &mut state,
+            &phase,
+            iter_idx,
+            max_iter,
+            &response,
+            dispatch_tool_dedup,
+        )? {
+            return Ok(finalize_completion_from_response(text, &response, state));
+        }
+    }
+    unreachable!()
+}
