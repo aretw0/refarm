@@ -97,9 +97,11 @@ pub(crate) fn anthropic_iteration_response_and_phase(
     headers: &[(String, String)],
     usage_totals: &mut UsageTotals,
 ) -> Result<(serde_json::Value, AnthropicIterationPhase), String> {
-    let response = anthropic_iteration_response(model, system, wire_msgs, headers)?;
-    let phase = anthropic_phase_after_usage(usage_totals, &response);
-    Ok((response, phase))
+    iteration_response_and_phase_with(
+        || anthropic_iteration_response(model, system, wire_msgs, headers),
+        usage_totals,
+        anthropic_phase_after_usage,
+    )
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -129,8 +131,24 @@ pub(crate) fn openai_iteration_response_and_phase(
     headers: &[(String, String)],
     usage_totals: &mut UsageTotals,
 ) -> Result<(serde_json::Value, OpenAiIterationPhase), String> {
-    let response = openai_iteration_response(provider, base_url, model, wire_msgs, headers)?;
-    let phase = openai_phase_after_usage(usage_totals, &response);
+    iteration_response_and_phase_with(
+        || openai_iteration_response(provider, base_url, model, wire_msgs, headers),
+        usage_totals,
+        openai_phase_after_usage,
+    )
+}
+
+pub(crate) fn iteration_response_and_phase_with<P, FR, FP>(
+    mut response_fn: FR,
+    usage_totals: &mut UsageTotals,
+    mut phase_after_usage_fn: FP,
+) -> Result<(serde_json::Value, P), String>
+where
+    FR: FnMut() -> Result<serde_json::Value, String>,
+    FP: FnMut(&mut UsageTotals, &serde_json::Value) -> P,
+{
+    let response = response_fn()?;
+    let phase = phase_after_usage_fn(usage_totals, &response);
     Ok((response, phase))
 }
 
@@ -711,6 +729,7 @@ pub(crate) fn ingest_usage_from_response_with<F>(
     ingest(totals, response_usage(response));
 }
 
+#[cfg(test)]
 pub(crate) fn ingest_anthropic_usage_from_response(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
@@ -722,10 +741,15 @@ pub(crate) fn anthropic_phase_after_usage(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
 ) -> AnthropicIterationPhase {
-    ingest_anthropic_usage_from_response(totals, response);
-    anthropic_iteration_phase(response)
+    phase_after_usage_with(
+        totals,
+        response,
+        UsageTotals::ingest_anthropic_usage,
+        anthropic_iteration_phase,
+    )
 }
 
+#[cfg(test)]
 pub(crate) fn ingest_openai_usage_from_response(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
@@ -737,8 +761,26 @@ pub(crate) fn openai_phase_after_usage(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
 ) -> OpenAiIterationPhase {
-    ingest_openai_usage_from_response(totals, response);
-    openai_iteration_phase(response)
+    phase_after_usage_with(
+        totals,
+        response,
+        UsageTotals::ingest_openai_usage,
+        openai_iteration_phase,
+    )
+}
+
+pub(crate) fn phase_after_usage_with<P, FU, FP>(
+    totals: &mut UsageTotals,
+    response: &serde_json::Value,
+    ingest_usage: FU,
+    mut phase_from_response: FP,
+) -> P
+where
+    FU: FnMut(&mut UsageTotals, &serde_json::Value),
+    FP: FnMut(&serde_json::Value) -> P,
+{
+    ingest_usage_from_response_with(totals, response, ingest_usage);
+    phase_from_response(response)
 }
 
 pub(crate) fn dedup_tool_output(

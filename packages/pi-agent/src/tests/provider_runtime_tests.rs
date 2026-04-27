@@ -140,6 +140,48 @@ fn provider_runtime_ingest_usage_from_response_with_uses_usage_payload() {
 }
 
 #[test]
+fn provider_runtime_phase_after_usage_with_runs_ingest_then_phase() {
+    let response = serde_json::json!({
+        "usage": {
+            "prompt_tokens": 5,
+            "completion_tokens": 2,
+            "prompt_tokens_details": {"cached_tokens": 1},
+            "completion_tokens_details": {"reasoning_tokens": 0}
+        },
+        "marker": "ok"
+    });
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+
+    let phase = crate::provider_runtime::phase_after_usage_with(
+        &mut totals,
+        &response,
+        crate::provider_runtime::UsageTotals::ingest_openai_usage,
+        |r| r["marker"].as_str().unwrap_or("").to_string(),
+    );
+
+    assert_eq!(phase, "ok");
+    assert_eq!(totals.tokens_in, 5);
+    assert_eq!(totals.tokens_out, 2);
+}
+
+#[test]
+fn provider_runtime_iteration_response_and_phase_with_returns_both() {
+    let mut totals = crate::provider_runtime::UsageTotals::default();
+
+    let (response, phase) = crate::provider_runtime::iteration_response_and_phase_with(
+        || Ok(serde_json::json!({"usage":{"input_tokens":3,"output_tokens":1},"v":7})),
+        &mut totals,
+        crate::provider_runtime::anthropic_phase_after_usage,
+    )
+    .unwrap();
+
+    assert_eq!(response["v"], 7);
+    assert_eq!(phase.content_arr.len(), 0);
+    assert_eq!(totals.tokens_in, 3);
+    assert_eq!(totals.tokens_out, 1);
+}
+
+#[test]
 fn provider_runtime_ingest_anthropic_usage_from_response() {
     let response = serde_json::json!({
         "usage": {
