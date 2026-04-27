@@ -1098,6 +1098,7 @@ where
     )
 }
 
+#[cfg(test)]
 pub(crate) fn response_and_phase_from_state_with<C, P, FR>(
     context: &C,
     model: &str,
@@ -1211,6 +1212,7 @@ where
     )
 }
 
+#[cfg(test)]
 pub(crate) fn step_from_state_with_dispatch<P, D, FS>(
     state: &mut ProviderLoopState,
     phase: &P,
@@ -1355,7 +1357,7 @@ where
         common,
         (),
         |_unit, model, headers, state| {
-            response_and_phase_from_state_with(
+            let contract = response_phase_contract_from_state_with(
                 &(),
                 model,
                 headers,
@@ -1363,15 +1365,13 @@ where
                 |_unit, model, headers, wire_msgs, usage_totals| {
                     response_and_phase_fn(model, headers, wire_msgs, usage_totals)
                 },
-            )
+            )?;
+            Ok((contract.response, contract.phase))
         },
         |_unit, state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            step_from_state_with_dispatch(
+            step_from_state_with_dispatch_contract(
                 state,
-                phase,
-                iter_idx,
-                max_iter,
-                response,
+                provider_iteration_contract(phase, iter_idx, max_iter, response),
                 dispatch_fn,
                 |state, phase, iter_idx, max_iter, response, dispatch_fn| {
                     step_fn(state, phase, iter_idx, max_iter, response, dispatch_fn)
@@ -1554,13 +1554,7 @@ where
         config.common,
         config.system,
         |system, model, headers, wire_msgs, usage_totals| {
-            anthropic_iteration_response_and_phase(
-                model,
-                system,
-                wire_msgs,
-                headers,
-                usage_totals,
-            )
+            anthropic_iteration_response_and_phase(model, system, wire_msgs, headers, usage_totals)
         },
         anthropic_step_from_phase_with_dispatch,
         dispatch,

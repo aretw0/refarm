@@ -1409,6 +1409,17 @@ fn provider_runtime_response_phase_contract_from_state_with_builds_contract() {
 }
 
 #[test]
+fn provider_runtime_provider_response_phase_contract_builder_shape() {
+    let contract = crate::provider_runtime::provider_response_phase_contract(
+        serde_json::json!({"ok": true}),
+        3_u8,
+    );
+
+    assert_eq!(contract.response["ok"], true);
+    assert_eq!(contract.phase, 3);
+}
+
+#[test]
 fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
     let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
     let phase = 7_u8;
