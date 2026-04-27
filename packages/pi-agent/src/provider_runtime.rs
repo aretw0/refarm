@@ -1314,18 +1314,70 @@ where
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    run_completion_loop_from_common_config_with_state_primitives_and_dispatch(
+    run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch(
         common,
-        |model, headers, wire_msgs, usage_totals| {
-            response_and_phase_fn(&context, model, headers, wire_msgs, usage_totals)
+        context,
+        |context, model, headers, state| {
+            response_phase_contract_from_state_with(
+                context,
+                model,
+                headers,
+                state,
+                |context, model, headers, wire_msgs, usage_totals| {
+                    response_and_phase_fn(context, model, headers, wire_msgs, usage_totals)
+                },
+            )
         },
-        |state, phase, iter_idx, max_iter, response, dispatch_fn| {
-            step_fn(state, phase, iter_idx, max_iter, response, dispatch_fn)
+        |_context, state, contract, dispatch_fn| {
+            step_fn(
+                state,
+                contract.phase,
+                contract.iter_idx,
+                contract.max_iter,
+                contract.response,
+                dispatch_fn,
+            )
         },
         dispatch,
     )
 }
 
+pub(crate) fn run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch<
+    P,
+    C,
+    D,
+    FR,
+    FS,
+>(
+    common: ProviderRunnerCommonConfig<'_>,
+    context: C,
+    mut response_phase_contract_fn: FR,
+    mut step_contract_fn: FS,
+    dispatch: D,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &C,
+        &str,
+        &[(String, String)],
+        &mut ProviderLoopState,
+    ) -> Result<ProviderResponsePhaseContract<P>, String>,
+    FS: FnMut(
+        &C,
+        &mut ProviderLoopState,
+        ProviderIterationContract<'_, P>,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_common_config_with_contract_primitives_and_dispatch(
+        common,
+        |model, headers, state| response_phase_contract_fn(&context, model, headers, state),
+        |state, contract, dispatch_fn| step_contract_fn(&context, state, contract, dispatch_fn),
+        dispatch,
+    )
+}
+
+#[cfg(test)]
 pub(crate) fn run_completion_loop_from_common_config_with_state_primitives_and_dispatch<
     P,
     D,
