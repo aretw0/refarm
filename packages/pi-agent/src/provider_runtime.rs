@@ -67,13 +67,8 @@ pub(crate) fn execute_json_request(
     headers: &[(String, String)],
     body: &str,
 ) -> Result<serde_json::Value, String> {
-    let bytes = crate::provider::http_post_via_host(
-        provider,
-        base_url,
-        path,
-        headers,
-        body.as_bytes(),
-    )?;
+    let bytes =
+        crate::provider::http_post_via_host(provider, base_url, path, headers, body.as_bytes())?;
     parse_response_json(&bytes)
 }
 
@@ -197,6 +192,7 @@ pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> 
     }
 }
 
+#[cfg(test)]
 pub(crate) fn provider_loop_plan_with_max_iter(
     initial_wire_msgs: Vec<serde_json::Value>,
     max_iter: u32,
@@ -207,35 +203,33 @@ pub(crate) fn provider_loop_plan_with_max_iter(
     }
 }
 
-#[allow(dead_code)]
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
     provider_loop_state(initial_anthropic_wire_messages(messages))
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
-    provider_loop_plan_with_max_iter(initial_anthropic_wire_messages(messages), tool_loop_max_iter())
+    ProviderLoopPlan {
+        max_iter: tool_loop_max_iter(),
+        state: anthropic_loop_state(messages),
+    }
 }
 
-#[allow(dead_code)]
-pub(crate) fn openai_loop_state(
-    system: &str,
-    messages: &[(String, String)],
-) -> ProviderLoopState {
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) fn openai_loop_state(system: &str, messages: &[(String, String)]) -> ProviderLoopState {
     provider_loop_state(initial_openai_wire_messages(system, messages))
 }
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_loop_plan(
-    system: &str,
-    messages: &[(String, String)],
-) -> ProviderLoopPlan {
-    provider_loop_plan_with_max_iter(
-        initial_openai_wire_messages(system, messages),
-        tool_loop_max_iter(),
-    )
+pub(crate) fn openai_loop_plan(system: &str, messages: &[(String, String)]) -> ProviderLoopPlan {
+    ProviderLoopPlan {
+        max_iter: tool_loop_max_iter(),
+        state: openai_loop_state(system, messages),
+    }
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn anthropic_runner_config<'a>(
     model: &'a str,
     system: &'a str,
@@ -249,6 +243,7 @@ pub(crate) fn anthropic_runner_config<'a>(
     }
 }
 
+#[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn openai_runner_config<'a>(
     provider: &'a str,
     base_url: &'a str,
@@ -401,7 +396,8 @@ pub(crate) fn anthropic_step_text_or_advance_with<F>(
 where
     F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
-    if let Some(text) = anthropic_completion_text_if_terminate(phase, iter_idx, max_iter, response)? {
+    if let Some(text) = anthropic_completion_text_if_terminate(phase, iter_idx, max_iter, response)?
+    {
         return Ok(Some(text));
     }
 
@@ -476,7 +472,12 @@ pub(crate) fn record_anthropic_tool_execution(
     tool_use: &ParsedAnthropicToolUse,
     result: &str,
 ) -> serde_json::Value {
-    push_executed_call(executed_calls, &tool_use.name, tool_use.input.clone(), result);
+    push_executed_call(
+        executed_calls,
+        &tool_use.name,
+        tool_use.input.clone(),
+        result,
+    );
     anthropic_tool_result(&tool_use.id, result.to_owned())
 }
 
@@ -485,7 +486,12 @@ pub(crate) fn record_openai_tool_execution(
     tool_call: &ParsedOpenAiToolCall,
     result: &str,
 ) {
-    push_executed_call(executed_calls, &tool_call.name, tool_call.input.clone(), result);
+    push_executed_call(
+        executed_calls,
+        &tool_call.name,
+        tool_call.input.clone(),
+        result,
+    );
 }
 
 pub(crate) fn execute_anthropic_tools_with<F>(
@@ -590,12 +596,8 @@ pub(crate) fn advance_anthropic_tool_phase_with<F>(
     F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
     append_anthropic_assistant_message(wire_msgs, content_arr);
-    let tool_results = execute_anthropic_tools_with(
-        tool_uses,
-        executed_calls,
-        seen_hashes,
-        dispatch,
-    );
+    let tool_results =
+        execute_anthropic_tools_with(tool_uses, executed_calls, seen_hashes, dispatch);
     append_anthropic_tool_results_message(wire_msgs, tool_results);
 }
 
@@ -887,13 +889,33 @@ pub(crate) fn finalize_completion_from_outcome(
 }
 
 #[cfg(target_arch = "wasm32")]
+pub(crate) fn run_wasm_provider_loop_with<P, FR, FS>(
+    plan: ProviderLoopPlan,
+    response_and_phase: FR,
+    step: FS,
+) -> Result<crate::provider::CompletionResult, String>
+where
+    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        &P,
+        u32,
+        u32,
+        &serde_json::Value,
+    ) -> Result<Option<String>, String>,
+{
+    let outcome = run_completion_loop_from_plan_with(plan, response_and_phase, step)?;
+    Ok(finalize_completion_from_outcome(outcome))
+}
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn run_anthropic_completion_loop(
     model: &str,
     system: &str,
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
     let config = anthropic_runner_config(model, system, messages);
-    let outcome = run_completion_loop_from_plan_with(
+    run_wasm_provider_loop_with(
         config.plan,
         |state| {
             anthropic_iteration_response_and_phase(
@@ -914,8 +936,7 @@ pub(crate) fn run_anthropic_completion_loop(
                 dispatch_tool_dedup,
             )
         },
-    )?;
-    Ok(finalize_completion_from_outcome(outcome))
+    )
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -927,7 +948,7 @@ pub(crate) fn run_openai_completion_loop(
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
     let config = openai_runner_config(provider, base_url, model, system, messages);
-    let outcome = run_completion_loop_from_plan_with(
+    run_wasm_provider_loop_with(
         config.plan,
         |state| {
             openai_iteration_response_and_phase(
@@ -949,6 +970,5 @@ pub(crate) fn run_openai_completion_loop(
                 dispatch_tool_dedup,
             )
         },
-    )?;
-    Ok(finalize_completion_from_outcome(outcome))
+    )
 }
