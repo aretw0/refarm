@@ -1,5 +1,3 @@
-use crate::tool_dispatch::dispatch_tool;
-
 use crate::provider::{http_post_via_host, CompletionResult};
 
 pub(crate) fn complete(
@@ -87,10 +85,14 @@ pub(crate) fn complete(
             let name = tc["name"].as_str().unwrap_or("");
             let input = &tc["input"];
             let id = tc["id"].as_str().unwrap_or("");
-            let raw = dispatch_tool(name, input);
-            let result = crate::provider_runtime::dedup_tool_output(raw, &mut seen_hashes);
-            executed_calls
-                .push(serde_json::json!({"name": name, "input": input, "result": result}));
+            let result =
+                crate::provider_runtime::dispatch_tool_dedup(name, input, &mut seen_hashes);
+            crate::provider_runtime::push_executed_call(
+                &mut executed_calls,
+                name,
+                input.clone(),
+                &result,
+            );
             tool_results.push(
                 serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result}),
             );

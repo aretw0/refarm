@@ -1,5 +1,3 @@
-use crate::tool_dispatch::dispatch_tool;
-
 use crate::provider::{http_post_via_host, CompletionResult};
 
 // Providers with non-standard OpenAI-compat paths; all others use /v1/chat/completions.
@@ -102,14 +100,13 @@ pub(crate) fn complete(
         for tc in &tool_calls_json {
             let fn_obj = &tc["function"];
             let name = fn_obj["name"].as_str().unwrap_or("");
-            let input: serde_json::Value =
-                serde_json::from_str(fn_obj["arguments"].as_str().unwrap_or("{}"))
-                    .unwrap_or(serde_json::json!({}));
+            let input = crate::provider_runtime::parse_json_arguments(
+                fn_obj["arguments"].as_str().unwrap_or("{}"),
+            );
             let id = tc["id"].as_str().unwrap_or("");
-            let raw = dispatch_tool(name, &input);
-            let result = crate::provider_runtime::dedup_tool_output(raw, &mut seen_hashes);
-            executed_calls
-                .push(serde_json::json!({"name": name, "input": input, "result": &result}));
+            let result =
+                crate::provider_runtime::dispatch_tool_dedup(name, &input, &mut seen_hashes);
+            crate::provider_runtime::push_executed_call(&mut executed_calls, name, input, &result);
             wire_msgs
                 .push(serde_json::json!({"role": "tool", "tool_call_id": id, "content": result}));
         }
