@@ -172,3 +172,75 @@ fn provider_runtime_append_openai_tool_message_shape() {
     assert_eq!(wire_msgs[0]["tool_call_id"], "call_2");
     assert_eq!(wire_msgs[0]["content"], "done");
 }
+
+#[test]
+fn provider_runtime_openai_compat_path_known_overrides() {
+    assert_eq!(
+        crate::provider_runtime::openai_compat_path("groq"),
+        "/openai/v1/chat/completions"
+    );
+    assert_eq!(
+        crate::provider_runtime::openai_compat_path("openrouter"),
+        "/api/v1/chat/completions"
+    );
+    assert_eq!(
+        crate::provider_runtime::openai_compat_path("gemini"),
+        "/v1beta/openai/chat/completions"
+    );
+}
+
+#[test]
+fn provider_runtime_openai_compat_path_default() {
+    assert_eq!(
+        crate::provider_runtime::openai_compat_path("unknown"),
+        "/v1/chat/completions"
+    );
+}
+
+#[test]
+fn provider_runtime_parse_response_json_reports_error() {
+    let err = crate::provider_runtime::parse_response_json(b"{").unwrap_err();
+    assert!(err.contains("parse:"));
+}
+
+#[test]
+fn provider_runtime_build_openai_body_includes_expected_fields() {
+    let body = crate::provider_runtime::build_openai_body(
+        "m",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([{"type":"function"}]),
+    );
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["model"], "m");
+    assert_eq!(v["max_tokens"], 1024);
+    assert_eq!(v["messages"][0]["role"], "user");
+    assert_eq!(v["tools"][0]["type"], "function");
+}
+
+#[test]
+fn provider_runtime_build_anthropic_body_includes_expected_fields() {
+    let body = crate::provider_runtime::build_anthropic_body(
+        "m2",
+        "sys",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([{"name":"read_file"}]),
+    );
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["model"], "m2");
+    assert_eq!(v["system"], "sys");
+    assert_eq!(v["max_tokens"], 1024);
+    assert_eq!(v["messages"][0]["role"], "user");
+    assert_eq!(v["tools"][0]["name"], "read_file");
+}
+
+#[test]
+fn provider_runtime_headers_include_content_type() {
+    let a = crate::provider_runtime::anthropic_headers();
+    let o = crate::provider_runtime::openai_compat_headers();
+    assert!(a
+        .iter()
+        .any(|(k, v)| k == "content-type" && v == "application/json"));
+    assert!(o
+        .iter()
+        .any(|(k, v)| k == "content-type" && v == "application/json"));
+}

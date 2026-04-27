@@ -1,15 +1,5 @@
 use crate::provider::{http_post_via_host, CompletionResult};
 
-// Providers with non-standard OpenAI-compat paths; all others use /v1/chat/completions.
-fn openai_compat_path(provider: &str) -> &'static str {
-    match provider {
-        "groq" => "/openai/v1/chat/completions",
-        "openrouter" => "/api/v1/chat/completions",
-        "gemini" => "/v1beta/openai/chat/completions",
-        _ => "/v1/chat/completions",
-    }
-}
-
 pub(crate) fn complete(
     provider: &str,
     base_url: &str,
@@ -17,8 +7,7 @@ pub(crate) fn complete(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<CompletionResult, String> {
-    let base_hdrs: Vec<(String, String)> =
-        vec![("content-type".to_string(), "application/json".to_string())];
+    let base_hdrs = crate::provider_runtime::openai_compat_headers();
 
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
@@ -37,22 +26,17 @@ pub(crate) fn complete(
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
     for iter_idx in 0..=max_iter {
-        let body = serde_json::json!({
-            "model": model, "max_tokens": 1024,
-            "tools": crate::tools_openai(),
-            "messages": wire_msgs,
-        })
-        .to_string();
+        let body =
+            crate::provider_runtime::build_openai_body(model, &wire_msgs, crate::tools_openai());
 
         let bytes = http_post_via_host(
             provider,
             base_url,
-            openai_compat_path(provider),
+            crate::provider_runtime::openai_compat_path(provider),
             &base_hdrs,
             body.as_bytes(),
         )?;
-        let v: serde_json::Value =
-            serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
+        let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
         let usage = &v["usage"];
         usage_totals.ingest_openai_usage(usage);

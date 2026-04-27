@@ -5,10 +5,7 @@ pub(crate) fn complete(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<CompletionResult, String> {
-    let hdrs = vec![
-        ("content-type".to_string(), "application/json".to_string()),
-        ("anthropic-version".to_string(), "2023-06-01".to_string()),
-    ];
+    let hdrs = crate::provider_runtime::anthropic_headers();
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
     // In-flight messages: start from CRDT history, grow with tool call/result turns.
@@ -22,12 +19,12 @@ pub(crate) fn complete(
     let mut seen_hashes: std::collections::HashSet<u64> = std::collections::HashSet::new();
 
     for iter_idx in 0..=max_iter {
-        let body = serde_json::json!({
-            "model": model, "max_tokens": 1024, "system": system,
-            "tools": crate::tools_anthropic(),
-            "messages": wire_msgs,
-        })
-        .to_string();
+        let body = crate::provider_runtime::build_anthropic_body(
+            model,
+            system,
+            &wire_msgs,
+            crate::tools_anthropic(),
+        );
 
         let bytes = http_post_via_host(
             "anthropic",
@@ -36,8 +33,7 @@ pub(crate) fn complete(
             &hdrs,
             body.as_bytes(),
         )?;
-        let v: serde_json::Value =
-            serde_json::from_slice(&bytes).map_err(|e| format!("parse: {e}"))?;
+        let v = crate::provider_runtime::parse_response_json(&bytes)?;
 
         let usage = &v["usage"];
         usage_totals.ingest_anthropic_usage(usage);
