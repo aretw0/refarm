@@ -11,6 +11,9 @@
 
 > Minimal primitives. Total extensibility. CRDT as the source of truth.
 
+**Critical guardrail**: avoid shipping behavior that is specific to a single coding-agent persona when it can be a host/tool primitive shared by any plugin.
+Farmhand should consume generic primitives; it should not become the place where generic platform logic gets trapped.
+
 pi-agent learns from [Pi](https://github.com/kaleidawave/pi) but is not Pi:
 - Pi has ephemeral session state. pi-agent has **CRDT-backed state** — auditable, replicable, queryable.
 - Pi is a CLI tool. pi-agent is a **WASM plugin** — sandboxed, composable, deployable anywhere tractor runs.
@@ -66,6 +69,15 @@ Context engineering follows the pi-test-harness model:
 ### Extensibility contract
 - [x] `extensibility_contract` test module: axioms A1–A4 as named executable guarantees
 - [x] A1: unknown provider → OpenAI compat; A2: zero-config boot; A3: context opt-in; A4: budget opt-in
+
+### Internal modularity (maintainability)
+- [x] Split monolithic `lib.rs` into runtime/provider/tool/session/structured modules
+- [x] Split provider engine into `provider_anthropic.rs` and `provider_openai_compat.rs`
+- [x] Extract pure provider defaults/model-selection helpers (`provider_config.rs`)
+- [x] Extract CRDT response node builders (`response_nodes.rs`) for reusable schema-safe writes
+- [x] Split tool dispatch into domain modules (`tool_dispatch/fs_shell.rs`, `session_tools.rs`, `code_ops_tools.rs`)
+- [x] Move large unit suites out of `lib.rs` into `tests.rs` + `extensibility_contract.rs`
+- [x] Start splitting `tests.rs` into domain submodules (`src/tests/provider_config_tests.rs`, `response_nodes_tests.rs`, `id_primitives_tests.rs`)
 
 ### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
 - [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)
@@ -216,6 +228,16 @@ interface code-ops {
 - [ ] Porting pi-stack behaviors to Refarm CRDT primitives with minimal friction
 - [ ] Validate that distros (`.dev`, `.me`, `.social`) can compose farmhand without core changes
 - [x] Contract: farmhand exposes no domain opinion — distros provide system prompts via `LLM_SYSTEM` env var
+
+### Generalization backlog (cross-plugin primitives first)
+
+> Rule: when logic can be expressed once in host/shared tools and reused by many plugins, prefer that over pi-agent-only implementation.
+
+- [ ] Promote `provider_config` defaults mapping into a shared host/plugin utility surface (so non-coding agents reuse the same routing defaults)
+- [ ] Promote URN builder convention (`new_pi_urn`-style) into a cross-plugin ID primitive with configurable namespace prefix
+- [ ] Evaluate moving generic tool-dispatch families (`fs/shell/session/code-ops`) into reusable shared dispatch helpers in `agent-tools`
+- [ ] Extract response-node builders into generic CRDT schema helpers (typed builders for common node metadata/timestamps)
+- [ ] Add an architectural check in reviews: "is this logic farmhand-specific or platform-primitive?" and reject plugin-local platform logic
 
 ### Multi-agent (swarm)
 - [x] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:<hex>`) (T-NEXT-282)

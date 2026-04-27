@@ -7,6 +7,9 @@ Inspired by [Pi](https://github.com/kaleidawave/pi) but differentiated by the Re
 (sandboxed, capability-gated, composable). Runs on x86 servers, Raspberry Pi edge nodes, and
 anywhere `tractor` is deployed.
 
+Design guardrail: avoid plugin-local logic that should be a general platform primitive. When behavior
+is reusable across plugins, it belongs in shared host/tool primitives first, then farmhand consumes it.
+
 > Future name: **farmhand** — the worker of the tractor, native to the Refarm ecosystem.
 
 ---
@@ -164,6 +167,19 @@ This is the "let the plugin be the plugin" model from
 ---
 
 ## Architecture
+
+### Source layout (modular primitives)
+
+- `src/lib.rs` — plugin wiring + event entrypoint
+- `src/runtime.rs` — prompt pipeline orchestration (`react`, `handle_prompt`)
+- `src/provider.rs` — provider selection/facade (`Provider::from_env`, `complete`)
+- `src/provider_config.rs` — pure provider defaults/model selection primitives
+- `src/provider_anthropic.rs` — Anthropic wire format + agentic loop
+- `src/provider_openai_compat.rs` — OpenAI-compatible wire format + agentic loop
+- `src/tool_dispatch/` — tool execution bridge split by domain (`fs_shell`, `session_tools`, `code_ops_tools`)
+- `src/session.rs`, `src/structured_io.rs`, `src/compress.rs`, `src/utils.rs` — pure primitives
+- `src/response_nodes.rs` — CRDT node builders for `UserPrompt`, `AgentResponse`, `UsageRecord`
+- `src/tests.rs`, `src/extensibility_contract.rs` — unit + contract tests
 
 ### Provider abstraction
 
