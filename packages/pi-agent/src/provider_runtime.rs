@@ -1353,11 +1353,10 @@ where
         &mut D,
     ) -> Result<Option<String>, String>,
 {
-    run_completion_loop_from_common_config_and_context_with_dispatch(
+    run_completion_loop_from_common_config_with_contract_primitives_and_dispatch(
         common,
-        (),
-        |_unit, model, headers, state| {
-            let contract = response_phase_contract_from_state_with(
+        |model, headers, state| {
+            response_phase_contract_from_state_with(
                 &(),
                 model,
                 headers,
@@ -1365,7 +1364,50 @@ where
                 |_unit, model, headers, wire_msgs, usage_totals| {
                     response_and_phase_fn(model, headers, wire_msgs, usage_totals)
                 },
-            )?;
+            )
+        },
+        |state, contract, dispatch_fn| {
+            step_fn(
+                state,
+                contract.phase,
+                contract.iter_idx,
+                contract.max_iter,
+                contract.response,
+                dispatch_fn,
+            )
+        },
+        dispatch,
+    )
+}
+
+pub(crate) fn run_completion_loop_from_common_config_with_contract_primitives_and_dispatch<
+    P,
+    D,
+    FR,
+    FS,
+>(
+    common: ProviderRunnerCommonConfig<'_>,
+    mut response_phase_contract_fn: FR,
+    mut step_contract_fn: FS,
+    dispatch: D,
+) -> Result<CompletionLoopOutcome, String>
+where
+    FR: FnMut(
+        &str,
+        &[(String, String)],
+        &mut ProviderLoopState,
+    ) -> Result<ProviderResponsePhaseContract<P>, String>,
+    FS: FnMut(
+        &mut ProviderLoopState,
+        ProviderIterationContract<'_, P>,
+        &mut D,
+    ) -> Result<Option<String>, String>,
+{
+    run_completion_loop_from_common_config_and_context_with_dispatch(
+        common,
+        (),
+        |_unit, model, headers, state| {
+            let contract = response_phase_contract_fn(model, headers, state)?;
             Ok((contract.response, contract.phase))
         },
         |_unit, state, phase, iter_idx, max_iter, response, dispatch_fn| {
@@ -1374,7 +1416,11 @@ where
                 provider_iteration_contract(phase, iter_idx, max_iter, response),
                 dispatch_fn,
                 |state, phase, iter_idx, max_iter, response, dispatch_fn| {
-                    step_fn(state, phase, iter_idx, max_iter, response, dispatch_fn)
+                    step_contract_fn(
+                        state,
+                        provider_iteration_contract(phase, iter_idx, max_iter, response),
+                        dispatch_fn,
+                    )
                 },
             )
         },
