@@ -168,19 +168,34 @@ pub(crate) struct ProviderLoopPlan {
     pub state: ProviderLoopState,
 }
 
-pub(crate) struct AnthropicRunnerConfig<'a> {
+pub(crate) struct ProviderRunnerCommonConfig<'a> {
     pub model: &'a str,
-    pub system: &'a str,
     pub headers: Vec<(String, String)>,
     pub plan: ProviderLoopPlan,
 }
 
+pub(crate) struct AnthropicRunnerConfig<'a> {
+    pub common: ProviderRunnerCommonConfig<'a>,
+    pub system: &'a str,
+}
+
 pub(crate) struct OpenAiRunnerConfig<'a> {
+    pub common: ProviderRunnerCommonConfig<'a>,
     pub provider: &'a str,
     pub base_url: &'a str,
-    pub model: &'a str,
-    pub headers: Vec<(String, String)>,
-    pub plan: ProviderLoopPlan,
+}
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) fn provider_runner_common_config<'a>(
+    model: &'a str,
+    headers: Vec<(String, String)>,
+    plan: ProviderLoopPlan,
+) -> ProviderRunnerCommonConfig<'a> {
+    ProviderRunnerCommonConfig {
+        model,
+        headers,
+        plan,
+    }
 }
 
 pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
@@ -236,10 +251,8 @@ pub(crate) fn anthropic_runner_config<'a>(
     messages: &[(String, String)],
 ) -> AnthropicRunnerConfig<'a> {
     AnthropicRunnerConfig {
-        model,
+        common: provider_runner_common_config(model, anthropic_headers(), anthropic_loop_plan(messages)),
         system,
-        headers: anthropic_headers(),
-        plan: anthropic_loop_plan(messages),
     }
 }
 
@@ -252,11 +265,13 @@ pub(crate) fn openai_runner_config<'a>(
     messages: &[(String, String)],
 ) -> OpenAiRunnerConfig<'a> {
     OpenAiRunnerConfig {
+        common: provider_runner_common_config(
+            model,
+            openai_compat_headers(),
+            openai_loop_plan(system, messages),
+        ),
         provider,
         base_url,
-        model,
-        headers: openai_compat_headers(),
-        plan: openai_loop_plan(system, messages),
     }
 }
 
@@ -1022,13 +1037,13 @@ where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
     run_wasm_provider_loop_with_dispatch(
-        config.plan,
+        config.common.plan,
         |state| {
             anthropic_iteration_response_and_phase(
-                config.model,
+                config.common.model,
                 config.system,
                 &state.wire_msgs,
-                &config.headers,
+                &config.common.headers,
                 &mut state.usage_totals,
             )
         },
@@ -1055,14 +1070,14 @@ where
     D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
 {
     run_wasm_provider_loop_with_dispatch(
-        config.plan,
+        config.common.plan,
         |state| {
             openai_iteration_response_and_phase(
                 config.provider,
                 config.base_url,
-                config.model,
+                config.common.model,
                 &state.wire_msgs,
-                &config.headers,
+                &config.common.headers,
                 &mut state.usage_totals,
             )
         },

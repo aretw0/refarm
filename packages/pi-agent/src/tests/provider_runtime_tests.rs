@@ -1016,16 +1016,34 @@ fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter()
 }
 
 #[test]
+fn provider_runtime_provider_runner_common_config_keeps_model_headers_and_plan() {
+    let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(
+        vec![serde_json::json!({"role":"user","content":"hello"})],
+        2,
+    );
+    let common = crate::provider_runtime::provider_runner_common_config(
+        "model-x",
+        vec![("content-type".to_string(), "application/json".to_string())],
+        plan,
+    );
+
+    assert_eq!(common.model, "model-x");
+    assert_eq!(common.headers.len(), 1);
+    assert_eq!(common.plan.max_iter, 2);
+    assert_eq!(common.plan.state.wire_msgs.len(), 1);
+}
+
+#[test]
 fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
     std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "4");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let cfg = crate::provider_runtime::anthropic_runner_config("m", "s", &msgs);
     std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
 
-    assert_eq!(cfg.model, "m");
+    assert_eq!(cfg.common.model, "m");
     assert_eq!(cfg.system, "s");
-    assert_eq!(cfg.plan.max_iter, 4);
-    assert_eq!(cfg.headers[0].0, "content-type");
+    assert_eq!(cfg.common.plan.max_iter, 4);
+    assert_eq!(cfg.common.headers[0].0, "content-type");
 }
 
 #[test]
@@ -1043,9 +1061,9 @@ fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
 
     assert_eq!(cfg.provider, "openai");
     assert_eq!(cfg.base_url, "http://localhost:11434");
-    assert_eq!(cfg.model, "gpt-x");
-    assert_eq!(cfg.plan.max_iter, 6);
-    assert_eq!(cfg.headers[0].0, "content-type");
+    assert_eq!(cfg.common.model, "gpt-x");
+    assert_eq!(cfg.common.plan.max_iter, 6);
+    assert_eq!(cfg.common.headers[0].0, "content-type");
 }
 
 #[test]
