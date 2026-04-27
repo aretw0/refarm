@@ -599,3 +599,95 @@ fn provider_runtime_advance_openai_tool_phase_with_appends_and_records() {
     assert_eq!(wire_msgs[1]["tool_call_id"], "call-1");
     assert_eq!(executed_calls.len(), 1);
 }
+
+#[test]
+fn provider_runtime_anthropic_iteration_phase_extracts_blocks_and_tools() {
+    let response = serde_json::json!({
+        "content": [
+            {"type":"text","text":"hello"},
+            {"type":"tool_use","name":"read_file","input":{"path":"README.md"},"id":"t1"}
+        ]
+    });
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&response);
+
+    assert_eq!(phase.content_arr.len(), 2);
+    assert_eq!(phase.tool_uses.len(), 1);
+    assert!(crate::provider_runtime::anthropic_has_tool_calls(&phase));
+}
+
+#[test]
+fn provider_runtime_openai_iteration_phase_extracts_message_tools_and_calls() {
+    let response = serde_json::json!({
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-1",
+                    "function":{"name":"search_files","arguments":"{\"pattern\":\"TODO\"}"}
+                }]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&response);
+
+    assert_eq!(phase.msg["content"], "partial");
+    assert_eq!(phase.tool_calls_json.len(), 1);
+    assert_eq!(phase.parsed_calls.len(), 1);
+    assert!(crate::provider_runtime::openai_has_tool_calls(&phase));
+}
+
+#[test]
+fn provider_runtime_advance_anthropic_tool_phase_from_phase_with_appends() {
+    let response = serde_json::json!({
+        "content": [
+            {"type":"text","text":"hello"},
+            {"type":"tool_use","name":"read_file","input":{"path":"README.md"},"id":"t1"}
+        ]
+    });
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&response);
+    let mut wire_msgs = Vec::new();
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    crate::provider_runtime::advance_anthropic_tool_phase_from_phase_with(
+        &mut wire_msgs,
+        &phase,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["path"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(executed_calls.len(), 1);
+}
+
+#[test]
+fn provider_runtime_advance_openai_tool_phase_from_phase_with_appends() {
+    let response = serde_json::json!({
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-2",
+                    "function":{"name":"search_files","arguments":"{\"pattern\":\"FIXME\"}"}
+                }]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&response);
+    let mut wire_msgs = Vec::new();
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    crate::provider_runtime::advance_openai_tool_phase_from_phase_with(
+        &mut wire_msgs,
+        &phase,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["pattern"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(wire_msgs[1]["tool_call_id"], "call-2");
+    assert_eq!(executed_calls.len(), 1);
+}

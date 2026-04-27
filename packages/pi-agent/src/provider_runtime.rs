@@ -148,6 +148,11 @@ pub(crate) struct ParsedAnthropicToolUse {
     pub id: String,
 }
 
+pub(crate) struct AnthropicIterationPhase {
+    pub content_arr: Vec<serde_json::Value>,
+    pub tool_uses: Vec<ParsedAnthropicToolUse>,
+}
+
 pub(crate) fn parse_anthropic_tool_uses(
     content_arr: &[serde_json::Value],
 ) -> Vec<ParsedAnthropicToolUse> {
@@ -160,6 +165,19 @@ pub(crate) fn parse_anthropic_tool_uses(
             id: c["id"].as_str().unwrap_or("").to_owned(),
         })
         .collect()
+}
+
+pub(crate) fn anthropic_iteration_phase(response: &serde_json::Value) -> AnthropicIterationPhase {
+    let content_arr = anthropic_content_array(response);
+    let tool_uses = parse_anthropic_tool_uses(&content_arr);
+    AnthropicIterationPhase {
+        content_arr,
+        tool_uses,
+    }
+}
+
+pub(crate) fn anthropic_has_tool_calls(phase: &AnthropicIterationPhase) -> bool {
+    !phase.tool_uses.is_empty()
 }
 
 pub(crate) fn anthropic_text_content(content_arr: &[serde_json::Value]) -> Option<String> {
@@ -176,6 +194,12 @@ pub(crate) struct ParsedOpenAiToolCall {
     pub id: String,
 }
 
+pub(crate) struct OpenAiIterationPhase {
+    pub msg: serde_json::Value,
+    pub tool_calls_json: Vec<serde_json::Value>,
+    pub parsed_calls: Vec<ParsedOpenAiToolCall>,
+}
+
 pub(crate) fn parse_openai_tool_calls(
     tool_calls_json: &[serde_json::Value],
 ) -> Vec<ParsedOpenAiToolCall> {
@@ -190,6 +214,21 @@ pub(crate) fn parse_openai_tool_calls(
             }
         })
         .collect()
+}
+
+pub(crate) fn openai_iteration_phase(response: &serde_json::Value) -> OpenAiIterationPhase {
+    let msg = openai_choice_message(response).clone();
+    let tool_calls_json = openai_tool_calls_array(&msg);
+    let parsed_calls = parse_openai_tool_calls(&tool_calls_json);
+    OpenAiIterationPhase {
+        msg,
+        tool_calls_json,
+        parsed_calls,
+    }
+}
+
+pub(crate) fn openai_has_tool_calls(phase: &OpenAiIterationPhase) -> bool {
+    !phase.tool_calls_json.is_empty()
 }
 
 pub(crate) fn openai_message_content(msg: &serde_json::Value) -> Option<String> {
@@ -290,6 +329,45 @@ pub(crate) fn append_openai_tool_messages(
     for tm in tool_messages {
         append_openai_tool_message(wire_msgs, &tm.id, tm.content);
     }
+}
+
+pub(crate) fn advance_anthropic_tool_phase_from_phase_with<F>(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    phase: &AnthropicIterationPhase,
+    executed_calls: &mut Vec<serde_json::Value>,
+    seen_hashes: &mut std::collections::HashSet<u64>,
+    dispatch: F,
+) where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    advance_anthropic_tool_phase_with(
+        wire_msgs,
+        &phase.content_arr,
+        &phase.tool_uses,
+        executed_calls,
+        seen_hashes,
+        dispatch,
+    );
+}
+
+pub(crate) fn advance_openai_tool_phase_from_phase_with<F>(
+    wire_msgs: &mut Vec<serde_json::Value>,
+    phase: &OpenAiIterationPhase,
+    executed_calls: &mut Vec<serde_json::Value>,
+    seen_hashes: &mut std::collections::HashSet<u64>,
+    dispatch: F,
+) where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    advance_openai_tool_phase_with(
+        wire_msgs,
+        &phase.msg["content"],
+        &phase.tool_calls_json,
+        &phase.parsed_calls,
+        executed_calls,
+        seen_hashes,
+        dispatch,
+    );
 }
 
 pub(crate) fn advance_anthropic_tool_phase_with<F>(

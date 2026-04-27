@@ -22,14 +22,13 @@ pub(crate) fn complete(
 
         crate::provider_runtime::ingest_anthropic_usage_from_response(&mut usage_totals, &v);
 
-        let content_arr = crate::provider_runtime::anthropic_content_array(&v);
-        let tool_uses = crate::provider_runtime::parse_anthropic_tool_uses(&content_arr);
+        let phase = crate::provider_runtime::anthropic_iteration_phase(&v);
 
         if let Some(text) = crate::provider_runtime::completion_text_if_terminate(
-            !tool_uses.is_empty(),
+            crate::provider_runtime::anthropic_has_tool_calls(&phase),
             iter_idx,
             max_iter,
-            crate::provider_runtime::require_anthropic_text_content(&content_arr, &v),
+            crate::provider_runtime::require_anthropic_text_content(&phase.content_arr, &v),
         )? {
             return Ok(crate::provider_runtime::completion_result_from_response(
                 text,
@@ -39,10 +38,9 @@ pub(crate) fn complete(
             ));
         }
 
-        crate::provider_runtime::advance_anthropic_tool_phase_with(
+        crate::provider_runtime::advance_anthropic_tool_phase_from_phase_with(
             &mut wire_msgs,
-            &content_arr,
-            &tool_uses,
+            &phase,
             &mut executed_calls,
             &mut seen_hashes,
             crate::provider_runtime::dispatch_tool_dedup,
