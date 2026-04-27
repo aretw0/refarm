@@ -911,6 +911,37 @@ fn provider_runtime_append_openai_tool_messages_appends_all() {
 }
 
 #[test]
+fn provider_runtime_advance_tool_phase_with_runs_append_execute_append_pipeline() {
+    let mut wire_msgs = Vec::new();
+    let calls = vec![1_u8, 2_u8];
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    crate::provider_runtime::advance_tool_phase_with(
+        &mut wire_msgs,
+        &calls,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |wire_msgs| wire_msgs.push(serde_json::json!({"role":"assistant"})),
+        |calls, executed_calls, _seen| {
+            for call in calls {
+                executed_calls.push(serde_json::json!({"call": call}));
+            }
+            vec![serde_json::json!({"count": calls.len()})]
+        },
+        |wire_msgs, results| {
+            wire_msgs.push(serde_json::json!({"role":"tool","results": results}));
+        },
+    );
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(wire_msgs[0]["role"], "assistant");
+    assert_eq!(wire_msgs[1]["role"], "tool");
+    assert_eq!(wire_msgs[1]["results"][0]["count"], 2);
+    assert_eq!(executed_calls.len(), 2);
+}
+
+#[test]
 fn provider_runtime_advance_anthropic_tool_phase_with_appends_and_records() {
     let mut wire_msgs = Vec::new();
     let content_arr = vec![serde_json::json!({"type":"text","text":"thinking"})];
