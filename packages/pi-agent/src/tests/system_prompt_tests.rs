@@ -15,4 +15,3 @@ fn llm_system_absent_does_not_panic() {
     let (content, _, _, _, _, _, _, _) = react("ping");
     assert!(!content.is_empty());
 }
-

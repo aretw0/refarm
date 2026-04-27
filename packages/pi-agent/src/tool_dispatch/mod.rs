@@ -1,6 +1,9 @@
 mod code_ops_tools;
 mod fs_shell;
+mod fs_tools;
 mod session_tools;
+mod shell_tools;
+mod structured_tools;
 
 /// Tool dispatch (wasm32): routes tool names to specialized handlers.
 pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {

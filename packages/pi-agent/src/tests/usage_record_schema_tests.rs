@@ -41,4 +41,3 @@ fn usage_record_schema_has_required_fields() {
     }
     assert_eq!(node["@type"], "UsageRecord");
 }
-

@@ -41,8 +41,12 @@ wit_bindgen::generate!({
 mod compress;
 #[cfg(target_arch = "wasm32")]
 mod provider;
+#[cfg(target_arch = "wasm32")]
+mod provider_anthropic;
 #[allow(dead_code)]
 mod provider_config;
+#[cfg(target_arch = "wasm32")]
+mod provider_openai_compat;
 mod response_nodes;
 mod runtime;
 mod session;

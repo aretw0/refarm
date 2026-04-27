@@ -150,4 +150,3 @@ fn navigate_updates_leaf_in_node() {
     session["leaf_entry_id"] = serde_json::Value::String("urn:pi-agent:entry-42".into());
     assert_eq!(session["leaf_entry_id"], "urn:pi-agent:entry-42");
 }
-

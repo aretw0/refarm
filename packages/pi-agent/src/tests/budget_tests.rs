@@ -63,4 +63,3 @@ fn budget_sum_ignores_malformed_records() {
         "malformed records must not panic or contribute spend"
     );
 }
-

@@ -68,4 +68,3 @@ fn agent_response_schema_has_required_fields() {
         assert!(node["llm"].get(sub).is_some(), "llm missing: {sub}");
     }
 }
-

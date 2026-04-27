@@ -38,4 +38,3 @@ fn apply_edits_empty_edits_passthrough() {
     let result = apply_edits("unchanged".into(), &[]).unwrap();
     assert_eq!(result, "unchanged");
 }
-

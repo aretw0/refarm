@@ -18,4 +18,3 @@ fn new_id_format_is_non_empty_and_unique() {
 fn now_ns_is_non_zero() {
     assert!(now_ns() > 0);
 }
-

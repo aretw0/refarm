@@ -100,4 +100,3 @@ fn tools_openai_includes_edit_file_with_edits_schema() {
         "unified diff schema must be removed"
     );
 }
-

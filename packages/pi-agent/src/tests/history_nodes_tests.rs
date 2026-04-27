@@ -57,9 +57,9 @@ fn history_disabled_by_default_when_env_unset() {
     // LLM_HISTORY_TURNS defaults to 0 — no history injected without opt-in.
     // history_from_nodes with max_turns=0 must return empty regardless of records.
     let now = now_ns();
-    let nodes =
-        vec![serde_json::json!({"@type":"UserPrompt","content":"q","timestamp_ns":now}).to_string()];
+    let nodes = vec![
+        serde_json::json!({"@type":"UserPrompt","content":"q","timestamp_ns":now}).to_string(),
+    ];
     let h = history_from_nodes(&nodes, 0);
     assert!(h.is_empty(), "max_turns=0 must produce empty history");
 }
-

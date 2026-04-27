@@ -41,4 +41,3 @@ fn unknown_provider_passes_through_to_compat_path() {
     assert_eq!(provider_name_from_env(), "groq");
     std::env::remove_var("LLM_PROVIDER");
 }
-

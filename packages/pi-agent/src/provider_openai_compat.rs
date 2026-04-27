@@ -1,6 +1,6 @@
 use crate::tool_dispatch::dispatch_tool;
 
-use super::{http_post_via_host, CompletionResult};
+use crate::provider::{http_post_via_host, CompletionResult};
 
 // Providers with non-standard OpenAI-compat paths; all others use /v1/chat/completions.
 fn openai_compat_path(provider: &str) -> &'static str {

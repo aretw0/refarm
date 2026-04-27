@@ -1,8 +1,5 @@
 use crate::refarm::plugin::llm_bridge;
 
-mod provider_anthropic;
-mod provider_openai_compat;
-
 pub struct CompletionResult {
     pub content: String,
     /// Normalized log of tool calls executed during the agentic loop: [{name, input, result}]
@@ -60,12 +57,16 @@ impl Provider {
         messages: &[(String, String)],
     ) -> Result<CompletionResult, String> {
         match self {
-            Provider::Anthropic { model } => provider_anthropic::complete(model, system, messages),
+            Provider::Anthropic { model } => {
+                crate::provider_anthropic::complete(model, system, messages)
+            }
             Provider::OpenAiCompat {
                 provider,
                 base_url,
                 model,
-            } => provider_openai_compat::complete(provider, base_url, model, system, messages),
+            } => {
+                crate::provider_openai_compat::complete(provider, base_url, model, system, messages)
+            }
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::tool_dispatch::dispatch_tool;
 
-use super::{http_post_via_host, CompletionResult};
+use crate::provider::{http_post_via_host, CompletionResult};
 
 pub(crate) fn complete(
     model: &str,

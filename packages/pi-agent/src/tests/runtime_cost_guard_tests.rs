@@ -37,4 +37,3 @@ fn estimate_usd_ollama_is_zero() {
     assert_eq!(estimate_usd("llama3.2", 10000, 5000, 0), 0.0);
     assert_eq!(estimate_usd("mistral", 1000, 1000, 0), 0.0);
 }
-

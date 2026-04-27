@@ -16,10 +16,19 @@ fn read_structured_json_array_paginated() {
     let bytes = serde_json::to_vec(&data).unwrap();
     let result = read_structured_parse(&bytes, "json", 10, 0);
     assert!(result.contains("items 1-10 of 100"), "header: {result}");
-    assert!(result.contains("truncated"), "should be truncated: {result}");
-    let parsed: serde_json::Value =
-        serde_json::from_str(result.lines().skip(1).collect::<Vec<_>>().join("\n").as_str())
-            .unwrap();
+    assert!(
+        result.contains("truncated"),
+        "should be truncated: {result}"
+    );
+    let parsed: serde_json::Value = serde_json::from_str(
+        result
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .as_str(),
+    )
+    .unwrap();
     assert_eq!(parsed.as_array().unwrap().len(), 10);
 }
 
@@ -29,9 +38,15 @@ fn read_structured_json_array_page_offset() {
     let bytes = serde_json::to_vec(&data).unwrap();
     let result = read_structured_parse(&bytes, "json", 5, 10);
     assert!(result.contains("items 11-15 of 20"), "header: {result}");
-    let parsed: serde_json::Value =
-        serde_json::from_str(result.lines().skip(1).collect::<Vec<_>>().join("\n").as_str())
-            .unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(
+        result
+            .lines()
+            .skip(1)
+            .collect::<Vec<_>>()
+            .join("\n")
+            .as_str(),
+    )
+    .unwrap();
     assert_eq!(parsed[0], 11);
 }
 
@@ -110,7 +125,10 @@ fn read_structured_yaml_simple_mapping() {
     let yaml = b"name: pi-agent\nversion: 0.1.0\nauthor: arthur\n";
     let result = read_structured_parse(yaml, "yaml", 0, 0);
     assert!(result.contains("yaml"), "header must say yaml: {result}");
-    assert!(result.contains("pi-agent"), "content must include value: {result}");
+    assert!(
+        result.contains("pi-agent"),
+        "content must include value: {result}"
+    );
 }
 
 #[test]
@@ -152,6 +170,8 @@ fn read_structured_yaml_detect_from_extension() {
 #[test]
 fn read_structured_invalid_json_returns_error() {
     let result = read_structured_parse(b"{not valid json", "json", 50, 0);
-    assert!(result.contains("parse error"), "must report parse error: {result}");
+    assert!(
+        result.contains("parse error"),
+        "must report parse error: {result}"
+    );
 }
-

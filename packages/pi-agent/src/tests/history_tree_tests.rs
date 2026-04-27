@@ -64,4 +64,3 @@ fn tree_walk_only_active_branch() {
     assert_eq!(history[0].1, "start");
     assert_eq!(history[1].1, "path B"); // e2a NOT included
 }
-
