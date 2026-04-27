@@ -59,6 +59,98 @@ pub(crate) fn parse_response_json(bytes: &[u8]) -> Result<serde_json::Value, Str
     serde_json::from_slice(bytes).map_err(|e| format!("parse: {e}"))
 }
 
+pub(crate) fn initial_anthropic_wire_messages(
+    messages: &[(String, String)],
+) -> Vec<serde_json::Value> {
+    messages
+        .iter()
+        .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
+        .collect()
+}
+
+pub(crate) fn initial_openai_wire_messages(
+    system: &str,
+    messages: &[(String, String)],
+) -> Vec<serde_json::Value> {
+    let mut v = vec![serde_json::json!({"role": "system", "content": system})];
+    v.extend(
+        messages
+            .iter()
+            .map(|(r, c)| serde_json::json!({"role": r, "content": c})),
+    );
+    v
+}
+
+pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
+    v["content"].as_array().cloned().unwrap_or_default()
+}
+
+pub(crate) fn openai_tool_calls_array(msg: &serde_json::Value) -> Vec<serde_json::Value> {
+    msg["tool_calls"].as_array().cloned().unwrap_or_default()
+}
+
+pub(crate) struct ParsedAnthropicToolUse {
+    pub name: String,
+    pub input: serde_json::Value,
+    pub id: String,
+}
+
+pub(crate) fn parse_anthropic_tool_uses(
+    content_arr: &[serde_json::Value],
+) -> Vec<ParsedAnthropicToolUse> {
+    content_arr
+        .iter()
+        .filter(|c| c["type"] == "tool_use")
+        .map(|c| ParsedAnthropicToolUse {
+            name: c["name"].as_str().unwrap_or("").to_owned(),
+            input: c["input"].clone(),
+            id: c["id"].as_str().unwrap_or("").to_owned(),
+        })
+        .collect()
+}
+
+pub(crate) fn anthropic_text_content(content_arr: &[serde_json::Value]) -> Option<String> {
+    content_arr
+        .iter()
+        .find(|c| c["type"] == "text")
+        .and_then(|c| c["text"].as_str())
+        .map(ToOwned::to_owned)
+}
+
+pub(crate) struct ParsedOpenAiToolCall {
+    pub name: String,
+    pub input: serde_json::Value,
+    pub id: String,
+}
+
+pub(crate) fn parse_openai_tool_calls(
+    tool_calls_json: &[serde_json::Value],
+) -> Vec<ParsedOpenAiToolCall> {
+    tool_calls_json
+        .iter()
+        .map(|tc| {
+            let fn_obj = &tc["function"];
+            ParsedOpenAiToolCall {
+                name: fn_obj["name"].as_str().unwrap_or("").to_owned(),
+                input: parse_json_arguments(fn_obj["arguments"].as_str().unwrap_or("{}")),
+                id: tc["id"].as_str().unwrap_or("").to_owned(),
+            }
+        })
+        .collect()
+}
+
+pub(crate) fn openai_message_content(msg: &serde_json::Value) -> Option<String> {
+    msg["content"].as_str().map(ToOwned::to_owned)
+}
+
+pub(crate) fn anthropic_tool_result(tool_use_id: &str, content: String) -> serde_json::Value {
+    serde_json::json!({
+        "type": "tool_result",
+        "tool_use_id": tool_use_id,
+        "content": content,
+    })
+}
+
 pub(crate) fn dedup_tool_output(
     raw: String,
     seen_hashes: &mut std::collections::HashSet<u64>,

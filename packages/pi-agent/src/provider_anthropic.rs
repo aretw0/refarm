@@ -9,10 +9,7 @@ pub(crate) fn complete(
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
     // In-flight messages: start from CRDT history, grow with tool call/result turns.
-    let mut wire_msgs: Vec<serde_json::Value> = messages
-        .iter()
-        .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
-        .collect();
+    let mut wire_msgs = crate::provider_runtime::initial_anthropic_wire_messages(messages);
 
     let mut usage_totals = crate::provider_runtime::UsageTotals::default();
     let mut executed_calls: Vec<serde_json::Value> = Vec::new();
@@ -38,24 +35,16 @@ pub(crate) fn complete(
         let usage = &v["usage"];
         usage_totals.ingest_anthropic_usage(usage);
 
-        // Collect tool_use blocks from content array.
-        let content_arr = v["content"].as_array().cloned().unwrap_or_default();
-        let tool_uses: Vec<&serde_json::Value> = content_arr
-            .iter()
-            .filter(|c| c["type"] == "tool_use")
-            .collect();
+        let content_arr = crate::provider_runtime::anthropic_content_array(&v);
+        let tool_uses = crate::provider_runtime::parse_anthropic_tool_uses(&content_arr);
 
         if crate::provider_runtime::should_terminate_tool_loop(
             !tool_uses.is_empty(),
             iter_idx,
             max_iter,
         ) {
-            let text = content_arr
-                .iter()
-                .find(|c| c["type"] == "text")
-                .and_then(|c| c["text"].as_str())
-                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no text in response"))?
-                .to_owned();
+            let text = crate::provider_runtime::anthropic_text_content(&content_arr)
+                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no text in response"))?;
             return Ok(crate::provider_runtime::completion_result(
                 text,
                 executed_calls,
@@ -68,20 +57,17 @@ pub(crate) fn complete(
 
         let mut tool_results = Vec::with_capacity(tool_uses.len());
         for tc in &tool_uses {
-            let name = tc["name"].as_str().unwrap_or("");
-            let input = &tc["input"];
-            let id = tc["id"].as_str().unwrap_or("");
             let result =
-                crate::provider_runtime::dispatch_tool_dedup(name, input, &mut seen_hashes);
+                crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
             crate::provider_runtime::push_executed_call(
                 &mut executed_calls,
-                name,
-                input.clone(),
+                &tc.name,
+                tc.input.clone(),
                 &result,
             );
-            tool_results.push(
-                serde_json::json!({"type": "tool_result", "tool_use_id": id, "content": result}),
-            );
+            tool_results.push(crate::provider_runtime::anthropic_tool_result(
+                &tc.id, result,
+            ));
         }
         crate::provider_runtime::append_anthropic_tool_results_message(
             &mut wire_msgs,

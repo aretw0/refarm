@@ -11,15 +11,7 @@ pub(crate) fn complete(
 
     let max_iter = crate::provider_runtime::tool_loop_max_iter();
 
-    let mut wire_msgs: Vec<serde_json::Value> = {
-        let mut v = vec![serde_json::json!({"role": "system", "content": system})];
-        v.extend(
-            messages
-                .iter()
-                .map(|(r, c)| serde_json::json!({"role": r, "content": c})),
-        );
-        v
-    };
+    let mut wire_msgs = crate::provider_runtime::initial_openai_wire_messages(system, messages);
 
     let mut usage_totals = crate::provider_runtime::UsageTotals::default();
     let mut executed_calls: Vec<serde_json::Value> = Vec::new();
@@ -42,17 +34,15 @@ pub(crate) fn complete(
         usage_totals.ingest_openai_usage(usage);
 
         let msg = &v["choices"][0]["message"];
-        let tool_calls_json = msg["tool_calls"].as_array().cloned().unwrap_or_default();
+        let tool_calls_json = crate::provider_runtime::openai_tool_calls_array(msg);
 
         if crate::provider_runtime::should_terminate_tool_loop(
             !tool_calls_json.is_empty(),
             iter_idx,
             max_iter,
         ) {
-            let content = msg["content"]
-                .as_str()
-                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no content"))?
-                .to_owned();
+            let content = crate::provider_runtime::openai_message_content(msg)
+                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no content"))?;
             return Ok(crate::provider_runtime::completion_result(
                 content,
                 executed_calls,
@@ -67,17 +57,17 @@ pub(crate) fn complete(
             &tool_calls_json,
         );
 
-        for tc in &tool_calls_json {
-            let fn_obj = &tc["function"];
-            let name = fn_obj["name"].as_str().unwrap_or("");
-            let input = crate::provider_runtime::parse_json_arguments(
-                fn_obj["arguments"].as_str().unwrap_or("{}"),
-            );
-            let id = tc["id"].as_str().unwrap_or("");
+        let parsed_calls = crate::provider_runtime::parse_openai_tool_calls(&tool_calls_json);
+        for tc in parsed_calls {
             let result =
-                crate::provider_runtime::dispatch_tool_dedup(name, &input, &mut seen_hashes);
-            crate::provider_runtime::push_executed_call(&mut executed_calls, name, input, &result);
-            crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, id, result);
+                crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
+            crate::provider_runtime::push_executed_call(
+                &mut executed_calls,
+                &tc.name,
+                tc.input,
+                &result,
+            );
+            crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, &tc.id, result);
         }
     }
     unreachable!()

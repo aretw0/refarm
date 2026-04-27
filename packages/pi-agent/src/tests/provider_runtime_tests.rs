@@ -244,3 +244,98 @@ fn provider_runtime_headers_include_content_type() {
         .iter()
         .any(|(k, v)| k == "content-type" && v == "application/json"));
 }
+
+#[test]
+fn provider_runtime_initial_anthropic_wire_messages_maps_history() {
+    let msgs = vec![
+        ("user".to_string(), "a".to_string()),
+        ("assistant".to_string(), "b".to_string()),
+    ];
+    let wire = crate::provider_runtime::initial_anthropic_wire_messages(&msgs);
+
+    assert_eq!(wire.len(), 2);
+    assert_eq!(wire[0]["role"], "user");
+    assert_eq!(wire[1]["content"], "b");
+}
+
+#[test]
+fn provider_runtime_initial_openai_wire_messages_prepends_system() {
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let wire = crate::provider_runtime::initial_openai_wire_messages("sys", &msgs);
+
+    assert_eq!(wire.len(), 2);
+    assert_eq!(wire[0]["role"], "system");
+    assert_eq!(wire[0]["content"], "sys");
+    assert_eq!(wire[1]["role"], "user");
+}
+
+#[test]
+fn provider_runtime_anthropic_content_array_defaults_to_empty() {
+    let v = serde_json::json!({});
+    let arr = crate::provider_runtime::anthropic_content_array(&v);
+    assert!(arr.is_empty());
+}
+
+#[test]
+fn provider_runtime_openai_tool_calls_array_defaults_to_empty() {
+    let msg = serde_json::json!({});
+    let arr = crate::provider_runtime::openai_tool_calls_array(&msg);
+    assert!(arr.is_empty());
+}
+
+#[test]
+fn provider_runtime_parse_anthropic_tool_uses_extracts_fields() {
+    let content_arr = vec![
+        serde_json::json!({"type":"text","text":"x"}),
+        serde_json::json!({"type":"tool_use","name":"read_file","input":{"path":"README.md"},"id":"t1"}),
+    ];
+    let parsed = crate::provider_runtime::parse_anthropic_tool_uses(&content_arr);
+
+    assert_eq!(parsed.len(), 1);
+    assert_eq!(parsed[0].name, "read_file");
+    assert_eq!(parsed[0].input["path"], "README.md");
+    assert_eq!(parsed[0].id, "t1");
+}
+
+#[test]
+fn provider_runtime_anthropic_text_content_prefers_text_block() {
+    let content_arr = vec![
+        serde_json::json!({"type":"tool_use","name":"x"}),
+        serde_json::json!({"type":"text","text":"done"}),
+    ];
+    assert_eq!(
+        crate::provider_runtime::anthropic_text_content(&content_arr).unwrap(),
+        "done"
+    );
+}
+
+#[test]
+fn provider_runtime_parse_openai_tool_calls_extracts_fields() {
+    let tool_calls = vec![serde_json::json!({
+        "id":"call_1",
+        "function":{"name":"read_file","arguments":"{\"path\":\"Cargo.toml\"}"}
+    })];
+    let parsed = crate::provider_runtime::parse_openai_tool_calls(&tool_calls);
+
+    assert_eq!(parsed.len(), 1);
+    assert_eq!(parsed[0].name, "read_file");
+    assert_eq!(parsed[0].input["path"], "Cargo.toml");
+    assert_eq!(parsed[0].id, "call_1");
+}
+
+#[test]
+fn provider_runtime_openai_message_content_reads_string() {
+    let msg = serde_json::json!({"content":"final"});
+    assert_eq!(
+        crate::provider_runtime::openai_message_content(&msg).unwrap(),
+        "final"
+    );
+}
+
+#[test]
+fn provider_runtime_anthropic_tool_result_shape() {
+    let r = crate::provider_runtime::anthropic_tool_result("id-1", "ok".to_string());
+    assert_eq!(r["type"], "tool_result");
+    assert_eq!(r["tool_use_id"], "id-1");
+    assert_eq!(r["content"], "ok");
+}
