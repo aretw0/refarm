@@ -896,6 +896,39 @@ fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter()
 }
 
 #[test]
+fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
+    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "4");
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let cfg = crate::provider_runtime::anthropic_runner_config("m", "s", &msgs);
+    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+
+    assert_eq!(cfg.model, "m");
+    assert_eq!(cfg.system, "s");
+    assert_eq!(cfg.plan.max_iter, 4);
+    assert_eq!(cfg.headers[0].0, "content-type");
+}
+
+#[test]
+fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
+    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "6");
+    let msgs = vec![("user".to_string(), "hello".to_string())];
+    let cfg = crate::provider_runtime::openai_runner_config(
+        "openai",
+        "http://localhost:11434",
+        "gpt-x",
+        "sys",
+        &msgs,
+    );
+    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+
+    assert_eq!(cfg.provider, "openai");
+    assert_eq!(cfg.base_url, "http://localhost:11434");
+    assert_eq!(cfg.model, "gpt-x");
+    assert_eq!(cfg.plan.max_iter, 6);
+    assert_eq!(cfg.headers[0].0, "content-type");
+}
+
+#[test]
 fn provider_runtime_run_completion_loop_with_returns_text_and_final_state() {
     let state = crate::provider_runtime::provider_loop_state(Vec::new());
 

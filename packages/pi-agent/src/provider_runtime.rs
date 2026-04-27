@@ -173,6 +173,21 @@ pub(crate) struct ProviderLoopPlan {
     pub state: ProviderLoopState,
 }
 
+pub(crate) struct AnthropicRunnerConfig<'a> {
+    pub model: &'a str,
+    pub system: &'a str,
+    pub headers: Vec<(String, String)>,
+    pub plan: ProviderLoopPlan,
+}
+
+pub(crate) struct OpenAiRunnerConfig<'a> {
+    pub provider: &'a str,
+    pub base_url: &'a str,
+    pub model: &'a str,
+    pub headers: Vec<(String, String)>,
+    pub plan: ProviderLoopPlan,
+}
+
 pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
     ProviderLoopState {
         wire_msgs: initial_wire_msgs,
@@ -219,6 +234,35 @@ pub(crate) fn openai_loop_plan(
         initial_openai_wire_messages(system, messages),
         tool_loop_max_iter(),
     )
+}
+
+pub(crate) fn anthropic_runner_config<'a>(
+    model: &'a str,
+    system: &'a str,
+    messages: &[(String, String)],
+) -> AnthropicRunnerConfig<'a> {
+    AnthropicRunnerConfig {
+        model,
+        system,
+        headers: anthropic_headers(),
+        plan: anthropic_loop_plan(messages),
+    }
+}
+
+pub(crate) fn openai_runner_config<'a>(
+    provider: &'a str,
+    base_url: &'a str,
+    model: &'a str,
+    system: &str,
+    messages: &[(String, String)],
+) -> OpenAiRunnerConfig<'a> {
+    OpenAiRunnerConfig {
+        provider,
+        base_url,
+        model,
+        headers: openai_compat_headers(),
+        plan: openai_loop_plan(system, messages),
+    }
 }
 
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
@@ -848,16 +892,15 @@ pub(crate) fn run_anthropic_completion_loop(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
-    let hdrs = anthropic_headers();
-    let plan = anthropic_loop_plan(messages);
+    let config = anthropic_runner_config(model, system, messages);
     let outcome = run_completion_loop_from_plan_with(
-        plan,
+        config.plan,
         |state| {
             anthropic_iteration_response_and_phase(
-                model,
-                system,
+                config.model,
+                config.system,
                 &state.wire_msgs,
-                &hdrs,
+                &config.headers,
                 &mut state.usage_totals,
             )
         },
@@ -883,17 +926,16 @@ pub(crate) fn run_openai_completion_loop(
     system: &str,
     messages: &[(String, String)],
 ) -> Result<crate::provider::CompletionResult, String> {
-    let headers = openai_compat_headers();
-    let plan = openai_loop_plan(system, messages);
+    let config = openai_runner_config(provider, base_url, model, system, messages);
     let outcome = run_completion_loop_from_plan_with(
-        plan,
+        config.plan,
         |state| {
             openai_iteration_response_and_phase(
-                provider,
-                base_url,
-                model,
+                config.provider,
+                config.base_url,
+                config.model,
                 &state.wire_msgs,
-                &headers,
+                &config.headers,
                 &mut state.usage_totals,
             )
         },
