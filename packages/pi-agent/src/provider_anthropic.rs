@@ -41,16 +41,12 @@ pub(crate) fn complete(
 
         crate::provider_runtime::append_anthropic_assistant_message(&mut wire_msgs, &content_arr);
 
-        let mut tool_results = Vec::with_capacity(tool_uses.len());
-        for tc in &tool_uses {
-            let result =
-                crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
-            tool_results.push(crate::provider_runtime::record_anthropic_tool_execution(
-                &mut executed_calls,
-                tc,
-                &result,
-            ));
-        }
+        let tool_results = crate::provider_runtime::execute_anthropic_tools_with(
+            &tool_uses,
+            &mut executed_calls,
+            &mut seen_hashes,
+            crate::provider_runtime::dispatch_tool_dedup,
+        );
         crate::provider_runtime::append_anthropic_tool_results_message(
             &mut wire_msgs,
             tool_results,

@@ -48,16 +48,13 @@ pub(crate) fn complete(
         );
 
         let parsed_calls = crate::provider_runtime::parse_openai_tool_calls(&tool_calls_json);
-        for tc in parsed_calls {
-            let result =
-                crate::provider_runtime::dispatch_tool_dedup(&tc.name, &tc.input, &mut seen_hashes);
-            crate::provider_runtime::record_openai_tool_execution(
-                &mut executed_calls,
-                &tc,
-                &result,
-            );
-            crate::provider_runtime::append_openai_tool_message(&mut wire_msgs, &tc.id, result);
-        }
+        let tool_messages = crate::provider_runtime::execute_openai_tools_with(
+            &parsed_calls,
+            &mut executed_calls,
+            &mut seen_hashes,
+            crate::provider_runtime::dispatch_tool_dedup,
+        );
+        crate::provider_runtime::append_openai_tool_messages(&mut wire_msgs, tool_messages);
     }
     unreachable!()
 }

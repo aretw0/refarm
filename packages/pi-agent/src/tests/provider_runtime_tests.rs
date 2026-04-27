@@ -449,3 +449,72 @@ fn provider_runtime_record_openai_tool_execution_updates_calls() {
     assert_eq!(executed_calls[0]["input"]["pattern"], "TODO");
     assert_eq!(executed_calls[0]["result"], "done");
 }
+
+#[test]
+fn provider_runtime_execute_anthropic_tools_with_dispatches_and_records() {
+    let tool_uses = vec![crate::provider_runtime::ParsedAnthropicToolUse {
+        name: "read_file".to_string(),
+        input: serde_json::json!({"path":"README.md"}),
+        id: "tool-1".to_string(),
+    }];
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    let results = crate::provider_runtime::execute_anthropic_tools_with(
+        &tool_uses,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["path"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0]["tool_use_id"], "tool-1");
+    assert_eq!(results[0]["content"], "read_file:README.md");
+    assert_eq!(executed_calls.len(), 1);
+    assert_eq!(executed_calls[0]["name"], "read_file");
+}
+
+#[test]
+fn provider_runtime_execute_openai_tools_with_dispatches_and_records() {
+    let parsed_calls = vec![crate::provider_runtime::ParsedOpenAiToolCall {
+        name: "search_files".to_string(),
+        input: serde_json::json!({"pattern":"TODO"}),
+        id: "call-9".to_string(),
+    }];
+    let mut executed_calls = Vec::new();
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    let tool_messages = crate::provider_runtime::execute_openai_tools_with(
+        &parsed_calls,
+        &mut executed_calls,
+        &mut seen_hashes,
+        |name, input, _| format!("{name}:{}", input["pattern"].as_str().unwrap_or("")),
+    );
+
+    assert_eq!(tool_messages.len(), 1);
+    assert_eq!(tool_messages[0].id, "call-9");
+    assert_eq!(tool_messages[0].content, "search_files:TODO");
+    assert_eq!(executed_calls.len(), 1);
+    assert_eq!(executed_calls[0]["name"], "search_files");
+}
+
+#[test]
+fn provider_runtime_append_openai_tool_messages_appends_all() {
+    let mut wire_msgs = Vec::new();
+    let tool_messages = vec![
+        crate::provider_runtime::OpenAiToolMessage {
+            id: "call-1".to_string(),
+            content: "first".to_string(),
+        },
+        crate::provider_runtime::OpenAiToolMessage {
+            id: "call-2".to_string(),
+            content: "second".to_string(),
+        },
+    ];
+
+    crate::provider_runtime::append_openai_tool_messages(&mut wire_msgs, tool_messages);
+
+    assert_eq!(wire_msgs.len(), 2);
+    assert_eq!(wire_msgs[0]["tool_call_id"], "call-1");
+    assert_eq!(wire_msgs[1]["content"], "second");
+}
