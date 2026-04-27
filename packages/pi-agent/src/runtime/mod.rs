@@ -1,8 +1,11 @@
+mod native_stub;
 mod policy;
 #[cfg(target_arch = "wasm32")]
 mod prompt_handler;
 mod react_loop;
 mod types;
+#[cfg(target_arch = "wasm32")]
+mod wasm_flow;
 
 pub(crate) use react_loop::react;
 #[allow(unused_imports)]

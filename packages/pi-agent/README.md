@@ -171,7 +171,7 @@ This is the "let the plugin be the plugin" model from
 ### Source layout (modular primitives)
 
 - `src/lib.rs` — plugin wiring + event entrypoint
-- `src/runtime/` — prompt pipeline orchestration split by concern (`react_loop.rs`, `policy.rs`, `types.rs`, `prompt_handler.rs`)
+- `src/runtime/` — prompt pipeline orchestration split by concern (`react_loop.rs`, `wasm_flow.rs`, `native_stub.rs`, `policy.rs`, `types.rs`, `prompt_handler.rs`)
 - `src/session/` — session primitives split into pure + wasm ops (`pure.rs`, `wasm_ops.rs`)
 - `src/provider.rs` — provider selection/facade (`Provider::from_env`, `complete`)
 - `src/provider_config.rs` — pure provider defaults/model selection primitives
