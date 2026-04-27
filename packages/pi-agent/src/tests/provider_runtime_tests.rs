@@ -1875,3 +1875,149 @@ fn provider_runtime_contract_and_state_primitives_non_dispatch_paths_are_equival
     );
     assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
 }
+
+#[test]
+fn provider_runtime_contract_and_state_dispatch_max_iter_termination_are_equivalent() {
+    let mk_common = || {
+        crate::provider_runtime::provider_runner_common_config(
+            "model-eq-max-dispatch",
+            vec![("hmx".to_string(), "vmx".to_string())],
+            crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 2),
+        )
+    };
+
+    let mut state_calls = 0_u32;
+    let state_out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch(
+        mk_common(),
+        "ctx-max-dispatch",
+        |_ctx, _model, _headers, _wire_msgs, usage_totals| {
+            state_calls += 1;
+            usage_totals.tokens_out += 1;
+            Ok((serde_json::json!({"iter": state_calls}), 61_u8))
+        },
+        |state, _phase, iter_idx, max_iter, response, dispatch| {
+            if iter_idx == max_iter {
+                Ok(Some(format!("done-max-dispatch-{iter_idx}-{}", response["iter"])))
+            } else {
+                *dispatch += 1;
+                state
+                    .wire_msgs
+                    .push(serde_json::json!({"role": "assistant", "iter": iter_idx}));
+                Ok(None)
+            }
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    let mut contract_calls = 0_u32;
+    let contract_out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch(
+        mk_common(),
+        "ctx-max-dispatch",
+        |_ctx, _model, _headers, state| {
+            contract_calls += 1;
+            state.usage_totals.tokens_out += 1;
+            Ok(crate::provider_runtime::provider_response_phase_contract(
+                serde_json::json!({"iter": contract_calls}),
+                61_u8,
+            ))
+        },
+        |_ctx, state, contract, dispatch| {
+            if contract.iter_idx == contract.max_iter {
+                Ok(Some(format!(
+                    "done-max-dispatch-{}-{}",
+                    contract.iter_idx, contract.response["iter"]
+                )))
+            } else {
+                *dispatch += 1;
+                state.wire_msgs.push(serde_json::json!({
+                    "role": "assistant",
+                    "iter": contract.iter_idx
+                }));
+                Ok(None)
+            }
+        },
+        0_u32,
+    )
+    .unwrap();
+
+    assert_eq!(state_out.text, contract_out.text);
+    assert_eq!(state_out.response, contract_out.response);
+    assert_eq!(state_out.state.usage_totals.tokens_out, 3);
+    assert_eq!(
+        state_out.state.usage_totals.tokens_out,
+        contract_out.state.usage_totals.tokens_out
+    );
+    assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
+}
+
+#[test]
+fn provider_runtime_contract_and_state_non_dispatch_max_iter_termination_are_equivalent() {
+    let mk_common = || {
+        crate::provider_runtime::provider_runner_common_config(
+            "model-eq-max-no-dispatch",
+            vec![("hmn".to_string(), "vmn".to_string())],
+            crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 2),
+        )
+    };
+
+    let mut state_calls = 0_u32;
+    let state_out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_state_primitives(
+        mk_common(),
+        "ctx-max-no-dispatch",
+        |_ctx, _model, _headers, _wire_msgs, usage_totals| {
+            state_calls += 1;
+            usage_totals.tokens_reasoning += 1;
+            Ok((serde_json::json!({"iter": state_calls}), 71_u8))
+        },
+        |state, _phase, iter_idx, max_iter, response| {
+            if iter_idx == max_iter {
+                Ok(Some(format!("done-max-no-dispatch-{iter_idx}-{}", response["iter"])))
+            } else {
+                state
+                    .wire_msgs
+                    .push(serde_json::json!({"role": "assistant", "iter": iter_idx}));
+                Ok(None)
+            }
+        },
+    )
+    .unwrap();
+
+    let mut contract_calls = 0_u32;
+    let contract_out = crate::provider_runtime::run_completion_loop_from_common_config_and_context_with_contract_primitives(
+        mk_common(),
+        "ctx-max-no-dispatch",
+        |_ctx, _model, _headers, state| {
+            contract_calls += 1;
+            state.usage_totals.tokens_reasoning += 1;
+            Ok(crate::provider_runtime::provider_response_phase_contract(
+                serde_json::json!({"iter": contract_calls}),
+                71_u8,
+            ))
+        },
+        |_ctx, state, contract| {
+            if contract.iter_idx == contract.max_iter {
+                Ok(Some(format!(
+                    "done-max-no-dispatch-{}-{}",
+                    contract.iter_idx, contract.response["iter"]
+                )))
+            } else {
+                state.wire_msgs.push(serde_json::json!({
+                    "role": "assistant",
+                    "iter": contract.iter_idx
+                }));
+                Ok(None)
+            }
+        },
+    )
+    .unwrap();
+
+    assert_eq!(state_out.text, contract_out.text);
+    assert_eq!(state_out.response, contract_out.response);
+    assert_eq!(state_out.state.usage_totals.tokens_reasoning, 3);
+    assert_eq!(
+        state_out.state.usage_totals.tokens_reasoning,
+        contract_out.state.usage_totals.tokens_reasoning
+    );
+    assert_eq!(state_out.state.wire_msgs, contract_out.state.wire_msgs);
+}
