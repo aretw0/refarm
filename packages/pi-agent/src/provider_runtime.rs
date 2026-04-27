@@ -688,7 +688,7 @@ pub(crate) fn run_completion_loop_with<P, FR, FS>(
     mut state: ProviderLoopState,
     mut response_and_phase: FR,
     mut step: FS,
-) -> Result<(ProviderLoopState, serde_json::Value, String), String>
+) -> Result<CompletionLoopOutcome, String>
 where
     FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
     FS: FnMut(
@@ -702,10 +702,20 @@ where
     for iter_idx in 0..=max_iter {
         let (response, phase) = response_and_phase(&mut state)?;
         if let Some(text) = step(&mut state, &phase, iter_idx, max_iter, &response)? {
-            return Ok((state, response, text));
+            return Ok(CompletionLoopOutcome {
+                state,
+                response,
+                text,
+            });
         }
     }
     unreachable!()
+}
+
+pub(crate) struct CompletionLoopOutcome {
+    pub state: ProviderLoopState,
+    pub response: serde_json::Value,
+    pub text: String,
 }
 
 #[derive(Default)]
@@ -775,6 +785,13 @@ pub(crate) fn finalize_completion_from_response(
 }
 
 #[cfg(target_arch = "wasm32")]
+pub(crate) fn finalize_completion_from_outcome(
+    outcome: CompletionLoopOutcome,
+) -> crate::provider::CompletionResult {
+    finalize_completion_from_response(outcome.text, &outcome.response, outcome.state)
+}
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn run_anthropic_completion_loop(
     model: &str,
     system: &str,
@@ -783,7 +800,7 @@ pub(crate) fn run_anthropic_completion_loop(
     let hdrs = anthropic_headers();
     let max_iter = tool_loop_max_iter();
     let state = anthropic_loop_state(messages);
-    let (state, response, text) = run_completion_loop_with(
+    let outcome = run_completion_loop_with(
         max_iter,
         state,
         |state| {
@@ -806,7 +823,7 @@ pub(crate) fn run_anthropic_completion_loop(
             )
         },
     )?;
-    Ok(finalize_completion_from_response(text, &response, state))
+    Ok(finalize_completion_from_outcome(outcome))
 }
 
 #[cfg(target_arch = "wasm32")]
@@ -820,7 +837,7 @@ pub(crate) fn run_openai_completion_loop(
     let headers = openai_compat_headers();
     let max_iter = tool_loop_max_iter();
     let state = openai_loop_state(system, messages);
-    let (state, response, text) = run_completion_loop_with(
+    let outcome = run_completion_loop_with(
         max_iter,
         state,
         |state| {
@@ -844,5 +861,5 @@ pub(crate) fn run_openai_completion_loop(
             )
         },
     )?;
-    Ok(finalize_completion_from_response(text, &response, state))
+    Ok(finalize_completion_from_outcome(outcome))
 }
