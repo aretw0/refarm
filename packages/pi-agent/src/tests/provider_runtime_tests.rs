@@ -153,6 +153,29 @@ fn provider_runtime_should_continue_tool_loop_when_calls_and_not_max() {
 }
 
 #[test]
+fn provider_runtime_completion_text_if_terminate_returns_none_when_continuing() {
+    let v = crate::provider_runtime::completion_text_if_terminate(true, 1, 5, Ok("ok".to_string()))
+        .unwrap();
+    assert!(v.is_none());
+}
+
+#[test]
+fn provider_runtime_completion_text_if_terminate_returns_text_when_terminating() {
+    let v =
+        crate::provider_runtime::completion_text_if_terminate(false, 0, 5, Ok("done".to_string()))
+            .unwrap();
+    assert_eq!(v.unwrap(), "done");
+}
+
+#[test]
+fn provider_runtime_completion_text_if_terminate_propagates_error() {
+    let err =
+        crate::provider_runtime::completion_text_if_terminate(false, 0, 5, Err("boom".to_string()))
+            .unwrap_err();
+    assert_eq!(err, "boom");
+}
+
+#[test]
 fn provider_runtime_error_message_uses_fallback_when_missing() {
     let v = serde_json::json!({});
     assert_eq!(

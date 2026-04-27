@@ -25,12 +25,12 @@ pub(crate) fn complete(
         let content_arr = crate::provider_runtime::anthropic_content_array(&v);
         let tool_uses = crate::provider_runtime::parse_anthropic_tool_uses(&content_arr);
 
-        if crate::provider_runtime::should_terminate_tool_loop(
+        if let Some(text) = crate::provider_runtime::completion_text_if_terminate(
             !tool_uses.is_empty(),
             iter_idx,
             max_iter,
-        ) {
-            let text = crate::provider_runtime::require_anthropic_text_content(&content_arr, &v)?;
+            crate::provider_runtime::require_anthropic_text_content(&content_arr, &v),
+        )? {
             return Ok(crate::provider_runtime::completion_result_from_response(
                 text,
                 executed_calls,

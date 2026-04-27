@@ -27,12 +27,12 @@ pub(crate) fn complete(
         let msg = crate::provider_runtime::openai_choice_message(&v);
         let tool_calls_json = crate::provider_runtime::openai_tool_calls_array(msg);
 
-        if crate::provider_runtime::should_terminate_tool_loop(
+        if let Some(content) = crate::provider_runtime::completion_text_if_terminate(
             !tool_calls_json.is_empty(),
             iter_idx,
             max_iter,
-        ) {
-            let content = crate::provider_runtime::require_openai_message_content(msg, &v)?;
+            crate::provider_runtime::require_openai_message_content(msg, &v),
+        )? {
             return Ok(crate::provider_runtime::completion_result_from_response(
                 content,
                 executed_calls,
