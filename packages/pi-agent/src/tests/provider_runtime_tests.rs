@@ -399,6 +399,52 @@ fn provider_runtime_openai_step_text_or_advance_with_advances_when_continuing() 
 }
 
 #[test]
+fn provider_runtime_step_text_or_advance_with_returns_text_when_terminated() {
+    let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
+    let phase = 0_u8;
+    let response = serde_json::json!({"ok": true});
+
+    let out = crate::provider_runtime::step_text_or_advance_with(
+        &mut state,
+        &phase,
+        0,
+        5,
+        &response,
+        |_phase, _iter, _max, _response| Ok(Some("done".to_string())),
+        |_state, _phase| panic!("advance should not run"),
+    )
+    .unwrap();
+
+    assert_eq!(out, Some("done".to_string()));
+}
+
+#[test]
+fn provider_runtime_step_text_or_advance_with_advances_when_continuing() {
+    let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
+    let phase = 9_u8;
+    let response = serde_json::json!({"ok": true});
+
+    let out = crate::provider_runtime::step_text_or_advance_with(
+        &mut state,
+        &phase,
+        0,
+        5,
+        &response,
+        |_phase, _iter, _max, _response| Ok(None),
+        |state, phase| {
+            state
+                .executed_calls
+                .push(serde_json::json!({"phase": phase}));
+        },
+    )
+    .unwrap();
+
+    assert!(out.is_none());
+    assert_eq!(state.executed_calls.len(), 1);
+    assert_eq!(state.executed_calls[0]["phase"], 9);
+}
+
+#[test]
 fn provider_runtime_anthropic_step_from_phase_with_dispatch_advances_when_continuing() {
     let mut state = crate::provider_runtime::anthropic_loop_state(&[]);
     let response = serde_json::json!({
