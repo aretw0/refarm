@@ -313,6 +313,56 @@ pub(crate) fn openai_completion_text_if_terminate(
     )
 }
 
+pub(crate) fn anthropic_step_text_or_advance_with<F>(
+    state: &mut ProviderLoopState,
+    phase: &AnthropicIterationPhase,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &serde_json::Value,
+    dispatch: F,
+) -> Result<Option<String>, String>
+where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    if let Some(text) = anthropic_completion_text_if_terminate(phase, iter_idx, max_iter, response)? {
+        return Ok(Some(text));
+    }
+
+    advance_anthropic_tool_phase_from_phase_with(
+        &mut state.wire_msgs,
+        phase,
+        &mut state.executed_calls,
+        &mut state.seen_hashes,
+        dispatch,
+    );
+    Ok(None)
+}
+
+pub(crate) fn openai_step_text_or_advance_with<F>(
+    state: &mut ProviderLoopState,
+    phase: &OpenAiIterationPhase,
+    iter_idx: u32,
+    max_iter: u32,
+    response: &serde_json::Value,
+    dispatch: F,
+) -> Result<Option<String>, String>
+where
+    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
+{
+    if let Some(text) = openai_completion_text_if_terminate(phase, iter_idx, max_iter, response)? {
+        return Ok(Some(text));
+    }
+
+    advance_openai_tool_phase_from_phase_with(
+        &mut state.wire_msgs,
+        phase,
+        &mut state.executed_calls,
+        &mut state.seen_hashes,
+        dispatch,
+    );
+    Ok(None)
+}
+
 pub(crate) fn openai_message_content(msg: &serde_json::Value) -> Option<String> {
     msg["content"].as_str().map(ToOwned::to_owned)
 }

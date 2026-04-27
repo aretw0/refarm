@@ -256,6 +256,62 @@ fn provider_runtime_openai_completion_text_if_terminate_returns_none_when_tool_c
 }
 
 #[test]
+fn provider_runtime_anthropic_step_text_or_advance_with_returns_text_on_terminate() {
+    let mut state = crate::provider_runtime::anthropic_loop_state(&[]);
+    let v = serde_json::json!({
+        "content": [{"type":"text","text":"done"}]
+    });
+    let phase = crate::provider_runtime::anthropic_iteration_phase(&v);
+
+    let out = crate::provider_runtime::anthropic_step_text_or_advance_with(
+        &mut state,
+        &phase,
+        0,
+        5,
+        &v,
+        |_, _, _| "ignored".to_string(),
+    )
+    .unwrap();
+
+    assert_eq!(out.unwrap(), "done");
+    assert!(state.executed_calls.is_empty());
+    assert!(state.wire_msgs.is_empty());
+}
+
+#[test]
+fn provider_runtime_openai_step_text_or_advance_with_advances_when_continuing() {
+    let mut state = crate::provider_runtime::openai_loop_state("sys", &[]);
+    let v = serde_json::json!({
+        "choices": [{
+            "message": {
+                "content": "partial",
+                "tool_calls": [{
+                    "id":"call-1",
+                    "function":{"name":"search_files","arguments":"{\"pattern\":\"TODO\"}"}
+                }]
+            }
+        }]
+    });
+    let phase = crate::provider_runtime::openai_iteration_phase(&v);
+
+    let out = crate::provider_runtime::openai_step_text_or_advance_with(
+        &mut state,
+        &phase,
+        1,
+        5,
+        &v,
+        |name, input, _| format!("{name}:{}", input["pattern"].as_str().unwrap_or("")),
+    )
+    .unwrap();
+
+    assert!(out.is_none());
+    assert_eq!(state.wire_msgs.len(), 3);
+    assert_eq!(state.wire_msgs[1]["role"], "assistant");
+    assert_eq!(state.wire_msgs[2]["role"], "tool");
+    assert_eq!(state.executed_calls.len(), 1);
+}
+
+#[test]
 fn provider_runtime_error_message_uses_fallback_when_missing() {
     let v = serde_json::json!({});
     assert_eq!(

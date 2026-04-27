@@ -20,21 +20,18 @@ pub(crate) fn complete(
             &mut state.usage_totals,
         )?;
 
-        if let Some(text) = crate::provider_runtime::anthropic_completion_text_if_terminate(
-            &phase, iter_idx, max_iter, &v,
+        if let Some(text) = crate::provider_runtime::anthropic_step_text_or_advance_with(
+            &mut state,
+            &phase,
+            iter_idx,
+            max_iter,
+            &v,
+            crate::provider_runtime::dispatch_tool_dedup,
         )? {
             return Ok(crate::provider_runtime::finalize_completion_from_response(
                 text, &v, state,
             ));
         }
-
-        crate::provider_runtime::advance_anthropic_tool_phase_from_phase_with(
-            &mut state.wire_msgs,
-            &phase,
-            &mut state.executed_calls,
-            &mut state.seen_hashes,
-            crate::provider_runtime::dispatch_tool_dedup,
-        );
     }
     unreachable!()
 }

@@ -23,21 +23,18 @@ pub(crate) fn complete(
             &mut state.usage_totals,
         )?;
 
-        if let Some(content) = crate::provider_runtime::openai_completion_text_if_terminate(
-            &phase, iter_idx, max_iter, &v,
+        if let Some(content) = crate::provider_runtime::openai_step_text_or_advance_with(
+            &mut state,
+            &phase,
+            iter_idx,
+            max_iter,
+            &v,
+            crate::provider_runtime::dispatch_tool_dedup,
         )? {
             return Ok(crate::provider_runtime::finalize_completion_from_response(
                 content, &v, state,
             ));
         }
-
-        crate::provider_runtime::advance_openai_tool_phase_from_phase_with(
-            &mut state.wire_msgs,
-            &phase,
-            &mut state.executed_calls,
-            &mut state.seen_hashes,
-            crate::provider_runtime::dispatch_tool_dedup,
-        );
     }
     unreachable!()
 }
