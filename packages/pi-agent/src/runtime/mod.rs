@@ -2,6 +2,8 @@ mod native_stub;
 mod policy;
 #[cfg(target_arch = "wasm32")]
 mod prompt_handler;
+#[cfg(target_arch = "wasm32")]
+mod prompt_persistence;
 mod react_loop;
 mod types;
 #[cfg(target_arch = "wasm32")]
