@@ -5,6 +5,7 @@ mod request_flow;
 mod state_primitives;
 mod usage_finalize;
 mod wasm_runners;
+mod wire_bootstrap;
 
 pub(crate) use contracts::{
     provider_iteration_contract, provider_response_phase_contract_into_parts,
@@ -15,6 +16,7 @@ pub(crate) use contracts::{
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
 pub(crate) use loop_dispatch::run_completion_loop_from_common_config_and_context_with_dispatch;
 pub(crate) use request_flow::{anthropic_headers, openai_compat_headers};
+pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
 pub(crate) use request_flow::{
@@ -60,28 +62,6 @@ pub(crate) fn tool_loop_max_iter() -> u32 {
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(5)
-}
-
-pub(crate) fn initial_anthropic_wire_messages(
-    messages: &[(String, String)],
-) -> Vec<serde_json::Value> {
-    messages
-        .iter()
-        .map(|(role, content)| serde_json::json!({"role": role, "content": content}))
-        .collect()
-}
-
-pub(crate) fn initial_openai_wire_messages(
-    system: &str,
-    messages: &[(String, String)],
-) -> Vec<serde_json::Value> {
-    let mut v = vec![serde_json::json!({"role": "system", "content": system})];
-    v.extend(
-        messages
-            .iter()
-            .map(|(r, c)| serde_json::json!({"role": r, "content": c})),
-    );
-    v
 }
 
 pub(crate) struct ProviderLoopState {
