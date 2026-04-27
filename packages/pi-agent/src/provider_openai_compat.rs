@@ -60,15 +60,14 @@ pub(crate) fn complete(
         let msg = &v["choices"][0]["message"];
         let tool_calls_json = msg["tool_calls"].as_array().cloned().unwrap_or_default();
 
-        if tool_calls_json.is_empty() || iter_idx == max_iter {
+        if crate::provider_runtime::should_terminate_tool_loop(
+            !tool_calls_json.is_empty(),
+            iter_idx,
+            max_iter,
+        ) {
             let content = msg["content"]
                 .as_str()
-                .ok_or_else(|| {
-                    v["error"]["message"]
-                        .as_str()
-                        .unwrap_or("no content")
-                        .to_owned()
-                })?
+                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no content"))?
                 .to_owned();
             return Ok(crate::provider_runtime::completion_result(
                 content,

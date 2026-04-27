@@ -49,17 +49,16 @@ pub(crate) fn complete(
             .filter(|c| c["type"] == "tool_use")
             .collect();
 
-        if tool_uses.is_empty() || iter_idx == max_iter {
+        if crate::provider_runtime::should_terminate_tool_loop(
+            !tool_uses.is_empty(),
+            iter_idx,
+            max_iter,
+        ) {
             let text = content_arr
                 .iter()
                 .find(|c| c["type"] == "text")
                 .and_then(|c| c["text"].as_str())
-                .ok_or_else(|| {
-                    v["error"]["message"]
-                        .as_str()
-                        .unwrap_or("no text in response")
-                        .to_owned()
-                })?
+                .ok_or_else(|| crate::provider_runtime::error_message(&v, "no text in response"))?
                 .to_owned();
             return Ok(crate::provider_runtime::completion_result(
                 text,

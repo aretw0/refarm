@@ -84,3 +84,42 @@ fn provider_runtime_usage_totals_ingest_openai_fields() {
     assert_eq!(totals.tokens_cached, 7);
     assert_eq!(totals.tokens_reasoning, 2);
 }
+
+#[test]
+fn provider_runtime_should_terminate_tool_loop_when_no_calls() {
+    assert!(crate::provider_runtime::should_terminate_tool_loop(
+        false, 0, 5
+    ));
+}
+
+#[test]
+fn provider_runtime_should_terminate_tool_loop_when_max_iter_reached() {
+    assert!(crate::provider_runtime::should_terminate_tool_loop(
+        true, 5, 5
+    ));
+}
+
+#[test]
+fn provider_runtime_should_continue_tool_loop_when_calls_and_not_max() {
+    assert!(!crate::provider_runtime::should_terminate_tool_loop(
+        true, 2, 5
+    ));
+}
+
+#[test]
+fn provider_runtime_error_message_uses_fallback_when_missing() {
+    let v = serde_json::json!({});
+    assert_eq!(
+        crate::provider_runtime::error_message(&v, "fallback"),
+        "fallback"
+    );
+}
+
+#[test]
+fn provider_runtime_error_message_prefers_payload_message() {
+    let v = serde_json::json!({"error": {"message": "boom"}});
+    assert_eq!(
+        crate::provider_runtime::error_message(&v, "fallback"),
+        "boom"
+    );
+}
