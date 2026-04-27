@@ -677,6 +677,38 @@ fn provider_runtime_record_openai_tool_execution_updates_calls() {
 }
 
 #[test]
+fn provider_runtime_execute_tools_with_maps_results_in_order() {
+    let calls = vec!["a", "b"];
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    let out = crate::provider_runtime::execute_tools_with(
+        &calls,
+        &mut seen_hashes,
+        |call, _seen| format!("tool-{call}"),
+        |call, result| format!("{call}:{result}"),
+    );
+
+    assert_eq!(out, vec!["a:tool-a".to_string(), "b:tool-b".to_string()]);
+}
+
+#[test]
+fn provider_runtime_execute_tools_with_allows_seen_hash_updates() {
+    let calls = vec!["same", "same"];
+    let mut seen_hashes = std::collections::HashSet::new();
+
+    let out = crate::provider_runtime::execute_tools_with(
+        &calls,
+        &mut seen_hashes,
+        |call, seen| crate::provider_runtime::dedup_tool_output((*call).to_string(), seen),
+        |_call, result| result,
+    );
+
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0], "same");
+    assert!(out[1].contains("duplicate"));
+}
+
+#[test]
 fn provider_runtime_execute_anthropic_tools_with_dispatches_and_records() {
     let tool_uses = vec![crate::provider_runtime::ParsedAnthropicToolUse {
         name: "read_file".to_string(),
