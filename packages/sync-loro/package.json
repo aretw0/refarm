@@ -24,7 +24,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "loro-crdt": "^1.10.7",
+    "loro-crdt": "^1.12.0",
     "@refarm.dev/sync-contract-v1": "*",
     "@refarm.dev/storage-contract-v1": "*"
   },

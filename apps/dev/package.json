@@ -16,7 +16,7 @@
     "clean": "rm -rf dist .astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.2",
+    "@astrojs/check": "^0.9.8",
     "@refarm.dev/sower": "*",
     "@refarm.dev/scarecrow": "*",
     "@refarm.dev/sync-loro": "*",
@@ -25,11 +25,11 @@
     "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/ds": "*",
     "@refarm.dev/homestead": "*",
-    "astro": "^5.3.0"
+    "astro": "^6.1.9"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
-    "typescript": "^5.7.3",
+    "typescript": "^6.0.3",
     "@refarm.dev/tsconfig": "*"
   },
   "license": "MIT"

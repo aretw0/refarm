@@ -18,10 +18,10 @@
     "dev": "tsc --project tsconfig.build.json --watch"
   },
   "dependencies": {
-    "@noble/ed25519": "^3.0.0",
+    "@noble/ed25519": "^3.1.0",
     "@refarm.dev/config": "*",
     "http-node": "^1.2.0",
-    "isomorphic-git": "^1.37.4"
+    "isomorphic-git": "^1.37.6"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

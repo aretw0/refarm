@@ -42,7 +42,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@noble/ed25519": "^3.0.0",
+    "@noble/ed25519": "^3.1.0",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/plugin-manifest": "*",
     "@refarm.dev/registry": "*",
