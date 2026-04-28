@@ -86,6 +86,34 @@ Context engineering follows the pi-test-harness model:
 - [x] Move large unit suites out of `lib.rs` into `tests.rs` + `extensibility_contract.rs`
 - [x] Split `tests.rs` into domain submodules under `src/tests/` (compress, session, structured_io, provider/env, tools, usage, response nodes)
 
+### Execution lane (62% → 72%) — daily-driver unlock, architecture-first
+
+**Goal**: make Refarm/Farmhand a reliable daily driver with semantic refactor capability (not only prompt+tool orchestration).
+
+**Primary unlock lane (active now)**: tractor LSP bridge v1 + code-ops (`find-references`, `rename-symbol`).
+
+#### Definition of Done @72%
+- [ ] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
+- [ ] `find-references` wired end-to-end via rust-analyzer path.
+- [ ] `rename-symbol` wired end-to-end via rust-analyzer path.
+- [ ] Integration test: rename a Rust symbol via pi-agent/farmhand and assert workspace references update.
+- [ ] No regression on baseline gates:
+  - `cargo check --target wasm32-wasip1` in `packages/pi-agent`
+  - `cargo test --lib` in `packages/pi-agent`
+
+#### Process rules (pragmatic + verifiable)
+- [ ] Atomic slice discipline: one logical move per commit, conventional commit message.
+- [ ] Gate-per-slice discipline: run wasm check + lib tests before each mergeable slice.
+- [ ] Architecture-first review gate: every slice states what boundary became clearer and what coupling was reduced.
+- [ ] No parallel fronts before DoD: avoid starting streaming/rename/multi-agent expansions until LSP v1 is stable.
+- [ ] Backlog parking discipline: non-unlock work is recorded below and intentionally deferred.
+
+#### Parked backlog for after 72% (explicitly deferred to avoid retrabalho)
+- [ ] Package rename graduation (`pi-agent` → `farmhand`) and cross-repo reference sweep.
+- [ ] Streaming token output (`is_final=false/true`) and chunked delivery semantics.
+- [ ] Cross-plugin generalization pass (shared provider defaults/URN/tool API unification).
+- [ ] A2A protocol research + Zig host exploration.
+
 ### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
 - [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)
 - [x] Mock LLM: `TcpListener::bind(":0")` returns scripted OpenAI-compat JSON
