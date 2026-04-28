@@ -22,7 +22,7 @@ mod usage_finalize;
 mod usage_phase;
 mod wasm_anthropic;
 mod wasm_loop;
-mod wasm_runners;
+mod wasm_openai;
 mod wire_bootstrap;
 
 pub(crate) use contracts::{
@@ -151,7 +151,7 @@ pub(crate) use contract_loop::{
 #[cfg(target_arch = "wasm32")]
 pub(crate) use wasm_anthropic::run_anthropic_completion_loop;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use wasm_runners::run_openai_completion_loop;
+pub(crate) use wasm_openai::run_openai_completion_loop;
 
 #[cfg(test)]
 pub(crate) use state_adapters::{
