@@ -1,6 +1,6 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
-    request_builders::build_anthropic_body, request_flow::iteration_response_and_phase_with,
+    request_body::build_anthropic_body, request_flow::iteration_response_and_phase_with,
     request_http_wasm::execute_json_request, AnthropicIterationPhase, UsageTotals,
 };
 

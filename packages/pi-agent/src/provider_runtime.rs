@@ -32,7 +32,7 @@ mod openai_message;
 mod openai_phase;
 mod openai_step_phase;
 mod request_anthropic_wasm;
-mod request_builders;
+mod request_body;
 mod request_flow;
 mod request_headers;
 mod request_http_wasm;
@@ -168,7 +168,7 @@ pub(crate) use tool_wire::{
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
-pub(crate) use request_builders::{build_anthropic_body, build_openai_body};
+pub(crate) use request_body::{build_anthropic_body, build_openai_body};
 #[cfg(test)]
 pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
