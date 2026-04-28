@@ -20,6 +20,7 @@ mod tool_phase;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
+mod wasm_anthropic;
 mod wasm_loop;
 mod wasm_runners;
 mod wire_bootstrap;
@@ -148,7 +149,9 @@ pub(crate) use contract_loop::{
     run_completion_loop_from_common_config_with_contract_primitives_and_dispatch,
 };
 #[cfg(target_arch = "wasm32")]
-pub(crate) use wasm_runners::{run_anthropic_completion_loop, run_openai_completion_loop};
+pub(crate) use wasm_anthropic::run_anthropic_completion_loop;
+#[cfg(target_arch = "wasm32")]
+pub(crate) use wasm_runners::run_openai_completion_loop;
 
 #[cfg(test)]
 pub(crate) use state_adapters::{
