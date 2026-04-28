@@ -5,8 +5,10 @@ mod loop_dispatch;
 mod phase_primitives;
 mod request_flow;
 mod state_primitives;
+mod step_phase;
 mod tool_phase;
 mod usage_finalize;
+mod usage_phase;
 mod wasm_runners;
 mod wire_bootstrap;
 
@@ -36,8 +38,18 @@ pub(crate) use phase_primitives::{
     openai_completion_text_if_terminate, openai_iteration_phase, AnthropicIterationPhase,
     OpenAiIterationPhase, ParsedAnthropicToolUse, ParsedOpenAiToolCall,
 };
+#[cfg(test)]
+pub(crate) use step_phase::{
+    anthropic_step_text_or_advance_with, openai_step_text_or_advance_with,
+    step_text_or_advance_with,
+};
 pub(crate) use tool_phase::{
     advance_anthropic_tool_phase_from_phase_with, advance_openai_tool_phase_from_phase_with,
+};
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use step_phase::{
+    anthropic_step_from_phase_with_dispatch, openai_step_from_phase_with_dispatch,
 };
 
 #[cfg(test)]
@@ -79,6 +91,15 @@ pub(crate) use loop_dispatch::{
 };
 pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
 pub(crate) use usage_finalize::UsageTotals;
+pub(crate) use usage_phase::{
+    anthropic_phase_after_usage, openai_phase_after_usage, response_usage,
+};
+
+#[cfg(test)]
+pub(crate) use usage_phase::{
+    ingest_anthropic_usage_from_response, ingest_openai_usage_from_response,
+    ingest_usage_from_response_with, phase_after_usage_with,
+};
 
 #[cfg(test)]
 pub(crate) use contract_loop::{
@@ -105,201 +126,6 @@ pub(crate) fn tool_loop_max_iter() -> u32 {
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(5)
-}
-
-pub(crate) fn anthropic_step_text_or_advance_with<F>(
-    state: &mut ProviderLoopState,
-    phase: &AnthropicIterationPhase,
-    iter_idx: u32,
-    max_iter: u32,
-    response: &serde_json::Value,
-    mut dispatch: F,
-) -> Result<Option<String>, String>
-where
-    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
-{
-    let dispatch_ref = &mut dispatch;
-    step_text_or_advance_with(
-        state,
-        phase,
-        iter_idx,
-        max_iter,
-        response,
-        anthropic_completion_text_if_terminate,
-        |state, phase| {
-            advance_anthropic_tool_phase_from_phase_with(
-                &mut state.wire_msgs,
-                phase,
-                &mut state.executed_calls,
-                &mut state.seen_hashes,
-                |name, input, seen_hashes| dispatch_ref(name, input, seen_hashes),
-            );
-        },
-    )
-}
-
-pub(crate) fn openai_step_text_or_advance_with<F>(
-    state: &mut ProviderLoopState,
-    phase: &OpenAiIterationPhase,
-    iter_idx: u32,
-    max_iter: u32,
-    response: &serde_json::Value,
-    mut dispatch: F,
-) -> Result<Option<String>, String>
-where
-    F: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
-{
-    let dispatch_ref = &mut dispatch;
-    step_text_or_advance_with(
-        state,
-        phase,
-        iter_idx,
-        max_iter,
-        response,
-        openai_completion_text_if_terminate,
-        |state, phase| {
-            advance_openai_tool_phase_from_phase_with(
-                &mut state.wire_msgs,
-                phase,
-                &mut state.executed_calls,
-                &mut state.seen_hashes,
-                |name, input, seen_hashes| dispatch_ref(name, input, seen_hashes),
-            );
-        },
-    )
-}
-
-pub(crate) fn step_text_or_advance_with<P, FC, FA>(
-    state: &mut ProviderLoopState,
-    phase: &P,
-    iter_idx: u32,
-    max_iter: u32,
-    response: &serde_json::Value,
-    mut completion_text_if_terminate_fn: FC,
-    mut advance_phase_fn: FA,
-) -> Result<Option<String>, String>
-where
-    FC: FnMut(&P, u32, u32, &serde_json::Value) -> Result<Option<String>, String>,
-    FA: FnMut(&mut ProviderLoopState, &P),
-{
-    if let Some(text) = completion_text_if_terminate_fn(phase, iter_idx, max_iter, response)? {
-        return Ok(Some(text));
-    }
-
-    advance_phase_fn(state, phase);
-    Ok(None)
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_step_from_phase_with_dispatch<D>(
-    state: &mut ProviderLoopState,
-    phase: &AnthropicIterationPhase,
-    iter_idx: u32,
-    max_iter: u32,
-    response: &serde_json::Value,
-    dispatch: &mut D,
-) -> Result<Option<String>, String>
-where
-    D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
-{
-    anthropic_step_text_or_advance_with(
-        state,
-        phase,
-        iter_idx,
-        max_iter,
-        response,
-        |name, input, seen_hashes| dispatch(name, input, seen_hashes),
-    )
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_step_from_phase_with_dispatch<D>(
-    state: &mut ProviderLoopState,
-    phase: &OpenAiIterationPhase,
-    iter_idx: u32,
-    max_iter: u32,
-    response: &serde_json::Value,
-    dispatch: &mut D,
-) -> Result<Option<String>, String>
-where
-    D: FnMut(&str, &serde_json::Value, &mut std::collections::HashSet<u64>) -> String,
-{
-    openai_step_text_or_advance_with(
-        state,
-        phase,
-        iter_idx,
-        max_iter,
-        response,
-        |name, input, seen_hashes| dispatch(name, input, seen_hashes),
-    )
-}
-
-pub(crate) fn response_usage(response: &serde_json::Value) -> &serde_json::Value {
-    &response["usage"]
-}
-
-pub(crate) fn ingest_usage_from_response_with<F>(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-    mut ingest: F,
-) where
-    F: FnMut(&mut UsageTotals, &serde_json::Value),
-{
-    ingest(totals, response_usage(response));
-}
-
-#[cfg(test)]
-pub(crate) fn ingest_anthropic_usage_from_response(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) {
-    ingest_usage_from_response_with(totals, response, UsageTotals::ingest_anthropic_usage);
-}
-
-pub(crate) fn anthropic_phase_after_usage(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) -> AnthropicIterationPhase {
-    phase_after_usage_with(
-        totals,
-        response,
-        UsageTotals::ingest_anthropic_usage,
-        anthropic_iteration_phase,
-    )
-}
-
-#[cfg(test)]
-pub(crate) fn ingest_openai_usage_from_response(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) {
-    ingest_usage_from_response_with(totals, response, UsageTotals::ingest_openai_usage);
-}
-
-pub(crate) fn openai_phase_after_usage(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) -> OpenAiIterationPhase {
-    phase_after_usage_with(
-        totals,
-        response,
-        UsageTotals::ingest_openai_usage,
-        openai_iteration_phase,
-    )
-}
-
-pub(crate) fn phase_after_usage_with<P, FU, FP>(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-    ingest_usage: FU,
-    mut phase_from_response: FP,
-) -> P
-where
-    FU: FnMut(&mut UsageTotals, &serde_json::Value),
-    FP: FnMut(&serde_json::Value) -> P,
-{
-    ingest_usage_from_response_with(totals, response, ingest_usage);
-    phase_from_response(response)
 }
 
 pub(crate) fn dedup_tool_output(
