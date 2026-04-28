@@ -18,6 +18,7 @@ mod state_adapters;
 #[cfg(test)]
 mod state_loop_tests;
 mod state_primitives;
+mod step_common;
 mod step_phase;
 mod tool_execution;
 mod tool_phase;
@@ -73,9 +74,10 @@ pub(crate) use openai_phase::{
     ParsedOpenAiToolCall,
 };
 #[cfg(test)]
+pub(crate) use step_common::step_text_or_advance_with;
+#[cfg(test)]
 pub(crate) use step_phase::{
     anthropic_step_text_or_advance_with, openai_step_text_or_advance_with,
-    step_text_or_advance_with,
 };
 pub(crate) use tool_phase::{
     advance_anthropic_tool_phase_from_phase_with, advance_openai_tool_phase_from_phase_with,
