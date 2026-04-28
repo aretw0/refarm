@@ -18,6 +18,8 @@ mod loop_dispatch_tests;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_plan_builders;
 #[cfg(any(test, target_arch = "wasm32"))]
+mod loop_runner_common;
+#[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_config;
 mod openai_tool_phase;
 mod output_dedup;
@@ -96,7 +98,7 @@ pub(crate) use loop_plan_builders::{
     anthropic_loop_plan, anthropic_loop_state, openai_loop_plan, openai_loop_state,
 };
 #[cfg(test)]
-pub(crate) use loop_runner_config::provider_runner_common_config;
+pub(crate) use loop_runner_common::provider_runner_common_config;
 pub(crate) use anthropic_phase::{
     anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
     ParsedAnthropicToolUse,

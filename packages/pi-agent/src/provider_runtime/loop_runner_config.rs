@@ -1,23 +1,10 @@
 use super::{
     anthropic_headers,
-    loop_config::{
-        AnthropicRunnerConfig, OpenAiRunnerConfig, ProviderLoopPlan, ProviderRunnerCommonConfig,
-    },
+    loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig},
     loop_plan_builders::{anthropic_loop_plan, openai_loop_plan},
+    loop_runner_common::provider_runner_common_config,
     openai_compat_headers,
 };
-
-pub(crate) fn provider_runner_common_config<'a>(
-    model: &'a str,
-    headers: Vec<(String, String)>,
-    plan: ProviderLoopPlan,
-) -> ProviderRunnerCommonConfig<'a> {
-    ProviderRunnerCommonConfig {
-        model,
-        headers,
-        plan,
-    }
-}
 
 
 pub(crate) fn anthropic_runner_config<'a>(
