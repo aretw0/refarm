@@ -21,6 +21,8 @@ mod loop_plan_builders;
 mod loop_runner_common;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_config;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod loop_runner_openai;
 mod openai_tool_phase;
 mod output_dedup;
 #[cfg(target_arch = "wasm32")]
@@ -84,7 +86,9 @@ pub(crate) use output_dedup::{dedup_tool_output, dispatch_and_dedup_with};
 pub(crate) use output_dedup_wasm::dispatch_tool_dedup;
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) use loop_runner_config::{anthropic_runner_config, openai_runner_config};
+pub(crate) use loop_runner_config::anthropic_runner_config;
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use loop_runner_openai::openai_runner_config;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
