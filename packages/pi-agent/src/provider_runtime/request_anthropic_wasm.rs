@@ -1,7 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
     request_anthropic_response_wasm::anthropic_iteration_response,
-    request_flow::iteration_response_and_phase_with, AnthropicIterationPhase, UsageTotals,
+    request_iteration::iteration_response_and_phase_with, AnthropicIterationPhase, UsageTotals,
 };
 
 #[cfg(target_arch = "wasm32")]

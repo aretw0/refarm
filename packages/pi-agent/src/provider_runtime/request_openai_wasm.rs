@@ -1,6 +1,6 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
-    request_flow::iteration_response_and_phase_with,
+    request_iteration::iteration_response_and_phase_with,
     request_openai_response_wasm::openai_iteration_response, OpenAiIterationPhase, UsageTotals,
 };
 #[cfg(target_arch = "wasm32")]
