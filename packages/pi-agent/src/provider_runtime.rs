@@ -1,5 +1,6 @@
 mod contract_loop;
 mod contracts;
+mod loop_config;
 mod loop_dispatch;
 mod phase_primitives;
 mod request_flow;
@@ -15,7 +16,20 @@ pub(crate) use contracts::{
 };
 
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
+pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState, ProviderRunnerCommonConfig};
 pub(crate) use loop_dispatch::run_completion_loop_from_common_config_and_context_with_dispatch;
+
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use loop_config::{anthropic_runner_config, openai_runner_config};
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
+
+#[cfg(test)]
+pub(crate) use loop_config::{
+    anthropic_loop_plan, anthropic_loop_state, openai_loop_plan, openai_loop_state,
+    provider_loop_plan_with_max_iter, provider_loop_state, provider_runner_common_config,
+};
 pub(crate) use phase_primitives::{
     anthropic_completion_text_if_terminate, anthropic_iteration_phase,
     openai_completion_text_if_terminate, openai_iteration_phase, AnthropicIterationPhase,
@@ -77,129 +91,6 @@ pub(crate) fn tool_loop_max_iter() -> u32 {
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(5)
-}
-
-pub(crate) struct ProviderLoopState {
-    pub wire_msgs: Vec<serde_json::Value>,
-    pub usage_totals: UsageTotals,
-    pub executed_calls: Vec<serde_json::Value>,
-    pub seen_hashes: std::collections::HashSet<u64>,
-}
-
-pub(crate) struct ProviderLoopPlan {
-    pub max_iter: u32,
-    pub state: ProviderLoopState,
-}
-
-pub(crate) struct ProviderRunnerCommonConfig<'a> {
-    pub model: &'a str,
-    pub headers: Vec<(String, String)>,
-    pub plan: ProviderLoopPlan,
-}
-
-pub(crate) struct AnthropicRunnerConfig<'a> {
-    pub common: ProviderRunnerCommonConfig<'a>,
-    pub system: &'a str,
-}
-
-pub(crate) struct OpenAiRunnerConfig<'a> {
-    pub common: ProviderRunnerCommonConfig<'a>,
-    pub provider: &'a str,
-    pub base_url: &'a str,
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn provider_runner_common_config<'a>(
-    model: &'a str,
-    headers: Vec<(String, String)>,
-    plan: ProviderLoopPlan,
-) -> ProviderRunnerCommonConfig<'a> {
-    ProviderRunnerCommonConfig {
-        model,
-        headers,
-        plan,
-    }
-}
-
-pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
-    ProviderLoopState {
-        wire_msgs: initial_wire_msgs,
-        usage_totals: UsageTotals::default(),
-        executed_calls: Vec::new(),
-        seen_hashes: std::collections::HashSet::new(),
-    }
-}
-
-#[cfg(test)]
-pub(crate) fn provider_loop_plan_with_max_iter(
-    initial_wire_msgs: Vec<serde_json::Value>,
-    max_iter: u32,
-) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter,
-        state: provider_loop_state(initial_wire_msgs),
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
-    provider_loop_state(initial_anthropic_wire_messages(messages))
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: anthropic_loop_state(messages),
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_loop_state(system: &str, messages: &[(String, String)]) -> ProviderLoopState {
-    provider_loop_state(initial_openai_wire_messages(system, messages))
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_loop_plan(system: &str, messages: &[(String, String)]) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: openai_loop_state(system, messages),
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_runner_config<'a>(
-    model: &'a str,
-    system: &'a str,
-    messages: &[(String, String)],
-) -> AnthropicRunnerConfig<'a> {
-    AnthropicRunnerConfig {
-        common: provider_runner_common_config(
-            model,
-            anthropic_headers(),
-            anthropic_loop_plan(messages),
-        ),
-        system,
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_runner_config<'a>(
-    provider: &'a str,
-    base_url: &'a str,
-    model: &'a str,
-    system: &str,
-    messages: &[(String, String)],
-) -> OpenAiRunnerConfig<'a> {
-    OpenAiRunnerConfig {
-        common: provider_runner_common_config(
-            model,
-            openai_compat_headers(),
-            openai_loop_plan(system, messages),
-        ),
-        provider,
-        base_url,
-    }
 }
 
 pub(crate) fn anthropic_step_text_or_advance_with<F>(

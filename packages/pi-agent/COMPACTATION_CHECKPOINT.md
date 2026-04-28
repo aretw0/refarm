@@ -1,6 +1,6 @@
 # Compactation Checkpoint — `packages/pi-agent`
 
-> Last validated commit: `3308a7b3`  
+> Last validated state: post-`phase_primitives.rs` + `loop_config.rs` physical splits  
 > Validation at checkpoint: `cargo test --lib` (**213/213 pass**), `cargo check --target wasm32-wasip1` (**pass**)
 
 ## 1) Why this file exists
@@ -34,11 +34,10 @@ In `src/tests/provider_runtime_tests.rs`:
 These cover the most regression-prone orchestration semantics and were added specifically to make compactation/splitting safe.
 
 ## 4) Next compactation slices (behavior-preserving)
-1. **Extract internal module boundaries** (same crate, no API change):
-   - contracts
-   - contract/state adapters
-   - loop orchestrators
-2. **Move code physically** from `provider_runtime.rs` into submodules with `pub(crate)` re-exports.
+1. **Continue reducing `provider_runtime.rs` surface** by extracting remaining cohesive blocks:
+   - tool execution/recording + append helpers
+   - step/advance adapters
+2. Keep module boundaries contract-first and runtime-generic (no provider-specific duplication).
 3. Keep wrappers only where needed for compatibility/tests; remove redundant adapters after parity checks.
 
 ## 5) Rules while compacting
@@ -50,14 +49,14 @@ These cover the most regression-prone orchestration semantics and were added spe
 - Update `README.md` and `ROADMAP.md` in every atomic slice.
 
 ## 6) Recent commits (most relevant)
-- `3308a7b3` refactor(pi-agent): add non-dispatch common-config contract helper
-- `8ab44c37` test(pi-agent): enforce no-step-on-response-error invariants
-- `467a6634` test(pi-agent): add error-propagation equivalence invariants
-- `41ba3985` test(pi-agent): add max-iter termination equivalence invariants
-- `6a55197a` test(pi-agent): add contract-vs-state loop equivalence invariants
-- `8716ad32` refactor(pi-agent): add non-dispatch context contract loop helper
-- `168d118b` refactor(pi-agent): make step contract adapter contract-native
-- `15543ca2` refactor(pi-agent): add context-aware contract loop primitive
+- `c777c4aa` refactor(pi-agent): split phase parsing and termination primitives
+- `721e5643` refactor(pi-agent): split initial wire message bootstrap module
+- `728c5865` refactor(pi-agent): split request and response flow module
+- `c06c05b5` refactor(pi-agent): split usage and completion finalization module
+- `19fed74f` refactor(pi-agent): split loop dispatch scaffolding module
+- `f4dcede6` refactor(pi-agent): split state-primitives adapters module
+- `3829ebcb` refactor(pi-agent): split contract loop orchestrators module
+- `bc881ff0` refactor(pi-agent): split provider runtime contracts submodule
 
 ## 7) When to resume "new features"
 After compactation, resume new feature work only when:
