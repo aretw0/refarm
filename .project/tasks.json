@@ -6813,10 +6813,11 @@
     {
       "id": "T-NEXT-292",
       "description": "Pesquisa A2A (Agent-to-Agent): avaliar Google A2A, MCP em modo agente, JSON-LD como rendezvous schema. Produzir ADR com primitivas candidatas para o CRDT do farmhand.",
-      "status": "planned",
-      "phase": null,
+      "status": "completed",
+      "phase": 11,
       "files": ["packages/pi-agent/ROADMAP.md", "docs/ADR-A2A.md"],
-      "notes": "Solicitado pelo usuário. CRDT já é ponto de encontro natural — questão é convenção de schema e roteamento. Não implementar nada sem pesquisa e ADR primeiro."
+      "notes": "Solicitado pelo usuário. CRDT já é ponto de encontro natural — questão é convenção de schema e roteamento. ADR proposto em docs/ADR-A2A.md: CRDT-native rendezvous com edge adapters A2A futuros; MCP permanece adapter de tool/resource.",
+      "verification": "VER-NEXT-292-20260428"
     },
     {
       "id": "T-NEXT-293",

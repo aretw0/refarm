@@ -9172,6 +9172,37 @@
 					"evidence": "cargo component build --release passed for packages/pi-agent and created target/wasm32-wasip1/release/pi_agent.wasm."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-292-20260428",
+			"target": "T-NEXT-292",
+			"target_type": "task",
+			"status": "passed",
+			"method": "inspect",
+			"timestamp": "2026-04-28T23:49:00.000Z",
+			"evidence": "A2A/MCP/JSON-LD research completed and captured in docs/ADR-A2A.md; packages/pi-agent/ROADMAP.md updated to point at the proposed ADR and summarize the decision direction.",
+			"criteria_results": [
+				{
+					"criterion": "Google A2A avaliado",
+					"status": "passed",
+					"evidence": "ADR records A2A Agent Card, JSON-RPC/HTTP, SSE, Task/Message/Artifact primitives and maps them to Refarm edge-adapter strategy."
+				},
+				{
+					"criterion": "MCP avaliado em relação a agent-to-agent",
+					"status": "passed",
+					"evidence": "ADR explicitly classifies MCP as tool/resource adapter layer, not canonical durable multi-agent state."
+				},
+				{
+					"criterion": "JSON-LD/CRDT rendezvous schema proposto",
+					"status": "passed",
+					"evidence": "ADR proposes AgentProfile, AgentTask, AgentMessage and AgentArtifact CRDT JSON-LD nodes."
+				},
+				{
+					"criterion": "ROADMAP aponta para a decisão",
+					"status": "passed",
+					"evidence": "packages/pi-agent/ROADMAP.md multi-agent section links docs/ADR-A2A.md and summarizes the selected direction."
+				}
+			]
 		}
 	]
 }
