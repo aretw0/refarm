@@ -37,4 +37,3 @@ pub(crate) fn anthropic_completion_text_if_terminate(
         require_anthropic_text_content(&phase.content_arr, response),
     )
 }
-

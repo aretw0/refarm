@@ -21,4 +21,3 @@ where
     let raw = dispatch(name, input);
     dedup_tool_output(raw, seen_hashes)
 }
-
