@@ -36,19 +36,6 @@ pub(crate) struct OpenAiRunnerConfig<'a> {
     pub base_url: &'a str,
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn provider_runner_common_config<'a>(
-    model: &'a str,
-    headers: Vec<(String, String)>,
-    plan: ProviderLoopPlan,
-) -> ProviderRunnerCommonConfig<'a> {
-    ProviderRunnerCommonConfig {
-        model,
-        headers,
-        plan,
-    }
-}
-
 pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> ProviderLoopState {
     ProviderLoopState {
         wire_msgs: initial_wire_msgs,
@@ -69,63 +56,3 @@ pub(crate) fn provider_loop_plan_with_max_iter(
     }
 }
 
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {
-    provider_loop_state(super::initial_anthropic_wire_messages(messages))
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: anthropic_loop_state(messages),
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_loop_state(system: &str, messages: &[(String, String)]) -> ProviderLoopState {
-    provider_loop_state(super::initial_openai_wire_messages(system, messages))
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_loop_plan(system: &str, messages: &[(String, String)]) -> ProviderLoopPlan {
-    ProviderLoopPlan {
-        max_iter: tool_loop_max_iter(),
-        state: openai_loop_state(system, messages),
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn anthropic_runner_config<'a>(
-    model: &'a str,
-    system: &'a str,
-    messages: &[(String, String)],
-) -> AnthropicRunnerConfig<'a> {
-    AnthropicRunnerConfig {
-        common: provider_runner_common_config(
-            model,
-            super::anthropic_headers(),
-            anthropic_loop_plan(messages),
-        ),
-        system,
-    }
-}
-
-#[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) fn openai_runner_config<'a>(
-    provider: &'a str,
-    base_url: &'a str,
-    model: &'a str,
-    system: &str,
-    messages: &[(String, String)],
-) -> OpenAiRunnerConfig<'a> {
-    OpenAiRunnerConfig {
-        common: provider_runner_common_config(
-            model,
-            super::openai_compat_headers(),
-            openai_loop_plan(system, messages),
-        ),
-        provider,
-        base_url,
-    }
-}

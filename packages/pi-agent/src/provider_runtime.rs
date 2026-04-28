@@ -6,6 +6,8 @@ mod contracts;
 mod loop_config;
 mod loop_core;
 mod loop_dispatch;
+#[cfg(any(test, target_arch = "wasm32"))]
+mod loop_runner_config;
 mod output_dedup;
 mod phase_common;
 mod openai_phase;
@@ -50,15 +52,17 @@ pub(crate) use output_dedup::{dedup_tool_output, dispatch_and_dedup_with};
 pub(crate) use output_dedup::dispatch_tool_dedup;
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) use loop_config::{anthropic_runner_config, openai_runner_config};
+pub(crate) use loop_runner_config::{anthropic_runner_config, openai_runner_config};
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
 #[cfg(test)]
-pub(crate) use loop_config::{
+pub(crate) use loop_config::{provider_loop_plan_with_max_iter, provider_loop_state};
+#[cfg(test)]
+pub(crate) use loop_runner_config::{
     anthropic_loop_plan, anthropic_loop_state, openai_loop_plan, openai_loop_state,
-    provider_loop_plan_with_max_iter, provider_loop_state, provider_runner_common_config,
+    provider_runner_common_config,
 };
 pub(crate) use anthropic_phase::{
     anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
