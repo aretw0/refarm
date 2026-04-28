@@ -2,6 +2,7 @@ mod anthropic_phase;
 mod anthropic_step_phase;
 mod anthropic_text;
 mod anthropic_tool_phase;
+mod anthropic_tool_uses;
 mod contract_loop;
 #[cfg(test)]
 mod contract_loop_context_tests;
@@ -31,10 +32,14 @@ mod phase_common;
 mod openai_message;
 mod openai_phase;
 mod openai_step_phase;
+mod openai_tool_calls;
 mod request_anthropic_wasm;
-mod request_body;
+mod request_body_anthropic;
+mod request_body_openai;
 mod request_flow;
-mod request_headers;
+mod request_headers_anthropic;
+mod request_headers_common;
+mod request_headers_openai;
 mod request_http_wasm;
 mod request_openai_wasm;
 mod request_parse;
@@ -53,6 +58,7 @@ mod tool_execution;
 mod tool_phase_common;
 mod tool_recording;
 mod tool_wire;
+mod usage_extract;
 mod usage_finalize;
 mod usage_phase;
 #[cfg(test)]
@@ -105,12 +111,12 @@ pub(crate) use loop_plan_builders::{
 pub(crate) use loop_runner_common::provider_runner_common_config;
 pub(crate) use anthropic_phase::{
     anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
-    ParsedAnthropicToolUse,
 };
+pub(crate) use anthropic_tool_uses::ParsedAnthropicToolUse;
 pub(crate) use openai_phase::{
     openai_completion_text_if_terminate, openai_iteration_phase, OpenAiIterationPhase,
-    ParsedOpenAiToolCall,
 };
+pub(crate) use openai_tool_calls::ParsedOpenAiToolCall;
 #[cfg(test)]
 pub(crate) use step_common::step_text_or_advance_with;
 #[cfg(test)]
@@ -130,9 +136,9 @@ pub(crate) use phase_common::{
     completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
 };
 #[cfg(test)]
-pub(crate) use anthropic_phase::{
-    anthropic_content_array, anthropic_has_tool_calls, parse_anthropic_tool_uses,
-};
+pub(crate) use anthropic_phase::anthropic_has_tool_calls;
+#[cfg(test)]
+pub(crate) use anthropic_tool_uses::{anthropic_content_array, parse_anthropic_tool_uses};
 #[cfg(test)]
 pub(crate) use anthropic_text::{anthropic_text_content, require_anthropic_text_content};
 #[cfg(test)]
@@ -140,11 +146,12 @@ pub(crate) use openai_message::{
     openai_choice_message, openai_message_content, require_openai_message_content,
 };
 #[cfg(test)]
-pub(crate) use openai_phase::{
-    openai_has_tool_calls, openai_tool_calls_array, parse_openai_tool_calls,
-};
+pub(crate) use openai_phase::openai_has_tool_calls;
+#[cfg(test)]
+pub(crate) use openai_tool_calls::{openai_tool_calls_array, parse_openai_tool_calls};
 
-pub(crate) use request_headers::{anthropic_headers, openai_compat_headers};
+pub(crate) use request_headers_anthropic::anthropic_headers;
+pub(crate) use request_headers_openai::openai_compat_headers;
 #[cfg(test)]
 pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
 #[cfg(test)]
@@ -168,7 +175,9 @@ pub(crate) use tool_wire::{
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
-pub(crate) use request_body::{build_anthropic_body, build_openai_body};
+pub(crate) use request_body_anthropic::build_anthropic_body;
+#[cfg(test)]
+pub(crate) use request_body_openai::build_openai_body;
 #[cfg(test)]
 pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
@@ -188,12 +197,13 @@ pub(crate) use loop_dispatch_tests::{
 };
 pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
 pub(crate) use usage_totals::UsageTotals;
-pub(crate) use usage_phase::{
-    anthropic_phase_after_usage, openai_phase_after_usage, response_usage,
-};
+pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
+pub(crate) use usage_extract::response_usage;
 
 #[cfg(test)]
-pub(crate) use usage_phase::{ingest_usage_from_response_with, phase_after_usage_with};
+pub(crate) use usage_extract::ingest_usage_from_response_with;
+#[cfg(test)]
+pub(crate) use usage_phase::phase_after_usage_with;
 #[cfg(test)]
 pub(crate) use usage_phase_tests::{
     ingest_anthropic_usage_from_response, ingest_openai_usage_from_response,
