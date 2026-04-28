@@ -9,6 +9,7 @@ mod request_flow;
 mod state_primitives;
 mod step_phase;
 mod tool_phase;
+mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
 mod wasm_runners;
@@ -79,11 +80,14 @@ pub(crate) use request_flow::{anthropic_headers, openai_compat_headers};
 #[cfg(test)]
 pub(crate) use tool_phase::{
     advance_anthropic_tool_phase_with, advance_openai_tool_phase_with, advance_tool_phase_with,
+    execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
+    push_executed_call, record_anthropic_tool_execution, record_openai_tool_execution,
+};
+#[cfg(test)]
+pub(crate) use tool_wire::{
     anthropic_tool_result, append_anthropic_assistant_message,
     append_anthropic_tool_results_message, append_openai_assistant_message,
-    append_openai_tool_message, append_openai_tool_messages, execute_anthropic_tools_with,
-    execute_openai_tools_with, execute_tools_with, push_executed_call,
-    record_anthropic_tool_execution, record_openai_tool_execution, OpenAiToolMessage,
+    append_openai_tool_message, append_openai_tool_messages, OpenAiToolMessage,
 };
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
