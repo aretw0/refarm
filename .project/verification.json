@@ -9180,7 +9180,7 @@
 			"status": "passed",
 			"method": "inspect",
 			"timestamp": "2026-04-28T23:49:00.000Z",
-			"evidence": "A2A/MCP/JSON-LD research completed and captured in docs/ADR-A2A.md; packages/pi-agent/ROADMAP.md updated to point at the proposed ADR and summarize the decision direction.",
+			"evidence": "A2A/MCP/JSON-LD research completed and captured in specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md; packages/pi-agent/ROADMAP.md updated to point at the proposed ADR and summarize the decision direction.",
 			"criteria_results": [
 				{
 					"criterion": "Google A2A avaliado",
@@ -9200,7 +9200,7 @@
 				{
 					"criterion": "ROADMAP aponta para a decisão",
 					"status": "passed",
-					"evidence": "packages/pi-agent/ROADMAP.md multi-agent section links docs/ADR-A2A.md and summarizes the selected direction."
+					"evidence": "packages/pi-agent/ROADMAP.md multi-agent section links specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md and summarizes the selected direction."
 				}
 			]
 		}

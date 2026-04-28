@@ -1,4 +1,4 @@
-# ADR-A2A: CRDT-native agent rendezvous with A2A-compatible edges
+# ADR-052: CRDT-native agent rendezvous with A2A-compatible edges
 
 ## Status
 

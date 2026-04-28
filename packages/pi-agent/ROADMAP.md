@@ -285,7 +285,7 @@ interface code-ops {
   - `harness_swarm_agent_b_reads_agent_a_crdt_nodes`: two agents share one `NativeSync`, B sees A's namespaced nodes
   - Coordination is intentionally read-unrestricted: isolation is ID-based (URN prefix), not access-gated
 - [x] A2A (Agent-to-Agent) protocol research — evaluate Google A2A, MCP, JSON-LD native patterns (T-NEXT-292)
-  - Proposed ADR: [`docs/ADR-A2A.md`](../../docs/ADR-A2A.md)
+  - Proposed ADR: [`specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md`](../../specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md)
   - Decision direction: CRDT-native rendezvous (`AgentProfile`, `AgentTask`, `AgentMessage`, `AgentArtifact`) with future A2A-compatible HTTP edge adapters
   - MCP remains a tool/resource adapter layer, not the canonical multi-agent state model
 - [ ] Swarm harness: agent B uses LLM to formulate a query based on agent A's output (full reasoning loop)
