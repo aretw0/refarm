@@ -1,35 +1,14 @@
 use super::{
     anthropic_text::require_anthropic_text_content,
+    anthropic_tool_uses::{
+        anthropic_content_array, parse_anthropic_tool_uses, ParsedAnthropicToolUse,
+    },
     phase_common::completion_text_if_terminate,
 };
-
-pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
-    v["content"].as_array().cloned().unwrap_or_default()
-}
-
-pub(crate) struct ParsedAnthropicToolUse {
-    pub name: String,
-    pub input: serde_json::Value,
-    pub id: String,
-}
 
 pub(crate) struct AnthropicIterationPhase {
     pub content_arr: Vec<serde_json::Value>,
     pub tool_uses: Vec<ParsedAnthropicToolUse>,
-}
-
-pub(crate) fn parse_anthropic_tool_uses(
-    content_arr: &[serde_json::Value],
-) -> Vec<ParsedAnthropicToolUse> {
-    content_arr
-        .iter()
-        .filter(|c| c["type"] == "tool_use")
-        .map(|c| ParsedAnthropicToolUse {
-            name: c["name"].as_str().unwrap_or("").to_owned(),
-            input: c["input"].clone(),
-            id: c["id"].as_str().unwrap_or("").to_owned(),
-        })
-        .collect()
 }
 
 pub(crate) fn anthropic_iteration_phase(response: &serde_json::Value) -> AnthropicIterationPhase {
