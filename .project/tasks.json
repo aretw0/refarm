@@ -6748,8 +6748,8 @@
     {
       "id": "T-NEXT-287",
       "description": "Importar structured-io de agent-tools em pi-agent via WIT: adicionar structured-io ao refarm-plugin-host.wit e world.wit, e fazer dispatch_tool delegar para o import em vez de duplicar a lógica.",
-      "status": "planned",
-      "phase": null,
+      "status": "completed",
+      "phase": 11,
       "files": [
         "packages/pi-agent/wit/refarm-plugin-host.wit",
         "packages/pi-agent/wit/world.wit",
@@ -6761,7 +6761,8 @@
         "Testes nativos existentes continuam passando (pure functions mantidas para testes)",
         "cargo component build --release passa"
       ],
-      "notes": "Completa o princípio de camada compartilhada: pi-agent não duplica lógica de agent-tools."
+      "notes": "Completa o princípio de camada compartilhada: pi-agent não duplica lógica de agent-tools. Verified on 2026-04-28: structured-io imports already wired through WIT; dispatch delegates to host import; native structured/tool tests and cargo component release build passed.",
+      "verification": "VER-NEXT-287-20260428"
     },
     {
       "id": "T-NEXT-288",

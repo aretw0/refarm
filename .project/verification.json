@@ -9141,6 +9141,37 @@
 					"evidence": "Contexto da pausa e próximos passos registrados no handoff."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-287-20260428",
+			"target": "T-NEXT-287",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-28T23:43:30.000Z",
+			"evidence": "Verified existing structured-io import/dispatch implementation: WIT imports are present in packages/pi-agent/wit/refarm-plugin-host.wit and world.wit; dispatch delegates read_structured/write_structured to crate::refarm::plugin::structured_io. Commands passed: cd packages/pi-agent && cargo test --lib structured --quiet; cd packages/pi-agent && cargo test --lib tool --quiet; cd packages/pi-agent && cargo component build --release.",
+			"criteria_results": [
+				{
+					"criterion": "pi-agent importa structured-io no WIT",
+					"status": "passed",
+					"evidence": "packages/pi-agent/wit/refarm-plugin-host.wit and packages/pi-agent/wit/world.wit import structured-io."
+				},
+				{
+					"criterion": "dispatch_tool chama wasm32 import em vez de chamar parse functions locais",
+					"status": "passed",
+					"evidence": "packages/pi-agent/src/tool_dispatch/structured_tools.rs calls crate::refarm::plugin::structured_io::read_structured/write_structured; dispatch_tool routes read_structured/write_structured to that module."
+				},
+				{
+					"criterion": "Testes nativos existentes continuam passando (pure functions mantidas para testes)",
+					"status": "passed",
+					"evidence": "cargo test --lib structured --quiet passed (20 tests); cargo test --lib tool --quiet passed (49 tests)."
+				},
+				{
+					"criterion": "cargo component build --release passa",
+					"status": "passed",
+					"evidence": "cargo component build --release passed for packages/pi-agent and created target/wasm32-wasip1/release/pi_agent.wasm."
+				}
+			]
 		}
 	]
 }
