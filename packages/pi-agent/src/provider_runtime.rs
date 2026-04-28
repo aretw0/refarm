@@ -1,4 +1,6 @@
 mod anthropic_phase;
+mod anthropic_step_phase;
+mod anthropic_tool_phase;
 mod contract_loop;
 #[cfg(test)]
 mod contract_loop_tests;
@@ -8,9 +10,11 @@ mod loop_core;
 mod loop_dispatch;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_config;
+mod openai_tool_phase;
 mod output_dedup;
 mod phase_common;
 mod openai_phase;
+mod openai_step_phase;
 mod request_builders;
 mod request_flow;
 mod request_wasm;
@@ -20,10 +24,9 @@ mod state_adapters;
 mod state_loop_tests;
 mod state_primitives;
 mod step_common;
-mod step_phase;
 mod tool_execution;
-mod tool_phase;
 mod tool_phase_common;
+mod tool_recording;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
@@ -79,17 +82,16 @@ pub(crate) use openai_phase::{
 #[cfg(test)]
 pub(crate) use step_common::step_text_or_advance_with;
 #[cfg(test)]
-pub(crate) use step_phase::{
-    anthropic_step_text_or_advance_with, openai_step_text_or_advance_with,
-};
-pub(crate) use tool_phase::{
-    advance_anthropic_tool_phase_from_phase_with, advance_openai_tool_phase_from_phase_with,
-};
+pub(crate) use anthropic_step_phase::anthropic_step_text_or_advance_with;
+#[cfg(test)]
+pub(crate) use openai_step_phase::openai_step_text_or_advance_with;
+pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_from_phase_with;
+pub(crate) use openai_tool_phase::advance_openai_tool_phase_from_phase_with;
 
 #[cfg(any(test, target_arch = "wasm32"))]
-pub(crate) use step_phase::{
-    anthropic_step_from_phase_with_dispatch, openai_step_from_phase_with_dispatch,
-};
+pub(crate) use anthropic_step_phase::anthropic_step_from_phase_with_dispatch;
+#[cfg(any(test, target_arch = "wasm32"))]
+pub(crate) use openai_step_phase::openai_step_from_phase_with_dispatch;
 
 #[cfg(test)]
 pub(crate) use phase_common::{
@@ -108,14 +110,17 @@ pub(crate) use openai_phase::{
 
 pub(crate) use request_builders::{anthropic_headers, openai_compat_headers};
 #[cfg(test)]
-pub(crate) use tool_phase::{
-    advance_anthropic_tool_phase_with, advance_openai_tool_phase_with,
-};
+pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
+#[cfg(test)]
+pub(crate) use openai_tool_phase::advance_openai_tool_phase_with;
 #[cfg(test)]
 pub(crate) use tool_phase_common::advance_tool_phase_with;
 #[cfg(test)]
 pub(crate) use tool_execution::{
     execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
+};
+#[cfg(test)]
+pub(crate) use tool_recording::{
     push_executed_call, record_anthropic_tool_execution, record_openai_tool_execution,
 };
 #[cfg(test)]
