@@ -6,6 +6,8 @@ mod loop_dispatch;
 mod output_dedup;
 mod phase_primitives;
 mod request_flow;
+#[cfg(test)]
+mod state_adapters;
 mod state_primitives;
 mod step_phase;
 mod tool_execution;
@@ -133,11 +135,13 @@ pub(crate) use contract_loop::{
 pub(crate) use wasm_runners::{run_anthropic_completion_loop, run_openai_completion_loop};
 
 #[cfg(test)]
+pub(crate) use state_adapters::{
+    response_and_phase_from_state_with, step_from_state_with_dispatch,
+};
+#[cfg(test)]
 pub(crate) use state_primitives::{
-    response_and_phase_from_state_with,
     run_completion_loop_from_common_config_and_context_with_state_primitives,
     run_completion_loop_from_common_config_with_state_primitives_and_dispatch,
-    step_from_state_with_dispatch,
 };
 
 #[cfg(test)]
