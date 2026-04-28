@@ -7,6 +7,7 @@ mod loop_dispatch;
 mod output_dedup;
 mod phase_common;
 mod openai_phase;
+mod request_builders;
 mod request_flow;
 #[cfg(test)]
 mod state_adapters;
@@ -92,7 +93,7 @@ pub(crate) use openai_phase::{
     parse_openai_tool_calls, require_openai_message_content,
 };
 
-pub(crate) use request_flow::{anthropic_headers, openai_compat_headers};
+pub(crate) use request_builders::{anthropic_headers, openai_compat_headers};
 #[cfg(test)]
 pub(crate) use tool_phase::{
     advance_anthropic_tool_phase_with, advance_openai_tool_phase_with, advance_tool_phase_with,
@@ -111,10 +112,11 @@ pub(crate) use tool_wire::{
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
-pub(crate) use request_flow::{
-    build_anthropic_body, build_openai_body, iteration_response_and_phase_with, openai_compat_path,
-    parse_response_json,
+pub(crate) use request_builders::{
+    build_anthropic_body, build_openai_body, openai_compat_path, parse_response_json,
 };
+#[cfg(test)]
+pub(crate) use request_flow::iteration_response_and_phase_with;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use request_flow::{
