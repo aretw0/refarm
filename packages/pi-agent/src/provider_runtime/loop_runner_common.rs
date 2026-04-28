@@ -1,4 +1,4 @@
-use super::loop_config::{ProviderLoopPlan, ProviderRunnerCommonConfig};
+use super::{loop_config::ProviderLoopPlan, loop_runner_types::ProviderRunnerCommonConfig};
 
 pub(crate) fn provider_runner_common_config<'a>(
     model: &'a str,
