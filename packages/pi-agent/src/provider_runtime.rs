@@ -4,6 +4,7 @@ mod loop_config;
 mod loop_core;
 mod loop_dispatch;
 mod output_dedup;
+mod phase_common;
 mod phase_primitives;
 mod request_flow;
 #[cfg(test)]
@@ -71,12 +72,15 @@ pub(crate) use step_phase::{
 };
 
 #[cfg(test)]
+pub(crate) use phase_common::{
+    completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
+};
+#[cfg(test)]
 pub(crate) use phase_primitives::{
     anthropic_content_array, anthropic_has_tool_calls, anthropic_text_content,
-    completion_text_if_terminate, error_message, openai_choice_message, openai_has_tool_calls,
-    openai_message_content, openai_tool_calls_array, parse_anthropic_tool_uses,
-    parse_json_arguments, parse_openai_tool_calls, require_anthropic_text_content,
-    require_openai_message_content, should_terminate_tool_loop,
+    openai_choice_message, openai_has_tool_calls, openai_message_content, openai_tool_calls_array,
+    parse_anthropic_tool_uses, parse_openai_tool_calls, require_anthropic_text_content,
+    require_openai_message_content,
 };
 
 pub(crate) use request_flow::{anthropic_headers, openai_compat_headers};
