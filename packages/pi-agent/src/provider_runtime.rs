@@ -1,5 +1,7 @@
 mod anthropic_phase;
 mod contract_loop;
+#[cfg(test)]
+mod contract_loop_tests;
 mod contracts;
 mod loop_config;
 mod loop_core;
@@ -143,10 +145,11 @@ pub(crate) use usage_phase::{
 };
 
 #[cfg(test)]
-pub(crate) use contract_loop::{
+pub(crate) use contract_loop::run_completion_loop_from_common_config_with_contract_primitives_and_dispatch;
+#[cfg(test)]
+pub(crate) use contract_loop_tests::{
     run_completion_loop_from_common_config_and_context_with_contract_primitives,
     run_completion_loop_from_common_config_with_contract_primitives,
-    run_completion_loop_from_common_config_with_contract_primitives_and_dispatch,
 };
 #[cfg(target_arch = "wasm32")]
 pub(crate) use wasm_anthropic::run_anthropic_completion_loop;
