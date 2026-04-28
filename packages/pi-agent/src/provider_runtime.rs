@@ -27,6 +27,7 @@ mod openai_phase;
 mod openai_step_phase;
 mod request_builders;
 mod request_flow;
+mod request_parse;
 mod request_wasm;
 #[cfg(test)]
 mod state_loop_context_tests;
@@ -154,9 +155,9 @@ pub(crate) use tool_wire::{
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
-pub(crate) use request_builders::{
-    build_anthropic_body, build_openai_body, openai_compat_path, parse_response_json,
-};
+pub(crate) use request_builders::{build_anthropic_body, build_openai_body, openai_compat_path};
+#[cfg(test)]
+pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_flow::iteration_response_and_phase_with;
 
