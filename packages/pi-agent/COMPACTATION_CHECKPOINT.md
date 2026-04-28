@@ -1,11 +1,11 @@
 # Compactation Checkpoint — `packages/pi-agent`
 
-> Last validated code commit before this checkpoint refresh: `0b3b0566`  
+> Last validated code commit before this checkpoint refresh: `3d67abd5`  
 > Validation used during this lote: `CARGO_TARGET_DIR=/tmp/refarm-pi-agent-target CARGO_INCREMENTAL=0 cargo check --target wasm32-wasip1 && CARGO_TARGET_DIR=/tmp/refarm-pi-agent-target CARGO_INCREMENTAL=0 cargo test --lib`  
 > Result: wasm check **pass**, lib tests **213/213 pass**.
 
 ## 1) Purpose
-This file is the context-compaction handoff for the Rust modularization of `packages/pi-agent`. It records the current provider-runtime boundaries, invariants, validation discipline, and safe continuation steps.
+This file is the context-compaction handoff for the Rust modularization of `packages/pi-agent`. It records current provider-runtime boundaries, invariants, validation discipline, and safe continuation steps.
 
 ## 2) Current provider runtime architecture
 `src/provider_runtime.rs` remains a façade/re-export module. Runtime behavior is split into focused submodules under `src/provider_runtime/`:
@@ -27,12 +27,15 @@ This file is the context-compaction handoff for the Rust modularization of `pack
 - `request_flow.rs` — generic response+phase helper.
 - `request_wasm.rs` — wasm HTTP request execution plus provider response+phase request flow.
 - `wire_bootstrap.rs` — Anthropic/OpenAI initial wire-message builders.
-- `tool_execution.rs` — generic tool execution, provider-specific execution recorders, and executed-call shape.
+- `tool_execution.rs` — generic tool execution for parsed provider calls.
+- `tool_recording.rs` — executed-call schema plus provider-specific execution recording.
 - `tool_wire.rs` — tool-result and tool-message wire JSON builders.
 - `tool_phase_common.rs` — generic tool-phase append/execute/append pipeline primitive.
-- `tool_phase.rs` — provider phase-advancement helpers for Anthropic/OpenAI tools.
+- `anthropic_tool_phase.rs` — Anthropic tool-phase advancement helpers.
+- `openai_tool_phase.rs` — OpenAI-compatible tool-phase advancement helpers.
 - `step_common.rs` — generic step terminate/advance primitive.
-- `step_phase.rs` — provider-specific step dispatch adapters.
+- `anthropic_step_phase.rs` — Anthropic step text/advance + dispatch adapter.
+- `openai_step_phase.rs` — OpenAI-compatible step text/advance + dispatch adapter.
 - `usage_totals.rs` — usage totals and Anthropic/OpenAI usage accumulation methods.
 - `usage_phase.rs` — response usage extraction, usage ingest helpers, and phase-after-usage combiners.
 - `usage_finalize.rs` — wasm completion-result finalization.
@@ -40,6 +43,11 @@ This file is the context-compaction handoff for the Rust modularization of `pack
 - `wasm_loop.rs` — wasm finalization adapter over state-primitives loop outcome.
 - `wasm_anthropic.rs` — wasm Anthropic completion runner façade.
 - `wasm_openai.rs` — wasm OpenAI-compatible completion runner façade.
+
+Removed/renamed during latest lote:
+
+- `tool_phase.rs` was split into `anthropic_tool_phase.rs` + `openai_tool_phase.rs`.
+- `step_phase.rs` was split into `anthropic_step_phase.rs` + `openai_step_phase.rs`.
 
 ## 3) Invariants currently protecting behavior
 Provider runtime tests enforce:
@@ -64,39 +72,31 @@ rm -rf /tmp/refarm-pi-agent-target
 Avoid broad builds, full `cargo test`, or generated artifact churn in `/workspaces/refarm/target` while disk pressure remains.
 
 ## 5) Most recent commits in this lote
+- `3d67abd5` refactor(pi-agent): split tool execution recording
+- `0aa3430d` refactor(pi-agent): split provider step phase modules
+- `747dc5c6` refactor(pi-agent): split provider tool phase modules
+
+Earlier relevant commits:
+- `c5d6bc65` docs(pi-agent): refresh provider runtime split checkpoint
 - `0b3b0566` refactor(pi-agent): split generic tool phase primitive
 - `cd13ee58` refactor(pi-agent): split wasm request flow
 - `857ef38f` refactor(pi-agent): split usage totals primitive
 - `f6108043` refactor(pi-agent): split generic step advance primitive
 - `79296b4d` refactor(pi-agent): split provider runner config builders
 - `fae863f7` refactor(pi-agent): split contract loop test adapters
-- `d382f436` refactor(pi-agent): rename wasm openai runner module
-- `2eee4b51` refactor(pi-agent): split wasm anthropic runner
-- `948024fa` refactor(pi-agent): split wasm loop finalization adapter
-
-Earlier relevant commits:
-- `5550f82d` docs(pi-agent): refresh runtime split checkpoint
-- `6aba03c8` refactor(pi-agent): split request builder primitives
-- `ef5939e8` refactor(pi-agent): split state loop test adapters
-- `df50b6bf` refactor(pi-agent): rename openai phase module
-- `15ee2c0c` refactor(pi-agent): split anthropic phase primitives
-- `7aa189fe` refactor(pi-agent): split phase common primitives
-- `14620c63` refactor(pi-agent): split state adapter test primitives
-- `8dad231c` refactor(pi-agent): split tool execution primitives
-- `ed51af08` refactor(pi-agent): split tool wire message primitives
 
 ## 6) Safe continuation plan
 1. Keep `provider_runtime.rs` as a façade; do not reintroduce runtime logic there.
 2. Continue only behavior-preserving splits with façade re-exports kept stable.
 3. Good next targets if continuing compactation:
-   - split provider-specific `tool_phase.rs` into Anthropic/OpenAI tool-phase modules;
-   - split provider-specific `step_phase.rs` into Anthropic/OpenAI step modules;
-   - split `loop_dispatch.rs` test-only shims from production dispatch helper;
-   - normalize façade grouping and cfg gates after all physical splits settle.
+   - split test-only shims from `loop_dispatch.rs`;
+   - split `state_loop_tests.rs` by dispatch/non-dispatch if useful;
+   - normalize façade grouping and cfg gates after all physical splits settle;
+   - consider README/ROADMAP wording cleanup once module churn slows down.
 4. Run wasm check + lib tests after each atomic slice.
 5. Commit each green slice with concise Conventional Commit messages.
 
 ## 7) Current posture
-- Branch observed during this lote: `develop...origin/develop` ahead by 133 commits after `0b3b0566`.
+- Branch observed during this lote: `develop...origin/develop` ahead by 137 commits after `3d67abd5`.
 - No push has been performed.
-- Last observed provider runtime façade size: ~181 lines.
+- Last observed provider runtime façade size: ~186 lines.
