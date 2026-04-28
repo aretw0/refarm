@@ -13,5 +13,3 @@ pub(crate) fn execute_json_request(
         crate::provider::http_post_via_host(provider, base_url, path, headers, body.as_bytes())?;
     parse_response_json(&bytes)
 }
-
-
