@@ -483,16 +483,16 @@ fn host_page_json(val: &serde_json::Value, total_bytes: usize, fmt: &str, page_s
 impl CodeOpsHost for TractorNativeBindings {
     async fn rename_symbol(
         &mut self,
-        _loc: SymbolLocation,
-        _new_name: String,
+        loc: SymbolLocation,
+        new_name: String,
     ) -> Result<RenameResult, String> {
-        Err("lsp not connected — install and start a language server to enable rename".into())
+        crate::host::lsp_bridge::LspBridge::from_env().rename_symbol(&loc, &new_name)
     }
 
     async fn find_references(
         &mut self,
-        _loc: SymbolLocation,
+        loc: SymbolLocation,
     ) -> Result<Vec<CodeReference>, String> {
-        Err("lsp not connected — install and start a language server to enable find-references".into())
+        crate::host::lsp_bridge::LspBridge::from_env().find_references(&loc)
     }
 }
