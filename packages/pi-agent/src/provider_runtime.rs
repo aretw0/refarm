@@ -8,7 +8,7 @@ mod contract_loop;
 mod contract_loop_context_tests;
 #[cfg(test)]
 mod contract_loop_nondispatch_tests;
-mod contracts;
+mod iteration_contract;
 mod loop_config;
 #[cfg(test)]
 mod loop_config_tests;
@@ -16,8 +16,10 @@ mod loop_core;
 mod loop_dispatch;
 #[cfg(test)]
 mod loop_dispatch_tests;
+mod loop_limits;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_plan_builders;
+mod loop_state;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_anthropic;
 #[cfg(any(test, target_arch = "wasm32"))]
@@ -44,6 +46,7 @@ mod request_http_wasm;
 mod request_openai_wasm;
 mod request_parse;
 mod request_path;
+mod response_phase_contract;
 #[cfg(test)]
 mod state_loop_context_tests;
 #[cfg(test)]
@@ -61,6 +64,7 @@ mod tool_wire;
 mod usage_extract;
 mod usage_finalize;
 mod usage_phase;
+mod usage_phase_common;
 #[cfg(test)]
 mod usage_phase_tests;
 mod usage_totals;
@@ -69,17 +73,20 @@ mod wasm_loop;
 mod wasm_openai;
 mod wire_bootstrap;
 
-pub(crate) use contracts::{
-    provider_iteration_contract, provider_response_phase_contract_into_parts,
-    response_phase_contract_from_state_with, step_from_state_with_dispatch_contract,
-    ProviderIterationContract, ProviderResponsePhaseContract,
+pub(crate) use iteration_contract::{
+    provider_iteration_contract, step_from_state_with_dispatch_contract,
+    ProviderIterationContract,
+};
+pub(crate) use response_phase_contract::{
+    provider_response_phase_contract_into_parts, response_phase_contract_from_state_with,
+    ProviderResponsePhaseContract,
 };
 
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
 pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState, ProviderRunnerCommonConfig};
 
 #[cfg(test)]
-pub(crate) use loop_config::tool_loop_max_iter;
+pub(crate) use loop_limits::tool_loop_max_iter;
 pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
 
 #[cfg(test)]
@@ -100,7 +107,7 @@ pub(crate) use loop_runner_openai::openai_runner_config;
 pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
 #[cfg(test)]
-pub(crate) use loop_config::provider_loop_state;
+pub(crate) use loop_state::provider_loop_state;
 #[cfg(test)]
 pub(crate) use loop_config_tests::provider_loop_plan_with_max_iter;
 #[cfg(test)]
@@ -203,7 +210,7 @@ pub(crate) use usage_extract::response_usage;
 #[cfg(test)]
 pub(crate) use usage_extract::ingest_usage_from_response_with;
 #[cfg(test)]
-pub(crate) use usage_phase::phase_after_usage_with;
+pub(crate) use usage_phase_common::phase_after_usage_with;
 #[cfg(test)]
 pub(crate) use usage_phase_tests::{
     ingest_anthropic_usage_from_response, ingest_openai_usage_from_response,
@@ -230,4 +237,4 @@ pub(crate) use state_loop_context_tests::run_completion_loop_from_common_config_
 pub(crate) use state_loop_dispatch_tests::run_completion_loop_from_common_config_with_state_primitives_and_dispatch;
 
 #[cfg(test)]
-pub(crate) use contracts::provider_response_phase_contract;
+pub(crate) use response_phase_contract::provider_response_phase_contract;
