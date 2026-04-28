@@ -3,6 +3,7 @@ mod contracts;
 mod loop_config;
 mod loop_core;
 mod loop_dispatch;
+mod output_dedup;
 mod phase_primitives;
 mod request_flow;
 mod state_primitives;
@@ -26,6 +27,11 @@ pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOut
 #[cfg(test)]
 pub(crate) use loop_core::run_completion_loop_with;
 pub(crate) use loop_dispatch::run_completion_loop_from_common_config_and_context_with_dispatch;
+#[cfg(test)]
+pub(crate) use output_dedup::{dedup_tool_output, dispatch_and_dedup_with};
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) use output_dedup::dispatch_tool_dedup;
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use loop_config::{anthropic_runner_config, openai_runner_config};
@@ -131,42 +137,4 @@ pub(crate) fn tool_loop_max_iter() -> u32 {
         .ok()
         .and_then(|v| v.parse::<u32>().ok())
         .unwrap_or(5)
-}
-
-pub(crate) fn dedup_tool_output(
-    raw: String,
-    seen_hashes: &mut std::collections::HashSet<u64>,
-) -> String {
-    if seen_hashes.insert(crate::fnv1a_hash(&raw)) {
-        raw
-    } else {
-        "[duplicate: same output already in this context — ask for specifics if needed]".to_string()
-    }
-}
-
-pub(crate) fn dispatch_and_dedup_with<F>(
-    name: &str,
-    input: &serde_json::Value,
-    seen_hashes: &mut std::collections::HashSet<u64>,
-    mut dispatch: F,
-) -> String
-where
-    F: FnMut(&str, &serde_json::Value) -> String,
-{
-    let raw = dispatch(name, input);
-    dedup_tool_output(raw, seen_hashes)
-}
-
-#[cfg(target_arch = "wasm32")]
-pub(crate) fn dispatch_tool_dedup(
-    name: &str,
-    input: &serde_json::Value,
-    seen_hashes: &mut std::collections::HashSet<u64>,
-) -> String {
-    dispatch_and_dedup_with(
-        name,
-        input,
-        seen_hashes,
-        crate::tool_dispatch::dispatch_tool,
-    )
 }
