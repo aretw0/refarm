@@ -8,6 +8,8 @@ mod contract_loop_context_tests;
 mod contract_loop_nondispatch_tests;
 mod contracts;
 mod loop_config;
+#[cfg(test)]
+mod loop_config_tests;
 mod loop_core;
 mod loop_dispatch;
 #[cfg(test)]
@@ -71,7 +73,9 @@ pub(crate) use loop_runner_config::{anthropic_runner_config, openai_runner_confi
 pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
 #[cfg(test)]
-pub(crate) use loop_config::{provider_loop_plan_with_max_iter, provider_loop_state};
+pub(crate) use loop_config::provider_loop_state;
+#[cfg(test)]
+pub(crate) use loop_config_tests::provider_loop_plan_with_max_iter;
 #[cfg(test)]
 pub(crate) use loop_runner_config::{
     anthropic_loop_plan, anthropic_loop_state, openai_loop_plan, openai_loop_state,
