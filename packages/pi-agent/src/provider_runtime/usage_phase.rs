@@ -14,14 +14,6 @@ pub(crate) fn ingest_usage_from_response_with<F>(
     ingest(totals, response_usage(response));
 }
 
-#[cfg(test)]
-pub(crate) fn ingest_anthropic_usage_from_response(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) {
-    ingest_usage_from_response_with(totals, response, UsageTotals::ingest_anthropic_usage);
-}
-
 pub(crate) fn anthropic_phase_after_usage(
     totals: &mut UsageTotals,
     response: &serde_json::Value,
@@ -32,14 +24,6 @@ pub(crate) fn anthropic_phase_after_usage(
         UsageTotals::ingest_anthropic_usage,
         super::anthropic_iteration_phase,
     )
-}
-
-#[cfg(test)]
-pub(crate) fn ingest_openai_usage_from_response(
-    totals: &mut UsageTotals,
-    response: &serde_json::Value,
-) {
-    ingest_usage_from_response_with(totals, response, UsageTotals::ingest_openai_usage);
 }
 
 pub(crate) fn openai_phase_after_usage(

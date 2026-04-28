@@ -38,6 +38,8 @@ mod tool_recording;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
+#[cfg(test)]
+mod usage_phase_tests;
 mod usage_totals;
 mod wasm_anthropic;
 mod wasm_loop;
@@ -165,9 +167,10 @@ pub(crate) use usage_phase::{
 };
 
 #[cfg(test)]
-pub(crate) use usage_phase::{
+pub(crate) use usage_phase::{ingest_usage_from_response_with, phase_after_usage_with};
+#[cfg(test)]
+pub(crate) use usage_phase_tests::{
     ingest_anthropic_usage_from_response, ingest_openai_usage_from_response,
-    ingest_usage_from_response_with, phase_after_usage_with,
 };
 
 #[cfg(test)]
