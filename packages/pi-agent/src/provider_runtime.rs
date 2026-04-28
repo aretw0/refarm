@@ -8,6 +8,8 @@ mod contracts;
 mod loop_config;
 mod loop_core;
 mod loop_dispatch;
+#[cfg(test)]
+mod loop_dispatch_tests;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_config;
 mod openai_tool_phase;
@@ -144,7 +146,7 @@ pub(crate) use request_wasm::{
 };
 
 #[cfg(test)]
-pub(crate) use loop_dispatch::{
+pub(crate) use loop_dispatch_tests::{
     run_completion_loop_from_common_config_with_dispatch,
     run_completion_loop_from_plan_with_dispatch,
 };
