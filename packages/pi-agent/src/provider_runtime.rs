@@ -25,11 +25,13 @@ mod request_builders;
 mod request_flow;
 mod request_wasm;
 #[cfg(test)]
-mod state_adapters;
-#[cfg(test)]
 mod state_loop_context_tests;
 #[cfg(test)]
 mod state_loop_dispatch_tests;
+#[cfg(test)]
+mod state_response_adapter_tests;
+#[cfg(test)]
+mod state_step_adapter_tests;
 mod state_primitives;
 mod step_common;
 mod tool_execution;
@@ -185,9 +187,9 @@ pub(crate) use wasm_anthropic::run_anthropic_completion_loop;
 pub(crate) use wasm_openai::run_openai_completion_loop;
 
 #[cfg(test)]
-pub(crate) use state_adapters::{
-    response_and_phase_from_state_with, step_from_state_with_dispatch,
-};
+pub(crate) use state_response_adapter_tests::response_and_phase_from_state_with;
+#[cfg(test)]
+pub(crate) use state_step_adapter_tests::step_from_state_with_dispatch;
 #[cfg(test)]
 pub(crate) use state_loop_context_tests::run_completion_loop_from_common_config_and_context_with_state_primitives;
 #[cfg(test)]
