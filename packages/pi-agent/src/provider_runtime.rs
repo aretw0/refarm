@@ -6,7 +6,7 @@ mod loop_core;
 mod loop_dispatch;
 mod output_dedup;
 mod phase_common;
-mod phase_primitives;
+mod openai_phase;
 mod request_flow;
 #[cfg(test)]
 mod state_adapters;
@@ -57,7 +57,7 @@ pub(crate) use anthropic_phase::{
     anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
     ParsedAnthropicToolUse,
 };
-pub(crate) use phase_primitives::{
+pub(crate) use openai_phase::{
     openai_completion_text_if_terminate, openai_iteration_phase, OpenAiIterationPhase,
     ParsedOpenAiToolCall,
 };
@@ -85,7 +85,7 @@ pub(crate) use anthropic_phase::{
     parse_anthropic_tool_uses, require_anthropic_text_content,
 };
 #[cfg(test)]
-pub(crate) use phase_primitives::{
+pub(crate) use openai_phase::{
     openai_choice_message, openai_has_tool_calls, openai_message_content, openai_tool_calls_array,
     parse_openai_tool_calls, require_openai_message_content,
 };
