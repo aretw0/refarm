@@ -1,6 +1,6 @@
 # Compactation Checkpoint — `packages/pi-agent`
 
-> Last validated state: post-`phase_primitives.rs` + `loop_config.rs` physical splits  
+> Last validated state: post-`phase_primitives.rs` + `loop_config.rs` + `tool_phase.rs` physical splits  
 > Validation at checkpoint: `cargo test --lib` (**213/213 pass**), `cargo check --target wasm32-wasip1` (**pass**)
 
 ## 1) Why this file exists
