@@ -142,6 +142,7 @@ __pycache__/
 
 # Coding Agents
 .claude/settings.local.json
+.workflows/
 
 # PI Lens cache
 .pi-lens/
