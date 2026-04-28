@@ -13,6 +13,7 @@ mod phase_common;
 mod openai_phase;
 mod request_builders;
 mod request_flow;
+mod request_wasm;
 #[cfg(test)]
 mod state_adapters;
 #[cfg(test)]
@@ -130,7 +131,7 @@ pub(crate) use request_builders::{
 pub(crate) use request_flow::iteration_response_and_phase_with;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use request_flow::{
+pub(crate) use request_wasm::{
     anthropic_iteration_response_and_phase, openai_iteration_response_and_phase,
 };
 
