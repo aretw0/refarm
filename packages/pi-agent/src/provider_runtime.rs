@@ -23,6 +23,7 @@ mod step_common;
 mod step_phase;
 mod tool_execution;
 mod tool_phase;
+mod tool_phase_common;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
@@ -108,8 +109,10 @@ pub(crate) use openai_phase::{
 pub(crate) use request_builders::{anthropic_headers, openai_compat_headers};
 #[cfg(test)]
 pub(crate) use tool_phase::{
-    advance_anthropic_tool_phase_with, advance_openai_tool_phase_with, advance_tool_phase_with,
+    advance_anthropic_tool_phase_with, advance_openai_tool_phase_with,
 };
+#[cfg(test)]
+pub(crate) use tool_phase_common::advance_tool_phase_with;
 #[cfg(test)]
 pub(crate) use tool_execution::{
     execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
