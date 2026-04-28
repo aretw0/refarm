@@ -30,6 +30,7 @@ mod openai_step_phase;
 mod request_anthropic_wasm;
 mod request_builders;
 mod request_flow;
+mod request_headers;
 mod request_http_wasm;
 mod request_openai_wasm;
 mod request_parse;
@@ -137,7 +138,7 @@ pub(crate) use openai_phase::{
     openai_has_tool_calls, openai_tool_calls_array, parse_openai_tool_calls,
 };
 
-pub(crate) use request_builders::{anthropic_headers, openai_compat_headers};
+pub(crate) use request_headers::{anthropic_headers, openai_compat_headers};
 #[cfg(test)]
 pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
 #[cfg(test)]
