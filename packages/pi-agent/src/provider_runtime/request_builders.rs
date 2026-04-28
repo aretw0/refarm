@@ -9,14 +9,6 @@ pub(crate) fn openai_compat_headers() -> Vec<(String, String)> {
     vec![("content-type".to_string(), "application/json".to_string())]
 }
 
-pub(crate) fn openai_compat_path(provider: &str) -> &'static str {
-    match provider {
-        "groq" => "/openai/v1/chat/completions",
-        "openrouter" => "/api/v1/chat/completions",
-        "gemini" => "/v1beta/openai/chat/completions",
-        _ => "/v1/chat/completions",
-    }
-}
 
 pub(crate) fn build_anthropic_body(
     model: &str,

@@ -1,8 +1,9 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
-    request_builders::{build_anthropic_body, build_openai_body, openai_compat_path},
+    request_builders::{build_anthropic_body, build_openai_body},
     request_flow::iteration_response_and_phase_with,
     request_parse::parse_response_json,
+    request_path::openai_compat_path,
     AnthropicIterationPhase, OpenAiIterationPhase, UsageTotals,
 };
 
