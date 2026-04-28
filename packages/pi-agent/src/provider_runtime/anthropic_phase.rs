@@ -1,4 +1,7 @@
-use super::phase_common::{completion_text_if_terminate, error_message};
+use super::{
+    anthropic_text::require_anthropic_text_content,
+    phase_common::completion_text_if_terminate,
+};
 
 pub(crate) fn anthropic_content_array(v: &serde_json::Value) -> Vec<serde_json::Value> {
     v["content"].as_array().cloned().unwrap_or_default()
@@ -56,18 +59,3 @@ pub(crate) fn anthropic_completion_text_if_terminate(
     )
 }
 
-pub(crate) fn anthropic_text_content(content_arr: &[serde_json::Value]) -> Option<String> {
-    content_arr
-        .iter()
-        .find(|c| c["type"] == "text")
-        .and_then(|c| c["text"].as_str())
-        .map(ToOwned::to_owned)
-}
-
-pub(crate) fn require_anthropic_text_content(
-    content_arr: &[serde_json::Value],
-    response: &serde_json::Value,
-) -> Result<String, String> {
-    anthropic_text_content(content_arr)
-        .ok_or_else(|| error_message(response, "no text in response"))
-}

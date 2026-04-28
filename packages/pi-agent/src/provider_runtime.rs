@@ -1,5 +1,6 @@
 mod anthropic_phase;
 mod anthropic_step_phase;
+mod anthropic_text;
 mod anthropic_tool_phase;
 mod contract_loop;
 #[cfg(test)]
@@ -116,9 +117,10 @@ pub(crate) use phase_common::{
 };
 #[cfg(test)]
 pub(crate) use anthropic_phase::{
-    anthropic_content_array, anthropic_has_tool_calls, anthropic_text_content,
-    parse_anthropic_tool_uses, require_anthropic_text_content,
+    anthropic_content_array, anthropic_has_tool_calls, parse_anthropic_tool_uses,
 };
+#[cfg(test)]
+pub(crate) use anthropic_text::{anthropic_text_content, require_anthropic_text_content};
 #[cfg(test)]
 pub(crate) use openai_message::{
     openai_choice_message, openai_message_content, require_openai_message_content,
