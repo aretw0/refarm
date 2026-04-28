@@ -1,6 +1,7 @@
 mod contract_loop;
 mod contracts;
 mod loop_config;
+mod loop_core;
 mod loop_dispatch;
 mod phase_primitives;
 mod request_flow;
@@ -20,6 +21,10 @@ pub(crate) use contracts::{
 
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
 pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState, ProviderRunnerCommonConfig};
+pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
+
+#[cfg(test)]
+pub(crate) use loop_core::run_completion_loop_with;
 pub(crate) use loop_dispatch::run_completion_loop_from_common_config_and_context_with_dispatch;
 
 #[cfg(any(test, target_arch = "wasm32"))]
@@ -164,57 +169,4 @@ pub(crate) fn dispatch_tool_dedup(
         seen_hashes,
         crate::tool_dispatch::dispatch_tool,
     )
-}
-
-pub(crate) fn run_completion_loop_with<P, FR, FS>(
-    max_iter: u32,
-    mut state: ProviderLoopState,
-    mut response_and_phase: FR,
-    mut step: FS,
-) -> Result<CompletionLoopOutcome, String>
-where
-    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
-    FS: FnMut(
-        &mut ProviderLoopState,
-        &P,
-        u32,
-        u32,
-        &serde_json::Value,
-    ) -> Result<Option<String>, String>,
-{
-    for iter_idx in 0..=max_iter {
-        let (response, phase) = response_and_phase(&mut state)?;
-        if let Some(text) = step(&mut state, &phase, iter_idx, max_iter, &response)? {
-            return Ok(CompletionLoopOutcome {
-                state,
-                response,
-                text,
-            });
-        }
-    }
-    unreachable!()
-}
-
-pub(crate) fn run_completion_loop_from_plan_with<P, FR, FS>(
-    plan: ProviderLoopPlan,
-    response_and_phase: FR,
-    step: FS,
-) -> Result<CompletionLoopOutcome, String>
-where
-    FR: FnMut(&mut ProviderLoopState) -> Result<(serde_json::Value, P), String>,
-    FS: FnMut(
-        &mut ProviderLoopState,
-        &P,
-        u32,
-        u32,
-        &serde_json::Value,
-    ) -> Result<Option<String>, String>,
-{
-    run_completion_loop_with(plan.max_iter, plan.state, response_and_phase, step)
-}
-
-pub(crate) struct CompletionLoopOutcome {
-    pub state: ProviderLoopState,
-    pub response: serde_json::Value,
-    pub text: String,
 }
