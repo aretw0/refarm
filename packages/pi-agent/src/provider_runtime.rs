@@ -23,7 +23,9 @@ mod request_wasm;
 #[cfg(test)]
 mod state_adapters;
 #[cfg(test)]
-mod state_loop_tests;
+mod state_loop_context_tests;
+#[cfg(test)]
+mod state_loop_dispatch_tests;
 mod state_primitives;
 mod step_common;
 mod tool_execution;
@@ -179,10 +181,9 @@ pub(crate) use state_adapters::{
     response_and_phase_from_state_with, step_from_state_with_dispatch,
 };
 #[cfg(test)]
-pub(crate) use state_loop_tests::{
-    run_completion_loop_from_common_config_and_context_with_state_primitives,
-    run_completion_loop_from_common_config_with_state_primitives_and_dispatch,
-};
+pub(crate) use state_loop_context_tests::run_completion_loop_from_common_config_and_context_with_state_primitives;
+#[cfg(test)]
+pub(crate) use state_loop_dispatch_tests::run_completion_loop_from_common_config_with_state_primitives_and_dispatch;
 
 #[cfg(test)]
 pub(crate) use contracts::provider_response_phase_contract;
