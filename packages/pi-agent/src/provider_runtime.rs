@@ -21,6 +21,7 @@ mod output_dedup;
 #[cfg(target_arch = "wasm32")]
 mod output_dedup_wasm;
 mod phase_common;
+mod openai_message;
 mod openai_phase;
 mod openai_step_phase;
 mod request_builders;
@@ -119,9 +120,12 @@ pub(crate) use anthropic_phase::{
     parse_anthropic_tool_uses, require_anthropic_text_content,
 };
 #[cfg(test)]
+pub(crate) use openai_message::{
+    openai_choice_message, openai_message_content, require_openai_message_content,
+};
+#[cfg(test)]
 pub(crate) use openai_phase::{
-    openai_choice_message, openai_has_tool_calls, openai_message_content, openai_tool_calls_array,
-    parse_openai_tool_calls, require_openai_message_content,
+    openai_has_tool_calls, openai_tool_calls_array, parse_openai_tool_calls,
 };
 
 pub(crate) use request_builders::{anthropic_headers, openai_compat_headers};
