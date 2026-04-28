@@ -25,6 +25,7 @@ mod tool_phase;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
+mod usage_totals;
 mod wasm_anthropic;
 mod wasm_loop;
 mod wasm_openai;
@@ -139,7 +140,7 @@ pub(crate) use loop_dispatch::{
     run_completion_loop_from_plan_with_dispatch,
 };
 pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
-pub(crate) use usage_finalize::UsageTotals;
+pub(crate) use usage_totals::UsageTotals;
 pub(crate) use usage_phase::{
     anthropic_phase_after_usage, openai_phase_after_usage, response_usage,
 };
