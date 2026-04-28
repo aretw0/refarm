@@ -20,6 +20,7 @@ mod tool_phase;
 mod tool_wire;
 mod usage_finalize;
 mod usage_phase;
+mod wasm_loop;
 mod wasm_runners;
 mod wire_bootstrap;
 
