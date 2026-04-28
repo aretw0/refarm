@@ -1,6 +1,7 @@
 use super::{
     initial_anthropic_wire_messages, initial_openai_wire_messages,
-    loop_config::{provider_loop_state, tool_loop_max_iter, ProviderLoopPlan, ProviderLoopState},
+    loop_config::{provider_loop_state, ProviderLoopPlan, ProviderLoopState},
+    loop_limits::tool_loop_max_iter,
 };
 
 pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoopState {

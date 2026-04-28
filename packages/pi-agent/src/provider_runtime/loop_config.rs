@@ -1,12 +1,5 @@
 use super::UsageTotals;
 
-pub(crate) fn tool_loop_max_iter() -> u32 {
-    std::env::var("LLM_TOOL_CALL_MAX_ITER")
-        .ok()
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(5)
-}
-
 pub(crate) struct ProviderLoopState {
     pub wire_msgs: Vec<serde_json::Value>,
     pub usage_totals: UsageTotals,
@@ -44,5 +37,3 @@ pub(crate) fn provider_loop_state(initial_wire_msgs: Vec<serde_json::Value>) -> 
         seen_hashes: std::collections::HashSet::new(),
     }
 }
-
-
