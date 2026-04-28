@@ -1,38 +1,13 @@
 use super::{
     openai_message::{openai_choice_message, require_openai_message_content},
-    phase_common::{completion_text_if_terminate, parse_json_arguments},
+    openai_tool_calls::{openai_tool_calls_array, parse_openai_tool_calls, ParsedOpenAiToolCall},
+    phase_common::completion_text_if_terminate,
 };
-
-pub(crate) fn openai_tool_calls_array(msg: &serde_json::Value) -> Vec<serde_json::Value> {
-    msg["tool_calls"].as_array().cloned().unwrap_or_default()
-}
-
-pub(crate) struct ParsedOpenAiToolCall {
-    pub name: String,
-    pub input: serde_json::Value,
-    pub id: String,
-}
 
 pub(crate) struct OpenAiIterationPhase {
     pub msg: serde_json::Value,
     pub tool_calls_json: Vec<serde_json::Value>,
     pub parsed_calls: Vec<ParsedOpenAiToolCall>,
-}
-
-pub(crate) fn parse_openai_tool_calls(
-    tool_calls_json: &[serde_json::Value],
-) -> Vec<ParsedOpenAiToolCall> {
-    tool_calls_json
-        .iter()
-        .map(|tc| {
-            let fn_obj = &tc["function"];
-            ParsedOpenAiToolCall {
-                name: fn_obj["name"].as_str().unwrap_or("").to_owned(),
-                input: parse_json_arguments(fn_obj["arguments"].as_str().unwrap_or("{}")),
-                id: tc["id"].as_str().unwrap_or("").to_owned(),
-            }
-        })
-        .collect()
 }
 
 pub(crate) fn openai_iteration_phase(response: &serde_json::Value) -> OpenAiIterationPhase {
@@ -63,4 +38,3 @@ pub(crate) fn openai_completion_text_if_terminate(
         require_openai_message_content(&phase.msg, response),
     )
 }
-
