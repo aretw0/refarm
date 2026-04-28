@@ -1,42 +1,29 @@
 {
-	"context": "Execução pausada por solicitação do usuário após entrega técnica do NEXT11; checkpoint de compactação 19 registrado.",
-	"timestamp": "2026-04-24T20:21:45.173Z",
+	"context": "Checkpoint de compactação preparado em 2026-04-28 após retomada operacional, limpeza de disco e fechamento de tarefas T-NEXT-287/T-NEXT-292. Working tree estava limpo antes desta atualização de handoff.",
+	"timestamp": "2026-04-28T23:57:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Trabalho técnico NEXT11 aplicado localmente (baseline artifact lookup + CI integration + docs + testes).",
-		"Validações locais executadas e project-validate limpo.",
-		"Pausa operacional ativa aguardando retomada do usuário."
+		"Ambiente local estabilizado em modo sobrevivência de disco: scripts de limpeza adicionados e commitados; espaço atual ~17GB livres em /workspaces/refarm; Rust target restante ~511MB apenas em packages/pi-agent/target.",
+		"T-NEXT-287 concluída: structured-io já estava importado no WIT do pi-agent e dispatch wasm32 delega para crate::refarm::plugin::structured_io. Validações passaram: cargo test --lib structured, cargo test --lib tool, cargo component build --release.",
+		"T-NEXT-292 concluída: pesquisa A2A/MCP/JSON-LD registrada como ADR canônica em specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md; ROADMAP e .project atualizados."
 	],
 	"blockers": [
-		"Sem bloqueio técnico; pausa voluntária solicitada pelo usuário."
+		"Sem bloqueio técnico imediato.",
+		"Host Windows/C: ainda está em 97% de uso; evitar builds globais e rodar limpeza leve ao final de cada ciclo."
 	],
 	"next_actions": [
-		"Na retomada: revisar diff final, commitar em lote atômico e executar push + observação DEC-024.",
-		"Se desejado, dividir em 2 commits (runtime/ci + governança) para facilitar revisão.",
-		"Após push, confirmar run Test & Quality com novos steps baseline/history verdes."
+		"Retomar pela única task planned: T-NEXT-293 — revisão de qualidade Rust + split de arquivos grandes em packages/pi-agent, em fatias pequenas e commits atômicos.",
+		"Antes de mexer em pi-agent: confirmar git status limpo, df -h /workspaces/refarm, npm run clean:rust:check --silent.",
+		"Para T-NEXT-293: medir tamanho/estrutura atual de packages/pi-agent/src/lib.rs e módulos já extraídos; evitar refatorar tudo de uma vez. Começar por inspeção e plano de slices.",
+		"Validação econômica para fatias pi-agent: cd packages/pi-agent && cargo test --lib <filtro> --quiet; usar cargo component build --release só quando o slice afetar WIT/wasm boundary."
 	],
 	"open_questions": [
-		"Qual política de retenção/hidratação histórica será adotada quando artifact TTL expirar (14 dias)?"
+		"DEC-010 permanece pendente/revisit histórica.",
+		"Quando implementar ADR-052: decidir formato formal de schema para AgentProfile/AgentTask/AgentMessage/AgentArtifact antes de qualquer gateway A2A."
 	],
 	"key_decisions_pending": [
-		"DEC-010"
+		"DEC-010",
+		"ADR-052 ainda está Proposed; promover/ajustar após revisão humana."
 	],
-	"files_in_flux": [
-		".github/workflows/test.yml",
-		"package.json",
-		"scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs",
-		"scripts/ci/runtime-descriptor-revocation-baseline-fetch-lib.mjs",
-		"scripts/ci/runtime-descriptor-revocation-baseline-lib.mjs",
-		"scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
-		"packages/tractor-ts/docs/OBSERVABILITY.md",
-		"packages/tractor-ts/README.md",
-		"docs/RUNTIME_DESCRIPTOR_REVOCATION_INCIDENT_RUNBOOK.md",
-		"docs/RUNTIME_DESCRIPTOR_EXTERNAL_SIGNED_ALIGNMENT.md",
-		"docs/ARCHITECTURE.md",
-		".project/tasks.json",
-		".project/verification.json",
-		".project/requirements.json",
-		".project/decisions.json",
-		".project/handoff.json"
-	]
+	"files_in_flux": []
 }
