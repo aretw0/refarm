@@ -1,3 +1,4 @@
+mod anthropic_phase;
 mod contract_loop;
 mod contracts;
 mod loop_config;
@@ -52,10 +53,13 @@ pub(crate) use loop_config::{
     anthropic_loop_plan, anthropic_loop_state, openai_loop_plan, openai_loop_state,
     provider_loop_plan_with_max_iter, provider_loop_state, provider_runner_common_config,
 };
+pub(crate) use anthropic_phase::{
+    anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
+    ParsedAnthropicToolUse,
+};
 pub(crate) use phase_primitives::{
-    anthropic_completion_text_if_terminate, anthropic_iteration_phase,
-    openai_completion_text_if_terminate, openai_iteration_phase, AnthropicIterationPhase,
-    OpenAiIterationPhase, ParsedAnthropicToolUse, ParsedOpenAiToolCall,
+    openai_completion_text_if_terminate, openai_iteration_phase, OpenAiIterationPhase,
+    ParsedOpenAiToolCall,
 };
 #[cfg(test)]
 pub(crate) use step_phase::{
@@ -76,11 +80,14 @@ pub(crate) use phase_common::{
     completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
 };
 #[cfg(test)]
-pub(crate) use phase_primitives::{
+pub(crate) use anthropic_phase::{
     anthropic_content_array, anthropic_has_tool_calls, anthropic_text_content,
+    parse_anthropic_tool_uses, require_anthropic_text_content,
+};
+#[cfg(test)]
+pub(crate) use phase_primitives::{
     openai_choice_message, openai_has_tool_calls, openai_message_content, openai_tool_calls_array,
-    parse_anthropic_tool_uses, parse_openai_tool_calls, require_anthropic_text_content,
-    require_openai_message_content,
+    parse_openai_tool_calls, require_openai_message_content,
 };
 
 pub(crate) use request_flow::{anthropic_headers, openai_compat_headers};
