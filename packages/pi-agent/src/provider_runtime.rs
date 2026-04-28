@@ -25,6 +25,7 @@ mod phase_common;
 mod openai_message;
 mod openai_phase;
 mod openai_step_phase;
+mod request_anthropic_wasm;
 mod request_builders;
 mod request_flow;
 mod request_openai_wasm;
@@ -166,9 +167,9 @@ pub(crate) use request_path::openai_compat_path;
 pub(crate) use request_flow::iteration_response_and_phase_with;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use request_openai_wasm::openai_iteration_response_and_phase;
+pub(crate) use request_anthropic_wasm::anthropic_iteration_response_and_phase;
 #[cfg(target_arch = "wasm32")]
-pub(crate) use request_wasm::anthropic_iteration_response_and_phase;
+pub(crate) use request_openai_wasm::openai_iteration_response_and_phase;
 
 #[cfg(test)]
 pub(crate) use loop_dispatch_tests::{
