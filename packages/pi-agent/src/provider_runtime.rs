@@ -9,6 +9,7 @@ mod contract_loop_context_tests;
 #[cfg(test)]
 mod contract_loop_nondispatch_tests;
 mod iteration_contract;
+mod iteration_step_dispatch;
 mod loop_config;
 #[cfg(test)]
 mod loop_config_tests;
@@ -19,30 +20,33 @@ mod loop_dispatch_tests;
 mod loop_limits;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_plan_builders;
-mod loop_state;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_anthropic;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_common;
 #[cfg(any(test, target_arch = "wasm32"))]
 mod loop_runner_openai;
+mod loop_runner_types;
+mod loop_state;
+mod openai_message;
+mod openai_phase;
+mod openai_step_phase;
+mod openai_tool_calls;
 mod openai_tool_phase;
 mod output_dedup;
 #[cfg(target_arch = "wasm32")]
 mod output_dedup_wasm;
 mod phase_common;
-mod openai_message;
-mod openai_phase;
-mod openai_step_phase;
-mod openai_tool_calls;
+mod request_anthropic_response_wasm;
 mod request_anthropic_wasm;
 mod request_body_anthropic;
 mod request_body_openai;
-mod request_flow;
+mod request_iteration;
 mod request_headers_anthropic;
 mod request_headers_common;
 mod request_headers_openai;
 mod request_http_wasm;
+mod request_openai_response_wasm;
 mod request_openai_wasm;
 mod request_parse;
 mod request_path;
@@ -51,11 +55,11 @@ mod response_phase_contract;
 mod state_loop_context_tests;
 #[cfg(test)]
 mod state_loop_dispatch_tests;
+mod state_primitives;
 #[cfg(test)]
 mod state_response_adapter_tests;
 #[cfg(test)]
 mod state_step_adapter_tests;
-mod state_primitives;
 mod step_common;
 mod tool_execution;
 mod tool_phase_common;
@@ -73,21 +77,20 @@ mod wasm_loop;
 mod wasm_openai;
 mod wire_bootstrap;
 
-pub(crate) use iteration_contract::{
-    provider_iteration_contract, step_from_state_with_dispatch_contract,
-    ProviderIterationContract,
-};
+pub(crate) use iteration_contract::{provider_iteration_contract, ProviderIterationContract};
+pub(crate) use iteration_step_dispatch::step_from_state_with_dispatch_contract;
 pub(crate) use response_phase_contract::{
     provider_response_phase_contract_into_parts, response_phase_contract_from_state_with,
     ProviderResponsePhaseContract,
 };
 
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
-pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState, ProviderRunnerCommonConfig};
+pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState};
+pub(crate) use loop_runner_types::ProviderRunnerCommonConfig;
 
+pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
 #[cfg(test)]
 pub(crate) use loop_limits::tool_loop_max_iter;
-pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
 
 #[cfg(test)]
 pub(crate) use loop_core::run_completion_loop_with;
@@ -104,10 +107,15 @@ pub(crate) use loop_runner_anthropic::anthropic_runner_config;
 pub(crate) use loop_runner_openai::openai_runner_config;
 
 #[cfg(target_arch = "wasm32")]
-pub(crate) use loop_config::{AnthropicRunnerConfig, OpenAiRunnerConfig};
+pub(crate) use loop_runner_types::{AnthropicRunnerConfig, OpenAiRunnerConfig};
 
+pub(crate) use anthropic_phase::{
+    anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
+};
 #[cfg(test)]
-pub(crate) use loop_state::provider_loop_state;
+pub(crate) use anthropic_step_phase::anthropic_step_text_or_advance_with;
+pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_from_phase_with;
+pub(crate) use anthropic_tool_uses::ParsedAnthropicToolUse;
 #[cfg(test)]
 pub(crate) use loop_config_tests::provider_loop_plan_with_max_iter;
 #[cfg(test)]
@@ -116,22 +124,17 @@ pub(crate) use loop_plan_builders::{
 };
 #[cfg(test)]
 pub(crate) use loop_runner_common::provider_runner_common_config;
-pub(crate) use anthropic_phase::{
-    anthropic_completion_text_if_terminate, anthropic_iteration_phase, AnthropicIterationPhase,
-};
-pub(crate) use anthropic_tool_uses::ParsedAnthropicToolUse;
+#[cfg(test)]
+pub(crate) use loop_state::provider_loop_state;
 pub(crate) use openai_phase::{
     openai_completion_text_if_terminate, openai_iteration_phase, OpenAiIterationPhase,
 };
-pub(crate) use openai_tool_calls::ParsedOpenAiToolCall;
-#[cfg(test)]
-pub(crate) use step_common::step_text_or_advance_with;
-#[cfg(test)]
-pub(crate) use anthropic_step_phase::anthropic_step_text_or_advance_with;
 #[cfg(test)]
 pub(crate) use openai_step_phase::openai_step_text_or_advance_with;
-pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_from_phase_with;
+pub(crate) use openai_tool_calls::ParsedOpenAiToolCall;
 pub(crate) use openai_tool_phase::advance_openai_tool_phase_from_phase_with;
+#[cfg(test)]
+pub(crate) use step_common::step_text_or_advance_with;
 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) use anthropic_step_phase::anthropic_step_from_phase_with_dispatch;
@@ -139,15 +142,11 @@ pub(crate) use anthropic_step_phase::anthropic_step_from_phase_with_dispatch;
 pub(crate) use openai_step_phase::openai_step_from_phase_with_dispatch;
 
 #[cfg(test)]
-pub(crate) use phase_common::{
-    completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
-};
-#[cfg(test)]
 pub(crate) use anthropic_phase::anthropic_has_tool_calls;
 #[cfg(test)]
-pub(crate) use anthropic_tool_uses::{anthropic_content_array, parse_anthropic_tool_uses};
-#[cfg(test)]
 pub(crate) use anthropic_text::{anthropic_text_content, require_anthropic_text_content};
+#[cfg(test)]
+pub(crate) use anthropic_tool_uses::{anthropic_content_array, parse_anthropic_tool_uses};
 #[cfg(test)]
 pub(crate) use openai_message::{
     openai_choice_message, openai_message_content, require_openai_message_content,
@@ -156,19 +155,23 @@ pub(crate) use openai_message::{
 pub(crate) use openai_phase::openai_has_tool_calls;
 #[cfg(test)]
 pub(crate) use openai_tool_calls::{openai_tool_calls_array, parse_openai_tool_calls};
+#[cfg(test)]
+pub(crate) use phase_common::{
+    completion_text_if_terminate, error_message, parse_json_arguments, should_terminate_tool_loop,
+};
 
-pub(crate) use request_headers_anthropic::anthropic_headers;
-pub(crate) use request_headers_openai::openai_compat_headers;
 #[cfg(test)]
 pub(crate) use anthropic_tool_phase::advance_anthropic_tool_phase_with;
 #[cfg(test)]
 pub(crate) use openai_tool_phase::advance_openai_tool_phase_with;
-#[cfg(test)]
-pub(crate) use tool_phase_common::advance_tool_phase_with;
+pub(crate) use request_headers_anthropic::anthropic_headers;
+pub(crate) use request_headers_openai::openai_compat_headers;
 #[cfg(test)]
 pub(crate) use tool_execution::{
     execute_anthropic_tools_with, execute_openai_tools_with, execute_tools_with,
 };
+#[cfg(test)]
+pub(crate) use tool_phase_common::advance_tool_phase_with;
 #[cfg(test)]
 pub(crate) use tool_recording::{
     push_executed_call, record_anthropic_tool_execution, record_openai_tool_execution,
@@ -186,11 +189,11 @@ pub(crate) use request_body_anthropic::build_anthropic_body;
 #[cfg(test)]
 pub(crate) use request_body_openai::build_openai_body;
 #[cfg(test)]
+pub(crate) use request_iteration::iteration_response_and_phase_with;
+#[cfg(test)]
 pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_path::openai_compat_path;
-#[cfg(test)]
-pub(crate) use request_flow::iteration_response_and_phase_with;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use request_anthropic_wasm::anthropic_iteration_response_and_phase;
@@ -203,9 +206,9 @@ pub(crate) use loop_dispatch_tests::{
     run_completion_loop_from_plan_with_dispatch,
 };
 pub(crate) use state_primitives::run_completion_loop_from_common_config_and_context_with_state_primitives_and_dispatch;
-pub(crate) use usage_totals::UsageTotals;
-pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
 pub(crate) use usage_extract::response_usage;
+pub(crate) use usage_phase::{anthropic_phase_after_usage, openai_phase_after_usage};
+pub(crate) use usage_totals::UsageTotals;
 
 #[cfg(test)]
 pub(crate) use usage_extract::ingest_usage_from_response_with;
@@ -228,13 +231,13 @@ pub(crate) use wasm_anthropic::run_anthropic_completion_loop;
 pub(crate) use wasm_openai::run_openai_completion_loop;
 
 #[cfg(test)]
-pub(crate) use state_response_adapter_tests::response_and_phase_from_state_with;
-#[cfg(test)]
-pub(crate) use state_step_adapter_tests::step_from_state_with_dispatch;
-#[cfg(test)]
 pub(crate) use state_loop_context_tests::run_completion_loop_from_common_config_and_context_with_state_primitives;
 #[cfg(test)]
 pub(crate) use state_loop_dispatch_tests::run_completion_loop_from_common_config_with_state_primitives_and_dispatch;
+#[cfg(test)]
+pub(crate) use state_response_adapter_tests::response_and_phase_from_state_with;
+#[cfg(test)]
+pub(crate) use state_step_adapter_tests::step_from_state_with_dispatch;
 
 #[cfg(test)]
 pub(crate) use response_phase_contract::provider_response_phase_contract;
