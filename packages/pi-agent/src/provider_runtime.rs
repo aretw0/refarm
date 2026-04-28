@@ -22,6 +22,9 @@ pub(crate) use contracts::{
 
 pub(crate) use contract_loop::run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch;
 pub(crate) use loop_config::{ProviderLoopPlan, ProviderLoopState, ProviderRunnerCommonConfig};
+
+#[cfg(test)]
+pub(crate) use loop_config::tool_loop_max_iter;
 pub(crate) use loop_core::{run_completion_loop_from_plan_with, CompletionLoopOutcome};
 
 #[cfg(test)]
@@ -131,10 +134,3 @@ pub(crate) use state_primitives::{
 
 #[cfg(test)]
 pub(crate) use contracts::provider_response_phase_contract;
-
-pub(crate) fn tool_loop_max_iter() -> u32 {
-    std::env::var("LLM_TOOL_CALL_MAX_ITER")
-        .ok()
-        .and_then(|v| v.parse::<u32>().ok())
-        .unwrap_or(5)
-}

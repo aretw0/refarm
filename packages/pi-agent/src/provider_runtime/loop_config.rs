@@ -1,5 +1,12 @@
 use super::UsageTotals;
 
+pub(crate) fn tool_loop_max_iter() -> u32 {
+    std::env::var("LLM_TOOL_CALL_MAX_ITER")
+        .ok()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(5)
+}
+
 pub(crate) struct ProviderLoopState {
     pub wire_msgs: Vec<serde_json::Value>,
     pub usage_totals: UsageTotals,
@@ -70,7 +77,7 @@ pub(crate) fn anthropic_loop_state(messages: &[(String, String)]) -> ProviderLoo
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn anthropic_loop_plan(messages: &[(String, String)]) -> ProviderLoopPlan {
     ProviderLoopPlan {
-        max_iter: super::tool_loop_max_iter(),
+        max_iter: tool_loop_max_iter(),
         state: anthropic_loop_state(messages),
     }
 }
@@ -83,7 +90,7 @@ pub(crate) fn openai_loop_state(system: &str, messages: &[(String, String)]) -> 
 #[cfg(any(test, target_arch = "wasm32"))]
 pub(crate) fn openai_loop_plan(system: &str, messages: &[(String, String)]) -> ProviderLoopPlan {
     ProviderLoopPlan {
-        max_iter: super::tool_loop_max_iter(),
+        max_iter: tool_loop_max_iter(),
         state: openai_loop_state(system, messages),
     }
 }
