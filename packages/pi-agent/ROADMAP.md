@@ -149,6 +149,7 @@ Context engineering follows the pi-test-harness model:
   - `/navigate <entry_id>` — move session pointer, writes to CRDT directly
 
 ### Streaming token output
+- [x] Response-node schema supports partial/final chunks via configurable `is_final` and `sequence` fields
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
