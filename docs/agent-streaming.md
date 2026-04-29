@@ -38,9 +38,11 @@ JSON mode keeps emitting each `AgentResponse` event with `sequence` and
 `is_final`, so structured consumers can maintain their own per-`prompt_ref`
 accumulator. TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
-from `@refarm.dev/tractor` as the default single-stream accumulation primitive,
-or `reduceAgentResponseStreamEventsByPrompt(...)` when events from multiple
-`prompt_ref` values may be interleaved.
+from `@refarm.dev/tractor` as the default `AgentResponse` accumulation
+primitive, or `reduceAgentResponseStreamEventsByPrompt(...)` when events from
+multiple `prompt_ref` values may be interleaved. Consumers that observe generic
+`StreamChunk` nodes directly can use `reduceStreamChunkEvents(...)` or
+`reduceStreamChunkEventsByStream(...)`.
 
 ## Local validation
 
