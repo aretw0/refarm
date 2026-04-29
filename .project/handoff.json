@@ -1,31 +1,31 @@
 {
-	"context": "Checkpoint atualizado em 2026-04-29 após novos slices no lane de streaming. LSP v1/code-ops permanece fechado @72%. Streaming agora tem seams puros para SSE→deltas→ResponseChunkDraft→persistence helper/callback, um helper WASM para persistir bytes SSE como chunks parciais, e gate explícito para só enviar provider stream:true quando houver opt-in e transporte streaming pronto. Ainda sem HTTP streaming real. Working tree limpo após validações e clean:light.",
-	"timestamp": "2026-04-29T11:52:45.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após corrigir gate de push do Tractor e avançar mais slices do lane de streaming do pi-agent. LSP v1/code-ops permanece fechado @72%. Streaming agora tem gates de provider streaming, callback seam no HTTP WASM, e provider request paths roteiam por esse seam enquanto transporte streaming real permanece desabilitado. Working tree limpo após validações e clean:light.",
+	"timestamp": "2026-04-29T12:18:30.000Z",
 	"current_phase": 11,
 	"current_tasks": [
+		"Gate de push do Tractor corrigido: f33bb390 fix(tractor): satisfy clippy push gate. Corrigiu clippy em lsp_bridge.rs (while let) e main.rs (PollAgentResponsesOptions para evitar too_many_arguments). Validações: cargo clippy --quiet -- -D warnings; cargo test --lib --quiet; cargo test --bin tractor --quiet.",
 		"LSP v1/code-ops fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
 		"Streaming lane: AgentResponsePayload aceita is_final/sequence; streaming_config define LLM_STREAM_RESPONSES=1|true|yes|on; prompt_persistence tem store_agent_response_chunk; streaming_chunks codifica sequence inicial 0, monotonic saturating_add, e partials fora do session history.",
-		"Prompt handler lê stream_responses_enabled_from_env e calcula sequência final via streaming_chunks::final_response_sequence(streaming_enabled, None), sem ativar provider streaming real ainda.",
 		"Provider request body builders têm variantes *_with_streaming(..., stream: bool) que emitem stream:true somente quando solicitado; wrappers antigos preservam ausência de stream por default.",
 		"provider_runtime/stream_events.rs parseia SSE data events e deltas textuais provider-specific: OpenAI choices[].delta.content (inclui múltiplas choices por evento) e Anthropic content_block_delta.delta.text.",
-		"streaming_chunks.rs tem ResponseChunkDraft, partial_response_chunk_drafts(deltas,last_sequence), last_response_chunk_sequence(...). Deltas vazios são ignorados, chunks parciais têm is_final=false.",
 		"prompt_persistence tem AgentResponseChunkDefaults, store_agent_response_chunk_drafts(prompt_ref,drafts,defaults), e store_agent_response_chunks_from_sse(prompt_ref,bytes,last_sequence,defaults) que persiste chunks parciais e retorna (last_emitted_sequence, stored_count).",
-		"provider_runtime/stream_events.rs tem parse_stream_response_chunk_drafts_from_sse(bytes,last_sequence) e emit_stream_response_chunk_drafts_from_sse(bytes,last_sequence, callback), retornando última sequência emitida.",
-		"Novo: streaming_config::provider_stream_request_enabled(policy_enabled, streaming_reader_available) evita adicionar stream:true antes do reader HTTP chunked existir, mesmo com LLM_STREAM_RESPONSES=1.",
-		"Commits recentes: a14c79f9 refactor(agent): persist sse response chunks; 35e0a84c docs(agent): note sse chunk persistence; 5bab88f0 refactor(agent): gate provider streaming requests; 42428a21 docs(agent): note provider stream gate."
+		"streaming_config::provider_stream_request_enabled(policy_enabled, streaming_reader_available) evita adicionar stream:true antes do reader HTTP chunked existir; streaming_reader_available() ainda retorna false.",
+		"Novo: request_http_wasm.rs tem execute_json_request_with_streaming_callback(..., on_stream_bytes), preservando execute_json_request bufferizado. Provider OpenAI/Anthropic agora passam pelo callback seam com callback no-op enquanto provider_stream_request_enabled_from_env() permanece false.",
+		"Commits recentes: 120f0f87 refactor(agent): wire provider stream gate; 38bbe58f refactor(agent): add streaming http callback seam; 4ea858f3 refactor(agent): route providers through streaming seam."
 	],
 	"blockers": [
-		"Host Windows/C continua crítico: 97-98% usado, ~11GB livres depois de builds/checks. Evitar builds globais; rodar clean:light após Rust. Considerar clean:heavy se precisar recuperar ~4GB, aceitando rebuild posterior.",
+		"Host Windows/C continua crítico: 99% usado, ~9.3GB livres depois de checks. Evitar builds globais; rodar clean:light após Rust. Considerar clean:heavy se precisar recuperar ~5GB, aceitando rebuild posterior.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target ~925MB e packages/tractor/target ~3146MB após limpeza; manter validações escopadas.",
+		"packages/pi-agent/target ~925MB e packages/tractor/target ~4152MB após limpeza; manter validações escopadas.",
 		"pi edit/write hooks podem aplicar clippy/fmt em lib.rs/provider_runtime.rs e gerar churn; reverter arquivos fora do escopo antes de commit quando acontecer.",
-		"store_agent_response_chunk_drafts/store_agent_response_chunks_from_sse estão marcados #[allow(dead_code)] por serem seams wasm futuros ainda não conectados ao HTTP streaming real."
+		"execute_json_request ainda existe e está marcado #[allow(dead_code)] porque provider paths agora passam pelo callback seam, mas a função bufferizada foi preservada intencionalmente."
 	],
 	"next_actions": [
-		"Próximo slice: desenhar interface de callback/iterator para execute_json_request streaming em WASM, mantendo execute_json_request atual intacto e usando provider_stream_request_enabled(..., streaming_reader_available=false) até o reader existir.",
-		"Depois: implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES + streaming_reader_available, persistindo AgentResponse chunks parciais com sequence monotônica.",
+		"Próximo slice streaming: substituir callbacks no-op dos provider paths por uma callback que use store_agent_response_chunks_from_sse quando houver prompt_ref/defaults disponíveis — isso provavelmente exige carregar contexto de prompt no provider runtime ou desenhar um sink/contexto explícito.",
+		"Depois: implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES + streaming_reader_available=true, persistindo AgentResponse chunks parciais com sequence monotônica.",
 		"Ao integrar streaming real, atualizar prompt_handler para alimentar final_response_sequence(streaming_enabled, last_partial_sequence) em vez de None.",
-		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo test --lib provider_runtime_parse_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet quando necessário; git diff --check; npm run clean:light --silent."
+		"Se focar push hygiene: após hooks/push rodarem localmente, usar npm run clean:light --silent; se disco ficar crítico, discutir/usar npm run clean:heavy --silent.",
+		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet quando necessário; para Tractor push gate: cd packages/tractor && cargo clippy --quiet -- -D warnings && cargo test --lib --quiet && cargo test --bin tractor --quiet."
 	],
 	"open_questions": [
 		"ACP/Agent Context Protocol continua fora do roadmap canônico; se necessário criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
