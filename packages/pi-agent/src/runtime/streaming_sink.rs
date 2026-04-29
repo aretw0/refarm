@@ -26,6 +26,15 @@ pub(crate) fn set_active_stream_response_sink(prompt_ref: &str, model: &str) {
 }
 
 #[cfg(target_arch = "wasm32")]
+pub(crate) fn update_active_stream_response_sink_model(model: &str) {
+    ACTIVE_STREAM_RESPONSE_SINK.with(|sink| {
+        if let Some(active) = sink.borrow_mut().as_mut() {
+            active.model = model.to_owned();
+        }
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn record_stream_bytes_for_active_sink(bytes: &[u8]) {
     ACTIVE_STREAM_RESPONSE_SINK.with(|sink| {
         let mut sink = sink.borrow_mut();
