@@ -13,6 +13,13 @@ export interface AgentResponseStreamState {
 	isFinal: boolean;
 }
 
+export type AgentResponseStreamStateMap = Record<
+	string,
+	AgentResponseStreamState
+>;
+
+export const UNKNOWN_AGENT_RESPONSE_PROMPT_REF = "__tractor:no-prompt-ref__";
+
 export function emptyAgentResponseStreamState(
 	promptRef: string | null = null,
 ): AgentResponseStreamState {
@@ -58,4 +65,32 @@ export function reduceAgentResponseStreamEvents(
 	initialState: AgentResponseStreamState = emptyAgentResponseStreamState(),
 ): AgentResponseStreamState {
 	return events.reduce(applyAgentResponseStreamEvent, initialState);
+}
+
+export function agentResponseStreamKey(event: AgentResponseStreamEvent): string {
+	return typeof event.prompt_ref === "string"
+		? event.prompt_ref
+		: UNKNOWN_AGENT_RESPONSE_PROMPT_REF;
+}
+
+export function applyAgentResponseStreamEventToMap(
+	stateMap: AgentResponseStreamStateMap,
+	event: AgentResponseStreamEvent,
+): AgentResponseStreamStateMap {
+	const key = agentResponseStreamKey(event);
+	const previous = stateMap[key] ?? emptyAgentResponseStreamState(
+		key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key,
+	);
+
+	return {
+		...stateMap,
+		[key]: applyAgentResponseStreamEvent(previous, event),
+	};
+}
+
+export function reduceAgentResponseStreamEventsByPrompt(
+	events: readonly AgentResponseStreamEvent[],
+	initialStateMap: AgentResponseStreamStateMap = {},
+): AgentResponseStreamStateMap {
+	return events.reduce(applyAgentResponseStreamEventToMap, initialStateMap);
 }

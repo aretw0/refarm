@@ -3,6 +3,8 @@ import {
 	applyAgentResponseStreamEvent,
 	emptyAgentResponseStreamState,
 	reduceAgentResponseStreamEvents,
+	reduceAgentResponseStreamEventsByPrompt,
+	UNKNOWN_AGENT_RESPONSE_PROMPT_REF,
 } from "../src/lib/agent-response-stream";
 
 describe("AgentResponse streaming accumulator", () => {
@@ -28,6 +30,34 @@ describe("AgentResponse streaming accumulator", () => {
 			content: "Olá stream",
 			lastSequence: 2,
 			isFinal: true,
+		});
+	});
+
+	it("groups interleaved events by prompt_ref for structured clients", () => {
+		const states = reduceAgentResponseStreamEventsByPrompt([
+			{ prompt_ref: "prompt-a", content: "hel", sequence: 0, is_final: false },
+			{ prompt_ref: "prompt-b", content: "other", sequence: 0, is_final: true },
+			{ prompt_ref: "prompt-a", content: "hello", sequence: 1, is_final: true },
+			{ content: "orphan", sequence: 0, is_final: false },
+		]);
+
+		expect(states["prompt-a"]).toEqual({
+			promptRef: "prompt-a",
+			content: "hello",
+			lastSequence: 1,
+			isFinal: true,
+		});
+		expect(states["prompt-b"]).toEqual({
+			promptRef: "prompt-b",
+			content: "other",
+			lastSequence: 0,
+			isFinal: true,
+		});
+		expect(states[UNKNOWN_AGENT_RESPONSE_PROMPT_REF]).toEqual({
+			promptRef: null,
+			content: "orphan",
+			lastSequence: 0,
+			isFinal: false,
 		});
 	});
 
