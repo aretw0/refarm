@@ -1,32 +1,29 @@
 {
-	"context": "Checkpoint de compactação atualizado em 2026-04-29 antes/depois de tentar push. LSP v1/code-ops permanece fechado @72%. Tractor push gate foi corrigido. Streaming pi-agent tem gates de provider streaming, callback seam no HTTP WASM, provider paths roteados por esse seam, e teste garantindo que LLM_STREAM_RESPONSES=1 não adiciona stream:true enquanto streaming_reader_available=false. Ainda sem HTTP streaming real. Working tree limpo após validações e clean:light antes do push.",
-	"timestamp": "2026-04-29T12:20:40.000Z",
+	"context": "Checkpoint de compactação atualizado em 2026-04-29 após corrigir falha GitHub Actions e confirmar CI verde. Run 25109104739 falhou em quality por project:validate: tasks T-NEXT-266..286 e 288..291 estavam completed sem verification. Foi feito backfill de verification e novo push passou. LSP v1/code-ops permanece fechado @72%; streaming pi-agent segue com seams/gates, ainda sem HTTP streaming real.",
+	"timestamp": "2026-04-29T12:41:20.000Z",
 	"current_phase": 11,
 	"current_tasks": [
 		"Gate de push do Tractor corrigido: f33bb390 fix(tractor): satisfy clippy push gate. Corrigiu clippy em lsp_bridge.rs (while let) e main.rs (PollAgentResponsesOptions para evitar too_many_arguments). Validações: cargo clippy --quiet -- -D warnings; cargo test --lib --quiet; cargo test --bin tractor --quiet.",
+		"GitHub Actions: run 25109104739 em 3da87736 falhou em quality/project:validate por completed tasks sem verification. Corrigido em 57071d9c chore(project): backfill completed task verifications. Novo run 25109330836 em 57071d9c completou com success.",
+		"Project consistency: npm run project:validate --silent passou após backfill. Tarefas T-NEXT-266..286 e T-NEXT-288..291 receberam verification references e entries VER-NEXT-*-20260429 em .project/verification.json.",
 		"LSP v1/code-ops fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
 		"Streaming lane: AgentResponsePayload aceita is_final/sequence; streaming_config define LLM_STREAM_RESPONSES=1|true|yes|on; prompt_persistence tem store_agent_response_chunk; streaming_chunks codifica sequence inicial 0, monotonic saturating_add, e partials fora do session history.",
-		"Provider request body builders têm variantes *_with_streaming(..., stream: bool) que emitem stream:true somente quando solicitado; wrappers antigos preservam ausência de stream por default.",
-		"provider_runtime/stream_events.rs parseia SSE data events e deltas textuais provider-specific: OpenAI choices[].delta.content (inclui múltiplas choices por evento) e Anthropic content_block_delta.delta.text.",
-		"prompt_persistence tem AgentResponseChunkDefaults, store_agent_response_chunk_drafts(prompt_ref,drafts,defaults), e store_agent_response_chunks_from_sse(prompt_ref,bytes,last_sequence,defaults) que persiste chunks parciais e retorna (last_emitted_sequence, stored_count).",
 		"streaming_config::provider_stream_request_enabled(policy_enabled, streaming_reader_available) evita adicionar stream:true antes do reader HTTP chunked existir; streaming_reader_available() ainda retorna false.",
 		"request_http_wasm.rs tem execute_json_request_with_streaming_callback(..., on_stream_bytes), preservando execute_json_request bufferizado. Provider OpenAI/Anthropic agora passam pelo callback seam com callback no-op enquanto provider_stream_request_enabled_from_env() permanece false.",
-		"Novo slice: 99094eb4 test(agent): cover provider stream gate confirma que, mesmo com LLM_STREAM_RESPONSES=1, builders OpenAI/Anthropic não incluem stream enquanto reader não está disponível.",
-		"Commits recentes: f33bb390 fix(tractor): satisfy clippy push gate; 120f0f87 refactor(agent): wire provider stream gate; 38bbe58f refactor(agent): add streaming http callback seam; 4ea858f3 refactor(agent): route providers through streaming seam; 8cbe3c55 chore(project): refresh streaming http handoff; 99094eb4 test(agent): cover provider stream gate."
+		"Commits recentes relevantes: 99094eb4 test(agent): cover provider stream gate; 3da87736 chore(project): refresh push handoff; 57071d9c chore(project): backfill completed task verifications."
 	],
 	"blockers": [
-		"Host Windows/C continua crítico: 99% usado, ~9.3GB livres depois de checks. Evitar builds globais; rodar clean:light após Rust. Considerar clean:heavy se precisar recuperar ~5GB, aceitando rebuild posterior.",
+		"Host Windows/C continua crítico: 99% usado, ~9.5GB livres depois de checks/push. Evitar builds globais; rodar clean:light após Rust. Considerar clean:heavy se precisar recuperar ~5GB, aceitando rebuild posterior.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target ~925MB e packages/tractor/target ~4152MB após limpeza; manter validações escopadas.",
-		"pi edit/write hooks podem aplicar clippy/fmt em lib.rs/provider_runtime.rs e gerar churn; reverter arquivos fora do escopo antes de commit quando acontecer.",
+		"packages/pi-agent/target ~925MB e packages/tractor/target ~3929MB após limpeza; manter validações escopadas.",
 		"execute_json_request ainda existe e está marcado #[allow(dead_code)] porque provider paths agora passam pelo callback seam, mas a função bufferizada foi preservada intencionalmente."
 	],
 	"next_actions": [
-		"Após push/GitHub Actions: observar resultado no GitHub se solicitado. Localmente, limpar com npm run clean:light --silent depois de hooks/push; se disco ficar crítico, discutir/usar npm run clean:heavy --silent.",
+		"Após compactação: git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent; opcional confirmar gh run list se necessário.",
 		"Próximo slice streaming: desenhar como o provider runtime vai receber um stream sink real com prompt_ref/defaults/last_sequence, para trocar o callback no-op por persistência de chunks parciais quando o reader HTTP chunked existir.",
 		"Depois: implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES + streaming_reader_available=true, persistindo AgentResponse chunks parciais com sequence monotônica.",
 		"Ao integrar streaming real, atualizar prompt_handler para alimentar final_response_sequence(streaming_enabled, last_partial_sequence) em vez de None.",
-		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet quando necessário; para Tractor push gate: cd packages/tractor && cargo clippy --quiet -- -D warnings && cargo test --lib --quiet && cargo test --bin tractor --quiet."
+		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet quando necessário; npm run project:validate --silent se mexer em .project."
 	],
 	"open_questions": [
 		"ACP/Agent Context Protocol continua fora do roadmap canônico; se necessário criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
