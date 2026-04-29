@@ -312,3 +312,11 @@ fn provider_runtime_parse_stream_text_deltas_reads_openai_and_anthropic_payloads
         vec!["hel".to_string(), "lo".to_string()]
     );
 }
+
+#[test]
+fn provider_runtime_parse_stream_text_deltas_from_sse_combines_framing_and_payloads() {
+    let deltas = crate::provider_runtime::parse_stream_text_deltas_from_sse(
+        b"data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"b\"}}\n\ndata: [DONE]\n",
+    );
+    assert_eq!(deltas, vec!["a".to_string(), "b".to_string()]);
+}

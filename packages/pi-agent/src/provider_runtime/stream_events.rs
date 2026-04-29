@@ -24,6 +24,11 @@ pub(crate) fn parse_stream_text_deltas(payloads: &[String]) -> Vec<String> {
         .collect()
 }
 
+pub(crate) fn parse_stream_text_deltas_from_sse(bytes: &[u8]) -> Vec<String> {
+    let payloads = parse_sse_data_events(bytes);
+    parse_stream_text_deltas(&payloads)
+}
+
 fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {
     let mut deltas = Vec::new();
     if let Some(text) = openai_text_delta(value) {

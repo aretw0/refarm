@@ -198,7 +198,9 @@ pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_path::openai_compat_path;
 #[cfg(test)]
-pub(crate) use stream_events::{parse_sse_data_events, parse_stream_text_deltas};
+pub(crate) use stream_events::{
+    parse_sse_data_events, parse_stream_text_deltas, parse_stream_text_deltas_from_sse,
+};
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use request_anthropic_wasm::anthropic_iteration_response_and_phase;
