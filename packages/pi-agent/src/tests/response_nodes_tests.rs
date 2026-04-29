@@ -19,6 +19,7 @@ fn response_nodes_agent_response_builder_shape() {
         tokens_in: 1,
         tokens_out: 2,
         duration_ms: 3,
+        sequence: 0,
         is_final: true,
     });
     assert_eq!(node["@type"], "AgentResponse");
@@ -28,6 +29,7 @@ fn response_nodes_agent_response_builder_shape() {
     assert_eq!(node["llm"]["tokens_in"], 1);
     assert_eq!(node["llm"]["tokens_out"], 2);
     assert_eq!(node["llm"]["duration_ms"], 3);
+    assert_eq!(node["sequence"], 0);
     assert_eq!(node["is_final"], true);
 }
 
@@ -41,10 +43,12 @@ fn response_nodes_agent_response_builder_can_mark_partial() {
         tokens_in: 1,
         tokens_out: 0,
         duration_ms: 1,
+        sequence: 7,
         is_final: false,
     });
     assert_eq!(node["@type"], "AgentResponse");
     assert_eq!(node["content"], "partial");
+    assert_eq!(node["sequence"], 7);
     assert_eq!(node["is_final"], false);
 }
 

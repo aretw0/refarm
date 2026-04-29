@@ -6,6 +6,7 @@ pub(crate) struct AgentResponsePayload<'a> {
     pub tokens_in: u32,
     pub tokens_out: u32,
     pub duration_ms: u64,
+    pub sequence: u32,
     pub is_final: bool,
 }
 
@@ -36,7 +37,7 @@ pub(crate) fn agent_response_node(payload: AgentResponsePayload<'_>) -> serde_js
         "@id":          crate::new_pi_urn("resp"),
         "prompt_ref":   payload.prompt_ref,
         "content":      payload.content,
-        "sequence":     0,
+        "sequence":     payload.sequence,
         "is_final":     payload.is_final,
         "tool_calls":   payload.tool_calls,
         "timestamp_ns": crate::now_ns(),
