@@ -1,3 +1,6 @@
+use std::process::{Child, Command, Stdio};
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
 use crate::host::plugin_host::refarm::plugin::code_ops::{
     CodeReference, RenameResult, SymbolLocation,
 };
@@ -5,8 +8,58 @@ use crate::host::plugin_host::refarm::plugin::code_ops::{
 const DEFAULT_RUST_ANALYZER_CMD: &str = "rust-analyzer";
 const RUST_ANALYZER_CMD_ENV: &str = "REFACTOR_LSP_RUST_ANALYZER_CMD";
 
+static RUST_ANALYZER_SESSION: OnceLock<Mutex<Option<LspServerProcess>>> = OnceLock::new();
+
 pub(crate) struct LspBridge {
     rust_analyzer_cmd: String,
+}
+
+/// Owns one LSP server subprocess.
+///
+/// Lifecycle contract:
+/// - `start` creates the child with piped stdin/stdout so a future JSON-RPC
+///   layer can speak LSP without changing process ownership.
+/// - callers store it behind a process-wide mutex and reuse it across code-op
+///   calls instead of spawning one language server per request.
+/// - `stop` is idempotent and is also called from `Drop`, so a partially
+///   initialized bridge cannot leak a long-lived rust-analyzer process.
+struct LspServerProcess {
+    child: Child,
+}
+
+impl LspServerProcess {
+    fn start(program: &str, args: &[&str]) -> Result<Self, String> {
+        let child = Command::new(program)
+            .args(args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| format!("lsp start({program}): {e}"))?;
+
+        Ok(Self { child })
+    }
+
+    fn id(&self) -> u32 {
+        self.child.id()
+    }
+
+    fn is_running(&mut self) -> bool {
+        matches!(self.child.try_wait(), Ok(None))
+    }
+
+    fn stop(&mut self) {
+        if self.is_running() {
+            let _ = self.child.kill();
+        }
+        let _ = self.child.wait();
+    }
+}
+
+impl Drop for LspServerProcess {
+    fn drop(&mut self) {
+        self.stop();
+    }
 }
 
 impl LspBridge {
@@ -44,6 +97,42 @@ impl LspBridge {
                 self.rust_analyzer_cmd
             )
         }
+    }
+
+    fn session_slot() -> &'static Mutex<Option<LspServerProcess>> {
+        RUST_ANALYZER_SESSION.get_or_init(|| Mutex::new(None))
+    }
+
+    fn lock_session() -> Result<MutexGuard<'static, Option<LspServerProcess>>, String> {
+        Self::session_slot()
+            .lock()
+            .map_err(|_| "lsp session lock poisoned".to_string())
+    }
+
+    #[allow(dead_code)]
+    fn ensure_rust_analyzer_session(&self) -> Result<u32, String> {
+        let mut slot = Self::lock_session()?;
+        if let Some(session) = slot.as_mut() {
+            if session.is_running() {
+                return Ok(session.id());
+            }
+            session.stop();
+            *slot = None;
+        }
+
+        let session = LspServerProcess::start(&self.rust_analyzer_cmd, &[])?;
+        let pid = session.id();
+        *slot = Some(session);
+        Ok(pid)
+    }
+
+    #[allow(dead_code)]
+    fn stop_rust_analyzer_session() -> Result<(), String> {
+        let mut slot = Self::lock_session()?;
+        if let Some(mut session) = slot.take() {
+            session.stop();
+        }
+        Ok(())
     }
 }
 
@@ -86,5 +175,32 @@ mod tests {
         let bridge = LspBridge::from_env();
         std::env::remove_var(RUST_ANALYZER_CMD_ENV);
         assert_eq!(bridge.rust_analyzer_cmd, "custom-ra");
+    }
+
+    #[test]
+    fn lsp_process_stop_is_idempotent() {
+        let mut process = LspServerProcess::start("sleep", &["10"]).expect("sleep starts");
+        assert!(process.is_running());
+        process.stop();
+        process.stop();
+        assert!(!process.is_running());
+    }
+
+    #[test]
+    fn bridge_reuses_running_session() {
+        let _guard = env_lock();
+        std::env::set_var(RUST_ANALYZER_CMD_ENV, "sleep");
+        let bridge = LspBridge::from_env();
+        std::env::remove_var(RUST_ANALYZER_CMD_ENV);
+
+        // Use the lower-level constructor with an argument for this unit test;
+        // production rust-analyzer startup still uses the env-provided binary.
+        let mut slot = LspBridge::lock_session().unwrap();
+        *slot = Some(LspServerProcess::start("sleep", &["10"]).unwrap());
+        let first_pid = slot.as_ref().unwrap().id();
+        drop(slot);
+
+        assert_eq!(bridge.ensure_rust_analyzer_session().unwrap(), first_pid);
+        LspBridge::stop_rust_analyzer_session().unwrap();
     }
 }

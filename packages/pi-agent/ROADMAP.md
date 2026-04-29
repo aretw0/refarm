@@ -93,7 +93,7 @@ Context engineering follows the pi-test-harness model:
 **Primary unlock lane (active now)**: tractor LSP bridge v1 + code-ops (`find-references`, `rename-symbol`).
 
 #### Definition of Done @72%
-- [ ] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
+- [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
 - [ ] `find-references` wired end-to-end via rust-analyzer path.
 - [ ] `rename-symbol` wired end-to-end via rust-analyzer path.
 - [ ] Integration test: rename a Rust symbol via pi-agent/farmhand and assert workspace references update.
