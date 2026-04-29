@@ -1,43 +1,40 @@
 {
-	"context": "Checkpoint de compactação atualizado em 2026-04-29 após corrigir falha GitHub Actions e confirmar CI verde. Run 25109104739 falhou em quality por project:validate: tasks T-NEXT-266..286 e 288..291 estavam completed sem verification. Foi feito backfill de verification e novo push passou. LSP v1/code-ops permanece fechado @72%; streaming pi-agent segue com seams/gates, ainda sem HTTP streaming real.",
-	"timestamp": "2026-04-29T12:41:20.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após retomar pós-compactação e avançar streaming sink. CI remoto anterior está verde: run 25109436303 em 9ad20642 success. LSP v1/code-ops segue fechado @72%. Streaming lane agora tem contexto ativo para provider callbacks persistirem chunks parciais quando o transporte streaming ficar disponível; ainda não há chunked HTTP real e provider stream requests continuam gated off.",
+	"timestamp": "2026-04-29T12:53:10.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Gate de push do Tractor corrigido: f33bb390 fix(tractor): satisfy clippy push gate. Corrigiu clippy em lsp_bridge.rs (while let) e main.rs (PollAgentResponsesOptions para evitar too_many_arguments). Validações: cargo clippy --quiet -- -D warnings; cargo test --lib --quiet; cargo test --bin tractor --quiet.",
-		"GitHub Actions: run 25109104739 em 3da87736 falhou em quality/project:validate por completed tasks sem verification. Corrigido em 57071d9c chore(project): backfill completed task verifications. Novo run 25109330836 em 57071d9c completou com success.",
-		"Project consistency: npm run project:validate --silent passou após backfill. Tarefas T-NEXT-266..286 e T-NEXT-288..291 receberam verification references e entries VER-NEXT-*-20260429 em .project/verification.json.",
-		"LSP v1/code-ops fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
-		"Streaming lane: AgentResponsePayload aceita is_final/sequence; streaming_config define LLM_STREAM_RESPONSES=1|true|yes|on; prompt_persistence tem store_agent_response_chunk; streaming_chunks codifica sequence inicial 0, monotonic saturating_add, e partials fora do session history.",
-		"streaming_config::provider_stream_request_enabled(policy_enabled, streaming_reader_available) evita adicionar stream:true antes do reader HTTP chunked existir; streaming_reader_available() ainda retorna false.",
-		"request_http_wasm.rs tem execute_json_request_with_streaming_callback(..., on_stream_bytes), preservando execute_json_request bufferizado. Provider OpenAI/Anthropic agora passam pelo callback seam com callback no-op enquanto provider_stream_request_enabled_from_env() permanece false.",
-		"Commits recentes relevantes: 99094eb4 test(agent): cover provider stream gate; 3da87736 chore(project): refresh push handoff; 57071d9c chore(project): backfill completed task verifications."
+		"Novos commits locais após compactação: 27a884f5 refactor(agent): wire streaming sink context; 11934c71 docs(agent): note streaming sink context; bca57d53 fix(agent): track stored stream chunk sequence; ac94505b docs(agent): clarify stored chunk sequencing.",
+		"Streaming sink: packages/pi-agent/src/runtime/streaming_sink.rs mantém thread-local wasm ACTIVE_STREAM_RESPONSE_SINK com prompt_ref, model e last_sequence. wasm_flow instala o sink quando LLM_STREAM_RESPONSES está ativo e prompt_ref existe. provider request paths agora passam record_stream_bytes_for_active_sink como callback em vez de no-op.",
+		"Prompt handler: chama react_with_prompt_ref(&prompt, Some(&ctx.prompt_ref)); depois lê streaming_sink::take_active_stream_last_sequence() e usa final_response_sequence(streaming_enabled, last_partial_sequence) para armazenar final AgentResponse após os partials.",
+		"Persistência: store_agent_response_chunks_from_sse agora retorna a última sequência efetivamente armazenada, não apenas emitida pelo parser; evita que final response salte sequence se store_node falhar para partial chunk.",
+		"Validações locais após slices: cd packages/pi-agent && cargo test --lib --quiet (234 passed); cargo check --target wasm32-wasip1 --quiet; npm run project:validate --silent; git diff --check; npm run clean:light --silent.",
+		"Disk após limpeza: ~9.5GB livres; packages/tractor/target ~3929M; packages/pi-agent/target ~925M."
 	],
 	"blockers": [
-		"Host Windows/C continua crítico: 99% usado, ~9.5GB livres depois de checks/push. Evitar builds globais; rodar clean:light após Rust. Considerar clean:heavy se precisar recuperar ~5GB, aceitando rebuild posterior.",
+		"Host Windows/C segue crítico: 99% usado, ~9.5GB livres. Evitar builds globais; manter clean:light após Rust.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target ~925MB e packages/tractor/target ~3929MB após limpeza; manter validações escopadas.",
-		"execute_json_request ainda existe e está marcado #[allow(dead_code)] porque provider paths agora passam pelo callback seam, mas a função bufferizada foi preservada intencionalmente."
+		"HTTP streaming real ainda bloqueado pelo transporte atual: llm_bridge::complete_http retorna Vec<u8> bufferizado. streaming_reader_available() continua false e provider_stream_request_enabled_from_env() continua false mesmo com LLM_STREAM_RESPONSES=1.",
+		"execute_json_request preservado com #[allow(dead_code)] porque request paths passam pelo callback seam, mas buffered path ainda é intencional."
 	],
 	"next_actions": [
-		"Após compactação: git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent; opcional confirmar gh run list se necessário.",
-		"Próximo slice streaming: desenhar como o provider runtime vai receber um stream sink real com prompt_ref/defaults/last_sequence, para trocar o callback no-op por persistência de chunks parciais quando o reader HTTP chunked existir.",
-		"Depois: implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES + streaming_reader_available=true, persistindo AgentResponse chunks parciais com sequence monotônica.",
-		"Ao integrar streaming real, atualizar prompt_handler para alimentar final_response_sequence(streaming_enabled, last_partial_sequence) em vez de None.",
-		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet quando necessário; npm run project:validate --silent se mexer em .project."
+		"Opcional: push dos commits locais e observar GitHub Actions como no último ciclo.",
+		"Próximo slice técnico: decidir se chunked HTTP deve ser implementado via novo host WIT llm-bridge streaming primitive, via wasi:http direto, ou por extensão host que chama back into store_node durante stream. Cuidado: mexer em WIT/tractor é superfície protegida e deve ser pequeno/serializado.",
+		"Se não mexer no transporte ainda, adicionar testes/contratos ao sink: garantir que ausência de active sink descarta bytes, que final sequencing usa last stored partial, e que fallback/error semantics ficam documentadas.",
+		"Quando transporte existir: flip streaming_reader_available() para true somente junto de teste que prova que stream:true gera SSE chunks persistidos e final response fica sequence last+1.",
+		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet; clean:light."
 	],
 	"open_questions": [
-		"ACP/Agent Context Protocol continua fora do roadmap canônico; se necessário criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
-		"ADR-052 continua Proposed.",
-		"DEC-010 permanece pendente/revisit histórica.",
-		"Definir semântica de erro em streaming: se um stream falhar após partials, emitir final error chunk? Como contabilizar tokens_in/out antes do usage final?",
-		"Definir se AgentResponse.content em partial chunks deve ser delta cru ou conteúdo cumulativo; estado atual assume delta cru e roadmap menciona reassembly by client."
+		"Qual transporte streaming correto para pi-agent: WIT host bridge novo vs wasi:http direto vs host-managed CRDT write callbacks?",
+		"Como contabilizar tokens e duration em partial chunks: atualmente partials usam tokens=0/duration=0/model do primary provider; final response carrega usage real.",
+		"Semântica de erro/cancelamento após partials: emitir final error chunk ou apenas final AgentResponse com erro?",
+		"Partial AgentResponse.content continua sendo delta cru; cliente deve reassemblar.",
+		"ACP continua fora do roadmap ativo; se necessário abrir ADR/research depois."
 	],
 	"key_decisions_pending": [
-		"DEC-010",
-		"Decidir se ACP entra no roadmap como pesquisa formal ou fica fora.",
-		"ADR-052 ainda Proposed.",
-		"Definir contrato de erro/cancelamento para AgentResponse streaming parcial.",
-		"Confirmar wire contract: partial AgentResponse.content como delta vs acumulado."
+		"Definir arquitetura do transporte HTTP streaming.",
+		"Definir contrato de erro/cancelamento para streaming parcial.",
+		"Confirmar wire contract delta cru vs conteúdo acumulado.",
+		"Decidir se ACP entra como pesquisa formal ou permanece parked."
 	],
 	"files_in_flux": []
 }
