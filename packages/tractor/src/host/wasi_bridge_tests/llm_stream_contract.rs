@@ -245,26 +245,19 @@ fn mock_drip_sse_server(
         let (mut stream, _) = listener.accept().unwrap();
         let mut request = [0u8; 4096];
         let _ = std::io::Read::read(&mut stream, &mut request).unwrap();
-        std::io::Write::write_all(
-            &mut stream,
-            b"HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ntransfer-encoding: chunked\r\nconnection: close\r\n\r\n",
-        )
-        .unwrap();
-        write_http_chunk(&mut stream, first.as_bytes()).unwrap();
+        let content_len = first.len() + tail.len();
+        let response_head = format!(
+            "HTTP/1.1 200 OK\r\ncontent-type: text/event-stream\r\ncontent-length: {content_len}\r\nconnection: close\r\n\r\n"
+        );
+        std::io::Write::write_all(&mut stream, response_head.as_bytes()).unwrap();
+        std::io::Write::write_all(&mut stream, first.as_bytes()).unwrap();
         std::io::Write::flush(&mut stream).unwrap();
         first_sent_tx.send(()).unwrap();
         release_tail_rx.recv().unwrap();
-        write_http_chunk(&mut stream, tail.as_bytes()).unwrap();
-        std::io::Write::write_all(&mut stream, b"0\r\n\r\n").unwrap();
+        std::io::Write::write_all(&mut stream, tail.as_bytes()).unwrap();
         std::io::Write::flush(&mut stream).unwrap();
     });
     (port, first_sent_rx, release_tail_tx)
-}
-
-fn write_http_chunk(stream: &mut std::net::TcpStream, bytes: &[u8]) -> std::io::Result<()> {
-    std::io::Write::write_all(stream, format!("{:x}\r\n", bytes.len()).as_bytes())?;
-    std::io::Write::write_all(stream, bytes)?;
-    std::io::Write::write_all(stream, b"\r\n")
 }
 
 fn mock_sse_server(body: &'static str) -> u16 {
