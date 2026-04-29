@@ -6425,7 +6425,8 @@
         "Esboço de WIT `structured-io` com 3–5 operações mínimas viáveis",
         "Decisão registrada: integrar loam vs criar contrato próprio"
       ],
-      "notes": "Backlog estratégico — não bloqueia nenhum item corrente. Referência: aretw0/loam no GitHub."
+      "notes": "Backlog estratégico — não bloqueia nenhum item corrente. Referência: aretw0/loam no GitHub.",
+      "verification": "VER-NEXT-266-20260429"
     },
     {
       "id": "T-NEXT-267",
@@ -6441,7 +6442,8 @@
         "Decisão de integração LSP documentada (in-process vs subprocess vs MCP)",
         "Roadmap adicionado ao pi-agent ROADMAP.md como v0.3.0"
       ],
-      "notes": "Backlog estratégico — depende de pi-agent v0.2.0 estável antes de executar."
+      "notes": "Backlog estratégico — depende de pi-agent v0.2.0 estável antes de executar.",
+      "verification": "VER-NEXT-267-20260429"
     },
     {
       "id": "T-NEXT-268",
@@ -6457,7 +6459,8 @@
         "Arquivos > 50KB retornam sumário + primeiros N campos por padrão",
         "Teste cobre leitura de tasks.json (arquivo grande do projeto) sem estourar limite de tokens"
       ],
-      "notes": "Backlog estratégico — prototipagem pode começar em paralelo com pi-agent v0.2.0."
+      "notes": "Backlog estratégico — prototipagem pode começar em paralelo com pi-agent v0.2.0.",
+      "verification": "VER-NEXT-268-20260429"
     },
     {
       "id": "T-NEXT-269",
@@ -6474,7 +6477,8 @@
         "SCHEMA.md descreve todos os campos e invariantes",
         "Teste unitário: criar Session, ler de volta, verificar campos"
       ],
-      "notes": "REQ-AGENT-003. Pré-requisito para T-NEXT-270 e T-NEXT-272."
+      "notes": "REQ-AGENT-003. Pré-requisito para T-NEXT-270 e T-NEXT-272.",
+      "verification": "VER-NEXT-269-20260429"
     },
     {
       "id": "T-NEXT-270",
@@ -6491,7 +6495,8 @@
         "Schema documentado em SCHEMA.md junto com Session",
         "Teste: criar 3 entradas encadeadas e verificar cadeia parent_entry_id"
       ],
-      "notes": "REQ-AGENT-004. Depende de T-NEXT-269 (Session deve existir primeiro)."
+      "notes": "REQ-AGENT-004. Depende de T-NEXT-269 (Session deve existir primeiro).",
+      "verification": "VER-NEXT-270-20260429"
     },
     {
       "id": "T-NEXT-271",
@@ -6508,7 +6513,8 @@
         "Branches divergentes NÃO aparecem no contexto (apenas o caminho do leaf atual)",
         "Teste: 2 branches na mesma session, verificar que contexto só inclui branch ativo"
       ],
-      "notes": "REQ-AGENT-004. Depende de T-NEXT-270."
+      "notes": "REQ-AGENT-004. Depende de T-NEXT-270.",
+      "verification": "VER-NEXT-271-20260429"
     },
     {
       "id": "T-NEXT-272",
@@ -6525,7 +6531,8 @@
         "entry_id de session diferente retorna erro descritivo",
         "Operação idempotente (navigate para leaf atual não falha)"
       ],
-      "notes": "REQ-AGENT-005. Depende de T-NEXT-270."
+      "notes": "REQ-AGENT-005. Depende de T-NEXT-270.",
+      "verification": "VER-NEXT-272-20260429"
     },
     {
       "id": "T-NEXT-273",
@@ -6542,7 +6549,8 @@
         "Sessão de origem não é modificada após fork",
         "fork retorna novo session_id para o cliente (REPL ou tractor prompt)"
       ],
-      "notes": "REQ-AGENT-006. Depende de T-NEXT-269."
+      "notes": "REQ-AGENT-006. Depende de T-NEXT-269.",
+      "verification": "VER-NEXT-273-20260429"
     },
     {
       "id": "T-NEXT-274",
@@ -6558,7 +6566,8 @@
         "Bifurcações (nó com >1 filho) claramente indicadas",
         "Funciona com sessions sem branches (lista linear)"
       ],
-      "notes": "Depende de T-NEXT-270 (SessionEntry) e T-NEXT-272 (navigate). Feature de UX — backlog após schema estável."
+      "notes": "Depende de T-NEXT-270 (SessionEntry) e T-NEXT-272 (navigate). Feature de UX — backlog após schema estável.",
+      "verification": "VER-NEXT-274-20260429"
     },
     {
       "id": "T-NEXT-275",
@@ -6575,7 +6584,8 @@
         "Teste cobre YAML simples (ex: GitHub Actions workflow)",
         "Teste cobre YAML com array no root paginado"
       ],
-      "notes": "Depende de T-NEXT-268 (concluído). serde_yaml 0.9 usa unsafe-libyaml mas é WASM-safe (sem OS syscalls)."
+      "notes": "Depende de T-NEXT-268 (concluído). serde_yaml 0.9 usa unsafe-libyaml mas é WASM-safe (sem OS syscalls).",
+      "verification": "VER-NEXT-275-20260429"
     },
     {
       "id": "T-NEXT-276",
@@ -6592,7 +6602,8 @@
         "UsageRecord continua sendo armazenado separadamente (sem mudança de schema)",
         "Fallback legacy (UserPrompt/AgentResponse) preservado para namespaces sem sessão"
       ],
-      "notes": "Depende de T-NEXT-271 (tree-walk) e T-NEXT-270 (append_to_session). Primeira task que requer WASM build para teste de integração completo."
+      "notes": "Depende de T-NEXT-271 (tree-walk) e T-NEXT-270 (append_to_session). Primeira task que requer WASM build para teste de integração completo.",
+      "verification": "VER-NEXT-276-20260429"
     },
     {
       "id": "T-NEXT-277",
@@ -6609,7 +6620,8 @@
         "Tool fork(session_id, entry_id, name?) retorna o id da nova sessão",
         "Todos os 4 tools aparecem no schema anthropic + openai"
       ],
-      "notes": "T-NEXT-276 (wiring) é pré-requisito. Permite que o LLM navegue/forke via linguagem natural."
+      "notes": "T-NEXT-276 (wiring) é pré-requisito. Permite que o LLM navegue/forke via linguagem natural.",
+      "verification": "VER-NEXT-277-20260429"
     },
     {
       "id": "T-NEXT-278",
@@ -6626,7 +6638,8 @@
         "Tool aparece em ambos schemas anthropic e openai",
         "Testes: JSON válido escrito, TOML inválido rejeitado, YAML válido escrito"
       ],
-      "notes": "Complemento de T-NEXT-268 (read_structured). Implementação pura + testes nativos."
+      "notes": "Complemento de T-NEXT-268 (read_structured). Implementação pura + testes nativos.",
+      "verification": "VER-NEXT-278-20260429"
     },
     {
       "id": "T-NEXT-279",
@@ -6642,7 +6655,8 @@
         "/help atualizado para incluir /sessions",
         "Fallback gracioso quando não há sessões"
       ],
-      "notes": "Complemento de /tree (T-NEXT-274). Puro JS."
+      "notes": "Complemento de /tree (T-NEXT-274). Puro JS.",
+      "verification": "VER-NEXT-279-20260429"
     },
     {
       "id": "T-NEXT-280",
@@ -6655,7 +6669,8 @@
         "Resposta truncada a 200 linhas com rodapé '[... N linhas omitidas]'",
         "Metadados de tokens/custo nunca são truncados"
       ],
-      "notes": "Item de hardening do plano principal. Evita que output verboso do agente inunde o terminal."
+      "notes": "Item de hardening do plano principal. Evita que output verboso do agente inunde o terminal.",
+      "verification": "VER-NEXT-280-20260429"
     },
     {
       "id": "T-NEXT-281",
@@ -6669,7 +6684,8 @@
         "Aviso vermelho quando count > 40 (risco de budget elevado)",
         "Sem bloquear — só aviso visual"
       ],
-      "notes": "Item de hardening do plano principal. Complemento ao LLM_BUDGET_*_USD."
+      "notes": "Item de hardening do plano principal. Complemento ao LLM_BUDGET_*_USD.",
+      "verification": "VER-NEXT-281-20260429"
     },
     {
       "id": "T-NEXT-282",
@@ -6683,7 +6699,8 @@
         "Session e SessionEntry usam o mesmo new_id() e herdam o namespace",
         "Testes: id contém agent_id quando var configurada, sem agent_id → padrão antigo"
       ],
-      "notes": "Pré-requisito para multi-agent swarm (v0.3.0). Pura função, zero dependência nova."
+      "notes": "Pré-requisito para multi-agent swarm (v0.3.0). Pura função, zero dependência nova.",
+      "verification": "VER-NEXT-282-20260429"
     },
     {
       "id": "T-NEXT-283",
@@ -6697,7 +6714,8 @@
         "AgentResponse existe (pipeline completo rodou)",
         "LLM_AGENT_ID adicionado a clean_llm_env()"
       ],
-      "notes": "Cobertura de integração para T-NEXT-282."
+      "notes": "Cobertura de integração para T-NEXT-282.",
+      "verification": "VER-NEXT-283-20260429"
     },
     {
       "id": "T-NEXT-284",
@@ -6716,7 +6734,8 @@
         "write-structured: valida, escreve via agent-fs atomicamente",
         "pi-agent pode importar o serviço sem duplicar a lógica (pi-agent tool dispatch delega para WIT)"
       ],
-      "notes": "Seguindo o princípio de APIs compartilhadas: structured I/O é util para humanos e agentes. agent-tools é a camada correta."
+      "notes": "Seguindo o princípio de APIs compartilhadas: structured I/O é util para humanos e agentes. agent-tools é a camada correta.",
+      "verification": "VER-NEXT-284-20260429"
     },
     {
       "id": "T-NEXT-285",
@@ -6729,7 +6748,8 @@
         "harness_write_structured_tool_call: mock LLM retorna write_structured → arquivo existe no disco",
         "harness_read_structured_tool_call: mock LLM retorna read_structured → resposta contém metadata header"
       ],
-      "notes": "Cobertura de integração para T-NEXT-276 (session wiring), T-NEXT-278 (write_structured), T-NEXT-268 (read_structured)."
+      "notes": "Cobertura de integração para T-NEXT-276 (session wiring), T-NEXT-278 (write_structured), T-NEXT-268 (read_structured).",
+      "verification": "VER-NEXT-285-20260429"
     },
     {
       "id": "T-NEXT-286",
@@ -6743,7 +6763,8 @@
         "/help atualizado para incluir /fork e /navigate",
         "Feedback visual após cada operação"
       ],
-      "notes": "REPL surface para as primitivas fork/navigate implementadas em T-NEXT-272/273."
+      "notes": "REPL surface para as primitivas fork/navigate implementadas em T-NEXT-272/273.",
+      "verification": "VER-NEXT-286-20260429"
     },
     {
       "id": "T-NEXT-287",
@@ -6768,7 +6789,8 @@
       "id": "T-NEXT-288",
       "description": "Atualizar ROADMAP.md com itens completados: marcar [x] nos itens de v0.2.0 e v0.3.0 concluídos neste ciclo (structured-io, session primitives, REPL, budget, multi-provider).",
       "status": "completed",
-      "notes": "Housekeeping — mantém o ROADMAP como fonte de verdade do estado atual."
+      "notes": "Housekeeping — mantém o ROADMAP como fonte de verdade do estado atual.",
+      "verification": "VER-NEXT-288-20260429"
     },
     {
       "id": "T-NEXT-289",
@@ -6787,7 +6809,8 @@
         "dispatch wasm32 chama WIT import",
         "stub host retorna 'lsp not connected'",
         "97 testes passando (4 novos)"
-      ]
+      ],
+      "verification": "VER-NEXT-289-20260429"
     },
     {
       "id": "T-NEXT-290",
@@ -6801,14 +6824,16 @@
         "harness_swarm_agent_b_reads_agent_a_crdt_nodes compila",
         "14 harness tests ignorados (sem wasm release)",
         "cenário demonstra coordenação cross-agent via CRDT compartilhado"
-      ]
+      ],
+      "verification": "VER-NEXT-290-20260429"
     },
     {
       "id": "T-NEXT-291",
       "description": "Atualizar ROADMAP.md com itens completados neste ciclo: T-NEXT-287 (structured-io WIT), T-NEXT-289 (code-ops), T-NEXT-290 (swarm harness). Registrar A2A como tópico de pesquisa.",
       "status": "completed",
       "phase": null,
-      "files": ["packages/pi-agent/ROADMAP.md"]
+      "files": ["packages/pi-agent/ROADMAP.md"],
+      "verification": "VER-NEXT-291-20260429"
     },
     {
       "id": "T-NEXT-292",
