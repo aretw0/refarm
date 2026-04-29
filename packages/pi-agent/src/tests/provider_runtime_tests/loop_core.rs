@@ -10,7 +10,6 @@ fn provider_runtime_provider_loop_state_initializes_empty_runtime_fields() {
     assert!(state.executed_calls.is_empty());
     assert!(state.seen_hashes.is_empty());
 }
-
 #[test]
 fn provider_runtime_anthropic_loop_state_bootstraps_wire_history() {
     let msgs = vec![("user".to_string(), "hello".to_string())];
@@ -20,7 +19,6 @@ fn provider_runtime_anthropic_loop_state_bootstraps_wire_history() {
     assert_eq!(state.wire_msgs[0]["role"], "user");
     assert_eq!(state.wire_msgs[0]["content"], "hello");
 }
-
 #[test]
 fn provider_runtime_openai_loop_state_prepends_system_message() {
     let msgs = vec![("user".to_string(), "hello".to_string())];
@@ -30,9 +28,9 @@ fn provider_runtime_openai_loop_state_prepends_system_message() {
     assert_eq!(state.wire_msgs[0]["role"], "system");
     assert_eq!(state.wire_msgs[1]["role"], "user");
 }
-
 #[test]
 fn provider_runtime_anthropic_loop_plan_reads_max_iter_and_initializes_state() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
     std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "7");
     let msgs = vec![("user".to_string(), "hi".to_string())];
     let plan = crate::provider_runtime::anthropic_loop_plan(&msgs);
@@ -42,7 +40,6 @@ fn provider_runtime_anthropic_loop_plan_reads_max_iter_and_initializes_state() {
     assert_eq!(plan.state.wire_msgs.len(), 1);
     assert!(plan.state.executed_calls.is_empty());
 }
-
 #[test]
 fn provider_runtime_provider_loop_plan_with_max_iter_applies_explicit_limit() {
     let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(
@@ -53,9 +50,9 @@ fn provider_runtime_provider_loop_plan_with_max_iter_applies_explicit_limit() {
     assert_eq!(plan.max_iter, 3);
     assert_eq!(plan.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
     std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let plan = crate::provider_runtime::openai_loop_plan("sys", &msgs);
@@ -64,7 +61,6 @@ fn provider_runtime_openai_loop_plan_prepends_system_and_sets_default_max_iter()
     assert_eq!(plan.state.wire_msgs.len(), 2);
     assert_eq!(plan.state.wire_msgs[0]["role"], "system");
 }
-
 #[test]
 fn provider_runtime_provider_runner_common_config_keeps_model_headers_and_plan() {
     let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(
@@ -82,9 +78,9 @@ fn provider_runtime_provider_runner_common_config_keeps_model_headers_and_plan()
     assert_eq!(common.plan.max_iter, 2);
     assert_eq!(common.plan.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
     std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "4");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let cfg = crate::provider_runtime::anthropic_runner_config("m", "s", &msgs);
@@ -95,9 +91,9 @@ fn provider_runtime_anthropic_runner_config_builds_headers_and_plan() {
     assert_eq!(cfg.common.plan.max_iter, 4);
     assert_eq!(cfg.common.headers[0].0, "content-type");
 }
-
 #[test]
 fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
+    let _guard = super::ENV_LOCK.lock().unwrap();
     std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "6");
     let msgs = vec![("user".to_string(), "hello".to_string())];
     let cfg = crate::provider_runtime::openai_runner_config(
@@ -115,7 +111,6 @@ fn provider_runtime_openai_runner_config_builds_headers_and_plan() {
     assert_eq!(cfg.common.plan.max_iter, 6);
     assert_eq!(cfg.common.headers[0].0, "content-type");
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_with_returns_text_and_final_state() {
     let state = crate::provider_runtime::provider_loop_state(Vec::new());
@@ -143,7 +138,6 @@ fn provider_runtime_run_completion_loop_with_returns_text_and_final_state() {
     assert_eq!(outcome.state.wire_msgs.len(), 1);
     assert_eq!(outcome.state.executed_calls.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_with_propagates_step_error() {
     let state = crate::provider_runtime::provider_loop_state(Vec::new());
@@ -160,7 +154,6 @@ fn provider_runtime_run_completion_loop_with_propagates_step_error() {
         Err(err) => assert_eq!(err, "boom"),
     }
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_plan_with_uses_plan_max_iter() {
     let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
@@ -183,7 +176,6 @@ fn provider_runtime_run_completion_loop_from_plan_with_uses_plan_max_iter() {
 
     assert_eq!(outcome.text, "done");
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_plan_with_dispatch_uses_dispatch_state() {
     let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
@@ -206,7 +198,6 @@ fn provider_runtime_run_completion_loop_from_plan_with_dispatch_uses_dispatch_st
 
     assert_eq!(outcome.text, "done-1");
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_plan_with_dispatch_propagates_step_error() {
     let plan = crate::provider_runtime::provider_loop_plan_with_max_iter(Vec::new(), 0);
@@ -223,7 +214,6 @@ fn provider_runtime_run_completion_loop_from_plan_with_dispatch_propagates_step_
         Err(err) => assert_eq!(err, "boom"),
     }
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_common_fields() {
     let common = crate::provider_runtime::provider_runner_common_config(
@@ -256,7 +246,6 @@ fn provider_runtime_run_completion_loop_from_common_config_with_dispatch_uses_co
     assert_eq!(out.response["ok"], true);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_response_and_phase_from_state_with_passes_state_fields_to_closure() {
     let mut state = crate::provider_runtime::provider_loop_state(vec![serde_json::json!({
@@ -286,7 +275,6 @@ fn provider_runtime_response_and_phase_from_state_with_passes_state_fields_to_cl
     assert_eq!(phase, 42);
     assert_eq!(state.usage_totals.tokens_in, 3);
 }
-
 #[test]
 fn provider_runtime_response_phase_contract_from_state_with_builds_contract() {
     let mut state = crate::provider_runtime::provider_loop_state(vec![serde_json::json!({
@@ -314,7 +302,6 @@ fn provider_runtime_response_phase_contract_from_state_with_builds_contract() {
     assert_eq!(contract.phase, 24);
     assert_eq!(state.usage_totals.tokens_out, 6);
 }
-
 #[test]
 fn provider_runtime_provider_response_phase_contract_builder_shape() {
     let contract = crate::provider_runtime::provider_response_phase_contract(
@@ -325,7 +312,6 @@ fn provider_runtime_provider_response_phase_contract_builder_shape() {
     assert_eq!(contract.response["ok"], true);
     assert_eq!(contract.phase, 3);
 }
-
 #[test]
 fn provider_runtime_provider_response_phase_contract_into_parts_splits_shape() {
     let contract = crate::provider_runtime::provider_response_phase_contract(
@@ -337,7 +323,6 @@ fn provider_runtime_provider_response_phase_contract_into_parts_splits_shape() {
     assert_eq!(response["ok"], "parts");
     assert_eq!(phase, 8);
 }
-
 #[test]
 fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
     let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
@@ -365,7 +350,6 @@ fn provider_runtime_step_from_state_with_dispatch_passes_arguments() {
 
     assert_eq!(out.as_deref(), Some("done-1"));
 }
-
 #[test]
 fn provider_runtime_step_from_state_with_dispatch_contract_passes_contract_fields() {
     let mut state = crate::provider_runtime::provider_loop_state(Vec::new());
@@ -391,7 +375,6 @@ fn provider_runtime_step_from_state_with_dispatch_contract_passes_contract_field
 
     assert_eq!(out.as_deref(), Some("contract-1"));
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_dispatch_uses_context()
 {
@@ -431,7 +414,6 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_disp
     assert_eq!(out.response["ctx"], 7);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_state_primitives_uses_state_bindings(
 ) {
@@ -469,7 +451,6 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_stat
     assert_eq!(out.state.usage_totals.tokens_out, 2);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_state_primitives_without_dispatch_works(
 ) {
@@ -500,7 +481,6 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_stat
     assert_eq!(out.text, "done-no-dispatch");
     assert_eq!(out.state.usage_totals.tokens_in, 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_with_state_primitives_and_dispatch_works(
 ) {
@@ -536,7 +516,6 @@ fn provider_runtime_run_completion_loop_from_common_config_with_state_primitives
     assert_eq!(out.state.usage_totals.tokens_cached, 4);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_with_contract_primitives_and_dispatch_works(
 ) {
@@ -576,7 +555,6 @@ fn provider_runtime_run_completion_loop_from_common_config_with_contract_primiti
     assert_eq!(out.state.usage_totals.tokens_reasoning, 2);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_with_contract_primitives_without_dispatch_works(
 ) {
@@ -614,7 +592,6 @@ fn provider_runtime_run_completion_loop_from_common_config_with_contract_primiti
     assert_eq!(out.state.usage_totals.tokens_reasoning, 3);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_contract_primitives_and_dispatch_works(
 ) {
@@ -656,7 +633,6 @@ fn provider_runtime_run_completion_loop_from_common_config_and_context_with_cont
     assert_eq!(out.state.usage_totals.tokens_in, 5);
     assert_eq!(out.state.wire_msgs.len(), 1);
 }
-
 #[test]
 fn provider_runtime_run_completion_loop_from_common_config_and_context_with_contract_primitives_without_dispatch_works(
 ) {
