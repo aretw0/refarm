@@ -391,11 +391,13 @@ async fn run_prompt(args: PromptArgs) -> Result<()> {
         &args.namespace,
         &args.agent,
         &mut seen,
-        Duration::from_millis(args.poll_interval_ms.max(50)),
-        Some(Duration::from_millis(args.wait_timeout_ms)),
-        false,
-        true,
-        format,
+        PollAgentResponsesOptions {
+            poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
+            timeout: Some(Duration::from_millis(args.wait_timeout_ms)),
+            stop_after_first: false,
+            stop_on_final: true,
+            format,
+        },
     )
     .await?;
 
@@ -422,11 +424,13 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
         &args.namespace,
         &args.agent,
         &mut seen,
-        Duration::from_millis(args.poll_interval_ms.max(50)),
-        timeout,
-        args.once,
-        args.until_final,
-        format,
+        PollAgentResponsesOptions {
+            poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
+            timeout,
+            stop_after_first: args.once,
+            stop_on_final: args.until_final,
+            format,
+        },
     )
     .await?;
 
@@ -640,17 +644,21 @@ fn collect_new_response_events(
     Ok(out)
 }
 
-async fn poll_agent_responses(
-    namespace: &str,
-    agent_filter: &str,
-    seen: &mut HashSet<String>,
+struct PollAgentResponsesOptions {
     poll_interval: Duration,
     timeout: Option<Duration>,
     stop_after_first: bool,
     stop_on_final: bool,
     format: OutputFormat,
+}
+
+async fn poll_agent_responses(
+    namespace: &str,
+    agent_filter: &str,
+    seen: &mut HashSet<String>,
+    options: PollAgentResponsesOptions,
 ) -> Result<bool> {
-    let deadline = timeout.map(|d| Instant::now() + d);
+    let deadline = options.timeout.map(|d| Instant::now() + d);
 
     loop {
         if let Some(deadline) = deadline {
@@ -665,7 +673,7 @@ async fn poll_agent_responses(
         for event in events {
             seen.insert(event.id.clone());
 
-            match format {
+            match options.format {
                 OutputFormat::Json => {
                     let line = serde_json::json!({
                         "id": event.id,
@@ -705,16 +713,16 @@ async fn poll_agent_responses(
                 got_final = true;
             }
 
-            if stop_after_first {
+            if options.stop_after_first {
                 return Ok(got_final);
             }
         }
 
-        if stop_on_final && got_final {
+        if options.stop_on_final && got_final {
             return Ok(true);
         }
 
-        sleep(poll_interval).await;
+        sleep(options.poll_interval).await;
     }
 }
 

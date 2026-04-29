@@ -238,10 +238,7 @@ fn encode_lsp_message(message: &serde_json::Value) -> Vec<u8> {
 fn drain_lsp_messages(buffer: &mut Vec<u8>) -> Result<Vec<serde_json::Value>, String> {
     let mut messages = Vec::new();
 
-    loop {
-        let Some(header_end) = find_header_end(buffer) else {
-            break;
-        };
+    while let Some(header_end) = find_header_end(buffer) {
         let header = std::str::from_utf8(&buffer[..header_end])
             .map_err(|e| format!("lsp header utf8: {e}"))?;
         let content_len = content_length(header)?;
