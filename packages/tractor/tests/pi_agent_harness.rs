@@ -16,8 +16,8 @@
 ///   so tests acquire ENV_LOCK before mutating them to prevent cross-test leakage.
 use std::path::Path;
 use std::sync::Mutex;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpListener;
+use std::io::{Read, Write};
+use std::net::{TcpListener, TcpStream};
 use tractor::host::{PluginHost, PluginInstanceHandle};
 use tractor::trust::TrustManager;
 use tractor::{NativeStorage, NativeSync, TelemetryBus};
@@ -33,20 +33,14 @@ const PI_AGENT_WASM: &str = concat!(
 /// Spawn a one-shot mock server that returns `body` for any HTTP POST.
 /// Returns the bound port. The server accepts one connection then stops.
 async fn mock_llm_server(body: serde_json::Value) -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let body_str = body.to_string();
-    tokio::spawn(async move {
+    std::thread::spawn(move || {
         // Serve connections until the test is done (task is dropped).
-        while let Ok((mut stream, _)) = listener.accept().await {
-            let mut buf = vec![0u8; 8192];
-            let _ = stream.read(&mut buf).await;
-            let response = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body_str.len(),
-                body_str
-            );
-            let _ = stream.write_all(response.as_bytes()).await;
+        while let Ok((mut stream, _)) = listener.accept() {
+            let _ = read_http_request(&mut stream);
+            let _ = write_http_response(&mut stream, &body_str);
         }
     });
     port
@@ -87,21 +81,16 @@ fn openai_response(content: &str, tokens_in: u32, tokens_out: u32) -> serde_json
 
 /// Serve a sequence of responses in order; repeats the last one once exhausted.
 async fn mock_llm_server_sequence(bodies: Vec<serde_json::Value>) -> u16 {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let strings: Vec<String> = bodies.iter().map(|v| v.to_string()).collect();
-    tokio::spawn(async move {
+    std::thread::spawn(move || {
         let mut idx = 0usize;
-        while let Ok((mut stream, _)) = listener.accept().await {
+        while let Ok((mut stream, _)) = listener.accept() {
             let body = strings.get(idx).or_else(|| strings.last()).unwrap().clone();
             idx = (idx + 1).min(strings.len().saturating_sub(1) + 1);
-            let mut buf = vec![0u8; 8192];
-            let _ = stream.read(&mut buf).await;
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
-            );
-            let _ = stream.write_all(resp.as_bytes()).await;
+            let _ = read_http_request(&mut stream);
+            let _ = write_http_response(&mut stream, &body);
         }
     });
     port
@@ -112,31 +101,69 @@ async fn mock_llm_server_sequence(bodies: Vec<serde_json::Value>) -> u16 {
 async fn mock_llm_server_capturing(
     bodies: Vec<serde_json::Value>,
 ) -> (u16, tokio::sync::mpsc::UnboundedReceiver<serde_json::Value>) {
-    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let strings: Vec<String> = bodies.iter().map(|v| v.to_string()).collect();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-    tokio::spawn(async move {
+    std::thread::spawn(move || {
         let mut idx = 0usize;
-        while let Ok((mut stream, _)) = listener.accept().await {
+        while let Ok((mut stream, _)) = listener.accept() {
             let body = strings.get(idx).or_else(|| strings.last()).unwrap().clone();
             idx = (idx + 1).min(strings.len().saturating_sub(1) + 1);
-            let mut buf = vec![0u8; 65536];
-            let n = stream.read(&mut buf).await.unwrap_or(0);
             // Extract JSON body that follows the HTTP header separator.
-            if let Some(sep) = buf[..n].windows(4).position(|w| w == b"\r\n\r\n") {
-                if let Ok(v) = serde_json::from_slice(&buf[sep + 4..n]) {
-                    let _ = tx.send(v);
+            if let Ok(buf) = read_http_request(&mut stream) {
+                if let Some(sep) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    if let Ok(v) = serde_json::from_slice(&buf[sep + 4..]) {
+                        let _ = tx.send(v);
+                    }
                 }
             }
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                body.len(), body
-            );
-            let _ = stream.write_all(resp.as_bytes()).await;
+            let _ = write_http_response(&mut stream, &body);
         }
     });
     (port, rx)
+}
+
+fn read_http_request(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
+    let mut buf = Vec::new();
+    let mut tmp = [0u8; 4096];
+    loop {
+        let n = stream.read(&mut tmp)?;
+        if n == 0 {
+            break;
+        }
+        buf.extend_from_slice(&tmp[..n]);
+        if request_body_complete(&buf) {
+            break;
+        }
+    }
+    Ok(buf)
+}
+
+fn request_body_complete(buf: &[u8]) -> bool {
+    let Some(sep) = buf.windows(4).position(|w| w == b"\r\n\r\n") else {
+        return false;
+    };
+    let headers = String::from_utf8_lossy(&buf[..sep]);
+    let content_length = headers
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim().parse::<usize>().ok())
+                .flatten()
+        })
+        .unwrap_or(0);
+    buf.len() >= sep + 4 + content_length
+}
+
+fn write_http_response(stream: &mut TcpStream, body: &str) -> std::io::Result<()> {
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    );
+    stream.write_all(response.as_bytes())
 }
 
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
