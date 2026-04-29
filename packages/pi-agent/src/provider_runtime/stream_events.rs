@@ -30,22 +30,22 @@ pub(crate) fn parse_stream_text_deltas_from_sse(bytes: &[u8]) -> Vec<String> {
 }
 
 fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {
-    let mut deltas = Vec::new();
-    if let Some(text) = openai_text_delta(value) {
-        deltas.push(text.to_string());
-    }
+    let mut deltas = openai_text_deltas(value);
     if let Some(text) = anthropic_text_delta(value) {
         deltas.push(text.to_string());
     }
     deltas
 }
 
-fn openai_text_delta(value: &serde_json::Value) -> Option<&str> {
+fn openai_text_deltas(value: &serde_json::Value) -> Vec<String> {
     value
-        .get("choices")?
-        .as_array()?
-        .iter()
-        .find_map(|choice| choice.get("delta")?.get("content")?.as_str())
+        .get("choices")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|choice| choice.get("delta")?.get("content")?.as_str())
+        .map(str::to_string)
+        .collect()
 }
 
 fn anthropic_text_delta(value: &serde_json::Value) -> Option<&str> {
