@@ -37,6 +37,7 @@ export * from "./lib/l8n-host.js";
 export * from "./lib/plugin-host.js";
 export * from "./lib/secret-host.js";
 export * from "./lib/stream-chunk.js";
+export * from "./lib/stream-session.js";
 export * from "./lib/telemetry.js";
 export * from "./lib/types.js";
 

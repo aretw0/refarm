@@ -204,6 +204,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Tractor CLI plain output renders partial chunks as deltas and avoids reprinting the full final content after streamed partials
 - [x] `@refarm.dev/tractor` exports a TypeScript `AgentResponse` stream accumulator for structured clients that consume partial/final events
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamChunk` accumulator for clients that consume host stream observations directly
+- [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamSession` accumulator for clients that consume host stream lifecycle observations
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 

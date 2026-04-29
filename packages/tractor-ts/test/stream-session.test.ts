@@ -1,0 +1,80 @@
+import { describe, expect, it } from "vitest";
+import {
+	applyStreamSessionEvent,
+	emptyStreamSessionState,
+	reduceStreamSessionEvents,
+	reduceStreamSessionEventsByStream,
+	UNKNOWN_STREAM_SESSION_REF,
+} from "../src/lib/stream-session";
+
+describe("StreamSession accumulator", () => {
+	it("applies lifecycle snapshots for a stream", () => {
+		const state = reduceStreamSessionEvents([
+			{
+				stream_ref: "stream-a",
+				stream_kind: "agent-response",
+				status: "active",
+				started_at_ns: 100,
+				updated_at_ns: 100,
+				last_sequence: null,
+				chunk_count: 0,
+				metadata: { projection: "AgentResponse" },
+			},
+			{
+				stream_ref: "stream-a",
+				status: "completed",
+				updated_at_ns: 200,
+				completed_at_ns: 200,
+				last_sequence: 2,
+				chunk_count: 3,
+			},
+		]);
+
+		expect(state).toEqual({
+			streamRef: "stream-a",
+			streamKind: "agent-response",
+			status: "completed",
+			startedAtNs: 100,
+			updatedAtNs: 200,
+			completedAtNs: 200,
+			lastSequence: 2,
+			chunkCount: 3,
+			metadata: { projection: "AgentResponse" },
+		});
+	});
+
+	it("groups interleaved sessions by stream_ref", () => {
+		const states = reduceStreamSessionEventsByStream([
+			{ stream_ref: "stream-a", status: "active", chunk_count: 0 },
+			{ stream_ref: "stream-b", status: "completed", chunk_count: 1 },
+			{ stream_ref: "stream-a", status: "completed", chunk_count: 2 },
+			{ status: "orphan", chunk_count: 9 },
+		]);
+
+		expect(states["stream-a"].status).toBe("completed");
+		expect(states["stream-a"].chunkCount).toBe(2);
+		expect(states["stream-b"].status).toBe("completed");
+		expect(states[UNKNOWN_STREAM_SESSION_REF]).toEqual({
+			streamRef: null,
+			streamKind: null,
+			status: "orphan",
+			startedAtNs: null,
+			updatedAtNs: null,
+			completedAtNs: null,
+			lastSequence: null,
+			chunkCount: 9,
+			metadata: null,
+		});
+	});
+
+	it("preserves prior identity and ignores non-finite counters", () => {
+		const state = applyStreamSessionEvent(emptyStreamSessionState("stream-c"), {
+			status: "active",
+			chunk_count: Number.NaN,
+		});
+
+		expect(state.streamRef).toBe("stream-c");
+		expect(state.status).toBe("active");
+		expect(state.chunkCount).toBe(0);
+	});
+});
