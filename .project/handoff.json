@@ -1,33 +1,40 @@
 {
-	"context": "Checkpoint de compactação preparado em 2026-04-29 após fechamento do backlog planejado, estabilização do board e avanço incremental do Tractor LSP bridge. Working tree estava limpo antes desta atualização de handoff.",
-	"timestamp": "2026-04-29T00:35:00.000Z",
+	"context": "Checkpoint de compactação preparado em 2026-04-29 após avanço do Tractor LSP/code-ops genérico, atualização de URLs do repositório para aretw0/refarm e adição de harness pi-agent rename/LSP. Working tree limpo antes desta atualização de handoff.",
+	"timestamp": "2026-04-29T01:23:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Todos os tasks em .project/tasks.json estão completed; project-status mostra requirements 31/31 accepted e tasks 373/373 completed.",
-		"T-NEXT-293 concluída: pi-agent lib.rs confirmado como fachada; provider_runtime_tests quebrado em módulos menores; compress.rs recebeu lint clippy acionável; validações passaram: cd packages/pi-agent && cargo test --lib --quiet (213 passed) e cargo component build --release.",
-		"Tractor LSP bridge avançou em 3 slices: lifecycle de subprocesso com start/reuse/stop/Drop; framing JSON-RPC LSP Content-Length; builders puros para initialize, textDocument/references e textDocument/rename com posição 1-based -> 0-based.",
-		"Últimos commits relevantes: 825b943b refactor(tractor): add lsp request builders; 2a636720 refactor(tractor): add lsp json rpc framing; 758f4d33 refactor(tractor): add lsp process lifecycle; 1039a8e2 chore(project): accept completed agent requirements."
+		"Backlog .project continua completo/aceito; trabalho recente foi avanço do lane ativo LSP v1/code-ops fora de novas tasks formais.",
+		"Repository URL canonical ajustada de github.com/refarm-dev/refarm para github.com/aretw0/refarm em manifests/docs/tests. Commit: 6302121f chore(repo): update repository urls.",
+		"Tractor LSP bridge agora usa caminho genérico: REFACTOR_LSP_CMD, com compat REFACTOR_LSP_RUST_ANALYZER_CMD e rust-analyzer apenas como default. Comandos com args são aceitos, ex. typescript-language-server --stdio. Commits: 4b921c39, 19b9044f.",
+		"find_references e rename_symbol estão ligados ao LSP JSON-RPC genérico. find_references parseia Location[]; rename_symbol parseia WorkspaceEdit.changes e documentChanges e aplica TextEdits host-side. Commits: 2800773b, e58fe8b8.",
+		"Testes unitários do lsp_bridge cobrem sessão fake LSP genérica para references e rename; teste live rust-analyzer permanece ignored/opcional. Última validação: cd packages/tractor && cargo test --lib lsp_bridge --quiet; rustfmt --check src/host/lsp_bridge.rs.",
+		"Roadmap pi-agent atualizado para registrar generic LSP code-ops como concluído, mantendo integração pi-agent/farmhand como pendente. Commit: 15a49595.",
+		"Harness pi-agent rename/LSP adicionado em packages/tractor/tests/pi_agent_harness.rs com fake LSP Python e timeout no call_on_event. Commits: f022fb32, 6d2c00aa. Compila com cargo test --test pi_agent_harness --no-run."
 	],
 	"blockers": [
-		"Sem bloqueio técnico imediato.",
-		"Host Windows/C: ainda está em 97% de uso; manter disciplina de não rodar builds globais. Espaço atual ~15GB livres; targets: packages/tractor/target ~2.1GB, packages/pi-agent/target ~524MB."
+		"Host Windows/C ainda crítico: 98% usado, ~15GB livres. Evitar builds globais; rodar clean:light após Rust.",
+		"Harness ignorado específico de rename foi tentado e ficou preso em call_on_event; harness antigo de bash também prende neste ambiente. Portanto o novo harness foi validado por --no-run e agora possui timeout para falhar diagnosticamente em vez de pendurar.",
+		"Docker/host prune indisponível de dentro do devcontainer.",
+		"cargo fmt global em packages/tractor tinha histórico de diffs preexistentes; para lsp_bridge usar rustfmt --check packages/tractor/src/host/lsp_bridge.rs."
 	],
 	"next_actions": [
 		"Após compactação: começar com git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Próximo slice natural: implementar comunicação real com rust-analyzer no LspBridge para find_references primeiro, antes de rename_symbol. Usar os helpers já existentes em packages/tractor/src/host/lsp_bridge.rs: LspServerProcess, encode_lsp_message, drain_lsp_messages, initialize_request, references_request.",
-		"Manter slices pequenos: 1) I/O sync request/response básico; 2) initialize handshake; 3) find_references parser; 4) só depois rename workspace edits. Validar com cd packages/tractor && cargo test --lib lsp_bridge --quiet.",
-		"Não iniciar ACP/A2A gateway/streaming/rename package sem confirmação; o lane ativo é LSP v1/code-ops."
+		"Não iniciar ACP agora. ACP deve ficar como pesquisa/ADR futura se o usuário pedir explicitamente; lane ativo continua code-ops/LSP v1.",
+		"Próximo slice recomendado: investigar por que pi_agent_harness ignored fica preso em call_on_event para tool-use tests neste ambiente. Comparar harness_tool_use_dispatched_and_result_fed_back e novo harness_rename_symbol_tool_updates_workspace_file_via_lsp; ambos penduram. Não fazer build global.",
+		"Alternativa segura se não investigar hang: adicionar documentação curta no ROADMAP sobre harness rename existente mas runtime pendente, ou criar issue/task canônica para estabilizar harness execution.",
+		"Validações econômicas: cd packages/tractor && cargo test --lib lsp_bridge --quiet; cd packages/tractor && cargo test --test pi_agent_harness --no-run; npm run clean:light depois."
 	],
 	"open_questions": [
-		"ACP (Agent Context Protocol) não aparece como item canônico no roadmap atual; o roadmap registra A2A/MCP/JSON-LD e ADR-052. Se o usuário quiser ACP, criar primeiro uma task/ADR curta de pesquisa/comparação ACP vs MCP/A2A/CRDT rendezvous.",
-		"Os #[allow(dead_code)] adicionados em packages/tractor/src/host/lsp_bridge.rs são temporários: cobrem helpers já testados mas ainda não chamados pelo fluxo find_references/rename_symbol. Devem ser removidos à medida que os helpers forem conectados; não tratar como política permanente.",
+		"ACP/Agent Context Protocol não está no roadmap canônico atual. Decisão recomendada: deferir até LSP v1/harness estar estável; se entrar, fazer ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
+		"ADR-052 continua Proposed.",
 		"DEC-010 permanece pendente/revisit histórica.",
-		"ADR-052 ainda está Proposed; promover/ajustar após revisão humana."
+		"Ainda há alguns #[allow(dead_code)] no lsp_bridge para helpers test-only/ignored? Verificar antes de encerrar LSP v1; a maioria foi removida quando find/rename conectaram."
 	],
 	"key_decisions_pending": [
 		"DEC-010",
 		"Decidir se ACP entra no roadmap como pesquisa formal ou se fica fora por enquanto.",
-		"ADR-052 ainda está Proposed."
+		"ADR-052 ainda está Proposed.",
+		"Resolver se harness pi-agent deve ser mantido ignored+no-run ou estabilizado como gate executável."
 	],
 	"files_in_flux": []
 }
