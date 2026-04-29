@@ -1,3 +1,9 @@
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LlmStreamTextChunkDraft {
+    sequence: u32,
+    content_delta: String,
+}
+
 /// Extract provider-neutral `data:` payloads from a Server-Sent Events byte stream.
 ///
 /// This parser is intentionally target-neutral and transport-agnostic. Provider
@@ -40,6 +46,28 @@ fn parse_stream_text_deltas(payloads: &[String]) -> Vec<String> {
         .filter_map(|payload| serde_json::from_str::<serde_json::Value>(payload).ok())
         .flat_map(|value| stream_text_deltas_from_value(&value))
         .collect()
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn stream_text_chunk_drafts_from_sse(
+    bytes: &[u8],
+    last_sequence: Option<u32>,
+) -> Vec<LlmStreamTextChunkDraft> {
+    parse_stream_text_deltas_from_sse(bytes)
+        .into_iter()
+        .scan(last_sequence.unwrap_or(0), |sequence, content_delta| {
+            *sequence = sequence.saturating_add(1);
+            Some(LlmStreamTextChunkDraft {
+                sequence: *sequence,
+                content_delta,
+            })
+        })
+        .collect()
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn last_stream_text_chunk_sequence(chunks: &[LlmStreamTextChunkDraft]) -> Option<u32> {
+    chunks.last().map(|chunk| chunk.sequence)
 }
 
 fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {

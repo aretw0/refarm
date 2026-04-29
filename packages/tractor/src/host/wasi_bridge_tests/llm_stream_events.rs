@@ -63,3 +63,43 @@ fn parse_stream_text_deltas_ignores_invalid_json_payloads() {
 
     assert!(deltas.is_empty());
 }
+
+#[test]
+fn stream_text_chunk_drafts_from_sse_assigns_monotonic_sequences() {
+    let chunks = super::stream_text_chunk_drafts_from_sse(
+        br#"data: {"choices":[{"delta":{"content":"a"}}]}
+
+data: {"choices":[{"delta":{"content":"b"}}]}
+
+"#,
+        Some(9),
+    );
+
+    assert_eq!(
+        chunks,
+        vec![
+            super::LlmStreamTextChunkDraft {
+                sequence: 10,
+                content_delta: "a".to_string(),
+            },
+            super::LlmStreamTextChunkDraft {
+                sequence: 11,
+                content_delta: "b".to_string(),
+            },
+        ]
+    );
+    assert_eq!(super::last_stream_text_chunk_sequence(&chunks), Some(11));
+}
+
+#[test]
+fn stream_text_chunk_drafts_from_sse_starts_at_one_without_last_sequence() {
+    let chunks = super::stream_text_chunk_drafts_from_sse(
+        br#"data: {"type":"content_block_delta","delta":{"text":"x"}}
+
+"#,
+        None,
+    );
+
+    assert_eq!(chunks[0].sequence, 1);
+    assert_eq!(super::last_stream_text_chunk_sequence(&[]), None);
+}
