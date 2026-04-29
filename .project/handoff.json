@@ -1,38 +1,35 @@
 {
-	"context": "Checkpoint atualizado em 2026-04-29 após fechar o DoD @72% do lane LSP v1/code-ops, estabilizar harness pi-agent/Tractor e adicionar scripts de validação escopados. Working tree estava limpo antes desta atualização de handoff.",
-	"timestamp": "2026-04-29T01:52:00.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após fechar LSP v1/code-ops @72%, endurecer scripts de harness e iniciar streaming com primitives de AgentResponse parcial. Working tree estava limpo antes desta atualização de handoff.",
+	"timestamp": "2026-04-29T02:05:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Backlog .project continua completo/aceito; trabalho recente segue o lane ativo LSP v1/code-ops em slices pequenos.",
-		"Tractor LSP bridge usa caminho genérico REFACTOR_LSP_CMD, compat REFACTOR_LSP_RUST_ANALYZER_CMD e rust-analyzer apenas como default. find_references e rename_symbol passam por JSON-RPC LSP genérico, com suporte a WorkspaceEdit.changes e documentChanges.",
-		"Harness pi-agent/Tractor cobre tool-loop para bash, find_references e rename_symbol via fake LSP genérico. O hang anterior foi corrigido movendo o mock LLM para std::thread com TcpListener bloqueante fora do runtime Tokio single-thread.",
-		"Baseline pi-agent passou: cd packages/pi-agent && cargo check --target wasm32-wasip1 && cargo test --lib --quiet. Roadmap marcou DoD baseline como completo. Commit: 216d53fb.",
-		"Scripts escopados adicionados ao package.json: npm run agent:lsp:check e npm run agent:lsp:harness. Commit: 6567ee5c.",
-		"Helpers de teste do lsp_bridge agora usam #[cfg(test)] em vez de #[allow(dead_code)]. Commit: ad7da2e6."
+		"LSP v1/code-ops está fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
+		"Scripts escopados: npm run agent:lsp:check; npm run agent:lsp:harness com timeout 90 por teste; npm run agent:lsp:harness:build para cargo component build --release + harness. Commits: 6567ee5c, a61fa2e6.",
+		"Harness policy documentada: testes permanecem #[ignore] por dependerem de pi_agent.wasm pré-buildado; usar script build+run quando quiser gate completo. Commit: 9807eb28.",
+		"Streaming lane iniciado com primitives de schema: AgentResponsePayload agora aceita is_final e sequence; store_agent_turn preserva comportamento final sequence=0. Commits: fafaa37d, d0cbfaee, 6a7aa914."
 	],
 	"blockers": [
-		"Host Windows/C ainda crítico: 98% usado, ~14GB livres. Evitar builds globais; rodar clean:light após Rust.",
+		"Host Windows/C ainda crítico: 98% usado, ~15GB livres. Evitar builds globais; rodar clean:light após Rust.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target cresceu para ~919MB após cargo check wasm; manter limpeza leve e evitar builds amplos."
+		"packages/pi-agent/target ~919MB após cargo check wasm; manter limpeza leve e evitar builds amplos."
 	],
 	"next_actions": [
 		"Começar próxima sessão/slice com git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Validação rápida do lane LSP: npm run agent:lsp:check --silent.",
-		"Validação manual do harness code-ops, se o wasm existir: npm run agent:lsp:harness --silent.",
-		"Próximo slice recomendado: decidir se o pi_agent_harness permanece ignored/manual por depender de cargo component build --release ou se ganha automação explícita/documentada de build+run.",
-		"Depois do lane LSP v1 fechado, escolher próximo foco com confirmação: package rename graduation, streaming token output, cross-plugin generalization, ou pesquisa A2A/ACP/ADR."
+		"Para LSP: npm run agent:lsp:check --silent; harness manual: npm run agent:lsp:harness --silent ou npm run agent:lsp:harness:build se precisar rebuildar wasm.",
+		"Próximo slice streaming recomendado: extrair helper de persistência para armazenar AgentResponse chunk parcial com sequence/is_final sem append_to_session para parciais; testar sem WASM.",
+		"Depois: investigar provider wire streaming/chunked HTTP em wasi::http, mantendo opt-in e sem mexer em providers globais em um único slice."
 	],
 	"open_questions": [
 		"ACP/Agent Context Protocol não está no roadmap canônico atual; deferir ou criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous se solicitado.",
 		"ADR-052 continua Proposed.",
 		"DEC-010 permanece pendente/revisit histórica.",
-		"Resolver política de execução do pi_agent_harness: manter ignored por depender do wasm pré-buildado ou criar automação explícita que faça cargo component build em slice controlado."
+		"Decidir quando o streaming deve ser opt-in por env var e qual nome: candidato LLM_STREAM_RESPONSES=1."
 	],
 	"key_decisions_pending": [
 		"DEC-010",
 		"Decidir se ACP entra no roadmap como pesquisa formal ou se fica fora por enquanto.",
 		"ADR-052 ainda está Proposed.",
-		"Decidir se harness pi-agent code-ops vira gate executável ou permanece ignored/manual."
+		"Definir política/config para streaming parcial de AgentResponse."
 	],
 	"files_in_flux": []
 }
