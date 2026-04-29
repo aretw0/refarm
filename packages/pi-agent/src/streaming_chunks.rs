@@ -43,6 +43,10 @@ pub(crate) struct ResponseChunkDraft {
 /// The drafts intentionally carry only streaming-neutral metadata; the runtime
 /// persistence layer adds model, token, timing, and tool-call fields when the
 /// chunks are stored as AgentResponse nodes.
+pub(crate) fn last_response_chunk_sequence(drafts: &[ResponseChunkDraft]) -> Option<u32> {
+    drafts.last().map(|draft| draft.sequence)
+}
+
 pub(crate) fn partial_response_chunk_drafts(
     deltas: &[String],
     last_sequence: Option<u32>,

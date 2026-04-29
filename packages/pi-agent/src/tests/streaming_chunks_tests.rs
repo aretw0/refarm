@@ -1,6 +1,7 @@
 use crate::streaming_chunks::{
-    final_response_sequence, first_response_sequence, next_response_sequence,
-    partial_response_chunk_drafts, should_append_response_chunk_to_session, ResponseChunkDraft,
+    final_response_sequence, first_response_sequence, last_response_chunk_sequence,
+    next_response_sequence, partial_response_chunk_drafts, should_append_response_chunk_to_session,
+    ResponseChunkDraft,
 };
 
 #[test]
@@ -56,4 +57,15 @@ fn partial_response_chunk_drafts_continue_after_last_sequence() {
     let chunks = partial_response_chunk_drafts(&deltas, Some(7));
     assert_eq!(chunks[0].sequence, 8);
     assert_eq!(chunks[1].sequence, 9);
+}
+
+#[test]
+fn last_response_chunk_sequence_reads_last_draft() {
+    assert_eq!(last_response_chunk_sequence(&[]), None);
+    let chunks = partial_response_chunk_drafts(&["a".to_string(), "b".to_string()], Some(2));
+    assert_eq!(last_response_chunk_sequence(&chunks), Some(4));
+    assert_eq!(
+        final_response_sequence(true, last_response_chunk_sequence(&chunks)),
+        5
+    );
 }
