@@ -15,6 +15,7 @@
 Farmhand should consume generic primitives; it should not become the place where generic platform logic gets trapped.
 
 pi-agent learns from [Pi](https://github.com/kaleidawave/pi) but is not Pi:
+
 - Pi has ephemeral session state. pi-agent has **CRDT-backed state** — auditable, replicable, queryable.
 - Pi is a CLI tool. pi-agent is a **WASM plugin** — sandboxed, composable, deployable anywhere tractor runs.
 - Pi has hardcoded context strategies. pi-agent has **opt-in everything** — env vars drive all behavior.
@@ -27,50 +28,60 @@ Context engineering follows the pi-test-harness model:
 ## v0.1.0 — Foundation (DONE ✅)
 
 ### WASM scaffold + event pipeline
+
 - [x] `cargo component build` producing valid `pi_agent.wasm`
 - [x] `on_event("user:prompt")` → `store AgentResponse` pipeline
 - [x] `UserPrompt` + `AgentResponse` nodes in CRDT with `timestamp_ns`
 
 ### Multi-provider LLM (2C.1)
+
 - [x] Anthropic (`/v1/messages`) and OpenAI-compat (`/v1/chat/completions`) wire formats
 - [x] Provider selection: `LLM_PROVIDER` → `LLM_DEFAULT_PROVIDER` → `ollama` (sovereign default)
 - [x] Any unknown provider name routes to OpenAI-compat path — zero code for Groq, Mistral, etc.
 
 ### Usage tracking (2D)
+
 - [x] `UsageRecord` CRDT node: `tokens_in`, `tokens_out`, `tokens_cached`, `tokens_reasoning`, `estimated_usd`, `usage_raw`
 - [x] Cache discount pricing (cached tokens at ~10% of normal rate)
 - [x] `usage_raw` preserves full provider usage object for audit — never normalized away
 
 ### Guards and resilience (2D-ext, 2D-ext2)
+
 - [x] `LLM_MAX_CONTEXT_TOKENS` — blocks oversized prompts before any API call
 - [x] `LLM_FALLBACK_PROVIDER` — automatic retry on primary provider error
 
 ### Provider sovereignty (feat)
+
 - [x] Invert default: Anthropic is explicit-only, Ollama is the last-resort sovereign default
 - [x] `LLM_DEFAULT_PROVIDER` — user configures their own floor without touching `LLM_PROVIDER`
 
 ### Budget check (2E)
+
 - [x] `sum_provider_spend_usd()` — pure function, reads `UsageRecord` CRDT nodes
 - [x] Rolling 30-day window via `timestamp_ns`
 - [x] `LLM_BUDGET_<PROVIDER>_USD` — opt-in cap per provider
 - [x] Budget block feeds into `LLM_FALLBACK_PROVIDER` path — zero extra code
 
 ### Conversational memory (2F)
+
 - [x] `history_from_nodes()` — pure function, sorts by `timestamp_ns`, caps at `max_turns`
 - [x] `LLM_HISTORY_TURNS` — opt-in (default 0 = disabled), Pi-aligned: no silent CRDT reads
 - [x] `Provider::complete()` accepts full messages slice — multi-turn wire format for both providers
 
 ### Agentic tool use
+
 - [x] `dispatch_tool()` — `read_file`, `write_file`, `bash` via `agent_fs`/`agent_shell` WIT imports
 - [x] Full agentic loop inside each provider (format-aware): tool_use blocks → dispatch → next request
 - [x] `LLM_TOOL_CALL_MAX_ITER` — configurable loop cap (default 5)
 - [x] Tool calls logged in `CompletionResult.tool_calls` → stored in `AgentResponse.tool_calls` CRDT
 
 ### Extensibility contract
+
 - [x] `extensibility_contract` test module: axioms A1–A4 as named executable guarantees
 - [x] A1: unknown provider → OpenAI compat; A2: zero-config boot; A3: context opt-in; A4: budget opt-in
 
 ### Internal modularity (maintainability)
+
 - [x] Split monolithic `lib.rs` into runtime/provider/tool/session/structured modules
 - [x] Split provider engine into `provider_anthropic.rs` and `provider_openai_compat.rs`
 - [x] Extract shared provider-loop helpers into `provider_runtime.rs` (headers/path/body builders, per-iteration request executors + response parse/extractors, generic response+phase primitive + iteration response+phase helpers, iteration-phase parsers, loop-state/loop-plan builders, common runner config + provider runner configs + config-driven runners, common-config loop orchestration primitives (including context-driven dispatch), state-bound response+phase + step-dispatch primitives, response-phase + iteration-step contract primitives (including contract-native step adapter + contract split helper), physical compactation splits via `provider_runtime/anthropic_phase.rs` + `provider_runtime/anthropic_text.rs` + `provider_runtime/anthropic_tool_uses.rs` + `provider_runtime/iteration_contract.rs` + `provider_runtime/iteration_step_dispatch.rs` + `provider_runtime/response_phase_contract.rs` + `provider_runtime/contract_loop.rs` + `provider_runtime/contract_loop_context_tests.rs` + `provider_runtime/contract_loop_nondispatch_tests.rs` + `provider_runtime/state_response_adapter_tests.rs` + `provider_runtime/state_step_adapter_tests.rs` + `provider_runtime/state_loop_context_tests.rs` + `provider_runtime/state_loop_dispatch_tests.rs` + `provider_runtime/state_primitives.rs` + `provider_runtime/loop_dispatch.rs` + `provider_runtime/loop_dispatch_tests.rs` + `provider_runtime/usage_finalize.rs` + `provider_runtime/usage_totals.rs` + `provider_runtime/wasm_anthropic.rs` + `provider_runtime/wasm_loop.rs` + `provider_runtime/wasm_openai.rs` + `provider_runtime/request_headers_anthropic.rs` + `provider_runtime/request_headers_openai.rs` + `provider_runtime/request_headers_common.rs` + `provider_runtime/request_body_anthropic.rs` + `provider_runtime/request_body_openai.rs` + `provider_runtime/request_iteration.rs` + `provider_runtime/request_parse.rs` + `provider_runtime/request_path.rs` + `provider_runtime/request_http_wasm.rs` + `provider_runtime/request_anthropic_response_wasm.rs` + `provider_runtime/request_anthropic_wasm.rs` + `provider_runtime/request_openai_response_wasm.rs` + `provider_runtime/request_openai_wasm.rs` + `provider_runtime/wire_bootstrap.rs` + `provider_runtime/phase_common.rs` + `provider_runtime/openai_message.rs` + `provider_runtime/openai_phase.rs` + `provider_runtime/openai_tool_calls.rs` + `provider_runtime/loop_config.rs` + `provider_runtime/loop_limits.rs` + `provider_runtime/loop_state.rs` + `provider_runtime/loop_config_tests.rs` + `provider_runtime/loop_plan_builders.rs` + `provider_runtime/loop_runner_common.rs` + `provider_runtime/loop_runner_types.rs` + `provider_runtime/loop_runner_anthropic.rs` + `provider_runtime/loop_runner_openai.rs` + `provider_runtime/loop_core.rs` + `provider_runtime/output_dedup.rs` + `provider_runtime/output_dedup_wasm.rs` + `provider_runtime/tool_execution.rs` + `provider_runtime/tool_recording.rs` + `provider_runtime/anthropic_tool_phase.rs` + `provider_runtime/openai_tool_phase.rs` + `provider_runtime/tool_phase_common.rs` + `provider_runtime/tool_wire.rs` + `provider_runtime/anthropic_step_phase.rs` + `provider_runtime/openai_step_phase.rs` + `provider_runtime/step_common.rs` + `provider_runtime/usage_extract.rs` + `provider_runtime/usage_phase.rs` + `provider_runtime/usage_phase_common.rs` + `provider_runtime/usage_phase_tests.rs` (behavior-preserving), contract-primitives loop orchestration (common-config + context; dispatch + non-dispatch) + state-primitives loop orchestration (common-config + context; dispatch + non-dispatch) + dispatch/non-dispatch equivalence invariants + max-iter termination equivalence invariants + error-propagation equivalence invariants + no-step-on-response-error invariants, generic usage-ingest primitive + generic phase-after-usage primitive + usage+phase combiners, initial wire-message builders, response-usage/finalization helpers, completion content guards + termination gate helpers, provider-specific completion gates, generic step terminate/advance primitive + step-level terminate/advance helpers, generic loop orchestrator + plan-driven orchestration + loop outcomes, dispatch-injectable loop orchestration + shared wasm loop executor, wasm loop runners, generic tool executor + generic tool-phase pipeline primitive + tool-phase executors/recorders + phase advancement helpers, loop termination, error extraction, wire-message appenders, dispatch+dedup primitive, argument parse, usage aggregation, executed-call shape)
@@ -93,6 +104,7 @@ Context engineering follows the pi-test-harness model:
 **Primary unlock lane (complete)**: tractor LSP bridge v1 + code-ops (`find-references`, `rename-symbol`).
 
 #### Definition of Done @72%
+
 - [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
 - [x] `find-references` wired end-to-end via generic LSP JSON-RPC path (rust-analyzer remains the default backend).
 - [x] `rename-symbol` wired end-to-end via generic LSP JSON-RPC path (WorkspaceEdit changes applied host-side).
@@ -102,6 +114,7 @@ Context engineering follows the pi-test-harness model:
   - `cargo test --lib` in `packages/pi-agent`
 
 #### Process rules (pragmatic + verifiable)
+
 - [ ] Atomic slice discipline: one logical move per commit, conventional commit message.
 - [ ] Gate-per-slice discipline: run wasm check + lib tests before each mergeable slice.
 - [ ] Architecture-first review gate: every slice states what boundary became clearer and what coupling was reduced.
@@ -109,12 +122,14 @@ Context engineering follows the pi-test-harness model:
 - [ ] Backlog parking discipline: non-unlock work is recorded below and intentionally deferred.
 
 #### Parked backlog for after 72% (explicitly deferred to avoid retrabalho)
+
 - [ ] Package rename graduation (`pi-agent` → `farmhand`) and cross-repo reference sweep.
 - [ ] Streaming token output (`is_final=false/true`) and chunked delivery semantics.
 - [ ] Cross-plugin generalization pass (shared provider defaults/URN/tool API unification).
 - [ ] A2A protocol research + Zig host exploration.
 
 ### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
+
 - [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)
 - [x] Mock LLM: blocking `TcpListener::bind(":0")` thread returns scripted OpenAI-compat JSON without deadlocking the single-thread Tokio test runtime
 - [x] Core scenarios: AgentResponse stored, UsageRecord tokens, context guard, budget block
@@ -129,12 +144,15 @@ Context engineering follows the pi-test-harness model:
 **Scope**: Rename, streaming, project-level config, expanded tooling, daily-driver CLI.
 
 ### Naming
+
 - [ ] Rename package `pi-agent` → `farmhand`
 - [ ] Update `Cargo.toml`, `wit/world.wit` world name, tractor fixture references
 - [ ] Update README, this ROADMAP, and any cross-package references
 
 ### Daily-driver CLI
+
 > Inspired by Pi CLI and Claude Code: invoke the agent from a terminal without a WebSocket client.
+
 - [x] `tractor prompt --agent pi-agent "do something"` subcommand
 - [x] `tractor watch` — polling loop for AgentResponse nodes
 - [x] `tractor query --type <T> --namespace <N>` — read CRDT nodes from local storage (no daemon)
@@ -149,6 +167,7 @@ Context engineering follows the pi-test-harness model:
   - `/navigate <entry_id>` — move session pointer, writes to CRDT directly
 
 ### Streaming token output
+
 - [x] Response-node schema supports partial/final chunks via configurable `is_final` and `sequence` fields
 - [x] Streaming is opt-in via `LLM_STREAM_RESPONSES=1|true|yes|on`; missing/unknown values stay disabled
 - [x] Persistence seam can store AgentResponse chunks separately from final session append
@@ -166,12 +185,15 @@ Context engineering follows the pi-test-harness model:
 - [x] Provider `stream: true` requests are gated on both opt-in policy and streaming transport readiness
 - [x] WASM HTTP request layer has a callback seam for future streaming bytes without changing buffered JSON path
 - [x] Provider request paths route through the callback seam while streaming transport remains disabled
+- [x] Provider runtime has an active stream sink context (`prompt_ref`, `model`, `last_sequence`) so callbacks can persist SSE-derived partial chunks once transport streaming is enabled
+- [x] Final response sequencing reads the stream sink's last partial sequence before storing the terminal `AgentResponse`
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
 - [ ] Wire format: server-sent events in `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
+
 - [x] Read `.refarm/config.json` in tractor before spawning plugin — maps to env vars
 - [x] `config.json` fields: `provider`, `model`, `default_provider`, `budgets`
 - [x] Implementation seam: `refarm_config_env_vars_from()` → `WasiCtxBuilder::envs()` — config overrides process env
@@ -180,6 +202,7 @@ Context engineering follows the pi-test-harness model:
   - Zero new architecture: same store/query primitives already used by UsageRecord
 
 ### Expanded tools
+
 - [x] `edit_file` — multi-edit: `{path, edits:[{old_str,new_str}]}` (mitsuhiko pattern, agents-lab curated)
 - [x] `list_dir` — directory listing via `bash ls -1`
 - [x] `search_files` — grep: `{pattern, path, glob?}` → `file:line` matches
@@ -190,6 +213,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `navigate` / `fork` — LLM can rewind and branch its own conversation
 
 ### Harness expansion
+
 - [x] Tool use scenario: mock sequence (tool_call → final text), assert `tool_calls` logged
 - [x] Fallback scenario: anthropic fails → ollama mock serves
 - [x] Multi-turn scenario: `LLM_HISTORY_TURNS=2`, capturing mock asserts prior turns in request
@@ -206,6 +230,7 @@ Context engineering follows the pi-test-harness model:
 **Scope**: refarm-stack compatibility, distro enablement, multi-agent coordination, semantic code tools.
 
 ### Structured I/O tools (`structured-io`) ✅ DONE
+
 > REQ-AGENT-001 — T-NEXT-266/268/275/278/284
 
 - [x] `read_structured` pi-agent tool: JSON/TOML/YAML with `page_size`/`page_offset` (T-NEXT-268/275)
@@ -219,17 +244,20 @@ Context engineering follows the pi-test-harness model:
   - Pre-existing wasm32 compile errors in session management code fixed as part of same slice
 
 ### Semantic code operations (`code-ops`)
+
 > REQ-AGENT-002 — T-NEXT-267/268
 
 Instead of asking the agent to "replace all occurrences of X" (fragile, misses imports, breaks across modules), expose LSP-backed operations as host-provided WIT imports. The host (tractor) manages the LSP server process; the plugin calls clean primitives.
 
 **Integration approach**: subprocess (not in-process, not MCP)
+
 - Tractor spawns `rust-analyzer` / `typescript-language-server` on demand via `tokio::process`
 - Communicates over stdin/stdout JSON-RPC (LSP spec) — no extra dep, works offline
 - LSP server lifetime tied to tractor process; plugin calls are synchronous from plugin POV
 - MCP is considered an extension point for future IDE integration, not the primary path
 
 **WIT interface sketch** (`interface code-ops` in `refarm-plugin-host.wit`):
+
 ```wit
 interface code-ops {
     record symbol-location {
@@ -262,6 +290,7 @@ interface code-ops {
 ```
 
 **Open questions before implementation**:
+
 - Which LSP servers to ship first? rust-analyzer (already used by devcontainer) is the natural v1.
 - `move-symbol` is not standard LSP — needs `workspace/applyEdit` workaround per server.
 - Should operations be atomic (backup + rollback on partial failure)?
@@ -278,6 +307,7 @@ interface code-ops {
 - [ ] Integration test: rename a Rust symbol via pi-agent, assert all references updated
 
 ### refarm-stack (agents-lab)
+
 - [ ] `refarm-stack` package in `aretw0/agents-lab` uses farmhand as engine
 - [ ] Porting pi-stack behaviors to Refarm CRDT primitives with minimal friction
 - [ ] Validate that distros (`.dev`, `.me`, `.social`) can compose farmhand without core changes
@@ -295,6 +325,7 @@ interface code-ops {
 - [ ] Add an architectural check in reviews: "is this logic farmhand-specific or platform-primitive?" and reject plugin-local platform logic
 
 ### Multi-agent (swarm)
+
 - [x] `LLM_AGENT_ID` — namespaces CRDT nodes per agent (`urn:farmhand:<id>:<hex>`) (T-NEXT-282)
   - `new_id()` prefixes with agent namespace when `LLM_AGENT_ID` is set; backward-compatible
   - A5 extensibility axiom: 3 tests covering absent/set/uniqueness cases
@@ -310,6 +341,7 @@ interface code-ops {
 - [ ] Swarm harness: agent B uses LLM to formulate a query based on agent A's output (full reasoning loop)
 
 ### Zig Pi-Nano host
+
 - [ ] Minimal Zig host that loads `farmhand.wasm` — no Rust runtime
 - [ ] Targets RPi Zero / microcontrollers
 - [ ] WIT subset: `tractor-bridge` (store/query), `agent-fs` — no `agent-shell`
@@ -321,16 +353,19 @@ interface code-ops {
 ## Tooling notes
 
 ### mdt (documentation sync)
+
 [mdt](https://github.com/ifiokjr/mdt) — template-based markdown sync with `mdt check` for CI.
 
 **What to commit vs ignore:**
+
 - ✅ Commit: `.templates/*.t.md` (providers — canonical source)
 - ✅ Commit: `README.md`, any file with `{=block}` markers (consumers — managed content)
 - ✅ Commit: `mdt.toml` (config)
 - ❌ Ignore: `.mdt/` (scan cache — regenerated on every mdt run, added to `.gitignore`)
 
 **Blocks in this package:**
-- `env_vars` — LLM_* environment variables table → `README.md`
+
+- `env_vars` — LLM\_\* environment variables table → `README.md`
 - `tools` — available agent tools table → `README.md`
 - `config_fields` — `.refarm/config.json` field mapping → `README.md`
 
@@ -342,6 +377,7 @@ interface code-ops {
 - [ ] Expand to monorepo root when a cross-package consumer exists (e.g. distro docs referencing `env_vars`)
 
 ### Diagram library
+
 Keep architecture diagrams in sync with implementation. When significant structural changes
 land (e.g., farmhand rename, streaming), update diagrams before closing the milestone.
 
@@ -357,30 +393,33 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 
 ### Threat model (current exposure)
 
-| Surface | Today | Risk |
-|---|---|---|
-| `ANTHROPIC_API_KEY` in env | Host-only (plugin calls `llm-bridge`) | Residual risk only in host process, not in plugin sandbox |
-| `agent_shell::spawn` | allowlist-capable (`LLM_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much |
-| `agent_fs::read/write` | root-capable (`LLM_FS_ROOT`) | Misconfigured root may still expose broad subtree |
-| `wasi:http` egress | removed from pi-agent LLM path | Other plugins may still require separate egress policy |
+| Surface                    | Today                                     | Risk                                                      |
+| -------------------------- | ----------------------------------------- | --------------------------------------------------------- |
+| `ANTHROPIC_API_KEY` in env | Host-only (plugin calls `llm-bridge`)     | Residual risk only in host process, not in plugin sandbox |
+| `agent_shell::spawn`       | allowlist-capable (`LLM_SHELL_ALLOWLIST`) | Misconfig/empty policy can still block or allow too much  |
+| `agent_fs::read/write`     | root-capable (`LLM_FS_ROOT`)              | Misconfigured root may still expose broad subtree         |
+| `wasi:http` egress         | removed from pi-agent LLM path            | Other plugins may still require separate egress policy    |
 
 ### Mitigations to design (inspired by Gondolin)
 
 - [x] **Credential placeholder injection (phase 1)** — tractor makes the LLM HTTP call on behalf of the plugin
-  instead of the plugin calling the provider directly. Plugin receives responses, never API keys.
-  Gondolin calls this "the guest only sees a placeholder token."
+      instead of the plugin calling the provider directly. Plugin receives responses, never API keys.
+      Gondolin calls this "the guest only sees a placeholder token."
+
   - Implemented WIT import: `llm-bridge::complete-http(provider, base-url, path, headers, body)`
   - `pi-agent` dropped direct `wasi:http` dependency for provider calls and now uses `llm-bridge`
   - Host injects provider auth headers (`ANTHROPIC_API_KEY` / `OPENAI_API_KEY`) outside plugin sandbox
   - Follow-up: tighten provider/base-url policy centrally in tractor (allowlist/validator)
 
 - [x] **`LLM_SHELL_ALLOWLIST`** — comma-separated list of allowed binaries for `agent_shell::spawn`
+
   - e.g. `LLM_SHELL_ALLOWLIST=ls,grep,cat,git` — host blocks commands outside allowlist
   - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: checks `argv[0]` (basename-aware) before spawn and returns `[blocked: <cmd> not in allowlist]`
   - Semantics: env var **unset** = permissive (backward compatible); env var set empty/whitespace = block all
   - Gondolin equivalent: `allowedHosts` for network; same pattern for commands
 
 - [x] **`LLM_FS_ROOT`** — restrict `agent_fs::read/write` to a subtree
+
   - e.g. `LLM_FS_ROOT=/workspaces/myproject` — all paths outside rejected at host boundary
   - Implemented in `packages/tractor/src/host/agent_tools_bridge.rs`: enforces guard on `read`, `write`, and `edit`
   - Path policy resolves absolute path against nearest existing ancestor before prefix check; rejects outside paths with `[blocked: path outside LLM_FS_ROOT]`
@@ -394,14 +433,14 @@ land (e.g., farmhand rename, streaming), update diagrams before closing the mile
 
 ### WASM vs micro-VM tradeoffs
 
-| Property | WASM Component Model (Refarm) | Micro-VM (Gondolin) |
-|---|---|---|
-| Memory isolation | ✅ Linear memory, cannot read host | ✅ Full VM boundary |
-| Capability gating | ✅ WIT imports are the only API surface | ⚠️  syscall filter (seccomp) |
-| `exec` arbitrary code | ⚠️ via `agent_shell::spawn` | ✅ sandboxed inside VM |
-| Credential exposure | ⚠️ `inherit_env()` today | ✅ placeholder injection |
-| Network egress | ⚠️ unrestricted `wasi:http` | ✅ JS allowlist policy |
-| Cold start | ✅ ~ms | ⚠️ ~100ms–1s (VM boot) |
+| Property              | WASM Component Model (Refarm)           | Micro-VM (Gondolin)         |
+| --------------------- | --------------------------------------- | --------------------------- |
+| Memory isolation      | ✅ Linear memory, cannot read host      | ✅ Full VM boundary         |
+| Capability gating     | ✅ WIT imports are the only API surface | ⚠️ syscall filter (seccomp) |
+| `exec` arbitrary code | ⚠️ via `agent_shell::spawn`             | ✅ sandboxed inside VM      |
+| Credential exposure   | ⚠️ `inherit_env()` today                | ✅ placeholder injection    |
+| Network egress        | ⚠️ unrestricted `wasi:http`             | ✅ JS allowlist policy      |
+| Cold start            | ✅ ~ms                                  | ⚠️ ~100ms–1s (VM boot)      |
 
 The WASM model wins on cold start and composability. The gap is `agent_shell` and credential handling —
 both solvable without moving to micro-VMs.
