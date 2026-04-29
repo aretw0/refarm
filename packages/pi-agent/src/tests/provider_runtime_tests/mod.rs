@@ -11,4 +11,5 @@ mod loop_setup;
 mod loop_runner;
 mod response_contract;
 mod state_contract_loops;
-mod equivalence;
+mod equivalence_paths;
+mod equivalence_errors;
