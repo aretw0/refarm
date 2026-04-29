@@ -1,9 +1,40 @@
 use crate::streaming::{parse_sse_data_events, read_sse_data_events_limited};
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LlmStreamTextChunkDraft {
     sequence: u32,
     content_delta: String,
+}
+
+#[derive(Debug, Default)]
+struct LlmStreamFinalAssembly {
+    content: String,
+    openai_tool_calls: Vec<OpenAiStreamToolCall>,
+    anthropic_tool_uses: BTreeMap<u64, AnthropicStreamToolUse>,
+}
+
+impl LlmStreamFinalAssembly {
+    fn has_observations(&self) -> bool {
+        !self.content.is_empty()
+            || !self.openai_tool_calls.is_empty()
+            || !self.anthropic_tool_uses.is_empty()
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+struct OpenAiStreamToolCall {
+    id: String,
+    call_type: String,
+    name: String,
+    arguments: String,
+}
+
+#[derive(Debug, Default, Clone)]
+struct AnthropicStreamToolUse {
+    id: String,
+    name: String,
+    partial_json: String,
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
@@ -72,14 +103,12 @@ fn store_stream_agent_response_chunks_from_reader(
         .unwrap_or(0);
     let mut last_stored_sequence = metadata.last_sequence;
     let mut stored_chunks = 0u32;
-    let mut assembled_content = String::new();
+    let mut assembly = LlmStreamFinalAssembly::default();
 
     let raw_body = read_sse_data_events_limited(reader, max_len, |payload| {
-        let payloads = [payload.to_string()];
-        let chunks = parse_stream_text_deltas(&payloads)
+        let chunks = stream_text_deltas_and_update_final_assembly(payload, &mut assembly)
             .into_iter()
             .map(|content_delta| {
-                assembled_content.push_str(&content_delta);
                 let chunk = LlmStreamTextChunkDraft {
                     sequence: next_sequence,
                     content_delta,
@@ -97,8 +126,8 @@ fn store_stream_agent_response_chunks_from_reader(
         Ok(())
     })?;
 
-    let final_body = if stored_chunks > 0 {
-        synthesize_stream_final_response_body(metadata, &assembled_content)?
+    let final_body = if assembly.has_observations() {
+        synthesize_stream_final_response_body(metadata, &assembly)?
     } else {
         raw_body
     };
@@ -108,18 +137,49 @@ fn store_stream_agent_response_chunks_from_reader(
 
 fn synthesize_stream_final_response_body(
     metadata: &StreamResponseMetadata,
-    content: &str,
+    assembly: &LlmStreamFinalAssembly,
 ) -> Result<Vec<u8>, String> {
     let provider_family = metadata.provider_family.trim().to_ascii_lowercase();
     let value = if provider_family == "anthropic" {
+        let mut content_blocks = Vec::new();
+        if !assembly.content.is_empty() {
+            content_blocks.push(serde_json::json!({ "type": "text", "text": assembly.content }));
+        }
+        content_blocks.extend(assembly.anthropic_tool_uses.values().map(|tool_use| {
+            serde_json::json!({
+                "type": "tool_use",
+                "id": tool_use.id,
+                "name": tool_use.name,
+                "input": parse_tool_arguments(&tool_use.partial_json),
+            })
+        }));
         serde_json::json!({
-            "content": [{ "type": "text", "text": content }],
+            "content": content_blocks,
             "usage": { "input_tokens": 0, "output_tokens": 0 },
         })
     } else {
+        let mut message = serde_json::json!({ "role": "assistant", "content": assembly.content });
+        if !assembly.openai_tool_calls.is_empty() {
+            message["tool_calls"] = serde_json::Value::Array(
+                assembly
+                    .openai_tool_calls
+                    .iter()
+                    .map(|tool_call| {
+                        serde_json::json!({
+                            "id": tool_call.id,
+                            "type": if tool_call.call_type.is_empty() { "function" } else { &tool_call.call_type },
+                            "function": {
+                                "name": tool_call.name,
+                                "arguments": tool_call.arguments,
+                            },
+                        })
+                    })
+                    .collect(),
+            );
+        }
         serde_json::json!({
             "choices": [{
-                "message": { "role": "assistant", "content": content },
+                "message": message,
                 "finish_reason": "stop",
             }],
             "usage": {
@@ -130,6 +190,110 @@ fn synthesize_stream_final_response_body(
         })
     };
     serde_json::to_vec(&value).map_err(|e| format!("serialize stream final response: {e}"))
+}
+
+fn stream_text_deltas_and_update_final_assembly(
+    payload: &str,
+    assembly: &mut LlmStreamFinalAssembly,
+) -> Vec<String> {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
+        return Vec::new();
+    };
+    apply_openai_tool_call_deltas(&value, assembly);
+    apply_anthropic_tool_use_delta(&value, assembly);
+    let deltas = stream_text_deltas_from_value(&value);
+    for delta in &deltas {
+        assembly.content.push_str(delta);
+    }
+    deltas
+}
+
+fn apply_openai_tool_call_deltas(
+    value: &serde_json::Value,
+    assembly: &mut LlmStreamFinalAssembly,
+) {
+    let Some(tool_calls) = value
+        .get("choices")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .find_map(|choice| choice.get("delta")?.get("tool_calls")?.as_array())
+    else {
+        return;
+    };
+
+    for tool_call in tool_calls {
+        let index = tool_call
+            .get("index")
+            .and_then(serde_json::Value::as_u64)
+            .unwrap_or(assembly.openai_tool_calls.len() as u64) as usize;
+        while assembly.openai_tool_calls.len() <= index {
+            assembly.openai_tool_calls.push(OpenAiStreamToolCall::default());
+        }
+        let target = &mut assembly.openai_tool_calls[index];
+        if let Some(id) = tool_call.get("id").and_then(serde_json::Value::as_str) {
+            target.id = id.to_string();
+        }
+        if let Some(call_type) = tool_call.get("type").and_then(serde_json::Value::as_str) {
+            target.call_type = call_type.to_string();
+        }
+        if let Some(function) = tool_call.get("function") {
+            if let Some(name) = function.get("name").and_then(serde_json::Value::as_str) {
+                target.name = name.to_string();
+            }
+            if let Some(arguments) = function.get("arguments").and_then(serde_json::Value::as_str) {
+                target.arguments.push_str(arguments);
+            }
+        }
+    }
+}
+
+fn apply_anthropic_tool_use_delta(
+    value: &serde_json::Value,
+    assembly: &mut LlmStreamFinalAssembly,
+) {
+    let index = value
+        .get("index")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(0);
+    match value.get("type").and_then(serde_json::Value::as_str) {
+        Some("content_block_start") => {
+            let Some(block) = value.get("content_block") else {
+                return;
+            };
+            if block.get("type").and_then(serde_json::Value::as_str) != Some("tool_use") {
+                return;
+            }
+            let entry = assembly.anthropic_tool_uses.entry(index).or_default();
+            if let Some(id) = block.get("id").and_then(serde_json::Value::as_str) {
+                entry.id = id.to_string();
+            }
+            if let Some(name) = block.get("name").and_then(serde_json::Value::as_str) {
+                entry.name = name.to_string();
+            }
+        }
+        Some("content_block_delta") => {
+            let Some(delta) = value.get("delta") else {
+                return;
+            };
+            if delta.get("type").and_then(serde_json::Value::as_str) != Some("input_json_delta") {
+                return;
+            }
+            if let Some(partial_json) = delta.get("partial_json").and_then(serde_json::Value::as_str) {
+                assembly
+                    .anthropic_tool_uses
+                    .entry(index)
+                    .or_default()
+                    .partial_json
+                    .push_str(partial_json);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn parse_tool_arguments(arguments: &str) -> serde_json::Value {
+    serde_json::from_str(arguments).unwrap_or_else(|_| serde_json::json!({}))
 }
 
 fn store_stream_agent_response_chunks(

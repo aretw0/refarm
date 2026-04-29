@@ -194,13 +194,87 @@ fn synthesize_stream_final_response_body_emits_anthropic_shape() {
     let mut metadata = stream_metadata(None);
     metadata.provider_family = "anthropic".to_string();
 
-    let body = super::synthesize_stream_final_response_body(&metadata, "hello").unwrap();
+    let mut assembly = super::LlmStreamFinalAssembly::default();
+    assembly.content = "hello".to_string();
+
+    let body = super::synthesize_stream_final_response_body(&metadata, &assembly).unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["content"][0]["type"], "text");
     assert_eq!(json["content"][0]["text"], "hello");
     assert_eq!(json["usage"]["input_tokens"], 0);
     assert_eq!(json["usage"]["output_tokens"], 0);
+}
+
+#[test]
+fn store_stream_agent_response_chunks_from_reader_synthesizes_openai_tool_calls() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-reader-openai-tools-test").unwrap();
+    let metadata = stream_metadata(None);
+
+    let (final_body, last_sequence, stored_chunks) =
+        super::store_stream_agent_response_chunks_from_reader(
+            &sync,
+            "pi-agent",
+            &metadata,
+            std::io::Cursor::new(
+                br#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"read_structured","arguments":"{\"path\":"}}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"package.json\"}"}}]}}]}
+
+"#,
+            ),
+            2048,
+        )
+        .unwrap();
+
+    assert_eq!(stored_chunks, 0);
+    assert_eq!(last_sequence, None);
+    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    let json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
+    let tool_call = &json["choices"][0]["message"]["tool_calls"][0];
+    assert_eq!(tool_call["id"], "call_1");
+    assert_eq!(tool_call["function"]["name"], "read_structured");
+    assert_eq!(
+        tool_call["function"]["arguments"],
+        "{\"path\":\"package.json\"}"
+    );
+}
+
+#[test]
+fn store_stream_agent_response_chunks_from_reader_synthesizes_anthropic_tool_uses() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-reader-anthropic-tools-test").unwrap();
+    let mut metadata = stream_metadata(None);
+    metadata.provider_family = "anthropic".to_string();
+
+    let (final_body, last_sequence, stored_chunks) =
+        super::store_stream_agent_response_chunks_from_reader(
+            &sync,
+            "pi-agent",
+            &metadata,
+            std::io::Cursor::new(
+                br#"data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"read_structured","input":{}}}
+
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"{\"path\":"}}
+
+data: {"type":"content_block_delta","index":0,"delta":{"type":"input_json_delta","partial_json":"\"package.json\"}"}}
+
+"#,
+            ),
+            2048,
+        )
+        .unwrap();
+
+    assert_eq!(stored_chunks, 0);
+    assert_eq!(last_sequence, None);
+    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    let json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
+    let tool_use = &json["content"][0];
+    assert_eq!(tool_use["type"], "tool_use");
+    assert_eq!(tool_use["id"], "toolu_1");
+    assert_eq!(tool_use["name"], "read_structured");
+    assert_eq!(tool_use["input"]["path"], "package.json");
 }
 
 #[test]
