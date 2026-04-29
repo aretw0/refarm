@@ -1,38 +1,39 @@
 {
-	"context": "Checkpoint de compactação atualizado em 2026-04-29 após fechar LSP v1/code-ops @72% e avançar streaming com config opt-in, persistência de chunks e política pura de sequência/histórico. Working tree estava limpo antes desta atualização de handoff.",
-	"timestamp": "2026-04-29T02:18:00.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após continuar o lane de streaming pós-compactação. LSP v1/code-ops permanece fechado @72%. Streaming agora tem config opt-in, chunk policy, prompt-handler seam, provider body stream flag, e parser SSE provider-neutral. Working tree limpo após validações e clean:light.",
+	"timestamp": "2026-04-29T02:27:20.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"LSP v1/code-ops está fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
-		"Scripts escopados: npm run agent:lsp:check; npm run agent:lsp:harness com timeout 90 por teste; npm run agent:lsp:harness:build para cargo component build --release + harness.",
-		"Streaming lane iniciado: AgentResponsePayload aceita is_final e sequence; store_agent_turn preserva final sequence=0; streaming_config define LLM_STREAM_RESPONSES=1|true|yes|on como opt-in; prompt_persistence tem store_agent_response_chunk para persistir chunks sem append_to_session.",
-		"Novo slice: streaming_chunks.rs codifica política pura — sequence começa em 0, avança monotonamente com saturating_add, e só chunks finais entram no histórico de sessão. Commits: 308caa05, ec0e1afa.",
-		"Commits recentes relevantes adicionais: d3ab3f46 feat(agent): add streaming opt-in config; e1091bb9 docs(agent): document streaming env flag; c6612631 refactor(agent): add response chunk persistence; e922eed8 docs(agent): update streaming seam status."
+		"LSP v1/code-ops fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
+		"Streaming lane avançado: AgentResponsePayload aceita is_final/sequence; streaming_config define LLM_STREAM_RESPONSES=1|true|yes|on; prompt_persistence tem store_agent_response_chunk; streaming_chunks codifica sequence inicial 0, monotonic saturating_add, e partials fora do session history.",
+		"Novo após compactação: prompt_handler lê stream_responses_enabled_from_env e calcula sequência final via streaming_chunks::final_response_sequence(streaming_enabled, None), sem ativar provider streaming ainda e mantendo default non-streaming.",
+		"Novo após compactação: provider request body builders têm variantes *_with_streaming(..., stream: bool) que emitem stream:true somente quando solicitado; wrappers antigos preservam ausência de stream por default.",
+		"Novo após compactação: provider_runtime/stream_events.rs adiciona parser SSE provider-neutral para linhas data:, ignorando comentários, vazio e [DONE].",
+		"Commits recentes: d3dd88be refactor(agent): apply streaming chunk policy; 1d40cd01 refactor(agent): wire streaming response sequence; c14219d4 feat(agent): prepare provider streaming bodies; 3cddcd48 docs(agent): mark streaming seams prepared; a506d375 feat(agent): add provider sse event parser; 0dc0a73f docs(agent): note streaming sse parser."
 	],
 	"blockers": [
-		"Host Windows/C ainda crítico: 98% usado, ~15GB livres. Evitar builds globais; rodar clean:light após Rust.",
+		"Host Windows/C continua crítico: 98% usado, ~15GB livres. Evitar builds globais; rodar clean:light após Rust.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target ~924MB após cargo check wasm; manter limpeza leve e evitar builds amplos.",
-		"pi edit hook tende a aplicar clippy/fmt em arquivos amplos e criar churn em lib.rs/provider_runtime.rs; se acontecer, reverter arquivos fora do escopo antes de commit."
+		"packages/pi-agent/target ~924MB após limpeza; manter validações escopadas.",
+		"pi edit/write hooks podem aplicar clippy/fmt em lib.rs/provider_runtime.rs e gerar churn; reverter arquivos fora do escopo antes de commit quando acontecer."
 	],
 	"next_actions": [
-		"Após compactação: git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Próximo slice streaming recomendado: conectar stream_responses_enabled_from_env em runtime/prompt_handler ou fluxo equivalente sem alterar provider streaming ainda; manter comportamento desligado por padrão.",
-		"Depois: usar streaming_chunks policy dentro do helper/prompt flow para garantir partials não entram em session history e sequence é monotônica.",
-		"Só então investigar provider wire streaming/chunked HTTP em wasi::http, mantendo opt-in e sem mexer em providers globais em um único slice.",
-		"Validações econômicas: cd packages/pi-agent && cargo test --lib streaming_config --quiet; cd packages/pi-agent && cargo test --lib streaming_chunks --quiet; cd packages/pi-agent && cargo test --lib response_nodes --quiet; cd packages/pi-agent && cargo check --target wasm32-wasip1 --quiet."
+		"Começar próxima sessão/slice com git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
+		"Próximo slice recomendado: extrair parser provider-specific de delta textual a partir dos payloads SSE (OpenAI choices[].delta.content e Anthropic content_block_delta.text) como função pura e testada, sem HTTP streaming ainda.",
+		"Depois: desenhar interface de callback/iterator para execute_json_request streaming em WASM, mantendo execute_json_request atual intacto.",
+		"Só então implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES, persistindo AgentResponse chunks parciais com sequence monotônica.",
+		"Validações econômicas usadas: cargo test --lib streaming_chunks --quiet; cargo test --lib streaming_config --quiet; cargo test --lib provider_runtime_build_openai_body --quiet; cargo test --lib provider_runtime_build_anthropic_body --quiet; cargo test --lib provider_runtime_parse_sse_data_events --quiet; cargo check --target wasm32-wasip1 --quiet; git diff --check; npm run clean:light --silent."
 	],
 	"open_questions": [
-		"ACP/Agent Context Protocol não está no roadmap canônico atual; deferir ou criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous se solicitado.",
+		"ACP/Agent Context Protocol continua fora do roadmap canônico; se necessário criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
 		"ADR-052 continua Proposed.",
 		"DEC-010 permanece pendente/revisit histórica.",
-		"Definir semântica exata de streaming parcial: quando criar primeiro chunk, como finalizar em erro, e se tokens_in/out ficam zero até final."
+		"Definir semântica de erro em streaming: se um stream falhar após partials, emitir final error chunk? Como contabilizar tokens_in/out antes do usage final?"
 	],
 	"key_decisions_pending": [
 		"DEC-010",
-		"Decidir se ACP entra no roadmap como pesquisa formal ou se fica fora por enquanto.",
-		"ADR-052 ainda está Proposed.",
-		"Definir política/config para streaming parcial de AgentResponse além de LLM_STREAM_RESPONSES."
+		"Decidir se ACP entra no roadmap como pesquisa formal ou fica fora.",
+		"ADR-052 ainda Proposed.",
+		"Definir contrato de erro/cancelamento para AgentResponse streaming parcial."
 	],
 	"files_in_flux": []
 }
