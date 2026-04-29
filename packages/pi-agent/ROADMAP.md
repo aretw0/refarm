@@ -194,7 +194,8 @@ Context engineering follows the pi-test-harness model:
 - [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
 - [x] Tractor has generic target-neutral SSE framing primitives plus LLM-specific delta parsing and sequence draft helpers for native host streaming internals
 - [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
-- [ ] Implement live chunked HTTP/SSE delivery through `complete-http-stream` and keep `streaming_reader_available()` false until this is proven by tests
+- [x] Tractor `complete-http-stream` reads successful responses through the generic SSE reader seam and persists complete SSE frames as they arrive
+- [ ] Finalize live provider stream response semantics and keep `streaming_reader_available()` false until end-to-end tests prove partial persistence plus final response handling
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
