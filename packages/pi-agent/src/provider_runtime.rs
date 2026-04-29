@@ -197,6 +197,8 @@ pub(crate) use request_iteration::iteration_response_and_phase_with;
 pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_path::openai_compat_path;
+#[cfg(all(target_arch = "wasm32", not(test)))]
+pub(crate) use stream_events::emit_stream_response_chunk_drafts_from_sse;
 #[cfg(test)]
 pub(crate) use stream_events::{
     emit_stream_response_chunk_drafts_from_sse, parse_sse_data_events,

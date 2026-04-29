@@ -92,22 +92,49 @@ pub(crate) fn store_agent_response_chunk_drafts(
 ) -> usize {
     drafts
         .iter()
-        .filter(|draft| {
-            store_agent_response_chunk(
-                prompt_ref,
-                AgentResponseChunkRecord {
-                    content: draft.content.clone(),
-                    tool_calls: serde_json::Value::Null,
-                    model: defaults.model.clone(),
-                    tokens_in: defaults.tokens_in,
-                    tokens_out: defaults.tokens_out,
-                    duration_ms: defaults.duration_ms,
-                    sequence: draft.sequence,
-                    is_final: draft.is_final,
-                },
-            )
-        })
+        .filter(|draft| store_agent_response_chunk_draft(prompt_ref, draft, &defaults))
         .count()
+}
+
+fn store_agent_response_chunk_draft(
+    prompt_ref: &str,
+    draft: &crate::streaming_chunks::ResponseChunkDraft,
+    defaults: &AgentResponseChunkDefaults,
+) -> bool {
+    store_agent_response_chunk(
+        prompt_ref,
+        AgentResponseChunkRecord {
+            content: draft.content.clone(),
+            tool_calls: serde_json::Value::Null,
+            model: defaults.model.clone(),
+            tokens_in: defaults.tokens_in,
+            tokens_out: defaults.tokens_out,
+            duration_ms: defaults.duration_ms,
+            sequence: draft.sequence,
+            is_final: draft.is_final,
+        },
+    )
+}
+
+/// Parse SSE bytes into partial chunks and store them as AgentResponse nodes.
+#[allow(dead_code)]
+pub(crate) fn store_agent_response_chunks_from_sse(
+    prompt_ref: &str,
+    bytes: &[u8],
+    last_sequence: Option<u32>,
+    defaults: AgentResponseChunkDefaults,
+) -> (Option<u32>, usize) {
+    let mut stored = 0usize;
+    let last_emitted = crate::provider_runtime::emit_stream_response_chunk_drafts_from_sse(
+        bytes,
+        last_sequence,
+        |draft| {
+            if store_agent_response_chunk_draft(prompt_ref, draft, &defaults) {
+                stored += 1;
+            }
+        },
+    );
+    (last_emitted, stored)
 }
 
 pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: AgentTurnRecord) {
