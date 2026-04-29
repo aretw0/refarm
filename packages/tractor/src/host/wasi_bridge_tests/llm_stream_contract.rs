@@ -93,7 +93,8 @@ data: [DONE]
 
     assert_eq!(result.stored_chunks, 2);
     assert_eq!(result.last_sequence, Some(1));
-    assert!(String::from_utf8_lossy(&result.final_body).contains("[DONE]"));
+    let final_json: serde_json::Value = serde_json::from_slice(&result.final_body).unwrap();
+    assert_eq!(final_json["choices"][0]["message"]["content"], "hello");
 
     let mut payloads: Vec<serde_json::Value> = sync
         .query_nodes("AgentResponse")

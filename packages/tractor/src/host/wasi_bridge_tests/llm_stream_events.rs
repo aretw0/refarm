@@ -175,7 +175,9 @@ data: {"choices":[{"delta":{"content":"b"}}]}
         )
         .unwrap();
 
-    assert!(String::from_utf8_lossy(&final_body).contains("content"));
+    let final_json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
+    assert_eq!(final_json["choices"][0]["message"]["content"], "ab");
+    assert_eq!(final_json["usage"]["total_tokens"], 0);
     assert_eq!(last_sequence, Some(5));
     assert_eq!(stored_chunks, 2);
     let rows = sync.query_nodes("AgentResponse").unwrap();
@@ -185,6 +187,20 @@ data: {"choices":[{"delta":{"content":"b"}}]}
         .collect();
     assert_eq!(payloads[0]["sequence"], 4);
     assert_eq!(payloads[1]["sequence"], 5);
+}
+
+#[test]
+fn synthesize_stream_final_response_body_emits_anthropic_shape() {
+    let mut metadata = stream_metadata(None);
+    metadata.provider_family = "anthropic".to_string();
+
+    let body = super::synthesize_stream_final_response_body(&metadata, "hello").unwrap();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+
+    assert_eq!(json["content"][0]["type"], "text");
+    assert_eq!(json["content"][0]["text"], "hello");
+    assert_eq!(json["usage"]["input_tokens"], 0);
+    assert_eq!(json["usage"]["output_tokens"], 0);
 }
 
 #[test]

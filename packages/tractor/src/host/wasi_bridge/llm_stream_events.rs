@@ -72,12 +72,14 @@ fn store_stream_agent_response_chunks_from_reader(
         .unwrap_or(0);
     let mut last_stored_sequence = metadata.last_sequence;
     let mut stored_chunks = 0u32;
+    let mut assembled_content = String::new();
 
-    let final_body = read_sse_data_events_limited(reader, max_len, |payload| {
+    let raw_body = read_sse_data_events_limited(reader, max_len, |payload| {
         let payloads = [payload.to_string()];
         let chunks = parse_stream_text_deltas(&payloads)
             .into_iter()
             .map(|content_delta| {
+                assembled_content.push_str(&content_delta);
                 let chunk = LlmStreamTextChunkDraft {
                     sequence: next_sequence,
                     content_delta,
@@ -95,7 +97,39 @@ fn store_stream_agent_response_chunks_from_reader(
         Ok(())
     })?;
 
+    let final_body = if stored_chunks > 0 {
+        synthesize_stream_final_response_body(metadata, &assembled_content)?
+    } else {
+        raw_body
+    };
+
     Ok((final_body, last_stored_sequence, stored_chunks))
+}
+
+fn synthesize_stream_final_response_body(
+    metadata: &StreamResponseMetadata,
+    content: &str,
+) -> Result<Vec<u8>, String> {
+    let provider_family = metadata.provider_family.trim().to_ascii_lowercase();
+    let value = if provider_family == "anthropic" {
+        serde_json::json!({
+            "content": [{ "type": "text", "text": content }],
+            "usage": { "input_tokens": 0, "output_tokens": 0 },
+        })
+    } else {
+        serde_json::json!({
+            "choices": [{
+                "message": { "role": "assistant", "content": content },
+                "finish_reason": "stop",
+            }],
+            "usage": {
+                "prompt_tokens": 0,
+                "completion_tokens": 0,
+                "total_tokens": 0,
+            },
+        })
+    };
+    serde_json::to_vec(&value).map_err(|e| format!("serialize stream final response: {e}"))
 }
 
 fn store_stream_agent_response_chunks(
