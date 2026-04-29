@@ -43,6 +43,14 @@ impl StreamResponseSinkState {
 }
 
 #[cfg(target_arch = "wasm32")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ActiveStreamResponseMetadata {
+    pub prompt_ref: String,
+    pub model: String,
+    pub last_sequence: Option<u32>,
+}
+
+#[cfg(target_arch = "wasm32")]
 thread_local! {
     static ACTIVE_STREAM_RESPONSE_SINK: std::cell::RefCell<Option<StreamResponseSinkState>> =
         const { std::cell::RefCell::new(None) };
@@ -60,6 +68,28 @@ pub(crate) fn update_active_stream_response_sink_model(model: &str) {
     ACTIVE_STREAM_RESPONSE_SINK.with(|sink| {
         if let Some(active) = sink.borrow_mut().as_mut() {
             active.update_model(model);
+        }
+    });
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn active_stream_response_metadata() -> Option<ActiveStreamResponseMetadata> {
+    ACTIVE_STREAM_RESPONSE_SINK.with(|sink| {
+        sink.borrow()
+            .as_ref()
+            .map(|active| ActiveStreamResponseMetadata {
+                prompt_ref: active.prompt_ref().to_owned(),
+                model: active.model().to_owned(),
+                last_sequence: active.last_sequence(),
+            })
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+pub(crate) fn record_host_stream_result_for_active_sink(last_sequence: Option<u32>) {
+    ACTIVE_STREAM_RESPONSE_SINK.with(|sink| {
+        if let Some(active) = sink.borrow_mut().as_mut() {
+            active.update_last_sequence(last_sequence);
         }
     });
 }
