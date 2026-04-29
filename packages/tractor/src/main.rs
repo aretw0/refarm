@@ -6,7 +6,7 @@
 //!   - `watch`:  poll storage and print new AgentResponse records
 //!   - `health`: probe runtime boot + daemon WS readiness
 
-use std::collections::HashSet;
+use std::{collections::HashSet, io::Write};
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
@@ -742,6 +742,7 @@ async fn poll_agent_responses(
                 OutputFormat::Plain => {
                     let output = render_plain_response_event(&event, &mut plain_output_state);
                     print!("{}", output.stdout);
+                    std::io::stdout().flush().context("flush plain AgentResponse output")?;
                     if !output.stderr.is_empty() {
                         eprint!("{}", output.stderr);
                     }
