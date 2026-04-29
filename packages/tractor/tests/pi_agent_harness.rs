@@ -352,6 +352,8 @@ async fn harness_streaming_opt_in_stores_partials_and_final_response() {
 
 data: {"choices":[{"delta":{"content":"stream"}}]}
 
+data: {"choices":[],"usage":{"prompt_tokens":13,"completion_tokens":5,"total_tokens":18}}
+
 data: [DONE]
 
 "#,
@@ -388,6 +390,12 @@ data: [DONE]
     assert_eq!(payloads[2]["content"], "Olá stream");
     assert_eq!(payloads[2]["is_final"], true);
     assert_eq!(payloads[2]["sequence"], 2);
+
+    let usage_records = sync.query_nodes("UsageRecord").expect("query UsageRecord");
+    assert_eq!(usage_records.len(), 1, "streaming final body should preserve usage");
+    let usage: serde_json::Value = serde_json::from_str(&usage_records[0].payload).unwrap();
+    assert_eq!(usage["tokens_in"], 13);
+    assert_eq!(usage["tokens_out"], 5);
 
     clean_llm_env();
 }
