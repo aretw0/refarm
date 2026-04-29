@@ -48,8 +48,8 @@ For Rust, stay package- and target-specific:
 
 ```bash
 cd packages/tractor
-cargo check
-cargo test --lib some_module
+cargo check --quiet
+cargo test --lib some_module --quiet
 ```
 
 Avoid these during low-disk local work unless preparing a push/release:
@@ -59,6 +59,38 @@ npm run build
 turbo build
 cargo test
 ```
+
+## Validation economy
+
+Use the smallest command that can falsify the change you just made. Bigger gates
+are still valuable, but they should be checkpoints, not reflexes after every
+edit.
+
+| Situation                                  | Preferred local signal                                   | Avoid until checkpoint                  |
+| ------------------------------------------ | -------------------------------------------------------- | --------------------------------------- |
+| Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`              | full `cargo test`                       |
+| Rust API shape changed                     | focused test + `cargo check --quiet` in that package     | rebuilding unrelated crates             |
+| pi-agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`             | `cargo component build --release`       |
+| pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential              | full harness suite repeatedly           |
+| TS package edit                            | `npm --prefix <pkg> run type-check` or direct unit suite | repo-wide `turbo build`                 |
+| Before push                                | one scoped gate, then CI                                 | re-running the same heavy gate manually |
+
+For the current pi-agent streaming lane, prefer the wrapper scripts:
+
+```bash
+# Cheap package-level streaming checks, no WASM rebuild.
+npm run agent:streaming:check
+
+# Harness only when pi_agent.wasm is already fresh.
+npm run agent:streaming:harness
+
+# Explicit heavy gate: rebuild WASM, then run streaming harness filters.
+npm run agent:streaming:harness:build
+```
+
+Do not run `npm run clean:light` after every small Rust slice. It saves disk but
+also removes incremental caches; use it at session/checkpoint boundaries or when
+`npm run disk:check` shows pressure.
 
 ## Docker Desktop / WSL note
 
