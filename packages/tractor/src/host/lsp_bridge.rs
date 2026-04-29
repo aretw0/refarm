@@ -550,6 +550,35 @@ mod tests {
     }
 
     #[test]
+    fn find_references_uses_generic_lsp_json_rpc_session() {
+        let _guard = env_lock();
+        if !python3_is_available_for_test() {
+            eprintln!("skipping fake LSP test: python3 is not runnable");
+            return;
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let script = temp.path().join("fake_lsp.py");
+        std::fs::write(&script, FAKE_LSP_SERVER).unwrap();
+        std::env::set_var(LSP_CMD_ENV, format!("python3 {}", script.display()));
+
+        let refs = LspBridge::from_env()
+            .find_references(&SymbolLocation {
+                file: "src/lib.rs".to_string(),
+                line: 1,
+                column: 1,
+            })
+            .unwrap();
+
+        std::env::remove_var(LSP_CMD_ENV);
+        LspBridge::stop_lsp_session().unwrap();
+        assert_eq!(refs.len(), 1);
+        assert_eq!(refs[0].file, "/workspace/generic/src/lib.rs");
+        assert_eq!(refs[0].line, 3);
+        assert_eq!(refs[0].column, 5);
+    }
+
+    #[test]
     fn lsp_message_encoding_uses_content_length_frame() {
         let message = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize"});
         let framed = encode_lsp_message(&message);
@@ -673,4 +702,55 @@ mod tests {
             .map(|output| output.status.success())
             .unwrap_or(false)
     }
+
+    fn python3_is_available_for_test() -> bool {
+        std::process::Command::new("python3")
+            .arg("--version")
+            .output()
+            .map(|output| output.status.success())
+            .unwrap_or(false)
+    }
+
+    const FAKE_LSP_SERVER: &str = r#"
+import json
+import sys
+
+def read_message():
+    headers = {}
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            return None
+        if line == b'\r\n':
+            break
+        name, value = line.decode('ascii').split(':', 1)
+        headers[name.lower()] = value.strip()
+    body = sys.stdin.buffer.read(int(headers['content-length']))
+    return json.loads(body)
+
+def send(message):
+    body = json.dumps(message, separators=(',', ':')).encode('utf-8')
+    sys.stdout.buffer.write(b'Content-Length: ' + str(len(body)).encode('ascii') + b'\r\n\r\n' + body)
+    sys.stdout.buffer.flush()
+
+while True:
+    message = read_message()
+    if message is None:
+        break
+    method = message.get('method')
+    if method == 'initialize':
+        send({'jsonrpc': '2.0', 'id': message['id'], 'result': {'capabilities': {}}})
+    elif method == 'textDocument/references':
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': [{
+                'uri': 'file:///workspace/generic/src/lib.rs',
+                'range': {
+                    'start': {'line': 2, 'character': 4},
+                    'end': {'line': 2, 'character': 8},
+                },
+            }],
+        })
+"#;
 }
