@@ -19,6 +19,9 @@ guest.
 
 - Each persisted delta has a generic `StreamChunk` observation with
   `stream_ref`, `sequence`, `payload_kind`, `content`, `is_final`, and metadata.
+- A final `StreamChunk` marker uses `is_final: true`, `payload_kind:
+"final_text"`, and the assembled text when the host observes provider stream
+  completion.
 - For compatibility, partial chunks are also projected to `AgentResponse` nodes
   with `is_final: false`.
 - Partial `content` is a delta. Clients should order by `sequence` and append.
