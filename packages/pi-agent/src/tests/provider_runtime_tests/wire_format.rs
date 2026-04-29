@@ -320,3 +320,18 @@ fn provider_runtime_parse_stream_text_deltas_from_sse_combines_framing_and_paylo
     );
     assert_eq!(deltas, vec!["a".to_string(), "b".to_string()]);
 }
+
+#[test]
+fn provider_runtime_parse_stream_response_chunk_drafts_from_sse() {
+    let chunks = crate::provider_runtime::parse_stream_response_chunk_drafts_from_sse(
+        b"data: {\"choices\":[{\"delta\":{\"content\":\"x\"}}]}\n\ndata: {\"type\":\"content_block_delta\",\"delta\":{\"text\":\"y\"}}\n",
+        Some(4),
+    );
+    assert_eq!(chunks.len(), 2);
+    assert_eq!(chunks[0].content, "x");
+    assert_eq!(chunks[0].sequence, 5);
+    assert!(!chunks[0].is_final);
+    assert_eq!(chunks[1].content, "y");
+    assert_eq!(chunks[1].sequence, 6);
+    assert!(!chunks[1].is_final);
+}
