@@ -155,6 +155,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Chunk policy codifies monotonic `sequence` and keeps partial chunks out of session history
 - [x] Prompt handler reads streaming opt-in and routes final response sequence through the chunk policy seam
 - [x] Provider request body builders can emit `stream: true` without changing default non-streaming requests
+- [x] Provider-neutral SSE `data:` event parser exists for future chunked HTTP reads
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
