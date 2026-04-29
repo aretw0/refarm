@@ -30,3 +30,38 @@ pub(crate) fn final_response_sequence(
 pub(crate) fn should_append_response_chunk_to_session(is_final: bool) -> bool {
     is_final
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct ResponseChunkDraft {
+    pub content: String,
+    pub sequence: u32,
+    pub is_final: bool,
+}
+
+/// Convert provider text deltas into partial response chunk drafts.
+///
+/// The drafts intentionally carry only streaming-neutral metadata; the runtime
+/// persistence layer adds model, token, timing, and tool-call fields when the
+/// chunks are stored as AgentResponse nodes.
+pub(crate) fn partial_response_chunk_drafts(
+    deltas: &[String],
+    last_sequence: Option<u32>,
+) -> Vec<ResponseChunkDraft> {
+    let mut next_sequence = last_sequence
+        .map(next_response_sequence)
+        .unwrap_or_else(first_response_sequence);
+
+    deltas
+        .iter()
+        .filter(|delta| !delta.is_empty())
+        .map(|delta| {
+            let chunk = ResponseChunkDraft {
+                content: delta.clone(),
+                sequence: next_sequence,
+                is_final: false,
+            };
+            next_sequence = next_response_sequence(next_sequence);
+            chunk
+        })
+        .collect()
+}

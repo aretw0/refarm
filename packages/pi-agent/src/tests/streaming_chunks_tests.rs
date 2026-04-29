@@ -1,6 +1,6 @@
 use crate::streaming_chunks::{
     final_response_sequence, first_response_sequence, next_response_sequence,
-    should_append_response_chunk_to_session,
+    partial_response_chunk_drafts, should_append_response_chunk_to_session, ResponseChunkDraft,
 };
 
 #[test]
@@ -28,4 +28,32 @@ fn final_response_sequence_follows_partial_chunks_only_when_streaming_is_enabled
     assert_eq!(final_response_sequence(true, None), 0);
     assert_eq!(final_response_sequence(true, Some(7)), 8);
     assert_eq!(final_response_sequence(true, Some(u32::MAX)), u32::MAX);
+}
+
+#[test]
+fn partial_response_chunk_drafts_builds_partial_chunks_with_monotonic_sequences() {
+    let deltas = vec!["he".to_string(), String::new(), "llo".to_string()];
+    assert_eq!(
+        partial_response_chunk_drafts(&deltas, None),
+        vec![
+            ResponseChunkDraft {
+                content: "he".to_string(),
+                sequence: 0,
+                is_final: false,
+            },
+            ResponseChunkDraft {
+                content: "llo".to_string(),
+                sequence: 1,
+                is_final: false,
+            },
+        ]
+    );
+}
+
+#[test]
+fn partial_response_chunk_drafts_continue_after_last_sequence() {
+    let deltas = vec!["a".to_string(), "b".to_string()];
+    let chunks = partial_response_chunk_drafts(&deltas, Some(7));
+    assert_eq!(chunks[0].sequence, 8);
+    assert_eq!(chunks[1].sequence, 9);
 }
