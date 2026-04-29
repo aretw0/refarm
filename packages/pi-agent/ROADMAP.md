@@ -190,10 +190,11 @@ Context engineering follows the pi-test-harness model:
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
-- [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; current Tractor implementation is a buffered compatibility placeholder that reports zero stored chunks
+- [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; current Tractor implementation drains buffered responses before live incremental reads are enabled
 - [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
 - [x] Tractor has target-neutral SSE payload/delta parsing and sequence draft helpers for native host streaming internals
-- [ ] Implement chunked HTTP/SSE delivery through `complete-http-stream` and keep `streaming_reader_available()` false until this is proven by tests
+- [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
+- [ ] Implement live chunked HTTP/SSE delivery through `complete-http-stream` and keep `streaming_reader_available()` false until this is proven by tests
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
