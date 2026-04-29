@@ -132,10 +132,77 @@ fn clean_llm_env() {
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
                 "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM",
                 "LLM_AGENT_ID","LLM_SESSION_ID",
+                "REFACTOR_LSP_CMD","REFACTOR_LSP_RUST_ANALYZER_CMD",
                 "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
         std::env::remove_var(var);
     }
 }
+
+fn python3_is_available_for_harness() -> bool {
+    std::process::Command::new("python3")
+        .arg("--version")
+        .output()
+        .map(|output| output.status.success())
+        .unwrap_or(false)
+}
+
+const FAKE_LSP_RENAME_SERVER: &str = r#"
+import json
+import sys
+
+def read_message():
+    headers = {}
+    while True:
+        line = sys.stdin.buffer.readline()
+        if not line:
+            return None
+        if line == b'\r\n':
+            break
+        name, value = line.decode('ascii').split(':', 1)
+        headers[name.lower()] = value.strip()
+    body = sys.stdin.buffer.read(int(headers['content-length']))
+    return json.loads(body)
+
+def send(message):
+    body = json.dumps(message, separators=(',', ':')).encode('utf-8')
+    sys.stdout.buffer.write(b'Content-Length: ' + str(len(body)).encode('ascii') + b'\r\n\r\n' + body)
+    sys.stdout.buffer.flush()
+
+while True:
+    message = read_message()
+    if message is None:
+        break
+    method = message.get('method')
+    if method == 'initialize':
+        send({'jsonrpc': '2.0', 'id': message['id'], 'result': {'capabilities': {}}})
+    elif method == 'textDocument/rename':
+        uri = message['params']['textDocument']['uri']
+        new_name = message['params']['newName']
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': {
+                'changes': {
+                    uri: [
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 4},
+                                'end': {'line': 0, 'character': 7},
+                            },
+                            'newText': new_name,
+                        },
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 10},
+                                'end': {'line': 0, 'character': 13},
+                            },
+                            'newText': new_name,
+                        },
+                    ],
+                },
+            },
+        })
+"#;
 
 // ── Core harness tests ────────────────────────────────────────────────────────
 
@@ -315,6 +382,79 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
     assert!(!tool_calls.is_empty(), "at least one tool call must be logged in AgentResponse");
     assert_eq!(tool_calls[0]["name"], "bash", "tool name must match what LLM requested");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+    if !python3_is_available_for_harness() {
+        eprintln!("skipping rename harness: python3 is not runnable");
+        return;
+    }
+
+    clean_llm_env();
+
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("lib.rs");
+    let fake_lsp = dir.path().join("fake_lsp.py");
+    std::fs::write(&source, "let old = old;\n").unwrap();
+    std::fs::write(&fake_lsp, FAKE_LSP_RENAME_SERVER).unwrap();
+
+    let arguments = serde_json::json!({
+        "file": source.to_string_lossy(),
+        "line": 1,
+        "column": 5,
+        "new_name": "new_name"
+    }).to_string();
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-rename",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_rename",
+                    "type": "function",
+                    "function": {
+                        "name": "rename_symbol",
+                        "arguments": arguments
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("rename applied", 20, 6);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    handle.call_on_event("user:prompt", Some("rename old to new_name")).await.expect("on_event");
+
+    assert_eq!(std::fs::read_to_string(&source).unwrap(), "let new_name = new_name;\n");
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty());
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    assert_eq!(v["content"], "rename applied");
+    let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
+    assert!(
+        result.contains("1 files changed, 2 edits applied"),
+        "rename tool result must report applied edits: {result}"
+    );
 
     clean_llm_env();
 }
