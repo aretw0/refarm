@@ -403,6 +403,25 @@ fn parse_rename_response(response: &serde_json::Value) -> Result<Vec<LspTextEdit
         }
     }
 
+    if let Some(document_changes) = result.get("documentChanges").and_then(|v| v.as_array()) {
+        for document_change in document_changes {
+            let Some(text_document) = document_change.get("textDocument") else {
+                continue;
+            };
+            let Some(uri) = text_document.get("uri").and_then(|v| v.as_str()) else {
+                return Err("lsp documentChange missing textDocument.uri".to_string());
+            };
+            let Some(values) = document_change.get("edits").and_then(|v| v.as_array()) else {
+                return Err(format!(
+                    "lsp documentChange edits for {uri} must be an array"
+                ));
+            };
+            for value in values {
+                edits.push(text_edit_from_lsp_value(&file_uri_to_path(uri), value)?);
+            }
+        }
+    }
+
     Ok(edits)
 }
 
@@ -866,6 +885,40 @@ mod tests {
                 new_text: "new_name".to_string(),
             }]
         );
+    }
+
+    #[test]
+    fn rename_response_maps_document_changes_to_text_edits() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "documentChanges": [
+                    {
+                        "textDocument": {
+                            "uri": "file:///workspace/generic/src/lib.rs",
+                            "version": 1
+                        },
+                        "edits": [
+                            {
+                                "range": {
+                                    "start": { "line": 0, "character": 4 },
+                                    "end": { "line": 0, "character": 7 }
+                                },
+                                "newText": "new_name"
+                            }
+                        ]
+                    }
+                ]
+            }
+        });
+
+        let edits = parse_rename_response(&response).unwrap();
+
+        assert_eq!(edits.len(), 1);
+        assert_eq!(edits[0].file, "/workspace/generic/src/lib.rs");
+        assert_eq!(edits[0].start_line, 0);
+        assert_eq!(edits[0].new_text, "new_name");
     }
 
     #[test]
