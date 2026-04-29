@@ -295,6 +295,17 @@ struct AgentResponseEvent {
     llm_duration_ms: u64,
 }
 
+#[derive(Debug, Default)]
+struct PlainResponseOutputState {
+    partial_prompt_refs: HashSet<String>,
+}
+
+#[derive(Debug, Default, PartialEq, Eq)]
+struct PlainResponseOutput {
+    stdout: String,
+    stderr: String,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -644,6 +655,46 @@ fn collect_new_response_events(
     Ok(out)
 }
 
+fn render_plain_response_event(
+    event: &AgentResponseEvent,
+    state: &mut PlainResponseOutputState,
+) -> PlainResponseOutput {
+    let prompt_key = event
+        .prompt_ref
+        .clone()
+        .unwrap_or_else(|| "__tractor:no-prompt-ref__".to_string());
+    let mut output = PlainResponseOutput::default();
+
+    if event.is_final {
+        if state.partial_prompt_refs.remove(&prompt_key) {
+            output.stdout.push('\n');
+        } else {
+            output.stdout.push_str(&event.content);
+            output.stdout.push('\n');
+        }
+        output.stderr = plain_response_metadata(event);
+    } else {
+        state.partial_prompt_refs.insert(prompt_key);
+        output.stdout.push_str(&event.content);
+    }
+
+    output
+}
+
+fn plain_response_metadata(event: &AgentResponseEvent) -> String {
+    if event.llm_tokens_in == 0 && event.llm_tokens_out == 0 {
+        return String::new();
+    }
+
+    format!(
+        "# {}→{} tokens  ${:.4}  {}ms\n",
+        event.llm_tokens_in,
+        event.llm_tokens_out,
+        event.llm_estimated_usd,
+        event.llm_duration_ms,
+    )
+}
+
 struct PollAgentResponsesOptions {
     poll_interval: Duration,
     timeout: Option<Duration>,
@@ -659,6 +710,7 @@ async fn poll_agent_responses(
     options: PollAgentResponsesOptions,
 ) -> Result<bool> {
     let deadline = options.timeout.map(|d| Instant::now() + d);
+    let mut plain_output_state = PlainResponseOutputState::default();
 
     loop {
         if let Some(deadline) = deadline {
@@ -688,23 +740,10 @@ async fn poll_agent_responses(
                     println!("{}", line);
                 }
                 OutputFormat::Plain => {
-                    println!("{}", event.content);
-                    if event.is_final {
-                        // Dim metadata line: tokens in→out, cost, duration
-                        let meta = if event.llm_tokens_in > 0 || event.llm_tokens_out > 0 {
-                            format!(
-                                "# {}→{} tokens  ${:.4}  {}ms",
-                                event.llm_tokens_in,
-                                event.llm_tokens_out,
-                                event.llm_estimated_usd,
-                                event.llm_duration_ms,
-                            )
-                        } else {
-                            String::new()
-                        };
-                        if !meta.is_empty() {
-                            eprintln!("{}", meta);
-                        }
+                    let output = render_plain_response_event(&event, &mut plain_output_state);
+                    print!("{}", output.stdout);
+                    if !output.stderr.is_empty() {
+                        eprint!("{}", output.stderr);
                     }
                 }
             }
@@ -736,6 +775,60 @@ mod tests {
 
     use tokio::net::TcpListener;
     use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
+
+    fn test_response_event(content: &str, is_final: bool, prompt_ref: Option<&str>) -> AgentResponseEvent {
+        AgentResponseEvent {
+            id: format!("event-{content}-{is_final}"),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-29T00:00:00Z".to_string(),
+            sequence: 0,
+            is_final,
+            prompt_ref: prompt_ref.map(ToOwned::to_owned),
+            content: content.to_string(),
+            timestamp_ns: 0,
+            llm_tokens_in: 0,
+            llm_tokens_out: 0,
+            llm_estimated_usd: 0.0,
+            llm_duration_ms: 0,
+        }
+    }
+
+    #[test]
+    fn plain_output_streams_partials_without_reprinting_final_content() {
+        let mut state = PlainResponseOutputState::default();
+
+        let first = render_plain_response_event(
+            &test_response_event("Olá ", false, Some("prompt-1")),
+            &mut state,
+        );
+        let second = render_plain_response_event(
+            &test_response_event("stream", false, Some("prompt-1")),
+            &mut state,
+        );
+        let final_output = render_plain_response_event(
+            &test_response_event("Olá stream", true, Some("prompt-1")),
+            &mut state,
+        );
+
+        assert_eq!(first.stdout, "Olá ");
+        assert_eq!(second.stdout, "stream");
+        assert_eq!(final_output.stdout, "\n");
+        assert!(final_output.stderr.is_empty());
+    }
+
+    #[test]
+    fn plain_output_prints_non_streamed_final_content_and_metadata() {
+        let mut state = PlainResponseOutputState::default();
+        let mut event = test_response_event("done", true, Some("prompt-2"));
+        event.llm_tokens_in = 3;
+        event.llm_tokens_out = 4;
+        event.llm_duration_ms = 25;
+
+        let output = render_plain_response_event(&event, &mut state);
+
+        assert_eq!(output.stdout, "done\n");
+        assert_eq!(output.stderr, "# 3→4 tokens  $0.0000  25ms\n");
+    }
 
     #[test]
     fn plugin_load_policy_defaults_to_warn_and_continue() {
