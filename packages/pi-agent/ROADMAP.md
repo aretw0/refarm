@@ -150,6 +150,8 @@ Context engineering follows the pi-test-harness model:
 
 ### Streaming token output
 - [x] Response-node schema supports partial/final chunks via configurable `is_final` and `sequence` fields
+- [x] Streaming is opt-in via `LLM_STREAM_RESPONSES=1|true|yes|on`; missing/unknown values stay disabled
+- [x] Persistence seam can store AgentResponse chunks separately from final session append
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
