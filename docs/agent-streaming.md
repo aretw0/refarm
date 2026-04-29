@@ -57,6 +57,12 @@ Use economical scoped checks while developing:
 npm run agent:streaming:check
 ```
 
+Validate TypeScript client accumulation helpers with:
+
+```bash
+npm run agent:streaming:clients
+```
+
 Run the WASM harness only when the `pi_agent.wasm` artifact is fresh:
 
 ```bash
