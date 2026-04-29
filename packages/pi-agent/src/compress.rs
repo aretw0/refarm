@@ -7,7 +7,7 @@ pub(crate) fn strip_ansi(s: &str) -> String {
         if c == '\x1b' && chars.peek() == Some(&'[') {
             chars.next(); // consume '['
             for nc in chars.by_ref() {
-                if nc >= '@' && nc <= '~' {
+                if ('@'..='~').contains(&nc) {
                     break;
                 } // final byte ends the sequence
             }
