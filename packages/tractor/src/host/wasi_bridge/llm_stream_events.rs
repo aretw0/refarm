@@ -53,14 +53,18 @@ fn stream_text_chunk_drafts_from_sse(
     bytes: &[u8],
     last_sequence: Option<u32>,
 ) -> Vec<LlmStreamTextChunkDraft> {
+    let mut next_sequence = last_sequence
+        .map(|sequence| sequence.saturating_add(1))
+        .unwrap_or(0);
     parse_stream_text_deltas_from_sse(bytes)
         .into_iter()
-        .scan(last_sequence.unwrap_or(0), |sequence, content_delta| {
-            *sequence = sequence.saturating_add(1);
-            Some(LlmStreamTextChunkDraft {
-                sequence: *sequence,
+        .map(|content_delta| {
+            let chunk = LlmStreamTextChunkDraft {
+                sequence: next_sequence,
                 content_delta,
-            })
+            };
+            next_sequence = next_sequence.saturating_add(1);
+            chunk
         })
         .collect()
 }

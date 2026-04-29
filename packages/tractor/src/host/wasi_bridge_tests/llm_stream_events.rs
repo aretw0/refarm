@@ -92,7 +92,7 @@ data: {"choices":[{"delta":{"content":"b"}}]}
 }
 
 #[test]
-fn stream_text_chunk_drafts_from_sse_starts_at_one_without_last_sequence() {
+fn stream_text_chunk_drafts_from_sse_starts_at_zero_without_last_sequence() {
     let chunks = super::stream_text_chunk_drafts_from_sse(
         br#"data: {"type":"content_block_delta","delta":{"text":"x"}}
 
@@ -100,6 +100,6 @@ fn stream_text_chunk_drafts_from_sse_starts_at_one_without_last_sequence() {
         None,
     );
 
-    assert_eq!(chunks[0].sequence, 1);
+    assert_eq!(chunks[0].sequence, 0);
     assert_eq!(super::last_stream_text_chunk_sequence(&[]), None);
 }
