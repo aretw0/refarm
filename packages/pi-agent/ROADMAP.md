@@ -157,6 +157,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Provider request body builders can emit `stream: true` without changing default non-streaming requests
 - [x] Provider-neutral SSE `data:` event parser exists for future chunked HTTP reads
 - [x] OpenAI-compatible and Anthropic SSE text deltas are parsed via pure helpers
+- [x] Provider text deltas can be drafted into partial response chunks with monotonic sequence numbers
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
