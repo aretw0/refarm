@@ -9203,6 +9203,42 @@
 					"evidence": "packages/pi-agent/ROADMAP.md multi-agent section links specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md and summarizes the selected direction."
 				}
 			]
+		},
+		{
+			"id": "VER-NEXT-293-20260429",
+			"target": "T-NEXT-293",
+			"target_type": "task",
+			"status": "passed",
+			"method": "test",
+			"timestamp": "2026-04-29T00:06:00.000Z",
+			"evidence": "pi-agent Rust quality pass completed. lib.rs is already a 162-line facade over source modules; largest hand-written test file provider_runtime_tests.rs was split into focused modules; compress.rs manual range check was replaced with RangeInclusive::contains. Commands passed: cd packages/pi-agent && cargo test --lib --quiet (213 passed); cd packages/pi-agent && cargo component build --release.",
+			"criteria_results": [
+				{
+					"criterion": "lib.rs não permanece monolítico",
+					"status": "passed",
+					"evidence": "packages/pi-agent/src/lib.rs is 162 lines and delegates to compress, provider, provider_runtime, response_nodes, runtime, session, structured_io, tool_dispatch/tools and utils modules."
+				},
+				{
+					"criterion": "Arquivos grandes de testes foram quebrados em módulos menores",
+					"status": "passed",
+					"evidence": "packages/pi-agent/src/tests/provider_runtime_tests.rs was split into provider_runtime_tests/{config_and_dedup,usage_phase,step_phase,wire_format,tool_phase,loop_setup,loop_runner,response_contract,state_contract_loops,equivalence_paths,equivalence_errors}.rs."
+				},
+				{
+					"criterion": "Lint clippy aplicado onde acionável sem mascarar arquitetura wasm/test",
+					"status": "passed",
+					"evidence": "compress.rs now uses ('@'..='~').contains(&nc). Strict native clippy exposed many target-gated/test-only unused exports, so no broad allow sweep was applied."
+				},
+				{
+					"criterion": "Testes nativos passam",
+					"status": "passed",
+					"evidence": "cd packages/pi-agent && cargo test --lib --quiet passed: 213 tests."
+				},
+				{
+					"criterion": "WASM component build passa",
+					"status": "passed",
+					"evidence": "cd packages/pi-agent && cargo component build --release passed and created target/wasm32-wasip1/release/pi_agent.wasm."
+				}
+			]
 		}
 	]
 }

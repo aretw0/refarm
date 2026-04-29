@@ -6822,16 +6822,20 @@
     {
       "id": "T-NEXT-293",
       "description": "Revisão de qualidade Rust + split de arquivos grandes: packages/pi-agent/src/lib.rs (~2400 linhas) dividir em session.rs, tools.rs, provider.rs, compress.rs. Aplicar clippy lints e verificar idiomas Rust.",
-      "status": "planned",
-      "phase": null,
+      "status": "completed",
+      "phase": 11,
       "files": [
         "packages/pi-agent/src/lib.rs",
-        "packages/pi-agent/src/session.rs",
+        "packages/pi-agent/src/session/mod.rs",
+        "packages/pi-agent/src/session/pure.rs",
+        "packages/pi-agent/src/session/wasm_ops.rs",
         "packages/pi-agent/src/tools.rs",
         "packages/pi-agent/src/provider.rs",
-        "packages/pi-agent/src/compress.rs"
+        "packages/pi-agent/src/compress.rs",
+        "packages/pi-agent/src/tests/provider_runtime_tests/"
       ],
-      "notes": "Solicitado pelo usuário como housekeeping de processo. Garantir que todos os 97+ testes continuem passando e wasm32 compila após split."
+      "notes": "lib.rs já estava reduzido para fachada; este ciclo preservou a divisão source-level existente, aplicou lint clippy em compress.rs, quebrou provider_runtime_tests.rs em módulos menores e adicionou lock para testes que mutam LLM_TOOL_CALL_MAX_ITER. Validações: cargo test --lib --quiet; cargo component build --release.",
+      "verification": "VER-NEXT-293-20260429"
     }
   ]
 }
