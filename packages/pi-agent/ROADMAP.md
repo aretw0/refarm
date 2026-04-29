@@ -186,6 +186,7 @@ Context engineering follows the pi-test-harness model:
 - [x] WASM HTTP request layer has a callback seam for future streaming bytes without changing buffered JSON path
 - [x] Provider request paths route through the callback seam while streaming transport remains disabled
 - [x] Provider runtime has an active stream sink context (`prompt_ref`, `model`, `last_sequence`) so callbacks can persist SSE-derived partial chunks once transport streaming is enabled
+- [x] Fallback provider attempts update the active stream sink model before emitting future partial chunks
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
