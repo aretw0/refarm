@@ -190,7 +190,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
-- [ ] Choose the streaming transport boundary before enabling provider `stream: true`: current `llm-bridge::complete-http` is host-proxied and buffered, so direct `wasi::http` would need a credentials/security decision instead of being a drop-in change
+- [ ] Choose the streaming transport boundary before enabling provider `stream: true`: current `llm-bridge::complete-http` is host-proxied and buffered, so direct `wasi::http` would need a credentials/security decision instead of being a drop-in change; proposed path is ADR-053 host-proxied `complete-http-stream`
 - [ ] Implement chunked HTTP/SSE delivery through the chosen boundary and keep `streaming_reader_available()` false until this is proven by tests
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
