@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	applyAgentResponseStreamEvent,
 	emptyAgentResponseStreamState,
+	orderAgentResponseStreamEvents,
 	reduceAgentResponseStreamEvents,
 	reduceAgentResponseStreamEventsByPrompt,
 	UNKNOWN_AGENT_RESPONSE_PROMPT_REF,
@@ -31,6 +32,23 @@ describe("AgentResponse streaming accumulator", () => {
 			lastSequence: 2,
 			isFinal: true,
 		});
+	});
+
+	it("orders events by sequence without mutating the input", () => {
+		const events = [
+			{ content: "b", sequence: 1, is_final: false },
+			{ content: "a", sequence: 0, is_final: false },
+			{ content: "unknown", is_final: false },
+		];
+
+		const ordered = orderAgentResponseStreamEvents(events);
+
+		expect(ordered.map((event) => event.content)).toEqual([
+			"a",
+			"b",
+			"unknown",
+		]);
+		expect(events.map((event) => event.content)).toEqual(["b", "a", "unknown"]);
 	});
 
 	it("groups interleaved events by prompt_ref for structured clients", () => {

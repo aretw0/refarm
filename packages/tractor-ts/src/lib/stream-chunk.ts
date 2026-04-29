@@ -65,6 +65,18 @@ export function reduceStreamChunkEvents(
 	return events.reduce(applyStreamChunkEvent, initialState);
 }
 
+export function orderStreamChunkEvents<T extends StreamChunkEvent>(
+	events: readonly T[],
+): T[] {
+	return [...events].sort((a, b) => streamSequence(a) - streamSequence(b));
+}
+
+function streamSequence(event: StreamChunkEvent): number {
+	return typeof event.sequence === "number" && Number.isFinite(event.sequence)
+		? event.sequence
+		: Number.MAX_SAFE_INTEGER;
+}
+
 export function streamChunkKey(event: StreamChunkEvent): string {
 	return typeof event.stream_ref === "string"
 		? event.stream_ref

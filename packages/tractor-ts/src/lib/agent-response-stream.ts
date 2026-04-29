@@ -67,7 +67,21 @@ export function reduceAgentResponseStreamEvents(
 	return events.reduce(applyAgentResponseStreamEvent, initialState);
 }
 
-export function agentResponseStreamKey(event: AgentResponseStreamEvent): string {
+export function orderAgentResponseStreamEvents<
+	T extends AgentResponseStreamEvent,
+>(events: readonly T[]): T[] {
+	return [...events].sort((a, b) => streamSequence(a) - streamSequence(b));
+}
+
+function streamSequence(event: AgentResponseStreamEvent): number {
+	return typeof event.sequence === "number" && Number.isFinite(event.sequence)
+		? event.sequence
+		: Number.MAX_SAFE_INTEGER;
+}
+
+export function agentResponseStreamKey(
+	event: AgentResponseStreamEvent,
+): string {
 	return typeof event.prompt_ref === "string"
 		? event.prompt_ref
 		: UNKNOWN_AGENT_RESPONSE_PROMPT_REF;
@@ -78,9 +92,11 @@ export function applyAgentResponseStreamEventToMap(
 	event: AgentResponseStreamEvent,
 ): AgentResponseStreamStateMap {
 	const key = agentResponseStreamKey(event);
-	const previous = stateMap[key] ?? emptyAgentResponseStreamState(
-		key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key,
-	);
+	const previous =
+		stateMap[key] ??
+		emptyAgentResponseStreamState(
+			key === UNKNOWN_AGENT_RESPONSE_PROMPT_REF ? null : key,
+		);
 
 	return {
 		...stateMap,

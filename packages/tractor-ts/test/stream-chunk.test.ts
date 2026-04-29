@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamChunkEvent,
 	emptyStreamChunkState,
+	orderStreamChunkEvents,
 	reduceStreamChunkEvents,
 	reduceStreamChunkEventsByStream,
 	UNKNOWN_STREAM_REF,
@@ -40,6 +41,27 @@ describe("StreamChunk accumulator", () => {
 			isFinal: true,
 			payloadKind: "text_delta",
 		});
+	});
+
+	it("orders chunks by sequence without mutating the input", () => {
+		const events = [
+			{ content: "second", sequence: 1, is_final: false },
+			{ content: "first", sequence: 0, is_final: false },
+			{ content: "unknown", is_final: false },
+		];
+
+		const ordered = orderStreamChunkEvents(events);
+
+		expect(ordered.map((event) => event.content)).toEqual([
+			"first",
+			"second",
+			"unknown",
+		]);
+		expect(events.map((event) => event.content)).toEqual([
+			"second",
+			"first",
+			"unknown",
+		]);
 	});
 
 	it("groups interleaved chunks by stream_ref", () => {
