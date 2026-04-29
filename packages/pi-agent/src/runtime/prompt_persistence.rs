@@ -84,12 +84,14 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
             tokens_in: record.tokens_in,
             tokens_out: record.tokens_out,
             duration_ms: record.duration_ms,
-            sequence: 0,
+            sequence: crate::streaming_chunks::first_response_sequence(),
             is_final: true,
         },
     );
 
-    let _ = crate::append_to_session(session_id, "agent", &content);
+    if crate::streaming_chunks::should_append_response_chunk_to_session(true) {
+        let _ = crate::append_to_session(session_id, "agent", &content);
+    }
 }
 
 pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput) {
