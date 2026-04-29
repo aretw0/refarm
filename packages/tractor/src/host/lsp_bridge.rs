@@ -187,6 +187,69 @@ fn content_length(header: &str) -> Result<usize, String> {
         .map_err(|e| format!("lsp Content-Length parse: {e}"))
 }
 
+#[allow(dead_code)]
+fn initialize_request(root_uri: &str) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "processId": std::process::id(),
+            "rootUri": root_uri,
+            "capabilities": {}
+        }
+    })
+}
+
+#[allow(dead_code)]
+fn references_request(id: u64, loc: &SymbolLocation) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "textDocument/references",
+        "params": {
+            "textDocument": { "uri": file_uri(&loc.file) },
+            "position": lsp_position(loc),
+            "context": { "includeDeclaration": true }
+        }
+    })
+}
+
+#[allow(dead_code)]
+fn rename_request(id: u64, loc: &SymbolLocation, new_name: &str) -> serde_json::Value {
+    serde_json::json!({
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "textDocument/rename",
+        "params": {
+            "textDocument": { "uri": file_uri(&loc.file) },
+            "position": lsp_position(loc),
+            "newName": new_name
+        }
+    })
+}
+
+#[allow(dead_code)]
+fn lsp_position(loc: &SymbolLocation) -> serde_json::Value {
+    serde_json::json!({
+        "line": loc.line.saturating_sub(1),
+        "character": loc.column.saturating_sub(1)
+    })
+}
+
+#[allow(dead_code)]
+fn file_uri(path: &str) -> String {
+    let path = std::path::Path::new(path);
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir()
+            .unwrap_or_else(|_| std::path::PathBuf::from("."))
+            .join(path)
+    };
+    format!("file://{}", absolute.to_string_lossy())
+}
+
 fn command_looks_resolvable(cmd: &str) -> bool {
     if cmd.contains(std::path::MAIN_SEPARATOR) {
         return std::path::Path::new(cmd).is_file();
@@ -278,5 +341,39 @@ mod tests {
 
         assert_eq!(messages, vec![first, second]);
         assert!(String::from_utf8_lossy(&buffer).starts_with("Content-Length: 999"));
+    }
+
+    #[test]
+    fn lsp_requests_use_expected_methods_and_one_based_input_positions() {
+        let loc = SymbolLocation {
+            file: "src/lib.rs".to_string(),
+            line: 3,
+            column: 9,
+        };
+
+        let refs = references_request(7, &loc);
+        let rename = rename_request(8, &loc, "new_name");
+
+        assert_eq!(refs["method"], "textDocument/references");
+        assert_eq!(
+            refs["params"]["position"],
+            serde_json::json!({"line":2,"character":8})
+        );
+        assert_eq!(refs["params"]["context"]["includeDeclaration"], true);
+        assert_eq!(rename["method"], "textDocument/rename");
+        assert_eq!(rename["params"]["newName"], "new_name");
+        assert!(rename["params"]["textDocument"]["uri"]
+            .as_str()
+            .unwrap()
+            .ends_with("/src/lib.rs"));
+    }
+
+    #[test]
+    fn initialize_request_sets_root_uri_and_process_id() {
+        let init = initialize_request("file:///workspace/project");
+
+        assert_eq!(init["method"], "initialize");
+        assert_eq!(init["params"]["rootUri"], "file:///workspace/project");
+        assert!(init["params"]["processId"].as_u64().unwrap_or(0) > 0);
     }
 }
