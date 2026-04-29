@@ -37,6 +37,15 @@ pub(crate) struct UsageRecordInput {
     pub duration_ms: u64,
 }
 
+/// Metadata defaults applied to partial response chunk drafts before storage.
+#[allow(dead_code)]
+pub(crate) struct AgentResponseChunkDefaults {
+    pub model: String,
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    pub duration_ms: u64,
+}
+
 fn store_node(node: &serde_json::Value) -> bool {
     tractor_bridge::store_node(&node.to_string()).is_ok()
 }
@@ -72,6 +81,33 @@ pub(crate) fn store_agent_response_chunk(
         is_final: record.is_final,
     });
     store_node(&response)
+}
+
+/// Store partial response chunk drafts as AgentResponse nodes without session history append.
+#[allow(dead_code)]
+pub(crate) fn store_agent_response_chunk_drafts(
+    prompt_ref: &str,
+    drafts: &[crate::streaming_chunks::ResponseChunkDraft],
+    defaults: AgentResponseChunkDefaults,
+) -> usize {
+    drafts
+        .iter()
+        .filter(|draft| {
+            store_agent_response_chunk(
+                prompt_ref,
+                AgentResponseChunkRecord {
+                    content: draft.content.clone(),
+                    tool_calls: serde_json::Value::Null,
+                    model: defaults.model.clone(),
+                    tokens_in: defaults.tokens_in,
+                    tokens_out: defaults.tokens_out,
+                    duration_ms: defaults.duration_ms,
+                    sequence: draft.sequence,
+                    is_final: draft.is_final,
+                },
+            )
+        })
+        .count()
 }
 
 pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: AgentTurnRecord) {
