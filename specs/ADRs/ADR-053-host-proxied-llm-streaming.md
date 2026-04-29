@@ -50,7 +50,7 @@ complete-http-stream: func(
     path: string,
     headers: list<tuple<string, string>>,
     body: list<u8>,
-    stream: stream-response-metadata,
+    stream-metadata: stream-response-metadata,
 ) -> result<stream-response-result, string>;
 ```
 

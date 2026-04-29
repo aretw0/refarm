@@ -57,6 +57,19 @@ interface tractor-bridge {
 /// Plugins pass provider + HTTP request payload and receive raw response bytes.
 /// Credentials stay in the host process (plugin never reads provider API keys).
 interface llm-bridge {
+    record stream-response-metadata {
+        prompt-ref: string,
+        model: string,
+        provider-family: string,
+        last-sequence: option<u32>,
+    }
+
+    record stream-response-result {
+        final-body: list<u8>,
+        last-sequence: option<u32>,
+        stored-chunks: u32,
+    }
+
     complete-http: func(
         provider: string,
         base-url: string,
@@ -64,6 +77,15 @@ interface llm-bridge {
         headers: list<tuple<string, string>>,
         body: list<u8>,
     ) -> result<list<u8>, string>;
+
+    complete-http-stream: func(
+        provider: string,
+        base-url: string,
+        path: string,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+        stream-metadata: stream-response-metadata,
+    ) -> result<stream-response-result, string>;
 }
 
 // ─── Plugin → Tractor Exports (host calls) ───────────────────────────────────

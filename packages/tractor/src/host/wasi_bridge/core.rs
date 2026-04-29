@@ -10,7 +10,7 @@
 // Return types use the WIT `result<T, plugin-error>` directly — no outer wasmtime::Result.
 
 use crate::host::plugin_host::refarm::plugin::{
-    llm_bridge::Host as LlmBridgeHost,
+    llm_bridge::{Host as LlmBridgeHost, StreamResponseMetadata, StreamResponseResult},
     tractor_bridge::Host as TractorBridgeHost,
     types::{Host as TypesHost, IdentityInfo, PluginError},
 };
@@ -158,6 +158,28 @@ impl LlmBridgeHost for TractorNativeBindings {
         body: Vec<u8>,
     ) -> Result<Vec<u8>, String> {
         llm_complete_http(&provider, &base_url, &path, &headers, &body)
+    }
+
+    /// Streaming contract placeholder.
+    ///
+    /// This preserves the new WIT boundary while the incremental SSE reader is
+    /// still under design. It intentionally reuses the buffered path and reports
+    /// zero stored chunks, so plugins cannot mistake it for live streaming yet.
+    async fn complete_http_stream(
+        &mut self,
+        provider: String,
+        base_url: String,
+        path: String,
+        headers: Vec<(String, String)>,
+        body: Vec<u8>,
+        stream_metadata: StreamResponseMetadata,
+    ) -> Result<StreamResponseResult, String> {
+        let final_body = llm_complete_http(&provider, &base_url, &path, &headers, &body)?;
+        Ok(StreamResponseResult {
+            final_body,
+            last_sequence: stream_metadata.last_sequence,
+            stored_chunks: 0,
+        })
     }
 }
 
