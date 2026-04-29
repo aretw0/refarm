@@ -28,6 +28,48 @@ fn parse_sse_data_events(bytes: &[u8]) -> Vec<String> {
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+fn parse_stream_text_deltas_from_sse(bytes: &[u8]) -> Vec<String> {
+    let payloads = parse_sse_data_events(bytes);
+    parse_stream_text_deltas(&payloads)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn parse_stream_text_deltas(payloads: &[String]) -> Vec<String> {
+    payloads
+        .iter()
+        .filter_map(|payload| serde_json::from_str::<serde_json::Value>(payload).ok())
+        .flat_map(|value| stream_text_deltas_from_value(&value))
+        .collect()
+}
+
+fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {
+    let mut deltas = openai_text_deltas(value);
+    if let Some(text) = anthropic_text_delta(value) {
+        deltas.push(text.to_string());
+    }
+    deltas
+}
+
+fn openai_text_deltas(value: &serde_json::Value) -> Vec<String> {
+    value
+        .get("choices")
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|choice| choice.get("delta")?.get("content")?.as_str())
+        .map(str::to_string)
+        .collect()
+}
+
+fn anthropic_text_delta(value: &serde_json::Value) -> Option<&str> {
+    let delta = value.get("delta")?;
+    match value.get("type").and_then(serde_json::Value::as_str) {
+        Some("content_block_delta") => delta.get("text")?.as_str(),
+        _ => None,
+    }
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
 fn push_sse_event_data(events: &mut Vec<String>, current_data_lines: &mut Vec<String>) {
     if current_data_lines.is_empty() {
         return;
