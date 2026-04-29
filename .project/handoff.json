@@ -1,40 +1,38 @@
 {
-	"context": "Checkpoint atualizado em 2026-04-29 após retomar pós-compactação e avançar streaming sink. CI remoto anterior está verde: run 25109436303 em 9ad20642 success. LSP v1/code-ops segue fechado @72%. Streaming lane agora tem contexto ativo para provider callbacks persistirem chunks parciais quando o transporte streaming ficar disponível; ainda não há chunked HTTP real e provider stream requests continuam gated off.",
-	"timestamp": "2026-04-29T12:53:10.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após streaming sink e correção de CI remoto. Push 6b2bbbfa falhou no GitHub Actions run 25109998294, job quality, no smoke runtime descriptor release-path: test/runtime-descriptor-revocation.test.ts esperava owner refarm-dev para URLs https://github.com/aretw0/refarm. Corrigido localmente em 1ae95a15 para owner aretw0, alinhado ao canonical repo URL. LSP v1/code-ops fechado @72%; streaming lane avançada mas HTTP chunked real ainda desativado.",
+	"timestamp": "2026-04-29T12:59:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Novos commits locais após compactação: 27a884f5 refactor(agent): wire streaming sink context; 11934c71 docs(agent): note streaming sink context; bca57d53 fix(agent): track stored stream chunk sequence; ac94505b docs(agent): clarify stored chunk sequencing.",
-		"Streaming sink: packages/pi-agent/src/runtime/streaming_sink.rs mantém thread-local wasm ACTIVE_STREAM_RESPONSE_SINK com prompt_ref, model e last_sequence. wasm_flow instala o sink quando LLM_STREAM_RESPONSES está ativo e prompt_ref existe. provider request paths agora passam record_stream_bytes_for_active_sink como callback em vez de no-op.",
-		"Prompt handler: chama react_with_prompt_ref(&prompt, Some(&ctx.prompt_ref)); depois lê streaming_sink::take_active_stream_last_sequence() e usa final_response_sequence(streaming_enabled, last_partial_sequence) para armazenar final AgentResponse após os partials.",
-		"Persistência: store_agent_response_chunks_from_sse agora retorna a última sequência efetivamente armazenada, não apenas emitida pelo parser; evita que final response salte sequence se store_node falhar para partial chunk.",
-		"Validações locais após slices: cd packages/pi-agent && cargo test --lib --quiet (234 passed); cargo check --target wasm32-wasip1 --quiet; npm run project:validate --silent; git diff --check; npm run clean:light --silent.",
-		"Disk após limpeza: ~9.5GB livres; packages/tractor/target ~3929M; packages/pi-agent/target ~925M."
+		"Commits locais/pushed recentes: 27a884f5 refactor(agent): wire streaming sink context; 11934c71 docs(agent): note streaming sink context; bca57d53 fix(agent): track stored stream chunk sequence; ac94505b docs(agent): clarify stored chunk sequencing; 6b2bbbfa chore(project): refresh streaming sink handoff; 1ae95a15 test(tractor-ts): expect canonical repo owner.",
+		"Streaming sink: runtime/streaming_sink.rs mantém thread-local wasm ACTIVE_STREAM_RESPONSE_SINK com prompt_ref, model e last_sequence; provider OpenAI/Anthropic callbacks usam record_stream_bytes_for_active_sink em vez de no-op; prompt_handler usa last partial sequence para sequence final.",
+		"Persistência streaming: store_agent_response_chunks_from_sse retorna última sequence efetivamente armazenada, não só emitida pelo parser, evitando gaps se store_node falhar.",
+		"Validações pi-agent antes do push: cd packages/pi-agent && cargo test --lib --quiet (234 passed); cargo check --target wasm32-wasip1 --quiet; npm run project:validate --silent; git diff --check; clean:light.",
+		"CI failure analysis: run 25109998294 falhou só em runtime descriptor release-path smoke porque o teste de repo coordinates ainda esperava refarm-dev. Local targeted validation após fix: cd packages/tractor-ts && npm run test:unit -- runtime-descriptor-revocation (14 passed); npm run runtime-descriptor:release-smoke -- --sha $(git rev-parse HEAD) (4 files, 78 tests passed)."
 	],
 	"blockers": [
-		"Host Windows/C segue crítico: 99% usado, ~9.5GB livres. Evitar builds globais; manter clean:light após Rust.",
-		"Docker/host prune indisponível de dentro do devcontainer.",
-		"HTTP streaming real ainda bloqueado pelo transporte atual: llm_bridge::complete_http retorna Vec<u8> bufferizado. streaming_reader_available() continua false e provider_stream_request_enabled_from_env() continua false mesmo com LLM_STREAM_RESPONSES=1.",
-		"execute_json_request preservado com #[allow(dead_code)] porque request paths passam pelo callback seam, mas buffered path ainda é intencional."
+		"Host Windows/C segue crítico: ~9.5GB livres; evitar builds globais e limpar após checks.",
+		"HTTP streaming real segue bloqueado pelo transporte atual: llm_bridge::complete_http é bufferizado Vec<u8>; streaming_reader_available() permanece false e stream:true não é emitido.",
+		"Docker/host prune indisponível dentro do devcontainer."
 	],
 	"next_actions": [
-		"Opcional: push dos commits locais e observar GitHub Actions como no último ciclo.",
-		"Próximo slice técnico: decidir se chunked HTTP deve ser implementado via novo host WIT llm-bridge streaming primitive, via wasi:http direto, ou por extensão host que chama back into store_node durante stream. Cuidado: mexer em WIT/tractor é superfície protegida e deve ser pequeno/serializado.",
-		"Se não mexer no transporte ainda, adicionar testes/contratos ao sink: garantir que ausência de active sink descarta bytes, que final sequencing usa last stored partial, e que fallback/error semantics ficam documentadas.",
-		"Quando transporte existir: flip streaming_reader_available() para true somente junto de teste que prova que stream:true gera SSE chunks persistidos e final response fica sequence last+1.",
-		"Manter validações econômicas: cargo test --lib streaming_config --quiet; cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet; clean:light."
+		"Push do commit 1ae95a15 e observar novo GitHub Actions; esperado corrigir a falha de runtime descriptor smoke.",
+		"Depois do CI verde, continuar streaming transport design: decidir WIT host streaming primitive vs wasi:http direto vs host-managed CRDT writes.",
+		"Se mexer em WIT/tractor-ts/tractor, manter slices pequenos por superfície protegida.",
+		"Quando transporte streaming existir, flip streaming_reader_available() junto com teste que prova stream:true + SSE partial AgentResponse + final sequence last+1.",
+		"Manter validações econômicas e clean:light após Rust."
 	],
 	"open_questions": [
-		"Qual transporte streaming correto para pi-agent: WIT host bridge novo vs wasi:http direto vs host-managed CRDT write callbacks?",
-		"Como contabilizar tokens e duration em partial chunks: atualmente partials usam tokens=0/duration=0/model do primary provider; final response carrega usage real.",
-		"Semântica de erro/cancelamento após partials: emitir final error chunk ou apenas final AgentResponse com erro?",
-		"Partial AgentResponse.content continua sendo delta cru; cliente deve reassemblar.",
-		"ACP continua fora do roadmap ativo; se necessário abrir ADR/research depois."
+		"Qual arquitetura de transporte streaming correta para pi-agent?",
+		"Partial chunks continuam tokens=0/duration=0/model primary; definir se/como preencher metadados durante streaming real.",
+		"Semântica de erro/cancelamento depois de partials.",
+		"Delta cru vs conteúdo acumulado em AgentResponse.content parcial.",
+		"ACP permanece parked."
 	],
 	"key_decisions_pending": [
-		"Definir arquitetura do transporte HTTP streaming.",
-		"Definir contrato de erro/cancelamento para streaming parcial.",
-		"Confirmar wire contract delta cru vs conteúdo acumulado.",
-		"Decidir se ACP entra como pesquisa formal ou permanece parked."
+		"Definir transporte HTTP streaming.",
+		"Definir contrato de erro/cancelamento de partial streaming.",
+		"Confirmar delta cru vs acumulado.",
+		"Decidir se ACP vira pesquisa formal."
 	],
 	"files_in_flux": []
 }
