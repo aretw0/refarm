@@ -161,6 +161,7 @@ Context engineering follows the pi-test-harness model:
 - [x] SSE bytes can be transformed into partial response chunk drafts without invoking HTTP streaming
 - [x] Runtime persistence has a helper to store partial chunk drafts as AgentResponse nodes without session append
 - [x] Last partial chunk sequence can feed final response sequencing
+- [x] Provider SSE chunk drafts can be emitted through a callback seam before real HTTP streaming
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
