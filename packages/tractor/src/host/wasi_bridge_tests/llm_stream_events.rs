@@ -153,6 +153,59 @@ fn store_stream_agent_response_chunks_from_sse_preserves_sequence_when_no_chunks
     assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
 }
 
+#[test]
+fn store_stream_agent_response_chunks_from_reader_persists_incrementally() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-reader-test").unwrap();
+    let metadata = stream_metadata(Some(3));
+
+    let (final_body, last_sequence, stored_chunks) =
+        super::store_stream_agent_response_chunks_from_reader(
+            &sync,
+            "pi-agent",
+            &metadata,
+            std::io::Cursor::new(
+                br#"data: {"choices":[{"delta":{"content":"a"}}]}
+
+data: {"choices":[{"delta":{"content":"b"}}]}
+
+"#,
+            ),
+            1024,
+        )
+        .unwrap();
+
+    assert!(String::from_utf8_lossy(&final_body).contains("content"));
+    assert_eq!(last_sequence, Some(5));
+    assert_eq!(stored_chunks, 2);
+    let rows = sync.query_nodes("AgentResponse").unwrap();
+    let payloads: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    assert_eq!(payloads[0]["sequence"], 4);
+    assert_eq!(payloads[1]["sequence"], 5);
+}
+
+#[test]
+fn store_stream_agent_response_chunks_from_reader_enforces_body_limit() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-reader-limit-test").unwrap();
+    let metadata = stream_metadata(None);
+
+    let err = super::store_stream_agent_response_chunks_from_reader(
+        &sync,
+        "pi-agent",
+        &metadata,
+        std::io::Cursor::new(br#"data: {"choices":[]}\n\n"#),
+        4,
+    )
+    .unwrap_err();
+
+    assert!(err.contains("too large"));
+    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+}
+
 fn stream_metadata(last_sequence: Option<u32>) -> super::StreamResponseMetadata {
     super::StreamResponseMetadata {
         prompt_ref: "prompt-abc".to_string(),

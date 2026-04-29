@@ -1,4 +1,4 @@
-use crate::streaming::parse_sse_data_events;
+use crate::streaming::{parse_sse_data_events, read_sse_data_events_limited};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LlmStreamTextChunkDraft {
@@ -55,25 +55,83 @@ fn store_stream_agent_response_chunks_from_sse(
     bytes: &[u8],
 ) -> Result<(Option<u32>, u32), String> {
     let chunks = stream_text_chunk_drafts_from_sse(bytes, metadata.last_sequence);
+    store_stream_agent_response_chunks(sync, source_plugin, metadata, chunks)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn store_stream_agent_response_chunks_from_reader(
+    sync: &NativeSync,
+    source_plugin: &str,
+    metadata: &StreamResponseMetadata,
+    reader: impl std::io::Read,
+    max_len: usize,
+) -> Result<(Vec<u8>, Option<u32>, u32), String> {
+    let mut next_sequence = metadata
+        .last_sequence
+        .map(|sequence| sequence.saturating_add(1))
+        .unwrap_or(0);
+    let mut last_stored_sequence = metadata.last_sequence;
+    let mut stored_chunks = 0u32;
+
+    let final_body = read_sse_data_events_limited(reader, max_len, |payload| {
+        let payloads = [payload.to_string()];
+        let chunks = parse_stream_text_deltas(&payloads)
+            .into_iter()
+            .map(|content_delta| {
+                let chunk = LlmStreamTextChunkDraft {
+                    sequence: next_sequence,
+                    content_delta,
+                };
+                next_sequence = next_sequence.saturating_add(1);
+                chunk
+            })
+            .collect::<Vec<_>>();
+        let (last_sequence, count) =
+            store_stream_agent_response_chunks(sync, source_plugin, metadata, chunks)?;
+        if last_sequence.is_some() {
+            last_stored_sequence = last_sequence;
+        }
+        stored_chunks = stored_chunks.saturating_add(count);
+        Ok(())
+    })?;
+
+    Ok((final_body, last_stored_sequence, stored_chunks))
+}
+
+fn store_stream_agent_response_chunks(
+    sync: &NativeSync,
+    source_plugin: &str,
+    metadata: &StreamResponseMetadata,
+    chunks: Vec<LlmStreamTextChunkDraft>,
+) -> Result<(Option<u32>, u32), String> {
     let mut last_stored_sequence = metadata.last_sequence;
     let mut stored_chunks = 0u32;
 
     for chunk in chunks {
-        let node_id = stream_agent_response_chunk_id();
-        let node = stream_agent_response_chunk_node(&node_id, now_ns(), metadata, &chunk);
-        sync.store_node(
-            &node_id,
-            "AgentResponse",
-            None,
-            &node.to_string(),
-            Some(source_plugin),
-        )
-        .map_err(|e| format!("store stream AgentResponse chunk: {e}"))?;
+        store_stream_agent_response_chunk(sync, source_plugin, metadata, &chunk)?;
         last_stored_sequence = Some(chunk.sequence);
         stored_chunks = stored_chunks.saturating_add(1);
     }
 
     Ok((last_stored_sequence, stored_chunks))
+}
+
+fn store_stream_agent_response_chunk(
+    sync: &NativeSync,
+    source_plugin: &str,
+    metadata: &StreamResponseMetadata,
+    chunk: &LlmStreamTextChunkDraft,
+) -> Result<(), String> {
+    let node_id = stream_agent_response_chunk_id();
+    let node = stream_agent_response_chunk_node(&node_id, now_ns(), metadata, chunk);
+    sync.store_node(
+        &node_id,
+        "AgentResponse",
+        None,
+        &node.to_string(),
+        Some(source_plugin),
+    )
+    .map_err(|e| format!("store stream AgentResponse chunk: {e}"))
 }
 
 fn stream_agent_response_chunk_id() -> String {
