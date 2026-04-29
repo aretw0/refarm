@@ -18,9 +18,9 @@ pub(crate) fn parse_stream_responses_flag(value: Option<&str>) -> bool {
 
 /// Request provider-level streaming only when both policy and transport support it.
 ///
-/// This keeps `LLM_STREAM_RESPONSES=1` safe before the WASM HTTP streaming
-/// reader is wired: callers must pass `streaming_reader_available=true` before
-/// adding `stream: true` to provider request bodies.
+/// This keeps `LLM_STREAM_RESPONSES=1` safe before the host-proxied streaming
+/// transport is wired: callers must pass `streaming_reader_available=true`
+/// before adding `stream: true` to provider request bodies.
 pub(crate) fn provider_stream_request_enabled(
     stream_responses_enabled: bool,
     streaming_reader_available: bool,
