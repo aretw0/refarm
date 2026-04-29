@@ -1,6 +1,6 @@
 {
-	"context": "Checkpoint de compactação atualizado em 2026-04-29 após um slice atômico no lane de streaming: deltas textuais provider-specific agora podem virar drafts de chunks parciais com sequence monotônica e is_final=false. LSP v1/code-ops permanece fechado @72%. Working tree limpo após validações e clean:light.",
-	"timestamp": "2026-04-29T02:34:10.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após mais slices no lane de streaming. LSP v1/code-ops permanece fechado @72%. Streaming agora tem seams puros para SSE→deltas→ResponseChunkDraft→persistence helper/callback, mas ainda sem HTTP streaming real. Working tree limpo após validações e clean:light.",
+	"timestamp": "2026-04-29T10:29:10.000Z",
 	"current_phase": 11,
 	"current_tasks": [
 		"LSP v1/code-ops fechado no ROADMAP: generic REFACTOR_LSP_CMD, find_references, rename_symbol, harness pi-agent/Tractor e baseline gates completos.",
@@ -8,21 +8,23 @@
 		"Prompt handler lê stream_responses_enabled_from_env e calcula sequência final via streaming_chunks::final_response_sequence(streaming_enabled, None), sem ativar provider streaming real ainda.",
 		"Provider request body builders têm variantes *_with_streaming(..., stream: bool) que emitem stream:true somente quando solicitado; wrappers antigos preservam ausência de stream por default.",
 		"provider_runtime/stream_events.rs parseia SSE data events e deltas textuais provider-specific: OpenAI choices[].delta.content (inclui múltiplas choices por evento) e Anthropic content_block_delta.delta.text.",
-		"Novo slice: streaming_chunks.rs adicionou ResponseChunkDraft e partial_response_chunk_drafts(deltas, last_sequence) para converter deltas em chunks parciais is_final=false, ignorando deltas vazios e continuando a sequência após last_sequence quando presente.",
-		"Commits recentes: af058f68 feat(agent): parse streaming text deltas; 74faa01b refactor(agent): combine sse text delta parsing; 809967dd docs(agent): note streaming delta parsers; 73caffdd refactor(agent): parse all openai stream deltas; 511abb2a feat(agent): draft partial response chunks; 3649f37c docs(agent): note partial chunk drafts."
+		"streaming_chunks.rs tem ResponseChunkDraft, partial_response_chunk_drafts(deltas,last_sequence), last_response_chunk_sequence(...). Deltas vazios são ignorados, chunks parciais têm is_final=false.",
+		"Novo: prompt_persistence tem AgentResponseChunkDefaults e store_agent_response_chunk_drafts(prompt_ref,drafts,defaults), armazenando AgentResponse parcial com tool_calls=null e sem append_to_session.",
+		"Novo: provider_runtime/stream_events.rs tem parse_stream_response_chunk_drafts_from_sse(bytes,last_sequence) e emit_stream_response_chunk_drafts_from_sse(bytes,last_sequence, callback), retornando última sequência emitida.",
+		"Commits recentes: 511abb2a feat(agent): draft partial response chunks; 3649f37c docs(agent): note partial chunk drafts; 6fd5ea51 refactor(agent): add partial chunk persistence helper; b2a167a2 refactor(agent): draft chunks from sse stream; 0c749689 refactor(agent): expose last stream chunk sequence; 38aedc39 docs(agent): mark partial streaming seams; b1e59702 refactor(agent): add streaming draft emitter; 6cd821f2 docs(agent): note streaming draft emitter."
 	],
 	"blockers": [
-		"Host Windows/C continua crítico: 98% usado, ~14-15GB livres. Evitar builds globais; rodar clean:light após Rust.",
+		"Host Windows/C continua crítico: 97-98% usado, ~15GB livres. Evitar builds globais; rodar clean:light após Rust.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"packages/pi-agent/target ~924MB após limpeza; manter validações escopadas.",
-		"pi edit/write hooks podem aplicar clippy/fmt em lib.rs/provider_runtime.rs e gerar churn; reverter arquivos fora do escopo antes de commit quando acontecer."
+		"packages/pi-agent/target ~925MB após limpeza; manter validações escopadas.",
+		"pi edit/write hooks podem aplicar clippy/fmt em lib.rs/provider_runtime.rs e gerar churn; reverter arquivos fora do escopo antes de commit quando acontecer.",
+		"store_agent_response_chunk_drafts está marcado #[allow(dead_code)] por ser seam wasm futuro ainda não conectado ao HTTP streaming real."
 	],
 	"next_actions": [
-		"Após compactação: git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Próximo slice recomendado: criar helper wasm/runtime que converta ResponseChunkDraft em AgentResponseChunkRecord preenchendo model/tokens/tool_calls/duration defaults, e chama store_agent_response_chunk — ainda sem HTTP streaming real.",
+		"Próximo slice: conectar o emitter callback ao persistence helper em uma função runtime/wasm pequena que receba bytes SSE + defaults + prompt_ref + last_sequence e persista partial chunks, ainda sem alterar execute_json_request/HTTP.",
 		"Depois: desenhar interface de callback/iterator para execute_json_request streaming em WASM, mantendo execute_json_request atual intacto.",
 		"Só então implementar chunked HTTP read em wasi::http gated por LLM_STREAM_RESPONSES, persistindo AgentResponse chunks parciais com sequence monotônica.",
-		"Validações econômicas usadas: cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_parse_stream_text_deltas --quiet; cargo check --target wasm32-wasip1 --quiet; git diff --check; npm run clean:light --silent."
+		"Manter validações econômicas: cargo test --lib streaming_chunks --quiet; cargo test --lib provider_runtime_emit_stream_response_chunk_drafts_from_sse --quiet; cargo test --lib provider_runtime_parse_stream_response_chunk_drafts_from_sse --quiet; cargo check --target wasm32-wasip1 --quiet; git diff --check; npm run clean:light --silent."
 	],
 	"open_questions": [
 		"ACP/Agent Context Protocol continua fora do roadmap canônico; se necessário criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous.",
