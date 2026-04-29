@@ -107,6 +107,19 @@ fn provider_runtime_build_openai_body_includes_expected_fields() {
     assert_eq!(v["max_tokens"], 1024);
     assert_eq!(v["messages"][0]["role"], "user");
     assert_eq!(v["tools"][0]["type"], "function");
+    assert!(v.get("stream").is_none());
+}
+
+#[test]
+fn provider_runtime_build_openai_body_can_request_streaming() {
+    let body = crate::provider_runtime::build_openai_body_with_streaming(
+        "m",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        true,
+    );
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["stream"], true);
 }
 
 #[test]
@@ -123,6 +136,20 @@ fn provider_runtime_build_anthropic_body_includes_expected_fields() {
     assert_eq!(v["max_tokens"], 1024);
     assert_eq!(v["messages"][0]["role"], "user");
     assert_eq!(v["tools"][0]["name"], "read_file");
+    assert!(v.get("stream").is_none());
+}
+
+#[test]
+fn provider_runtime_build_anthropic_body_can_request_streaming() {
+    let body = crate::provider_runtime::build_anthropic_body_with_streaming(
+        "m2",
+        "sys",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        true,
+    );
+    let v: serde_json::Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(v["stream"], true);
 }
 
 #[test]
@@ -257,4 +284,3 @@ fn provider_runtime_require_openai_message_content_returns_error_when_missing() 
     let err = crate::provider_runtime::require_openai_message_content(&msg, &response).unwrap_err();
     assert_eq!(err, "nope");
 }
-

@@ -185,9 +185,11 @@ pub(crate) use tool_wire::{
 pub(crate) use wire_bootstrap::{initial_anthropic_wire_messages, initial_openai_wire_messages};
 
 #[cfg(test)]
-pub(crate) use request_body_anthropic::build_anthropic_body;
+pub(crate) use request_body_anthropic::{
+    build_anthropic_body, build_anthropic_body_with_streaming,
+};
 #[cfg(test)]
-pub(crate) use request_body_openai::build_openai_body;
+pub(crate) use request_body_openai::{build_openai_body, build_openai_body_with_streaming};
 #[cfg(test)]
 pub(crate) use request_iteration::iteration_response_and_phase_with;
 #[cfg(test)]
