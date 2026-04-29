@@ -701,6 +701,42 @@ mod tests {
     }
 
     #[test]
+    fn rename_symbol_uses_generic_lsp_workspace_edit() {
+        let _guard = env_lock();
+        if !python3_is_available_for_test() {
+            eprintln!("skipping fake LSP rename test: python3 is not runnable");
+            return;
+        }
+
+        let temp = tempfile::tempdir().unwrap();
+        let script = temp.path().join("fake_lsp.py");
+        let source = temp.path().join("lib.rs");
+        std::fs::write(&script, FAKE_LSP_SERVER).unwrap();
+        std::fs::write(&source, "let old = old;\n").unwrap();
+        std::env::set_var(LSP_CMD_ENV, format!("python3 {}", script.display()));
+
+        let result = LspBridge::from_env()
+            .rename_symbol(
+                &SymbolLocation {
+                    file: source.to_string_lossy().to_string(),
+                    line: 1,
+                    column: 5,
+                },
+                "new_name",
+            )
+            .unwrap();
+
+        std::env::remove_var(LSP_CMD_ENV);
+        LspBridge::stop_lsp_session().unwrap();
+        assert_eq!(result.files_changed, 1);
+        assert_eq!(result.edits_applied, 2);
+        assert_eq!(
+            std::fs::read_to_string(source).unwrap(),
+            "let new_name = new_name;\n"
+        );
+    }
+
+    #[test]
     fn lsp_message_encoding_uses_content_length_frame() {
         let message = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize"});
         let framed = encode_lsp_message(&message);
@@ -946,6 +982,33 @@ while True:
                     'end': {'line': 2, 'character': 8},
                 },
             }],
+        })
+    elif method == 'textDocument/rename':
+        uri = message['params']['textDocument']['uri']
+        new_name = message['params']['newName']
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': {
+                'changes': {
+                    uri: [
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 4},
+                                'end': {'line': 0, 'character': 7},
+                            },
+                            'newText': new_name,
+                        },
+                        {
+                            'range': {
+                                'start': {'line': 0, 'character': 10},
+                                'end': {'line': 0, 'character': 13},
+                            },
+                            'newText': new_name,
+                        },
+                    ],
+                },
+            },
         })
 "#;
 }
