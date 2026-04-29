@@ -25,6 +25,6 @@ pub(crate) fn openai_iteration_response(
         openai_compat_path(provider),
         headers,
         &body,
-        |_| {},
+        crate::runtime::streaming_sink::record_stream_bytes_for_active_sink,
     )
 }

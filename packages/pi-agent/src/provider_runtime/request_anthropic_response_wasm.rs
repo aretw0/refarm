@@ -24,6 +24,6 @@ pub(crate) fn anthropic_iteration_response(
         "/v1/messages",
         headers,
         &body,
-        |_| {},
+        crate::runtime::streaming_sink::record_stream_bytes_for_active_sink,
     )
 }

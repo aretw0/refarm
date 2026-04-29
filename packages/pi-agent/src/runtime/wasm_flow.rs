@@ -43,10 +43,18 @@ fn try_fallback_completion(
     })
 }
 
-pub(crate) fn run_wasm_react(prompt: &str) -> ReactResult {
+pub(crate) fn run_wasm_react_with_prompt_ref(
+    prompt: &str,
+    prompt_ref: Option<&str>,
+) -> ReactResult {
     let primary_name = crate::provider_name_from_env();
     let prov = crate::provider::Provider::from_env();
     let model = prov.model().to_owned();
+    if crate::streaming_config::stream_responses_enabled_from_env() {
+        if let Some(prompt_ref) = prompt_ref {
+            super::streaming_sink::set_active_stream_response_sink(prompt_ref, &model);
+        }
+    }
     let system_owned = resolve_system_prompt();
     let system = system_owned.as_str();
 

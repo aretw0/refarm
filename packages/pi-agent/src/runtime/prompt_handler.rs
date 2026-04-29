@@ -1,4 +1,4 @@
-use super::{prompt_persistence, react};
+use super::{prompt_persistence, react_loop::react_with_prompt_ref, streaming_sink};
 
 pub(crate) fn handle_prompt(prompt: String) {
     let Some(ctx) = prompt_persistence::store_prompt_and_open_session(&prompt) else {
@@ -15,11 +15,12 @@ pub(crate) fn handle_prompt(prompt: String) {
         tokens_reasoning,
         model,
         usage_raw,
-    ) = react(&prompt);
+    ) = react_with_prompt_ref(&prompt, Some(&ctx.prompt_ref));
     let duration_ms = crate::now_ns().saturating_sub(t0) / 1_000_000;
     let streaming_enabled = crate::streaming_config::stream_responses_enabled_from_env();
+    let last_partial_sequence = streaming_sink::take_active_stream_last_sequence();
     let response_sequence =
-        crate::streaming_chunks::final_response_sequence(streaming_enabled, None);
+        crate::streaming_chunks::final_response_sequence(streaming_enabled, last_partial_sequence);
 
     prompt_persistence::store_agent_turn(
         &ctx.prompt_ref,

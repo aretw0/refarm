@@ -5,6 +5,7 @@ mod prompt_handler;
 #[cfg(target_arch = "wasm32")]
 mod prompt_persistence;
 mod react_loop;
+pub(crate) mod streaming_sink;
 mod types;
 #[cfg(target_arch = "wasm32")]
 mod wasm_flow;
