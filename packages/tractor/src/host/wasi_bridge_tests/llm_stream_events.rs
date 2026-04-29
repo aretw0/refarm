@@ -103,3 +103,32 @@ fn stream_text_chunk_drafts_from_sse_starts_at_zero_without_last_sequence() {
     assert_eq!(chunks[0].sequence, 0);
     assert_eq!(super::last_stream_text_chunk_sequence(&[]), None);
 }
+
+#[test]
+fn stream_agent_response_chunk_node_matches_partial_response_schema() {
+    let metadata = super::StreamResponseMetadata {
+        prompt_ref: "prompt-abc".to_string(),
+        model: "gpt-4.1-mini".to_string(),
+        provider_family: "openai".to_string(),
+        last_sequence: Some(4),
+    };
+    let chunk = super::LlmStreamTextChunkDraft {
+        sequence: 5,
+        content_delta: "hello".to_string(),
+    };
+
+    let node = super::stream_agent_response_chunk_node("urn:test:resp:1", 123, &metadata, &chunk);
+
+    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["@id"], "urn:test:resp:1");
+    assert_eq!(node["prompt_ref"], "prompt-abc");
+    assert_eq!(node["content"], "hello");
+    assert_eq!(node["sequence"], 5);
+    assert_eq!(node["is_final"], false);
+    assert_eq!(node["tool_calls"], serde_json::json!([]));
+    assert_eq!(node["timestamp_ns"], 123);
+    assert_eq!(node["llm"]["model"], "gpt-4.1-mini");
+    assert_eq!(node["llm"]["tokens_in"], 0);
+    assert_eq!(node["llm"]["tokens_out"], 0);
+    assert_eq!(node["llm"]["duration_ms"], 0);
+}

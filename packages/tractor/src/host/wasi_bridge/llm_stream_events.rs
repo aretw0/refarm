@@ -74,6 +74,31 @@ fn last_stream_text_chunk_sequence(chunks: &[LlmStreamTextChunkDraft]) -> Option
     chunks.last().map(|chunk| chunk.sequence)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+fn stream_agent_response_chunk_node(
+    node_id: &str,
+    timestamp_ns: u64,
+    metadata: &StreamResponseMetadata,
+    chunk: &LlmStreamTextChunkDraft,
+) -> serde_json::Value {
+    serde_json::json!({
+        "@type":        "AgentResponse",
+        "@id":          node_id,
+        "prompt_ref":   metadata.prompt_ref,
+        "content":      chunk.content_delta,
+        "sequence":     chunk.sequence,
+        "is_final":     false,
+        "tool_calls":   [],
+        "timestamp_ns": timestamp_ns,
+        "llm": {
+            "model":       metadata.model,
+            "tokens_in":   0,
+            "tokens_out":  0,
+            "duration_ms": 0,
+        },
+    })
+}
+
 fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {
     let mut deltas = openai_text_deltas(value);
     if let Some(text) = anthropic_text_delta(value) {
