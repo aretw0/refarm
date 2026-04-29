@@ -184,19 +184,20 @@ Context engineering follows the pi-test-harness model:
 - [x] Runtime persistence can store SSE-derived partial chunks and return the last emitted sequence
 - [x] Provider `stream: true` requests are gated on both opt-in policy and streaming transport readiness
 - [x] WASM HTTP request layer has a callback seam for future streaming bytes without changing buffered JSON path
-- [x] Provider request paths route through the callback seam while streaming transport remains disabled
+- [x] Provider request paths route through the callback seam and use host-proxied streaming when `LLM_STREAM_RESPONSES` is explicitly enabled
 - [x] Provider runtime has an active stream sink context (`prompt_ref`, `model`, `last_sequence`) so callbacks can persist SSE-derived partial chunks once transport streaming is enabled
 - [x] Fallback provider attempts update the active stream sink model before emitting future partial chunks
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
-- [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; current Tractor implementation drains buffered responses before live incremental reads are enabled
+- [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; Tractor reads provider SSE bodies through a streaming reader seam
 - [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
 - [x] Tractor has generic target-neutral SSE framing primitives plus LLM-specific delta parsing and sequence draft helpers for native host streaming internals
 - [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
 - [x] Tractor `complete-http-stream` reads successful responses through the generic SSE reader seam and persists complete SSE frames as they arrive
 - [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas for OpenAI-compatible and Anthropic response shapes
-- [ ] Prove end-to-end partial persistence plus final response handling before flipping `streaming_reader_available()` true
+- [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, and stores a final response with sequence after the last partial
+- [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
