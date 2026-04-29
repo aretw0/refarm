@@ -195,7 +195,8 @@ Context engineering follows the pi-test-harness model:
 - [x] Tractor has generic target-neutral SSE framing primitives plus LLM-specific delta parsing and sequence draft helpers for native host streaming internals
 - [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
 - [x] Tractor `complete-http-stream` reads successful responses through the generic SSE reader seam and persists complete SSE frames as they arrive
-- [ ] Finalize live provider stream response semantics and keep `streaming_reader_available()` false until end-to-end tests prove partial persistence plus final response handling
+- [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas for OpenAI-compatible and Anthropic response shapes
+- [ ] Prove end-to-end partial persistence plus final response handling before flipping `streaming_reader_available()` true
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
 ### `.refarm/` project convention
