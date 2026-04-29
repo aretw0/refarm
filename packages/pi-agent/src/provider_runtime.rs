@@ -41,11 +41,11 @@ mod request_anthropic_response_wasm;
 mod request_anthropic_wasm;
 mod request_body_anthropic;
 mod request_body_openai;
-mod request_iteration;
 mod request_headers_anthropic;
 mod request_headers_common;
 mod request_headers_openai;
 mod request_http_wasm;
+mod request_iteration;
 mod request_openai_response_wasm;
 mod request_openai_wasm;
 mod request_parse;
@@ -56,12 +56,12 @@ mod state_loop_context_tests;
 #[cfg(test)]
 mod state_loop_dispatch_tests;
 mod state_primitives;
-mod stream_events;
 #[cfg(test)]
 mod state_response_adapter_tests;
 #[cfg(test)]
 mod state_step_adapter_tests;
 mod step_common;
+mod stream_events;
 mod tool_execution;
 mod tool_phase_common;
 mod tool_recording;
@@ -198,7 +198,7 @@ pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_path::openai_compat_path;
 #[cfg(test)]
-pub(crate) use stream_events::parse_sse_data_events;
+pub(crate) use stream_events::{parse_sse_data_events, parse_stream_text_deltas};
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use request_anthropic_wasm::anthropic_iteration_response_and_phase;

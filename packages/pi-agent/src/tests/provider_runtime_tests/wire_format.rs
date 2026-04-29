@@ -298,3 +298,17 @@ fn provider_runtime_parse_sse_data_events_extracts_provider_payloads() {
         ]
     );
 }
+
+#[test]
+fn provider_runtime_parse_stream_text_deltas_reads_openai_and_anthropic_payloads() {
+    let payloads = vec![
+        r#"{"choices":[{"delta":{"content":"hel"}}]}"#.to_string(),
+        r#"{"type":"content_block_delta","delta":{"type":"text_delta","text":"lo"}}"#.to_string(),
+        r#"{"choices":[{"delta":{}}]}"#.to_string(),
+        "not json".to_string(),
+    ];
+    assert_eq!(
+        crate::provider_runtime::parse_stream_text_deltas(&payloads),
+        vec!["hel".to_string(), "lo".to_string()]
+    );
+}
