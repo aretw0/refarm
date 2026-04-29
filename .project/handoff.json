@@ -1,30 +1,29 @@
 {
-	"context": "Checkpoint pós-compactação atualizado em 2026-04-29 após estabilizar o harness pi-agent/Tractor LSP e fechar cobertura de code-ops genéricos find_references/rename_symbol. Working tree estava limpo antes desta atualização de handoff.",
-	"timestamp": "2026-04-29T01:43:00.000Z",
+	"context": "Checkpoint atualizado em 2026-04-29 após fechar o DoD @72% do lane LSP v1/code-ops, estabilizar harness pi-agent/Tractor e adicionar scripts de validação escopados. Working tree estava limpo antes desta atualização de handoff.",
+	"timestamp": "2026-04-29T01:52:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
 		"Backlog .project continua completo/aceito; trabalho recente segue o lane ativo LSP v1/code-ops em slices pequenos.",
-		"Repository URL canonical ajustada para github.com/aretw0/refarm. Commit: 6302121f.",
-		"Tractor LSP bridge usa caminho genérico REFACTOR_LSP_CMD, compat REFACTOR_LSP_RUST_ANALYZER_CMD e rust-analyzer apenas como default. Commits: 4b921c39, 19b9044f.",
-		"find_references e rename_symbol estão ligados ao LSP JSON-RPC genérico, com suporte a WorkspaceEdit.changes e documentChanges. Commits: 2800773b, e58fe8b8.",
-		"Harness pi-agent/Tractor agora cobre tool-loop para bash, find_references e rename_symbol via fake LSP genérico. Commits: f022fb32, 6d2c00aa, 1617b398, 3e560fef, e8815192, 5b8d8a0b.",
-		"Causa do hang anterior do harness identificada e corrigida: mock LLM rodava como tokio task no runtime de teste single-thread enquanto o plugin bloqueava dentro de call_on_event; o mock agora roda em std::thread com TcpListener bloqueante.",
-		"Roadmap pi-agent atualizado para marcar a integração rename/LSP como coberta e documentar harness code-ops. Commit: 93d7f648."
+		"Tractor LSP bridge usa caminho genérico REFACTOR_LSP_CMD, compat REFACTOR_LSP_RUST_ANALYZER_CMD e rust-analyzer apenas como default. find_references e rename_symbol passam por JSON-RPC LSP genérico, com suporte a WorkspaceEdit.changes e documentChanges.",
+		"Harness pi-agent/Tractor cobre tool-loop para bash, find_references e rename_symbol via fake LSP genérico. O hang anterior foi corrigido movendo o mock LLM para std::thread com TcpListener bloqueante fora do runtime Tokio single-thread.",
+		"Baseline pi-agent passou: cd packages/pi-agent && cargo check --target wasm32-wasip1 && cargo test --lib --quiet. Roadmap marcou DoD baseline como completo. Commit: 216d53fb.",
+		"Scripts escopados adicionados ao package.json: npm run agent:lsp:check e npm run agent:lsp:harness. Commit: 6567ee5c.",
+		"Helpers de teste do lsp_bridge agora usam #[cfg(test)] em vez de #[allow(dead_code)]. Commit: ad7da2e6."
 	],
 	"blockers": [
 		"Host Windows/C ainda crítico: 98% usado, ~14GB livres. Evitar builds globais; rodar clean:light após Rust.",
 		"Docker/host prune indisponível de dentro do devcontainer.",
-		"cargo fmt global em packages/tractor pode introduzir churn histórico; preferir cargo test --test pi_agent_harness --no-run e rustfmt/checks escopados."
+		"packages/pi-agent/target cresceu para ~919MB após cargo check wasm; manter limpeza leve e evitar builds amplos."
 	],
 	"next_actions": [
 		"Começar próxima sessão/slice com git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Validar economicamente se necessário: cd packages/tractor && cargo test --test pi_agent_harness harness_tool_use_dispatched_and_result_fed_back -- --ignored --test-threads=1 --nocapture; idem harness_find_references_tool_reads_lsp_locations e harness_rename_symbol_tool_updates_workspace_file_via_lsp.",
-		"Próximo slice recomendado: decidir se o harness code-ops pode deixar de ser ignored ou se deve permanecer manual por exigir cargo component build --release em packages/pi-agent.",
-		"Depois disso, rodar uma validação de baseline mínima para LSP lane: cd packages/tractor && cargo test --lib lsp_bridge --quiet; cd packages/tractor && cargo test --test pi_agent_harness --no-run.",
-		"Não iniciar ACP agora. ACP deve ficar como pesquisa/ADR futura se o usuário pedir explicitamente; lane ativo continua code-ops/LSP v1."
+		"Validação rápida do lane LSP: npm run agent:lsp:check --silent.",
+		"Validação manual do harness code-ops, se o wasm existir: npm run agent:lsp:harness --silent.",
+		"Próximo slice recomendado: decidir se o pi_agent_harness permanece ignored/manual por depender de cargo component build --release ou se ganha automação explícita/documentada de build+run.",
+		"Depois do lane LSP v1 fechado, escolher próximo foco com confirmação: package rename graduation, streaming token output, cross-plugin generalization, ou pesquisa A2A/ACP/ADR."
 	],
 	"open_questions": [
-		"ACP/Agent Context Protocol não está no roadmap canônico atual; deferir até LSP v1/harness estar estável ou criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous se solicitado.",
+		"ACP/Agent Context Protocol não está no roadmap canônico atual; deferir ou criar ADR comparando ACP vs MCP vs A2A vs ADR-052 CRDT rendezvous se solicitado.",
 		"ADR-052 continua Proposed.",
 		"DEC-010 permanece pendente/revisit histórica.",
 		"Resolver política de execução do pi_agent_harness: manter ignored por depender do wasm pré-buildado ou criar automação explícita que faça cargo component build em slice controlado."
