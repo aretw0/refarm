@@ -75,6 +75,46 @@ fn last_stream_text_chunk_sequence(chunks: &[LlmStreamTextChunkDraft]) -> Option
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
+fn store_stream_agent_response_chunks_from_sse(
+    sync: &NativeSync,
+    source_plugin: &str,
+    metadata: &StreamResponseMetadata,
+    bytes: &[u8],
+) -> Result<(Option<u32>, u32), String> {
+    let chunks = stream_text_chunk_drafts_from_sse(bytes, metadata.last_sequence);
+    let mut last_stored_sequence = metadata.last_sequence;
+    let mut stored_chunks = 0u32;
+
+    for chunk in chunks {
+        let node_id = stream_agent_response_chunk_id();
+        let node = stream_agent_response_chunk_node(&node_id, now_ns(), metadata, &chunk);
+        sync.store_node(
+            &node_id,
+            "AgentResponse",
+            None,
+            &node.to_string(),
+            Some(source_plugin),
+        )
+        .map_err(|e| format!("store stream AgentResponse chunk: {e}"))?;
+        last_stored_sequence = Some(chunk.sequence);
+        stored_chunks = stored_chunks.saturating_add(1);
+    }
+
+    Ok((last_stored_sequence, stored_chunks))
+}
+
+fn stream_agent_response_chunk_id() -> String {
+    format!("urn:tractor:agent-response:{}", uuid::Uuid::new_v4())
+}
+
+fn now_ns() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|duration| duration.as_nanos() as u64)
+        .unwrap_or(0)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
 fn stream_agent_response_chunk_node(
     node_id: &str,
     timestamp_ns: u64,

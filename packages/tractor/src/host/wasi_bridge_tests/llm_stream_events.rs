@@ -106,12 +106,7 @@ fn stream_text_chunk_drafts_from_sse_starts_at_zero_without_last_sequence() {
 
 #[test]
 fn stream_agent_response_chunk_node_matches_partial_response_schema() {
-    let metadata = super::StreamResponseMetadata {
-        prompt_ref: "prompt-abc".to_string(),
-        model: "gpt-4.1-mini".to_string(),
-        provider_family: "openai".to_string(),
-        last_sequence: Some(4),
-    };
+    let metadata = stream_metadata(Some(4));
     let chunk = super::LlmStreamTextChunkDraft {
         sequence: 5,
         content_delta: "hello".to_string(),
@@ -131,4 +126,67 @@ fn stream_agent_response_chunk_node_matches_partial_response_schema() {
     assert_eq!(node["llm"]["tokens_in"], 0);
     assert_eq!(node["llm"]["tokens_out"], 0);
     assert_eq!(node["llm"]["duration_ms"], 0);
+}
+
+#[test]
+fn store_stream_agent_response_chunks_from_sse_persists_partial_nodes() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-chunks-test").unwrap();
+    let metadata = stream_metadata(None);
+
+    let (last_sequence, stored_chunks) = super::store_stream_agent_response_chunks_from_sse(
+        &sync,
+        "pi-agent",
+        &metadata,
+        br#"data: {"choices":[{"delta":{"content":"a"}}]}
+
+data: {"choices":[{"delta":{"content":"b"}}]}
+
+"#,
+    )
+    .unwrap();
+
+    assert_eq!(last_sequence, Some(1));
+    assert_eq!(stored_chunks, 2);
+    let rows = sync.query_nodes("AgentResponse").unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows
+        .iter()
+        .all(|row| row.source_plugin.as_deref() == Some("pi-agent")));
+    let payloads: Vec<serde_json::Value> = rows
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    assert_eq!(payloads[0]["sequence"], 0);
+    assert_eq!(payloads[0]["content"], "a");
+    assert_eq!(payloads[1]["sequence"], 1);
+    assert_eq!(payloads[1]["content"], "b");
+}
+
+#[test]
+fn store_stream_agent_response_chunks_from_sse_preserves_sequence_when_no_chunks() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-empty-test").unwrap();
+    let metadata = stream_metadata(Some(7));
+
+    let (last_sequence, stored_chunks) = super::store_stream_agent_response_chunks_from_sse(
+        &sync,
+        "pi-agent",
+        &metadata,
+        br#"{"message":"not sse"}"#,
+    )
+    .unwrap();
+
+    assert_eq!(last_sequence, Some(7));
+    assert_eq!(stored_chunks, 0);
+    assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+}
+
+fn stream_metadata(last_sequence: Option<u32>) -> super::StreamResponseMetadata {
+    super::StreamResponseMetadata {
+        prompt_ref: "prompt-abc".to_string(),
+        model: "gpt-4.1-mini".to_string(),
+        provider_family: "openai".to_string(),
+        last_sequence,
+    }
 }
