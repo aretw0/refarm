@@ -1,40 +1,47 @@
 {
-	"context": "Checkpoint 2026-04-29 after pushed CI-green streaming consumer polish. Prior host-proxied LLM streaming stack remains live opt-in via LLM_STREAM_RESPONSES=1; credentials and route enforcement stay host-owned. This checkpoint focused on sharing/pushing, CI validation, and client/CLI consumption of partial AgentResponse chunks.",
-	"timestamp": "2026-04-29T22:06:00.000Z",
-	"current_phase": 12,
+	"context": "Checkpoint 2026-04-29T23:01Z requested explicitly because context is near 80%. STOP development here. Latest active lane: generic stream observations as long-term extensibility foundation for Refarm. Host-proxied LLM streaming remains opt-in via LLM_STREAM_RESPONSES=1, with host-owned credentials/route enforcement preserved.",
+	"timestamp": "2026-04-29T23:01:00.000Z",
+	"current_phase": 13,
 	"current_tasks": [
-		"Pushed the large streaming/usage/validation-economy stack to origin/develop. CI run 25133074023 passed.",
-		"Added Tractor CLI plain-mode streaming polish: partial AgentResponse chunks print as deltas, stdout flushes after each delta, and the final full content is not duplicated when partials were already printed. JSON output remains event-based for structured consumers. Commits: dce07a0c, 2a119c4c, ae8a45cf, d08ced8d, af69feb6.",
-		"Added TypeScript AgentResponse stream accumulation utility in @refarm.dev/tractor: applyAgentResponseStreamEvent, reduceAgentResponseStreamEvents, and prompt-grouped reduceAgentResponseStreamEventsByPrompt with UNKNOWN_AGENT_RESPONSE_PROMPT_REF fallback. Exported from node and browser entrypoints. Commits: d95f4d70, 573cee3e, 96965683, e671d0bc.",
-		"Pushed CLI/tractor-ts consumer polish stack. CI run 25135215147 passed. Pushed prompt-grouped accumulator follow-up. CI run 25135898891 passed.",
-		"Updated docs/agent-streaming.md and packages/pi-agent/ROADMAP.md to document CLI plain output behavior and TypeScript accumulator utilities.",
-		"Validation used: npm run agent:streaming:check; npm run agent:streaming:harness; cargo check --quiet in packages/tractor; cargo test --bin tractor plain_output --quiet; npm --prefix packages/tractor-ts run type-check; npm --prefix packages/tractor-ts run test:unit -- agent-response-stream.test.ts; npm run project:validate --silent; git diff --check; GitHub Actions watch with --exit-status.",
-		"Ran npm run clean:light at checkpoint. Disk still tight: about 7.2GB free; Rust targets about 4.9GB."
+		"User asked to stop and checkpoint for safe compaction; do not continue implementation until next session resumes.",
+		"Before this checkpoint, pushed commits through d2205ae0 to origin/develop. Latest push triggered GitHub Actions run 25138262304, currently in_progress at checkpoint time. Previous runs 25133074023, 25135215147, 25135898891, 25136343751 were green.",
+		"Long-term path chosen and implemented in initial slices: generic StreamChunk observations + AgentResponse projections. ADR-054 created and accepted: specs/ADRs/ADR-054-generic-stream-observations.md; README index updated.",
+		"Rust Tractor generic stream observations added: packages/tractor/src/streaming/observations.rs; exported from packages/tractor/src/streaming.rs. Schema shape: StreamChunk with stream_ref, sequence, payload_kind, content, is_final, timestamp_ns, metadata.",
+		"LLM streaming path now dual-writes: generic StreamChunk observations plus partial AgentResponse projection nodes for text deltas. Final provider stream assembly also writes a final StreamChunk marker with is_final=true and payload_kind=final_text.",
+		"Tests added/updated in packages/tractor/src/host/wasi_bridge_tests/llm_stream_events.rs for generic stream observation draft, dual-write partials, no-chunk edge, reader incremental final marker, and final_stream_sequence. Harness packages/tractor/tests/pi_agent_harness.rs now asserts StreamChunk partials/final marker in end-to-end streaming opt-in test.",
+		"Tractor TS client utilities added: packages/tractor-ts/src/lib/stream-chunk.ts with StreamChunk accumulator, grouping by stream_ref, and ordering helper; packages/tractor-ts/src/lib/agent-response-stream.ts now has ordering helper too. Exports wired from packages/tractor-ts/src/index.ts and index.browser.ts. Tests: packages/tractor-ts/test/stream-chunk.test.ts and updated agent-response-stream.test.ts.",
+		"Docs updated: docs/agent-streaming.md documents StreamChunk dual-write, final markers, ordering helpers, AgentResponse and generic StreamChunk client utilities; packages/pi-agent/ROADMAP.md notes generic observations, final marker, TS accumulator, and ordering helpers; package.json now has npm run agent:streaming:clients.",
+		"Validation before push passed locally: npm run agent:streaming:check; npm run agent:streaming:clients; npm run agent:streaming:harness; npm run project:validate --silent; git diff --check. Push preflight warned about broad scoped unit tests as before, but allowed push.",
+		"At checkpoint: git HEAD d2205ae0, working tree was clean before writing this handoff; latest CI run 25138262304 is in_progress and should be watched next with gh run watch 25138262304 --repo aretw0/refarm --exit-status."
 	],
 	"blockers": [
-		"Disk remains tight (~7.2GB free after clean:light). Avoid global/full builds unless preparing a gate; clean:light removes incremental caches so use only at checkpoints/low disk.",
-		"Pre-push hook continues to warn that scoped tractor/tractor-ts unit tests fail or time out locally, but targeted local checks and GitHub Actions passed. Full tractor-ts suite remains noisy due fixtures; use targeted tests unless working on fixtures.",
-		"pi-lens/LSP monitor still crashes on some Rust/Markdown edits with memory access out of bounds; does not correlate with cargo/ts failures.",
-		"Streaming remains opt-in only via LLM_STREAM_RESPONSES; default buffered path remains unchanged."
+		"STOP requested due near 80% context; avoid more work before compaction.",
+		"Disk is critically tight: df showed about 3.8GB free before checkpoint cleanup, Rust targets about 5.2GB. Run npm run clean:light if not already done after this handoff, then re-check disk.",
+		"Latest CI run 25138262304 for d2205ae0 was in_progress at checkpoint time; result unknown in this context.",
+		"Pre-push hook still warns broad tractor/tractor-ts unit tests fail/time out locally; targeted checks and previous CI runs passed. Full tractor-ts suite remains noisy due fixtures.",
+		"pi-lens/LSP monitor continues to crash on Rust/Markdown writes with memory access out of bounds; not correlated with cargo/ts failures.",
+		"Streaming remains opt-in only via LLM_STREAM_RESPONSES; default buffered path remains intact."
 	],
 	"next_actions": [
-		"If continuing streaming lane, verify actual WebSocket/UI consumers use the TypeScript accumulator or equivalent sequence/is_final handling.",
-		"Consider an integration example or small client smoke for JSON-mode AgentResponse accumulation if a concrete WebSocket client surface is available.",
-		"Consider broader provider-specific streamed usage parsing only when concrete provider fixtures demand it (Anthropic cache tokens, OpenAI stream_options include_usage edge cases).",
-		"Consider shared target-neutral provider stream parser extraction only if duplication between pi-agent provider_runtime/stream_events.rs and Tractor llm_stream_events.rs starts drifting.",
-		"Do not edit .github/workflows without explicit confirmation; CI wrappers for agent:streaming scripts remain optional/protected-surface work."
+		"First next step after compaction: git status --short; git rev-parse --short HEAD; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
+		"Check latest CI: GH_PROMPT_DISABLED=1 gh run watch 25138262304 --repo aretw0/refarm --exit-status. If it failed, inspect with gh run view 25138262304 --log-failed and reproduce closest local command before spending more CI.",
+		"If CI is green, decide whether to push this local handoff commit (if created) or keep it local until next work batch.",
+		"Continue only after CI/disk are stable. Good next technical slices: add StreamSession node/builder; consider generic StreamChunk query/watch CLI; consider projection documentation; avoid workflow edits without explicit confirmation.",
+		"Do not start parser extraction yet unless duplication begins drifting; generic observation substrate is now the accepted direction."
 	],
 	"open_questions": [
-		"Should LLM_STREAM_RESPONSES become a CLI/config option instead of env-only?",
-		"Should the long-term host persistence shape remain direct partial AgentResponse nodes, or introduce generic StreamChunk with AgentResponse projection?",
-		"Do WebSocket clients need a first-class protocol event for partial/final state, or is CRDT AgentResponse observation sufficient?",
-		"Should prompt-grouped accumulator handle out-of-order sequences defensively, or rely on storage/query ordering plus sequence sorting by consumers?"
+		"Should StreamSession be introduced now to group chunks explicitly beyond stream_ref, or is StreamChunk-only sufficient for the next slice?",
+		"Should generic StreamChunk observations be emitted over WebSocket as first-class events, or remain CRDT nodes consumed by watchers?",
+		"Should final StreamChunk be written for tool-call-only streams with empty text content, possibly payload_kind=final_tool_call or final_empty?",
+		"Should generic StreamChunk replace AgentResponse partials eventually, or remain permanent dual-write for compatibility?",
+		"Should LLM_STREAM_RESPONSES move from env-only into config/CLI policy?"
 	],
 	"key_decisions_pending": [
-		"Generic StreamChunk vs direct AgentResponse partials.",
-		"Shared parser extraction vs current duplicated parser logic.",
-		"Provider-specific usage accounting breadth for SSE streams.",
-		"Client UX completion criteria for declaring streaming polished."
+		"StreamSession schema and lifecycle.",
+		"Generic StreamChunk watch/query CLI UX.",
+		"Retention/compaction policy for high-volume stream chunks.",
+		"Event ordering semantics: rely on sequence sorting, timestamp, or both.",
+		"Long-term AgentResponse projection compatibility horizon."
 	],
 	"files_in_flux": []
 }
