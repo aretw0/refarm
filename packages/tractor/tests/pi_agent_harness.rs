@@ -124,6 +124,28 @@ async fn mock_llm_server_capturing(
     (port, rx)
 }
 
+/// Serve a deterministic SSE response and capture the provider request body.
+async fn mock_sse_llm_server_capturing(
+    body: &'static str,
+) -> (u16, tokio::sync::mpsc::UnboundedReceiver<serde_json::Value>) {
+    let listener = TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+    std::thread::spawn(move || {
+        while let Ok((mut stream, _)) = listener.accept() {
+            if let Ok(buf) = read_http_request(&mut stream) {
+                if let Some(sep) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
+                    if let Ok(v) = serde_json::from_slice(&buf[sep + 4..]) {
+                        let _ = tx.send(v);
+                    }
+                }
+            }
+            let _ = write_sse_http_response(&mut stream, body);
+        }
+    });
+    (port, rx)
+}
+
 fn read_http_request(stream: &mut TcpStream) -> std::io::Result<Vec<u8>> {
     let mut buf = Vec::new();
     let mut tmp = [0u8; 4096];
@@ -166,12 +188,21 @@ fn write_http_response(stream: &mut TcpStream, body: &str) -> std::io::Result<()
     stream.write_all(response.as_bytes())
 }
 
+fn write_sse_http_response(stream: &mut TcpStream, body: &str) -> std::io::Result<()> {
+    let response = format!(
+        "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+        body.len(),
+        body
+    );
+    stream.write_all(response.as_bytes())
+}
+
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
 fn clean_llm_env() {
     for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
-                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_SYSTEM",
+                "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_STREAM_RESPONSES","LLM_SYSTEM",
                 "LLM_AGENT_ID","LLM_SESSION_ID",
                 "REFACTOR_LSP_CMD","REFACTOR_LSP_RUST_ANALYZER_CMD",
                 "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
@@ -295,6 +326,59 @@ async fn harness_agent_response_stored_in_crdt() {
     assert_eq!(v["content"], "Olá do harness!");
     assert_eq!(v["is_final"], true);
     assert!(v["timestamp_ns"].as_u64().unwrap_or(0) > 0, "timestamp_ns must be set");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_streaming_opt_in_stores_partials_and_final_response() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+
+    clean_llm_env();
+    let (port, mut requests) = mock_sse_llm_server_capturing(
+        r#"data: {"choices":[{"delta":{"content":"Olá "}}]}
+
+data: {"choices":[{"delta":{"content":"stream"}}]}
+
+data: [DONE]
+
+"#,
+    )
+    .await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_STREAM_RESPONSES", "1");
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "oi", "streaming harness").await;
+
+    let request = requests.recv().await.expect("captured provider request");
+    assert_eq!(request["stream"], true);
+
+    let mut payloads: Vec<serde_json::Value> = sync
+        .query_nodes("AgentResponse")
+        .expect("query AgentResponse")
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    payloads.sort_by_key(|payload| payload["sequence"].as_u64().unwrap_or(u64::MAX));
+
+    assert_eq!(payloads.len(), 3, "two partial chunks plus final response");
+    assert_eq!(payloads[0]["content"], "Olá ");
+    assert_eq!(payloads[0]["is_final"], false);
+    assert_eq!(payloads[0]["sequence"], 0);
+    assert_eq!(payloads[1]["content"], "stream");
+    assert_eq!(payloads[1]["is_final"], false);
+    assert_eq!(payloads[1]["sequence"], 1);
+    assert_eq!(payloads[2]["content"], "Olá stream");
+    assert_eq!(payloads[2]["is_final"], true);
+    assert_eq!(payloads[2]["sequence"], 2);
 
     clean_llm_env();
 }

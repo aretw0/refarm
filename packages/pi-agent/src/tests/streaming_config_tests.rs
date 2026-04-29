@@ -46,10 +46,13 @@ fn streaming_config_requires_transport_support_before_provider_stream_flag() {
 }
 
 #[test]
-fn streaming_config_keeps_provider_streaming_disabled_until_reader_exists() {
-    assert!(!streaming_reader_available());
+fn streaming_config_enables_provider_streaming_only_when_opted_in() {
+    assert!(streaming_reader_available());
+
+    std::env::remove_var("LLM_STREAM_RESPONSES");
+    assert!(!provider_stream_request_enabled_from_env());
 
     std::env::set_var("LLM_STREAM_RESPONSES", "1");
-    assert!(!provider_stream_request_enabled_from_env());
+    assert!(provider_stream_request_enabled_from_env());
     std::env::remove_var("LLM_STREAM_RESPONSES");
 }

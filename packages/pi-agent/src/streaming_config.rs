@@ -18,9 +18,9 @@ pub(crate) fn parse_stream_responses_flag(value: Option<&str>) -> bool {
 
 /// Request provider-level streaming only when both policy and transport support it.
 ///
-/// This keeps `LLM_STREAM_RESPONSES=1` safe before the host-proxied streaming
-/// transport is wired: callers must pass `streaming_reader_available=true`
-/// before adding `stream: true` to provider request bodies.
+/// This keeps provider streaming explicitly opt-in while the host owns transport,
+/// route enforcement, credentials, partial chunk persistence, and final response
+/// compatibility for provider SSE bodies.
 pub(crate) fn provider_stream_request_enabled(
     stream_responses_enabled: bool,
     streaming_reader_available: bool,
@@ -30,10 +30,11 @@ pub(crate) fn provider_stream_request_enabled(
 
 /// Transport readiness flag for provider streaming.
 ///
-/// This remains false until the WASM HTTP layer can read chunked response
-/// bodies incrementally and persist partial AgentResponse chunks.
+/// The guest still performs an explicit opt-in check, but provider SSE transport
+/// is now host-proxied: Tractor reads the response body, persists partial chunks,
+/// and returns parser-compatible final JSON to the plugin.
 pub(crate) fn streaming_reader_available() -> bool {
-    false
+    true
 }
 
 pub(crate) fn provider_stream_request_enabled_from_env() -> bool {

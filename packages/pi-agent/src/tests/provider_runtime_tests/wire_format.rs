@@ -352,7 +352,7 @@ fn provider_runtime_emit_stream_response_chunk_drafts_from_sse() {
 }
 
 #[test]
-fn provider_runtime_stream_body_gate_stays_off_until_reader_is_available() {
+fn provider_runtime_stream_body_gate_requires_explicit_opt_in() {
     let _guard = super::ENV_LOCK.lock().expect("env lock");
     std::env::set_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV, "1");
 
@@ -374,6 +374,6 @@ fn provider_runtime_stream_body_gate_stays_off_until_reader_is_available() {
 
     let openai: serde_json::Value = serde_json::from_str(&openai_body).unwrap();
     let anthropic: serde_json::Value = serde_json::from_str(&anthropic_body).unwrap();
-    assert!(openai.get("stream").is_none());
-    assert!(anthropic.get("stream").is_none());
+    assert_eq!(openai["stream"], true);
+    assert_eq!(anthropic["stream"], true);
 }
