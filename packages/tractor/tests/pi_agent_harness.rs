@@ -18,7 +18,7 @@ use std::path::Path;
 use std::sync::Mutex;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
-use tractor::host::PluginHost;
+use tractor::host::{PluginHost, PluginInstanceHandle};
 use tractor::trust::TrustManager;
 use tractor::{NativeStorage, NativeSync, TelemetryBus};
 
@@ -59,6 +59,20 @@ fn make_sync() -> NativeSync {
 
 fn wasm_path() -> &'static Path {
     Path::new(PI_AGENT_WASM)
+}
+
+async fn call_on_event_with_timeout(
+    handle: &mut PluginInstanceHandle,
+    payload: &str,
+    context: &str,
+) {
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        handle.call_on_event("user:prompt", Some(payload)),
+    )
+    .await
+    .unwrap_or_else(|_| panic!("{context} timed out in call_on_event"))
+    .unwrap_or_else(|err| panic!("{context} on_event failed: {err}"));
 }
 
 /// Build a scripted OpenAI-compat completion response (Ollama wire format).
@@ -222,7 +236,7 @@ async fn harness_agent_response_stored_in_crdt() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("oi")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "oi", "agent response harness").await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored after on_event");
@@ -252,7 +266,7 @@ async fn harness_usage_record_stored_with_tokens() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("teste de uso")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "teste de uso", "usage record harness").await;
 
     let nodes = sync.query_nodes("UsageRecord").expect("query UsageRecord");
     assert!(!nodes.is_empty(), "UsageRecord must be stored");
@@ -282,10 +296,12 @@ async fn harness_context_guard_blocks_oversized_prompt() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle
-        .call_on_event("user:prompt", Some("este prompt tem tokens demais para o limite de 1"))
-        .await
-        .expect("on_event");
+    call_on_event_with_timeout(
+        &mut handle,
+        "este prompt tem tokens demais para o limite de 1",
+        "context guard harness",
+    )
+    .await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty(), "blocked prompt must still produce AgentResponse");
@@ -313,7 +329,12 @@ async fn harness_budget_block_falls_through_to_error_without_fallback() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("prompt bloqueado pelo budget")).await.expect("on_event");
+    call_on_event_with_timeout(
+        &mut handle,
+        "prompt bloqueado pelo budget",
+        "budget block harness",
+    )
+    .await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty(), "budget block must store AgentResponse with error");
@@ -370,7 +391,7 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("run echo")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "run echo", "tool-use harness").await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty());
@@ -443,13 +464,12 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    tokio::time::timeout(
-        std::time::Duration::from_secs(30),
-        handle.call_on_event("user:prompt", Some("rename old to new_name")),
+    call_on_event_with_timeout(
+        &mut handle,
+        "rename old to new_name",
+        "rename symbol harness",
     )
-    .await
-    .expect("rename harness timed out in call_on_event")
-    .expect("on_event");
+    .await;
 
     assert_eq!(std::fs::read_to_string(&source).unwrap(), "let new_name = new_name;\n");
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
@@ -485,7 +505,7 @@ async fn harness_fallback_serves_response_on_primary_failure() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("test fallback")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "test fallback", "fallback harness").await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty());
@@ -517,15 +537,15 @@ async fn harness_multi_turn_history_included_in_request() {
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
     // Turns 1 and 2: history disabled — build CRDT state only.
-    handle.call_on_event("user:prompt", Some("first question")).await.expect("on_event 1");
+    call_on_event_with_timeout(&mut handle, "first question", "history harness turn 1").await;
     let _req1 = captured.recv().await.expect("mock must receive request 1");
 
-    handle.call_on_event("user:prompt", Some("second question")).await.expect("on_event 2");
+    call_on_event_with_timeout(&mut handle, "second question", "history harness turn 2").await;
     let _req2 = captured.recv().await.expect("mock must receive request 2");
 
     // Turn 3: opt-in history — prior turns must appear in the outgoing request.
     std::env::set_var("LLM_HISTORY_TURNS", "2");
-    handle.call_on_event("user:prompt", Some("third question")).await.expect("on_event 3");
+    call_on_event_with_timeout(&mut handle, "third question", "history harness turn 3").await;
     let req3 = captured.recv().await.expect("mock must receive request 3");
 
     let messages = req3["messages"].as_array().expect("request must have messages array");
@@ -588,7 +608,7 @@ async fn harness_tool_output_truncated_when_max_lines_set() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("count to ten")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "count to ten", "tool truncation harness").await;
 
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
     assert!(!nodes.is_empty(), "AgentResponse must be stored");
@@ -641,7 +661,7 @@ async fn harness_refarm_config_json_injects_provider() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("test config injection")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "test config injection", "config injection harness").await;
 
     std::env::set_current_dir(original_dir).unwrap();
 
@@ -674,7 +694,12 @@ async fn harness_agent_id_namespaces_crdt_nodes() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("hello from test-agent-alpha")).await.expect("on_event");
+    call_on_event_with_timeout(
+        &mut handle,
+        "hello from test-agent-alpha",
+        "agent id harness",
+    )
+    .await;
 
     // All stored nodes whose @id is emitted by new_id() must carry the agent namespace.
     let session_nodes = sync.query_nodes("Session").expect("query Session");
@@ -718,7 +743,7 @@ async fn harness_session_entries_stored_for_each_turn() {
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
     // Send first prompt.
-    handle.call_on_event("user:prompt", Some("first message")).await.expect("on_event turn 1");
+    call_on_event_with_timeout(&mut handle, "first message", "session harness turn 1").await;
 
     let entries_after_1 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 1");
     let sessions_after_1 = sync.query_nodes("Session").expect("query Session turn 1");
@@ -734,7 +759,7 @@ async fn harness_session_entries_stored_for_each_turn() {
     assert!(!leaf_after_1.is_empty(), "leaf_entry_id must be set after first turn");
 
     // Send second prompt to same handle (same session).
-    handle.call_on_event("user:prompt", Some("second message")).await.expect("on_event turn 2");
+    call_on_event_with_timeout(&mut handle, "second message", "session harness turn 2").await;
 
     let entries_after_2 = sync.query_nodes("SessionEntry").expect("query SessionEntry turn 2");
     let sessions_after_2 = sync.query_nodes("Session").expect("query Session turn 2");
@@ -801,7 +826,12 @@ async fn harness_write_structured_tool_creates_file() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("write structured json")).await.expect("on_event");
+    call_on_event_with_timeout(
+        &mut handle,
+        "write structured json",
+        "write structured harness",
+    )
+    .await;
 
     // File must exist and contain valid JSON.
     assert!(out_file.exists(), "write_structured must create the file at {out_path}");
@@ -868,7 +898,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("read the json file")).await.expect("on_event");
+    call_on_event_with_timeout(&mut handle, "read the json file", "read structured harness").await;
 
     // The tool result (fed back to LLM) must contain the pagination header.
     // It is stored in AgentResponse.tool_calls[0].result.
@@ -914,7 +944,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 
     let host_a = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle_a = host_a.load(path, &shared_sync).await.expect("load agent A");
-    handle_a.call_on_event("user:prompt", Some("agent A prompt")).await.expect("agent A on_event");
+    call_on_event_with_timeout(&mut handle_a, "agent A prompt", "swarm harness agent A").await;
 
     // Confirm A's node is namespaced with alpha prefix.
     let nodes_after_a = shared_sync.query_nodes("AgentResponse").expect("query after A");
@@ -936,7 +966,7 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
     // Agent B uses the SAME shared_sync — same storage namespace.
     let host_b = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle_b = host_b.load(path, &shared_sync).await.expect("load agent B");
-    handle_b.call_on_event("user:prompt", Some("agent B prompt")).await.expect("agent B on_event");
+    call_on_event_with_timeout(&mut handle_b, "agent B prompt", "swarm harness agent B").await;
 
     // ── Cross-agent read ──────────────────────────────────────────────────────
     let all_nodes = shared_sync.query_nodes("AgentResponse").expect("query all AgentResponse");
