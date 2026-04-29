@@ -94,8 +94,8 @@ Context engineering follows the pi-test-harness model:
 
 #### Definition of Done @72%
 - [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
-- [ ] `find-references` wired end-to-end via rust-analyzer path.
-- [ ] `rename-symbol` wired end-to-end via rust-analyzer path.
+- [x] `find-references` wired end-to-end via generic LSP JSON-RPC path (rust-analyzer remains the default backend).
+- [x] `rename-symbol` wired end-to-end via generic LSP JSON-RPC path (WorkspaceEdit changes applied host-side).
 - [ ] Integration test: rename a Rust symbol via pi-agent/farmhand and assert workspace references update.
 - [ ] No regression on baseline gates:
   - `cargo check --target wasm32-wasip1` in `packages/pi-agent`
@@ -254,8 +254,8 @@ interface code-ops {
 - [x] Add to pi-agent as tools: `rename_symbol(file, line, col, new_name)`, `find_references(file, line, col)` (T-NEXT-289)
   - Dispatch arms call WIT import; 97 tests pass (4 new schema+required-fields tests)
 - [x] Stub host in `TractorNativeBindings`: returns "lsp not connected" until LSP bridge is built (T-NEXT-289)
-- [ ] Implement tractor-side LSP subprocess manager (`packages/tractor/src/host/lsp_bridge.rs`)
-- [ ] Expose `rename-symbol` and `find-references` for rust-analyzer as v1
+- [x] Implement tractor-side LSP subprocess manager (`packages/tractor/src/host/lsp_bridge.rs`)
+- [x] Expose `rename-symbol` and `find-references` via generic LSP command path (`REFACTOR_LSP_CMD`; rust-analyzer default)
 - [ ] Integration test: rename a Rust symbol via pi-agent, assert all references updated
 
 ### refarm-stack (agents-lab)
