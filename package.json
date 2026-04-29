@@ -79,7 +79,8 @@
 		"agent:repl": "node scripts/agent-repl.mjs",
 		"agent:prompt": "packages/tractor/target/release/tractor prompt --agent pi_agent",
 		"agent:lsp:check": "cd packages/tractor && cargo test --lib lsp_bridge --quiet && cargo test --test pi_agent_harness --no-run",
-		"agent:lsp:harness": "cd packages/tractor && cargo test --test pi_agent_harness harness_tool_use_dispatched_and_result_fed_back -- --ignored --test-threads=1 --nocapture && cargo test --test pi_agent_harness harness_find_references_tool_reads_lsp_locations -- --ignored --test-threads=1 --nocapture && cargo test --test pi_agent_harness harness_rename_symbol_tool_updates_workspace_file_via_lsp -- --ignored --test-threads=1 --nocapture"
+		"agent:lsp:harness": "cd packages/tractor && timeout 90 cargo test --test pi_agent_harness harness_tool_use_dispatched_and_result_fed_back -- --ignored --test-threads=1 --nocapture && timeout 90 cargo test --test pi_agent_harness harness_find_references_tool_reads_lsp_locations -- --ignored --test-threads=1 --nocapture && timeout 90 cargo test --test pi_agent_harness harness_rename_symbol_tool_updates_workspace_file_via_lsp -- --ignored --test-threads=1 --nocapture",
+		"agent:lsp:harness:build": "cd packages/pi-agent && cargo component build --release && cd ../.. && npm run agent:lsp:harness"
 	},
 	"repository": {
 		"type": "git",
