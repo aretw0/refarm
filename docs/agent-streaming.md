@@ -11,12 +11,16 @@ LLM_STREAM_RESPONSES=1
 
 When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
 provider credentials and route enforcement in the host, reads the SSE response,
-persists partial `AgentResponse` chunks, and returns a parser-compatible final
-provider JSON body to the guest.
+dual-writes generic `StreamChunk` observations plus partial `AgentResponse`
+projection nodes, and returns a parser-compatible final provider JSON body to the
+guest.
 
 ## Response shape
 
-- Partial chunks are `AgentResponse` nodes with `is_final: false`.
+- Each persisted delta has a generic `StreamChunk` observation with
+  `stream_ref`, `sequence`, `payload_kind`, `content`, `is_final`, and metadata.
+- For compatibility, partial chunks are also projected to `AgentResponse` nodes
+  with `is_final: false`.
 - Partial `content` is a delta. Clients should order by `sequence` and append.
 - The final response is `is_final: true` and its `content` is the assembled text.
 - The final response sequence is the last partial sequence plus one.
