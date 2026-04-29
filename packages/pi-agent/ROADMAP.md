@@ -198,6 +198,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas and streamed tool-call/tool-use deltas for OpenAI-compatible and Anthropic response shapes
 - [x] Tractor preserves streamed usage counts in synthesized final provider JSON when providers emit usage SSE events
 - [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, stores a final response with sequence after the last partial, and preserves streamed tool-call round trips
+- [x] Tractor CLI plain output renders partial chunks as deltas and avoids reprinting the full final content after streamed partials
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
