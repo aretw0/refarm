@@ -18,7 +18,7 @@ Keep provider credentials and route enforcement in the Tractor host. Do not enab
 
 The preferred streaming transport is a host-proxied extension of `llm-bridge` that preserves host-owned credentials and route checks while making SSE chunks observable before the final response completes.
 
-This is not a WASM-only architectural constraint. The streaming core should stay target-agnostic where practical: native Tractor owns transport, buffering, validation, and persistence boundaries; WASM is the plugin packaging/isolation boundary that should benefit from the same core semantics rather than force all design choices.
+This is not a WASM-only architectural constraint. The streaming core should stay target-agnostic where practical: native Tractor owns transport, buffering, validation, and persistence boundaries; WASM is the plugin packaging/isolation boundary that should benefit from the same core semantics rather than force all design choices. Generic transport/framing primitives (for example SSE frame buffering) should remain reusable outside LLM-specific code; only provider JSON interpretation and `AgentResponse` projection belong in the LLM streaming layer.
 
 The exact WIT shape remains to be implemented in a later slice, but it must satisfy these constraints:
 
