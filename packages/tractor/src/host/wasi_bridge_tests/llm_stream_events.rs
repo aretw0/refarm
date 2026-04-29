@@ -76,6 +76,32 @@ fn stream_text_chunk_drafts_from_sse_starts_at_zero_without_last_sequence() {
 }
 
 #[test]
+fn stream_chunk_observation_draft_matches_generic_projection_schema() {
+    let metadata = stream_metadata(Some(4));
+    let chunk = super::LlmStreamTextChunkDraft {
+        sequence: 5,
+        content_delta: "hello".to_string(),
+    };
+
+    let draft = super::stream_chunk_observation_draft(&metadata, &chunk, 123);
+    let node = crate::streaming::stream_chunk_observation_node("urn:test:chunk:1", &draft);
+
+    assert_eq!(node["@type"], "StreamChunk");
+    assert_eq!(
+        node["stream_ref"],
+        "urn:tractor:stream:agent-response:prompt-abc"
+    );
+    assert_eq!(node["sequence"], 5);
+    assert_eq!(node["payload_kind"], "text_delta");
+    assert_eq!(node["content"], "hello");
+    assert_eq!(node["is_final"], false);
+    assert_eq!(node["timestamp_ns"], 123);
+    assert_eq!(node["metadata"]["projection"], "AgentResponse");
+    assert_eq!(node["metadata"]["provider_family"], "openai");
+    assert_eq!(node["metadata"]["model"], "gpt-4.1-mini");
+}
+
+#[test]
 fn stream_agent_response_chunk_node_matches_partial_response_schema() {
     let metadata = stream_metadata(Some(4));
     let chunk = super::LlmStreamTextChunkDraft {
@@ -132,6 +158,25 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(payloads[0]["content"], "a");
     assert_eq!(payloads[1]["sequence"], 1);
     assert_eq!(payloads[1]["content"], "b");
+
+    let stream_rows = sync.query_nodes("StreamChunk").unwrap();
+    assert_eq!(stream_rows.len(), 2);
+    assert!(stream_rows
+        .iter()
+        .all(|row| row.source_plugin.as_deref() == Some("pi-agent")));
+    let stream_payloads: Vec<serde_json::Value> = stream_rows
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    assert_eq!(
+        stream_payloads[0]["stream_ref"],
+        "urn:tractor:stream:agent-response:prompt-abc"
+    );
+    assert_eq!(stream_payloads[0]["sequence"], 0);
+    assert_eq!(stream_payloads[0]["payload_kind"], "text_delta");
+    assert_eq!(stream_payloads[0]["content"], "a");
+    assert_eq!(stream_payloads[1]["sequence"], 1);
+    assert_eq!(stream_payloads[1]["content"], "b");
 }
 
 #[test]
