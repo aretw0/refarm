@@ -1,38 +1,40 @@
 {
-	"context": "Checkpoint atualizado em 2026-04-29 após streaming sink e correção de CI remoto. Push 6b2bbbfa falhou no GitHub Actions run 25109998294, job quality, no smoke runtime descriptor release-path: test/runtime-descriptor-revocation.test.ts esperava owner refarm-dev para URLs https://github.com/aretw0/refarm. Corrigido localmente em 1ae95a15 para owner aretw0, alinhado ao canonical repo URL. LSP v1/code-ops fechado @72%; streaming lane avançada mas HTTP chunked real ainda desativado.",
-	"timestamp": "2026-04-29T12:59:00.000Z",
+	"context": "Checkpoint 2026-04-29: pós-CI verde, avançamos a lane de streaming com foco em extensibilidade/segurança. Não habilitamos stream:true nem direct wasi::http. Decisão de longo prazo: streaming LLM deve continuar host-proxied no Tractor para preservar credenciais/política no host. ADR-053 proposta e primeiro contrato WIT `llm-bridge::complete-http-stream` introduzido com implementação buffered placeholder no Tractor.",
+	"timestamp": "2026-04-29T17:03:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Commits locais/pushed recentes: 27a884f5 refactor(agent): wire streaming sink context; 11934c71 docs(agent): note streaming sink context; bca57d53 fix(agent): track stored stream chunk sequence; ac94505b docs(agent): clarify stored chunk sequencing; 6b2bbbfa chore(project): refresh streaming sink handoff; 1ae95a15 test(tractor-ts): expect canonical repo owner.",
-		"Streaming sink: runtime/streaming_sink.rs mantém thread-local wasm ACTIVE_STREAM_RESPONSE_SINK com prompt_ref, model e last_sequence; provider OpenAI/Anthropic callbacks usam record_stream_bytes_for_active_sink em vez de no-op; prompt_handler usa last partial sequence para sequence final.",
-		"Persistência streaming: store_agent_response_chunks_from_sse retorna última sequence efetivamente armazenada, não só emitida pelo parser, evitando gaps se store_node falhar.",
-		"Validações pi-agent antes do push: cd packages/pi-agent && cargo test --lib --quiet (234 passed); cargo check --target wasm32-wasip1 --quiet; npm run project:validate --silent; git diff --check; clean:light.",
-		"CI failure analysis: run 25109998294 falhou só em runtime descriptor release-path smoke porque o teste de repo coordinates ainda esperava refarm-dev. Local targeted validation após fix: cd packages/tractor-ts && npm run test:unit -- runtime-descriptor-revocation (14 passed); npm run runtime-descriptor:release-smoke -- --sha $(git rev-parse HEAD) (4 files, 78 tests passed)."
+		"Commits locais não necessariamente pushed desde origin/develop: 2b91ffe1 fix(agent): keep streaming sink model current; a03d038a docs(agent): note fallback stream sink model; fef70936 docs(agent): clarify streaming transport boundary; 9d801190 docs(agent): propose host-proxied llm streaming; 124adfef test(agent): cover stream sink state; b28a8f65 docs(agent): sketch host streaming contract; a388716e docs(agent): link streaming transport adr; 36b88e37 feat(tractor): add llm stream bridge contract; 3797f13c docs(agent): mark stream bridge contract.",
+		"ADR-053 added: specs/ADRs/ADR-053-host-proxied-llm-streaming.md. It rejects direct plugin wasi::http for now because that would move provider credentials/policy into the sandbox. Preferred path: host-proxied `complete-http-stream`.",
+		"WIT contract added in packages/tractor/wit/host/refarm-plugin-host.wit (pi-agent wit path is a symlink to this file): stream-response-metadata, stream-response-result, complete-http-stream(..., stream-metadata).",
+		"Tractor host implements complete_http_stream as a compatibility placeholder: it reuses buffered llm_complete_http, returns final_body, propagates last_sequence, and reports stored_chunks=0. This establishes the boundary without pretending live streaming exists.",
+		"pi-agent stream sink state is now testable under native tests. It preserves last_sequence across fallback model updates and ignores None sequence updates.",
+		"ROADMAP streaming section updated: contract exists, but chunked HTTP/SSE delivery through complete-http-stream remains pending; streaming_reader_available() stays false."
 	],
 	"blockers": [
-		"Host Windows/C segue crítico: ~9.5GB livres; evitar builds globais e limpar após checks.",
-		"HTTP streaming real segue bloqueado pelo transporte atual: llm_bridge::complete_http é bufferizado Vec<u8>; streaming_reader_available() permanece false e stream:true não é emitido.",
-		"Docker/host prune indisponível dentro do devcontainer."
+		"Real streaming still not implemented. complete-http-stream is buffered placeholder only; provider_stream_request_enabled_from_env() remains false because streaming_reader_available() is false.",
+		"Next implementation must avoid duplicating provider-specific SSE parsing in Tractor unless we accept host-owned AgentResponse chunking or extract shared parser logic.",
+		"Host disk remains constrained but improved: ~12GB free; Rust targets ~4.85GB. Continue clean:light after Rust.",
+		"Protected surfaces touched: packages/tractor WIT + host bridge. Keep future Tractor changes small/serialized and validated locally before any push."
 	],
 	"next_actions": [
-		"Push do commit 1ae95a15 e observar novo GitHub Actions; esperado corrigir a falha de runtime descriptor smoke.",
-		"Depois do CI verde, continuar streaming transport design: decidir WIT host streaming primitive vs wasi:http direto vs host-managed CRDT writes.",
-		"Se mexer em WIT/tractor-ts/tractor, manter slices pequenos por superfície protegida.",
-		"Quando transporte streaming existir, flip streaming_reader_available() junto com teste que prova stream:true + SSE partial AgentResponse + final sequence last+1.",
-		"Manter validações econômicas e clean:light após Rust."
+		"Before push, if needed: git status --short; git log --oneline origin/develop..HEAD; run targeted local checks already used below. Use GitHub Actions only after local reproduction/validation, and monitor with gh run watch --exit-status.",
+		"Next technical slice: design the implementation internals of complete-http-stream. Decide if host parses SSE to AgentResponse nodes directly, writes generic StreamChunk nodes, or exposes a safe guest callback/resource stream. Prefer extensibility and minimal coupling.",
+		"If implementing live transport: add tests first around host bridge behavior with fake SSE server; only then set streaming_reader_available() true and route pi-agent provider calls to complete_http_stream.",
+		"Potential contract refinement: metadata may need provider-family and prompt_ref/model, but host also needs enough schema info to store chunks without hardcoding too much; consider generic StreamChunk node or shared parser crate.",
+		"Keep local validations scoped: cd packages/pi-agent && cargo test --lib streaming_sink --quiet; cargo check --target wasm32-wasip1 --quiet; cd packages/tractor && cargo check --quiet; cargo test --lib --quiet; git diff --check; npm run clean:light --silent."
 	],
 	"open_questions": [
-		"Qual arquitetura de transporte streaming correta para pi-agent?",
-		"Partial chunks continuam tokens=0/duration=0/model primary; definir se/como preencher metadados durante streaming real.",
-		"Semântica de erro/cancelamento depois de partials.",
-		"Delta cru vs conteúdo acumulado em AgentResponse.content parcial.",
-		"ACP permanece parked."
+		"Should live host streaming store AgentResponse nodes directly (fast path, but host couples to agent schema) or generic StreamChunk nodes (more extensible, but client/agent reassembly changes)?",
+		"Can Component Model safely support host-to-guest callbacks during imported complete_http_stream, or should we avoid reentrancy?",
+		"Should provider-specific SSE text delta parsing be extracted to a shared Rust crate used by pi-agent and Tractor?",
+		"How should partial chunks account for tokens/duration before final usage arrives?",
+		"Error/cancel semantics after partial chunks remain undecided."
 	],
 	"key_decisions_pending": [
-		"Definir transporte HTTP streaming.",
-		"Definir contrato de erro/cancelamento de partial streaming.",
-		"Confirmar delta cru vs acumulado.",
-		"Decidir se ACP vira pesquisa formal."
+		"Streaming transport implementation shape inside complete-http-stream.",
+		"AgentResponse direct chunks vs generic StreamChunk node.",
+		"Shared SSE parser extraction vs host duplication.",
+		"Error/cancel contract for partial streaming."
 	],
 	"files_in_flux": []
 }
