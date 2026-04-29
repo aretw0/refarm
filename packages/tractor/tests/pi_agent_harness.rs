@@ -407,6 +407,17 @@ data: [DONE]
     assert_eq!(stream_chunks[2]["payload_kind"], "final_text");
     assert_eq!(stream_chunks[2]["is_final"], true);
 
+    let stream_sessions = sync
+        .query_nodes("StreamSession")
+        .expect("query StreamSession");
+    assert_eq!(stream_sessions.len(), 1);
+    let session: serde_json::Value = serde_json::from_str(&stream_sessions[0].payload).unwrap();
+    assert_eq!(session["stream_kind"], "agent-response");
+    assert_eq!(session["status"], "completed");
+    assert_eq!(session["last_sequence"], 2);
+    assert_eq!(session["chunk_count"], 3);
+    assert_eq!(session["metadata"]["projection"], "AgentResponse");
+
     let usage_records = sync.query_nodes("UsageRecord").expect("query UsageRecord");
     assert_eq!(usage_records.len(), 1, "streaming final body should preserve usage");
     let usage: serde_json::Value = serde_json::from_str(&usage_records[0].payload).unwrap();
