@@ -30,6 +30,7 @@ import {
 } from "./lib/types";
 
 
+export * from "./lib/agent-response-stream.js";
 export * from "./lib/graph-normalizer.js";
 export * from "./lib/identity-recovery-host.js";
 export * from "./lib/l8n-host.js";

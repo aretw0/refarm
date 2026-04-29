@@ -9,6 +9,7 @@
  * See ADR-044: specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md
  */
 
+export * from "./lib/agent-response-stream";
 export * from "./lib/graph-normalizer";
 export * from "./lib/identity-recovery-host";
 // Re-export types from plugin-host's dependencies directly (no Node deps)
