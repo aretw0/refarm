@@ -14,6 +14,17 @@ pub(crate) struct AgentTurnRecord {
     pub duration_ms: u64,
 }
 
+pub(crate) struct AgentResponseChunkRecord {
+    pub content: String,
+    pub tool_calls: serde_json::Value,
+    pub model: String,
+    pub tokens_in: u32,
+    pub tokens_out: u32,
+    pub duration_ms: u64,
+    pub sequence: u32,
+    pub is_final: bool,
+}
+
 pub(crate) struct UsageRecordInput {
     pub provider_name: String,
     pub model: String,
@@ -44,7 +55,10 @@ pub(crate) fn store_prompt_and_open_session(prompt: &str) -> Option<PromptContex
     })
 }
 
-pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: AgentTurnRecord) {
+pub(crate) fn store_agent_response_chunk(
+    prompt_ref: &str,
+    record: AgentResponseChunkRecord,
+) -> bool {
     let response = crate::agent_response_node(crate::AgentResponsePayload {
         prompt_ref,
         content: &record.content,
@@ -53,12 +67,29 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
         tokens_in: record.tokens_in,
         tokens_out: record.tokens_out,
         duration_ms: record.duration_ms,
-        sequence: 0,
-        is_final: true,
+        sequence: record.sequence,
+        is_final: record.is_final,
     });
-    let _ = store_node(&response);
+    store_node(&response)
+}
 
-    let _ = crate::append_to_session(session_id, "agent", &record.content);
+pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: AgentTurnRecord) {
+    let content = record.content.clone();
+    let _ = store_agent_response_chunk(
+        prompt_ref,
+        AgentResponseChunkRecord {
+            content: record.content,
+            tool_calls: record.tool_calls,
+            model: record.model,
+            tokens_in: record.tokens_in,
+            tokens_out: record.tokens_out,
+            duration_ms: record.duration_ms,
+            sequence: 0,
+            is_final: true,
+        },
+    );
+
+    let _ = crate::append_to_session(session_id, "agent", &content);
 }
 
 pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput) {

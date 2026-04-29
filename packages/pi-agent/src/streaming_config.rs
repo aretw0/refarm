@@ -1,3 +1,5 @@
+#![cfg_attr(not(test), allow(dead_code))]
+
 /// Environment variable that opts into streaming partial AgentResponse nodes.
 pub(crate) const LLM_STREAM_RESPONSES_ENV: &str = "LLM_STREAM_RESPONSES";
 
