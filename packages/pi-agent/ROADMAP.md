@@ -96,7 +96,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
 - [x] `find-references` wired end-to-end via generic LSP JSON-RPC path (rust-analyzer remains the default backend).
 - [x] `rename-symbol` wired end-to-end via generic LSP JSON-RPC path (WorkspaceEdit changes applied host-side).
-- [ ] Integration test: rename a Rust symbol via pi-agent/farmhand and assert workspace references update.
+- [x] Integration test: rename a symbol via pi-agent/farmhand + generic fake LSP and assert workspace references update.
 - [ ] No regression on baseline gates:
   - `cargo check --target wasm32-wasip1` in `packages/pi-agent`
   - `cargo test --lib` in `packages/pi-agent`
@@ -116,8 +116,9 @@ Context engineering follows the pi-test-harness model:
 
 ### WASM integration harness (`packages/tractor/tests/pi_agent_harness.rs`)
 - [x] Real `pi_agent.wasm` loaded via `PluginHost` (not a stub)
-- [x] Mock LLM: `TcpListener::bind(":0")` returns scripted OpenAI-compat JSON
-- [x] 4 scenarios: AgentResponse stored, UsageRecord tokens, context guard, budget block
+- [x] Mock LLM: blocking `TcpListener::bind(":0")` thread returns scripted OpenAI-compat JSON without deadlocking the single-thread Tokio test runtime
+- [x] Core scenarios: AgentResponse stored, UsageRecord tokens, context guard, budget block
+- [x] Tool-loop scenarios: `bash`, `find_references`, and `rename_symbol` round-trip through pi-agent tool dispatch into Tractor host imports
 - [x] `ENV_LOCK` Mutex prevents env var cross-contamination between parallel tests
 
 ---
