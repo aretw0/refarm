@@ -352,6 +352,31 @@ fn provider_runtime_emit_stream_response_chunk_drafts_from_sse() {
 }
 
 #[test]
+fn provider_runtime_stream_body_gate_stays_off_without_opt_in() {
+    let _guard = super::ENV_LOCK.lock().expect("env lock");
+    std::env::remove_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV);
+
+    let openai_body = crate::provider_runtime::build_openai_body_with_streaming(
+        "m",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        crate::streaming_config::provider_stream_request_enabled_from_env(),
+    );
+    let anthropic_body = crate::provider_runtime::build_anthropic_body_with_streaming(
+        "m2",
+        "sys",
+        &[serde_json::json!({"role":"user","content":"hi"})],
+        serde_json::json!([]),
+        crate::streaming_config::provider_stream_request_enabled_from_env(),
+    );
+
+    let openai: serde_json::Value = serde_json::from_str(&openai_body).unwrap();
+    let anthropic: serde_json::Value = serde_json::from_str(&anthropic_body).unwrap();
+    assert!(openai.get("stream").is_none());
+    assert!(anthropic.get("stream").is_none());
+}
+
+#[test]
 fn provider_runtime_stream_body_gate_requires_explicit_opt_in() {
     let _guard = super::ENV_LOCK.lock().expect("env lock");
     std::env::set_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV, "1");
