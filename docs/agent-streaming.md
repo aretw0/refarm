@@ -1,0 +1,47 @@
+# pi-agent streaming responses
+
+`pi-agent` supports opt-in provider SSE streaming through Tractor's host-owned
+`llm-bridge::complete-http-stream` boundary.
+
+Streaming is disabled by default. Enable it per process/session with:
+
+```bash
+LLM_STREAM_RESPONSES=1
+```
+
+When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
+provider credentials and route enforcement in the host, reads the SSE response,
+persists partial `AgentResponse` chunks, and returns a parser-compatible final
+provider JSON body to the guest.
+
+## Response shape
+
+- Partial chunks are `AgentResponse` nodes with `is_final: false`.
+- Partial `content` is a delta. Clients should order by `sequence` and append.
+- The final response is `is_final: true` and its `content` is the assembled text.
+- The final response sequence is the last partial sequence plus one.
+- Tool-call/tool-use deltas are synthesized into final provider-compatible JSON
+  so existing tool loops continue to work.
+
+## Local validation
+
+Use economical scoped checks while developing:
+
+```bash
+npm run agent:streaming:check
+```
+
+Run the WASM harness only when the `pi_agent.wasm` artifact is fresh:
+
+```bash
+npm run agent:streaming:harness
+```
+
+Rebuild the component only when pi-agent/WIT changed and the harness must run:
+
+```bash
+npm run agent:streaming:harness:build
+```
+
+Avoid full repo builds/tests for streaming-only changes unless preparing a push
+or release gate.

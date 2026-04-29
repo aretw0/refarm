@@ -8,25 +8,30 @@
 ## 🗺 Knowledge Map (Architecture of Truth)
 
 ### 🏛 Philosophy & Vision
+
 - **[ARCHITECTURE](ARCHITECTURE.md)** — System design, Evolutionary Roadmap (Legacy Bootstrap absorbed).
 - **[Refarm as Personal OS Boot](REFARM_AS_OS_BOOT.md)** — Sequência de boot L0–L5: Shell Load → Tractor Ignition → Identity → Graph → Plugins → System Live.
-- **[VISION 2026: AI Agent Sovereignty](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - *[NEW]* The North Star for Autonomous Sovereign Agents.
-- **[SYNERGY: AI Agent & TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - *[NEW]* How the Tolman-Eichenbaum Machine acts as the agent's cognitive map.
+- **[VISION 2026: AI Agent Sovereignty](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - _[NEW]_ The North Star for Autonomous Sovereign Agents.
+- **[SYNERGY: AI Agent & TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - _[NEW]_ How the Tolman-Eichenbaum Machine acts as the agent's cognitive map.
 - **[User Story](USER_STORY.md)** - The "why" and user personas.
 - **[Inspirations](INSPIRATIONS.md)** - Technical and conceptual foundations.
 - **[Agent Cognitive Model](../AGENTS.md#0-epistemic-framework-active-inference)** - Active Inference principles governing AI agent behavior in this repository.
 
 ### 🛠 Development & Ops
+
 - **[Sovereign Workflow](WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](DEVOPS.md)** - Dev containers, CI, security, and hardware requirements.
-- **[Known Limitations](KNOWN_LIMITATIONS.md)** - *[NEW]* Technical hurdles, resource quotas, and expected build behavior.
+- **[Known Limitations](KNOWN_LIMITATIONS.md)** - _[NEW]_ Technical hurdles, resource quotas, and expected build behavior.
 - **[PR Quality Governance](PR_QUALITY_GOVERNANCE.md)** — Guardrails and publishing hygiene.
 - **[Decision Log](decision-log.md)** — Record of high-impact architectural choices.
 - **[Stratification Policy](STRATIFICATION.md)** — TS-Strict vs JS-Atomic package classification. Defines hybrid coexistence rules (`tsconfig.build.json` presence = TS-Strict; see AGENTS.md Rule 4).
 - **[Scaffolding Development Policy](SCAFFOLDING.md)** — Island Isolation Policy for `sower` scaffolding: never run `refarm init` within the monorepo root.
+- **[Local Disk Hygiene](local-disk-hygiene.md)** — resource-aware validation and cleanup tiers for constrained workstations.
+- **[pi-agent Streaming Responses](agent-streaming.md)** — opt-in host-proxied LLM streaming, response shape, and economical validation commands.
 
 ### 📦 Ecosystem & Plugins
-- **[Package Registry](../packages/README.md)** - *[NEW]* Catalog of all monorepo components.
+
+- **[Package Registry](../packages/README.md)** - _[NEW]_ Catalog of all monorepo components.
 - **[Plugin Developer Playbook](PLUGIN_DEVELOPER_PLAYBOOK.md)** - Guide for building sovereign extensions.
 - **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** - Technical details of the plugin sandbox (transpilation flow, runtime vs build-time table, CI/CD alignment).
 - **[ADR-044: WASM Plugin Loading — Browser Strategy](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md)** - Export conditions, PluginHost browser stub, OPFS install-time transpilation path.
@@ -34,11 +39,14 @@
 - **[Courier Plugin](COURIER.md)** — `@refarm.dev/plugin-courier`: dynamic routing (local-first mDNS, relay fallback, P2P mesh) and protocol agnosticism (Nostr, Matrix, AT Protocol, Bluetooth Mesh).
 
 ### 🚀 Vision 2026: AI Agent Sovereignty
-- **[Vision 2026 Document](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - *[NEW]* Deep dive into the Agentic Autonomy roadmap.
-- **[Synergy with TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - *[NEW]* The relationship between the Agênte and the Cognitive Map (TEM).
+
+- **[Vision 2026 Document](proposals/VISION_2026_AI_AGENT_SOVEREIGNTY.md)** - _[NEW]_ Deep dive into the Agentic Autonomy roadmap.
+- **[Synergy with TEM](proposals/SYNERGY_AI_AGENT_TEM.md)** - _[NEW]_ The relationship between the Agênte and the Cognitive Map (TEM).
 
 ### 🚀 Future Tracks (See Roadmap)
+
 Detailed planning for the following tracks is now consolidated in the **[Evolutionary Roadmap](../roadmaps/MAIN.md)**:
+
 - 🦀 **Tractor-Rust Native**: The `wasmtime` port of Tractor for 10MB memory-constrained edge devices. See [ADR-047](../specs/ADRs/ADR-047-tractor-native-rust-host.md) and [ADR-049](../specs/ADRs/ADR-049-post-graduation-horizon.md).
 - 🚜 **Tractor Nodes**: Headless background runtime for offline CRDT sync, plugin routing, and task completion.
 - 🧠 **Tractor-Embedded Agents**: Incorporating local AI models directly into the Tractor WASM sandbox execution.
