@@ -174,6 +174,7 @@ impl LlmBridgeHost for TractorNativeBindings {
         body: Vec<u8>,
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
+        validate_stream_response_metadata(&stream_metadata)?;
         let final_body = llm_complete_http(&provider, &base_url, &path, &headers, &body)?;
         Ok(buffered_stream_response_result(
             final_body,
@@ -191,6 +192,26 @@ fn buffered_stream_response_result(
         last_sequence,
         stored_chunks: 0,
     }
+}
+
+fn validate_stream_response_metadata(metadata: &StreamResponseMetadata) -> Result<(), String> {
+    validate_stream_text_field("prompt-ref", &metadata.prompt_ref, 512)?;
+    validate_stream_text_field("model", &metadata.model, 256)?;
+    let provider_family = normalize_provider_name(&metadata.provider_family);
+    if provider_family != metadata.provider_family.trim() || !is_safe_provider_token(&provider_family) {
+        return Err("[blocked: invalid stream provider-family]".to_string());
+    }
+    Ok(())
+}
+
+fn validate_stream_text_field(label: &str, value: &str, max_len: usize) -> Result<(), String> {
+    if value.trim().is_empty() {
+        return Err(format!("[blocked: stream {label} is empty]"));
+    }
+    if value.trim() != value || value.len() > max_len || !value.is_ascii() || value.chars().any(|c| c.is_control()) {
+        return Err(format!("[blocked: invalid stream {label}]"));
+    }
+    Ok(())
 }
 
 fn llm_complete_http(
