@@ -175,11 +175,21 @@ impl LlmBridgeHost for TractorNativeBindings {
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
         let final_body = llm_complete_http(&provider, &base_url, &path, &headers, &body)?;
-        Ok(StreamResponseResult {
+        Ok(buffered_stream_response_result(
             final_body,
-            last_sequence: stream_metadata.last_sequence,
-            stored_chunks: 0,
-        })
+            stream_metadata.last_sequence,
+        ))
+    }
+}
+
+fn buffered_stream_response_result(
+    final_body: Vec<u8>,
+    last_sequence: Option<u32>,
+) -> StreamResponseResult {
+    StreamResponseResult {
+        final_body,
+        last_sequence,
+        stored_chunks: 0,
     }
 }
 
