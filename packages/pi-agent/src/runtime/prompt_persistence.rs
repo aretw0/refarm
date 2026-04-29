@@ -125,16 +125,18 @@ pub(crate) fn store_agent_response_chunks_from_sse(
     defaults: AgentResponseChunkDefaults,
 ) -> (Option<u32>, usize) {
     let mut stored = 0usize;
-    let last_emitted = crate::provider_runtime::emit_stream_response_chunk_drafts_from_sse(
+    let mut last_stored_sequence = None;
+    let _last_emitted = crate::provider_runtime::emit_stream_response_chunk_drafts_from_sse(
         bytes,
         last_sequence,
         |draft| {
             if store_agent_response_chunk_draft(prompt_ref, draft, &defaults) {
                 stored += 1;
+                last_stored_sequence = Some(draft.sequence);
             }
         },
     );
-    (last_emitted, stored)
+    (last_stored_sequence, stored)
 }
 
 pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: AgentTurnRecord) {
