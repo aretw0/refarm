@@ -53,6 +53,7 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
         tokens_in: record.tokens_in,
         tokens_out: record.tokens_out,
         duration_ms: record.duration_ms,
+        is_final: true,
     });
     let _ = store_node(&response);
 

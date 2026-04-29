@@ -19,6 +19,7 @@ fn response_nodes_agent_response_builder_shape() {
         tokens_in: 1,
         tokens_out: 2,
         duration_ms: 3,
+        is_final: true,
     });
     assert_eq!(node["@type"], "AgentResponse");
     assert_eq!(node["prompt_ref"], "urn:pi-agent:prompt-test");
@@ -27,6 +28,24 @@ fn response_nodes_agent_response_builder_shape() {
     assert_eq!(node["llm"]["tokens_in"], 1);
     assert_eq!(node["llm"]["tokens_out"], 2);
     assert_eq!(node["llm"]["duration_ms"], 3);
+    assert_eq!(node["is_final"], true);
+}
+
+#[test]
+fn response_nodes_agent_response_builder_can_mark_partial() {
+    let node = agent_response_node(AgentResponsePayload {
+        prompt_ref: "urn:pi-agent:prompt-test",
+        content: "partial",
+        tool_calls: serde_json::json!([]),
+        model: "stub",
+        tokens_in: 1,
+        tokens_out: 0,
+        duration_ms: 1,
+        is_final: false,
+    });
+    assert_eq!(node["@type"], "AgentResponse");
+    assert_eq!(node["content"], "partial");
+    assert_eq!(node["is_final"], false);
 }
 
 #[test]
