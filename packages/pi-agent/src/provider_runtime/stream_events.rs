@@ -37,6 +37,18 @@ pub(crate) fn parse_stream_response_chunk_drafts_from_sse(
     crate::streaming_chunks::partial_response_chunk_drafts(&deltas, last_sequence)
 }
 
+pub(crate) fn emit_stream_response_chunk_drafts_from_sse(
+    bytes: &[u8],
+    last_sequence: Option<u32>,
+    mut emit: impl FnMut(&crate::streaming_chunks::ResponseChunkDraft),
+) -> Option<u32> {
+    let drafts = parse_stream_response_chunk_drafts_from_sse(bytes, last_sequence);
+    for draft in &drafts {
+        emit(draft);
+    }
+    crate::streaming_chunks::last_response_chunk_sequence(&drafts)
+}
+
 fn stream_text_deltas_from_value(value: &serde_json::Value) -> Vec<String> {
     let mut deltas = openai_text_deltas(value);
     if let Some(text) = anthropic_text_delta(value) {

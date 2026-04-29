@@ -335,3 +335,18 @@ fn provider_runtime_parse_stream_response_chunk_drafts_from_sse() {
     assert_eq!(chunks[1].sequence, 6);
     assert!(!chunks[1].is_final);
 }
+
+#[test]
+fn provider_runtime_emit_stream_response_chunk_drafts_from_sse() {
+    let mut seen = Vec::new();
+    let last_sequence = crate::provider_runtime::emit_stream_response_chunk_drafts_from_sse(
+        b"data: {\"choices\":[{\"delta\":{\"content\":\"a\"}}]}\n\ndata: {\"choices\":[{\"delta\":{\"content\":\"b\"}}]}\n",
+        None,
+        |draft| seen.push((draft.content.clone(), draft.sequence, draft.is_final)),
+    );
+    assert_eq!(
+        seen,
+        vec![('a'.to_string(), 0, false), ('b'.to_string(), 1, false)]
+    );
+    assert_eq!(last_sequence, Some(1));
+}
