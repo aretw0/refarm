@@ -1,6 +1,7 @@
 use crate::streaming::{
     agent_response_stream_ref, parse_sse_data_events, read_sse_data_events_limited,
-    stream_chunk_observation_id, stream_chunk_observation_node, StreamChunkObservationDraft,
+    stream_chunk_observation_id, stream_chunk_observation_node, stream_session_observation_id,
+    stream_session_observation_node, StreamChunkObservationDraft, StreamSessionObservationDraft,
 };
 use std::collections::BTreeMap;
 
@@ -121,6 +122,21 @@ fn store_stream_agent_response_chunks_from_reader(
     reader: impl std::io::Read,
     max_len: usize,
 ) -> Result<(Vec<u8>, Option<u32>, u32), String> {
+    let stream_started_at_ns = now_ns();
+    store_stream_session_observation(
+        sync,
+        source_plugin,
+        &stream_session_observation_draft(
+            metadata,
+            "active",
+            stream_started_at_ns,
+            stream_started_at_ns,
+            None,
+            metadata.last_sequence,
+            0,
+        ),
+    )?;
+
     let mut next_sequence = metadata
         .last_sequence
         .map(|sequence| sequence.saturating_add(1))
@@ -150,19 +166,37 @@ fn store_stream_agent_response_chunks_from_reader(
         Ok(())
     })?;
 
-    let final_body = if assembly.has_observations() {
+    let has_final_observation = assembly.has_observations();
+    let final_observation_sequence = has_final_observation
+        .then(|| final_stream_sequence(metadata.last_sequence, last_stored_sequence));
+    let final_body = if let Some(sequence) = final_observation_sequence {
         let body = synthesize_stream_final_response_body(metadata, &assembly)?;
         store_stream_final_chunk_observation(
             sync,
             source_plugin,
             metadata,
-            final_stream_sequence(metadata.last_sequence, last_stored_sequence),
+            sequence,
             &assembly.content,
         )?;
         body
     } else {
         raw_body
     };
+
+    let stream_completed_at_ns = now_ns();
+    store_stream_session_observation(
+        sync,
+        source_plugin,
+        &stream_session_observation_draft(
+            metadata,
+            "completed",
+            stream_started_at_ns,
+            stream_completed_at_ns,
+            Some(stream_completed_at_ns),
+            final_observation_sequence.or(last_stored_sequence),
+            stored_chunks.saturating_add(u32::from(has_final_observation)),
+        ),
+    )?;
 
     Ok((final_body, last_stored_sequence, stored_chunks))
 }
@@ -447,6 +481,23 @@ fn store_stream_final_chunk_observation(
     .map_err(|e| format!("store final stream chunk observation: {e}"))
 }
 
+fn store_stream_session_observation(
+    sync: &NativeSync,
+    source_plugin: &str,
+    draft: &StreamSessionObservationDraft,
+) -> Result<(), String> {
+    let node_id = stream_session_observation_id(&draft.stream_ref);
+    let node = stream_session_observation_node(&node_id, draft);
+    sync.store_node(
+        &node_id,
+        "StreamSession",
+        None,
+        &node.to_string(),
+        Some(source_plugin),
+    )
+    .map_err(|e| format!("store stream session observation: {e}"))
+}
+
 fn store_stream_agent_response_chunk(
     sync: &NativeSync,
     source_plugin: &str,
@@ -506,6 +557,33 @@ fn stream_final_chunk_observation_draft(
         true,
         timestamp_ns,
     )
+}
+
+fn stream_session_observation_draft(
+    metadata: &StreamResponseMetadata,
+    status: &str,
+    started_at_ns: u64,
+    updated_at_ns: u64,
+    completed_at_ns: Option<u64>,
+    last_sequence: Option<u32>,
+    chunk_count: u32,
+) -> StreamSessionObservationDraft {
+    StreamSessionObservationDraft {
+        stream_ref: agent_response_stream_ref(&metadata.prompt_ref),
+        stream_kind: "agent-response".to_string(),
+        status: status.to_string(),
+        started_at_ns,
+        updated_at_ns,
+        completed_at_ns,
+        last_sequence,
+        chunk_count,
+        metadata: serde_json::json!({
+            "projection": "AgentResponse",
+            "prompt_ref": metadata.prompt_ref,
+            "provider_family": metadata.provider_family,
+            "model": metadata.model,
+        }),
+    }
 }
 
 fn stream_observation_draft(

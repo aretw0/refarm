@@ -102,6 +102,35 @@ fn stream_chunk_observation_draft_matches_generic_projection_schema() {
 }
 
 #[test]
+fn stream_session_observation_draft_matches_generic_session_schema() {
+    let metadata = stream_metadata(Some(4));
+
+    let draft = super::stream_session_observation_draft(
+        &metadata,
+        "completed",
+        100,
+        200,
+        Some(200),
+        Some(6),
+        3,
+    );
+    let node_id = crate::streaming::stream_session_observation_id(&draft.stream_ref);
+    let node = crate::streaming::stream_session_observation_node(&node_id, &draft);
+
+    assert_eq!(node["@type"], "StreamSession");
+    assert_eq!(node["@id"], "urn:tractor:stream:agent-response:prompt-abc");
+    assert_eq!(node["stream_kind"], "agent-response");
+    assert_eq!(node["status"], "completed");
+    assert_eq!(node["started_at_ns"], 100);
+    assert_eq!(node["updated_at_ns"], 200);
+    assert_eq!(node["completed_at_ns"], 200);
+    assert_eq!(node["last_sequence"], 6);
+    assert_eq!(node["chunk_count"], 3);
+    assert_eq!(node["metadata"]["projection"], "AgentResponse");
+    assert_eq!(node["metadata"]["prompt_ref"], "prompt-abc");
+}
+
+#[test]
 fn stream_agent_response_chunk_node_matches_partial_response_schema() {
     let metadata = stream_metadata(Some(4));
     let chunk = super::LlmStreamTextChunkDraft {
@@ -248,6 +277,24 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(stream_payloads[2]["payload_kind"], "final_text");
     assert_eq!(stream_payloads[2]["content"], "ab");
     assert_eq!(stream_payloads[2]["is_final"], true);
+
+    let session_rows = sync.query_nodes("StreamSession").unwrap();
+    assert_eq!(session_rows.len(), 1);
+    assert_eq!(session_rows[0].source_plugin.as_deref(), Some("pi-agent"));
+    let session: serde_json::Value = serde_json::from_str(&session_rows[0].payload).unwrap();
+    assert_eq!(
+        session["@id"],
+        "urn:tractor:stream:agent-response:prompt-abc"
+    );
+    assert_eq!(
+        session["stream_ref"],
+        "urn:tractor:stream:agent-response:prompt-abc"
+    );
+    assert_eq!(session["stream_kind"], "agent-response");
+    assert_eq!(session["status"], "completed");
+    assert_eq!(session["last_sequence"], 6);
+    assert_eq!(session["chunk_count"], 3);
+    assert_eq!(session["metadata"]["projection"], "AgentResponse");
 }
 
 #[test]
