@@ -2,6 +2,7 @@
 use super::request_parse::parse_response_json;
 
 #[cfg(target_arch = "wasm32")]
+#[allow(dead_code)]
 pub(crate) fn execute_json_request(
     provider: &str,
     base_url: &str,
@@ -15,7 +16,6 @@ pub(crate) fn execute_json_request(
 }
 
 #[cfg(target_arch = "wasm32")]
-#[allow(dead_code)]
 pub(crate) fn execute_json_request_with_streaming_callback(
     provider: &str,
     base_url: &str,

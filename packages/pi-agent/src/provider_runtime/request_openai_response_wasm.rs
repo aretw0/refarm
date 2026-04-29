@@ -1,6 +1,7 @@
 #[cfg(target_arch = "wasm32")]
 use super::{
-    request_body_openai::build_openai_body_with_streaming, request_http_wasm::execute_json_request,
+    request_body_openai::build_openai_body_with_streaming,
+    request_http_wasm::execute_json_request_with_streaming_callback,
     request_path::openai_compat_path,
 };
 
@@ -18,11 +19,12 @@ pub(crate) fn openai_iteration_response(
         crate::tools_openai(),
         crate::streaming_config::provider_stream_request_enabled_from_env(),
     );
-    execute_json_request(
+    execute_json_request_with_streaming_callback(
         provider,
         base_url,
         openai_compat_path(provider),
         headers,
         &body,
+        |_| {},
     )
 }

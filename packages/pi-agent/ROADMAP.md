@@ -165,6 +165,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Runtime persistence can store SSE-derived partial chunks and return the last emitted sequence
 - [x] Provider `stream: true` requests are gated on both opt-in policy and streaming transport readiness
 - [x] WASM HTTP request layer has a callback seam for future streaming bytes without changing buffered JSON path
+- [x] Provider request paths route through the callback seam while streaming transport remains disabled
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
