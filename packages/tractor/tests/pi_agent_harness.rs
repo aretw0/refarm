@@ -128,11 +128,20 @@ async fn mock_llm_server_capturing(
 async fn mock_sse_llm_server_capturing(
     body: &'static str,
 ) -> (u16, tokio::sync::mpsc::UnboundedReceiver<serde_json::Value>) {
+    mock_sse_llm_server_sequence_capturing(vec![body]).await
+}
+
+async fn mock_sse_llm_server_sequence_capturing(
+    bodies: Vec<&'static str>,
+) -> (u16, tokio::sync::mpsc::UnboundedReceiver<serde_json::Value>) {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
     std::thread::spawn(move || {
+        let mut idx = 0usize;
         while let Ok((mut stream, _)) = listener.accept() {
+            let body = bodies.get(idx).or_else(|| bodies.last()).copied().unwrap_or("");
+            idx = (idx + 1).min(bodies.len().saturating_sub(1) + 1);
             if let Ok(buf) = read_http_request(&mut stream) {
                 if let Some(sep) = buf.windows(4).position(|w| w == b"\r\n\r\n") {
                     if let Ok(v) = serde_json::from_slice(&buf[sep + 4..]) {
@@ -379,6 +388,57 @@ data: [DONE]
     assert_eq!(payloads[2]["content"], "Olá stream");
     assert_eq!(payloads[2]["is_final"], true);
     assert_eq!(payloads[2]["sequence"], 2);
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_streaming_tool_call_round_trip_still_completes() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+
+    clean_llm_env();
+    let (port, mut requests) = mock_sse_llm_server_sequence_capturing(vec![
+        r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_echo","type":"function","function":{"name":"bash","arguments":"{\"argv\":[\"echo\","}}]}}]}
+
+data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"stream-tool\"]}"}}]}}]}
+
+data: [DONE]
+
+"#,
+        r#"data: {"choices":[{"delta":{"content":"tool streamed"}}]}
+
+data: [DONE]
+
+"#,
+    ])
+    .await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_STREAM_RESPONSES", "1");
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "run echo", "streaming tool harness").await;
+
+    let first_request = requests.recv().await.expect("captured first provider request");
+    let second_request = requests.recv().await.expect("captured second provider request");
+    assert_eq!(first_request["stream"], true);
+    assert_eq!(second_request["stream"], true);
+
+    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    let final_response: serde_json::Value = responses
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .find(|payload: &serde_json::Value| payload["is_final"] == true)
+        .expect("final response");
+    assert_eq!(final_response["content"], "tool streamed");
+    assert_eq!(final_response["sequence"], 1);
+    assert_eq!(final_response["tool_calls"][0]["name"], "bash");
 
     clean_llm_env();
 }
