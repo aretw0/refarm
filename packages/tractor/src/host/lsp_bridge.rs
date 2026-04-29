@@ -69,6 +69,14 @@ impl LspServerProcess {
         })
     }
 
+    fn start_command(command: &str) -> Result<Self, String> {
+        let (program, args) = split_lsp_command(command)?;
+        let arg_refs = args.iter().map(String::as_str).collect::<Vec<_>>();
+        let mut process = Self::start(&program, &arg_refs)?;
+        process.command = command.to_string();
+        Ok(process)
+    }
+
     fn id(&self) -> u32 {
         self.child.id()
     }
@@ -197,7 +205,7 @@ impl LspBridge {
             *slot = None;
         }
 
-        let session = LspServerProcess::start(lsp_cmd, &[])?;
+        let session = LspServerProcess::start_command(lsp_cmd)?;
         let pid = session.id();
         *slot = Some(session);
         Ok(pid)
@@ -428,6 +436,14 @@ fn file_uri(path: &str) -> String {
 }
 
 fn command_looks_resolvable(cmd: &str) -> bool {
+    let Ok((program, _args)) = split_lsp_command(cmd) else {
+        return false;
+    };
+
+    command_program_looks_resolvable(&program)
+}
+
+fn command_program_looks_resolvable(cmd: &str) -> bool {
     if cmd.contains(std::path::MAIN_SEPARATOR) {
         return std::path::Path::new(cmd).is_file();
     }
@@ -439,6 +455,16 @@ fn command_looks_resolvable(cmd: &str) -> bool {
                 .any(|candidate| candidate.is_file())
         })
         .unwrap_or(false)
+}
+
+fn split_lsp_command(command: &str) -> Result<(String, Vec<String>), String> {
+    let mut parts = command.split_whitespace();
+    let program = parts
+        .next()
+        .ok_or_else(|| "lsp command must not be empty".to_string())?
+        .to_string();
+    let args = parts.map(str::to_string).collect();
+    Ok((program, args))
 }
 
 fn configured_lsp_command() -> String {
@@ -472,10 +498,10 @@ mod tests {
     #[test]
     fn bridge_honors_env_override() {
         let _guard = env_lock();
-        std::env::set_var(LSP_CMD_ENV, "custom-ra");
+        std::env::set_var(LSP_CMD_ENV, "custom-lsp --stdio");
         let bridge = LspBridge::from_env();
         std::env::remove_var(LSP_CMD_ENV);
-        assert_eq!(bridge.lsp_cmd, "custom-ra");
+        assert_eq!(bridge.lsp_cmd, "custom-lsp --stdio");
     }
 
     #[test]
@@ -495,6 +521,14 @@ mod tests {
         process.stop();
         process.stop();
         assert!(!process.is_running());
+    }
+
+    #[test]
+    fn lsp_command_split_supports_program_args() {
+        let (program, args) = split_lsp_command("typescript-language-server --stdio").unwrap();
+
+        assert_eq!(program, "typescript-language-server");
+        assert_eq!(args, vec!["--stdio"]);
     }
 
     #[test]
