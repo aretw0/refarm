@@ -188,15 +188,15 @@ Context engineering follows the pi-test-harness model:
 - [x] Provider runtime has an active stream sink context (`prompt_ref`, `model`, `last_sequence`) so callbacks can persist SSE-derived partial chunks once transport streaming is enabled
 - [x] Fallback provider attempts update the active stream sink model before emitting future partial chunks
 - [x] Final response sequencing reads the stream sink's last successfully stored partial sequence before storing the terminal `AgentResponse`
-- [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
-- [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
+- [x] Stream LLM tokens through host-persisted partial `AgentResponse` nodes as provider SSE frames arrive
+- [x] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; Tractor reads provider SSE bodies through a streaming reader seam
 - [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
 - [x] Tractor has generic target-neutral SSE framing primitives plus LLM-specific delta parsing and sequence draft helpers for native host streaming internals
 - [x] Tractor can persist buffered SSE-derived text chunks as partial `AgentResponse` nodes and report stored chunk counts/last sequence
 - [x] Tractor `complete-http-stream` reads successful responses through the generic SSE reader seam and persists complete SSE frames as they arrive
-- [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas for OpenAI-compatible and Anthropic response shapes
-- [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, and stores a final response with sequence after the last partial
+- [x] Tractor synthesizes parser-compatible final provider JSON from stored SSE text deltas and streamed tool-call/tool-use deltas for OpenAI-compatible and Anthropic response shapes
+- [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, stores a final response with sequence after the last partial, and preserves streamed tool-call round trips
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 

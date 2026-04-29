@@ -53,14 +53,14 @@ Architecture Decision Records for Refarm.
 
 These ADRs define architecture direction but are NOT executable contracts yet. Sprint 2+ implementation required.
 
-| ADR                                                       | Title                                                           | Status      | Target          | Blockers                                                                                      |
-| --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | --------------- | --------------------------------------------------------------------------------------------- |
-| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | ✏️ Proposed | v0.2.0-0.3.0    | 30+ invariant tests + kernel implementation                                                   |
-| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | ✏️ Proposed | v0.3.0+         | 40+ integration tests + kernel implementation                                                 |
-| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+         | Manifest schema + PolicyManager + PerformanceMonitor implementation                           |
-| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0    | ConflictDetector + GraphMonitor + UI implementation                                           |
-| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+         | LockManager + UI patterns + merge strategies implementation                                   |
-| [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | pi-agent v0.2.0 | Initial host-proxied text streaming implemented; streamed tool-call deltas remain future work |
+| ADR                                                       | Title                                                           | Status      | Target          | Blockers                                                            |
+| --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | --------------- | ------------------------------------------------------------------- |
+| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | ✏️ Proposed | v0.2.0-0.3.0    | 30+ invariant tests + kernel implementation                         |
+| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | ✏️ Proposed | v0.3.0+         | 40+ integration tests + kernel implementation                       |
+| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+         | Manifest schema + PolicyManager + PerformanceMonitor implementation |
+| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0    | ConflictDetector + GraphMonitor + UI implementation                 |
+| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+         | LockManager + UI patterns + merge strategies implementation         |
+| [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | pi-agent v0.2.0 | Initial host-proxied text and tool-call streaming implemented       |
 
 ---
 
