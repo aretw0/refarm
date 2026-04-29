@@ -26,6 +26,36 @@ The exact WIT shape remains to be implemented in a later slice, but it must sati
 - final response remains `is_final=true` and follows the last stored partial sequence;
 - `streaming_reader_available()` flips to true only with tests proving end-to-end partial persistence.
 
+The first implementation should prefer an append-only host-owned stream record over a guest callback. Component-model callbacks during an imported host call are harder to reason about and may re-enter the same store. A host-owned stream record is simpler: the guest passes stream metadata, the host reads provider SSE incrementally, and the host writes chunk observations using the existing CRDT store.
+
+A minimal candidate contract is:
+
+```wit
+record stream-response-metadata {
+    prompt-ref: string,
+    model: string,
+    provider-family: string,
+    last-sequence: option<u32>,
+}
+
+record stream-response-result {
+    final-body: list<u8>,
+    last-sequence: option<u32>,
+    stored-chunks: u32,
+}
+
+complete-http-stream: func(
+    provider: string,
+    base-url: string,
+    path: string,
+    headers: list<tuple<string, string>>,
+    body: list<u8>,
+    stream: stream-response-metadata,
+) -> result<stream-response-result, string>;
+```
+
+This keeps `complete-http` as the default buffered primitive. `complete-http-stream` is opt-in and can be introduced without forcing non-streaming plugins to understand streaming.
+
 ## Consequences
 
 ### Positive Consequences
