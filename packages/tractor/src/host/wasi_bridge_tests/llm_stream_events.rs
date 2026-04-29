@@ -235,13 +235,19 @@ data: {"choices":[{"delta":{"content":"b"}}]}
     assert_eq!(payloads[1]["sequence"], 5);
 
     let stream_rows = sync.query_nodes("StreamChunk").unwrap();
-    assert_eq!(stream_rows.len(), 2);
+    assert_eq!(stream_rows.len(), 3, "two partial chunks plus final marker");
     let stream_payloads: Vec<serde_json::Value> = stream_rows
         .iter()
         .map(|row| serde_json::from_str(&row.payload).unwrap())
         .collect();
     assert_eq!(stream_payloads[0]["sequence"], 4);
+    assert_eq!(stream_payloads[0]["is_final"], false);
     assert_eq!(stream_payloads[1]["sequence"], 5);
+    assert_eq!(stream_payloads[1]["is_final"], false);
+    assert_eq!(stream_payloads[2]["sequence"], 6);
+    assert_eq!(stream_payloads[2]["payload_kind"], "final_text");
+    assert_eq!(stream_payloads[2]["content"], "ab");
+    assert_eq!(stream_payloads[2]["is_final"], true);
 }
 
 #[test]
@@ -273,6 +279,14 @@ data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_toke
     assert_eq!(final_json["usage"]["total_tokens"], 10);
     assert_eq!(last_sequence, Some(0));
     assert_eq!(stored_chunks, 1);
+}
+
+#[test]
+fn final_stream_sequence_follows_partial_or_initial_sequence() {
+    assert_eq!(super::final_stream_sequence(None, None), 0);
+    assert_eq!(super::final_stream_sequence(Some(7), None), 8);
+    assert_eq!(super::final_stream_sequence(Some(7), Some(9)), 10);
+    assert_eq!(super::final_stream_sequence(None, Some(u32::MAX)), u32::MAX);
 }
 
 #[test]

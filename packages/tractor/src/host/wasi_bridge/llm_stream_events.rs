@@ -151,7 +151,15 @@ fn store_stream_agent_response_chunks_from_reader(
     })?;
 
     let final_body = if assembly.has_observations() {
-        synthesize_stream_final_response_body(metadata, &assembly)?
+        let body = synthesize_stream_final_response_body(metadata, &assembly)?;
+        store_stream_final_chunk_observation(
+            sync,
+            source_plugin,
+            metadata,
+            final_stream_sequence(metadata.last_sequence, last_stored_sequence),
+            &assembly.content,
+        )?;
+        body
     } else {
         raw_body
     };
@@ -418,6 +426,27 @@ fn store_stream_chunk_observation(
     .map_err(|e| format!("store stream chunk observation: {e}"))
 }
 
+fn store_stream_final_chunk_observation(
+    sync: &NativeSync,
+    source_plugin: &str,
+    metadata: &StreamResponseMetadata,
+    sequence: u32,
+    content: &str,
+) -> Result<(), String> {
+    let timestamp_ns = now_ns();
+    let node_id = stream_chunk_observation_id();
+    let draft = stream_final_chunk_observation_draft(metadata, sequence, content, timestamp_ns);
+    let node = stream_chunk_observation_node(&node_id, &draft);
+    sync.store_node(
+        &node_id,
+        "StreamChunk",
+        None,
+        &node.to_string(),
+        Some(source_plugin),
+    )
+    .map_err(|e| format!("store final stream chunk observation: {e}"))
+}
+
 fn store_stream_agent_response_chunk(
     sync: &NativeSync,
     source_plugin: &str,
@@ -453,12 +482,46 @@ fn stream_chunk_observation_draft(
     chunk: &LlmStreamTextChunkDraft,
     timestamp_ns: u64,
 ) -> StreamChunkObservationDraft {
+    stream_observation_draft(
+        metadata,
+        chunk.sequence,
+        "text_delta",
+        &chunk.content_delta,
+        false,
+        timestamp_ns,
+    )
+}
+
+fn stream_final_chunk_observation_draft(
+    metadata: &StreamResponseMetadata,
+    sequence: u32,
+    content: &str,
+    timestamp_ns: u64,
+) -> StreamChunkObservationDraft {
+    stream_observation_draft(
+        metadata,
+        sequence,
+        "final_text",
+        content,
+        true,
+        timestamp_ns,
+    )
+}
+
+fn stream_observation_draft(
+    metadata: &StreamResponseMetadata,
+    sequence: u32,
+    payload_kind: &str,
+    content: &str,
+    is_final: bool,
+    timestamp_ns: u64,
+) -> StreamChunkObservationDraft {
     StreamChunkObservationDraft {
         stream_ref: agent_response_stream_ref(&metadata.prompt_ref),
-        sequence: chunk.sequence,
-        payload_kind: "text_delta".to_string(),
-        content: chunk.content_delta.clone(),
-        is_final: false,
+        sequence,
+        payload_kind: payload_kind.to_string(),
+        content: content.to_string(),
+        is_final,
         timestamp_ns,
         metadata: serde_json::json!({
             "projection": "AgentResponse",
@@ -467,6 +530,16 @@ fn stream_chunk_observation_draft(
             "model": metadata.model,
         }),
     }
+}
+
+fn final_stream_sequence(
+    initial_last_sequence: Option<u32>,
+    partial_last_sequence: Option<u32>,
+) -> u32 {
+    partial_last_sequence
+        .or(initial_last_sequence)
+        .map(|sequence| sequence.saturating_add(1))
+        .unwrap_or(0)
 }
 
 #[cfg_attr(not(test), allow(dead_code))]
