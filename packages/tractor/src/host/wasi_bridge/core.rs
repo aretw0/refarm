@@ -162,9 +162,9 @@ impl LlmBridgeHost for TractorNativeBindings {
 
     /// Streaming contract compatibility path.
     ///
-    /// This preserves the new WIT boundary while the incremental SSE reader is
-    /// still under design. It reuses the buffered HTTP path, then persists any
-    /// SSE text chunks found in the completed response body.
+    /// This preserves the new WIT boundary while final response semantics are
+    /// still under design. It reads response bytes through the generic SSE
+    /// reader seam and persists text chunks as complete SSE frames arrive.
     async fn complete_http_stream(
         &mut self,
         provider: String,
@@ -175,12 +175,13 @@ impl LlmBridgeHost for TractorNativeBindings {
         stream_metadata: StreamResponseMetadata,
     ) -> Result<StreamResponseResult, String> {
         validate_stream_response_metadata(&stream_metadata)?;
-        let final_body = llm_complete_http(&provider, &base_url, &path, &headers, &body)?;
-        let (last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_sse(
+        let resp = send_llm_http_post(&provider, &base_url, &path, &headers, &body)?;
+        let (final_body, last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_reader(
             &self.sync,
             &self.plugin_id,
             &stream_metadata,
-            &final_body,
+            resp.into_reader(),
+            MAX_LLM_RESPONSE_BODY_LEN,
         )?;
         Ok(buffered_stream_response_result(
             final_body,
@@ -229,6 +230,17 @@ fn llm_complete_http(
     headers: &[(String, String)],
     body: &[u8],
 ) -> Result<Vec<u8>, String> {
+    let resp = send_llm_http_post(provider, base_url, path, headers, body)?;
+    read_response_bytes(resp)
+}
+
+fn send_llm_http_post(
+    provider: &str,
+    base_url: &str,
+    path: &str,
+    headers: &[(String, String)],
+    body: &[u8],
+) -> Result<ureq::Response, String> {
     let expected = expected_llm_route_from_env();
     enforce_llm_route(provider, base_url, path, &expected)?;
     enforce_llm_request_body(body)?;
@@ -249,7 +261,7 @@ fn llm_complete_http(
     }
 
     match req.send_bytes(body) {
-        Ok(resp) => read_response_bytes(resp),
+        Ok(resp) => Ok(resp),
         Err(ureq::Error::Status(code, resp)) => {
             let bytes = read_response_bytes(resp)?;
             Err(format!("HTTP {code}: {}", llm_error_body_preview(&bytes)))

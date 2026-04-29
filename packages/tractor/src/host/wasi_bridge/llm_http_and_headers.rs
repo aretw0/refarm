@@ -1,3 +1,5 @@
+const MAX_LLM_RESPONSE_BODY_LEN: usize = 2 * 1024 * 1024;
+
 fn sanitized_plugin_headers(headers: &[(String, String)]) -> Vec<(&str, &str)> {
     const MAX_FORWARDED_HEADER_COUNT: usize = 64;
     const MAX_HEADER_SCAN: usize = 256;
@@ -77,9 +79,12 @@ fn join_base_url_and_path(base_url: &str, path: &str) -> String {
 }
 
 fn read_response_bytes(resp: ureq::Response) -> Result<Vec<u8>, String> {
-    const MAX_LLM_RESPONSE_BODY_LEN: usize = 2 * 1024 * 1024;
     let reader = resp.into_reader();
-    read_limited_bytes(reader, MAX_LLM_RESPONSE_BODY_LEN, "llm-bridge response body")
+    read_limited_bytes(
+        reader,
+        MAX_LLM_RESPONSE_BODY_LEN,
+        "llm-bridge response body",
+    )
 }
 
 fn read_limited_bytes(
