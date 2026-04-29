@@ -12,6 +12,7 @@ struct LlmStreamFinalAssembly {
     content: String,
     openai_tool_calls: Vec<OpenAiStreamToolCall>,
     anthropic_tool_uses: BTreeMap<u64, AnthropicStreamToolUse>,
+    usage: LlmStreamUsage,
 }
 
 impl LlmStreamFinalAssembly {
@@ -19,6 +20,26 @@ impl LlmStreamFinalAssembly {
         !self.content.is_empty()
             || !self.openai_tool_calls.is_empty()
             || !self.anthropic_tool_uses.is_empty()
+            || self.usage.has_observations()
+    }
+}
+
+#[derive(Debug, Default)]
+struct LlmStreamUsage {
+    prompt_tokens: Option<u32>,
+    completion_tokens: Option<u32>,
+    total_tokens: Option<u32>,
+    input_tokens: Option<u32>,
+    output_tokens: Option<u32>,
+}
+
+impl LlmStreamUsage {
+    fn has_observations(&self) -> bool {
+        self.prompt_tokens.is_some()
+            || self.completion_tokens.is_some()
+            || self.total_tokens.is_some()
+            || self.input_tokens.is_some()
+            || self.output_tokens.is_some()
     }
 }
 
@@ -155,7 +176,10 @@ fn synthesize_stream_final_response_body(
         }));
         serde_json::json!({
             "content": content_blocks,
-            "usage": { "input_tokens": 0, "output_tokens": 0 },
+            "usage": {
+                "input_tokens": assembly.usage.input_tokens.unwrap_or(0),
+                "output_tokens": assembly.usage.output_tokens.unwrap_or(0),
+            },
         })
     } else {
         let mut message = serde_json::json!({ "role": "assistant", "content": assembly.content });
@@ -183,9 +207,12 @@ fn synthesize_stream_final_response_body(
                 "finish_reason": "stop",
             }],
             "usage": {
-                "prompt_tokens": 0,
-                "completion_tokens": 0,
-                "total_tokens": 0,
+                "prompt_tokens": assembly.usage.prompt_tokens.unwrap_or(0),
+                "completion_tokens": assembly.usage.completion_tokens.unwrap_or(0),
+                "total_tokens": assembly.usage.total_tokens.unwrap_or_else(|| {
+                    assembly.usage.prompt_tokens.unwrap_or(0)
+                        .saturating_add(assembly.usage.completion_tokens.unwrap_or(0))
+                }),
             },
         })
     };
@@ -199,6 +226,7 @@ fn stream_text_deltas_and_update_final_assembly(
     let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) else {
         return Vec::new();
     };
+    apply_stream_usage(&value, assembly);
     apply_openai_tool_call_deltas(&value, assembly);
     apply_anthropic_tool_use_delta(&value, assembly);
     let deltas = stream_text_deltas_from_value(&value);
@@ -206,6 +234,40 @@ fn stream_text_deltas_and_update_final_assembly(
         assembly.content.push_str(delta);
     }
     deltas
+}
+
+fn apply_stream_usage(value: &serde_json::Value, assembly: &mut LlmStreamFinalAssembly) {
+    if let Some(usage) = value.get("usage") {
+        apply_usage_object(usage, &mut assembly.usage);
+    }
+    if let Some(usage) = value.get("message").and_then(|message| message.get("usage")) {
+        apply_usage_object(usage, &mut assembly.usage);
+    }
+}
+
+fn apply_usage_object(value: &serde_json::Value, usage: &mut LlmStreamUsage) {
+    if let Some(prompt_tokens) = usage_u32(value, "prompt_tokens") {
+        usage.prompt_tokens = Some(prompt_tokens);
+    }
+    if let Some(completion_tokens) = usage_u32(value, "completion_tokens") {
+        usage.completion_tokens = Some(completion_tokens);
+    }
+    if let Some(total_tokens) = usage_u32(value, "total_tokens") {
+        usage.total_tokens = Some(total_tokens);
+    }
+    if let Some(input_tokens) = usage_u32(value, "input_tokens") {
+        usage.input_tokens = Some(input_tokens);
+    }
+    if let Some(output_tokens) = usage_u32(value, "output_tokens") {
+        usage.output_tokens = Some(output_tokens);
+    }
+}
+
+fn usage_u32(value: &serde_json::Value, key: &str) -> Option<u32> {
+    value
+        .get(key)
+        .and_then(serde_json::Value::as_u64)
+        .and_then(|v| u32::try_from(v).ok())
 }
 
 fn apply_openai_tool_call_deltas(

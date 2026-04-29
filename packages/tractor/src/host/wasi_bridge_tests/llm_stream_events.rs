@@ -190,20 +190,53 @@ data: {"choices":[{"delta":{"content":"b"}}]}
 }
 
 #[test]
+fn store_stream_agent_response_chunks_from_reader_preserves_openai_usage() {
+    let storage = crate::storage::NativeStorage::open(":memory:").unwrap();
+    let sync = crate::sync::NativeSync::new(storage, "stream-reader-openai-usage-test").unwrap();
+    let metadata = stream_metadata(None);
+
+    let (final_body, last_sequence, stored_chunks) =
+        super::store_stream_agent_response_chunks_from_reader(
+            &sync,
+            "pi-agent",
+            &metadata,
+            std::io::Cursor::new(
+                br#"data: {"choices":[{"delta":{"content":"a"}}]}
+
+data: {"choices":[],"usage":{"prompt_tokens":7,"completion_tokens":3,"total_tokens":10}}
+
+"#,
+            ),
+            2048,
+        )
+        .unwrap();
+
+    let final_json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
+    assert_eq!(final_json["choices"][0]["message"]["content"], "a");
+    assert_eq!(final_json["usage"]["prompt_tokens"], 7);
+    assert_eq!(final_json["usage"]["completion_tokens"], 3);
+    assert_eq!(final_json["usage"]["total_tokens"], 10);
+    assert_eq!(last_sequence, Some(0));
+    assert_eq!(stored_chunks, 1);
+}
+
+#[test]
 fn synthesize_stream_final_response_body_emits_anthropic_shape() {
     let mut metadata = stream_metadata(None);
     metadata.provider_family = "anthropic".to_string();
 
     let mut assembly = super::LlmStreamFinalAssembly::default();
     assembly.content = "hello".to_string();
+    assembly.usage.input_tokens = Some(11);
+    assembly.usage.output_tokens = Some(5);
 
     let body = super::synthesize_stream_final_response_body(&metadata, &assembly).unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["content"][0]["type"], "text");
     assert_eq!(json["content"][0]["text"], "hello");
-    assert_eq!(json["usage"]["input_tokens"], 0);
-    assert_eq!(json["usage"]["output_tokens"], 0);
+    assert_eq!(json["usage"]["input_tokens"], 11);
+    assert_eq!(json["usage"]["output_tokens"], 5);
 }
 
 #[test]
