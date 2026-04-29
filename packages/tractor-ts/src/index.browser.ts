@@ -16,6 +16,7 @@ export * from "./lib/identity-recovery-host";
 export type { PluginInstance, PluginState } from "./lib/instance-handle";
 export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
+export * from "./lib/stream-chunk";
 export * from "./lib/telemetry";
 export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 export * from "./lib/types";
