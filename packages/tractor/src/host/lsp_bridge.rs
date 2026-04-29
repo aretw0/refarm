@@ -38,6 +38,16 @@ struct LspServerProcess {
     initialized: bool,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct LspTextEdit {
+    file: String,
+    start_line: u32,
+    start_character: u32,
+    end_line: u32,
+    end_character: u32,
+    new_text: String,
+}
+
 impl LspServerProcess {
     fn start(program: &str, args: &[&str]) -> Result<Self, String> {
         let mut child = Command::new(program)
@@ -144,10 +154,20 @@ impl LspBridge {
 
     pub(crate) fn rename_symbol(
         &self,
-        _loc: &SymbolLocation,
-        _new_name: &str,
+        loc: &SymbolLocation,
+        new_name: &str,
     ) -> Result<RenameResult, String> {
-        Err(self.not_connected_message("rename"))
+        let mut slot = Self::lock_session()?;
+        Self::ensure_lsp_session_locked(&mut slot, &self.lsp_cmd)?;
+        let session = slot
+            .as_mut()
+            .ok_or_else(|| "lsp session unavailable after start".to_string())?;
+
+        ensure_initialized(session)?;
+        let response =
+            session.request_response(&rename_request(3, loc, new_name), LSP_REQUEST_TIMEOUT)?;
+        let edits = parse_rename_response(&response)?;
+        apply_lsp_text_edits(&edits)
     }
 
     pub(crate) fn find_references(
@@ -164,17 +184,6 @@ impl LspBridge {
         let response =
             session.request_response(&references_request(2, loc), LSP_REQUEST_TIMEOUT)?;
         parse_references_response(&response)
-    }
-
-    fn not_connected_message(&self, op: &str) -> String {
-        if command_looks_resolvable(&self.lsp_cmd) {
-            format!("lsp not connected — language server configured but session not started ({op})")
-        } else {
-            format!(
-                "lsp not connected — configured language server command not found: {}",
-                self.lsp_cmd
-            )
-        }
     }
 
     fn session_slot() -> &'static Mutex<Option<LspServerProcess>> {
@@ -360,7 +369,6 @@ fn references_request(id: u64, loc: &SymbolLocation) -> serde_json::Value {
     })
 }
 
-#[allow(dead_code)]
 fn rename_request(id: u64, loc: &SymbolLocation, new_name: &str) -> serde_json::Value {
     serde_json::json!({
         "jsonrpc": "2.0",
@@ -372,6 +380,142 @@ fn rename_request(id: u64, loc: &SymbolLocation, new_name: &str) -> serde_json::
             "newName": new_name
         }
     })
+}
+
+fn parse_rename_response(response: &serde_json::Value) -> Result<Vec<LspTextEdit>, String> {
+    if let Some(error) = response.get("error") {
+        return Err(format!("lsp rename error: {error}"));
+    }
+
+    let Some(result) = response.get("result") else {
+        return Ok(Vec::new());
+    };
+
+    let mut edits = Vec::new();
+    if let Some(changes) = result.get("changes").and_then(|v| v.as_object()) {
+        for (uri, values) in changes {
+            let Some(values) = values.as_array() else {
+                return Err(format!("lsp rename changes for {uri} must be an array"));
+            };
+            for value in values {
+                edits.push(text_edit_from_lsp_value(&file_uri_to_path(uri), value)?);
+            }
+        }
+    }
+
+    Ok(edits)
+}
+
+fn text_edit_from_lsp_value(file: &str, value: &serde_json::Value) -> Result<LspTextEdit, String> {
+    let range = value
+        .get("range")
+        .ok_or_else(|| "lsp text edit missing range".to_string())?;
+    let start = range
+        .get("start")
+        .ok_or_else(|| "lsp text edit missing range.start".to_string())?;
+    let end = range
+        .get("end")
+        .ok_or_else(|| "lsp text edit missing range.end".to_string())?;
+    let new_text = value
+        .get("newText")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| "lsp text edit missing newText".to_string())?;
+
+    Ok(LspTextEdit {
+        file: file.to_string(),
+        start_line: lsp_u32(start, "line")?,
+        start_character: lsp_u32(start, "character")?,
+        end_line: lsp_u32(end, "line")?,
+        end_character: lsp_u32(end, "character")?,
+        new_text: new_text.to_string(),
+    })
+}
+
+fn lsp_u32(value: &serde_json::Value, field: &str) -> Result<u32, String> {
+    value
+        .get(field)
+        .and_then(|v| v.as_u64())
+        .and_then(|v| u32::try_from(v).ok())
+        .ok_or_else(|| format!("lsp value missing u32 field {field}"))
+}
+
+fn apply_lsp_text_edits(edits: &[LspTextEdit]) -> Result<RenameResult, String> {
+    let mut by_file = std::collections::BTreeMap::<String, Vec<LspTextEdit>>::new();
+    for edit in edits {
+        by_file
+            .entry(edit.file.clone())
+            .or_default()
+            .push(edit.clone());
+    }
+
+    let files_changed = by_file.len() as u32;
+    let edits_applied = edits.len() as u32;
+    for (file, mut file_edits) in by_file {
+        let original =
+            std::fs::read_to_string(&file).map_err(|e| format!("lsp rename/read({file}): {e}"))?;
+        file_edits.sort_by(|a, b| {
+            (b.start_line, b.start_character, b.end_line, b.end_character).cmp(&(
+                a.start_line,
+                a.start_character,
+                a.end_line,
+                a.end_character,
+            ))
+        });
+        let mut updated = original;
+        for edit in file_edits {
+            apply_lsp_text_edit(&mut updated, &edit)?;
+        }
+        std::fs::write(&file, updated).map_err(|e| format!("lsp rename/write({file}): {e}"))?;
+    }
+
+    Ok(RenameResult {
+        files_changed,
+        edits_applied,
+    })
+}
+
+fn apply_lsp_text_edit(content: &mut String, edit: &LspTextEdit) -> Result<(), String> {
+    let start = byte_offset_for_lsp_position(content, edit.start_line, edit.start_character)?;
+    let end = byte_offset_for_lsp_position(content, edit.end_line, edit.end_character)?;
+    if start > end {
+        return Err("lsp text edit start is after end".to_string());
+    }
+    content.replace_range(start..end, &edit.new_text);
+    Ok(())
+}
+
+fn byte_offset_for_lsp_position(content: &str, line: u32, character: u32) -> Result<usize, String> {
+    let mut line_start: usize = 0;
+    for (idx, current_line) in content.split_inclusive('\n').enumerate() {
+        if idx == line as usize {
+            return line_start
+                .checked_add(byte_offset_in_line(current_line, character)?)
+                .ok_or_else(|| "lsp position offset overflow".to_string());
+        }
+        line_start += current_line.len();
+    }
+
+    if line as usize == content.lines().count() && character == 0 {
+        return Ok(content.len());
+    }
+
+    Err(format!("lsp position line out of range: {line}"))
+}
+
+fn byte_offset_in_line(line: &str, character: u32) -> Result<usize, String> {
+    let without_newline = line.trim_end_matches(['\r', '\n']);
+    if character == 0 {
+        return Ok(0);
+    }
+
+    without_newline
+        .char_indices()
+        .nth(character as usize)
+        .map(|(idx, _)| idx)
+        .or_else(|| {
+            (without_newline.chars().count() == character as usize).then_some(without_newline.len())
+        })
+        .ok_or_else(|| format!("lsp position character out of range: {character}"))
 }
 
 fn parse_references_response(response: &serde_json::Value) -> Result<Vec<CodeReference>, String> {
@@ -433,28 +577,6 @@ fn file_uri(path: &str) -> String {
             .join(path)
     };
     format!("file://{}", absolute.to_string_lossy())
-}
-
-fn command_looks_resolvable(cmd: &str) -> bool {
-    let Ok((program, _args)) = split_lsp_command(cmd) else {
-        return false;
-    };
-
-    command_program_looks_resolvable(&program)
-}
-
-fn command_program_looks_resolvable(cmd: &str) -> bool {
-    if cmd.contains(std::path::MAIN_SEPARATOR) {
-        return std::path::Path::new(cmd).is_file();
-    }
-
-    std::env::var_os("PATH")
-        .map(|paths| {
-            std::env::split_paths(&paths)
-                .map(|p| p.join(cmd))
-                .any(|candidate| candidate.is_file())
-        })
-        .unwrap_or(false)
 }
 
 fn split_lsp_command(command: &str) -> Result<(String, Vec<String>), String> {
@@ -673,6 +795,79 @@ mod tests {
         let err = parse_references_response(&response).unwrap_err();
 
         assert!(err.contains("bad location"));
+    }
+
+    #[test]
+    fn rename_response_maps_workspace_changes_to_text_edits() {
+        let response = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "result": {
+                "changes": {
+                    "file:///workspace/generic/src/lib.rs": [
+                        {
+                            "range": {
+                                "start": { "line": 1, "character": 4 },
+                                "end": { "line": 1, "character": 7 }
+                            },
+                            "newText": "new_name"
+                        }
+                    ]
+                }
+            }
+        });
+
+        let edits = parse_rename_response(&response).unwrap();
+
+        assert_eq!(
+            edits,
+            vec![LspTextEdit {
+                file: "/workspace/generic/src/lib.rs".to_string(),
+                start_line: 1,
+                start_character: 4,
+                end_line: 1,
+                end_character: 7,
+                new_text: "new_name".to_string(),
+            }]
+        );
+    }
+
+    #[test]
+    fn lsp_text_edits_apply_in_reverse_order() {
+        let mut content = "let old = old;\n".to_string();
+        let edits = [
+            LspTextEdit {
+                file: "unused.rs".to_string(),
+                start_line: 0,
+                start_character: 4,
+                end_line: 0,
+                end_character: 7,
+                new_text: "new_name".to_string(),
+            },
+            LspTextEdit {
+                file: "unused.rs".to_string(),
+                start_line: 0,
+                start_character: 10,
+                end_line: 0,
+                end_character: 13,
+                new_text: "new_name".to_string(),
+            },
+        ];
+
+        let mut sorted = edits.to_vec();
+        sorted.sort_by(|a, b| {
+            (b.start_line, b.start_character, b.end_line, b.end_character).cmp(&(
+                a.start_line,
+                a.start_character,
+                a.end_line,
+                a.end_character,
+            ))
+        });
+        for edit in &sorted {
+            apply_lsp_text_edit(&mut content, edit).unwrap();
+        }
+
+        assert_eq!(content, "let new_name = new_name;\n");
     }
 
     #[test]
