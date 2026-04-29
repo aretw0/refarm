@@ -120,6 +120,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Core scenarios: AgentResponse stored, UsageRecord tokens, context guard, budget block
 - [x] Tool-loop scenarios: `bash`, `find_references`, and `rename_symbol` round-trip through pi-agent tool dispatch into Tractor host imports
 - [x] `ENV_LOCK` Mutex prevents env var cross-contamination between parallel tests
+- [x] Harness remains `#[ignore]` because it depends on a prebuilt `pi_agent.wasm`; use `npm run agent:lsp:harness:build` for the explicit build+run gate, or `npm run agent:lsp:harness` when the wasm is already fresh
 
 ---
 
