@@ -391,6 +391,22 @@ data: [DONE]
     assert_eq!(payloads[2]["is_final"], true);
     assert_eq!(payloads[2]["sequence"], 2);
 
+    let mut stream_chunks: Vec<serde_json::Value> = sync
+        .query_nodes("StreamChunk")
+        .expect("query StreamChunk")
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    stream_chunks.sort_by_key(|payload| payload["sequence"].as_u64().unwrap_or(u64::MAX));
+    assert_eq!(stream_chunks.len(), 3, "two partial chunks plus final marker");
+    assert_eq!(stream_chunks[0]["content"], "Olá ");
+    assert_eq!(stream_chunks[0]["is_final"], false);
+    assert_eq!(stream_chunks[1]["content"], "stream");
+    assert_eq!(stream_chunks[1]["is_final"], false);
+    assert_eq!(stream_chunks[2]["content"], "Olá stream");
+    assert_eq!(stream_chunks[2]["payload_kind"], "final_text");
+    assert_eq!(stream_chunks[2]["is_final"], true);
+
     let usage_records = sync.query_nodes("UsageRecord").expect("query UsageRecord");
     assert_eq!(usage_records.len(), 1, "streaming final body should preserve usage");
     let usage: serde_json::Value = serde_json::from_str(&usage_records[0].payload).unwrap();
