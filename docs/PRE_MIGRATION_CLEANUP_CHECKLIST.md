@@ -35,7 +35,7 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 - [ ] Cada package publicável tem `README.md` com exemplos de uso
 - [ ] Cada package publicável tem `CHANGELOG.md` (gerado via Changesets)
 - [ ] `"publishConfig": { "access": "public" }` está no `package.json` de todos os packages publicáveis
-- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/refarm-dev/refarm`)
+- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/aretw0/refarm`)
 - [ ] Packages com `"private": true` estão corretos (apps/, tooling interno)
 - [ ] Rodar `node scripts/verify-packages.mjs` sem erros:
   ```bash

@@ -108,7 +108,7 @@
 		]
 	},
 	"status": "development",
-	"repository": "https://github.com/refarm-dev/refarm",
+	"repository": "https://github.com/aretw0/refarm",
 	"stack": [
 		"TypeScript",
 		"Rust",

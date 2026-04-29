@@ -24,7 +24,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/refarm-dev/refarm.git",
+		"url": "https://github.com/aretw0/refarm.git",
 		"directory": "packages/plugin-manifest"
 	},
 	"homepage": "https://refarm.dev.br",

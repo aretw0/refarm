@@ -264,7 +264,7 @@ npm run runtime-module:descriptor -- \
   --module-url https://cdn.example/component.browser.mjs \
   --provenance-commit $(git rev-parse HEAD) \
   --provenance-build local-build-001 \
-  --provenance-repo https://github.com/refarm-dev/refarm \
+  --provenance-repo https://github.com/aretw0/refarm \
   --out ./dist/component.runtime-descriptor.json
 ```
 

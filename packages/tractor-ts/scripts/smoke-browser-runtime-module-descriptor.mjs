@@ -50,7 +50,7 @@ async function main() {
 	const generatedAt = "2026-04-23T00:00:00.000Z";
 	const provenanceCommit = "1111111111111111111111111111111111111111";
 	const provenanceBuild = "runtime-descriptor-smoke-build";
-	const provenanceRepo = "https://github.com/refarm-dev/refarm";
+	const provenanceRepo = "https://github.com/aretw0/refarm";
 
 	try {
 		await writeFile(

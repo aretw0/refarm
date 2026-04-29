@@ -327,7 +327,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-123",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -392,7 +392,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-123",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -451,7 +451,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-123",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -519,7 +519,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-profile-dev",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -588,7 +588,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-profile-prod",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -647,7 +647,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-env-development",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -712,7 +712,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-env-production",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -769,7 +769,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-config-conflict",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -852,7 +852,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-invalid-config",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -929,7 +929,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-invalid-profile",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -1032,7 +1032,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-stale-allowed",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",
@@ -1136,7 +1136,7 @@ describe("browser PluginHost runtime paths", () => {
 				source: "descriptor",
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-stale-revoked",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 			browserRuntimeModule: {
 				url: "https://example.test/component.browser.mjs",

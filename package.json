@@ -81,7 +81,7 @@
 	},
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/refarm-dev/refarm.git"
+		"url": "git+https://github.com/aretw0/refarm.git"
 	},
 	"homepage": "https://refarm.dev.br",
 	"workspaces": [

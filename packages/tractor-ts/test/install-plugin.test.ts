@@ -280,7 +280,7 @@ describe("installPlugin", () => {
 					provenance: {
 						commitSha: "1111111111111111111111111111111111111111",
 						buildId: "build-install-plugin-test",
-						sourceRepository: "https://github.com/refarm-dev/refarm",
+						sourceRepository: "https://github.com/aretw0/refarm",
 					},
 				},
 			},
@@ -332,7 +332,7 @@ describe("installPlugin", () => {
 						provenance: {
 							commitSha: "1111111111111111111111111111111111111111",
 							buildId: "build-url-descriptor",
-							sourceRepository: "https://github.com/refarm-dev/refarm",
+							sourceRepository: "https://github.com/aretw0/refarm",
 						},
 					}),
 				};
@@ -378,7 +378,7 @@ describe("installPlugin", () => {
 		(global.fetch as any).mockImplementation(async (url: string) => {
 			if (
 				url ===
-				"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json"
+				"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json"
 			) {
 				const descriptorWithoutIntegrity = {
 					schemaVersion: 1,
@@ -396,7 +396,7 @@ describe("installPlugin", () => {
 					provenance: {
 						commitSha: "1111111111111111111111111111111111111111",
 						buildId: "build-auto-resolve",
-						sourceRepository: "https://github.com/refarm-dev/refarm",
+						sourceRepository: "https://github.com/aretw0/refarm",
 					},
 				};
 
@@ -425,7 +425,7 @@ describe("installPlugin", () => {
 
 			if (
 				url ===
-				"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
+				"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
 			) {
 				return {
 					ok: true,
@@ -457,12 +457,12 @@ describe("installPlugin", () => {
 			"https://example.com/test.wasm",
 			{
 				descriptorDistributionPolicy: "external-signed",
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 			},
 		);
 
 		expect(global.fetch).toHaveBeenCalledWith(
-			"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json",
+			"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json",
 		);
 		expect(cachePluginRuntimeModule).toHaveBeenCalledWith(
 			"test-plugin",
@@ -495,7 +495,7 @@ describe("installPlugin", () => {
 					provenance: {
 						commitSha: "1111111111111111111111111111111111111111",
 						buildId: "build-revoked",
-						sourceRepository: "https://github.com/refarm-dev/refarm",
+						sourceRepository: "https://github.com/aretw0/refarm",
 					},
 				};
 
@@ -551,7 +551,7 @@ describe("installPlugin", () => {
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
 				descriptorDistributionPolicy: "external-signed",
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 				descriptorReleaseTag: "test-plugin@0.1.0-revoked",
 			}),
 		).rejects.toThrow("is revoked by release revocation list");
@@ -577,7 +577,7 @@ describe("installPlugin", () => {
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
 				descriptorDistributionPolicy: "external-signed",
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 			}),
 		).rejects.toThrow("bundle manifest is invalid");
 	});
@@ -608,7 +608,7 @@ describe("installPlugin", () => {
 									provenance: {
 										commitSha: "1111111111111111111111111111111111111111",
 										buildId: "build-other",
-										sourceRepository: "https://github.com/refarm-dev/refarm",
+										sourceRepository: "https://github.com/aretw0/refarm",
 									},
 									descriptorIntegrity:
 										"sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
@@ -629,7 +629,7 @@ describe("installPlugin", () => {
 		await expect(
 			installPlugin(manifestWithIntegrity, "https://example.com/test.wasm", {
 				descriptorDistributionPolicy: "external-signed",
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 			}),
 		).rejects.toThrow("bundle manifest missing descriptor entry");
 	});
@@ -658,7 +658,7 @@ describe("installPlugin", () => {
 					provenance: {
 						commitSha: "1111111111111111111111111111111111111111",
 						buildId: "build-explicit",
-						sourceRepository: "https://github.com/refarm-dev/refarm",
+						sourceRepository: "https://github.com/aretw0/refarm",
 					},
 				};
 
@@ -676,7 +676,7 @@ describe("installPlugin", () => {
 
 			if (
 				url ===
-				"https://github.com/refarm-dev/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
+				"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-revocations.json"
 			) {
 				return {
 					ok: true,
@@ -708,7 +708,7 @@ describe("installPlugin", () => {
 			"https://example.com/test.wasm",
 			{
 				descriptorDistributionPolicy: "external-signed",
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 				browserRuntimeModuleDescriptor: {
 					url: "https://cdn.example/explicit.runtime-descriptor.json",
 				},
@@ -742,7 +742,7 @@ describe("installPlugin", () => {
 					url: "https://example.com/test.browser.mjs",
 					integrity: runtimeModuleIntegrity,
 				},
-				descriptorSourceRepository: "https://github.com/refarm-dev/refarm",
+				descriptorSourceRepository: "https://github.com/aretw0/refarm",
 			}),
 		).rejects.toThrow(
 			"Provide either browserRuntimeModule or descriptor-based inputs",
@@ -770,7 +770,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-inline-revocation",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -829,7 +829,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-fail-open",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -900,7 +900,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-fail-closed",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -966,7 +966,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-profile-dev",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1035,7 +1035,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-env-profile-dev",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1102,7 +1102,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-env-development",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1169,7 +1169,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-env-production",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1238,7 +1238,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-conflict-env-profile",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1314,7 +1314,7 @@ describe("installPlugin", () => {
 				provenance: {
 					commitSha: "1111111111111111111111111111111111111111",
 					buildId: "build-node-env-production",
-					sourceRepository: "https://github.com/refarm-dev/refarm",
+					sourceRepository: "https://github.com/aretw0/refarm",
 				},
 			};
 			const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1382,7 +1382,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-precedence-explicit-policy",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1449,7 +1449,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-invalid-explicit-policy",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1527,7 +1527,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-invalid-env-profile",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1599,7 +1599,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-stale-revoked",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1702,7 +1702,7 @@ describe("installPlugin", () => {
 			provenance: {
 				commitSha: "1111111111111111111111111111111111111111",
 				buildId: "build-stale-non-revoked",
-				sourceRepository: "https://github.com/refarm-dev/refarm",
+				sourceRepository: "https://github.com/aretw0/refarm",
 			},
 		};
 		const descriptorIntegrity = await computeDescriptorIntegrity(
@@ -1902,7 +1902,7 @@ describe("installPlugin", () => {
 							provenance: {
 								commitSha: "1111111111111111111111111111111111111111",
 								buildId: "build-external",
-								sourceRepository: "https://github.com/refarm-dev/refarm",
+								sourceRepository: "https://github.com/aretw0/refarm",
 							},
 						};
 
@@ -1988,7 +1988,7 @@ describe("installPlugin", () => {
 							provenance: {
 								commitSha: "1111111111111111111111111111111111111111",
 								buildId: "build-derived-trust",
-								sourceRepository: "https://github.com/refarm-dev/refarm",
+								sourceRepository: "https://github.com/aretw0/refarm",
 							},
 						};
 
@@ -2073,7 +2073,7 @@ describe("installPlugin", () => {
 							provenance: {
 								commitSha: "1111111111111111111111111111111111111111",
 								buildId: "build-strict-manual",
-								sourceRepository: "https://github.com/refarm-dev/refarm",
+								sourceRepository: "https://github.com/aretw0/refarm",
 							},
 						};
 
@@ -2200,7 +2200,7 @@ describe("installPlugin", () => {
 					provenance: {
 						commitSha: "1111111111111111111111111111111111111111",
 						buildId: "build-ext-object",
-						sourceRepository: "https://github.com/refarm-dev/refarm",
+						sourceRepository: "https://github.com/aretw0/refarm",
 					},
 				},
 				descriptorDistributionPolicy: "external-signed",

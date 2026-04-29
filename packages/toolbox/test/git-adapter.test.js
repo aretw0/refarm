@@ -64,11 +64,11 @@ describe('Toolbox: Git Host Adapter', () => {
         });
 
         it('issue.create should build the correct gh cli command', () => {
-            mockedExecSync.mockReturnValue('https://github.com/refarm-dev/refarm/issues/42');
+            mockedExecSync.mockReturnValue('https://github.com/aretw0/refarm/issues/42');
             
             const url = gitUrlAdapter.issue.create('[Feature]: Test', 'kind:enhancement', 'Body text');
             
-            expect(url).toBe('https://github.com/refarm-dev/refarm/issues/42');
+            expect(url).toBe('https://github.com/aretw0/refarm/issues/42');
             expect(execSync).toHaveBeenCalledWith(
                 'gh issue create --title "[Feature]: Test" --label "kind:enhancement" --body "Body text"',
                 expect.objectContaining({ encoding: 'utf8', stdio: 'pipe' })

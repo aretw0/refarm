@@ -14,10 +14,10 @@ describe("runtime-descriptor-revocation", () => {
 
 	it("resolves GitHub repository coordinates for https and SSH URLs", () => {
 		expect(
-			resolveGithubRepoCoordinates("https://github.com/refarm-dev/refarm"),
+			resolveGithubRepoCoordinates("https://github.com/aretw0/refarm"),
 		).toEqual({ owner: "refarm-dev", repo: "refarm" });
 		expect(
-			resolveGithubRepoCoordinates("https://github.com/refarm-dev/refarm.git"),
+			resolveGithubRepoCoordinates("https://github.com/aretw0/refarm.git"),
 		).toEqual({ owner: "refarm-dev", repo: "refarm" });
 		expect(
 			resolveGithubRepoCoordinates("git@github.com:refarm-dev/refarm.git"),
@@ -30,12 +30,12 @@ describe("runtime-descriptor-revocation", () => {
 	it("builds encoded release asset URL", () => {
 		expect(
 			buildGithubReleaseAssetUrl(
-				"https://github.com/refarm-dev/refarm",
+				"https://github.com/aretw0/refarm",
 				"@acme/plugin@1.2.3",
 				"runtime-descriptor-revocations.json",
 			),
 		).toBe(
-			"https://github.com/refarm-dev/refarm/releases/download/%40acme%2Fplugin%401.2.3/runtime-descriptor-revocations.json",
+			"https://github.com/aretw0/refarm/releases/download/%40acme%2Fplugin%401.2.3/runtime-descriptor-revocations.json",
 		);
 	});
 

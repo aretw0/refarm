@@ -5,11 +5,11 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/storage-sqlite"
   },
   "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
+    "url": "https://github.com/aretw0/refarm/issues"
   },
   "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
