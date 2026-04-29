@@ -1,29 +1,33 @@
 {
-	"context": "Checkpoint de compactação preparado em 2026-04-28 após retomada operacional, limpeza de disco e fechamento de tarefas T-NEXT-287/T-NEXT-292. Working tree estava limpo antes desta atualização de handoff.",
-	"timestamp": "2026-04-28T23:57:00.000Z",
+	"context": "Checkpoint de compactação preparado em 2026-04-29 após fechamento do backlog planejado, estabilização do board e avanço incremental do Tractor LSP bridge. Working tree estava limpo antes desta atualização de handoff.",
+	"timestamp": "2026-04-29T00:35:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Ambiente local estabilizado em modo sobrevivência de disco: scripts de limpeza adicionados e commitados; espaço atual ~17GB livres em /workspaces/refarm; Rust target restante ~511MB apenas em packages/pi-agent/target.",
-		"T-NEXT-287 concluída: structured-io já estava importado no WIT do pi-agent e dispatch wasm32 delega para crate::refarm::plugin::structured_io. Validações passaram: cargo test --lib structured, cargo test --lib tool, cargo component build --release.",
-		"T-NEXT-292 concluída: pesquisa A2A/MCP/JSON-LD registrada como ADR canônica em specs/ADRs/ADR-052-crdt-native-agent-rendezvous.md; ROADMAP e .project atualizados."
+		"Todos os tasks em .project/tasks.json estão completed; project-status mostra requirements 31/31 accepted e tasks 373/373 completed.",
+		"T-NEXT-293 concluída: pi-agent lib.rs confirmado como fachada; provider_runtime_tests quebrado em módulos menores; compress.rs recebeu lint clippy acionável; validações passaram: cd packages/pi-agent && cargo test --lib --quiet (213 passed) e cargo component build --release.",
+		"Tractor LSP bridge avançou em 3 slices: lifecycle de subprocesso com start/reuse/stop/Drop; framing JSON-RPC LSP Content-Length; builders puros para initialize, textDocument/references e textDocument/rename com posição 1-based -> 0-based.",
+		"Últimos commits relevantes: 825b943b refactor(tractor): add lsp request builders; 2a636720 refactor(tractor): add lsp json rpc framing; 758f4d33 refactor(tractor): add lsp process lifecycle; 1039a8e2 chore(project): accept completed agent requirements."
 	],
 	"blockers": [
 		"Sem bloqueio técnico imediato.",
-		"Host Windows/C: ainda está em 97% de uso; evitar builds globais e rodar limpeza leve ao final de cada ciclo."
+		"Host Windows/C: ainda está em 97% de uso; manter disciplina de não rodar builds globais. Espaço atual ~15GB livres; targets: packages/tractor/target ~2.1GB, packages/pi-agent/target ~524MB."
 	],
 	"next_actions": [
-		"Retomar pela única task planned: T-NEXT-293 — revisão de qualidade Rust + split de arquivos grandes em packages/pi-agent, em fatias pequenas e commits atômicos.",
-		"Antes de mexer em pi-agent: confirmar git status limpo, df -h /workspaces/refarm, npm run clean:rust:check --silent.",
-		"Para T-NEXT-293: medir tamanho/estrutura atual de packages/pi-agent/src/lib.rs e módulos já extraídos; evitar refatorar tudo de uma vez. Começar por inspeção e plano de slices.",
-		"Validação econômica para fatias pi-agent: cd packages/pi-agent && cargo test --lib <filtro> --quiet; usar cargo component build --release só quando o slice afetar WIT/wasm boundary."
+		"Após compactação: começar com git status --short; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
+		"Próximo slice natural: implementar comunicação real com rust-analyzer no LspBridge para find_references primeiro, antes de rename_symbol. Usar os helpers já existentes em packages/tractor/src/host/lsp_bridge.rs: LspServerProcess, encode_lsp_message, drain_lsp_messages, initialize_request, references_request.",
+		"Manter slices pequenos: 1) I/O sync request/response básico; 2) initialize handshake; 3) find_references parser; 4) só depois rename workspace edits. Validar com cd packages/tractor && cargo test --lib lsp_bridge --quiet.",
+		"Não iniciar ACP/A2A gateway/streaming/rename package sem confirmação; o lane ativo é LSP v1/code-ops."
 	],
 	"open_questions": [
+		"ACP (Agent Context Protocol) não aparece como item canônico no roadmap atual; o roadmap registra A2A/MCP/JSON-LD e ADR-052. Se o usuário quiser ACP, criar primeiro uma task/ADR curta de pesquisa/comparação ACP vs MCP/A2A/CRDT rendezvous.",
+		"Os #[allow(dead_code)] adicionados em packages/tractor/src/host/lsp_bridge.rs são temporários: cobrem helpers já testados mas ainda não chamados pelo fluxo find_references/rename_symbol. Devem ser removidos à medida que os helpers forem conectados; não tratar como política permanente.",
 		"DEC-010 permanece pendente/revisit histórica.",
-		"Quando implementar ADR-052: decidir formato formal de schema para AgentProfile/AgentTask/AgentMessage/AgentArtifact antes de qualquer gateway A2A."
+		"ADR-052 ainda está Proposed; promover/ajustar após revisão humana."
 	],
 	"key_decisions_pending": [
 		"DEC-010",
-		"ADR-052 ainda está Proposed; promover/ajustar após revisão humana."
+		"Decidir se ACP entra no roadmap como pesquisa formal ou se fica fora por enquanto.",
+		"ADR-052 ainda está Proposed."
 	],
 	"files_in_flux": []
 }
