@@ -1,41 +1,41 @@
 {
-	"context": "Checkpoint 2026-04-29 after post-compaction continuation. User clarified we are not architecturally limited to WASM targets; we should stay free/target-agnostic where useful while still leveraging WASM for plugin isolation/packaging. Streaming lane remains host-proxied: Tractor/native owns credentials, route policy, validation, transport internals; pi-agent/WASM consumes the bridge semantics. Real provider stream:true remains disabled until end-to-end partial persistence is proven.",
-	"timestamp": "2026-04-29T17:44:00.000Z",
+	"context": "Checkpoint 2026-04-29 after continuing streaming lane with explicit generalization rule from user: anything not LLM-specific should be generalized for reuse. We separated generic SSE framing/buffering from LLM-specific provider delta parsing and AgentResponse projection. WASM remains useful as plugin isolation/packaging, but native Tractor owns target-agnostic transport/framing primitives where that has broader value.",
+	"timestamp": "2026-04-29T18:27:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Current unpushed stack since origin/develop now includes latest commits: 6b255008 docs(agent): generalize streaming readiness comment; eba6ff40 docs(agent): note native stream parser seam; a422b2d5 feat(tractor): draft stream chunk sequencing; a2b19432 feat(tractor): parse llm stream text deltas; 0d3e5605 feat(tractor): add target-neutral sse event parser; e98cf70a docs(agent): clarify streaming target strategy; 3a3d59e8 refactor(agent): route stream-ready requests to host bridge; 63f18c0b fix(tractor): validate stream bridge metadata; plus prior stream bridge commits back to 2b91ffe1.",
-		"ADR-053 updated: streaming core should be target-agnostic where practical. Native Tractor owns transport/buffering/validation/persistence boundaries; WASM is the plugin boundary, not a forced architectural constraint.",
-		"Tractor stream bridge metadata validation added in packages/tractor/src/host/wasi_bridge/core.rs. It blocks blank/unsafe prompt-ref/model/provider-family before even using buffered placeholder path. Tests added to packages/tractor/src/host/wasi_bridge_tests/llm_stream_contract.rs.",
-		"pi-agent request path now routes to http_post_stream_via_host only when provider_stream_request_enabled_from_env() is true and active stream metadata exists. Because streaming_reader_available() is still false, this is a future-ready seam only and current runtime behavior remains buffered.",
-		"New target-neutral Tractor stream internals in packages/tractor/src/host/wasi_bridge/llm_stream_events.rs: parse_sse_data_events, parse_stream_text_deltas_from_sse, parse_stream_text_deltas, stream_text_chunk_drafts_from_sse, last_stream_text_chunk_sequence. Tests cover SSE comments/DONE/CRLF/multiline/trailing events, OpenAI deltas, Anthropic content_block_delta, invalid JSON ignore, and sequence assignment.",
-		"ROADMAP updated: host WIT contract done, pi-agent wrapper seam done, native Tractor SSE/delta/sequence draft helpers done. Chunked HTTP/SSE delivery through complete-http-stream remains pending.",
-		"streaming_config comments updated away from WASM-only wording: readiness is now host-proxied streaming transport readiness."
+		"Latest local unpushed commits include e0c086d8 refactor(tractor): lift sse primitives out of llm bridge; 27a70fdf docs(agent): distinguish generic stream primitives; aa3b84e5 refactor(tractor): split generic sse stream primitives; ebf95a99 docs(agent): note buffered stream chunk persistence; 6619003a feat(tractor): record buffered stream chunks; 70ec2b38 feat(tractor): persist buffered stream chunks; 3d7f21ca feat(tractor): build stream agent response chunks; 3164b068 fix(tractor): align stream chunk first sequence; plus prior stream bridge stack.",
+		"Generic SSE framing now lives in packages/tractor/src/streaming/sse_events.rs and is exposed via packages/tractor/src/streaming.rs as crate-level reusable primitives: SseDataEventBuffer and parse_sse_data_events. It is no longer under the LLM bridge path.",
+		"LLM-specific code remains in packages/tractor/src/host/wasi_bridge/llm_stream_events.rs: OpenAI/Anthropic delta parsing, LlmStreamTextChunkDraft sequencing, partial AgentResponse node building, and storing SSE-derived chunks into NativeSync.",
+		"complete-http-stream still uses buffered HTTP for now, but after receiving final bytes it can persist any SSE-derived text chunks as partial AgentResponse nodes, reporting stored_chunks and last_sequence. This is not live token streaming yet.",
+		"Sequence alignment fixed: first partial chunk is sequence 0 when no last_sequence exists, matching pi-agent streaming_chunks semantics. Subsequent chunks increment monotonically.",
+		"ROADMAP and ADR-053 updated to distinguish generic stream primitives from LLM-specific streaming layer.",
+		"User explicitly reminded: do not tie everything to LLM; if a primitive has broader value, generalize it for future reuse."
 	],
 	"blockers": [
-		"Real streaming is still disabled. streaming_reader_available() remains false; provider stream:true is not emitted even with LLM_STREAM_RESPONSES=1.",
-		"complete-http-stream still uses buffered compatibility placeholder. It validates metadata and returns final_body/last_sequence/stored_chunks=0, but does not incrementally read or persist chunks.",
-		"Tractor now has provider delta parsing duplicated conceptually from pi-agent. Before deepening, decide whether to extract a shared crate/module or accept host-owned parser duplication for the first native transport slice.",
-		"Disk after clean:light: ~8.1GB free; Rust targets ~4.86GB. Avoid broad/global checks."
+		"Real live incremental HTTP/SSE is still not implemented. complete-http-stream drains buffered responses first; streaming_reader_available() remains false.",
+		"Provider stream:true is still disabled because final response semantics for SSE streams are not fully solved and end-to-end partial persistence/harness proof is pending.",
+		"Disk remains tight but stable after clean:light: ~8.2GB free; Rust targets ~4.86GB. Avoid broad global builds.",
+		"No GitHub Actions run yet for the large local unpushed stack."
 	],
 	"next_actions": [
-		"Next slice: design/implement live complete-http-stream internals behind tests using a fake SSE server. Keep it native/target-neutral in Tractor; do not flip streaming_reader_available until partial persistence is proven.",
-		"Decide storage shape for host-streamed partials: direct AgentResponse projection, generic LlmStreamChunk observation, or both. Given user guidance, do not let WASM-only concerns dominate; favor native host extensibility plus WASM compatibility.",
-		"If implementing direct persistence, add pure JSON node builders/tests first, then wire NativeSync store calls. Ensure sequences returned by complete-http-stream match the last successfully stored chunk.",
-		"If pushing: local checks passed after latest stack. Use git push origin develop and gh run watch --exit-status for the resulting run. Do not manually poll CI.",
-		"At start of next session: git status --short; git log --oneline origin/develop..HEAD; df -h /workspaces/refarm; npm run clean:rust:check --silent."
+		"Next slice should implement live incremental read behind complete-http-stream with tests using a fake SSE server or a Read-based pure helper. Keep generic byte/SSE frame handling in tractor::streaming; keep provider JSON/AgentResponse projection in llm_stream_events.",
+		"Before flipping streaming_reader_available() true, prove: provider stream:true request body, host route enforcement/credentials stay active, partial AgentResponse nodes are stored as chunks arrive, final response sequencing follows last stored partial, and clients can observe partials.",
+		"Consider adding a pure helper that accepts an iterator/Read of byte chunks, feeds SseDataEventBuffer, persists chunks incrementally, and accumulates final_body. This can be tested without network before wiring ureq reader.",
+		"Resolve final response semantics for provider SSE: current pi-agent parsers expect JSON final_body. Options: host synthesizes compatible final JSON from accumulated deltas; pi-agent handles stream-result summary; or final AgentResponse content is assembled from partials. Decide before enabling.",
+		"If pushing current stack: local validations passed; push then use gh run watch --exit-status. Do not manually poll CI."
 	],
 	"open_questions": [
-		"Should host store AgentResponse nodes directly for immediate WebSocket compatibility, generic LlmStreamChunk nodes for extensibility, or both?",
-		"Should the OpenAI/Anthropic SSE delta parser move into a shared target-neutral crate used by pi-agent and Tractor?",
-		"What exact persistence semantics are desired if the stream errors after storing some partial chunks?",
-		"Should complete-http-stream return final provider JSON bytes only, or also include a compact host-side stream summary/error status?",
-		"When to flip streaming_reader_available() true: after fake SSE host tests only, or after full pi-agent harness proves partial AgentResponse nodes visible to clients?"
+		"What non-LLM stream primitives beyond SSE framing should be generalized now vs later?",
+		"Should host store AgentResponse partials directly, generic StreamChunk nodes, or dual-write? Current implementation stores AgentResponse directly for compatibility.",
+		"Should OpenAI/Anthropic delta parsing be extracted to a shared crate used by both pi-agent and Tractor to avoid duplication?",
+		"How should final response JSON be represented for true SSE provider streams so existing pi-agent response parsing remains correct?",
+		"How should stream errors/cancellation be represented after partial chunks have already been stored?"
 	],
 	"key_decisions_pending": [
-		"Host partial storage shape: AgentResponse vs generic chunk vs dual-write.",
-		"Shared parser extraction vs host parser ownership.",
-		"Live transport implementation and test harness shape.",
-		"Error/cancel semantics for partially persisted streams.",
+		"Live complete-http-stream implementation shape.",
+		"Final response semantics for provider SSE.",
+		"AgentResponse direct chunks vs generic StreamChunk/dual-write.",
+		"Shared parser extraction vs host-owned parser duplication.",
 		"When to push the current unpushed stack."
 	],
 	"files_in_flux": []
