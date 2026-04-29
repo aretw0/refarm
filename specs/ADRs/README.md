@@ -61,7 +61,7 @@ These ADRs define architecture direction but are NOT executable contracts yet. S
 | [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0    | ConflictDetector + GraphMonitor + UI implementation                 |
 | [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+         | LockManager + UI patterns + merge strategies implementation         |
 | [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | pi-agent v0.2.0 | Initial host-proxied text and tool-call streaming implemented       |
-| [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Proposed    | tractor v0.2.0  | Initial StreamChunk dual-write implementation                       |
+| [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Accepted    | tractor v0.2.0  | Initial StreamChunk dual-write implementation                       |
 
 ---
 
