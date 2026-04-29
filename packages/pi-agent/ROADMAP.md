@@ -158,6 +158,9 @@ Context engineering follows the pi-test-harness model:
 - [x] Provider-neutral SSE `data:` event parser exists for future chunked HTTP reads
 - [x] OpenAI-compatible and Anthropic SSE text deltas are parsed via pure helpers
 - [x] Provider text deltas can be drafted into partial response chunks with monotonic sequence numbers
+- [x] SSE bytes can be transformed into partial response chunk drafts without invoking HTTP streaming
+- [x] Runtime persistence has a helper to store partial chunk drafts as AgentResponse nodes without session append
+- [x] Last partial chunk sequence can feed final response sequencing
 - [ ] Stream LLM tokens to WebSocket clients as they arrive (partial `AgentResponse` nodes)
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [ ] Requires chunked HTTP read in `wasi::http` outgoing handler — no host changes needed
