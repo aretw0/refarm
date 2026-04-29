@@ -136,6 +136,57 @@ impl LspBridge {
     }
 }
 
+#[allow(dead_code)]
+fn encode_lsp_message(message: &serde_json::Value) -> Vec<u8> {
+    let body = message.to_string();
+    format!("Content-Length: {}\r\n\r\n{}", body.len(), body).into_bytes()
+}
+
+#[allow(dead_code)]
+fn drain_lsp_messages(buffer: &mut Vec<u8>) -> Result<Vec<serde_json::Value>, String> {
+    let mut messages = Vec::new();
+
+    loop {
+        let Some(header_end) = find_header_end(buffer) else {
+            break;
+        };
+        let header = std::str::from_utf8(&buffer[..header_end])
+            .map_err(|e| format!("lsp header utf8: {e}"))?;
+        let content_len = content_length(header)?;
+        let body_start = header_end + 4;
+        let frame_end = body_start + content_len;
+        if buffer.len() < frame_end {
+            break;
+        }
+
+        let body = buffer[body_start..frame_end].to_vec();
+        buffer.drain(..frame_end);
+        let value = serde_json::from_slice(&body).map_err(|e| format!("lsp json: {e}"))?;
+        messages.push(value);
+    }
+
+    Ok(messages)
+}
+
+#[allow(dead_code)]
+fn find_header_end(buffer: &[u8]) -> Option<usize> {
+    buffer.windows(4).position(|w| w == b"\r\n\r\n")
+}
+
+#[allow(dead_code)]
+fn content_length(header: &str) -> Result<usize, String> {
+    header
+        .lines()
+        .find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("content-length")
+                .then(|| value.trim())
+        })
+        .ok_or_else(|| "lsp frame missing Content-Length".to_string())?
+        .parse::<usize>()
+        .map_err(|e| format!("lsp Content-Length parse: {e}"))
+}
+
 fn command_looks_resolvable(cmd: &str) -> bool {
     if cmd.contains(std::path::MAIN_SEPARATOR) {
         return std::path::Path::new(cmd).is_file();
@@ -202,5 +253,30 @@ mod tests {
 
         assert_eq!(bridge.ensure_rust_analyzer_session().unwrap(), first_pid);
         LspBridge::stop_rust_analyzer_session().unwrap();
+    }
+
+    #[test]
+    fn lsp_message_encoding_uses_content_length_frame() {
+        let message = serde_json::json!({"jsonrpc":"2.0","id":1,"method":"initialize"});
+        let framed = encode_lsp_message(&message);
+        let text = String::from_utf8(framed).unwrap();
+
+        assert!(text.starts_with("Content-Length: "));
+        assert!(text.contains("\r\n\r\n"));
+        assert!(text.ends_with(&message.to_string()));
+    }
+
+    #[test]
+    fn lsp_message_drain_handles_partial_and_multiple_frames() {
+        let first = serde_json::json!({"jsonrpc":"2.0","id":1,"result":{}});
+        let second = serde_json::json!({"jsonrpc":"2.0","method":"window/logMessage"});
+        let mut buffer = encode_lsp_message(&first);
+        buffer.extend(encode_lsp_message(&second));
+        buffer.extend(b"Content-Length: 999\r\n\r\n{".to_vec());
+
+        let messages = drain_lsp_messages(&mut buffer).unwrap();
+
+        assert_eq!(messages, vec![first, second]);
+        assert!(String::from_utf8_lossy(&buffer).starts_with("Content-Length: 999"));
     }
 }
