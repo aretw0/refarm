@@ -84,3 +84,47 @@ pub(crate) fn http_post_via_host(
 ) -> Result<Vec<u8>, String> {
     llm_bridge::complete_http(provider, base_url, path, headers, body)
 }
+
+#[allow(dead_code)]
+pub(crate) struct HostStreamResponse {
+    pub final_body: Vec<u8>,
+    pub last_sequence: Option<u32>,
+    pub stored_chunks: u32,
+}
+
+#[allow(dead_code)]
+pub(crate) struct HostStreamRequestMetadata<'a> {
+    pub prompt_ref: &'a str,
+    pub model: &'a str,
+    pub provider_family: &'a str,
+    pub last_sequence: Option<u32>,
+}
+
+#[allow(dead_code)]
+pub(crate) fn http_post_stream_via_host(
+    provider: &str,
+    base_url: &str,
+    path: &str,
+    headers: &[(String, String)],
+    body: &[u8],
+    metadata: HostStreamRequestMetadata<'_>,
+) -> Result<HostStreamResponse, String> {
+    let response = llm_bridge::complete_http_stream(
+        provider,
+        base_url,
+        path,
+        headers,
+        body,
+        &llm_bridge::StreamResponseMetadata {
+            prompt_ref: metadata.prompt_ref.to_owned(),
+            model: metadata.model.to_owned(),
+            provider_family: metadata.provider_family.to_owned(),
+            last_sequence: metadata.last_sequence,
+        },
+    )?;
+    Ok(HostStreamResponse {
+        final_body: response.final_body,
+        last_sequence: response.last_sequence,
+        stored_chunks: response.stored_chunks,
+    })
+}
