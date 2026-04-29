@@ -192,6 +192,7 @@ Context engineering follows the pi-test-harness model:
 - [ ] `is_final: false` intermediate nodes, `is_final: true` on completion
 - [x] Host-proxied streaming WIT contract exists as `llm-bridge::complete-http-stream`; current Tractor implementation is a buffered compatibility placeholder that reports zero stored chunks
 - [x] pi-agent has a host stream bridge wrapper seam for `complete-http-stream` metadata/result mapping
+- [x] Tractor has target-neutral SSE payload/delta parsing and sequence draft helpers for native host streaming internals
 - [ ] Implement chunked HTTP/SSE delivery through `complete-http-stream` and keep `streaming_reader_available()` false until this is proven by tests
 - [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
 
