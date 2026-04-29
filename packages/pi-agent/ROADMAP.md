@@ -86,11 +86,11 @@ Context engineering follows the pi-test-harness model:
 - [x] Move large unit suites out of `lib.rs` into `tests.rs` + `extensibility_contract.rs`
 - [x] Split `tests.rs` into domain submodules under `src/tests/` (compress, session, structured_io, provider/env, tools, usage, response nodes)
 
-### Execution lane (62% → 72%) — daily-driver unlock, architecture-first
+### Execution lane (72% ✅) — daily-driver unlock, architecture-first
 
 **Goal**: make Refarm/Farmhand a reliable daily driver with semantic refactor capability (not only prompt+tool orchestration).
 
-**Primary unlock lane (active now)**: tractor LSP bridge v1 + code-ops (`find-references`, `rename-symbol`).
+**Primary unlock lane (complete)**: tractor LSP bridge v1 + code-ops (`find-references`, `rename-symbol`).
 
 #### Definition of Done @72%
 - [x] `packages/tractor/src/host/lsp_bridge.rs` exists with lifecycle-safe subprocess manager (start/reuse/stop semantics documented in code).
