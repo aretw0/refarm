@@ -56,7 +56,7 @@ complete-http-stream: func(
 ) -> result<stream-response-result, string>;
 ```
 
-This keeps `complete-http` as the default buffered primitive. `complete-http-stream` is opt-in and can be introduced without forcing non-streaming plugins to understand streaming.
+This keeps `complete-http` as the default buffered primitive. `complete-http-stream` is opt-in and can be introduced without forcing non-streaming plugins to understand streaming. For true provider SSE responses, the host may persist partial chunks from SSE frames while returning a synthesized provider-compatible final JSON body to the guest so existing final-response parsers remain valid.
 
 ## Consequences
 
