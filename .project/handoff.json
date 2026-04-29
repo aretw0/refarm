@@ -1,42 +1,41 @@
 {
-	"context": "Checkpoint 2026-04-29 preparing context compaction after advancing host-proxied streaming in small atomic slices. Main lane: pi-agent streaming AgentResponse. We deliberately chose long-term extensibility/security over rushing direct wasi::http. Provider credentials and route policy stay in Tractor host. Real streaming remains disabled until host-proxied stream implementation is proven.",
-	"timestamp": "2026-04-29T17:15:00.000Z",
+	"context": "Checkpoint 2026-04-29 after post-compaction continuation. User clarified we are not architecturally limited to WASM targets; we should stay free/target-agnostic where useful while still leveraging WASM for plugin isolation/packaging. Streaming lane remains host-proxied: Tractor/native owns credentials, route policy, validation, transport internals; pi-agent/WASM consumes the bridge semantics. Real provider stream:true remains disabled until end-to-end partial persistence is proven.",
+	"timestamp": "2026-04-29T17:44:00.000Z",
 	"current_phase": 11,
 	"current_tasks": [
-		"Unpushed commits since origin/develop include: 2b91ffe1 fix(agent): keep streaming sink model current; a03d038a docs(agent): note fallback stream sink model; fef70936 docs(agent): clarify streaming transport boundary; 9d801190 docs(agent): propose host-proxied llm streaming; 124adfef test(agent): cover stream sink state; b28a8f65 docs(agent): sketch host streaming contract; a388716e docs(agent): link streaming transport adr; 36b88e37 feat(tractor): add llm stream bridge contract; 3797f13c docs(agent): mark stream bridge contract; 29342d57 chore(project): refresh stream bridge handoff; 987318e4 test(tractor): cover stream bridge placeholder; 6eb7742c refactor(agent): expose host stream bridge seam; 8f74d439 docs(agent): note host stream wrapper seam.",
-		"ADR-053 exists at specs/ADRs/ADR-053-host-proxied-llm-streaming.md. It proposes host-proxied LLM streaming and rejects direct plugin wasi::http until a later ADR accepts credential/security trade-offs.",
-		"WIT contract added to packages/tractor/wit/host/refarm-plugin-host.wit. Note: packages/pi-agent/wit/refarm-plugin-host.wit is a tracked symlink-like file containing ../../tractor/wit/host/refarm-plugin-host.wit, so edits happen in Tractor WIT. Contract adds stream-response-metadata, stream-response-result, and complete-http-stream(..., stream-metadata).",
-		"Tractor implementation in packages/tractor/src/host/wasi_bridge/core.rs implements complete_http_stream as buffered compatibility placeholder: calls existing llm_complete_http, returns final_body, preserves last_sequence, stored_chunks=0. Helper buffered_stream_response_result is unit-tested.",
-		"New Tractor tests: packages/tractor/src/host/wasi_bridge_tests/llm_stream_contract.rs, included by wasi_bridge_tests.rs, assert buffered placeholder preserves final_body/last_sequence and never claims stored chunks.",
-		"pi-agent provider.rs now has HostStreamRequestMetadata, HostStreamResponse, and http_post_stream_via_host wrapper seam around generated llm_bridge::complete_http_stream. It is intentionally dead-code for now until streaming_reader_available can flip with real host implementation.",
-		"pi-agent stream sink state was refactored/tested: StreamResponseSinkState::new/update_model/update_last_sequence preserves sequence across fallback model updates and ignores None sequence updates. Tests in packages/pi-agent/src/tests/streaming_sink_tests.rs.",
-		"ROADMAP streaming section updated to mark host-proxied WIT contract and pi-agent wrapper seam done, while real chunked HTTP/SSE through complete-http-stream remains pending."
+		"Current unpushed stack since origin/develop now includes latest commits: 6b255008 docs(agent): generalize streaming readiness comment; eba6ff40 docs(agent): note native stream parser seam; a422b2d5 feat(tractor): draft stream chunk sequencing; a2b19432 feat(tractor): parse llm stream text deltas; 0d3e5605 feat(tractor): add target-neutral sse event parser; e98cf70a docs(agent): clarify streaming target strategy; 3a3d59e8 refactor(agent): route stream-ready requests to host bridge; 63f18c0b fix(tractor): validate stream bridge metadata; plus prior stream bridge commits back to 2b91ffe1.",
+		"ADR-053 updated: streaming core should be target-agnostic where practical. Native Tractor owns transport/buffering/validation/persistence boundaries; WASM is the plugin boundary, not a forced architectural constraint.",
+		"Tractor stream bridge metadata validation added in packages/tractor/src/host/wasi_bridge/core.rs. It blocks blank/unsafe prompt-ref/model/provider-family before even using buffered placeholder path. Tests added to packages/tractor/src/host/wasi_bridge_tests/llm_stream_contract.rs.",
+		"pi-agent request path now routes to http_post_stream_via_host only when provider_stream_request_enabled_from_env() is true and active stream metadata exists. Because streaming_reader_available() is still false, this is a future-ready seam only and current runtime behavior remains buffered.",
+		"New target-neutral Tractor stream internals in packages/tractor/src/host/wasi_bridge/llm_stream_events.rs: parse_sse_data_events, parse_stream_text_deltas_from_sse, parse_stream_text_deltas, stream_text_chunk_drafts_from_sse, last_stream_text_chunk_sequence. Tests cover SSE comments/DONE/CRLF/multiline/trailing events, OpenAI deltas, Anthropic content_block_delta, invalid JSON ignore, and sequence assignment.",
+		"ROADMAP updated: host WIT contract done, pi-agent wrapper seam done, native Tractor SSE/delta/sequence draft helpers done. Chunked HTTP/SSE delivery through complete-http-stream remains pending.",
+		"streaming_config comments updated away from WASM-only wording: readiness is now host-proxied streaming transport readiness."
 	],
 	"blockers": [
-		"Real streaming is still disabled. streaming_reader_available() remains false and provider_stream_request_enabled_from_env() remains false even with LLM_STREAM_RESPONSES=1.",
-		"complete-http-stream is a placeholder only; it is not live streaming and stored_chunks=0 by design.",
-		"Disk dropped back to ~8.0GB free after local Rust checks despite clean:light. Rust targets remain ~4.85GB. Avoid broad builds; consider clean:heavy before expensive checks if disk falls further.",
-		"GitHub Actions has not been run for the new unpushed stream-bridge stack. Local reproduction/checks passed; if/when pushing, use gh run watch --exit-status, not polling."
+		"Real streaming is still disabled. streaming_reader_available() remains false; provider stream:true is not emitted even with LLM_STREAM_RESPONSES=1.",
+		"complete-http-stream still uses buffered compatibility placeholder. It validates metadata and returns final_body/last_sequence/stored_chunks=0, but does not incrementally read or persist chunks.",
+		"Tractor now has provider delta parsing duplicated conceptually from pi-agent. Before deepening, decide whether to extract a shared crate/module or accept host-owned parser duplication for the first native transport slice.",
+		"Disk after clean:light: ~8.1GB free; Rust targets ~4.86GB. Avoid broad/global checks."
 	],
 	"next_actions": [
-		"Before more work after compaction: git status --short; git log --oneline origin/develop..HEAD; df -h /workspaces/refarm; npm run clean:rust:check --silent.",
-		"Next technical slice: implement or design tests for complete-http-stream live internals with a fake SSE server. Do not flip streaming_reader_available until end-to-end partial persistence is proven.",
-		"Decide implementation shape: host stores AgentResponse chunks directly, host stores generic StreamChunk nodes, or a safer resource/callback stream. Favor generic/extensible host boundary; avoid duplicating provider parser if possible.",
-		"If pushing current stack: local checks already run: cd packages/pi-agent && cargo check --target wasm32-wasip1 --quiet; cd packages/tractor && cargo check --quiet; cargo test --lib buffered_stream_response_result --quiet; npm run project:validate --silent; git diff --check. Then use git push origin develop and gh run watch <run-id> --repo aretw0/refarm --exit-status.",
-		"Potential cleanup before push/checks: npm run clean:light --silent already run. If disk <8GB and more Rust checks needed, consider npm run clean:heavy --silent, accepting rebuild cost."
+		"Next slice: design/implement live complete-http-stream internals behind tests using a fake SSE server. Keep it native/target-neutral in Tractor; do not flip streaming_reader_available until partial persistence is proven.",
+		"Decide storage shape for host-streamed partials: direct AgentResponse projection, generic LlmStreamChunk observation, or both. Given user guidance, do not let WASM-only concerns dominate; favor native host extensibility plus WASM compatibility.",
+		"If implementing direct persistence, add pure JSON node builders/tests first, then wire NativeSync store calls. Ensure sequences returned by complete-http-stream match the last successfully stored chunk.",
+		"If pushing: local checks passed after latest stack. Use git push origin develop and gh run watch --exit-status for the resulting run. Do not manually poll CI.",
+		"At start of next session: git status --short; git log --oneline origin/develop..HEAD; df -h /workspaces/refarm; npm run clean:rust:check --silent."
 	],
 	"open_questions": [
-		"Should live complete-http-stream store AgentResponse nodes directly (satisfies current UI contract but couples Tractor to pi-agent schema) or generic StreamChunk nodes (more extensible but needs projection/reassembly)?",
-		"Can Component Model safely support host-to-guest callbacks during imported complete_http_stream, or should we avoid reentrancy? Current ADR prefers host-owned append-only stream record.",
-		"Should provider-specific SSE parsing be extracted to a shared Rust crate used by both pi-agent and Tractor?",
-		"How should partial chunks record tokens/duration before final provider usage arrives? Currently partials use zero tokens/duration; final carries usage.",
-		"Error/cancel semantics after partial chunks are still undefined."
+		"Should host store AgentResponse nodes directly for immediate WebSocket compatibility, generic LlmStreamChunk nodes for extensibility, or both?",
+		"Should the OpenAI/Anthropic SSE delta parser move into a shared target-neutral crate used by pi-agent and Tractor?",
+		"What exact persistence semantics are desired if the stream errors after storing some partial chunks?",
+		"Should complete-http-stream return final provider JSON bytes only, or also include a compact host-side stream summary/error status?",
+		"When to flip streaming_reader_available() true: after fake SSE host tests only, or after full pi-agent harness proves partial AgentResponse nodes visible to clients?"
 	],
 	"key_decisions_pending": [
-		"complete-http-stream live implementation shape.",
-		"AgentResponse direct chunks vs generic StreamChunk node.",
-		"Shared SSE parser extraction vs host duplication.",
-		"Error/cancel contract for partial streaming.",
+		"Host partial storage shape: AgentResponse vs generic chunk vs dual-write.",
+		"Shared parser extraction vs host parser ownership.",
+		"Live transport implementation and test harness shape.",
+		"Error/cancel semantics for partially persisted streams.",
 		"When to push the current unpushed stack."
 	],
 	"files_in_flux": []
