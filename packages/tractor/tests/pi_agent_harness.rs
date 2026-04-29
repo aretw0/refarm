@@ -187,7 +187,7 @@ fn python3_is_available_for_harness() -> bool {
         .unwrap_or(false)
 }
 
-const FAKE_LSP_RENAME_SERVER: &str = r#"
+const FAKE_LSP_CODE_OPS_SERVER: &str = r#"
 import json
 import sys
 
@@ -473,7 +473,7 @@ async fn harness_find_references_tool_reads_lsp_locations() {
     let source = dir.path().join("lib.rs");
     let fake_lsp = dir.path().join("fake_lsp.py");
     std::fs::write(&source, "let old = old;\n").unwrap();
-    std::fs::write(&fake_lsp, FAKE_LSP_RENAME_SERVER).unwrap();
+    std::fs::write(&fake_lsp, FAKE_LSP_CODE_OPS_SERVER).unwrap();
 
     let arguments = serde_json::json!({
         "file": source.to_string_lossy(),
@@ -549,7 +549,7 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let source = dir.path().join("lib.rs");
     let fake_lsp = dir.path().join("fake_lsp.py");
     std::fs::write(&source, "let old = old;\n").unwrap();
-    std::fs::write(&fake_lsp, FAKE_LSP_RENAME_SERVER).unwrap();
+    std::fs::write(&fake_lsp, FAKE_LSP_CODE_OPS_SERVER).unwrap();
 
     let arguments = serde_json::json!({
         "file": source.to_string_lossy(),
