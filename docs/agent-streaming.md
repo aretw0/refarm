@@ -23,6 +23,17 @@ provider JSON body to the guest.
 - Tool-call/tool-use deltas are synthesized into final provider-compatible JSON
   so existing tool loops continue to work.
 
+## CLI consumption
+
+`tractor prompt --format plain` and `tractor watch --format plain` render partial
+chunks as append-only deltas. When the final response arrives after partials, the
+CLI terminates the line instead of printing the full final content again. If no
+partials were observed, the final response prints normally.
+
+JSON mode keeps emitting each `AgentResponse` event with `sequence` and
+`is_final`, so structured consumers can maintain their own per-`prompt_ref`
+accumulator.
+
 ## Local validation
 
 Use economical scoped checks while developing:
