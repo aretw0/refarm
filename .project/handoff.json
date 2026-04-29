@@ -1,42 +1,40 @@
 {
-	"context": "Checkpoint 2026-04-29 after continuing post-compaction streaming lane and validation-economy work. Host-proxied LLM streaming is live opt-in via LLM_STREAM_RESPONSES=1. Architecture remains: generic SSE framing/reader in tractor::streaming; LLM/provider JSON, usage, tool-call synthesis and AgentResponse projection in Tractor llm_stream_events; provider credentials and route enforcement stay host-owned.",
-	"timestamp": "2026-04-29T20:39:00.000Z",
-	"current_phase": 11,
+	"context": "Checkpoint 2026-04-29 after pushed CI-green streaming consumer polish. Prior host-proxied LLM streaming stack remains live opt-in via LLM_STREAM_RESPONSES=1; credentials and route enforcement stay host-owned. This checkpoint focused on sharing/pushing, CI validation, and client/CLI consumption of partial AgentResponse chunks.",
+	"timestamp": "2026-04-29T22:06:00.000Z",
+	"current_phase": 12,
 	"current_tasks": [
-		"Latest commits after prior handoff: d2094a7c docs(dev): reinforce validation economy; d214a33f feat(tractor): preserve streamed usage counts; 23eb0e05 docs(agent): document streaming opt-in; 1c945b88 docs(agent): note streamed usage preservation; d23c7991 test(agent): assert streamed usage records.",
-		"Validation-economy reinforced in AGENTS.md and docs/local-disk-hygiene.md. New package scripts: npm run agent:streaming:check, npm run agent:streaming:harness, npm run agent:streaming:harness:build. Guidance: use filtered tests per slice; rebuild pi_agent.wasm only when pi-agent/WIT changed and harness must execute; clean:light only at checkpoints/low disk.",
-		"New user-facing doc docs/agent-streaming.md describes LLM_STREAM_RESPONSES opt-in, response shape, host-owned credentials/route enforcement, partial delta semantics, final assembled response semantics, and economical validation commands. docs/INDEX.md links it and local disk hygiene.",
-		"Tractor stream final assembly now preserves provider usage events from SSE. OpenAI-compatible usage fields prompt_tokens/completion_tokens/total_tokens are accumulated from root usage objects. Anthropic input_tokens/output_tokens are accumulated from root or message usage objects. Synthesized final provider JSON now carries usage when present instead of always zero.",
-		"Tests added/updated: store_stream_agent_response_chunks_from_reader_preserves_openai_usage; anthropic synthesis test now checks nonzero input/output usage; harness_streaming_opt_in_stores_partials_and_final_response now also asserts UsageRecord tokens_in=13/tokens_out=5 from streamed usage SSE.",
-		"Recent validations passed: npm run agent:streaming:check; npm run agent:streaming:harness; npm run project:validate --silent; git diff --check. Afterward ran npm run clean:light and npm run clean:rust:check."
+		"Pushed the large streaming/usage/validation-economy stack to origin/develop. CI run 25133074023 passed.",
+		"Added Tractor CLI plain-mode streaming polish: partial AgentResponse chunks print as deltas, stdout flushes after each delta, and the final full content is not duplicated when partials were already printed. JSON output remains event-based for structured consumers. Commits: dce07a0c, 2a119c4c, ae8a45cf, d08ced8d, af69feb6.",
+		"Added TypeScript AgentResponse stream accumulation utility in @refarm.dev/tractor: applyAgentResponseStreamEvent, reduceAgentResponseStreamEvents, and prompt-grouped reduceAgentResponseStreamEventsByPrompt with UNKNOWN_AGENT_RESPONSE_PROMPT_REF fallback. Exported from node and browser entrypoints. Commits: d95f4d70, 573cee3e, 96965683, e671d0bc.",
+		"Pushed CLI/tractor-ts consumer polish stack. CI run 25135215147 passed. Pushed prompt-grouped accumulator follow-up. CI run 25135898891 passed.",
+		"Updated docs/agent-streaming.md and packages/pi-agent/ROADMAP.md to document CLI plain output behavior and TypeScript accumulator utilities.",
+		"Validation used: npm run agent:streaming:check; npm run agent:streaming:harness; cargo check --quiet in packages/tractor; cargo test --bin tractor plain_output --quiet; npm --prefix packages/tractor-ts run type-check; npm --prefix packages/tractor-ts run test:unit -- agent-response-stream.test.ts; npm run project:validate --silent; git diff --check; GitHub Actions watch with --exit-status.",
+		"Ran npm run clean:light at checkpoint. Disk still tight: about 7.2GB free; Rust targets about 4.9GB."
 	],
 	"blockers": [
-		"No GitHub Actions run yet for the long local stack; origin/develop remains behind all streaming/validation-economy commits.",
-		"Disk remains tight: after clean:light ~11GB free, Rust targets ~5.1GB.",
-		"Full tractor-ts unit suite remains noisy locally due missing WASM fixtures; avoid broad TS suite unless addressing fixtures.",
-		"pi-lens/LSP monitor repeatedly crashed on large Rust/markdown edits with memory access out of bounds; cargo checks/tests passed. Mention if diagnosing tooling.",
-		"Streaming is live but opt-in only via LLM_STREAM_RESPONSES; default behavior remains buffered/non-streaming."
+		"Disk remains tight (~7.2GB free after clean:light). Avoid global/full builds unless preparing a gate; clean:light removes incremental caches so use only at checkpoints/low disk.",
+		"Pre-push hook continues to warn that scoped tractor/tractor-ts unit tests fail or time out locally, but targeted local checks and GitHub Actions passed. Full tractor-ts suite remains noisy due fixtures; use targeted tests unless working on fixtures.",
+		"pi-lens/LSP monitor still crashes on some Rust/Markdown edits with memory access out of bounds; does not correlate with cargo/ts failures.",
+		"Streaming remains opt-in only via LLM_STREAM_RESPONSES; default buffered path remains unchanged."
 	],
 	"next_actions": [
-		"If ready to share, push the stack and watch CI using gh run watch --exit-status. Before push: git status --short; git log --oneline origin/develop..HEAD; npm run agent:streaming:check; npm run agent:streaming:harness; npm run project:validate --silent; git diff --check.",
-		"Consider a follow-up harness or unit tests for Anthropic streamed usage/tool_use end-to-end if an Anthropic harness path can be added cheaply without credentials. Unit coverage exists for Anthropic tool_use synthesis and usage shape, but harness path is OpenAI-compatible/ollama.",
-		"Consider extracting duplicated provider stream parsing between pi-agent provider_runtime/stream_events.rs and Tractor llm_stream_events.rs into a shared target-neutral LLM SSE parser only if worthwhile and atomic.",
-		"Client/UI reassembly remains consumer-side: partial AgentResponse.content chunks are deltas, final AgentResponse is full content. Verify WebSocket clients handle is_final/sequence correctly before claiming polished UX.",
-		"Consider adding CI wrappers that call the new agent:streaming scripts, but .github/workflows is protected and should be changed only with explicit confirmation."
+		"If continuing streaming lane, verify actual WebSocket/UI consumers use the TypeScript accumulator or equivalent sequence/is_final handling.",
+		"Consider an integration example or small client smoke for JSON-mode AgentResponse accumulation if a concrete WebSocket client surface is available.",
+		"Consider broader provider-specific streamed usage parsing only when concrete provider fixtures demand it (Anthropic cache tokens, OpenAI stream_options include_usage edge cases).",
+		"Consider shared target-neutral provider stream parser extraction only if duplication between pi-agent provider_runtime/stream_events.rs and Tractor llm_stream_events.rs starts drifting.",
+		"Do not edit .github/workflows without explicit confirmation; CI wrappers for agent:streaming scripts remain optional/protected-surface work."
 	],
 	"open_questions": [
-		"Should direct AgentResponse partial storage remain the long-term host projection, or should a generic StreamChunk observation type be introduced and projected to AgentResponse?",
-		"Should streamed usage accounting parse more provider-specific event shapes (e.g. OpenAI stream_options/include_usage edge cases, Anthropic cache tokens) now or wait for concrete provider fixtures?",
-		"Should LLM_STREAM_RESPONSES be exposed through CLI/config rather than only env?",
-		"Should Anthropic streaming tool_use have a dedicated end-to-end harness, or are unit tests enough for now?",
-		"When should the large local stack be pushed to origin/develop and CI watched?"
+		"Should LLM_STREAM_RESPONSES become a CLI/config option instead of env-only?",
+		"Should the long-term host persistence shape remain direct partial AgentResponse nodes, or introduce generic StreamChunk with AgentResponse projection?",
+		"Do WebSocket clients need a first-class protocol event for partial/final state, or is CRDT AgentResponse observation sufficient?",
+		"Should prompt-grouped accumulator handle out-of-order sequences defensively, or rely on storage/query ordering plus sequence sorting by consumers?"
 	],
 	"key_decisions_pending": [
-		"Long-term StreamChunk vs direct AgentResponse partials.",
+		"Generic StreamChunk vs direct AgentResponse partials.",
 		"Shared parser extraction vs current duplicated parser logic.",
 		"Provider-specific usage accounting breadth for SSE streams.",
-		"Whether to push current large stack now.",
-		"Client reassembly/UX criteria for declaring streaming polished."
+		"Client UX completion criteria for declaring streaming polished."
 	],
 	"files_in_flux": []
 }
