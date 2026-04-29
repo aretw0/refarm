@@ -443,7 +443,13 @@ async fn harness_rename_symbol_tool_updates_workspace_file_via_lsp() {
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
     let mut handle = host.load(path, &sync).await.expect("load pi-agent");
 
-    handle.call_on_event("user:prompt", Some("rename old to new_name")).await.expect("on_event");
+    tokio::time::timeout(
+        std::time::Duration::from_secs(30),
+        handle.call_on_event("user:prompt", Some("rename old to new_name")),
+    )
+    .await
+    .expect("rename harness timed out in call_on_event")
+    .expect("on_event");
 
     assert_eq!(std::fs::read_to_string(&source).unwrap(), "let new_name = new_name;\n");
     let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
