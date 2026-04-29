@@ -216,6 +216,28 @@ while True:
     method = message.get('method')
     if method == 'initialize':
         send({'jsonrpc': '2.0', 'id': message['id'], 'result': {'capabilities': {}}})
+    elif method == 'textDocument/references':
+        uri = message['params']['textDocument']['uri']
+        send({
+            'jsonrpc': '2.0',
+            'id': message['id'],
+            'result': [
+                {
+                    'uri': uri,
+                    'range': {
+                        'start': {'line': 0, 'character': 4},
+                        'end': {'line': 0, 'character': 7},
+                    },
+                },
+                {
+                    'uri': uri,
+                    'range': {
+                        'start': {'line': 0, 'character': 10},
+                        'end': {'line': 0, 'character': 13},
+                    },
+                },
+            ],
+        })
     elif method == 'textDocument/rename':
         uri = message['params']['textDocument']['uri']
         new_name = message['params']['newName']
@@ -430,6 +452,82 @@ async fn harness_tool_use_dispatched_and_result_fed_back() {
     let tool_calls = v["tool_calls"].as_array().expect("tool_calls must be array");
     assert!(!tool_calls.is_empty(), "at least one tool call must be logged in AgentResponse");
     assert_eq!(tool_calls[0]["name"], "bash", "tool name must match what LLM requested");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_find_references_tool_reads_lsp_locations() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+    if !python3_is_available_for_harness() {
+        eprintln!("skipping references harness: python3 is not runnable");
+        return;
+    }
+
+    clean_llm_env();
+
+    let dir = tempfile::tempdir().unwrap();
+    let source = dir.path().join("lib.rs");
+    let fake_lsp = dir.path().join("fake_lsp.py");
+    std::fs::write(&source, "let old = old;\n").unwrap();
+    std::fs::write(&fake_lsp, FAKE_LSP_RENAME_SERVER).unwrap();
+
+    let arguments = serde_json::json!({
+        "file": source.to_string_lossy(),
+        "line": 1,
+        "column": 5
+    })
+    .to_string();
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-references",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_refs",
+                    "type": "function",
+                    "function": {
+                        "name": "find_references",
+                        "arguments": arguments
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    });
+    let final_resp = openai_response("references found", 20, 6);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("REFACTOR_LSP_CMD", format!("python3 {}", fake_lsp.display()));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(
+        &mut handle,
+        "find references for old",
+        "find references harness",
+    )
+    .await;
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty());
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    assert_eq!(v["content"], "references found");
+    let result = v["tool_calls"][0]["result"].as_str().unwrap_or("");
+    assert!(result.contains("\"kind\": \"reference\""), "missing reference kind: {result}");
+    assert!(result.contains("\"line\": 1"), "missing 1-based line: {result}");
+    assert!(result.contains("\"column\": 5"), "missing 1-based column: {result}");
 
     clean_llm_env();
 }
