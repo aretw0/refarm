@@ -196,7 +196,7 @@ impl LspBridge {
             .map_err(|_| "lsp session lock poisoned".to_string())
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn ensure_lsp_session(&self) -> Result<u32, String> {
         let mut slot = Self::lock_session()?;
         Self::ensure_lsp_session_locked(&mut slot, &self.lsp_cmd)
@@ -220,7 +220,7 @@ impl LspBridge {
         Ok(pid)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn stop_lsp_session() -> Result<(), String> {
         let mut slot = Self::lock_session()?;
         if let Some(mut session) = slot.take() {
