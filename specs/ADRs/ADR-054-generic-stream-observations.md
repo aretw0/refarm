@@ -27,6 +27,7 @@ views.
 
 Introduce generic stream observation nodes owned by the host:
 
+- `StreamSession` records stream lifecycle metadata keyed by `stream_ref`.
 - `StreamChunk` records ordered chunks from any stream.
 - `StreamChunk` carries a `stream_ref`, `sequence`, `payload_kind`, `content`,
   `is_final`, `timestamp_ns`, and opaque `metadata` object.

@@ -17,6 +17,8 @@ guest.
 
 ## Response shape
 
+- Each stream has a generic `StreamSession` observation keyed by `stream_ref`,
+  with lifecycle status, timing, `last_sequence`, and `chunk_count` metadata.
 - Each persisted delta has a generic `StreamChunk` observation with
   `stream_ref`, `sequence`, `payload_kind`, `content`, `is_final`, and metadata.
 - A final `StreamChunk` marker uses `is_final: true`, `payload_kind:
