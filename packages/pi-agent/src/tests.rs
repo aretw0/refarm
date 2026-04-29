@@ -16,6 +16,7 @@ mod runtime_response_schema_tests;
 mod session_schema_tests;
 mod streaming_chunks_tests;
 mod streaming_config_tests;
+mod streaming_sink_tests;
 mod structured_read_tests;
 mod structured_validate_tests;
 mod system_prompt_tests;
