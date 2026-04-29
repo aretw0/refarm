@@ -15,10 +15,10 @@ describe("runtime-descriptor-revocation", () => {
 	it("resolves GitHub repository coordinates for https and SSH URLs", () => {
 		expect(
 			resolveGithubRepoCoordinates("https://github.com/aretw0/refarm"),
-		).toEqual({ owner: "refarm-dev", repo: "refarm" });
+		).toEqual({ owner: "aretw0", repo: "refarm" });
 		expect(
 			resolveGithubRepoCoordinates("https://github.com/aretw0/refarm.git"),
-		).toEqual({ owner: "refarm-dev", repo: "refarm" });
+		).toEqual({ owner: "aretw0", repo: "refarm" });
 		expect(
 			resolveGithubRepoCoordinates("git@github.com:refarm-dev/refarm.git"),
 		).toEqual({ owner: "refarm-dev", repo: "refarm" });
