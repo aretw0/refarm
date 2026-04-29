@@ -9,6 +9,22 @@ pub(crate) fn next_response_sequence(previous: u32) -> u32 {
     previous.saturating_add(1)
 }
 
+/// Final responses use the first sequence when no partial chunk was emitted.
+/// If streaming has already emitted partial chunks, the final response follows
+/// the last partial sequence.
+pub(crate) fn final_response_sequence(
+    streaming_enabled: bool,
+    last_partial_sequence: Option<u32>,
+) -> u32 {
+    if streaming_enabled {
+        last_partial_sequence
+            .map(next_response_sequence)
+            .unwrap_or_else(first_response_sequence)
+    } else {
+        first_response_sequence()
+    }
+}
+
 /// Partial chunks are CRDT-visible observations, but only final responses enter
 /// the conversational session history consumed by future prompts.
 pub(crate) fn should_append_response_chunk_to_session(is_final: bool) -> bool {

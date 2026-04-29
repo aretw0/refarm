@@ -12,6 +12,7 @@ pub(crate) struct AgentTurnRecord {
     pub tokens_in: u32,
     pub tokens_out: u32,
     pub duration_ms: u64,
+    pub sequence: u32,
 }
 
 pub(crate) struct AgentResponseChunkRecord {
@@ -84,7 +85,7 @@ pub(crate) fn store_agent_turn(prompt_ref: &str, session_id: &str, record: Agent
             tokens_in: record.tokens_in,
             tokens_out: record.tokens_out,
             duration_ms: record.duration_ms,
-            sequence: crate::streaming_chunks::first_response_sequence(),
+            sequence: record.sequence,
             is_final: true,
         },
     );

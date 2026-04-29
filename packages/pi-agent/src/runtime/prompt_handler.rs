@@ -17,6 +17,9 @@ pub(crate) fn handle_prompt(prompt: String) {
         usage_raw,
     ) = react(&prompt);
     let duration_ms = crate::now_ns().saturating_sub(t0) / 1_000_000;
+    let streaming_enabled = crate::streaming_config::stream_responses_enabled_from_env();
+    let response_sequence =
+        crate::streaming_chunks::final_response_sequence(streaming_enabled, None);
 
     prompt_persistence::store_agent_turn(
         &ctx.prompt_ref,
@@ -28,6 +31,7 @@ pub(crate) fn handle_prompt(prompt: String) {
             tokens_in,
             tokens_out,
             duration_ms,
+            sequence: response_sequence,
         },
     );
 
