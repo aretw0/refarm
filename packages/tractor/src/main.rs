@@ -818,6 +818,27 @@ mod tests {
     }
 
     #[test]
+    fn plain_output_tracks_partial_state_per_prompt_ref() {
+        let mut state = PlainResponseOutputState::default();
+
+        let _ = render_plain_response_event(
+            &test_response_event("first ", false, Some("prompt-a")),
+            &mut state,
+        );
+        let final_b = render_plain_response_event(
+            &test_response_event("other", true, Some("prompt-b")),
+            &mut state,
+        );
+        let final_a = render_plain_response_event(
+            &test_response_event("first done", true, Some("prompt-a")),
+            &mut state,
+        );
+
+        assert_eq!(final_b.stdout, "other\n");
+        assert_eq!(final_a.stdout, "\n");
+    }
+
+    #[test]
     fn plain_output_prints_non_streamed_final_content_and_metadata() {
         let mut state = PlainResponseOutputState::default();
         let mut event = test_response_event("done", true, Some("prompt-2"));
