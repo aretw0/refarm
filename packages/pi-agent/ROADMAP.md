@@ -97,7 +97,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `find-references` wired end-to-end via generic LSP JSON-RPC path (rust-analyzer remains the default backend).
 - [x] `rename-symbol` wired end-to-end via generic LSP JSON-RPC path (WorkspaceEdit changes applied host-side).
 - [x] Integration test: rename a symbol via pi-agent/farmhand + generic fake LSP and assert workspace references update.
-- [ ] No regression on baseline gates:
+- [x] No regression on baseline gates:
   - `cargo check --target wasm32-wasip1` in `packages/pi-agent`
   - `cargo test --lib` in `packages/pi-agent`
 
