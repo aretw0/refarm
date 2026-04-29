@@ -3,15 +3,13 @@
 /// This is provider-neutral and target-neutral: callers push arbitrary byte
 /// chunks and receive complete SSE `data:` payloads once frame boundaries are
 /// observed. Protocol-specific JSON interpretation belongs in higher layers.
-#[cfg_attr(not(test), allow(dead_code))]
 #[derive(Debug, Default)]
-struct SseDataEventBuffer {
+pub(crate) struct SseDataEventBuffer {
     buffer: String,
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 impl SseDataEventBuffer {
-    fn push_bytes(&mut self, bytes: &[u8]) -> Vec<String> {
+    pub(crate) fn push_bytes(&mut self, bytes: &[u8]) -> Vec<String> {
         self.buffer.push_str(&String::from_utf8_lossy(bytes));
         self.buffer = self.buffer.replace("\r\n", "\n");
 
@@ -24,7 +22,7 @@ impl SseDataEventBuffer {
         events
     }
 
-    fn finish(&mut self) -> Vec<String> {
+    pub(crate) fn finish(&mut self) -> Vec<String> {
         let frame = std::mem::take(&mut self.buffer);
         let mut events = Vec::new();
         push_sse_event_frame_payload(&mut events, &frame);
@@ -36,15 +34,13 @@ impl SseDataEventBuffer {
 ///
 /// `[DONE]` is treated as a stream sentinel and dropped. Comments and non-data
 /// fields are ignored; multiline data frames are joined with `\n`.
-#[cfg_attr(not(test), allow(dead_code))]
-fn parse_sse_data_events(bytes: &[u8]) -> Vec<String> {
+pub(crate) fn parse_sse_data_events(bytes: &[u8]) -> Vec<String> {
     let mut buffer = SseDataEventBuffer::default();
     let mut events = buffer.push_bytes(bytes);
     events.extend(buffer.finish());
     events
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn push_sse_event_frame_payload(events: &mut Vec<String>, frame: &str) {
     let mut current_data_lines = Vec::new();
     for line in frame.lines() {
@@ -59,7 +55,6 @@ fn push_sse_event_frame_payload(events: &mut Vec<String>, frame: &str) {
     push_sse_event_data(events, &mut current_data_lines);
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn push_sse_event_data(events: &mut Vec<String>, current_data_lines: &mut Vec<String>) {
     if current_data_lines.is_empty() {
         return;
@@ -69,5 +64,57 @@ fn push_sse_event_data(events: &mut Vec<String>, current_data_lines: &mut Vec<St
     current_data_lines.clear();
     if !payload.is_empty() && payload != "[DONE]" {
         events.push(payload);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_sse_data_events_extracts_payloads_and_drops_done() {
+        let events = parse_sse_data_events(
+            b": keep-alive\n\
+              data: {\"delta\":\"hello\"}\n\n\
+              data: [DONE]\n\n",
+        );
+
+        assert_eq!(events, vec!["{\"delta\":\"hello\"}".to_string()]);
+    }
+
+    #[test]
+    fn parse_sse_data_events_handles_crlf_and_multiline_data() {
+        let events =
+            parse_sse_data_events(b"data: first\r\ndata: second\r\n\r\ndata: third\r\n\r\n");
+
+        assert_eq!(
+            events,
+            vec!["first\nsecond".to_string(), "third".to_string()]
+        );
+    }
+
+    #[test]
+    fn parse_sse_data_events_flushes_trailing_event_without_blank_line() {
+        let events = parse_sse_data_events(b"event: ignored\ndata: trailing");
+
+        assert_eq!(events, vec!["trailing".to_string()]);
+    }
+
+    #[test]
+    fn sse_data_event_buffer_emits_only_complete_frames_until_finish() {
+        let mut buffer = SseDataEventBuffer::default();
+
+        assert!(buffer.push_bytes(b"data: fir").is_empty());
+        assert_eq!(buffer.push_bytes(b"st\n\n"), vec!["first".to_string()]);
+        assert!(buffer.push_bytes(b"data: trailing").is_empty());
+        assert_eq!(buffer.finish(), vec!["trailing".to_string()]);
+    }
+
+    #[test]
+    fn sse_data_event_buffer_handles_crlf_split_across_chunks() {
+        let mut buffer = SseDataEventBuffer::default();
+
+        assert!(buffer.push_bytes(b"data: one\r").is_empty());
+        assert_eq!(buffer.push_bytes(b"\n\r\n"), vec!["one".to_string()]);
     }
 }

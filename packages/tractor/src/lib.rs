@@ -27,6 +27,7 @@ pub mod daemon;
 pub mod host;
 pub mod storage;
 pub mod sync;
+pub(crate) mod streaming;
 pub mod telemetry;
 pub mod trust;
 

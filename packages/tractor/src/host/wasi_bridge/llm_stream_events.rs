@@ -1,3 +1,5 @@
+use crate::streaming::parse_sse_data_events;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct LlmStreamTextChunkDraft {
     sequence: u32,
