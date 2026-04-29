@@ -56,6 +56,7 @@ mod state_loop_context_tests;
 #[cfg(test)]
 mod state_loop_dispatch_tests;
 mod state_primitives;
+mod stream_events;
 #[cfg(test)]
 mod state_response_adapter_tests;
 #[cfg(test)]
@@ -196,6 +197,8 @@ pub(crate) use request_iteration::iteration_response_and_phase_with;
 pub(crate) use request_parse::parse_response_json;
 #[cfg(test)]
 pub(crate) use request_path::openai_compat_path;
+#[cfg(test)]
+pub(crate) use stream_events::parse_sse_data_events;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) use request_anthropic_wasm::anthropic_iteration_response_and_phase;

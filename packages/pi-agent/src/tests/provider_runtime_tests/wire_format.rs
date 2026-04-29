@@ -284,3 +284,17 @@ fn provider_runtime_require_openai_message_content_returns_error_when_missing() 
     let err = crate::provider_runtime::require_openai_message_content(&msg, &response).unwrap_err();
     assert_eq!(err, "nope");
 }
+
+#[test]
+fn provider_runtime_parse_sse_data_events_extracts_provider_payloads() {
+    let events = crate::provider_runtime::parse_sse_data_events(
+        b": ping\n\ndata: {\"type\":\"content_block_delta\"}\n\ndata: [DONE]\n\ndata: {\"choices\":[{}]}\n",
+    );
+    assert_eq!(
+        events,
+        vec![
+            r#"{"type":"content_block_delta"}"#.to_string(),
+            r#"{"choices":[{}]}"#.to_string(),
+        ]
+    );
+}
