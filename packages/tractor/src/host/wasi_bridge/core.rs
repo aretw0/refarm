@@ -160,11 +160,11 @@ impl LlmBridgeHost for TractorNativeBindings {
         llm_complete_http(&provider, &base_url, &path, &headers, &body)
     }
 
-    /// Streaming contract placeholder.
+    /// Streaming contract compatibility path.
     ///
     /// This preserves the new WIT boundary while the incremental SSE reader is
-    /// still under design. It intentionally reuses the buffered path and reports
-    /// zero stored chunks, so plugins cannot mistake it for live streaming yet.
+    /// still under design. It reuses the buffered HTTP path, then persists any
+    /// SSE text chunks found in the completed response body.
     async fn complete_http_stream(
         &mut self,
         provider: String,
@@ -176,9 +176,16 @@ impl LlmBridgeHost for TractorNativeBindings {
     ) -> Result<StreamResponseResult, String> {
         validate_stream_response_metadata(&stream_metadata)?;
         let final_body = llm_complete_http(&provider, &base_url, &path, &headers, &body)?;
+        let (last_sequence, stored_chunks) = store_stream_agent_response_chunks_from_sse(
+            &self.sync,
+            &self.plugin_id,
+            &stream_metadata,
+            &final_body,
+        )?;
         Ok(buffered_stream_response_result(
             final_body,
-            stream_metadata.last_sequence,
+            last_sequence,
+            stored_chunks,
         ))
     }
 }
@@ -186,11 +193,12 @@ impl LlmBridgeHost for TractorNativeBindings {
 fn buffered_stream_response_result(
     final_body: Vec<u8>,
     last_sequence: Option<u32>,
+    stored_chunks: u32,
 ) -> StreamResponseResult {
     StreamResponseResult {
         final_body,
         last_sequence,
-        stored_chunks: 0,
+        stored_chunks,
     }
 }
 

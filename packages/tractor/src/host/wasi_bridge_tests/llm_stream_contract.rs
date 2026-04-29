@@ -1,15 +1,15 @@
 #[test]
-fn buffered_stream_response_result_preserves_body_and_sequence_without_claiming_chunks() {
-    let result = super::buffered_stream_response_result(vec![b'o', b'k'], Some(7));
+fn buffered_stream_response_result_preserves_body_sequence_and_chunk_count() {
+    let result = super::buffered_stream_response_result(vec![b'o', b'k'], Some(7), 2);
 
     assert_eq!(result.final_body, b"ok");
     assert_eq!(result.last_sequence, Some(7));
-    assert_eq!(result.stored_chunks, 0);
+    assert_eq!(result.stored_chunks, 2);
 }
 
 #[test]
 fn buffered_stream_response_result_preserves_missing_sequence() {
-    let result = super::buffered_stream_response_result(Vec::new(), None);
+    let result = super::buffered_stream_response_result(Vec::new(), None, 0);
 
     assert!(result.final_body.is_empty());
     assert_eq!(result.last_sequence, None);
