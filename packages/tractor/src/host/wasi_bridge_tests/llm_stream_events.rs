@@ -196,6 +196,7 @@ fn store_stream_agent_response_chunks_from_sse_preserves_sequence_when_no_chunks
     assert_eq!(last_sequence, Some(7));
     assert_eq!(stored_chunks, 0);
     assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    assert!(sync.query_nodes("StreamChunk").unwrap().is_empty());
 }
 
 #[test]
@@ -232,6 +233,15 @@ data: {"choices":[{"delta":{"content":"b"}}]}
         .collect();
     assert_eq!(payloads[0]["sequence"], 4);
     assert_eq!(payloads[1]["sequence"], 5);
+
+    let stream_rows = sync.query_nodes("StreamChunk").unwrap();
+    assert_eq!(stream_rows.len(), 2);
+    let stream_payloads: Vec<serde_json::Value> = stream_rows
+        .iter()
+        .map(|row| serde_json::from_str(&row.payload).unwrap())
+        .collect();
+    assert_eq!(stream_payloads[0]["sequence"], 4);
+    assert_eq!(stream_payloads[1]["sequence"], 5);
 }
 
 #[test]
