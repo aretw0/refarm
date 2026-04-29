@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub(crate) fn build_anthropic_body(
     model: &str,
     system: &str,

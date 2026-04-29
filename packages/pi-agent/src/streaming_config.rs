@@ -27,3 +27,18 @@ pub(crate) fn provider_stream_request_enabled(
 ) -> bool {
     stream_responses_enabled && streaming_reader_available
 }
+
+/// Transport readiness flag for provider streaming.
+///
+/// This remains false until the WASM HTTP layer can read chunked response
+/// bodies incrementally and persist partial AgentResponse chunks.
+pub(crate) fn streaming_reader_available() -> bool {
+    false
+}
+
+pub(crate) fn provider_stream_request_enabled_from_env() -> bool {
+    provider_stream_request_enabled(
+        stream_responses_enabled_from_env(),
+        streaming_reader_available(),
+    )
+}

@@ -1,3 +1,4 @@
+#[allow(dead_code)]
 pub(crate) fn build_openai_body(
     model: &str,
     wire_msgs: &[serde_json::Value],
