@@ -294,10 +294,15 @@ fn synthesize_stream_final_response_body_emits_anthropic_shape() {
     let mut metadata = stream_metadata(None);
     metadata.provider_family = "anthropic".to_string();
 
-    let mut assembly = super::LlmStreamFinalAssembly::default();
-    assembly.content = "hello".to_string();
-    assembly.usage.input_tokens = Some(11);
-    assembly.usage.output_tokens = Some(5);
+    let assembly = super::LlmStreamFinalAssembly {
+        content: "hello".to_string(),
+        usage: super::LlmStreamUsage {
+            input_tokens: Some(11),
+            output_tokens: Some(5),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
 
     let body = super::synthesize_stream_final_response_body(&metadata, &assembly).unwrap();
     let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
