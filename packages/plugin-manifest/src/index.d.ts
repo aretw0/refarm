@@ -11,6 +11,13 @@ export type ExecutionContextType =
 	| "service-worker"
 	| "node"
 	| "edge";
+export type ExtensionSurfaceLayer =
+	| "tractor"
+	| "homestead"
+	| "pi"
+	| "automation"
+	| "desktop"
+	| "asset";
 
 export interface ExecutionContextConfig {
 	preferred: ExecutionContextType;
@@ -21,6 +28,19 @@ export interface ExecutionContextConfig {
 export interface PluginTrustMetadata {
 	profile: PluginExecutionProfile;
 	leaseHours?: number;
+}
+
+export interface ExtensionSurfaceDeclaration {
+	layer: ExtensionSurfaceLayer;
+	kind: string;
+	id: string;
+	slot?: string;
+	capabilities?: string[];
+	assets?: string[];
+}
+
+export interface PluginExtensions {
+	surfaces?: ExtensionSurfaceDeclaration[];
 }
 
 export interface PluginCapabilities {
@@ -56,6 +76,7 @@ export interface PluginManifest {
 	executionContext?: ExecutionContextConfig;
 	trust?: PluginTrustMetadata;
 	integrity?: string;
+	extensions?: PluginExtensions;
 }
 
 export interface ManifestValidationResult {

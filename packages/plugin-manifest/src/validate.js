@@ -5,6 +5,14 @@ const SEMVER_RE =
 	/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/;
 const INTEGRITY_HEX_RE = /^sha256-[0-9a-fA-F]{64}$/;
 const INTEGRITY_BASE64_RE = /^sha256-(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
+const EXTENSION_SURFACE_LAYERS = new Set([
+	"tractor",
+	"homestead",
+	"pi",
+	"automation",
+	"desktop",
+	"asset",
+]);
 
 /**
  * @param {string[]} values
@@ -12,6 +20,104 @@ const INTEGRITY_BASE64_RE = /^sha256-(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
  */
 function hasDuplicates(values) {
 	return new Set(values).size !== values.length;
+}
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isNonEmptyString(value) {
+	return typeof value === "string" && value.trim().length > 0;
+}
+
+/**
+ * @param {unknown} values
+ * @returns {boolean}
+ */
+function isNonEmptyStringArray(values) {
+	return Array.isArray(values) && values.every(isNonEmptyString);
+}
+
+/**
+ * @param {import('./types.js').PluginManifest} manifest
+ * @param {string[]} errors
+ * @returns {void}
+ */
+function validateExtensionSurfaces(manifest, errors) {
+	if (manifest.extensions === undefined) return;
+
+	if (typeof manifest.extensions !== "object" || manifest.extensions === null) {
+		errors.push("extensions must be an object when provided");
+		return;
+	}
+
+	const surfaces = manifest.extensions.surfaces;
+	if (surfaces === undefined) return;
+
+	if (!Array.isArray(surfaces)) {
+		errors.push("extensions.surfaces must be an array");
+		return;
+	}
+
+	const surfaceKeys = [];
+	for (const [index, surface] of surfaces.entries()) {
+		if (typeof surface !== "object" || surface === null) {
+			errors.push(`extensions.surfaces[${index}] must be an object`);
+			continue;
+		}
+
+		if (!EXTENSION_SURFACE_LAYERS.has(surface.layer)) {
+			errors.push(
+				`extensions.surfaces[${index}].layer must be one of: tractor, homestead, pi, automation, desktop, asset`,
+			);
+		}
+
+		if (!isNonEmptyString(surface.kind)) {
+			errors.push(
+				`extensions.surfaces[${index}].kind must be a non-empty string`,
+			);
+		}
+
+		if (!isNonEmptyString(surface.id)) {
+			errors.push(
+				`extensions.surfaces[${index}].id must be a non-empty string`,
+			);
+		}
+
+		if (surface.slot !== undefined && !isNonEmptyString(surface.slot)) {
+			errors.push(
+				`extensions.surfaces[${index}].slot must be a non-empty string when provided`,
+			);
+		}
+
+		if (
+			surface.capabilities !== undefined &&
+			!isNonEmptyStringArray(surface.capabilities)
+		) {
+			errors.push(
+				`extensions.surfaces[${index}].capabilities must be an array of non-empty strings when provided`,
+			);
+		}
+
+		if (
+			surface.assets !== undefined &&
+			!isNonEmptyStringArray(surface.assets)
+		) {
+			errors.push(
+				`extensions.surfaces[${index}].assets must be an array of non-empty strings when provided`,
+			);
+		}
+
+		if (isNonEmptyString(surface.layer) && isNonEmptyString(surface.id)) {
+			surfaceKeys.push(`${surface.layer}:${surface.id}`);
+		}
+	}
+
+	if (hasDuplicates(surfaceKeys)) {
+		errors.push(
+			"extensions.surfaces must not contain duplicate layer/id pairs",
+		);
+	}
 }
 
 /**
@@ -155,6 +261,8 @@ export function validatePluginManifest(manifest) {
 			errors.push("certification.languages must be a non-empty array");
 		}
 	}
+
+	validateExtensionSurfaces(manifest, errors);
 
 	return {
 		valid: errors.length === 0,

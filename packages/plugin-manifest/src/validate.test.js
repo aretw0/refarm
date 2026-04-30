@@ -141,6 +141,85 @@ describe("trust profile validation", () => {
 	});
 });
 
+describe("extension surface validation", () => {
+	it("accepts a manifest with declared multi-surface extensions", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+						slot: "session-view",
+						capabilities: ["ui:stream:read"],
+					},
+					{
+						layer: "asset",
+						kind: "theme-pack",
+						id: "stream-themes",
+						assets: ["./themes/default.json"],
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects malformed extension surfaces", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "unknown",
+						kind: "",
+						id: "",
+						slot: "",
+						capabilities: ["ui:stream:read", ""],
+						assets: ["./asset.json", ""],
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].layer must be one of: tractor, homestead, pi, automation, desktop, asset",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].kind must be a non-empty string",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].id must be a non-empty string",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].slot must be a non-empty string when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].capabilities must be an array of non-empty strings when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].assets must be an array of non-empty strings when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces must not contain duplicate layer/id pairs",
+		);
+	});
+});
+
 describe("contract baseline validation", () => {
 	it("rejects absolute entry paths", () => {
 		const manifest = createMockManifest({ entry: "/dist/plugin.js" });

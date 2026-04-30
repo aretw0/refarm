@@ -89,6 +89,34 @@ All plugins MUST implement these hooks:
 - `onError`: Called when errors occur
 - `onTeardown`: Called when plugin unloads
 
+### Optional Extension Surfaces
+
+Plugins may declare additive extension surfaces under `extensions.surfaces` so one package can expose UI, headless, automation, desktop, pi-agent, or asset affordances without forcing every host to execute them:
+
+```json
+{
+  "extensions": {
+    "surfaces": [
+      {
+        "layer": "homestead",
+        "kind": "panel",
+        "id": "stream-renderer",
+        "slot": "session-view",
+        "capabilities": ["ui:stream:read"]
+      },
+      {
+        "layer": "asset",
+        "kind": "theme-pack",
+        "id": "stream-themes",
+        "assets": ["./themes/default.json"]
+      }
+    ]
+  }
+}
+```
+
+Valid surface layers are `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`. Unknown hosts must ignore unknown surfaces safely; hosts that understand a surface still need to enforce capabilities, integrity, and trust policy before activation. See `docs/EXTENSIBILITY_MODEL.md` in the monorepo for the long-term model.
+
 ## API
 
 ### `validatePluginManifest(manifest: PluginManifest): ManifestValidationResult`
@@ -133,6 +161,7 @@ type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown
 7. No duplicates in provides/requires/permissions/APIs
 8. `targets` must be a non-empty array using only `browser`, `server`, `remote`
 9. All required telemetry hooks must be declared
+10. Optional `extensions.surfaces` entries must use a known layer, non-empty `kind`/`id`, valid optional string arrays, and unique `layer`/`id` pairs
 
 ## FAQ — "Plugin precisa ser WASM?"
 
