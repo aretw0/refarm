@@ -104,6 +104,10 @@ Inspired by Claude Code's tool call display.
 
 ### Agent activity stream
 
+_Current audit_: `src/index.ts` is still a passive DOM log sink and does not yet
+consume CRDT nodes directly. Keep `BrowserSyncClient` schema-neutral; stream
+rendering belongs in the UI consumer that subscribes to Tractor nodes.
+
 - [ ] Subscribe to `AgentResponse` CRDT nodes alongside `ShellOutput` for the
       compatibility projection, or subscribe to generic `StreamChunk` /
       `StreamSession` nodes when rendering live token/lifecycle state.
