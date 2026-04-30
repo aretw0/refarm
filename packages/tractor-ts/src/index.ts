@@ -395,6 +395,11 @@ export class Tractor {
       (signedNode["refarm:sourcePlugin"] as string | undefined) ?? null,
     );
     this.events.emit({
+      event: "storage:node:written",
+      pluginId: node["refarm:sourcePlugin"] as string | undefined,
+      payload: signedNode,
+    });
+    this.events.emit({
       event: "storage:io",
       pluginId: node["refarm:sourcePlugin"] as string | undefined,
       durationMs: performance.now() - startTime,

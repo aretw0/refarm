@@ -40,6 +40,28 @@ describe("Tractor Telemetry", () => {
     }));
   });
 
+  it("should notify typed node subscribers when a node is stored", async () => {
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-node" });
+    const handler = vi.fn();
+    tractor.onNode("StreamChunk", handler);
+
+    await tractor.storeNode({
+      "@context": "https://schema.org/",
+      "@type": "StreamChunk",
+      "@id": "urn:test:stream-chunk:1",
+      stream_ref: "urn:test:stream:1",
+      content: "hello",
+      "refarm:sourcePlugin": "test-plugin"
+    }, "none");
+
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+      "@type": "StreamChunk",
+      "@id": "urn:test:stream-chunk:1",
+      stream_ref: "urn:test:stream:1",
+      content: "hello",
+    }));
+  });
+
   it("should emit telemetry when a plugin is loaded", async () => {
     const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-load" });
     const listener = vi.fn();
