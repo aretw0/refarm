@@ -115,7 +115,21 @@ export function reduceStreamSessionEventsByStream(
 	return events.reduce(applyStreamSessionEventToMap, initialStateMap);
 }
 
-export function isTerminalStreamSessionStatus(status: string | null): boolean {
+export function isStreamSessionStatus(
+	status: string | null,
+): status is StreamSessionStatus {
+	return (
+		status === STREAM_SESSION_STATUS_ACTIVE ||
+		status === STREAM_SESSION_STATUS_COMPLETED ||
+		status === STREAM_SESSION_STATUS_FAILED
+	);
+}
+
+export function isTerminalStreamSessionStatus(
+	status: string | null,
+): status is
+	| typeof STREAM_SESSION_STATUS_COMPLETED
+	| typeof STREAM_SESSION_STATUS_FAILED {
 	return (
 		status === STREAM_SESSION_STATUS_COMPLETED ||
 		status === STREAM_SESSION_STATUS_FAILED

@@ -121,7 +121,7 @@ export function reduceStreamChunkEventsByStream(
 
 export function isTerminalStreamChunkPayloadKind(
 	payloadKind: string | null,
-): boolean {
+): payloadKind is TerminalStreamChunkPayloadKind {
 	return (
 		typeof payloadKind === "string" &&
 		TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
@@ -130,19 +130,19 @@ export function isTerminalStreamChunkPayloadKind(
 
 export function isFinalTextStreamChunkPayloadKind(
 	payloadKind: string | null,
-): boolean {
+): payloadKind is typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT {
 	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT;
 }
 
 export function isFinalToolCallStreamChunkPayloadKind(
 	payloadKind: string | null,
-): boolean {
+): payloadKind is typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL {
 	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL;
 }
 
 export function isFinalEmptyStreamChunkPayloadKind(
 	payloadKind: string | null,
-): boolean {
+): payloadKind is typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY {
 	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY;
 }
 

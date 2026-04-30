@@ -4,6 +4,7 @@ import {
 	emptyStreamSessionState,
 	isCompletedStreamSession,
 	isFailedStreamSession,
+	isStreamSessionStatus,
 	isTerminalStreamSession,
 	isTerminalStreamSessionStatus,
 	orderStreamSessionEvents,
@@ -96,6 +97,8 @@ describe("StreamSession accumulator", () => {
 	});
 
 	it("detects terminal stream session statuses", () => {
+		expect(isStreamSessionStatus("active")).toBe(true);
+		expect(isStreamSessionStatus("unknown")).toBe(false);
 		expect(isTerminalStreamSessionStatus("active")).toBe(false);
 		expect(isTerminalStreamSessionStatus("completed")).toBe(true);
 		expect(isTerminalStreamSessionStatus("failed")).toBe(true);
