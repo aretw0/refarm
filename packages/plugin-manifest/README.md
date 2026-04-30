@@ -34,7 +34,10 @@ Create `plugin-manifest.json` in your plugin root:
 ### Validate Manifest
 
 ```typescript
-import { validatePluginManifest, assertValidPluginManifest } from "@refarm.dev/plugin-manifest";
+import {
+  validatePluginManifest,
+  assertValidPluginManifest,
+} from "@refarm.dev/plugin-manifest";
 import manifestJson from "./plugin-manifest.json";
 
 // Option 1: Get validation result
@@ -102,7 +105,7 @@ Plugins may declare additive extension surfaces under `extensions.surfaces` so o
         "kind": "panel",
         "id": "stream-renderer",
         "slot": "session-view",
-        "capabilities": ["ui:stream:read"]
+        "capabilities": ["ui:panel:render", "ui:stream:read"]
       },
       {
         "layer": "asset",
@@ -115,7 +118,7 @@ Plugins may declare additive extension surfaces under `extensions.surfaces` so o
 }
 ```
 
-Valid surface layers are `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`. Unknown hosts must ignore unknown surfaces safely; hosts that understand a surface still need to enforce capabilities, integrity, and trust policy before activation. See `docs/EXTENSIBILITY_MODEL.md` in the monorepo for the long-term model.
+Valid surface layers are `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`. Unknown hosts must ignore unknown surfaces safely; hosts that understand a surface still need to enforce capabilities, integrity, and trust policy before activation. Homestead panels that execute `renderHomesteadSurface(request)` should declare `ui:panel:render`; host-owned actions are exposed at runtime through `request.host.actions` and rendered controls identify the chosen action with `data-refarm-surface-action-id`. See `docs/EXTENSIBILITY_MODEL.md` in the monorepo for the long-term model.
 
 Host-neutral helpers are exported for discovery:
 
@@ -159,7 +162,12 @@ interface PluginCapabilities {
   requires: string[];
 }
 
-type TelemetryHook = "onLoad" | "onInit" | "onRequest" | "onError" | "onTeardown";
+type TelemetryHook =
+  | "onLoad"
+  | "onInit"
+  | "onRequest"
+  | "onError"
+  | "onTeardown";
 ```
 
 ## Validation Rules
@@ -205,12 +213,14 @@ runtime-specific install metadata (e.g. browser runtime module sidecars) without
 core integrity/cache behavior.
 
 Current browser-sidecar metadata keys used by tractor-ts:
+
 - `browserRuntimeModule` (`url`, `integrity`, `format`)
 - `browserRuntimeDescriptor` (`schemaVersion`, `descriptorHash`, `componentWasmUrl`, `source`)
 - `browserRuntimeToolchain` (`name`, `version`, `generatedAt?`)
 - `browserRuntimeProvenance` (`source`, `commitSha`, `buildId`, `sourceRepository?`)
 
 Descriptor distribution policy currently applied by tractor-ts install path:
+
 - default `package-embedded`: descriptor URL must be HTTPS, end with `.runtime-descriptor.json`, and share origin with component wasm URL.
 - optional `external-signed`: requires `descriptorIntegrity` + provenance/source repository metadata.
   - trust mode `repository-derived` (default) derives trusted origins from `sourceRepository` (including known GitHub release domains)
