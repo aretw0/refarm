@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamChunkEvent,
 	emptyStreamChunkState,
+	isFinalEmptyStreamChunkPayloadKind,
+	isFinalTextStreamChunkPayloadKind,
+	isFinalToolCallStreamChunkPayloadKind,
 	isTerminalStreamChunk,
 	isTerminalStreamChunkPayloadKind,
 	isTerminalStreamChunkState,
@@ -92,6 +95,9 @@ describe("StreamChunk accumulator", () => {
 		expect(isTerminalStreamChunkPayloadKind("final_tool_call")).toBe(true);
 		expect(isTerminalStreamChunkPayloadKind("final_empty")).toBe(true);
 		expect(isTerminalStreamChunkPayloadKind("text_delta")).toBe(false);
+		expect(isFinalTextStreamChunkPayloadKind("final_text")).toBe(true);
+		expect(isFinalToolCallStreamChunkPayloadKind("final_tool_call")).toBe(true);
+		expect(isFinalEmptyStreamChunkPayloadKind("final_empty")).toBe(true);
 		expect(isTerminalStreamChunk({ payload_kind: "final_tool_call" })).toBe(
 			true,
 		);

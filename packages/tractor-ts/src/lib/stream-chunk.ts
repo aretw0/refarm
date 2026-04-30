@@ -19,10 +19,13 @@ export interface StreamChunkState {
 export type StreamChunkStateMap = Record<string, StreamChunkState>;
 
 export const UNKNOWN_STREAM_REF = "__tractor:no-stream-ref__";
+export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT = "final_text";
+export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL = "final_tool_call";
+export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY = "final_empty";
 export const TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS = new Set([
-	"final_text",
-	"final_tool_call",
-	"final_empty",
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT,
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL,
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY,
 ]);
 
 export function emptyStreamChunkState(
@@ -117,6 +120,24 @@ export function isTerminalStreamChunkPayloadKind(
 		typeof payloadKind === "string" &&
 		TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
 	);
+}
+
+export function isFinalTextStreamChunkPayloadKind(
+	payloadKind: string | null,
+): boolean {
+	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT;
+}
+
+export function isFinalToolCallStreamChunkPayloadKind(
+	payloadKind: string | null,
+): boolean {
+	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL;
+}
+
+export function isFinalEmptyStreamChunkPayloadKind(
+	payloadKind: string | null,
+): boolean {
+	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY;
 }
 
 export function isTerminalStreamChunk(event: StreamChunkEvent): boolean {
