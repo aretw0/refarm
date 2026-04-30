@@ -156,6 +156,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `tractor prompt --agent pi-agent "do something"` subcommand
 - [x] `tractor watch` — polling loop for AgentResponse nodes
 - [x] `tractor watch --type StreamChunk|StreamSession --stream-ref <ref> --until-final` — poll generic stream observations
+- [x] `tractor query|watch --type StreamChunk|StreamSession --prompt-ref <prompt-ref>` — derive generic stream filters from AgentResponse prompt refs
 - [x] `tractor query --type <T> --namespace <N>` — read CRDT nodes from local storage (no daemon)
 - [x] `tractor query --type StreamChunk|StreamSession --stream-ref <ref>` — inspect generic stream observations
 - [x] `tractor store-node --payload <JSON>` — store raw CRDT node (no daemon)
