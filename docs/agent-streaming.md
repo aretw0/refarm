@@ -16,6 +16,10 @@ entrypoint is:
 tractor --llm-stream-responses --plugin ./packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
 ```
 
+Project config can also govern startup plugin streaming. `.refarm/config.json`
+may set `"stream_responses": true` (or explicit `false`, which maps to
+`LLM_STREAM_RESPONSES=0` and overrides process env for the plugin).
+
 When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
 provider credentials and route enforcement in the host, reads the SSE response,
 dual-writes generic `StreamChunk` observations plus partial `AgentResponse`

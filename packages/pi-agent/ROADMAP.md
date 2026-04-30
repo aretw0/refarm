@@ -210,6 +210,7 @@ Context engineering follows the pi-test-harness model:
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamSession` accumulator for clients that consume host stream lifecycle observations
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
 - [x] Tractor daemon exposes `--llm-stream-responses` as a governed CLI opt-in for startup plugins
+- [x] `.refarm/config.json` can govern streaming via `stream_responses: true|false`, mapped to `LLM_STREAM_RESPONSES`
 - [x] ADR-054 defines conservative retention posture: no implicit `StreamChunk`/`StreamSession` compaction before a governed delete/compact primitive exists
 - [x] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client accumulators
 
