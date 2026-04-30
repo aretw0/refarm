@@ -128,7 +128,7 @@ fn store_stream_agent_response_chunks_from_reader(
         source_plugin,
         &stream_session_observation_draft(
             metadata,
-            "active",
+            crate::streaming::STREAM_SESSION_STATUS_ACTIVE,
             stream_started_at_ns,
             stream_started_at_ns,
             None,
@@ -170,7 +170,7 @@ fn store_stream_agent_response_chunks_from_reader(
             let stream_failed_at_ns = now_ns();
             let mut failed_session = stream_session_observation_draft(
                 metadata,
-                "failed",
+                crate::streaming::STREAM_SESSION_STATUS_FAILED,
                 stream_started_at_ns,
                 stream_failed_at_ns,
                 Some(stream_failed_at_ns),
@@ -207,7 +207,7 @@ fn store_stream_agent_response_chunks_from_reader(
         source_plugin,
         &stream_session_observation_draft(
             metadata,
-            "completed",
+            crate::streaming::STREAM_SESSION_STATUS_COMPLETED,
             stream_started_at_ns,
             stream_completed_at_ns,
             Some(stream_completed_at_ns),
@@ -561,7 +561,7 @@ fn stream_chunk_observation_draft(
     stream_observation_draft(
         metadata,
         chunk.sequence,
-        "text_delta",
+        crate::streaming::STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA,
         &chunk.content_delta,
         false,
         timestamp_ns,
@@ -587,11 +587,11 @@ fn stream_final_chunk_observation_draft(
 
 fn final_stream_payload_kind(assembly: &LlmStreamFinalAssembly) -> &'static str {
     if !assembly.content.is_empty() {
-        "final_text"
+        crate::streaming::STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT
     } else if !assembly.openai_tool_calls.is_empty() || !assembly.anthropic_tool_uses.is_empty() {
-        "final_tool_call"
+        crate::streaming::STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL
     } else {
-        "final_empty"
+        crate::streaming::STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY
     }
 }
 
@@ -606,7 +606,7 @@ fn stream_session_observation_draft(
 ) -> StreamSessionObservationDraft {
     StreamSessionObservationDraft {
         stream_ref: agent_response_stream_ref(&metadata.prompt_ref),
-        stream_kind: "agent-response".to_string(),
+        stream_kind: crate::streaming::STREAM_KIND_AGENT_RESPONSE.to_string(),
         status: status.to_string(),
         started_at_ns,
         updated_at_ns,
