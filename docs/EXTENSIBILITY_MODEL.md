@@ -134,9 +134,15 @@ statusbar inspector and a structured `/surfaces` ledger that refresh from
 Homestead surface telemetry. This closes the loop from manifest declaration to
 visible Studio diagnostics while keeping private shell internals encapsulated.
 
-Short-term UI experiments should land in Homestead and the Studio app
-(`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
-stabilized primitives after the Studio shell proves the workflow.
+Terminology note: **Studio** is a shared Homestead primitive, not synonymous
+with `apps/dev`. Homestead owns the reusable Studio runtime/shell/surface
+contracts that every first-party app can consume. `apps/dev` is the reference
+workbench for proving those contracts with concrete fixtures, demos, and
+presenters before `apps/me` or future surfaces adopt them.
+
+Short-term UI experiments should land in Homestead primitives plus the `apps/dev`
+workbench, not directly in the `me` or `social` surfaces. Those app surfaces can
+consume stabilized Studio primitives after the workbench proves the workflow.
 
 Framework-agnostic visual primitives belong in `@refarm.dev/ds`. Homestead and
 `apps/dev` should keep domain behavior local, but consume DS classes for shared

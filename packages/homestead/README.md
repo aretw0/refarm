@@ -19,6 +19,6 @@ Homestead acts as the "Face" of the sovereign citizen, providing a portal to the
 - **`HeraldPlugin`**: Identity and presence management.
 - **`FireflyPlugin`**: System-wide notification system.
 
-`apps/dev`, `apps/me`, and future surfaces such as `social` should share the Homestead runtime helper for repeated Tractor/OPFS/Loro orchestration, while keeping app-specific plugins, fixtures, and visual diagnostics in the app layer.
+`StudioShell` and the Studio runtime helpers are shared Homestead primitives for all first-party apps. `apps/dev` is only the reference workbench for concrete experiments and diagnostics. `apps/dev`, `apps/me`, and future surfaces such as `social` should share the Homestead runtime helper for repeated Tractor/OPFS/Loro orchestration, while keeping app-specific plugins, fixtures, actions, and visual diagnostics in the app layer.
 
 See [ROADMAP.md](./ROADMAP.md) for the vision of a graph-driven UI.
