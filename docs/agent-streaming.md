@@ -72,6 +72,10 @@ tractor watch --type StreamChunk --stream-ref urn:tractor:stream:agent-response:
 tractor watch --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
 ```
 
+For generic streams, `--until-final` stops on `is_final: true`, terminal
+`payload_kind` (`final_text`, `final_tool_call`, `final_empty`), or terminal
+session status (`completed`, `failed`).
+
 WebSocket/browser sync remains schema-neutral: `BrowserSyncClient` transports
 Loro binary updates and does not special-case `AgentResponse`, `StreamChunk`, or
 `StreamSession`. UI code should decide which node type it observes and then use
