@@ -67,6 +67,11 @@ from manifest declaration to actual UI activation.
 The Homestead SDK also exports `listMountedHomesteadSurfaces(...)` so `apps/dev`
 and future inspectors can query the currently mounted surface graph from the DOM
 without coupling to private shell internals.
+The Studio app now consumes that helper through the
+`@refarm.dev/homestead/sdk/surface-inspector` subpath and renders a small mounted
+surface inspector after shell setup. This closes the loop from manifest
+declaration to visible Studio diagnostics while keeping private shell internals
+encapsulated.
 
 Short-term UI experiments should land in Homestead and the Studio app
 (`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
