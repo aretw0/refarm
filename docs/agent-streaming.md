@@ -111,6 +111,10 @@ browser path without touching `me` or `social`: click the statusbar toggle, open
 `localStorage["refarm:studio:stream-demo"] = "1"`. The demo writes generic
 `StreamSession` and `StreamChunk` nodes through Tractor so Homestead renders the
 same path used by real agent streams.
+When enabled, the demo also registers an internal
+`studio-stream-surface-demo` plugin with a manifest-declared `homestead` panel in
+the `streams` slot. This keeps the experiment in Studio while exercising the
+same surface mount path that real plugins will use.
 
 The stream UI uses `@refarm.dev/ds` for agnostic presentation primitives
 (surfaces, panels, pills, badges, cards, buttons, code chips, and workbench

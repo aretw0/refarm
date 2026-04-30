@@ -76,6 +76,10 @@ Stream rendering now writes into its own `[data-refarm-stream-panel]` child
 instead of replacing the entire `streams` slot, so plugin-provided panels mounted
 into that slot survive live stream updates. Declared surface mounts also unhide
 their target slot during activation.
+The opt-in Studio stream demo registers an internal manifest-declared
+`homestead` panel in that same `streams` slot, giving the daily-driver path a
+real surface mount to inspect without promoting the experiment into `me` or
+`social` prematurely.
 The Studio app now consumes that helper through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders a small mounted
 surface inspector that refreshes from Homestead surface telemetry. This closes the loop from manifest
