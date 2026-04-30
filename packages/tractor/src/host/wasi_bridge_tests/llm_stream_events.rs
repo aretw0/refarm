@@ -337,6 +337,32 @@ fn final_stream_sequence_follows_partial_or_initial_sequence() {
 }
 
 #[test]
+fn final_stream_payload_kind_describes_terminal_observation() {
+    let text = super::LlmStreamFinalAssembly {
+        content: "hello".to_string(),
+        ..Default::default()
+    };
+    let tool_call = super::LlmStreamFinalAssembly {
+        openai_tool_calls: vec![super::OpenAiStreamToolCall::default()],
+        ..Default::default()
+    };
+    let usage_only = super::LlmStreamFinalAssembly {
+        usage: super::LlmStreamUsage {
+            total_tokens: Some(1),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
+    assert_eq!(super::final_stream_payload_kind(&text), "final_text");
+    assert_eq!(
+        super::final_stream_payload_kind(&tool_call),
+        "final_tool_call"
+    );
+    assert_eq!(super::final_stream_payload_kind(&usage_only), "final_empty");
+}
+
+#[test]
 fn synthesize_stream_final_response_body_emits_anthropic_shape() {
     let mut metadata = stream_metadata(None);
     metadata.provider_family = "anthropic".to_string();

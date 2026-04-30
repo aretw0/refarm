@@ -193,6 +193,7 @@ fn store_stream_agent_response_chunks_from_reader(
             source_plugin,
             metadata,
             sequence,
+            final_stream_payload_kind(&assembly),
             &assembly.content,
         )?;
         body
@@ -482,11 +483,18 @@ fn store_stream_final_chunk_observation(
     source_plugin: &str,
     metadata: &StreamResponseMetadata,
     sequence: u32,
+    payload_kind: &str,
     content: &str,
 ) -> Result<(), String> {
     let timestamp_ns = now_ns();
     let node_id = stream_chunk_observation_id();
-    let draft = stream_final_chunk_observation_draft(metadata, sequence, content, timestamp_ns);
+    let draft = stream_final_chunk_observation_draft(
+        metadata,
+        sequence,
+        payload_kind,
+        content,
+        timestamp_ns,
+    );
     let node = stream_chunk_observation_node(&node_id, &draft);
     sync.store_node(
         &node_id,
@@ -563,17 +571,28 @@ fn stream_chunk_observation_draft(
 fn stream_final_chunk_observation_draft(
     metadata: &StreamResponseMetadata,
     sequence: u32,
+    payload_kind: &str,
     content: &str,
     timestamp_ns: u64,
 ) -> StreamChunkObservationDraft {
     stream_observation_draft(
         metadata,
         sequence,
-        "final_text",
+        payload_kind,
         content,
         true,
         timestamp_ns,
     )
+}
+
+fn final_stream_payload_kind(assembly: &LlmStreamFinalAssembly) -> &'static str {
+    if !assembly.content.is_empty() {
+        "final_text"
+    } else if !assembly.openai_tool_calls.is_empty() || !assembly.anthropic_tool_uses.is_empty() {
+        "final_tool_call"
+    } else {
+        "final_empty"
+    }
 }
 
 fn stream_session_observation_draft(
