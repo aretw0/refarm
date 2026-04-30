@@ -85,4 +85,4 @@ migrated — history built with them has no `parent_entry_id` chain.
 | `UserPrompt`  | Raw prompt from the user             | `content`, `timestamp_ns`                       |
 | `AgentResponse` | LLM response                       | `prompt_ref`, `content`, `tool_calls`, `llm.*`  |
 | `UsageRecord` | Token / cost record per LLM call     | `provider`, `tokens_in`, `tokens_out`, `estimated_usd` |
-| `RefarmConfig`| `.refarm/config.json` snapshot       | `provider`, `model`, `budgets`                  |
+| `RefarmConfig`| `.refarm/config.json` snapshot       | `provider`, `model`, `stream_responses`, `budgets` |

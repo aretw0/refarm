@@ -46,6 +46,7 @@ at project root can set them declaratively — values there override process env
   "provider": "anthropic",
   "model": "claude-sonnet-4-6",
   "default_provider": "ollama",
+  "stream_responses": true,
   "budgets": { "anthropic": 5.0 },
   "trusted_plugins": ["pi_agent"]
 }
@@ -59,6 +60,7 @@ The file is optional — missing file is silently ignored.
 | `provider` | `LLM_PROVIDER` | Active provider for this project |
 | `model` | `LLM_MODEL` | Model ID override |
 | `default_provider` | `LLM_DEFAULT_PROVIDER` | Sovereign default when provider unset |
+| `stream_responses` | `LLM_STREAM_RESPONSES` | Explicit provider streaming opt-in/out (`true` → `1`, `false` → `0`) |
 | `budgets.<provider>` | `LLM_BUDGET_<PROVIDER>_USD` | Rolling 30-day spend cap in USD |
 | `trusted_plugins[]` | (host policy) | Optional allowlist for plugins allowed to use `agent-shell` |
 <!-- {/config_fields} -->
