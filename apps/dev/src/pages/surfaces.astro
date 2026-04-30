@@ -46,7 +46,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
         external surface should render, one trusted executable fixture should fail rendering audibly, and one external
         unregistered surface should be rejected as <code class="refarm-code">untrusted-plugin</code>.
       </p>
-      <div class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></div>
+      <refarm-surface-ledger class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></refarm-surface-ledger>
     </div>
 
     <div class="refarm-surface-card surfaces-ledger__panel">
@@ -173,7 +173,11 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
     createStudioSurfaceDiagnosticsPlugins,
     EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID,
   } from "../lib/surface-diagnostics";
-  import { mountReactiveStudioSurfaceLedger } from "../lib/surface-ledger";
+  import {
+    defineStudioSurfaceLedgerElement,
+    mountReactiveStudioSurfaceLedgerElement,
+    type StudioSurfaceLedgerElement,
+  } from "../lib/surface-ledger";
 
   function setStatus(text: string) {
     const status = document.querySelector<HTMLElement>("[data-refarm-surfaces-status]");
@@ -203,9 +207,10 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       surfaceAction: createStudioSurfaceDiagnosticsActionHandler(),
     });
 
-    const ledgerSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-ledger-slot]");
+    defineStudioSurfaceLedgerElement();
+    const ledgerSlot = document.querySelector<StudioSurfaceLedgerElement>("[data-refarm-surfaces-ledger-slot]");
     if (ledgerSlot) {
-      mountReactiveStudioSurfaceLedger(ledgerSlot, {
+      mountReactiveStudioSurfaceLedgerElement(ledgerSlot, {
         telemetry: tractor,
         telemetryEvents: tractor.telemetry.dump(),
       });

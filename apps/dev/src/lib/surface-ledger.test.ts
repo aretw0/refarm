@@ -2,8 +2,12 @@
 import { describe, expect, it } from "vitest";
 import type { HomesteadSurfaceTelemetryEvent } from "@refarm.dev/homestead/sdk/surface-inspector";
 import {
+	defineStudioSurfaceLedgerElement,
 	mountReactiveStudioSurfaceLedger,
+	mountReactiveStudioSurfaceLedgerElement,
 	mountStudioSurfaceLedger,
+	STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+	type StudioSurfaceLedgerElement,
 } from "./surface-ledger";
 
 describe("Studio surface ledger", () => {
@@ -173,6 +177,31 @@ describe("Studio surface ledger", () => {
 		telemetry.emit({ event: "ui:surface_mounted" });
 
 		expect(controller.element.textContent).toContain("0 mounted");
+	});
+
+	it("mounts reactive ledgers through a custom element boundary", () => {
+		defineStudioSurfaceLedgerElement();
+		const root = document.createElement("div");
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "custom-ledger-plugin",
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surfaceId: "custom-ledger-panel",
+			}),
+		);
+		const element = document.createElement(
+			STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+		) as StudioSurfaceLedgerElement;
+		document.body.appendChild(element);
+
+		const controller = mountReactiveStudioSurfaceLedgerElement(element, {
+			root,
+		});
+
+		expect(controller.element.textContent).toContain("1 mounted");
+		expect(element.textContent).toContain("custom-ledger-panel");
+		document.body.removeChild(element);
 	});
 });
 
