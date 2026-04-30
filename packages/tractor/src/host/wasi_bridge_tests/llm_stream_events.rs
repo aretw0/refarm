@@ -448,6 +448,13 @@ fn store_stream_agent_response_chunks_from_reader_enforces_body_limit() {
 
     assert!(err.contains("too large"));
     assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+
+    let session_rows = sync.query_nodes("StreamSession").unwrap();
+    assert_eq!(session_rows.len(), 1);
+    let session: serde_json::Value = serde_json::from_str(&session_rows[0].payload).unwrap();
+    assert_eq!(session["status"], "failed");
+    assert_eq!(session["last_sequence"], serde_json::Value::Null);
+    assert_eq!(session["chunk_count"], 0);
 }
 
 fn stream_metadata(last_sequence: Option<u32>) -> super::StreamResponseMetadata {

@@ -145,7 +145,7 @@ fn store_stream_agent_response_chunks_from_reader(
     let mut stored_chunks = 0u32;
     let mut assembly = LlmStreamFinalAssembly::default();
 
-    let raw_body = read_sse_data_events_limited(reader, max_len, |payload| {
+    let raw_body = match read_sse_data_events_limited(reader, max_len, |payload| {
         let chunks = stream_text_deltas_and_update_final_assembly(payload, &mut assembly)
             .into_iter()
             .map(|content_delta| {
@@ -164,7 +164,26 @@ fn store_stream_agent_response_chunks_from_reader(
         }
         stored_chunks = stored_chunks.saturating_add(count);
         Ok(())
-    })?;
+    }) {
+        Ok(raw_body) => raw_body,
+        Err(err) => {
+            let stream_failed_at_ns = now_ns();
+            store_stream_session_observation(
+                sync,
+                source_plugin,
+                &stream_session_observation_draft(
+                    metadata,
+                    "failed",
+                    stream_started_at_ns,
+                    stream_failed_at_ns,
+                    Some(stream_failed_at_ns),
+                    last_stored_sequence,
+                    stored_chunks,
+                ),
+            )?;
+            return Err(err);
+        }
+    };
 
     let has_final_observation = assembly.has_observations();
     let final_observation_sequence = has_final_observation
