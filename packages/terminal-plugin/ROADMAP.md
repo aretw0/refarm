@@ -58,10 +58,12 @@ The terminal-plugin is the human window into that execution.
 
 ---
 
-## v0.2.0 — Live output via WebSocket + CRDT
+## Daily-driver live output track (legacy `v0.2.0` bucket)
 
 **Scope**: Connect the display to the execution engine. The terminal stops being
 a passive log and becomes a live view of what tractor is doing.
+
+> Recalibration: this is a daily-driver unlock, not a version bump promise. Prioritize only the pieces that help Refarm replace the current pi terminal/agent workflow; defer polish or ecosystem-facing work until after `v0.1.0` is earned.
 
 ### WebSocket subscription
 
