@@ -454,13 +454,21 @@ export class StudioShell {
 			}
 
 			if (plugin?.call && mount.surface) {
-				const renderResult = (await plugin.call("renderHomesteadSurface", {
-					pluginId,
-					slotId,
-					mountSource: mount.source,
-					surface: mount.surface,
-					locale,
-				})) as HomesteadSurfaceRenderResult;
+				let renderResult: HomesteadSurfaceRenderResult;
+				try {
+					renderResult = (await plugin.call("renderHomesteadSurface", {
+						pluginId,
+						slotId,
+						mountSource: mount.source,
+						surface: mount.surface,
+						locale,
+					})) as HomesteadSurfaceRenderResult;
+				} catch (error) {
+					pluginWrap.dataset.refarmSurfaceRenderMode = "failed";
+					this.emitSurfaceRenderFailed(pluginId, mount, slotId, error);
+					return;
+				}
+
 				const renderContent = homesteadSurfaceRenderContent(renderResult);
 				if (renderContent?.kind === "html") {
 					pluginWrap.dataset.refarmSurfaceRenderMode = "html";
@@ -508,10 +516,37 @@ export class StudioShell {
 		});
 	}
 
+	private emitSurfaceRenderFailed(
+		pluginId: string,
+		mount: HomesteadSurfaceMount,
+		slotId: string,
+		error: unknown,
+	) {
+		this.tractor.emitTelemetry({
+			event: "ui:surface_render_failed",
+			pluginId,
+			payload: {
+				slotId,
+				mountSource: mount.source,
+				surfaceId: mount.surface?.id,
+				surfaceKind: mount.surface?.kind,
+				surfaceLayer: mount.surface?.layer,
+				surfaceRenderMode: "failed",
+				errorMessage: surfaceRenderErrorMessage(error),
+			},
+		});
+	}
+
 	private updateStatus(text: string) {
 		const statusEl = document.getElementById("system-status");
 		if (statusEl) statusEl.textContent = text;
 	}
+}
+
+
+function surfaceRenderErrorMessage(error: unknown): string | undefined {
+	if (error instanceof Error) return error.message;
+	return typeof error === "string" && error.length > 0 ? error : undefined;
 }
 
 export async function setupStudioShell(tractor: Tractor): Promise<StudioShell> {

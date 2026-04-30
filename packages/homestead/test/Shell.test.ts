@@ -188,6 +188,51 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should emit telemetry when homestead surface rendering fails", async () => {
+        const renderHomesteadSurface = vi.fn().mockRejectedValue(new Error("render boom"));
+        const plugin = {
+            id: "failing-surface-plugin",
+            state: "running",
+            call: renderHomesteadSurface,
+            manifest: {
+                entry: "internal:failing-surface-plugin",
+                extensions: {
+                    surfaces: [
+                        {
+                            layer: "homestead",
+                            kind: "panel",
+                            id: "failing-panel",
+                            slot: "main",
+                            capabilities: ["ui:panel:render"],
+                        },
+                    ],
+                },
+            },
+        };
+        tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
+        tractorMock.plugins.get.mockReturnValue(plugin);
+
+        const shell = new StudioShell(tractorMock as any);
+        await shell.setup();
+
+        const main = document.getElementById("refarm-slot-main");
+        const surfaceMount = main?.querySelector<HTMLElement>("[data-refarm-surface-id='failing-panel']");
+        expect(surfaceMount?.dataset.refarmSurfaceRenderMode).toBe("failed");
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_render_failed",
+            pluginId: "failing-surface-plugin",
+            payload: {
+                slotId: "main",
+                mountSource: "extension-surface",
+                surfaceId: "failing-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                surfaceRenderMode: "failed",
+                errorMessage: "render boom",
+            },
+        });
+    });
+
     it("should emit telemetry for rejected homestead extension surfaces", async () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([
             {

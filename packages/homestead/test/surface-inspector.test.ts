@@ -87,6 +87,9 @@ describe("listMountedHomesteadSurfaces", () => {
 		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_rendered" })).toBe(
 			true,
 		);
+		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_render_failed" })).toBe(
+			true,
+		);
 		expect(
 			isHomesteadSurfaceChangeEvent({
 				event: "system:plugin_state_changed",
@@ -108,6 +111,7 @@ describe("listMountedHomesteadSurfaces", () => {
 		telemetry.emit({ event: "storage:io" });
 		telemetry.emit({ event: "ui:surface_mounted" });
 		telemetry.emit({ event: "ui:surface_rendered" });
+		telemetry.emit({ event: "ui:surface_render_failed" });
 		telemetry.emit({ event: "system:plugin_state_changed" });
 		dispose();
 		telemetry.emit({ event: "ui:surface_mounted" });
@@ -115,6 +119,7 @@ describe("listMountedHomesteadSurfaces", () => {
 		expect(observed).toEqual([
 			"ui:surface_mounted",
 			"ui:surface_rendered",
+			"ui:surface_render_failed",
 			"system:plugin_state_changed",
 		]);
 	});

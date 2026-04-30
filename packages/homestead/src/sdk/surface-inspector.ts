@@ -25,6 +25,7 @@ export interface HomesteadSurfaceTelemetrySource {
 export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
 	"ui:surface_mounted",
 	"ui:surface_rendered",
+	"ui:surface_render_failed",
 	"system:plugin_state_changed",
 ] as const;
 
