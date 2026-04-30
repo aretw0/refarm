@@ -42,7 +42,23 @@ partials were observed, the final response prints normally.
 
 JSON mode keeps emitting each `AgentResponse` event with `sequence` and
 `is_final`, so structured consumers can maintain their own per-`prompt_ref`
-accumulator. TypeScript consumers can use
+accumulator.
+
+Generic stream observations are queryable without a daemon:
+
+```bash
+tractor query --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref>
+tractor query --type StreamChunk --stream-ref urn:tractor:stream:agent-response:<prompt-ref>
+```
+
+They can also be watched through the polling fallback:
+
+```bash
+tractor watch --type StreamChunk --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
+tractor watch --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
+```
+
+TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
 from `@refarm.dev/tractor` as the default `AgentResponse` accumulation
 primitive, or `reduceAgentResponseStreamEventsByPrompt(...)` when events from
