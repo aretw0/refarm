@@ -84,6 +84,13 @@ struct DaemonArgs {
     /// not explicitly provided.
     #[arg(long, default_value_t = false)]
     require_plugin_ingest: bool,
+
+    /// Opt loaded LLM plugins into host-proxied provider streaming.
+    ///
+    /// This sets LLM_STREAM_RESPONSES=1 before startup plugins are loaded.
+    /// Existing process environments can still opt in without this flag.
+    #[arg(long, default_value_t = false)]
+    llm_stream_responses: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -359,6 +366,11 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
     };
 
     tracing::info!(namespace = %args.namespace, port = args.port, "Starting tractor daemon");
+
+    if args.llm_stream_responses {
+        std::env::set_var("LLM_STREAM_RESPONSES", "1");
+        tracing::info!("LLM_STREAM_RESPONSES=1 enabled for startup plugins");
+    }
 
     let tractor = TractorNative::boot(config.clone()).await?;
 
@@ -1121,6 +1133,14 @@ mod tests {
 
         assert_eq!(rows[0].id, "chunk-a");
         assert_eq!(rows[1].id, "chunk-b");
+    }
+
+    #[test]
+    fn daemon_cli_accepts_llm_stream_responses_flag() {
+        let cli = Cli::try_parse_from(["tractor", "--llm-stream-responses"])
+            .expect("cli parse");
+
+        assert!(cli.daemon.llm_stream_responses);
     }
 
     #[test]
