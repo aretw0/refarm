@@ -4,18 +4,18 @@ Refarm reaches `v0.1.0` only when it can replace the creator's current external 
 
 ## Minimum daily loop
 
-| Capability                | Refarm surface                              | Local validation signal                                                                                            | Status |
-| ------------------------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | ------ |
-| Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                         | ⬜     |
-| Ask an agent to reason    | pi-agent hosted by Tractor                  | prompt returns an `AgentResponse` and generic `StreamSession`/`StreamChunk` observations when streaming is enabled | ⬜     |
-| See live output           | UI consumer of Tractor observations         | Stream chunks render incrementally without special-casing the sync transport                                       | ⬜     |
-| Use local tools           | pi-agent tool dispatch through host bridges | filesystem/code/search tools are host-authorized and auditable                                                     | ⬜     |
-| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | decisions/tasks/handoffs survive restart and sync roundtrip                                                        | ⬜     |
-| Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                              | ⬜     |
-| Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                        | ⬜     |
-| Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                         | ⬜     |
-| Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                  | ⬜     |
-| Govern resource use       | disk + quota + local validation policy      | scoped checks run before CI; cleanup frees derived artifacts without source loss                                   | ✅     |
+| Capability                | Refarm surface                              | Local validation signal                                                                                                                         | Status |
+| ------------------------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| Start a work session      | `tractor` daemon + `apps/me` shell          | daemon boots, `apps/me` connects to `ws://localhost:42000`                                                                                      | ⬜     |
+| Ask an agent to reason    | pi-agent hosted by Tractor                  | prompt returns an `AgentResponse` and generic `StreamSession`/`StreamChunk` observations when streaming is enabled                              | ⬜     |
+| See live output           | UI consumer of Tractor observations         | Stream chunks render incrementally without special-casing the sync transport; `streamObservationView(...)` helper exists, UI subscriber pending | ⬜     |
+| Use local tools           | pi-agent tool dispatch through host bridges | filesystem/code/search tools are host-authorized and auditable                                                                                  | ⬜     |
+| Preserve memory           | `.project/` blocks + Loro/SQLite graph      | decisions/tasks/handoffs survive restart and sync roundtrip                                                                                     | ⬜     |
+| Resume after interruption | handoff + project status                    | a new session can recover current tasks from repository/project state                                                                           | ⬜     |
+| Work offline              | `apps/me` + OPFS + service worker           | edit while Tractor is offline, reconnect, and deliver delta                                                                                     | ⬜     |
+| Recover from failure      | SQLite/OPFS backup path                     | restore from backup without graph corruption or lost tasks                                                                                      | ⬜     |
+| Automate reminders        | Windmill/scheduler equivalent               | one-shot and recurring reminders run locally with clear ownership                                                                               | ⬜     |
+| Govern resource use       | disk + quota + local validation policy      | scoped checks run before CI; cleanup frees derived artifacts without source loss                                                                | ✅     |
 
 ## Promotion rule
 
