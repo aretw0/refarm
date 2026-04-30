@@ -152,7 +152,10 @@ Framework-agnostic visual primitives belong in `@refarm.dev/ds`. Homestead and
 `apps/dev` should keep domain behavior local, but consume DS classes for shared
 surfaces, panels, pills, badges, buttons, cards, code chips, and workbench
 composition. This keeps stream-specific rendering out of the design system while
-still preventing UI drift across hosts.
+still preventing UI drift across hosts. UI composition should follow
+[UI Architecture](./UI_ARCHITECTURE.md): Astro owns stable page structure,
+Homestead owns runtime contracts, and live presenters stay as small controllers
+or custom elements rather than a hand-rolled React substitute.
 
 ## Daily-driver order of attack
 
