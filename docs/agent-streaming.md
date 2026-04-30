@@ -40,6 +40,8 @@ guest.
 - The final response sequence is the last partial sequence plus one.
 - Tool-call/tool-use deltas are synthesized into final provider-compatible JSON
   so existing tool loops continue to work.
+- Retention is conservative: stream observations are not implicitly compacted on
+  write. Future cleanup should use a governed delete/compact primitive.
 
 ## CLI consumption
 
