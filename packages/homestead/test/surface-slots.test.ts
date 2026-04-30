@@ -1,6 +1,7 @@
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { describe, expect, it } from "vitest";
 import {
+	resolveHomesteadSurfaceActivationPlan,
 	resolveHomesteadSurfaceMounts,
 	resolveHomesteadSurfaceSlots,
 } from "../src/sdk/surface-slots";
@@ -86,5 +87,58 @@ describe("resolveHomesteadSurfaceSlots", () => {
 				allowedCapabilities: ["ui:secrets:read"],
 			}),
 		).toEqual(["statusbar", "secrets"]);
+	});
+
+	it("returns explicit activation rejections for unactionable surfaces", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "missing-slot",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "secrets-panel",
+						slot: "main",
+						capabilities: ["ui:secrets:read", "ui:panel:render"],
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "duplicate-panel",
+						slot: "main",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "duplicate-panel",
+						slot: "statusbar",
+					},
+				],
+			},
+		});
+
+		const plan = resolveHomesteadSurfaceActivationPlan(manifest);
+
+		expect(plan.mounts).toMatchObject([
+			{ slotId: "main", source: "legacy-ui-slot" },
+			{
+				slotId: "main",
+				source: "extension-surface",
+				surface: { id: "duplicate-panel" },
+			},
+		]);
+		expect(plan.rejected).toMatchObject([
+			{ reason: "missing-slot", surface: { id: "missing-slot" } },
+			{
+				reason: "unsupported-capability",
+				surface: { id: "secrets-panel" },
+				missingCapabilities: ["ui:secrets:read"],
+			},
+			{ reason: "duplicate-surface-id", surface: { id: "duplicate-panel" } },
+		]);
 	});
 });

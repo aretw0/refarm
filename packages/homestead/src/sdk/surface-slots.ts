@@ -19,6 +19,22 @@ export interface HomesteadSurfaceMount {
 	surface?: ExtensionSurfaceDeclaration;
 }
 
+export type HomesteadSurfaceRejectionReason =
+	| "missing-slot"
+	| "unsupported-capability"
+	| "duplicate-surface-id";
+
+export interface HomesteadSurfaceRejection {
+	reason: HomesteadSurfaceRejectionReason;
+	surface: ExtensionSurfaceDeclaration;
+	missingCapabilities?: string[];
+}
+
+export interface HomesteadSurfaceActivationPlan {
+	mounts: HomesteadSurfaceMount[];
+	rejected: HomesteadSurfaceRejection[];
+}
+
 /**
  * Resolve Homestead shell slots from both the legacy `ui.slots` field and the
  * additive multi-surface manifest contract.
@@ -42,7 +58,20 @@ export function resolveHomesteadSurfaceMounts(
 	manifest: PluginManifest,
 	options: HomesteadSurfaceSlotOptions = {},
 ): HomesteadSurfaceMount[] {
+	return resolveHomesteadSurfaceActivationPlan(manifest, options).mounts;
+}
+
+/**
+ * Resolve mountable Homestead surfaces plus explicit rejections. The shell uses
+ * this plan to keep discovery deterministic while emitting auditable telemetry
+ * for surfaces that were declared but not activated.
+ */
+export function resolveHomesteadSurfaceActivationPlan(
+	manifest: PluginManifest,
+	options: HomesteadSurfaceSlotOptions = {},
+): HomesteadSurfaceActivationPlan {
 	const mounts: HomesteadSurfaceMount[] = [];
+	const rejected: HomesteadSurfaceRejection[] = [];
 	const legacySlots = new Set<string>();
 	const surfaceIds = new Set<string>();
 	const allowedCapabilities = normalizeAllowedCapabilities(
@@ -59,11 +88,28 @@ export function resolveHomesteadSurfaceMounts(
 	}
 
 	for (const surface of getExtensionSurfaces(manifest, "homestead")) {
-		if (surface.slot === undefined || surface.slot.trim().length === 0)
+		if (surface.slot === undefined || surface.slot.trim().length === 0) {
+			rejected.push({ reason: "missing-slot", surface });
 			continue;
-		if (!isHomesteadSurfaceCapabilityAllowed(surface, allowedCapabilities))
+		}
+
+		const missingCapabilities = unsupportedHomesteadSurfaceCapabilities(
+			surface,
+			allowedCapabilities,
+		);
+		if (missingCapabilities.length > 0) {
+			rejected.push({
+				reason: "unsupported-capability",
+				surface,
+				missingCapabilities,
+			});
 			continue;
-		if (surfaceIds.has(surface.id)) continue;
+		}
+
+		if (surfaceIds.has(surface.id)) {
+			rejected.push({ reason: "duplicate-surface-id", surface });
+			continue;
+		}
 		surfaceIds.add(surface.id);
 		mounts.push({
 			slotId: surface.slot,
@@ -72,7 +118,7 @@ export function resolveHomesteadSurfaceMounts(
 		});
 	}
 
-	return mounts;
+	return { mounts, rejected };
 }
 
 function normalizeAllowedCapabilities(
@@ -82,11 +128,11 @@ function normalizeAllowedCapabilities(
 	return new Set(capabilities ?? DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES);
 }
 
-function isHomesteadSurfaceCapabilityAllowed(
+export function unsupportedHomesteadSurfaceCapabilities(
 	surface: ExtensionSurfaceDeclaration,
 	allowedCapabilities: ReadonlySet<string>,
-): boolean {
-	return (surface.capabilities ?? []).every((capability) =>
-		allowedCapabilities.has(capability),
+): string[] {
+	return (surface.capabilities ?? []).filter(
+		(capability) => !allowedCapabilities.has(capability),
 	);
 }

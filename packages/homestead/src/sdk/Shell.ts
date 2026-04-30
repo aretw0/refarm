@@ -15,8 +15,9 @@ import type {
 } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
 import {
-  resolveHomesteadSurfaceMounts,
+  resolveHomesteadSurfaceActivationPlan,
   type HomesteadSurfaceMount,
+  type HomesteadSurfaceRejection,
 } from "./surface-slots.js";
 import {
   renderStreamPanelHtml,
@@ -123,7 +124,11 @@ export class StudioShell {
     let hasUi = false;
     
     for (const plugin of apps) {
-      const mounts = resolveHomesteadSurfaceMounts(plugin.manifest);
+      const plan = resolveHomesteadSurfaceActivationPlan(plugin.manifest);
+      for (const rejection of plan.rejected) {
+        this.emitSurfaceRejected(plugin.id, rejection);
+      }
+      const mounts = plan.mounts;
       if (mounts.length > 0) {
         hasUi = true;
         for (const mount of mounts) {
@@ -138,6 +143,21 @@ export class StudioShell {
     }
 
     this.updateStatus(this.l8n.t("refarm:core/status_ready"));
+  }
+
+  private emitSurfaceRejected(pluginId: string, rejection: HomesteadSurfaceRejection) {
+    this.tractor.emitTelemetry({
+      event: "ui:surface_rejected",
+      pluginId,
+      payload: {
+        reason: rejection.reason,
+        surfaceId: rejection.surface.id,
+        surfaceKind: rejection.surface.kind,
+        surfaceLayer: rejection.surface.layer,
+        slotId: rejection.surface.slot,
+        missingCapabilities: rejection.missingCapabilities,
+      },
+    });
   }
 
   private setupStreamObservationSubscriber() {

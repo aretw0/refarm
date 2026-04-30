@@ -111,6 +111,60 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should emit telemetry for rejected homestead extension surfaces", async () => {
+        tractorMock.plugins.getAllPlugins.mockReturnValue([
+            {
+                id: "rejected-surface-plugin",
+                manifest: {
+                    extensions: {
+                        surfaces: [
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "secrets-panel",
+                                slot: "main",
+                                capabilities: ["ui:secrets:read"],
+                            },
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "missing-slot-panel",
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        const shell = new StudioShell(tractorMock as any);
+        await shell.setup();
+
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_rejected",
+            pluginId: "rejected-surface-plugin",
+            payload: {
+                reason: "unsupported-capability",
+                surfaceId: "secrets-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                slotId: "main",
+                missingCapabilities: ["ui:secrets:read"],
+            },
+        });
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_rejected",
+            pluginId: "rejected-surface-plugin",
+            payload: {
+                reason: "missing-slot",
+                surfaceId: "missing-slot-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                slotId: undefined,
+                missingCapabilities: undefined,
+            },
+        });
+    });
+
     it("should preserve mounted stream-slot surfaces while rendering live streams", async () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([
             {
