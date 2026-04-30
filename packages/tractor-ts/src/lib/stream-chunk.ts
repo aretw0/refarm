@@ -14,6 +14,7 @@ export interface StreamChunkState {
 	lastSequence: number | null;
 	isFinal: boolean;
 	payloadKind: StreamChunkPayloadKind | string | null;
+	metadata: unknown;
 }
 
 export type StreamChunkStateMap = Record<string, StreamChunkState>;
@@ -55,6 +56,7 @@ export function emptyStreamChunkState(
 		lastSequence: null,
 		isFinal: false,
 		payloadKind: null,
+		metadata: null,
 	};
 }
 
@@ -81,6 +83,7 @@ export function applyStreamChunkEvent(
 		lastSequence: eventSequence,
 		isFinal: event.is_final === true,
 		payloadKind,
+		metadata: event.metadata ?? state.metadata,
 	};
 }
 

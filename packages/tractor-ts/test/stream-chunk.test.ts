@@ -48,6 +48,7 @@ describe("StreamChunk accumulator", () => {
 			lastSequence: 2,
 			isFinal: true,
 			payloadKind: "text_delta",
+			metadata: null,
 		});
 	});
 
@@ -89,6 +90,7 @@ describe("StreamChunk accumulator", () => {
 			lastSequence: 0,
 			isFinal: false,
 			payloadKind: null,
+			metadata: null,
 		});
 	});
 
@@ -117,6 +119,28 @@ describe("StreamChunk accumulator", () => {
 				payloadKind: "final_empty",
 			}),
 		).toBe(true);
+	});
+
+	it("preserves latest stream metadata", () => {
+		const state = reduceStreamChunkEvents([
+			{
+				stream_ref: "stream-a",
+				content: "delta",
+				sequence: 0,
+				metadata: { prompt_ref: "prompt-a", projection: "AgentResponse" },
+			},
+			{
+				stream_ref: "stream-a",
+				content: "final",
+				sequence: 1,
+				is_final: true,
+			},
+		]);
+
+		expect(state.metadata).toEqual({
+			prompt_ref: "prompt-a",
+			projection: "AgentResponse",
+		});
 	});
 
 	it("preserves prior stream identity when events omit stream_ref", () => {
