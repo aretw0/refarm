@@ -6,6 +6,8 @@ import {
 	isTerminalStreamSessionStatus,
 	reduceStreamSessionEvents,
 	reduceStreamSessionEventsByStream,
+	streamSessionFailureKind,
+	streamSessionFailureReason,
 	UNKNOWN_STREAM_SESSION_REF,
 } from "../src/lib/stream-session";
 
@@ -79,6 +81,22 @@ describe("StreamSession accumulator", () => {
 				status: "completed",
 			}),
 		).toBe(true);
+	});
+
+	it("extracts sanitized failure metadata", () => {
+		const state = reduceStreamSessionEvents([
+			{
+				stream_ref: "stream-failed",
+				status: "failed",
+				metadata: {
+					failure_kind: "stream_read_failed",
+					failure_reason: "sse stream body too large",
+				},
+			},
+		]);
+
+		expect(streamSessionFailureKind(state)).toBe("stream_read_failed");
+		expect(streamSessionFailureReason(state)).toBe("sse stream body too large");
 	});
 
 	it("preserves prior identity and ignores non-finite counters", () => {

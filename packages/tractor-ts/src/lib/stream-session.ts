@@ -107,6 +107,30 @@ export function isTerminalStreamSession(state: StreamSessionState): boolean {
 	return isTerminalStreamSessionStatus(state.status);
 }
 
+export function streamSessionFailureReason(
+	state: StreamSessionState,
+): string | null {
+	return metadataStringField(state.metadata, "failure_reason");
+}
+
+export function streamSessionFailureKind(
+	state: StreamSessionState,
+): string | null {
+	return metadataStringField(state.metadata, "failure_kind");
+}
+
+function metadataStringField(metadata: unknown, field: string): string | null {
+	if (
+		typeof metadata !== "object" ||
+		metadata === null ||
+		!(field in metadata)
+	) {
+		return null;
+	}
+	const value = (metadata as Record<string, unknown>)[field];
+	return typeof value === "string" ? value : null;
+}
+
 function finiteNumberOr(
 	value: number | null | undefined,
 	fallback: number | null,
