@@ -17,12 +17,14 @@ describe("resolveHomesteadSurfaceSlots", () => {
 						kind: "panel",
 						id: "stream-panel",
 						slot: "main",
+						capabilities: ["ui:panel:render"],
 					},
 					{
 						layer: "homestead",
 						kind: "panel",
 						id: "activity-panel",
 						slot: "activity",
+						capabilities: ["ui:panel:render"],
 					},
 					{
 						layer: "automation",
@@ -65,14 +67,14 @@ describe("resolveHomesteadSurfaceSlots", () => {
 						kind: "panel",
 						id: "authorized-stream-panel",
 						slot: "streams",
-						capabilities: ["ui:stream:read"],
+						capabilities: ["ui:panel:render", "ui:stream:read"],
 					},
 					{
 						layer: "homestead",
 						kind: "panel",
 						id: "unauthorized-secrets-panel",
 						slot: "secrets",
-						capabilities: ["ui:secrets:read"],
+						capabilities: ["ui:panel:render", "ui:secrets:read"],
 					},
 				],
 			},
@@ -84,7 +86,7 @@ describe("resolveHomesteadSurfaceSlots", () => {
 		]);
 		expect(
 			resolveHomesteadSurfaceSlots(manifest, {
-				allowedCapabilities: ["ui:secrets:read"],
+				allowedCapabilities: ["ui:panel:render", "ui:secrets:read"],
 			}),
 		).toEqual(["statusbar", "secrets"]);
 	});
@@ -110,12 +112,14 @@ describe("resolveHomesteadSurfaceSlots", () => {
 						kind: "panel",
 						id: "duplicate-panel",
 						slot: "main",
+						capabilities: ["ui:panel:render"],
 					},
 					{
 						layer: "homestead",
 						kind: "panel",
 						id: "duplicate-panel",
 						slot: "statusbar",
+						capabilities: ["ui:panel:render"],
 					},
 				],
 			},
@@ -142,6 +146,46 @@ describe("resolveHomesteadSurfaceSlots", () => {
 		]);
 	});
 
+	it("requires homestead surfaces to declare render capability before activation", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "implicit-panel",
+						slot: "main",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "explicit-panel",
+						slot: "main",
+						capabilities: ["ui:panel:render"],
+					},
+				],
+			},
+		});
+
+		const plan = resolveHomesteadSurfaceActivationPlan(manifest);
+
+		expect(plan.mounts).toMatchObject([
+			{ slotId: "main", source: "legacy-ui-slot" },
+			{
+				slotId: "main",
+				source: "extension-surface",
+				surface: { id: "explicit-panel" },
+			},
+		]);
+		expect(plan.rejected).toMatchObject([
+			{
+				reason: "missing-required-capability",
+				surface: { id: "implicit-panel" },
+				missingCapabilities: ["ui:panel:render"],
+			},
+		]);
+	});
+
 	it("rejects homestead surfaces targeting slots that the host does not expose", () => {
 		const manifest = createMockManifest({
 			ui: { slots: ["main", "ghost-legacy"] },
@@ -152,6 +196,7 @@ describe("resolveHomesteadSurfaceSlots", () => {
 						kind: "panel",
 						id: "known-panel",
 						slot: "main",
+						capabilities: ["ui:panel:render"],
 					},
 					{
 						layer: "homestead",
@@ -192,12 +237,14 @@ describe("resolveHomesteadSurfaceSlots", () => {
 						kind: "panel",
 						id: "known-panel",
 						slot: "main",
+						capabilities: ["ui:panel:render"],
 					},
 					{
 						layer: "homestead",
 						kind: "fullscreen-overlay",
 						id: "overlay-panel",
 						slot: "main",
+						capabilities: ["ui:panel:render"],
 					},
 				],
 			},

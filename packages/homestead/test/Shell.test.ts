@@ -75,6 +75,7 @@ describe("StudioShell Orchestrator", () => {
                                 kind: "panel",
                                 id: "stream-panel",
                                 slot: "main",
+                                capabilities: ["ui:panel:render"],
                             },
                             {
                                 layer: "automation",
@@ -123,7 +124,7 @@ describe("StudioShell Orchestrator", () => {
                                 kind: "panel",
                                 id: "secrets-panel",
                                 slot: "main",
-                                capabilities: ["ui:secrets:read"],
+                                capabilities: ["ui:panel:render", "ui:secrets:read"],
                             },
                             {
                                 layer: "homestead",
@@ -195,6 +196,7 @@ describe("StudioShell Orchestrator", () => {
                                 kind: "panel",
                                 id: "plugin-stream-panel",
                                 slot: "streams",
+                                capabilities: ["ui:panel:render"],
                             },
                         ],
                     },

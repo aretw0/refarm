@@ -9,6 +9,10 @@ export const DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES = new Set([
 	"ui:stream:read",
 ]);
 
+export const DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES = new Set([
+	"ui:panel:render",
+]);
+
 export const DEFAULT_HOMESTEAD_SURFACE_KINDS = new Set([
 	"panel",
 	"widget",
@@ -20,6 +24,7 @@ export interface HomesteadSurfaceSlotOptions {
 	allowedCapabilities?: ReadonlySet<string> | readonly string[];
 	allowedKinds?: ReadonlySet<string> | readonly string[];
 	availableSlots?: ReadonlySet<string> | readonly string[];
+	requiredCapabilities?: ReadonlySet<string> | readonly string[];
 }
 
 export interface HomesteadSurfaceMount {
@@ -30,6 +35,7 @@ export interface HomesteadSurfaceMount {
 
 export type HomesteadSurfaceRejectionReason =
 	| "missing-slot"
+	| "missing-required-capability"
 	| "unknown-slot"
 	| "unsupported-kind"
 	| "unsupported-capability"
@@ -90,6 +96,9 @@ export function resolveHomesteadSurfaceActivationPlan(
 	);
 	const allowedKinds = normalizeAllowedKinds(options.allowedKinds);
 	const availableSlots = normalizeAvailableSlots(options.availableSlots);
+	const requiredCapabilities = normalizeRequiredCapabilities(
+		options.requiredCapabilities,
+	);
 
 	for (const slotId of manifest.ui?.slots ?? []) {
 		if (typeof slotId === "string" && slotId.trim().length > 0) {
@@ -114,6 +123,19 @@ export function resolveHomesteadSurfaceActivationPlan(
 
 		if (!allowedKinds.has(surface.kind)) {
 			rejected.push({ reason: "unsupported-kind", surface });
+			continue;
+		}
+
+		const missingRequiredCapabilities = missingHomesteadSurfaceCapabilities(
+			surface,
+			requiredCapabilities,
+		);
+		if (missingRequiredCapabilities.length > 0) {
+			rejected.push({
+				reason: "missing-required-capability",
+				surface,
+				missingCapabilities: missingRequiredCapabilities,
+			});
 			continue;
 		}
 
@@ -159,6 +181,15 @@ function normalizeAllowedKinds(
 	return new Set(kinds ?? DEFAULT_HOMESTEAD_SURFACE_KINDS);
 }
 
+function normalizeRequiredCapabilities(
+	capabilities: HomesteadSurfaceSlotOptions["requiredCapabilities"],
+): ReadonlySet<string> {
+	if (capabilities instanceof Set) return capabilities;
+	return new Set(
+		capabilities ?? DEFAULT_HOMESTEAD_SURFACE_REQUIRED_CAPABILITIES,
+	);
+}
+
 function normalizeAvailableSlots(
 	slots: HomesteadSurfaceSlotOptions["availableSlots"],
 ): ReadonlySet<string> | undefined {
@@ -172,5 +203,15 @@ export function unsupportedHomesteadSurfaceCapabilities(
 ): string[] {
 	return (surface.capabilities ?? []).filter(
 		(capability) => !allowedCapabilities.has(capability),
+	);
+}
+
+export function missingHomesteadSurfaceCapabilities(
+	surface: ExtensionSurfaceDeclaration,
+	requiredCapabilities: ReadonlySet<string>,
+): string[] {
+	const declaredCapabilities = new Set(surface.capabilities ?? []);
+	return [...requiredCapabilities].filter(
+		(capability) => !declaredCapabilities.has(capability),
 	);
 }
