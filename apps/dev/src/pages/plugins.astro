@@ -16,36 +16,17 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { StudioShell } from "@refarm.dev/homestead/sdk";
-  import {
-    BrowserSyncClient,
-    LoroCRDTStorage,
-    randomPeerId,
-  } from "@refarm.dev/sync-loro";
-  import { Tractor } from "@refarm.dev/tractor";
+  import { bootStudioRuntime, StudioShell } from "@refarm.dev/homestead/sdk";
 
   async function boot() {
     try {
-      // 1. Initialize Adapters
-      const noop = {
-        ensureSchema: async () => {},
-        storeNode: async () => {},
-        queryNodes: async () => [],
-        execute: async () => {},
-        query: async () => [],
-        transaction: async (fn: () => Promise<unknown>) => fn(),
-        close: async () => {},
-      };
-      const storage = new LoroCRDTStorage(noop as any, randomPeerId());
-      new BrowserSyncClient(storage).connect();
-      const identity = {};
-
-      // 2. Boot Tractor
-      const tractor = await Tractor.boot({
-        storage: storage as any,
-        sync: storage,
-        identity: identity as any,
+      // 1. Boot the shared Homestead runtime
+      const { tractor } = await bootStudioRuntime({
+        databaseName: `refarm-plugins-${Date.now()}`,
         namespace: "studio-plugins",
+        identityId: "studio-plugins",
+        connectBrowserSync: true,
+        tractorSync: true,
       });
 
       // 3. Handover to Shell Orchestrator
