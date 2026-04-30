@@ -1,43 +1,43 @@
 {
-	"context": "Checkpoint 2026-04-30T05:14Z after continuing atomic documentation/roadmap slices and preparing for context compaction. Branch develop. origin/develop is at pushed HEAD 68a7d6d3 fix(sower): declare windmill workspace dependency; GitHub Actions run 25148328365 completed successfully after local reproduction. Local HEAD before this handoff commit: 52bf3fea docs(release): defer publication verification gate; local branch is ahead 4 before this handoff commit. Working tree should be clean after committing this handoff. Important process correction from user: use local scoped checks to reproduce likely failures before relying on GitHub Actions; CI is final confirmation only.",
-	"timestamp": "2026-04-30T05:14:00.000Z",
-	"current_phase": 18,
+	"context": "Checkpoint 2026-04-30T05:44Z after daily-driver recalibration and first concrete tractor-ts stream UI helper slice. Branch develop is clean and synchronized with origin/develop at 3775fea6 docs(daily-driver): note stream view helper progress before this handoff update. GitHub Actions run 25149069271 for 12b17d68 passed; docs-only run 25149423176 for 3775fea6 passed. Disk remains constrained but stable at about 7.6GB free after prior heavy cleanup.",
+	"timestamp": "2026-04-30T05:44:00.000Z",
+	"current_phase": 19,
 	"current_tasks": [
-		"Pushed 68a7d6d3 fix(sower): declare windmill workspace dependency after reproducing the CI failure locally with npm --prefix packages/sower run build and npx turbo run build --filter=@refarm.dev/sower --cache-dir=.turbo. CI run 25148328365 passed.",
-		"Ran npm run clean:heavy --silent after heavy local builds; removed Rust target dirs for tractor, pi-agent, heartwood, and wasm validation fixture. Disk free recovered from ~2.4GB to ~7.6GB. Rust target artifact report is 0M.",
-		"Roadmap/release docs recalibrated around the user's clarified rule: Refarm should not mint/publish v0.1.0 until it is the creator's daily driver and can replace the current external pi workflow.",
-		"Local-only commits after origin/develop before this handoff: c92d2ef0 docs(release): make daily-driver gate authoritative; 078e8249 docs(index): point release planning at daily-driver gate; 7ea5987a docs(dev): require local reproduction before ci; 52bf3fea docs(release): defer publication verification gate.",
-		"docs/local-disk-hygiene.md now records the process rule: reproduce likely failures locally with the closest scoped command before using GitHub Actions as final confirmation.",
-		"docs/v0.1.0-release-gate.md no longer treats contract publication as independent of daily-driver readiness; Track B is authoritative for any v0.1.0 publication.",
-		"Final local validation for current docs-only slices passed: npm run project:validate --silent and git diff --check."
+		"Completed multiple atomic slices and pushed them to origin/develop. Final pushed HEAD before this handoff: 3775fea6 docs(daily-driver): note stream view helper progress.",
+		"Recalibrated release/docs posture: v0.1.0 remains blocked until Refarm can replace the current external pi workflow as daily driver; contract-first publishing language was removed/deferred in docs/REFARM_PERSONAL_DAILY_DRIVER.md and docs/v0.1.0-release-gate.md.",
+		"Added docs/DAILY_DRIVER_PARITY.md as the capability checklist mapping pi workflow needs to Refarm surfaces and local validation signals.",
+		"Updated apps/me and tractor-ts roadmaps to clarify legacy version headings are backlog/capability buckets, not release promises.",
+		"Recorded streaming UI consumer audit in docs/agent-streaming.md: production UI still lacks a generic StreamSession/StreamChunk subscriber; BrowserSyncClient must remain schema-neutral.",
+		"Implemented packages/tractor-ts/src/lib/stream-view.ts with streamObservationView(...) and streamObservationViewsByStream(...), exported from node and browser entrypoints, and added focused tests in packages/tractor-ts/test/stream-view.test.ts.",
+		"Updated root agent:streaming:clients script to include stream-view.test.ts. Local validation passed: npm run agent:streaming:clients (4 files, 22 tests), npm run project:validate --silent, git diff --check.",
+		"Codified Local Reproduction First in AGENTS.md and docs/local-disk-hygiene.md: use closest scoped local command before GitHub Actions; CI is final confirmation only.",
+		"Pre-push full tractor-ts unit suite remains noisy due missing WASM fixtures, but focused streaming client suite passed. The pre-push failure matched known fixture gaps: missing heartwood wasm and hello-world validation wasm."
 	],
 	"blockers": [
-		"Disk remains constrained on a 99% full mount even after heavy cleanup, with about 7.6GB free. Avoid broad builds/tests. Heavy cleanup removed Rust targets, so future Rust checks will rebuild from scratch.",
-		"Use local scoped reproduction before push/CI. For dependency graph failures, npx turbo run build --filter=<changed-package> --cache-dir=.turbo is a better local approximation than package-only tsc because it includes dependencies.",
-		"Full local tractor-ts unit suite remains noisy because WASM fixtures are missing. Continue using npm run agent:streaming:clients for stream helper changes.",
-		"Broad cargo clippy --lib --tests still has unrelated await_holding_lock debt in packages/tractor/tests/pi_agent_harness.rs. npm --prefix packages/tractor run lint passes but will rebuild targets after heavy cleanup.",
+		"Disk is still 99% used on the host mount with about 7.6GB free. Rust target dirs were removed by clean:heavy, so future Rust checks will rebuild from scratch and consume disk.",
+		"Full tractor-ts unit suite is still noisy because real-instantiation and jco-integration tests expect WASM fixtures not present after heavy cleanup. Use npm run agent:streaming:clients for stream helper changes unless rebuilding fixtures intentionally.",
+		"Broad cargo/clippy remains constrained by unrelated debt and by target rebuild cost. Avoid broad Rust checks unless necessary; prefer scoped commands from AGENTS.md and docs/local-disk-hygiene.md.",
 		"pi-lens/LSP continues crashing on Markdown writes with memory access out of bounds; re-read files after edits and expect auto-format warnings."
 	],
 	"next_actions": [
-		"First command after compaction: git status --branch --short; git log --oneline origin/develop..HEAD; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 5; df -h /workspaces/refarm.",
-		"Decide whether to push the local docs-only ahead stack plus this handoff. Before push, local checks already passed (project validate + diff check); pre-push should be lightweight, but CI should still be treated only as confirmation.",
-		"Continue roadmap audit pragmatically: scan package ROADMAP.md files with v0.2.0+ headings and reframe only active daily-driver-critical packages, not mass-edit everything.",
-		"Potential next daily-driver slice: make a concise daily-driver readiness checklist that maps pi capabilities to Refarm/Farmhand equivalents (terminal loop, memory, todo/project board, local tools, streaming UI).",
-		"Potential technical slice after docs: choose first concrete UI consumer for StreamChunk/StreamSession reducers; keep BrowserSyncClient schema-neutral.",
-		"Run npm run clean:light --silent at checkpoint boundaries if any builds create .turbo or Rust incremental artifacts; use clean:heavy only if disk drops near 2-3GB again."
+		"First command after compaction: git status --branch --short; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 5; df -h /workspaces/refarm.",
+		"If this handoff update is committed locally, either push it as a docs/project checkpoint or batch with the next substantive slice; prior pushed CI is green through 3775fea6.",
+		"Next technical slice: implement the first real UI subscriber that consumes StreamSession/StreamChunk observations and feeds streamObservationView(...); do not add schema-specific logic to BrowserSyncClient.",
+		"Next docs/planning slice: refine docs/DAILY_DRIVER_PARITY.md into explicit owner/validation commands for each unchecked row, prioritizing Start session, Ask agent, See live output, Preserve memory.",
+		"If touching tractor-ts stream helpers, run npm run agent:streaming:clients before push. If touching only docs, run npm run project:validate --silent and git diff --check.",
+		"Run npm run clean:light --silent at checkpoint boundaries if .turbo or Rust incremental artifacts reappear; clean:heavy only if disk falls near 2-3GB again."
 	],
 	"open_questions": [
-		"Should checkpoint-only .project/handoff commits be pushed immediately or batched with substantive local changes?",
-		"Which exact pi capabilities define the v0.1 daily-driver bar: chat/repl, tool execution, project memory, reminders/scheduler, web UI, streaming, or all of them?",
-		"Which package roadmaps should be actively revised versus left as historical backlog labels?",
-		"Should the future v0.1 release be private/internal-only even after daily-driver readiness, or public npm publishing after explicit human override?",
-		"Which concrete web/UI consumer should first subscribe to StreamChunk/StreamSession nodes?"
+		"Which concrete UI package should own the first generic stream subscriber: apps/me shell, terminal-plugin consumer, homestead, or a new tractor-ts helper/demo?",
+		"Should docs/DAILY_DRIVER_PARITY.md statuses become a project block/task list for traceable completion?",
+		"Should the full tractor-ts WASM fixture tests be made skip-aware when fixtures are missing, or should fixture builds become a dedicated local command?",
+		"Should streamObservationView prefer session metadata over chunk metadata for labels in all cases, or should final chunk metadata override session labels?"
 	],
 	"key_decisions_pending": [
-		"Daily-driver readiness checklist scope and acceptance criteria.",
-		"Push timing for current local docs/handoff stack.",
-		"Next implementation target after roadmap recalibration: UI stream consumer, governed stream retention design, or Farmhand/pi daily-driver parity.",
-		"Whether to add a CI/local reproduction note to AGENTS.md or keep it in docs/local-disk-hygiene.md only."
+		"First production UI subscriber location and data flow.",
+		"Daily-driver parity checklist ownership and verification granularity.",
+		"Whether to formalize known noisy full tractor-ts fixture tests as an issue/task.",
+		"Whether to introduce a governed StreamChunk/StreamSession compaction command after UI consumption lands."
 	],
 	"files_in_flux": []
 }
