@@ -1,43 +1,46 @@
 {
-  "context": "Checkpoint 2026-04-30T12:04Z after pushing the large extensibility batch and adding two post-push Homestead activation hardening slices. Branch develop is clean and ahead of origin/develop by 4 local commits. Last remote push advanced origin/develop to fd7b9aa6 and GitHub Actions run 25163525166 completed successfully. Disk remains constrained but stable at about 7.4GB free; repo is about 1.6GB and node_modules about 975MB, so no cleanup was run because current artifacts are small relative to rebuild cost.",
-  "timestamp": "2026-04-30T12:04:00.000Z",
+  "context": "Checkpoint 2026-04-30T13:00Z after Studio surface activation ledger and apps/dev runtime refactor slices. Branch develop is clean and ahead of origin/develop by 2 local commits before this handoff update. Latest pushed remote HEAD is 60093f8e and GitHub Actions run 25165702645 completed successfully. Disk remains constrained but stable at about 9.4GB free; repo is about 1.6GB and node_modules about 975MB, so no cleanup was run because current artifacts are small and rebuild cost would be higher than reclaimed space.",
+  "timestamp": "2026-04-30T13:00:00.000Z",
   "current_phase": 19,
   "current_tasks": [
-    "Remote checkpoint completed: pushed 51 local commits from develop to origin/develop (`3f512fae..fd7b9aa6`). GitHub Actions `Test & Quality` run 25163525166 completed successfully at head fd7b9aa6. CI noted only known non-blocking moderate audit findings: 9 moderate, 0 high, 0 critical.",
-    "Post-push local commits now ahead of origin/develop by 4: 583787e7 feat(homestead): reject unknown surface slots; 199003be docs(extensibility): document unknown surface slot rejection; 63400684 feat(homestead): reject unsupported surface kinds; 1bfe12e5 docs(extensibility): document surface kind allow-list.",
-    "Homestead surface activation now uses the shell's discovered DOM slot allow-list. Manifest-declared homestead surfaces targeting unknown slots are rejected as `unknown-slot` before wrappers are created; legacy `ui.slots` outside the current shell are ignored for compatibility.",
-    "Homestead now allow-lists surface `kind` values before activation. Defaults are `panel`, `widget`, `statusbar`, and `editor`; unsupported kinds are rejected as `unsupported-kind` until the host intentionally exposes behavior/trust semantics for that kind.",
-    "Prior completed path remains intact: manifest `extensions.surfaces`, Homestead surface mounts with DOM identity, `ui:surface_mounted` telemetry, rejected activation telemetry, SDK surface inspector helpers, Studio mounted/rejected diagnostics, opt-in stream demo plugin, DS primitive adoption for generic visuals, and Homestead stream rendering from `StreamSession`/`StreamChunk`.",
+    "Remote checkpoints since prior handoff: pushed Homestead surface trust gate through c8493e10 and CI run 25165024862 passed; pushed Studio /surfaces ledger through 60093f8e and CI run 25165702645 passed.",
+    "Current local commits not yet pushed before this handoff update: 4f29d509 refactor(app-dev): centralize studio plugin handles; afd9fa0d refactor(app-dev): extract surface diagnostics fixtures.",
+    "`apps/dev/src/lib/studio-plugin.ts` now centralizes local Studio PluginInstance handle creation. Default entry is `internal:<id>` so Homestead's trust gate can distinguish explicit internal Studio fixtures from registry-governed external plugins. Tests are in `apps/dev/src/lib/studio-plugin.test.ts`.",
+    "`apps/dev/src/lib/stream-demo.ts`, dashboard plugin registration in `apps/dev/src/pages/index.astro`, and `/surfaces` now use `createStudioPluginHandle(...)` instead of duplicating PluginInstance boilerplate.",
+    "`apps/dev/src/lib/surface-diagnostics.ts` now owns the `/surfaces` diagnostics fixtures: one trusted internal surface plugin (`studio-surface-diagnostics`) and one external untrusted fixture (`external-untrusted-surface`). Tests are in `apps/dev/src/lib/surface-diagnostics.test.ts`.",
+    "`apps/dev/src/pages/surfaces.astro` remains the dedicated Studio surface activation ledger. It boots a small diagnostics Tractor runtime, registers the diagnostics fixtures, runs Homestead shell setup, and renders mounted/rejected diagnostics through Homestead inspector helpers.",
+    "Prior completed path remains intact: manifest `extensions.surfaces`, Homestead slot/kind/capability/trust gating, DOM identity, `ui:surface_mounted` and `ui:surface_rejected` telemetry, Studio statusbar diagnostics, `/surfaces` ledger, opt-in stream demo plugin, DS primitive adoption for generic visuals, and Homestead stream rendering from `StreamSession`/`StreamChunk`.",
     "Domain boundary remains: Homestead owns surface semantics, activation planning, stream rendering primitives, and diagnostic normalization; apps/dev owns Studio composition/experiments/diagnostic UI; @refarm.dev/ds owns only framework-agnostic visual primitives; BrowserSyncClient remains schema-neutral.",
-    "Validation passed after post-push slices: `npm --prefix packages/homestead test`, `npm --prefix packages/homestead run type-check`, `npm --prefix packages/homestead run build`, `npm --prefix apps/dev test`, `npm --prefix apps/dev run type-check`, `npm run agent:streaming:studio`, `npm run project:validate --silent`, and `git diff --check`."
+    "Validation passed after local refactor slices: `npm --prefix apps/dev test`, `npm --prefix apps/dev run type-check`, `npm --prefix apps/dev run build`, `npm run agent:streaming:studio`, `npm run project:validate --silent`, and `git diff --check`. Build still emits known Vite browser-externalization warnings for Node modules in registry/tractor/heartwood, but completes successfully."
   ],
   "blockers": [
-    "Disk is still 99% used on the host mount with about 7.4GB free. The repo is about 1.6GB; current generated artifacts are not large enough to justify cleanup. Recheck disk before broad builds and clean only if free space falls near 2-3GB or new large artifacts appear.",
+    "Disk is still 99% used on the host mount, but free space is stable around 9.4GB. The repo is about 1.6GB; current generated artifacts are not large enough to justify cleanup. Recheck disk before broad builds and clean only if free space falls near 2-3GB or new large artifacts appear.",
     "Rust target dirs were previously removed by clean:heavy. Broad Rust checks will rebuild from scratch and may consume disk. Use scoped Rust commands from AGENTS.md only if Rust is touched.",
     "Full tractor-ts unit suite can be noisy when WASM fixtures are missing after cleanup. Prefer focused tests or aggregate npm agent scripts unless intentionally rebuilding fixtures.",
-    "`apps/dev` importing from the Homestead SDK barrel can pull `Shell` and locale imports through dist. For inspector-only consumers use explicit subpath `@refarm.dev/homestead/sdk/surface-inspector`.",
-    "Pre-push hook lint/unit tests timed out locally during the large push but were non-blocking; CI passed. Audit moderate findings remain known and non-critical."
+    "`apps/dev` importing from the Homestead SDK barrel can pull `Shell` and locale imports through dist. For inspector-only consumers use explicit subpath `@refarm.dev/homestead/sdk/surface-inspector`. Pages that boot `StudioShell` necessarily use `@refarm.dev/homestead/sdk`.",
+    "Audit moderate findings remain known and non-critical: Astro, DOMPurify, PostCSS, uuid transitive chains. No high/critical vulnerabilities in pre-push/CI audits."
   ],
   "next_actions": [
     "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`.",
     "If continuing local work before push, run economical touched-area gates: `npm run agent:streaming:studio && npm run project:validate --silent && git diff --check`.",
-    "Before next push, consider pushing the current 4 local commits and watching CI; the previous large batch already passed remote CI.",
-    "Next Homestead hardening slice: decide and implement where runtime trust should be enforced beyond manifest declaration and slot/kind/capability filtering. Candidate: annotate activation plan with trust profile/registry state, then emit a warning/rejection for unvalidated executable plugin surfaces while permitting internal Studio demo surfaces explicitly.",
-    "Next Studio diagnostics slice: optionally add a dedicated `/surfaces` Studio page if statusbar diagnostics become too cramped; keep the page in apps/dev and use Homestead inspector helpers.",
-    "Next extensibility slice: create a small executable multi-surface example package only if needed; examples should remain under `examples/` until executable code/build scripts justify a workspace package.",
+    "Push current local commits after handoff if not already pushed, then watch CI. Current local stack before handoff update was ahead 2: 4f29d509 and afd9fa0d.",
+    "Next best slice: extract a small apps/dev Studio Tractor boot helper for OPFS/Loro/identity setup used by dashboard and `/surfaces`, but keep it in apps/dev and avoid pulling domain behavior into DS. Consider a pure helper test first to avoid browser runtime coupling.",
+    "Next diagnostics slice: improve `/surfaces` with richer fields (trust source, registry status, missing capabilities) as structured columns instead of only text in the reused statusbar inspector component.",
+    "Next extensibility slice: create a small executable multi-surface example only if needed; examples should remain under `examples/` until executable code/build scripts justify a workspace package.",
     "Next DS slice: only move genuinely agnostic visual styling into @refarm.dev/ds; do not move Homestead surface semantics or Studio diagnostics behavior into DS.",
     "Run `npm run clean:light --silent` only at checkpoint boundaries if `.turbo`, dist, or validation artifacts grow meaningfully. Avoid heavy cleanup unless disk pressure is critical."
   ],
   "open_questions": [
+    "Should dashboard and `/surfaces` share a real `bootStudioTractor(...)` helper, or is current duplication acceptable until another Studio page needs Tractor boot?",
+    "Should the `/surfaces` ledger render a table/structured graph distinct from the compact statusbar inspector, while still using Homestead semantic helpers?",
     "Should `unknown-slot` rejection also apply to legacy `ui.slots`, or should legacy stay ignored for compatibility as implemented?",
     "Which Homestead surface kinds should be accepted by default long-term? Current allow-list is `panel`, `widget`, `statusbar`, `editor`.",
-    "Where exactly should deeper runtime trust be enforced: before DOM wrapper creation in Homestead, inside PluginHost activation, or both with different responsibilities?",
-    "Should the Studio surface inspector become a `/surfaces` page, remain statusbar diagnostics, or both?",
+    "Where should deeper runtime trust be enforced long-term: before DOM wrapper creation in Homestead, inside PluginHost activation, or both with different responsibilities?",
     "Should `ui.slots` be formally deprecated after one executable plugin-provided Homestead surface proves the new model?"
   ],
   "key_decisions_pending": [
-    "Runtime trust boundary for manifest-declared Homestead surfaces beyond slot/kind/capability checks.",
-    "Whether to push the 4 post-push local commits now or after one more small hardening slice.",
+    "Whether to push the latest local apps/dev refactor commits before further work.",
+    "Runtime trust boundary for manifest-declared Homestead surfaces beyond current registry/internal-entry gate.",
     "First real executable multi-surface plugin example location: `examples/` vs workspace package.",
     "Whether daily-driver parity checklist should be converted into canonical .project tasks after current surface path stabilizes."
   ],
