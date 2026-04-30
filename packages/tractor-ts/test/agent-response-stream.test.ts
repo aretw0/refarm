@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	agentResponseStreamRef,
 	applyAgentResponseStreamEvent,
 	emptyAgentResponseStreamState,
 	orderAgentResponseStreamEvents,
@@ -9,6 +10,12 @@ import {
 } from "../src/lib/agent-response-stream";
 
 describe("AgentResponse streaming accumulator", () => {
+	it("builds generic stream refs from prompt refs", () => {
+		expect(agentResponseStreamRef("prompt-1")).toBe(
+			"urn:tractor:stream:agent-response:prompt-1",
+		);
+	});
+
 	it("appends partial deltas and replaces content with the final full response", () => {
 		const state = reduceAgentResponseStreamEvents([
 			{ prompt_ref: "prompt-1", content: "Olá ", sequence: 0, is_final: false },
