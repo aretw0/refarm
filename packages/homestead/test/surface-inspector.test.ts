@@ -1,6 +1,9 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
-import { listMountedHomesteadSurfaces } from "../src/sdk/surface-inspector";
+import {
+	listMountedHomesteadSurfaces,
+	mountedHomesteadSurfaceKey,
+} from "../src/sdk/surface-inspector";
 
 describe("listMountedHomesteadSurfaces", () => {
 	it("reads mounted surface metadata from Homestead DOM wrappers", () => {
@@ -41,6 +44,27 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceId: undefined,
 			},
 		]);
+	});
+
+	it("builds stable keys for mounted surface diagnostics", () => {
+		expect(
+			mountedHomesteadSurfaceKey({
+				pluginId: "stream-plugin",
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surfaceLayer: "homestead",
+				surfaceKind: "panel",
+				surfaceId: "stream-panel",
+			}),
+		).toBe("stream-plugin:extension-surface:streams:homestead:panel:stream-panel");
+
+		expect(
+			mountedHomesteadSurfaceKey({
+				pluginId: "legacy-plugin",
+				slotId: "statusbar",
+				mountSource: "legacy-ui-slot",
+			}),
+		).toBe("legacy-plugin:legacy-ui-slot:statusbar:::");
 	});
 });
 

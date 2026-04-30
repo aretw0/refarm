@@ -8,6 +8,19 @@ export interface MountedHomesteadSurface {
 	surfaceId?: string;
 }
 
+export function mountedHomesteadSurfaceKey(
+	surface: MountedHomesteadSurface,
+): string {
+	return [
+		surface.pluginId,
+		surface.mountSource,
+		surface.slotId,
+		surface.surfaceLayer ?? "",
+		surface.surfaceKind ?? "",
+		surface.surfaceId ?? "",
+	].join(":");
+}
+
 /**
  * Inspect Homestead DOM mounts. Studio tooling can use this to correlate a
  * manifest-declared surface with the shell wrapper that was actually activated.

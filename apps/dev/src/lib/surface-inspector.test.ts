@@ -48,6 +48,11 @@ describe("Studio surface inspector", () => {
 		);
 		expect(inspector.textContent).toContain("panel · running");
 		expect(
+			inspector
+				.querySelector("[data-refarm-surface-mount-key]")
+				?.getAttribute("data-refarm-surface-mount-key"),
+		).toBe("stream-plugin:extension-surface:streams::panel:stream-panel");
+		expect(
 			container.querySelectorAll("[data-refarm-studio-surface-inspector]"),
 		).toHaveLength(1);
 	});

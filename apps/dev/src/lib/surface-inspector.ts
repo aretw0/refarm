@@ -1,5 +1,6 @@
 import {
 	listMountedHomesteadSurfaces,
+	mountedHomesteadSurfaceKey,
 	type MountedHomesteadSurface,
 } from "@refarm.dev/homestead/sdk/surface-inspector";
 
@@ -105,6 +106,7 @@ function renderSurfaceListItem(
 ): HTMLLIElement {
 	const item = document.createElement("li");
 	item.className = "refarm-card-body";
+	item.dataset.refarmSurfaceMountKey = mountedHomesteadSurfaceKey(surface);
 
 	const label = document.createElement("span");
 	label.textContent = mountedSurfaceLabel(surface);
