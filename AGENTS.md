@@ -60,6 +60,7 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 - **Immutable Actions**: Always use the full 40-character commit hash for third-party GitHub Actions (e.g., `actions/checkout@de0fac2e...`). This ensures the build is deterministic and protected against tag floating.
 - **Workflow Reuse**: Use reusable workflows (`workflow_call`) and local actions (`./.github/actions/...`) to promote DRY principles and composition.
 - **Lean Modifications**: When editing `.github/workflows/`, make minimal, targeted changes. Avoid large-scale re-indents or sweeping re-ordering that obscures the logical diff.
+- **Local Reproduction First**: Use the closest scoped local command to reproduce likely failures before pushing. GitHub Actions is a final confirmation signal, not the first test runner.
 - **Wrapper Logic**: Prefer encapsulating complex build or test logic into local script "wrappers" (e.g., `npm run test:conformance`) rather than long, multi-line `run` blocks in YAML.
 
 > _Active Inference_: pinned hashes and reusable workflows minimize environmental drift — a stable environment produces predictable outcomes and lowers surprise.
