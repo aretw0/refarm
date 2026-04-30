@@ -30,6 +30,25 @@ export interface CreateHomesteadSurfacePluginHandleOptions
 	surfaces: HomesteadSurfaceDeclarationInput[];
 }
 
+export type StudioPluginRegistryStatus =
+	| "registered"
+	| "validated"
+	| "active"
+	| "error";
+
+export interface StudioPluginRegistryEntryLike {
+	status: StudioPluginRegistryStatus;
+}
+
+export interface StudioPluginRegistryLike {
+	register(manifest: PluginInstance["manifest"]): string | Promise<string>;
+	getPlugin(id: string): StudioPluginRegistryEntryLike | undefined;
+}
+
+export interface RegisterStudioPluginManifestOptions {
+	status?: StudioPluginRegistryStatus;
+}
+
 /**
  * Create a local Studio plugin handle without repeating PluginInstance boilerplate.
  *
@@ -86,4 +105,24 @@ export function createHomesteadSurfacePluginHandle(
 			},
 		},
 	});
+}
+
+/**
+ * Register a local Studio plugin manifest in the host registry before the host
+ * registers the plugin handle itself.
+ *
+ * This keeps the registry/trust-policy mechanics reusable for `apps/dev`,
+ * `apps/me`, and future hosts without hiding the host-owned decision to install
+ * or activate a plugin instance.
+ */
+export async function registerStudioPluginManifest(
+	registry: StudioPluginRegistryLike,
+	plugin: PluginInstance,
+	options: RegisterStudioPluginManifestOptions = {},
+): Promise<void> {
+	await registry.register(plugin.manifest);
+	const entry = registry.getPlugin(plugin.id);
+	if (entry && options.status) {
+		entry.status = options.status;
+	}
 }

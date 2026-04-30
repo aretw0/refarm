@@ -163,6 +163,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 </Layout>
 
 <script>
+  import { registerStudioPluginManifest } from "@refarm.dev/homestead/sdk/plugin-handle";
   import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
   import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
   import {
@@ -187,9 +188,9 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       tractor.emitTelemetry({ event, payload, pluginId }),
     )) {
       if (plugin.id === EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID) {
-        await tractor.registry.register(plugin.manifest as any);
-        const entry = tractor.registry.getPlugin(plugin.id);
-        if (entry) entry.status = "validated";
+        await registerStudioPluginManifest(tractor.registry, plugin, {
+          status: "validated",
+        });
       }
       tractor.plugins.registerInternal(plugin);
     }

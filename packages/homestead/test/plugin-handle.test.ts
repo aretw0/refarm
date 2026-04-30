@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createHomesteadSurfacePluginHandle,
 	createStudioPluginHandle,
+	registerStudioPluginManifest,
 } from "../src/sdk/plugin-handle";
 
 describe("createStudioPluginHandle", () => {
@@ -80,6 +81,27 @@ describe("createStudioPluginHandle", () => {
 				capabilities: ["ui:panel:render"],
 			},
 		]);
+	});
+
+	it("registers plugin manifests in a host-owned registry", async () => {
+		const plugin = createStudioPluginHandle({
+			id: "registry-fixture",
+			name: "Registry Fixture",
+			entry: "./dist/registry-fixture.mjs",
+		});
+		const entry = { status: "registered" as const };
+		const registry = {
+			register: vi.fn().mockResolvedValue(plugin.id),
+			getPlugin: vi.fn().mockReturnValue(entry),
+		};
+
+		await registerStudioPluginManifest(registry, plugin, {
+			status: "validated",
+		});
+
+		expect(registry.register).toHaveBeenCalledWith(plugin.manifest);
+		expect(registry.getPlugin).toHaveBeenCalledWith("registry-fixture");
+		expect(entry.status).toBe("validated");
 	});
 
 	it("uses provided telemetry and call handlers", async () => {

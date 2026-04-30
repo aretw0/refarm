@@ -13,6 +13,7 @@ Homestead acts as the "Face" of the sovereign citizen, providing a portal to the
 - **`bootStudioRuntime(...)`**: Shared browser runtime boot helper for OPFS SQLite, Loro CRDT storage, optional browser sync, identity stubs, and Tractor boot.
 - **`createStudioPluginHandle(...)`**: Shared local plugin-handle factory for first-party hosts and Studio experiments.
 - **`createHomesteadSurfacePluginHandle(...)`**: Shared helper for local plugins that declare Homestead surfaces without repeating manifest boilerplate.
+- **`registerStudioPluginManifest(...)`**: Shared registry helper for hosts that want to mark local fixtures or resolved plugins as `validated`/`active` before explicitly registering their plugin handles.
 - **`renderHomesteadSurface` plugin hook**: Optional plugin method Homestead calls for trusted manifest-declared surfaces, passing `{ pluginId, slotId, mountSource, surface, locale }` plus optional host-owned `{ host }` context/actions when the shell is configured with a surface context provider. Return `{ html }` for explicit trusted HTML or a string/`{ text }` for text content. Homestead records `data-refarm-surface-render-mode` and emits render/failure telemetry for Studio diagnostics. Use `createScopedHomesteadSurfaceContextProvider(...)` from `@refarm.dev/homestead/sdk/surface-renderer` to keep reusable context-matching behavior in the SDK while host-specific actions stay in the app.
 - **`HeraldPlugin`**: Identity and presence management.
 - **`FireflyPlugin`**: System-wide notification system.
