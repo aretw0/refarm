@@ -88,8 +88,10 @@ emits `ui:surface_mounted` with slot, source, and surface metadata. If a trusted
 plugin implements `renderHomesteadSurface`, Homestead calls it with the plugin
 id, slot id, mount source, surface declaration, and locale. Plain string and
 `{ "text": "..." }` results write text; `{ "html": "..." }` is explicit
-trusted HTML. Rendered surfaces then emit `ui:surface_rendered`, so Studio can
-distinguish wrapper-only mounts from executable plugin-provided UI.
+trusted HTML. Rendered surfaces then emit `ui:surface_rendered`, while thrown
+hook failures mark the wrapper as `failed` and emit `ui:surface_render_failed`.
+Studio can therefore distinguish wrapper-only mounts, executable
+plugin-provided UI, and failed executable surfaces.
 The Homestead SDK also exports `listMountedHomesteadSurfaces(...)` so `apps/dev`
 and future inspectors can query the currently mounted surface graph from the DOM
 without coupling to private shell internals.
