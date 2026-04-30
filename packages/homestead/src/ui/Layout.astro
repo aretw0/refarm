@@ -134,6 +134,7 @@ const { title = "Refarm Studio" } = Astro.props;
         <div id="refarm-slot-main" class="slot">
           <slot />
         </div>
+        <aside id="refarm-slot-streams" class="slot" hidden></aside>
       </main>
 
       <footer id="refarm-footer">
@@ -161,6 +162,11 @@ const { title = "Refarm Studio" } = Astro.props;
       #refarm-main {
         flex: 1;
         padding: 2rem;
+        display: grid;
+        gap: 1.5rem;
+      }
+      #refarm-slot-streams[hidden] {
+        display: none;
       }
       footer {
         padding: 0.5rem 1.5rem;

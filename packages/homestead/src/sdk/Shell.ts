@@ -16,6 +16,7 @@ import type {
 import { A11yGuard } from "./A11yGuard.js";
 import { resolveHomesteadSurfaceSlots } from "./surface-slots.js";
 import {
+  renderStreamPanelHtml,
   renderStreamStatusbarHtml,
   sortedStreamObservationViews,
 } from "./stream-observer.js";
@@ -156,25 +157,33 @@ export class StudioShell {
 
   private renderStreamObservationPanel() {
     const statusSlot = this.slots.get("statusbar");
-    if (!statusSlot) return;
-
-    let panel = statusSlot.querySelector<HTMLElement>("[data-refarm-stream-observer]");
-    if (!panel) {
-      panel = document.createElement("section");
-      panel.dataset.refarmStreamObserver = "true";
-      panel.setAttribute("aria-label", "Live agent streams");
-      panel.style.display = "inline-flex";
-      panel.style.gap = "0.5rem";
-      panel.style.marginLeft = "1rem";
-      panel.style.maxWidth = "60vw";
-      panel.style.verticalAlign = "middle";
-      statusSlot.appendChild(panel);
-    }
+    const streamSlot = this.slots.get("streams");
+    if (!statusSlot && !streamSlot) return;
 
     const views = sortedStreamObservationViews(this.streamSessions, this.streamChunks);
 
-    panel.hidden = views.length === 0;
-    panel.innerHTML = renderStreamStatusbarHtml(views);
+    if (statusSlot) {
+      let panel = statusSlot.querySelector<HTMLElement>("[data-refarm-stream-observer]");
+      if (!panel) {
+        panel = document.createElement("section");
+        panel.dataset.refarmStreamObserver = "true";
+        panel.setAttribute("aria-label", "Live agent streams");
+        panel.style.display = "inline-flex";
+        panel.style.gap = "0.5rem";
+        panel.style.marginLeft = "1rem";
+        panel.style.maxWidth = "60vw";
+        panel.style.verticalAlign = "middle";
+        statusSlot.appendChild(panel);
+      }
+
+      panel.hidden = views.length === 0;
+      panel.innerHTML = renderStreamStatusbarHtml(views);
+    }
+
+    if (streamSlot) {
+      streamSlot.hidden = views.length === 0;
+      streamSlot.innerHTML = renderStreamPanelHtml(views);
+    }
   }
 
   private async renderSystemHelp() {

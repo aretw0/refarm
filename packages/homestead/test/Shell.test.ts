@@ -11,6 +11,7 @@ describe("StudioShell Orchestrator", () => {
         document.body.innerHTML = `
             <div id="refarm-slot-header" class="slot"></div>
             <div id="refarm-slot-main" class="slot"></div>
+            <div id="refarm-slot-streams" class="slot" hidden></div>
             <div id="refarm-slot-statusbar" class="slot"></div>
             <div id="system-status"></div>
         `;
@@ -128,8 +129,12 @@ describe("StudioShell Orchestrator", () => {
         });
 
         const statusbar = document.getElementById("refarm-slot-statusbar");
+        const streams = document.getElementById("refarm-slot-streams");
         expect(statusbar?.textContent).toContain("prompt-a");
         expect(statusbar?.textContent).toContain("active");
         expect(statusbar?.textContent).toContain("hello from the stream");
+        expect(streams?.hidden).toBe(false);
+        expect(streams?.textContent).toContain("Live soil telemetry");
+        expect(streams?.textContent).toContain("hello from the stream");
     });
 });

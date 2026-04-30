@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	renderStreamPanelHtml,
 	renderStreamStatusbarHtml,
 	sortedStreamObservationViews,
 } from "../src/sdk/stream-observer";
@@ -48,5 +49,23 @@ describe("Homestead stream observer rendering", () => {
 		expect(html).toContain("prompt&amp;1");
 		expect(html).toContain("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;");
 		expect(html).not.toContain("<script>");
+	});
+
+	it("renders a richer stream panel for Homestead surfaces", () => {
+		const html = renderStreamPanelHtml([
+			{
+				streamRef: "stream-a",
+				promptRef: "prompt-a",
+				status: "active",
+				content: "first line\nsecond line",
+				isActive: true,
+				isTerminal: false,
+			},
+		]);
+
+		expect(html).toContain("Live soil telemetry");
+		expect(html).toContain("Agent streams");
+		expect(html).toContain("prompt-a");
+		expect(html).toContain("first line");
 	});
 });
