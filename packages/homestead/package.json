@@ -8,6 +8,10 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
+    "./sdk/plugin-handle": {
+      "types": "./dist/sdk/plugin-handle.d.ts",
+      "import": "./dist/sdk/plugin-handle.js"
+    },
     "./sdk/runtime": {
       "types": "./dist/sdk/runtime.d.ts",
       "import": "./dist/sdk/runtime.js"

@@ -14,6 +14,9 @@
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
+      "@refarm.dev/homestead/sdk/plugin-handle": [
+        "./packages/homestead/src/sdk/plugin-handle"
+      ],
       "@refarm.dev/homestead/sdk/runtime": [
         "./packages/homestead/src/sdk/runtime"
       ],

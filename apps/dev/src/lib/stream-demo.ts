@@ -3,7 +3,7 @@ import type {
 	SovereignNode,
 	Tractor,
 } from "@refarm.dev/tractor";
-import { createStudioPluginHandle } from "./studio-plugin";
+import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
 export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";

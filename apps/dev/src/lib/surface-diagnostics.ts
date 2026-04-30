@@ -1,5 +1,5 @@
 import type { PluginInstance } from "@refarm.dev/tractor";
-import { createStudioPluginHandle } from "./studio-plugin";
+import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 
 export const STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID =
 	"studio-surface-diagnostics";

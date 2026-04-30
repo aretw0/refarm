@@ -7,7 +7,16 @@
       "@refarm.dev/tractor": ["../../packages/tractor/dist/index.d.ts"],
       "@refarm.dev/homestead": ["../../packages/homestead/dist/index.d.ts"],
       "@refarm.dev/homestead/ui": ["../../packages/homestead/dist/ui/index.d.ts"],
-      "@refarm.dev/homestead/sdk": ["../../packages/homestead/dist/sdk/index.d.ts"]
+      "@refarm.dev/homestead/sdk": ["../../packages/homestead/dist/sdk/index.d.ts"],
+      "@refarm.dev/homestead/sdk/plugin-handle": [
+        "../../packages/homestead/dist/sdk/plugin-handle.d.ts"
+      ],
+      "@refarm.dev/homestead/sdk/runtime": [
+        "../../packages/homestead/dist/sdk/runtime.d.ts"
+      ],
+      "@refarm.dev/homestead/sdk/surface-inspector": [
+        "../../packages/homestead/dist/sdk/surface-inspector.d.ts"
+      ]
     }
   },
   "include": ["src/**/*", ".astro/types.d.ts"]

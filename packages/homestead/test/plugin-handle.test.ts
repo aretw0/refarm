@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStudioPluginHandle } from "./studio-plugin";
+import { createStudioPluginHandle } from "../src/sdk/plugin-handle";
 
 describe("createStudioPluginHandle", () => {
 	it("creates an internal Studio plugin handle by default", async () => {

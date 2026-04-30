@@ -10,6 +10,7 @@ Homestead acts as the "Face" of the sovereign citizen, providing a portal to the
 
 - **`StudioShell`**: The extensible UI container for all Refarm distros.
 - **`bootStudioRuntime(...)`**: Shared browser runtime boot helper for OPFS SQLite, Loro CRDT storage, optional browser sync, identity stubs, and Tractor boot.
+- **`createStudioPluginHandle(...)`**: Shared local plugin-handle factory for first-party hosts and Studio experiments.
 - **`HeraldPlugin`**: Identity and presence management.
 - **`FireflyPlugin`**: System-wide notification system.
 
