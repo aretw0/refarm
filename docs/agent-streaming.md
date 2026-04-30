@@ -95,7 +95,10 @@ Consumers that observe generic `StreamChunk` nodes directly can use
 lifecycle nodes can use `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
 `isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
-`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`.
+`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. The
+package also exports status/payload constants and the
+`StreamSessionStatus` / `TerminalStreamChunkPayloadKind` type aliases for
+switch statements and UI state machines.
 Use `orderAgentResponseStreamEvents(...)`, `orderStreamChunkEvents(...)`, or
 `orderStreamSessionEvents(...)` before reducing if the source does not already
 emit events in sequence order.
