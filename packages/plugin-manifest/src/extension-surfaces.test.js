@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import { createMockManifest } from "./fixtures";
 import {
 	extensionSurfaceKey,
 	getExtensionSurfaces,
 	isExtensionSurfaceLayer,
 } from "./extension-surfaces";
+import { validatePluginManifest } from "./validate";
 
 describe("extension surface helpers", () => {
 	it("filters manifest surfaces by layer without mutating the manifest", () => {
@@ -45,5 +47,25 @@ describe("extension surface helpers", () => {
 		).toBe("pi:local-file-tool");
 		expect(isExtensionSurfaceLayer("desktop")).toBe(true);
 		expect(isExtensionSurfaceLayer("unknown")).toBe(false);
+	});
+
+	it("keeps the multi-surface example manifest valid", () => {
+		const manifest = JSON.parse(
+			readFileSync(
+				new URL(
+					"../../../examples/multi-surface-plugin/plugin-manifest.json",
+					import.meta.url,
+				),
+				"utf8",
+			),
+		);
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(getExtensionSurfaces(manifest).map(extensionSurfaceKey)).toEqual([
+			"homestead:stream-panel",
+			"asset:stream-theme-assets",
+			"automation:summarize-terminal-stream",
+		]);
 	});
 });
