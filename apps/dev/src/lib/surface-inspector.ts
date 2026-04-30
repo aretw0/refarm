@@ -146,7 +146,10 @@ function renderRejectedSurfaceListItem(
 	const missing = surface.missingCapabilities?.length
 		? ` (${surface.missingCapabilities.join(", ")})`
 		: "";
-	item.textContent = `${name || "unknown surface"}: ${surface.reason}${missing}`;
+	const trust = surface.registryStatus
+		? ` [${surface.trustSource ?? "trust"}: ${surface.registryStatus}]`
+		: "";
+	item.textContent = `${name || "unknown surface"}: ${surface.reason}${missing}${trust}`;
 	return item;
 }
 

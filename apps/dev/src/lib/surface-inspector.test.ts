@@ -82,9 +82,10 @@ describe("Studio surface inspector", () => {
 						event: "ui:surface_rejected",
 						pluginId: "plugin-a",
 						payload: {
-							reason: "unsupported-capability",
+							reason: "untrusted-plugin",
 							surfaceId: "secrets-panel",
-							missingCapabilities: ["ui:secrets:read"],
+							trustSource: "registry",
+							registryStatus: "registered",
 						},
 					},
 				],
@@ -93,7 +94,7 @@ describe("Studio surface inspector", () => {
 
 		expect(inspector.textContent).toContain("1 rejected surface");
 		expect(inspector.textContent).toContain(
-			"plugin-a · secrets-panel: unsupported-capability (ui:secrets:read)",
+			"plugin-a · secrets-panel: untrusted-plugin [registry: registered]",
 		);
 	});
 

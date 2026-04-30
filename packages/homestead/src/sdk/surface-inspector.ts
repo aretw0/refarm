@@ -36,6 +36,8 @@ export interface RejectedHomesteadSurfaceActivation {
 	surfaceLayer?: string;
 	slotId?: string;
 	missingCapabilities?: string[];
+	trustSource?: string;
+	registryStatus?: string;
 }
 
 export function isHomesteadSurfaceChangeEvent(
@@ -84,6 +86,8 @@ export function rejectedHomesteadSurfaceFromTelemetry(
 		surfaceLayer: stringPayloadValue(payload.surfaceLayer),
 		slotId: stringPayloadValue(payload.slotId),
 		missingCapabilities: stringArrayPayloadValue(payload.missingCapabilities),
+		trustSource: stringPayloadValue(payload.trustSource),
+		registryStatus: stringPayloadValue(payload.registryStatus),
 	};
 }
 

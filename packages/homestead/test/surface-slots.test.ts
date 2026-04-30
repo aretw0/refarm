@@ -186,6 +186,45 @@ describe("resolveHomesteadSurfaceSlots", () => {
 		]);
 	});
 
+	it("rejects otherwise mountable surfaces when the plugin is not trusted", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "external-panel",
+						slot: "main",
+						capabilities: ["ui:panel:render"],
+					},
+				],
+			},
+		});
+
+		const plan = resolveHomesteadSurfaceActivationPlan(manifest, {
+			trustStatus: {
+				trusted: false,
+				source: "registry",
+				registryStatus: "registered",
+			},
+		});
+
+		expect(plan.mounts).toMatchObject([
+			{ slotId: "main", source: "legacy-ui-slot" },
+		]);
+		expect(plan.rejected).toMatchObject([
+			{
+				reason: "untrusted-plugin",
+				surface: { id: "external-panel" },
+				trustStatus: {
+					trusted: false,
+					source: "registry",
+					registryStatus: "registered",
+				},
+			},
+		]);
+	});
+
 	it("rejects homestead surfaces targeting slots that the host does not expose", () => {
 		const manifest = createMockManifest({
 			ui: { slots: ["main", "ghost-legacy"] },

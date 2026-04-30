@@ -25,6 +25,13 @@ export interface HomesteadSurfaceSlotOptions {
 	allowedKinds?: ReadonlySet<string> | readonly string[];
 	availableSlots?: ReadonlySet<string> | readonly string[];
 	requiredCapabilities?: ReadonlySet<string> | readonly string[];
+	trustStatus?: HomesteadSurfaceTrustStatus;
+}
+
+export interface HomesteadSurfaceTrustStatus {
+	trusted: boolean;
+	source?: string;
+	registryStatus?: string;
 }
 
 export interface HomesteadSurfaceMount {
@@ -39,12 +46,14 @@ export type HomesteadSurfaceRejectionReason =
 	| "unknown-slot"
 	| "unsupported-kind"
 	| "unsupported-capability"
+	| "untrusted-plugin"
 	| "duplicate-surface-id";
 
 export interface HomesteadSurfaceRejection {
 	reason: HomesteadSurfaceRejectionReason;
 	surface: ExtensionSurfaceDeclaration;
 	missingCapabilities?: string[];
+	trustStatus?: HomesteadSurfaceTrustStatus;
 }
 
 export interface HomesteadSurfaceActivationPlan {
@@ -99,6 +108,7 @@ export function resolveHomesteadSurfaceActivationPlan(
 	const requiredCapabilities = normalizeRequiredCapabilities(
 		options.requiredCapabilities,
 	);
+	const trustStatus = options.trustStatus;
 
 	for (const slotId of manifest.ui?.slots ?? []) {
 		if (typeof slotId === "string" && slotId.trim().length > 0) {
@@ -148,6 +158,15 @@ export function resolveHomesteadSurfaceActivationPlan(
 				reason: "unsupported-capability",
 				surface,
 				missingCapabilities,
+			});
+			continue;
+		}
+
+		if (trustStatus && !trustStatus.trusted) {
+			rejected.push({
+				reason: "untrusted-plugin",
+				surface,
+				trustStatus,
 			});
 			continue;
 		}

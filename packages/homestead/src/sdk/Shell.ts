@@ -10,6 +10,7 @@ import type {
 	StreamSessionEvent,
 	StreamSessionStateMap,
 	Tractor,
+	PluginInstance,
 	SovereignNode,
 	TelemetryEvent,
 } from "@refarm.dev/tractor";
@@ -132,6 +133,7 @@ export class StudioShell {
 		for (const plugin of apps) {
 			const plan = resolveHomesteadSurfaceActivationPlan(plugin.manifest, {
 				availableSlots: Array.from(this.slots.keys()),
+				trustStatus: this.resolveSurfaceTrustStatus(plugin),
 			});
 			for (const rejection of plan.rejected) {
 				this.emitSurfaceRejected(plugin.id, rejection);
@@ -153,21 +155,41 @@ export class StudioShell {
 		this.updateStatus(this.l8n.t("refarm:core/status_ready"));
 	}
 
+	private resolveSurfaceTrustStatus(plugin: PluginInstance) {
+		const entry = plugin.manifest.entry ?? "";
+		if (entry.startsWith("internal:")) {
+			return { trusted: true, source: "internal-entry" };
+		}
+
+		const registryStatus = this.tractor.registry?.getPlugin?.(plugin.id)?.status;
+		return {
+			trusted: registryStatus === "validated" || registryStatus === "active",
+			source: "registry",
+			registryStatus: registryStatus ?? "unregistered",
+		};
+	}
+
 	private emitSurfaceRejected(
 		pluginId: string,
 		rejection: HomesteadSurfaceRejection,
 	) {
+		const payload: Record<string, unknown> = {
+			reason: rejection.reason,
+			surfaceId: rejection.surface.id,
+			surfaceKind: rejection.surface.kind,
+			surfaceLayer: rejection.surface.layer,
+			slotId: rejection.surface.slot,
+			missingCapabilities: rejection.missingCapabilities,
+		};
+		if (rejection.trustStatus) {
+			payload.trustSource = rejection.trustStatus.source;
+			payload.registryStatus = rejection.trustStatus.registryStatus;
+		}
+
 		this.tractor.emitTelemetry({
 			event: "ui:surface_rejected",
 			pluginId,
-			payload: {
-				reason: rejection.reason,
-				surfaceId: rejection.surface.id,
-				surfaceKind: rejection.surface.kind,
-				surfaceLayer: rejection.surface.layer,
-				slotId: rejection.surface.slot,
-				missingCapabilities: rejection.missingCapabilities,
-			},
+			payload,
 		});
 	}
 

@@ -67,6 +67,7 @@ describe("StudioShell Orchestrator", () => {
             {
                 id: "surface-plugin",
                 manifest: {
+                    entry: "internal:surface-plugin",
                     capabilities: { provides: [], requires: [] },
                     extensions: {
                         surfaces: [
@@ -137,6 +138,13 @@ describe("StudioShell Orchestrator", () => {
                                 id: "ghost-panel",
                                 slot: "ghost",
                             },
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "untrusted-panel",
+                                slot: "main",
+                                capabilities: ["ui:panel:render"],
+                            },
                         ],
                     },
                 },
@@ -182,6 +190,20 @@ describe("StudioShell Orchestrator", () => {
                 missingCapabilities: undefined,
             },
         });
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_rejected",
+            pluginId: "rejected-surface-plugin",
+            payload: {
+                reason: "untrusted-plugin",
+                surfaceId: "untrusted-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                slotId: "main",
+                missingCapabilities: undefined,
+                trustSource: "registry",
+                registryStatus: "unregistered",
+            },
+        });
     });
 
     it("should preserve mounted stream-slot surfaces while rendering live streams", async () => {
@@ -189,6 +211,7 @@ describe("StudioShell Orchestrator", () => {
             {
                 id: "stream-surface-plugin",
                 manifest: {
+                    entry: "internal:stream-surface-plugin",
                     extensions: {
                         surfaces: [
                             {

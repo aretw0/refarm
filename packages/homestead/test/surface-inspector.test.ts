@@ -116,6 +116,8 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceLayer: "homestead",
 				slotId: "main",
 				missingCapabilities: ["ui:secrets:read"],
+				trustSource: "registry",
+				registryStatus: "registered",
 			},
 		};
 
@@ -127,6 +129,8 @@ describe("listMountedHomesteadSurfaces", () => {
 			surfaceLayer: "homestead",
 			slotId: "main",
 			missingCapabilities: ["ui:secrets:read"],
+			trustSource: "registry",
+			registryStatus: "registered",
 		});
 		expect(
 			listRejectedHomesteadSurfaces([{ event: "storage:io" }, event]),
