@@ -82,7 +82,9 @@ Use a Homestead surface when the UI:
 These files are acceptable for now but should not become unbounded UI
 frameworks:
 
-- `apps/dev/src/lib/surface-ledger.ts`
+- `apps/dev/src/lib/surface-ledger.ts` now has a custom-element boundary; keep
+  pushing stable table/copy structure toward Astro instead of growing the
+  renderer indefinitely.
 - `apps/dev/src/lib/surface-inspector.ts`
 - `apps/dev/src/pages/index.astro` inline boot script
 - `apps/dev/src/pages/surfaces.astro` inline diagnostics boot script
