@@ -14,6 +14,8 @@ The manifest declares:
 Hosts that do not understand a surface should ignore it. Hosts that understand a surface should still enforce capability, integrity, and trust policy before activation.
 The Homestead panel declares both `ui:panel:render` and `ui:stream:read`: render authority is explicit, while stream access remains a separate capability.
 
+The executable module at `src/index.mjs` implements the Homestead `renderHomesteadSurface` hook and the automation `summarizeTerminalStream` hook. That keeps the example runnable without editing generated `dist/` artifacts.
+
 ## Validate
 
 From the repository root:
@@ -28,4 +30,10 @@ Expected surface keys:
 homestead:stream-panel
 asset:stream-theme-assets
 automation:summarize-terminal-stream
+```
+
+Smoke the executable hook:
+
+```bash
+node --input-type=module -e 'import { renderHomesteadSurface } from "./examples/multi-surface-plugin/src/index.mjs"; const result = await renderHomesteadSurface({ slotId: "main", surface: { id: "stream-panel", slot: "main", capabilities: ["ui:panel:render", "ui:stream:read"] } }); console.log(result.html.includes("data-refarm-example-surface=\"stream-panel\""));'
 ```

@@ -2,7 +2,7 @@
   "id": "@refarm.example/multi-surface",
   "name": "Refarm Multi-Surface Example",
   "version": "0.1.0",
-  "entry": "./dist/index.mjs",
+  "entry": "./src/index.mjs",
   "capabilities": {
     "provides": ["example:multi-surface:v1"],
     "requires": ["tractor:graph:v1"],

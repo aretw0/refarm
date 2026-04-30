@@ -50,15 +50,7 @@ describe("extension surface helpers", () => {
 	});
 
 	it("keeps the multi-surface example manifest valid", () => {
-		const manifest = JSON.parse(
-			readFileSync(
-				new URL(
-					"../../../examples/multi-surface-plugin/plugin-manifest.json",
-					import.meta.url,
-				),
-				"utf8",
-			),
-		);
+		const manifest = readMultiSurfaceExampleManifest();
 
 		const result = validatePluginManifest(manifest);
 		expect(result.valid).toBe(true);
@@ -67,5 +59,47 @@ describe("extension surface helpers", () => {
 			"asset:stream-theme-assets",
 			"automation:summarize-terminal-stream",
 		]);
+		expect(manifest.entry).toBe("./src/index.mjs");
+	});
+
+	it("keeps the multi-surface example executable", async () => {
+		const manifest = readMultiSurfaceExampleManifest();
+		const [surface] = getExtensionSurfaces(manifest, "homestead");
+		const pluginModule = await import(
+			new URL(
+				"../../../examples/multi-surface-plugin/src/index.mjs",
+				import.meta.url,
+			)
+		);
+
+		const rendered = await pluginModule.renderHomesteadSurface({
+			pluginId: manifest.id,
+			slotId: surface.slot,
+			mountSource: "extension-surface",
+			surface,
+			locale: "en",
+		});
+		expect(rendered.html).toContain(
+			'data-refarm-example-surface="stream-panel"',
+		);
+		expect(rendered.html).toContain("ui:stream:read");
+
+		await expect(
+			pluginModule.summarizeTerminalStream({
+				chunks: [{ content: "hello" }, { content: "stream" }],
+			}),
+		).resolves.toEqual({ summary: "hello stream", chunkCount: 2 });
 	});
 });
+
+function readMultiSurfaceExampleManifest() {
+	return JSON.parse(
+		readFileSync(
+			new URL(
+				"../../../examples/multi-surface-plugin/plugin-manifest.json",
+				import.meta.url,
+			),
+			"utf8",
+		),
+	);
+}
