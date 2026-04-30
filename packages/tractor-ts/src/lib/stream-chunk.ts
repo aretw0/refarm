@@ -127,3 +127,10 @@ export function isTerminalStreamChunk(event: StreamChunkEvent): boolean {
 		)
 	);
 }
+
+export function isTerminalStreamChunkState(state: StreamChunkState): boolean {
+	return (
+		state.isFinal === true ||
+		isTerminalStreamChunkPayloadKind(state.payloadKind)
+	);
+}

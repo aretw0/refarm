@@ -4,6 +4,7 @@ import {
 	emptyStreamChunkState,
 	isTerminalStreamChunk,
 	isTerminalStreamChunkPayloadKind,
+	isTerminalStreamChunkState,
 	orderStreamChunkEvents,
 	reduceStreamChunkEvents,
 	reduceStreamChunkEventsByStream,
@@ -96,6 +97,12 @@ describe("StreamChunk accumulator", () => {
 		);
 		expect(
 			isTerminalStreamChunk({ payload_kind: "text_delta", is_final: true }),
+		).toBe(true);
+		expect(
+			isTerminalStreamChunkState({
+				...emptyStreamChunkState("stream-terminal"),
+				payloadKind: "final_empty",
+			}),
 		).toBe(true);
 	});
 
