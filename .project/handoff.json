@@ -1,18 +1,17 @@
 {
-  "context": "Checkpoint 2026-04-30T21:53Z after continuing product/extensibility work. Branch develop is intentionally local-ahead of origin/develop by 7 commits because user requested batching local work instead of pushing/watching GitHub Actions for every slice. Worktree should be clean after this handoff commit. Disk remains constrained but stable at ~13GB free on /workspaces/refarm; no cleanup was necessary this turn.",
-  "timestamp": "2026-04-30T21:53:00.000Z",
+  "context": "Checkpoint 2026-04-30T22:03Z after another atomic product/extensibility slice. Branch develop is intentionally local-ahead of origin/develop by 9 commits because user requested batching local work instead of pushing/watching GitHub Actions for every slice. Worktree should be clean after this handoff commit. Disk remains constrained but stable at ~13GB free on /workspaces/refarm; no cleanup was necessary.",
+  "timestamp": "2026-04-30T22:03:00.000Z",
   "current_phase": 26,
   "current_tasks": [
     "Latest remote-pushed/CI-green baseline remains 4e02e548 `refactor(homestead): scope surface context providers` unless pushed later.",
-    "Local commits ahead of origin/develop: 1f980843 `feat(app-dev): prove registry validated surfaces`; 6c54c16c `chore(backlog): note e2e pipeline speedups`; 109bd170 `feat(homestead): share plugin registry helper`; e5ce03ee `chore(project): checkpoint registry surface flow`; 8c2ec2ac `feat(homestead): dispatch surface host actions`; dfd2b65f `refactor(homestead): scope surface action handlers`; 5e77390b `docs(homestead): clarify studio primitive boundary`.",
-    "1f980843: apps/dev `/surfaces` diagnostics now include external `validated` surface fixture (`external-validated-surface`) that registers with Tractor registry status `validated` before shell setup, proving the real Homestead registry trust gate in addition to internal trusted, failing render, and untrusted external fixtures.",
-    "109bd170: Homestead SDK gained `registerStudioPluginManifest(...)` in `@refarm.dev/homestead/sdk/plugin-handle`, so hosts can mark local/resolved plugin manifests as `validated`/`active` without hiding explicit plugin handle registration.",
-    "8c2ec2ac: Homestead SDK gained generic host-owned surface action dispatch. `StudioShellOptions.surfaceAction` accepts `HomesteadSurfaceRenderActionHandler`; rendered controls opt in via `data-refarm-surface-action-id`; `StudioShell` resolves actions from host context, emits `ui:surface_action_requested` and `ui:surface_action_failed`, and delegates concrete effects to the host. apps/dev implements only its concrete `studio:navigate` demo behavior.",
-    "dfd2b65f: Homestead SDK gained `createScopedHomesteadSurfaceActionHandler(...)`, mirroring `createScopedHomesteadSurfaceContextProvider(...)`, so reusable matching is SDK-owned while host semantics stay app-owned. apps/dev stream demo now uses this helper for the stream surface action handler.",
-    "5e77390b: docs clarify terminology: Studio is a shared Homestead primitive for all first-party apps; `apps/dev` is the reference workbench, not the owner of reusable mechanics.",
-    "Local validations passed after latest code slices: `npm --prefix packages/homestead test -- Shell.test.ts surface-renderer.test.ts`; `npm --prefix packages/homestead test -- surface-renderer.test.ts`; `npm --prefix packages/homestead run type-check`; `npm --prefix packages/homestead run build`; `npm --prefix apps/dev test -- stream-demo.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/dev run build`; `npm run project:validate --silent`; `git diff --check`.",
-    "During apps/dev test after adding scoped action helper, the first run failed because apps/dev imported `@refarm.dev/homestead` from dist and Homestead had not been rebuilt. Running `npm --prefix packages/homestead run build` fixed it. Remember to build Homestead before app tests when SDK exports change.",
-    "Known Vite browser-externalization warnings appeared during apps/dev build for `node:fs/promises` and `node:path`; unchanged/non-blocking. No sqlite benchmark worker diff appeared after builds."
+    "Local commits ahead of origin/develop now include: 1f980843 `feat(app-dev): prove registry validated surfaces`; 6c54c16c `chore(backlog): note e2e pipeline speedups`; 109bd170 `feat(homestead): share plugin registry helper`; e5ce03ee `chore(project): checkpoint registry surface flow`; 8c2ec2ac `feat(homestead): dispatch surface host actions`; dfd2b65f `refactor(homestead): scope surface action handlers`; 5e77390b `docs(homestead): clarify studio primitive boundary`; dce97ebd `chore(project): checkpoint surface action primitives`; 85f81667 `feat(homestead): inspect surface action diagnostics`.",
+    "85f81667 added semantic Homestead surface action diagnostics: `HOMESTEAD_SURFACE_ACTION_EVENTS`, `isHomesteadSurfaceActionEvent(...)`, `homesteadSurfaceActionFromTelemetry(...)`, and `listHomesteadSurfaceActions(...)` in `@refarm.dev/homestead/sdk/surface-inspector`. These parse `ui:surface_action_requested` and `ui:surface_action_failed` telemetry into read-only diagnostics.",
+    "apps/dev `/surfaces` ledger now consumes Homestead action diagnostics and renders action rows plus an action metric. Reactive ledger refresh now persists action telemetry events as they arrive, while keeping presenter/table rendering in apps/dev and semantic interpretation in Homestead SDK.",
+    "Documentation updated in `docs/EXTENSIBILITY_MODEL.md` to mention action requested/failed diagnostics in the Studio ledger loop.",
+    "Attempted to add a Homestead Shell test for failed `surfaceAction`, but the edit autoformatted `packages/homestead/test/Shell.test.ts` into a huge diff (~1250 changed lines). Reverted it with `git restore` to respect the repo instruction to avoid large autoformat diffs in Shell.test. Do not reattempt there unless using a surgical approach that preserves formatting.",
+    "Validations passed for latest slice: `npm --prefix packages/homestead test -- surface-inspector.test.ts`; `npm --prefix packages/homestead run type-check`; `npm --prefix packages/homestead run build`; `npm --prefix apps/dev test -- surface-ledger.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/dev run build`; `npm run project:validate --silent`; `git diff --check`.",
+    "Known Vite browser-externalization warnings appeared during apps/dev build for `node:fs/promises` and `node:path`; unchanged/non-blocking. No sqlite benchmark worker diff appeared after the build.",
+    "Disk snapshot: `/workspaces/refarm` about 13GB free, 98% used. No cleanup run."
   ],
   "blockers": [
     "Do not push/watch GitHub Actions after every small slice. User preference remains: validate locally, accumulate meaningful package, then push/monitor CI once.",
@@ -20,29 +19,30 @@
     "CI/E2E speed work is explicitly backlogged in `.pi/todos/e1279bab.md`; do not switch to that lane unless requested or after product/extensibility batch is ready.",
     "Builds can rewrite `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` by inlining the LANG expression. Inspect and restore unless intentional.",
     "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary.",
-    "Project task append tooling previously failed because old `.project/tasks.json` entries have schema-invalid `phase: null`. Avoid appending tasks there unless normalizing old phases intentionally."
+    "Project task append tooling previously failed because old `.project/tasks.json` entries have schema-invalid `phase: null`. Avoid appending tasks there unless normalizing old phases intentionally.",
+    "Avoid editing `packages/homestead/test/Shell.test.ts` with tools that autoformat the whole file. Use very surgical patching or avoid adding tests there until formatting policy/tooling is addressed."
   ],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect develop ahead 8 if this handoff is committed locally.",
-    "Commit this handoff checkpoint as `chore(project): checkpoint surface action primitives` if not already committed.",
-    "Next best product lane: promote a real registered plugin lifecycle surface/flow beyond fixtures, using Homestead SDK helpers (`registerStudioPluginManifest`, scoped context/action handlers) while keeping concrete host actions in apps/dev.",
-    "Good atomic slice candidate: add semantic Homestead inspector helpers for surface action telemetry (`ui:surface_action_requested`/`ui:surface_action_failed`) and render them in apps/dev statusbar or `/surfaces`, preserving surface-inspector as read-only semantic and presenters in app layer.",
-    "Good atomic slice candidate: add a small multi-action composition helper in Homestead SDK if future hosts need multiple surface action handlers; keep it generic and avoid navigation semantics in SDK.",
-    "Good atomic slice candidate: formalize `renderHomesteadSurface` and `data-refarm-surface-action-id` in plugin manifest docs/examples, showing external validated plugins can render text/actions without app coupling.",
-    "Before pushing the accumulated local batch: rerun scoped validations for Homestead/apps/dev plus `npm run project:validate --silent` and `git diff --check`; then push once and monitor CI once.",
+    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect develop ahead 10 if this handoff is committed locally.",
+    "Commit this handoff checkpoint as `chore(project): checkpoint surface action diagnostics` if not already committed.",
+    "Next best product lane: make action diagnostics interactive in the Studio workbench by triggering the stream surface action and showing requested/failed telemetry in `/surfaces`, but keep concrete navigation/failure behavior in apps/dev and semantic parsing in Homestead SDK.",
+    "Alternative atomic slice: add a non-Shell unit test around `StudioShell` action failure by extracting small pure telemetry payload helpers from Shell into `surface-renderer` or a new helper module, avoiding huge `Shell.test.ts` diffs.",
+    "Alternative atomic slice: formalize `renderHomesteadSurface` + `data-refarm-surface-action-id` in plugin-manifest docs/examples, including an external validated text/action surface example.",
+    "Alternative atomic slice: add a generic `composeHomesteadSurfaceActionHandlers(...)` SDK helper only if multiple host action handlers become necessary; do not add speculative semantics.",
+    "Before pushing accumulated batch: rerun scoped validations for Homestead/apps/dev plus `npm run project:validate --silent`, `git diff --check`, and likely `npm --prefix apps/dev run build`; then push once and monitor CI once.",
     "If disk drops near 2-3GB free, run `npm run clean:light --silent` and re-check `df -h /workspaces/refarm`."
   ],
   "open_questions": [
-    "Should surface action telemetry become part of Homestead `surface-inspector` semantic helpers now, or remain generic telemetry until a real product flow needs it?",
-    "Should Homestead provide `composeHomesteadSurfaceActionHandlers(...)`, or is scoped handler enough for now?",
-    "Should external validated plugins be limited to text render/actions until HTML policy hardening lands, or is explicit `{ html }` under registry trust acceptable for current experiments?",
-    "Should `renderHomesteadSurface` become a formal plugin-manifest host convention now that validated external flow and action dispatch are proven?",
+    "Should surface action failure telemetry be tested by extracting pure payload builders from `StudioShell` to avoid touching the fragile `Shell.test.ts` formatting?",
+    "Should the `/surfaces` ledger distinguish action requested vs failed in separate metrics, or keep one combined actions metric?",
+    "Should action diagnostics also appear in the compact statusbar inspector, or only the structured `/surfaces` ledger for now?",
+    "Should `renderHomesteadSurface` and `data-refarm-surface-action-id` become a formal plugin-manifest host convention now?",
     "When pushing accumulated commits, should the local handoff/backlog commits stay in history or be squashed/reordered?",
     "Should `apps/me` adopt the Studio runtime/action primitives now as a smoke consumer, or wait until plugin lifecycle is less fixture-driven?"
   ],
   "key_decisions_pending": [
-    "Next lane choice: registered plugin lifecycle surface, action telemetry diagnostics, manifest/example documentation, or push/CI batch.",
-    "Boundary decision: Studio is now documented as shared Homestead primitive; `apps/dev` remains reference workbench. Continue enforcing this in code placement.",
+    "Next lane choice: registered plugin lifecycle surface, action diagnostics UX polish, manifest/example documentation, or push/CI batch.",
+    "Boundary decision remains active: Studio is shared Homestead primitive; `apps/dev` is only reference workbench. Continue enforcing this in code placement.",
     "Whether to harden HTML sanitization/trust policy before adding richer executable external surfaces.",
     "When to spend CI/E2E optimization backlog work vs continue product/extensibility work."
   ],
