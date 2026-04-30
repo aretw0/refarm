@@ -54,9 +54,10 @@ The shared manifest package exposes small host-neutral helpers for this contract
 
 Homestead already consumes this contract for `homestead` surfaces: `StudioShell`
 resolves legacy `ui.slots` plus manifest-declared `extensions.surfaces[]` entries
-with `layer: "homestead"` and mounts them into the declared shell slot. Runtime
-activation remains capability/trust-gated by the plugin host; surface discovery
-only decides where an already-loaded plugin is presented.
+with `layer: "homestead"` and mounts them into the declared shell slot. Surface
+slot resolution now gates declared surface capabilities against the Homestead
+allow-list before mounting; deeper runtime activation remains trust-gated by the
+plugin host.
 
 Short-term UI experiments should land in Homestead/Studio dev, not the `me` or
 `social` surfaces. Those app surfaces can consume stabilized primitives after
@@ -64,7 +65,7 @@ the Studio shell proves the workflow.
 
 ## Daily-driver order of attack
 
-1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar and richer stream panel landed; next step is a plugin-provided panel/editor surface with explicit capability enforcement.
+1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, and slot-level capability gate landed; next step is a plugin-provided panel/editor surface with deeper runtime trust checks.
 2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.
