@@ -84,6 +84,18 @@ export interface ManifestValidationResult {
 	errors: string[];
 }
 
+export const EXTENSION_SURFACE_LAYERS: ReadonlySet<ExtensionSurfaceLayer>;
+export function isExtensionSurfaceLayer(
+	layer: unknown,
+): layer is ExtensionSurfaceLayer;
+export function extensionSurfaceKey(
+	surface: ExtensionSurfaceDeclaration,
+): string;
+export function getExtensionSurfaces(
+	manifest: PluginManifest,
+	layer?: ExtensionSurfaceLayer,
+): ExtensionSurfaceDeclaration[];
+
 export type EntryFormat = "js" | "mjs" | "cjs" | "wasm" | "unknown";
 export type RuntimeSupportTarget = "node" | "browser";
 export interface RuntimeCompatibilityOptions {

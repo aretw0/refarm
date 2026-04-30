@@ -7,6 +7,12 @@ export {
 } from "./entry-support.js";
 export { createMockManifest } from "./fixtures.js";
 export {
+	EXTENSION_SURFACE_LAYERS,
+	extensionSurfaceKey,
+	getExtensionSurfaces,
+	isExtensionSurfaceLayer,
+} from "./extension-surfaces.js";
+export {
 	detectWasmBinaryKind,
 	installWasmArtifact,
 	WASM_BINARY_KINDS,

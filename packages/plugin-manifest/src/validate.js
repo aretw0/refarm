@@ -1,18 +1,11 @@
 import { detectEntryFormat } from "./entry-support.js";
+import { EXTENSION_SURFACE_LAYERS } from "./extension-surfaces.js";
 import { REQUIRED_TELEMETRY_HOOKS } from "./types.js";
 
 const SEMVER_RE =
 	/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?$/;
 const INTEGRITY_HEX_RE = /^sha256-[0-9a-fA-F]{64}$/;
 const INTEGRITY_BASE64_RE = /^sha256-(?:[A-Za-z0-9+/]{43}=|[A-Za-z0-9+/]{43})$/;
-const EXTENSION_SURFACE_LAYERS = new Set([
-	"tractor",
-	"homestead",
-	"pi",
-	"automation",
-	"desktop",
-	"asset",
-]);
 
 /**
  * @param {string[]} values
