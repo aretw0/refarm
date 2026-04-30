@@ -33,6 +33,7 @@
 
 - **[Package Registry](../packages/README.md)** - _[NEW]_ Catalog of all monorepo components.
 - **[Plugin Developer Playbook](PLUGIN_DEVELOPER_PLAYBOOK.md)** - Guide for building sovereign extensions.
+- **[Extensibility Model](EXTENSIBILITY_MODEL.md)** — Multi-surface plugin model for Tractor, Homestead, pi, automation, desktop, and assets.
 - **[WASM & JCO](WASM_JCO_ARCHITECTURE.md)** - Technical details of the plugin sandbox (transpilation flow, runtime vs build-time table, CI/CD alignment).
 - **[ADR-044: WASM Plugin Loading — Browser Strategy](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md)** - Export conditions, PluginHost browser stub, OPFS install-time transpilation path.
 - **[Plugin Developer Stories](PLUGIN_DEVELOPER_STORIES.md)** — Jornada do desenvolvedor de plugin: do uso pessoal ao ecossistema P2P. Proposta soberana, mecanismos de distribuição (hoje e amanhã), tabela de status.

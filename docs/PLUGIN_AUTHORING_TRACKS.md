@@ -16,15 +16,23 @@ Um plugin no Refarm é uma unidade de extensão com **entry executável** + **ma
 
 ### Superfícies de extensão
 
-1. **Runtime (headless)**
-   - comandos, automações, integrações, processamento de dados.
-2. **UI (slots/metadados)**
+1. **Runtime (headless / `tractor`)**
+   - comandos, integrações, processamento de dados, indexadores.
+2. **UI (`homestead` / browser shell)**
    - superfícies visuais, painéis, configurações, widgets.
-3. **Assets associados**
-   - CSS, HTML templates, ícones, JSON, dicionários i18n, etc.
+3. **Pi/local automaton (`pi`)**
+   - scripts locais, ferramentas de agente, hardware hooks, rotinas de manutenção.
+4. **Automation (`automation`)**
+   - reminders, macros, workflows recorrentes, retries governados.
+5. **Desktop/OS (`desktop`)**
+   - file watchers, tray/menu actions, integrações nativas.
+6. **Assets associados (`asset`)**
+   - CSS, HTML templates, ícones, JSON, dicionários i18n, temas, modelos etc.
 
 > CSS/HTML sozinhos não são plugin executável.
 > Eles entram como **asset pack** carregado por um entry JS/WASM.
+>
+> Modelo canônico: [`docs/EXTENSIBILITY_MODEL.md`](EXTENSIBILITY_MODEL.md).
 
 ---
 
@@ -33,6 +41,7 @@ Um plugin no Refarm é uma unidade de extensão com **entry executável** + **ma
 Sim, esse cenário é válido.
 
 Um plugin `theme-hub` pode:
+
 - expor API de gestão de tema,
 - renderizar UI própria,
 - manter catálogo remoto/local de temas,
@@ -48,6 +57,7 @@ Ou seja: o plugin não precisa ser "só executor"; ele pode orquestrar um ecossi
 ## Mínimo (L0)
 
 Plugin executável simples com:
+
 - manifesto válido,
 - `entry` suportado,
 - hooks obrigatórios de observability,
@@ -58,6 +68,7 @@ Objetivo: provar ciclo de vida e integração básica.
 ## Máximo (L3)
 
 Plugin com:
+
 - runtime robusto + API própria,
 - UI completa + assets,
 - estratégia de distribuição/versionamento,
@@ -68,14 +79,15 @@ Plugin com:
 
 ## 4) Matriz por ambiente e formato (estado atual)
 
-| Formato de entry | Browser | Node | Status |
-|---|---|---|---|
-| `.js` | ✅ suportado | ✅ suportado | **supported** |
-| `.mjs` | ✅ suportado | ✅ suportado | **supported** |
-| `.cjs` | ⚠️ parcial (validado no manifesto; runtime browser não é alvo primário) | ✅ suportado | **partial** |
-| `.wasm` | ⚠️ parcial (cache-backed no browser; requer install prévio e runner compatível) | ✅ suportado | **partial/browser + supported/node** |
+| Formato de entry | Browser                                                                         | Node         | Status                               |
+| ---------------- | ------------------------------------------------------------------------------- | ------------ | ------------------------------------ |
+| `.js`            | ✅ suportado                                                                    | ✅ suportado | **supported**                        |
+| `.mjs`           | ✅ suportado                                                                    | ✅ suportado | **supported**                        |
+| `.cjs`           | ⚠️ parcial (validado no manifesto; runtime browser não é alvo primário)         | ✅ suportado | **partial**                          |
+| `.wasm`          | ⚠️ parcial (cache-backed no browser; requer install prévio e runner compatível) | ✅ suportado | **partial/browser + supported/node** |
 
 Notas:
+
 - `.wasm` exige `integrity: sha256-*` no manifesto.
 - Browser `.wasm` depende de cache instalado (`installPlugin`) + runtime compatível (ADR-044 ainda em evolução).
 - No runtime browser atual, `module` executa diretamente e `component` executa quando acompanhado de `browserRuntimeModule` + `browserRuntimeDescriptor` cacheados e íntegros.
@@ -90,12 +102,12 @@ Notas:
 
 ## 5) Trilha de escala (L0 → L3)
 
-| Nível | Objetivo | Formato típico | Controles |
-|---|---|---|---|
-| L0 — Seed | Plugin mínimo funcional | `.js/.mjs` | manifesto válido, hooks obrigatórios, capabilities mínimas |
-| L1 — Productive | Uso em fluxo real | `.js/.mjs/.cjs` | testes de contrato, observability consistente, limites de permissão |
-| L2 — Hardened | Segurança reforçada | `.wasm` (ou JS com política restrita) | integridade forte, trust profile, checklist pré-produção |
-| L3 — Sovereign | Escala/ecossistema | `.wasm` preferencial + assets/ui | governança de release, política por ambiente, métricas de operação |
+| Nível           | Objetivo                | Formato típico                        | Controles                                                           |
+| --------------- | ----------------------- | ------------------------------------- | ------------------------------------------------------------------- |
+| L0 — Seed       | Plugin mínimo funcional | `.js/.mjs`                            | manifesto válido, hooks obrigatórios, capabilities mínimas          |
+| L1 — Productive | Uso em fluxo real       | `.js/.mjs/.cjs`                       | testes de contrato, observability consistente, limites de permissão |
+| L2 — Hardened   | Segurança reforçada     | `.wasm` (ou JS com política restrita) | integridade forte, trust profile, checklist pré-produção            |
+| L3 — Sovereign  | Escala/ecossistema      | `.wasm` preferencial + assets/ui      | governança de release, política por ambiente, métricas de operação  |
 
 ### Critérios de promoção
 
