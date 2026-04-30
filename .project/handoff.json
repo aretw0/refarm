@@ -1,43 +1,44 @@
 {
-	"context": "Checkpoint 2026-04-30T05:44Z after daily-driver recalibration and first concrete tractor-ts stream UI helper slice. Branch develop is clean and synchronized with origin/develop at 3775fea6 docs(daily-driver): note stream view helper progress before this handoff update. GitHub Actions run 25149069271 for 12b17d68 passed; docs-only run 25149423176 for 3775fea6 passed. Disk remains constrained but stable at about 7.6GB free after prior heavy cleanup.",
-	"timestamp": "2026-04-30T05:44:00.000Z",
-	"current_phase": 19,
-	"current_tasks": [
-		"Completed multiple atomic slices and pushed them to origin/develop. Final pushed HEAD before this handoff: 3775fea6 docs(daily-driver): note stream view helper progress.",
-		"Recalibrated release/docs posture: v0.1.0 remains blocked until Refarm can replace the current external pi workflow as daily driver; contract-first publishing language was removed/deferred in docs/REFARM_PERSONAL_DAILY_DRIVER.md and docs/v0.1.0-release-gate.md.",
-		"Added docs/DAILY_DRIVER_PARITY.md as the capability checklist mapping pi workflow needs to Refarm surfaces and local validation signals.",
-		"Updated apps/me and tractor-ts roadmaps to clarify legacy version headings are backlog/capability buckets, not release promises.",
-		"Recorded streaming UI consumer audit in docs/agent-streaming.md: production UI still lacks a generic StreamSession/StreamChunk subscriber; BrowserSyncClient must remain schema-neutral.",
-		"Implemented packages/tractor-ts/src/lib/stream-view.ts with streamObservationView(...) and streamObservationViewsByStream(...), exported from node and browser entrypoints, and added focused tests in packages/tractor-ts/test/stream-view.test.ts.",
-		"Updated root agent:streaming:clients script to include stream-view.test.ts. Local validation passed: npm run agent:streaming:clients (4 files, 22 tests), npm run project:validate --silent, git diff --check.",
-		"Codified Local Reproduction First in AGENTS.md and docs/local-disk-hygiene.md: use closest scoped local command before GitHub Actions; CI is final confirmation only.",
-		"Pre-push full tractor-ts unit suite remains noisy due missing WASM fixtures, but focused streaming client suite passed. The pre-push failure matched known fixture gaps: missing heartwood wasm and hello-world validation wasm."
-	],
-	"blockers": [
-		"Disk is still 99% used on the host mount with about 7.6GB free. Rust target dirs were removed by clean:heavy, so future Rust checks will rebuild from scratch and consume disk.",
-		"Full tractor-ts unit suite is still noisy because real-instantiation and jco-integration tests expect WASM fixtures not present after heavy cleanup. Use npm run agent:streaming:clients for stream helper changes unless rebuilding fixtures intentionally.",
-		"Broad cargo/clippy remains constrained by unrelated debt and by target rebuild cost. Avoid broad Rust checks unless necessary; prefer scoped commands from AGENTS.md and docs/local-disk-hygiene.md.",
-		"pi-lens/LSP continues crashing on Markdown writes with memory access out of bounds; re-read files after edits and expect auto-format warnings."
-	],
-	"next_actions": [
-		"First command after compaction: git status --branch --short; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 5; df -h /workspaces/refarm.",
-		"If this handoff update is committed locally, either push it as a docs/project checkpoint or batch with the next substantive slice; prior pushed CI is green through 3775fea6.",
-		"Next technical slice: implement the first real UI subscriber that consumes StreamSession/StreamChunk observations and feeds streamObservationView(...); do not add schema-specific logic to BrowserSyncClient.",
-		"Next docs/planning slice: refine docs/DAILY_DRIVER_PARITY.md into explicit owner/validation commands for each unchecked row, prioritizing Start session, Ask agent, See live output, Preserve memory.",
-		"If touching tractor-ts stream helpers, run npm run agent:streaming:clients before push. If touching only docs, run npm run project:validate --silent and git diff --check.",
-		"Run npm run clean:light --silent at checkpoint boundaries if .turbo or Rust incremental artifacts reappear; clean:heavy only if disk falls near 2-3GB again."
-	],
-	"open_questions": [
-		"Which concrete UI package should own the first generic stream subscriber: apps/me shell, terminal-plugin consumer, homestead, or a new tractor-ts helper/demo?",
-		"Should docs/DAILY_DRIVER_PARITY.md statuses become a project block/task list for traceable completion?",
-		"Should the full tractor-ts WASM fixture tests be made skip-aware when fixtures are missing, or should fixture builds become a dedicated local command?",
-		"Should streamObservationView prefer session metadata over chunk metadata for labels in all cases, or should final chunk metadata override session labels?"
-	],
-	"key_decisions_pending": [
-		"First production UI subscriber location and data flow.",
-		"Daily-driver parity checklist ownership and verification granularity.",
-		"Whether to formalize known noisy full tractor-ts fixture tests as an issue/task.",
-		"Whether to introduce a governed StreamChunk/StreamSession compaction command after UI consumption lands."
-	],
-	"files_in_flux": []
+  "context": "Checkpoint 2026-04-30T06:24Z after extensibility/multi-surface slices. Branch develop is clean and ahead of origin/develop by 12 local commits. Last pushed remote baseline remains origin/develop at 3f512fae. Disk remains constrained but stable at about 7.6GB free; repo itself is about 1.5GB, with node_modules about 975MB, so no cleanup was run because it would save little and increase rebuild cost.",
+  "timestamp": "2026-04-30T06:24:00.000Z",
+  "current_phase": 19,
+  "current_tasks": [
+    "Completed atomic extensibility slices since prior handoff: docs multi-surface model, plugin-manifest validation/helpers, Homestead surface mounting, real stream UI subscriber, multi-surface example, and example conformance coverage.",
+    "Local HEAD at handoff: a626c482 test(plugin-manifest): cover multi-surface example. Recent local commits ahead of origin include 2329c56d docs(examples): add multi-surface plugin manifest, 272c42eb refactor(homestead): extract surface slot resolver, 9d2dea87 docs(extensibility): document surface discovery path, 5999170d refactor(homestead): use shared surface helpers, 3a829d4f feat(plugin-manifest): expose extension surface helpers, 750c6af6 feat(homestead): mount declared extension surfaces, 3258e185 docs(streaming): record homestead stream subscriber, a9b9b5c3 feat(homestead): render live stream observations, 22136a13 fix(tractor-ts): notify typed node subscribers, and 8fc9fab9 feat(plugin-manifest): validate extension surfaces.",
+    "Plugin manifest now models optional `extensions.surfaces` with layers `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`; validator rejects malformed/duplicate layer-id pairs.",
+    "Plugin manifest exports host-neutral helpers: `getExtensionSurfaces(...)`, `extensionSurfaceKey(...)`, `isExtensionSurfaceLayer(...)`, and `EXTENSION_SURFACE_LAYERS`. Tests cover helper behavior and the multi-surface example manifest.",
+    "Tractor TS now emits `storage:node:written` after `storeNode(...)`, making `Tractor.onNode(type, handler)` actually reactive for stored graph nodes.",
+    "Homestead `StudioShell` now subscribes to `StreamSession` and `StreamChunk` via `Tractor.onNode(...)`, reduces them with Tractor stream helpers, and renders a compact live stream statusbar pill. BrowserSyncClient remains schema-neutral.",
+    "Homestead now mounts manifest-declared `homestead` extension surfaces into shell slots while preserving legacy `ui.slots`; slot resolution was extracted to `resolveHomesteadSurfaceSlots(...)` and exported from `@refarm.dev/homestead/sdk`.",
+    "Added `examples/multi-surface-plugin/` with a valid manifest declaring `homestead`, `asset`, and `automation` surfaces; plugin-manifest tests now validate this example stays conformant.",
+    "Validation passed in this stream: `npm --prefix packages/plugin-manifest run test`, `npm --prefix packages/plugin-manifest run test:conformance`, `npm --prefix packages/homestead test`, `npm --prefix packages/homestead run type-check`, `npm --prefix packages/homestead run build`, `npm --prefix packages/tractor-ts run test:unit -- telemetry.test.ts`, `npm --prefix packages/tractor-ts run type-check`, `npm --prefix packages/tractor-ts run build`, `npm run project:validate --silent`, and `git diff --check`."
+  ],
+  "blockers": [
+    "Disk is still 99% used on the host mount with about 7.6GB free. The repo is only about 1.5GB and derived artifact totals are low; avoid unnecessary cleanups unless free space falls near 2-3GB or new large artifacts appear.",
+    "Rust target dirs were previously removed by clean:heavy, so broad Rust checks will rebuild from scratch and may consume disk. Use scoped Rust commands from AGENTS.md only when Rust is touched.",
+    "Full tractor-ts unit suite remains known-noisy when WASM fixtures are missing after cleanup. Prefer focused tests (`telemetry.test.ts`, stream helper tests, or `npm run agent:streaming:clients`) unless intentionally rebuilding fixtures.",
+    "pi-lens/LSP may warn or crash on Markdown writes; re-read files after auto-format/fix warnings and prefer direct read/edit for docs."
+  ],
+  "next_actions": [
+    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`.",
+    "Before push, consider running the economical aggregate gate for touched areas: `npm --prefix packages/plugin-manifest run test && npm --prefix packages/homestead test && npm --prefix packages/homestead run type-check && npm run project:validate --silent && git diff --check`.",
+    "Push the 12 local commits to origin/develop when ready, then watch CI with `GH_PROMPT_DISABLED=1 gh run watch --repo aretw0/refarm --exit-status` or list runs first if needed.",
+    "Next technical slice: promote the Homestead stream statusbar pill into a richer `homestead` extension surface/panel using the declared `stream-panel` model from the multi-surface example.",
+    "Next contract slice: add host-side capability checks for `extensions.surfaces[].capabilities` before mounting/activating richer surfaces; keep discovery separate from activation.",
+    "Next daily-driver slice: map `docs/DAILY_DRIVER_PARITY.md` rows to concrete surfaces/commands now that stream output and manifest surfaces have a working path.",
+    "Run `npm run clean:light --silent` only at checkpoint boundaries if `.turbo` or Rust incremental artifacts reappear; use `clean:heavy` only near critical disk pressure."
+  ],
+  "open_questions": [
+    "Should Homestead surface mounting require explicit capability grants before adding plugin DOM wrappers, or should that wait until richer surface rendering beyond placeholder wrappers?",
+    "Should multi-surface examples live under `examples/` only, or become workspace packages with build/test scripts once they include executable code?",
+    "Should `ui.slots` be formally deprecated in favor of `extensions.surfaces` after enough hosts consume the new contract?",
+    "Should stream observation UI stay in Homestead shell, move to a plugin-provided panel, or support both shell status and panel views?"
+  ],
+  "key_decisions_pending": [
+    "Capability enforcement boundary for manifest-declared surfaces.",
+    "Promotion path from statusbar stream pill to full daily-driver stream panel/editor.",
+    "Whether to push current local commits as one batch now or continue local slicing until a larger checkpoint.",
+    "Whether to convert daily-driver parity checklist into canonical .project tasks for traceability."
+  ],
+  "files_in_flux": []
 }
