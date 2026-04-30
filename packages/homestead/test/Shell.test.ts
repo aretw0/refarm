@@ -58,6 +58,41 @@ describe("StudioShell Orchestrator", () => {
         expect(statusbar?.innerHTML).toContain("test-plugin");
     });
 
+    it("should inject homestead extension surfaces into declared slots", async () => {
+        tractorMock.plugins.getAllPlugins.mockReturnValue([
+            {
+                id: "surface-plugin",
+                manifest: {
+                    capabilities: { provides: [], requires: [] },
+                    extensions: {
+                        surfaces: [
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "stream-panel",
+                                slot: "main",
+                            },
+                            {
+                                layer: "automation",
+                                kind: "workflow-step",
+                                id: "ignored",
+                                slot: "statusbar",
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        const shell = new StudioShell(tractorMock as any);
+        await shell.setup();
+
+        const main = document.getElementById("refarm-slot-main");
+        const statusbar = document.getElementById("refarm-slot-statusbar");
+        expect(main?.innerHTML).toContain("surface-plugin");
+        expect(statusbar?.innerHTML).not.toContain("surface-plugin");
+    });
+
     it("should update system status during orchestration", async () => {
         const shell = new StudioShell(tractorMock as any);
         await shell.setup();
