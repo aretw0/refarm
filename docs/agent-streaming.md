@@ -100,7 +100,7 @@ lifecycle nodes can use `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
 `isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
 `streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. The
-package also exports status/payload constants and the
+package also exports status/payload constants and type guards plus the
 `StreamSessionStatus` / `TerminalStreamChunkPayloadKind` type aliases for
 switch statements and UI state machines.
 Use `orderAgentResponseStreamEvents(...)`, `orderStreamChunkEvents(...)`, or
