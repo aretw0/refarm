@@ -82,10 +82,14 @@ otherwise they are rejected as `untrusted-plugin` with registry status in
 telemetry.
 
 Mounting preserves surface identity in the DOM and telemetry. Extension surface
-wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
-`data-refarm-surface-id`; every mount emits `ui:surface_mounted` with slot,
-source, and surface metadata. This gives future Studio tooling an auditable path
-from manifest declaration to actual UI activation.
+wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`,
+`data-refarm-surface-id`, and `data-refarm-surface-render-mode`; every mount
+emits `ui:surface_mounted` with slot, source, and surface metadata. If a trusted
+plugin implements `renderHomesteadSurface`, Homestead calls it with the plugin
+id, slot id, mount source, surface declaration, and locale. Plain string and
+`{ "text": "..." }` results write text; `{ "html": "..." }` is explicit
+trusted HTML. Rendered surfaces then emit `ui:surface_rendered`, so Studio can
+distinguish wrapper-only mounts from executable plugin-provided UI.
 The Homestead SDK also exports `listMountedHomesteadSurfaces(...)` so `apps/dev`
 and future inspectors can query the currently mounted surface graph from the DOM
 without coupling to private shell internals.
@@ -130,7 +134,7 @@ still preventing UI drift across hosts.
 
 ## Daily-driver order of attack
 
-1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, and slot-level capability gate landed; next step is a plugin-provided panel/editor surface with deeper runtime trust checks.
+1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, slot-level capability gate, plugin-provided render hook, and render-mode diagnostics landed; next step is a host-owned surface context/actions contract with deeper runtime trust checks.
 2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.
