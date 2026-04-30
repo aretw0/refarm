@@ -51,6 +51,55 @@ export function mountStudioSurfaceInspector(
 	return details;
 }
 
+export interface StudioSurfaceTelemetryEvent {
+	event: string;
+}
+
+export interface StudioSurfaceTelemetrySource {
+	observe(
+		listener: (event: StudioSurfaceTelemetryEvent) => void,
+	): (() => void) | void;
+}
+
+export interface StudioSurfaceInspectorController {
+	readonly element: HTMLElement;
+	refresh(): HTMLElement;
+	dispose(): void;
+}
+
+export function mountReactiveStudioSurfaceInspector(
+	container: HTMLElement,
+	options: {
+		root?: ParentNode;
+		telemetry?: StudioSurfaceTelemetrySource;
+	} = {},
+): StudioSurfaceInspectorController {
+	const root = options.root ?? document;
+	let currentElement = mountStudioSurfaceInspector(container, root);
+
+	const refresh = () => {
+		const wasOpen = currentElement.hasAttribute("open");
+		currentElement = mountStudioSurfaceInspector(container, root);
+		if (wasOpen) currentElement.setAttribute("open", "");
+		return currentElement;
+	};
+
+	const disposeTelemetry = options.telemetry?.observe((event) => {
+		if (event.event === "ui:surface_mounted") refresh();
+		if (event.event === "system:plugin_state_changed") refresh();
+	});
+
+	return {
+		get element() {
+			return currentElement;
+		},
+		refresh,
+		dispose() {
+			if (typeof disposeTelemetry === "function") disposeTelemetry();
+		},
+	};
+}
+
 function renderSurfaceListItem(
 	surface: MountedHomesteadSurface,
 ): HTMLLIElement {
