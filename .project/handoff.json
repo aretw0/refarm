@@ -1,41 +1,42 @@
 {
-	"context": "Checkpoint 2026-04-30T04:06Z after continuing Refarm generic stream migration with more atomic local slices. Branch develop; origin/develop remains at 7095fd06 docs(agent): mention final chunk kind helpers. Local HEAD before this handoff commit: e9e1292f docs(terminal): mention stream metadata helpers. Working tree should be clean after committing this handoff. No push has been performed in this session; local stack is large. Streaming remains opt-in and host-owned provider credentials/routes are unchanged.",
-	"timestamp": "2026-04-30T04:06:00.000Z",
-	"current_phase": 16,
+	"context": "Checkpoint 2026-04-30T04:27Z after taking pragmatic path: pushed the full local streaming migration stack to origin/develop and confirmed GitHub Actions success. Branch develop; pushed HEAD on origin/develop is 06cf192c chore(project): checkpoint stream session helper slices. Local working tree should be clean after committing this handoff, with only this checkpoint commit ahead if not pushed. Streaming remains opt-in and host-owned credentials/routes remain unchanged.",
+	"timestamp": "2026-04-30T04:27:00.000Z",
+	"current_phase": 17,
 	"current_tasks": [
-		"Local branch is ahead 36 of origin/develop before this handoff commit. Latest commits after the previous handoff: c3923e07 test(tractor): cover prompt ref stream filters; fe9c8348 feat(tractor-ts): detect active stream sessions; 15fb6a16 docs(agent): mention active stream session helper; 1ed05cb2 feat(tractor-ts): expose stream session duration; 10b029eb docs(agent): mention stream session duration helper; e9e1292f docs(terminal): mention stream metadata helpers.",
-		"Tractor CLI prompt-ref stream filter coverage improved: watch_cli_accepts_prompt_ref_stream_filter and stream_ref_filter_rejects_empty_prompt_refs now cover --prompt-ref watch path and empty prompt-ref rejection.",
-		"@refarm.dev/tractor StreamSession helpers now include isActiveStreamSession and streamSessionDurationNs. Tests cover active status and duration calculation from started/completed timestamps.",
-		"docs/agent-streaming.md now mentions isActiveStreamSession and streamSessionDurationNs in the StreamSession helper list.",
-		"terminal-plugin roadmap now instructs future UI to render provider/model/duration labels via reducer metadata helpers instead of parsing opaque metadata directly.",
-		"Final scoped validations passed, then npm run clean:light restored disk free to about 8.1GB."
+		"Pragmatic path chosen: pushed local ahead-37 stack to origin/develop with git push origin develop.",
+		"Pre-push hook ran strict protected-branch checks. Lint/type preflight passed; advisory unit tests had known warnings/timeouts in tractor/tractor-ts full suites; security advisory reported moderate vulnerabilities only and allowed push. CI remains final gate.",
+		"GitHub Actions run 25146879326 (Test & Quality, develop push, HEAD 06cf192c) completed successfully in ~14m24s.",
+		"After CI success, git status showed develop...origin/develop with no ahead/behind and working tree clean before this handoff update.",
+		"Ran npm run clean:light after CI confirmation; disk free about 8.3GB.",
+		"Latest pushed work includes generic stream TS helpers, prompt-ref stream filters, CLI terminal marker constants, docs/roadmaps, and project checkpoints."
 	],
 	"blockers": [
-		"The ahead stack is now very large and local-only (ahead 36 before this handoff commit). Strongly consider pushing to develop soon for CI confirmation unless the user explicitly wants more local-only slices.",
-		"Disk remains constrained on a 99% full mount with about 8.1GB free after clean. Avoid broad builds/tests and run npm run clean:light after Rust checks.",
+		"Disk remains constrained on a 99% full mount with about 8.3GB free after cleanup. Avoid broad builds/tests and run npm run clean:light after Rust checks.",
 		"Full local tractor-ts unit suite remains noisy because WASM fixtures are missing. Continue using npm run agent:streaming:clients for stream helper changes.",
 		"Broad cargo clippy --lib --tests still has unrelated await_holding_lock debt in packages/tractor/tests/pi_agent_harness.rs. npm --prefix packages/tractor run lint passes.",
-		"pi-lens/LSP continues crashing on Rust/Markdown writes with memory access out of bounds; re-read files after edits and expect auto-format warnings."
+		"pi-lens/LSP continues crashing on Rust/Markdown writes with memory access out of bounds; re-read files after edits and expect auto-format warnings.",
+		"If this handoff checkpoint is committed locally, branch will be ahead by one checkpoint commit until it is pushed or amended into future work."
 	],
 	"next_actions": [
-		"First command after compaction: git status --branch --short; git log --oneline origin/develop..HEAD | head -45; df -h /workspaces/refarm.",
-		"Recommended next major action: push local stack with git push origin develop, then GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 5; inspect failures with gh run view <run-id> --log-failed and reproduce locally with closest scoped command before fixing.",
-		"If continuing local slices instead of push, keep them tiny. Candidate slices: document/prototype governed stream retention/compaction design; add CLI query/watch examples for both --prompt-ref and --stream-ref; audit actual web/UI CRDT consumers beyond terminal-plugin roadmap.",
+		"First command after compaction: git status --branch --short; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 3; df -h /workspaces/refarm.",
+		"If branch is only ahead by this handoff checkpoint, either leave it for next work batch or push it after adding substantive follow-up changes; avoid triggering CI for checkpoint-only work unless desired.",
+		"Next pragmatic feature/design slice: draft governed stream retention/compaction policy in ADR-054 or a follow-up ADR, without implementing destructive deletion yet.",
+		"Alternative next slice: audit actual UI/CRDT consumers beyond terminal-plugin and identify first concrete consumer for StreamChunk/StreamSession reducers.",
 		"For TS stream helpers run npm run agent:streaming:clients. For Tractor CLI/host changes run npm --prefix packages/tractor run lint plus targeted cargo tests. Avoid broad cargo test.",
-		"After any Rust validation or if free disk approaches 8GB, run npm run clean:light --silent."
+		"After Rust validation or if free disk approaches 8GB, run npm run clean:light --silent."
 	],
 	"open_questions": [
-		"Should the large local ahead stack be pushed as-is, including .project checkpoint commits, or should the user prefer rebasing/squashing before push?",
+		"Should a future stream compaction primitive preserve final StreamSession plus final StreamChunk only, preserve assembled content elsewhere, or keep audit chunks indefinitely by default?",
 		"Should AgentResponse compatibility projection have a defined sunset/version horizon?",
 		"Should generic StreamChunk final_tool_call eventually include structured tool-call metadata, or remain a terminal marker while synthesized provider JSON carries structured calls?",
-		"What exact governed stream compaction policy is desired: preserve final StreamSession plus final StreamChunk only, preserve assembled content elsewhere, or keep audit chunks indefinitely by default?",
-		"Which concrete web/UI consumer will first subscribe to StreamChunk/StreamSession nodes?"
+		"Which concrete web/UI consumer will first subscribe to StreamChunk/StreamSession nodes?",
+		"Should checkpoint-only .project commits be pushed immediately or batched with substantive changes?"
 	],
 	"key_decisions_pending": [
-		"Push timing and CI confirmation for the local ahead stack.",
 		"Governed stream retention/compaction primitive shape and safety policy.",
 		"WebSocket/UI projection strategy and migration horizon from AgentResponse compatibility projection.",
-		"Potential CLI ergonomics beyond --prompt-ref, such as stream summary or type defaults."
+		"Potential CLI ergonomics beyond --prompt-ref, such as stream summary or type defaults.",
+		"Whether to keep pushing small batches immediately now that the large stack is merged and CI-green."
 	],
 	"files_in_flux": []
 }
