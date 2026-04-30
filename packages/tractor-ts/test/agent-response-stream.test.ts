@@ -6,6 +6,7 @@ import {
 	isTerminalAgentResponseStreamEvent,
 	isTerminalAgentResponseStreamState,
 	orderAgentResponseStreamEvents,
+	promptRefFromAgentResponseStreamRef,
 	reduceAgentResponseStreamEvents,
 	reduceAgentResponseStreamEventsByPrompt,
 	UNKNOWN_AGENT_RESPONSE_PROMPT_REF,
@@ -16,6 +17,12 @@ describe("AgentResponse streaming accumulator", () => {
 		expect(agentResponseStreamRef("prompt-1")).toBe(
 			"urn:tractor:stream:agent-response:prompt-1",
 		);
+		expect(
+			promptRefFromAgentResponseStreamRef(
+				"urn:tractor:stream:agent-response:prompt-1",
+			),
+		).toBe("prompt-1");
+		expect(promptRefFromAgentResponseStreamRef("stream-other")).toBe(null);
 	});
 
 	it("appends partial deltas and replaces content with the final full response", () => {
