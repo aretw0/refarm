@@ -55,9 +55,9 @@ Detailed planning for the following tracks is now consolidated in the **[Evoluti
 
 ## Release Planning
 
-Checklists e guias para release v0.1.0 com suporte dual (scope pessoal agora, org depois):
+Checklists e guias para o gate diário antes de qualquer v0.1.0:
 
-- **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Gate checklist (3a: technical primitives + 3b: apps/me consolidated)
+- **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Daily-driver-first gate; contract publication remains on hold until Refarm can replace the current pi workflow or there is explicit human override
 - **[Gate 3 Spec](gate3-homestead-tractor-spec.md)** — Homestead × Tractor integration spec (POC vs consolidated distro)
 - **[Schema Migration Strategy](schema-migration-strategy.md)** — SCHEMA_V1 freeze, upgrade contract, `refarm migrate` CLI
 - **[Distro Evolution Model](distro-evolution-model.md)** — Bootstrap → Sovereign → Social canonical spec
