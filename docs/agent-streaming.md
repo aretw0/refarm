@@ -112,6 +112,11 @@ browser path without touching `me` or `social`: click the statusbar toggle, open
 `StreamSession` and `StreamChunk` nodes through Tractor so Homestead renders the
 same path used by real agent streams.
 
+The stream UI uses `@refarm.dev/ds` for agnostic presentation primitives
+(surfaces, panels, pills, badges, cards, buttons, code chips, and workbench
+layout). Stream-specific observation/reduction stays in Homestead and Tractor;
+DS only owns reusable visual structure.
+
 The remaining gap is a plugin-provided daily-driver stream panel/editor surface
 with deeper runtime trust checks beyond slot-level capability filtering. The
 terminal plugin is still a passive DOM log sink, so future slices should keep UI

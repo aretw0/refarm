@@ -63,6 +63,12 @@ Short-term UI experiments should land in Homestead and the Studio app
 (`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
 stabilized primitives after the Studio shell proves the workflow.
 
+Framework-agnostic visual primitives belong in `@refarm.dev/ds`. Homestead and
+`apps/dev` should keep domain behavior local, but consume DS classes for shared
+surfaces, panels, pills, badges, buttons, cards, code chips, and workbench
+composition. This keeps stream-specific rendering out of the design system while
+still preventing UI drift across hosts.
+
 ## Daily-driver order of attack
 
 1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar, richer stream panel, and slot-level capability gate landed; next step is a plugin-provided panel/editor surface with deeper runtime trust checks.
