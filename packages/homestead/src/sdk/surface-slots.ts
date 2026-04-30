@@ -11,6 +11,7 @@ export const DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES = new Set([
 
 export interface HomesteadSurfaceSlotOptions {
 	allowedCapabilities?: ReadonlySet<string> | readonly string[];
+	availableSlots?: ReadonlySet<string> | readonly string[];
 }
 
 export interface HomesteadSurfaceMount {
@@ -21,6 +22,7 @@ export interface HomesteadSurfaceMount {
 
 export type HomesteadSurfaceRejectionReason =
 	| "missing-slot"
+	| "unknown-slot"
 	| "unsupported-capability"
 	| "duplicate-surface-id";
 
@@ -77,6 +79,7 @@ export function resolveHomesteadSurfaceActivationPlan(
 	const allowedCapabilities = normalizeAllowedCapabilities(
 		options.allowedCapabilities,
 	);
+	const availableSlots = normalizeAvailableSlots(options.availableSlots);
 
 	for (const slotId of manifest.ui?.slots ?? []) {
 		if (typeof slotId === "string" && slotId.trim().length > 0) {
@@ -84,12 +87,18 @@ export function resolveHomesteadSurfaceActivationPlan(
 		}
 	}
 	for (const slotId of legacySlots) {
+		if (availableSlots && !availableSlots.has(slotId)) continue;
 		mounts.push({ slotId, source: "legacy-ui-slot" });
 	}
 
 	for (const surface of getExtensionSurfaces(manifest, "homestead")) {
 		if (surface.slot === undefined || surface.slot.trim().length === 0) {
 			rejected.push({ reason: "missing-slot", surface });
+			continue;
+		}
+
+		if (availableSlots && !availableSlots.has(surface.slot)) {
+			rejected.push({ reason: "unknown-slot", surface });
 			continue;
 		}
 
@@ -126,6 +135,13 @@ function normalizeAllowedCapabilities(
 ): ReadonlySet<string> {
 	if (capabilities instanceof Set) return capabilities;
 	return new Set(capabilities ?? DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES);
+}
+
+function normalizeAvailableSlots(
+	slots: HomesteadSurfaceSlotOptions["availableSlots"],
+): ReadonlySet<string> | undefined {
+	if (!slots) return undefined;
+	return slots instanceof Set ? slots : new Set(slots);
 }
 
 export function unsupportedHomesteadSurfaceCapabilities(

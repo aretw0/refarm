@@ -130,6 +130,12 @@ describe("StudioShell Orchestrator", () => {
                                 kind: "panel",
                                 id: "missing-slot-panel",
                             },
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "ghost-panel",
+                                slot: "ghost",
+                            },
                         ],
                     },
                 },
@@ -160,6 +166,18 @@ describe("StudioShell Orchestrator", () => {
                 surfaceKind: "panel",
                 surfaceLayer: "homestead",
                 slotId: undefined,
+                missingCapabilities: undefined,
+            },
+        });
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_rejected",
+            pluginId: "rejected-surface-plugin",
+            payload: {
+                reason: "unknown-slot",
+                surfaceId: "ghost-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                slotId: "ghost",
                 missingCapabilities: undefined,
             },
         });

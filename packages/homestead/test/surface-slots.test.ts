@@ -141,4 +141,45 @@ describe("resolveHomesteadSurfaceSlots", () => {
 			{ reason: "duplicate-surface-id", surface: { id: "duplicate-panel" } },
 		]);
 	});
+
+	it("rejects homestead surfaces targeting slots that the host does not expose", () => {
+		const manifest = createMockManifest({
+			ui: { slots: ["main", "ghost-legacy"] },
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "known-panel",
+						slot: "main",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "ghost-panel",
+						slot: "ghost",
+					},
+				],
+			},
+		});
+
+		const plan = resolveHomesteadSurfaceActivationPlan(manifest, {
+			availableSlots: ["main", "statusbar"],
+		});
+
+		expect(plan.mounts).toMatchObject([
+			{ slotId: "main", source: "legacy-ui-slot" },
+			{
+				slotId: "main",
+				source: "extension-surface",
+				surface: { id: "known-panel" },
+			},
+		]);
+		expect(plan.mounts).not.toMatchObject([
+			{ slotId: "ghost-legacy" },
+		]);
+		expect(plan.rejected).toMatchObject([
+			{ reason: "unknown-slot", surface: { id: "ghost-panel" } },
+		]);
+	});
 });
