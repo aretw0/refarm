@@ -64,6 +64,9 @@ wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
 `data-refarm-surface-id`; every mount emits `ui:surface_mounted` with slot,
 source, and surface metadata. This gives future Studio tooling an auditable path
 from manifest declaration to actual UI activation.
+The Homestead SDK also exports `listMountedHomesteadSurfaces(...)` so `apps/dev`
+and future inspectors can query the currently mounted surface graph from the DOM
+without coupling to private shell internals.
 
 Short-term UI experiments should land in Homestead and the Studio app
 (`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
