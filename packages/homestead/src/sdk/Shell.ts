@@ -312,6 +312,18 @@ export class StudioShell {
 
     container.appendChild(pluginWrap);
 
+    this.tractor.emitTelemetry({
+      event: "ui:surface_mounted",
+      pluginId,
+      payload: {
+        slotId,
+        mountSource: mount.source,
+        surfaceId: mount.surface?.id,
+        surfaceKind: mount.surface?.kind,
+        surfaceLayer: mount.surface?.layer,
+      },
+    });
+
     // Monitoring: Convert DOM pulse to telemetry
     A11yGuard.monitorElement(pluginWrap, (velocity: number) => {
       this.tractor.emitTelemetry({

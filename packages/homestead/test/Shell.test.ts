@@ -98,6 +98,17 @@ describe("StudioShell Orchestrator", () => {
         const surfaceMount = main?.querySelector("[data-refarm-surface-id='stream-panel']");
         expect(surfaceMount?.getAttribute("data-refarm-mount-source")).toBe("extension-surface");
         expect(surfaceMount?.getAttribute("data-refarm-surface-kind")).toBe("panel");
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_mounted",
+            pluginId: "surface-plugin",
+            payload: {
+                slotId: "main",
+                mountSource: "extension-surface",
+                surfaceId: "stream-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+            },
+        });
     });
 
     it("should update system status during orchestration", async () => {
