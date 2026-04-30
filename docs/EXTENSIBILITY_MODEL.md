@@ -72,6 +72,10 @@ Homestead also owns the semantic diagnostics helpers for this graph:
 `observeMountedHomesteadSurfaceChanges(...)` centralizes which telemetry events
 can change the mounted surface graph. Apps can render their own diagnostics, but
 they should not duplicate Homestead's surface semantics.
+Stream rendering now writes into its own `[data-refarm-stream-panel]` child
+instead of replacing the entire `streams` slot, so plugin-provided panels mounted
+into that slot survive live stream updates. Declared surface mounts also unhide
+their target slot during activation.
 The Studio app now consumes that helper through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders a small mounted
 surface inspector that refreshes from Homestead surface telemetry. This closes the loop from manifest
