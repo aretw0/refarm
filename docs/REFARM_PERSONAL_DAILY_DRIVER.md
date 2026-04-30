@@ -76,14 +76,14 @@ These are the **reference implementations** and personal tools. Publish after yo
 
 **Keep in `/workspaces/refarm` (private monorepo)**:
 
-#### Core Infrastructure (Publish v0.2.0+)
+#### Core Infrastructure (mature privately until daily-driver ready)
 
 1. **`packages/tractor`** (Rust daemon)
 
    - ✅ Technically ready (52/52 tests, ADR-048 graduated)
    - **BUT**: Consumer testing still WIP (Gate 2/3)
    - **Publish after** Gate 3 finishes (when Homestead ↔ Tractor integration proven)
-   - Target: **mid-late April 2026** (next sprint)
+   - Target: daily-driver confidence first; no calendar-driven publish
 
 2. **`packages/barn`** (Plugin lifecycle, OPFS, SHA-256)
 
@@ -136,15 +136,15 @@ If we publish `plugin-manifest` now, we lock the ecosystem into **WASM-only thin
 - [ ] **Ecosystem Examples**: At least 3 working plugins across different layers (1 WASM, 1 Pi, 1 Frontend)
 - [ ] **Discovery & Loading**: How does Refarm discover, validate, and load plugins from Nostr and local sources across layers?
 
-**Expected Outcome**:
+**Expected Outcome (inventory, not release promise)**:
 
 ```
-v0.1.0-contracts: (3 contracts)
+Daily-driver substrate:
   @aretw0/storage-contract-v1
   @aretw0/sync-contract-v1
   @aretw0/identity-contract-v1
 
-v0.2.0-core: (includes plugin ecosystem)
+Daily-driver implementations and examples:
   @aretw0/tractor (Rust daemon)
   @aretw0/barn (Plugin lifecycle mgr)
   @aretw0/plugin-manifest (generalized, multi-layer)
@@ -153,7 +153,7 @@ v0.2.0-core: (includes plugin ecosystem)
   @aretw0/plugin-example-frontend
 ```
 
-**Target**: Publish v0.2.0 with complete plugin ecosystem (July+ 2026).
+**Target**: prove the complete plugin ecosystem in personal daily use before assigning release numbers.
 
 #### Personal Tools (Keep Private, Genericize Later)
 
@@ -184,36 +184,36 @@ v0.2.0-core: (includes plugin ecosystem)
 ## API Stability Tiers
 
 ```
-TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
+HELD CANDIDATES               DAILY-DRIVER IMPLEMENTATIONS
 ─────────────────────────────────────────────────────────────────────────────
 ✅ Foundational Contracts      🚧 Reference Implementations & Ecosystem
-   • storage-contract-v1          • tractor (Rust) — publish late Apr
-   • sync-contract-v1            • barn (Plugin mgmt) — after v0.2.0 decision
-   • identity-contract-v1        • plugin-manifest (multi-layer) — July+
-                                • apps/me (Homestead) — v0.2.0+
+   • storage-contract-v1          • tractor (Rust daemon)
+   • sync-contract-v1            • barn (Plugin lifecycle manager)
+   • identity-contract-v1        • plugin-manifest (multi-layer)
+                                • apps/me (Homestead)
                                 • plugin examples (WASM, Pi, Frontend)
                                 • silo, creek, plugin-tem, windmill
 ```
 
 **Why `plugin-manifest` is deferred**:
 
-- v0.1.0 publishes **foundational contracts** (storage, sync, identity)
+- Foundational contracts are useful but not sufficient for daily-driver readiness
 - `plugin-manifest` encompasses too much architectural decisions about Pi, extensibility, and discovery
 - Premature publication locks the ecosystem into WASM-only; must generalize across all layers first
-- v0.2.0 will present a complete, cohesive **plugin ecosystem** with examples
+- The plugin ecosystem should be lived in `dev`/`me` before any public version promise
 
 ---
 
 ## v0.1.0 Acceptance Criteria (Revised)
 
-### For Publishing (TIER 1 Contracts)
+### Held Publishing Inventory (TIER 1 Contracts)
 
 - [x] 3 contracts have conformance tests
 - [x] Contract documentation with examples
-- [ ] **NEW**: Gateway credentials configured (@aretw0 npm scope)
-- [ ] First publish workflow tested (dry-run → actual)
+- [ ] Gateway credentials configured only when publication is explicitly resumed
+- [ ] First publish workflow tested only after the daily-driver gate passes or human override is given
 
-### For Your Daily Use (TIER 2, keeps you productive)
+### Daily Use Gate (keeps you productive)
 
 - [ ] Gate 3: Homestead ↔ Tractor end-to-end sync stable (50+ edits, offline → reconnect)
 - [ ] Gate 2: All 7 Tractor consumers working with production `.db`
@@ -233,7 +233,7 @@ TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
 
 - **Public github.com/aretw0/refarm** — Source available, read-only for outsiders
 - **Private development** — You work in `develop`, release `main` when ready
-- **Contracts published** — Low risk (interface, not implementation)
+- **Contracts held** — low implementation risk, but still gated by daily-driver release policy
 - **Personal tools private** — No external pressure to maintain them
 - **Future**: Migrate to `@refarm.dev` org for team collaboration if needed
 
@@ -241,16 +241,18 @@ TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
 
 ## Publishing Checklist for v0.1.0
 
-### Pre-Publish (Do Now)
+### Pre-Publish (Deferred)
+
+Do not perform these steps during daily-driver stabilization unless explicitly overridden by the project owner. Keep them as a release inventory only:
 
 - [ ] **Gate 1**: Set `RELEASE_AUTOMATION=true` in GitHub repo settings
 - [ ] **Gate 1**: Set `RELEASE_OWNER=aretw0` to prevent accidental publishes
 - [ ] **Gate 1**: Ensure `NPM_TOKEN` has publish access to `@aretw0` scope
 - [ ] **Contracts**: Update **3 contract** `package.json` with `"version": "0.1.0"` (storage, sync, identity)
-- [ ] **Contracts**: Run `npm run type-check` + `npm run test` for each
+- [ ] **Contracts**: Run local type-check + tests for each changed contract before CI confirmation
 - [ ] **Contracts**: Validate `npm publish --dry-run` for each
 
-### Publish (After Gate 1)
+### Publish (Deferred until daily-driver gate)
 
 ```bash
 # In order, publish the 3 foundational contracts
@@ -261,7 +263,7 @@ git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-c
 # CI runs: publish-packages.yml triggers, publishes all 3 to npm
 ```
 
-### Post-Publish (Immediately After)
+### Post-Publish (Only after explicit publish)
 
 - [ ] Verify contracts appear on npm: `npm info @aretw0/storage-contract-v1`
 - [ ] Update [DISTRIBUTION_STATUS.md](./DISTRIBUTION_STATUS.md) with publish dates + npm links
@@ -281,11 +283,11 @@ git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-c
 
 **To contributors/ecosystem** (README, docs):
 
-> "Refarm v0.1.0 publishes **capability contracts** only. These define how any system can implement Refarm-compatible storage, sync, and identity. Reference implementations (tractor, Homestead, plugins) will mature privately and release later as v0.2.0+. For now, see [INSPIRATIONS.md](./INSPIRATIONS.md) and [DEVELOPING.md](../docs/DEVELOPMENT_RESOLUTION.md) to understand the vision."
+> "Refarm is still pre-`v0.1.0`. Capability contracts are candidates, but the project will not mint a public `v0.1.0` until the creator can rely on Refarm as the daily workspace replacing the current external pi workflow."
 
 **To yourself** (in this doc):
 
-> "You are the daily user. Publish contracts. Keep your tools private. Validate for 6 months. Release reference implementations when stable."
+> "You are the daily user. Do not publish just because contracts are ready. Stabilize the real workflow first, then decide what deserves a version number."
 
 ---
 
