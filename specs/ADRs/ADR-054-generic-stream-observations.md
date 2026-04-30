@@ -36,6 +36,9 @@ Introduce generic stream observation nodes owned by the host:
 - Domain-specific compatibility nodes remain projections. For LLM streaming, the
   host will dual-write `StreamChunk` observations and the existing partial
   `AgentResponse` projection during the migration period.
+- Retention is explicit and conservative: no automatic compaction deletes
+  `StreamChunk` or `StreamSession` observations until a governed delete/compact
+  primitive exists and consumers have migrated from compatibility projections.
 - Generic transport/framing remains separate from domain codecs:
   - `tractor::streaming` owns generic framing and stream observation builders.
   - LLM/provider parsing remains in the LLM bridge layer.
@@ -59,7 +62,8 @@ Introduce generic stream observation nodes owned by the host:
 - Dual-write temporarily increases storage volume.
 - Consumers must learn whether they are reading generic observations or a domain
   projection.
-- A future migration may need to compact or garbage-collect old chunk streams.
+- A future migration may need to compact or garbage-collect old chunk streams,
+  but that must be a governed operation rather than implicit write-path cleanup.
 - Ordering and stream identity must be handled carefully for interleaved streams.
 
 ## Alternatives Considered
