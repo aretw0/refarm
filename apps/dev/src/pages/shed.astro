@@ -17,7 +17,8 @@ import Layout from "../layouts/Layout.astro";
 </Layout>
 
 <script>
-  import { bootStudioRuntime, StudioShell } from "@refarm.dev/homestead/sdk";
+  import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
+  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 
   async function boot() {
     try {
@@ -31,8 +32,7 @@ import Layout from "../layouts/Layout.astro";
       });
       
       // 3. Handover to Shell Orchestrator
-      const shell = new StudioShell(tractor);
-      await shell.setup();
+      await setupStudioShell(tractor);
 
       // 4. Hide loading
       document.getElementById("loading-overlay")?.remove();

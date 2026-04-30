@@ -16,6 +16,10 @@
       "types": "./dist/sdk/runtime.d.ts",
       "import": "./dist/sdk/runtime.js"
     },
+    "./sdk/shell": {
+      "types": "./dist/sdk/Shell.d.ts",
+      "import": "./dist/sdk/Shell.js"
+    },
     "./sdk/surface-inspector": {
       "types": "./dist/sdk/surface-inspector.d.ts",
       "import": "./dist/sdk/surface-inspector.js"

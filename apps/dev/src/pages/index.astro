@@ -36,13 +36,12 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { SowerPlugin } from "@refarm.dev/sower";
+  import { FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
   import {
     bootStudioRuntime,
-    FireflyPlugin,
-    HeraldPlugin,
     resolveStudioRuntimeDatabaseName,
-    StudioShell,
-  } from "@refarm.dev/homestead/sdk";
+  } from "@refarm.dev/homestead/sdk/runtime";
+  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
   import {
     createStudioStreamSurfaceDemoPlugin,
     mountStudioStreamDemoControl,
@@ -128,8 +127,7 @@ import Layout from "../layouts/Layout.astro";
       }
       
       // 4. Handover to Shell Orchestrator
-      const shell = new StudioShell(tractor);
-      await shell.setup();
+      await setupStudioShell(tractor);
 
       const statusbar = document.getElementById("refarm-slot-statusbar");
       if (statusbar) {

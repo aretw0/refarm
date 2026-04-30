@@ -1,6 +1,6 @@
 /** @vitest-environment jsdom */
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { StudioShell } from "../src/sdk/Shell";
+import { setupStudioShell, StudioShell } from "../src/sdk/Shell";
 
 describe("StudioShell Orchestrator", () => {
     let tractorMock: any;
@@ -48,6 +48,16 @@ describe("StudioShell Orchestrator", () => {
         expect(slots.has("header")).toBe(true);
         expect(slots.has("main")).toBe(true);
         expect(slots.has("statusbar")).toBe(true);
+    });
+
+    it("should set up and return the shell through the shared helper", async () => {
+        const shell = await setupStudioShell(tractorMock as any);
+
+        expect(shell).toBeInstanceOf(StudioShell);
+        expect(tractorMock.observe).toHaveBeenCalledTimes(1);
+        expect(tractorMock.onNode).toHaveBeenCalledWith("StreamSession", expect.any(Function));
+        expect(tractorMock.onNode).toHaveBeenCalledWith("StreamChunk", expect.any(Function));
+        expect(document.getElementById("system-status")?.textContent).toBe("Ready");
     });
 
     it("should inject a plugin into its preferred slot", async () => {

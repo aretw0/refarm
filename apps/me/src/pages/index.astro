@@ -31,7 +31,9 @@ import { Layout } from "@refarm.dev/homestead/ui";
 </Layout>
 
 <script>
-  import { bootStudioRuntime, FireflyPlugin, HeraldPlugin, StudioShell } from "@refarm.dev/homestead/sdk";
+  import { FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
+  import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
+  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 
   async function boot() {
     try {
@@ -49,8 +51,7 @@ import { Layout } from "@refarm.dev/homestead/ui";
       new HeraldPlugin(tractor).announce();
       new FireflyPlugin(tractor);
 
-      const shell = new StudioShell(tractor);
-      await shell.setup();
+      await setupStudioShell(tractor);
 
       document.getElementById("loading-overlay")?.remove();
       

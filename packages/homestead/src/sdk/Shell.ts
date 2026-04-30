@@ -161,7 +161,9 @@ export class StudioShell {
 			return { trusted: true, source: "internal-entry" };
 		}
 
-		const registryStatus = this.tractor.registry?.getPlugin?.(plugin.id)?.status;
+		const registryStatus = this.tractor.registry?.getPlugin?.(
+			plugin.id,
+		)?.status;
 		return {
 			trusted: registryStatus === "validated" || registryStatus === "active",
 			source: "registry",
@@ -454,4 +456,10 @@ export class StudioShell {
 		const statusEl = document.getElementById("system-status");
 		if (statusEl) statusEl.textContent = text;
 	}
+}
+
+export async function setupStudioShell(tractor: Tractor): Promise<StudioShell> {
+	const shell = new StudioShell(tractor);
+	await shell.setup();
+	return shell;
 }

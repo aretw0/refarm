@@ -20,6 +20,9 @@
       "@refarm.dev/homestead/sdk/runtime": [
         "./packages/homestead/src/sdk/runtime"
       ],
+      "@refarm.dev/homestead/sdk/shell": [
+        "./packages/homestead/src/sdk/Shell"
+      ],
       "@refarm.dev/homestead/sdk/surface-inspector": [
         "./packages/homestead/src/sdk/surface-inspector"
       ],

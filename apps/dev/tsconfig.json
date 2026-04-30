@@ -16,6 +16,9 @@
 			"@refarm.dev/homestead/sdk/runtime": [
 				"../../packages/homestead/src/sdk/runtime.ts"
 			],
+			"@refarm.dev/homestead/sdk/shell": [
+				"../../packages/homestead/src/sdk/Shell.ts"
+			],
 			"@refarm.dev/homestead/sdk/surface-inspector": [
 				"../../packages/homestead/src/sdk/surface-inspector.ts"
 			]
