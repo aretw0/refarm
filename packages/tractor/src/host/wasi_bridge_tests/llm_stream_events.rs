@@ -455,6 +455,11 @@ fn store_stream_agent_response_chunks_from_reader_enforces_body_limit() {
     assert_eq!(session["status"], "failed");
     assert_eq!(session["last_sequence"], serde_json::Value::Null);
     assert_eq!(session["chunk_count"], 0);
+    assert_eq!(session["metadata"]["failure_kind"], "stream_read_failed");
+    assert!(session["metadata"]["failure_reason"]
+        .as_str()
+        .unwrap()
+        .contains("too large"));
 }
 
 fn stream_metadata(last_sequence: Option<u32>) -> super::StreamResponseMetadata {

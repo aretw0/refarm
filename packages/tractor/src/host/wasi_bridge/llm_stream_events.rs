@@ -168,19 +168,17 @@ fn store_stream_agent_response_chunks_from_reader(
         Ok(raw_body) => raw_body,
         Err(err) => {
             let stream_failed_at_ns = now_ns();
-            store_stream_session_observation(
-                sync,
-                source_plugin,
-                &stream_session_observation_draft(
-                    metadata,
-                    "failed",
-                    stream_started_at_ns,
-                    stream_failed_at_ns,
-                    Some(stream_failed_at_ns),
-                    last_stored_sequence,
-                    stored_chunks,
-                ),
-            )?;
+            let mut failed_session = stream_session_observation_draft(
+                metadata,
+                "failed",
+                stream_started_at_ns,
+                stream_failed_at_ns,
+                Some(stream_failed_at_ns),
+                last_stored_sequence,
+                stored_chunks,
+            );
+            annotate_stream_session_failure(&mut failed_session, &err);
+            store_stream_session_observation(sync, source_plugin, &failed_session)?;
             return Err(err);
         }
     };
@@ -603,6 +601,19 @@ fn stream_session_observation_draft(
             "model": metadata.model,
         }),
     }
+}
+
+fn annotate_stream_session_failure(draft: &mut StreamSessionObservationDraft, reason: &str) {
+    draft.metadata["failure_kind"] = serde_json::json!("stream_read_failed");
+    draft.metadata["failure_reason"] = serde_json::json!(sanitize_stream_failure_reason(reason));
+}
+
+fn sanitize_stream_failure_reason(reason: &str) -> String {
+    reason
+        .chars()
+        .map(|ch| if ch.is_control() { ' ' } else { ch })
+        .take(200)
+        .collect()
 }
 
 fn stream_observation_draft(
