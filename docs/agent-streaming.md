@@ -19,12 +19,13 @@ guest.
 
 - Each stream has a generic `StreamSession` observation keyed by `stream_ref`,
   with lifecycle status (`active`, `completed`, or `failed`), timing,
-  `last_sequence`, and `chunk_count` metadata.
+  `last_sequence`, and `chunk_count` metadata. Failed sessions include sanitized
+  `metadata.failure_kind` and `metadata.failure_reason` fields.
 - Each persisted delta has a generic `StreamChunk` observation with
   `stream_ref`, `sequence`, `payload_kind`, `content`, `is_final`, and metadata.
-- A final `StreamChunk` marker uses `is_final: true`, `payload_kind:
-"final_text"`, and the assembled text when the host observes provider stream
-  completion.
+- A final `StreamChunk` marker uses `is_final: true`. Its `payload_kind` is
+  `final_text` for assembled text, `final_tool_call` for tool-call-only streams,
+  or `final_empty` for usage/empty terminal observations.
 - For compatibility, partial chunks are also projected to `AgentResponse` nodes
   with `is_final: false`.
 - Partial `content` is a delta. Clients should order by `sequence` and append.
