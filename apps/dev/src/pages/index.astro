@@ -41,6 +41,7 @@ import Layout from "../layouts/Layout.astro";
   import { Tractor } from "@refarm.dev/tractor";
   import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
   import {
+    createStudioStreamSurfaceDemoPlugin,
     mountStudioStreamDemoControl,
     seedStudioStreamDemo,
     shouldSeedStudioStreamDemo,
@@ -60,6 +61,11 @@ import Layout from "../layouts/Layout.astro";
       const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
       const syncClient = new BrowserSyncClient(storage);
       syncClient.connect();
+
+      const streamDemoEnabled = shouldSeedStudioStreamDemo(
+        window.location.href,
+        localStorage.getItem(STUDIO_STREAM_DEMO_STORAGE_KEY),
+      );
 
       const identity = {
         id: "core",
@@ -124,15 +130,19 @@ import Layout from "../layouts/Layout.astro";
         emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" }),
         state: "idle"
       });
+
+      if (streamDemoEnabled) {
+        tractor.plugins.registerInternal(
+          createStudioStreamSurfaceDemoPlugin((event, payload) =>
+            tractor.emitTelemetry({ event, payload, pluginId: "studio-stream-surface-demo" }),
+          ),
+        );
+      }
       
       // 4. Handover to Shell Orchestrator
       const shell = new StudioShell(tractor);
       await shell.setup();
 
-      const streamDemoEnabled = shouldSeedStudioStreamDemo(
-        window.location.href,
-        localStorage.getItem(STUDIO_STREAM_DEMO_STORAGE_KEY),
-      );
       const statusbar = document.getElementById("refarm-slot-statusbar");
       if (statusbar) {
         mountStudioStreamDemoControl(statusbar, {

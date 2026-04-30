@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createStudioStreamSurfaceDemoPlugin,
 	mountStudioStreamDemoControl,
 	seedStudioStreamDemo,
 	shouldSeedStudioStreamDemo,
+	STUDIO_STREAM_SURFACE_PLUGIN_ID,
 	studioStreamDemoNodes,
 } from "./stream-demo";
 
@@ -39,6 +41,22 @@ describe("Studio stream demo seeding", () => {
 			expect.objectContaining({ "@type": "StreamSession" }),
 			"none",
 		);
+	});
+
+	it("creates a Homestead surface plugin for the Studio stream demo", () => {
+		const plugin = createStudioStreamSurfaceDemoPlugin();
+
+		expect(plugin.id).toBe(STUDIO_STREAM_SURFACE_PLUGIN_ID);
+		expect(plugin.state).toBe("running");
+		expect(plugin.manifest.extensions?.surfaces).toEqual([
+			expect.objectContaining({
+				layer: "homestead",
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+				capabilities: ["ui:panel:render", "ui:stream:read"],
+			}),
+		]);
 	});
 
 	it("mounts a visible toggle control in the Studio statusbar", () => {
