@@ -7,7 +7,33 @@ export interface HomesteadSurfaceRenderRequest {
 	mountSource: HomesteadSurfaceMount["source"];
 	surface?: ExtensionSurfaceDeclaration;
 	locale: string;
+	host?: HomesteadSurfaceRenderHostContext;
 }
+
+export interface HomesteadSurfaceRenderAction {
+	id: string;
+	label: string;
+	intent?: string;
+	payload?: Record<string, unknown>;
+}
+
+export interface HomesteadSurfaceRenderHostContext {
+	hostId?: string;
+	data?: Record<string, unknown>;
+	actions?: HomesteadSurfaceRenderAction[];
+}
+
+export type HomesteadSurfaceRenderContextRequest = Omit<
+	HomesteadSurfaceRenderRequest,
+	"host"
+>;
+
+export type HomesteadSurfaceRenderContextProvider = (
+	request: HomesteadSurfaceRenderContextRequest,
+) =>
+	| HomesteadSurfaceRenderHostContext
+	| undefined
+	| Promise<HomesteadSurfaceRenderHostContext | undefined>;
 
 export type HomesteadSurfaceRenderResult =
 	| string

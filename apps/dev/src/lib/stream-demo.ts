@@ -5,6 +5,7 @@ import type {
 } from "@refarm.dev/tractor";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import type {
+	HomesteadSurfaceRenderContextProvider,
 	HomesteadSurfaceRenderRequest,
 	HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
@@ -16,6 +17,10 @@ export const STUDIO_STREAM_SURFACE_PLUGIN_ID = "studio-stream-surface-demo";
 export interface StudioStreamDemoControlOptions {
 	enabled: boolean;
 	onToggle: () => void;
+}
+
+export interface StudioStreamSurfaceContextProviderOptions {
+	baseUrl?: string;
 }
 
 export function shouldSeedStudioStreamDemo(
@@ -92,13 +97,54 @@ export function renderStudioStreamSurfaceDemo(
 		request.surface?.id ?? "studio-stream-panel",
 	);
 	const slotId = escapeStudioStreamSurfaceText(request.slotId);
+	const hostId = escapeStudioStreamSurfaceText(
+		request.host?.hostId ?? "unknown host",
+	);
+	const streamRef = escapeStudioStreamSurfaceText(
+		String(request.host?.data?.streamRef ?? DEMO_STREAM_REF),
+	);
+	const actionLinks = (request.host?.actions ?? [])
+		.map((action) => {
+			const href =
+				typeof action.payload?.href === "string" ? action.payload.href : "#";
+			return `<a class="refarm-btn refarm-btn-pill" data-refarm-studio-surface-action="${escapeStudioStreamSurfaceText(action.id)}" href="${escapeStudioStreamSurfaceText(href)}">${escapeStudioStreamSurfaceText(action.label)}</a>`;
+		})
+		.join("");
 	return {
 		html: `<section class="refarm-surface-card refarm-stack" data-refarm-studio-stream-surface="${surfaceId}">
 			<p class="refarm-eyebrow">Executable Studio surface</p>
 			<h3>Daily stream cockpit</h3>
 			<p>This panel is rendered by <code class="refarm-code">${STUDIO_STREAM_SURFACE_PLUGIN_ID}</code> through Homestead's <code class="refarm-code">renderHomesteadSurface</code> hook.</p>
-			<p>Mounted in <strong>${slotId}</strong> with stream read capability.</p>
+			<p>Mounted in <strong>${slotId}</strong> with stream read capability and host context from <code class="refarm-code">${hostId}</code>.</p>
+			<p>Tracking <code class="refarm-code">${streamRef}</code>.</p>
+			${actionLinks ? `<div class="refarm-cluster">${actionLinks}</div>` : ""}
 		</section>`,
+	};
+}
+
+export function createStudioStreamSurfaceContextProvider(
+	options: StudioStreamSurfaceContextProviderOptions = {},
+): HomesteadSurfaceRenderContextProvider {
+	const baseUrl = options.baseUrl ?? "/";
+	return (request) => {
+		if (request.pluginId !== STUDIO_STREAM_SURFACE_PLUGIN_ID) return undefined;
+		if (request.surface?.id !== "studio-stream-panel") return undefined;
+
+		return {
+			hostId: "apps/dev",
+			data: {
+				streamRef: DEMO_STREAM_REF,
+				surfacePurpose: "daily-driver stream experimentation",
+			},
+			actions: [
+				{
+					id: "open-stream-workbench",
+					label: "Open stream workbench",
+					intent: "studio:navigate",
+					payload: { href: `${baseUrl}streams?stream-demo` },
+				},
+			],
+		};
 	};
 }
 

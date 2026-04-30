@@ -188,6 +188,74 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should pass host-owned surface context into plugin render hooks", async () => {
+        const renderHomesteadSurface = vi.fn().mockResolvedValue("Context aware");
+        const surfaceContext = vi.fn().mockResolvedValue({
+            hostId: "apps/dev",
+            data: { streamCount: 2 },
+            actions: [
+                {
+                    id: "open-streams",
+                    label: "Open streams",
+                    intent: "studio:navigate",
+                    payload: { href: "/streams" },
+                },
+            ],
+        });
+        const plugin = {
+            id: "contextual-surface-plugin",
+            state: "running",
+            call: renderHomesteadSurface,
+            manifest: {
+                entry: "internal:contextual-surface-plugin",
+                capabilities: { provides: [], requires: [] },
+                extensions: {
+                    surfaces: [
+                        {
+                            layer: "homestead",
+                            kind: "panel",
+                            id: "contextual-panel",
+                            slot: "main",
+                            capabilities: ["ui:panel:render", "ui:stream:read"],
+                        },
+                    ],
+                },
+            },
+        };
+        tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
+        tractorMock.plugins.get.mockReturnValue(plugin);
+
+        const shell = new StudioShell(tractorMock as any, { surfaceContext });
+        await shell.setup();
+
+        expect(surfaceContext).toHaveBeenCalledWith({
+            pluginId: "contextual-surface-plugin",
+            slotId: "main",
+            mountSource: "extension-surface",
+            surface: expect.objectContaining({ id: "contextual-panel" }),
+            locale: "en",
+        });
+        expect(renderHomesteadSurface).toHaveBeenCalledWith("renderHomesteadSurface", {
+            pluginId: "contextual-surface-plugin",
+            slotId: "main",
+            mountSource: "extension-surface",
+            surface: expect.objectContaining({ id: "contextual-panel" }),
+            locale: "en",
+            host: {
+                hostId: "apps/dev",
+                data: { streamCount: 2 },
+                actions: [
+                    {
+                        id: "open-streams",
+                        label: "Open streams",
+                        intent: "studio:navigate",
+                        payload: { href: "/streams" },
+                    },
+                ],
+            },
+        });
+    });
+
     it("should emit telemetry when homestead surface rendering fails", async () => {
         const renderHomesteadSurface = vi.fn().mockRejectedValue(new Error("render boom"));
         const plugin = {

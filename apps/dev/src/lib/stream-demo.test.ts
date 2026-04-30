@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createStudioStreamSurfaceContextProvider,
 	createStudioStreamSurfaceDemoPlugin,
 	mountStudioStreamDemoControl,
 	renderStudioStreamSurfaceDemo,
@@ -91,6 +92,79 @@ describe("Studio stream demo seeding", () => {
 			html: expect.stringContaining("studio-&quot;stream&quot;-panel"),
 		});
 		expect((rendered as { html: string }).html).toContain("&lt;streams&gt;");
+	});
+
+	it("renders host-owned context and actions in the executable stream surface", () => {
+		const provider = createStudioStreamSurfaceContextProvider({
+			baseUrl: "/studio/",
+		});
+		const host = provider({
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+			},
+			locale: "en",
+		});
+
+		expect(host).toMatchObject({
+			hostId: "apps/dev",
+			data: {
+				streamRef: "urn:tractor:stream:agent-response:studio-demo",
+			},
+			actions: [
+				expect.objectContaining({
+					id: "open-stream-workbench",
+					intent: "studio:navigate",
+					payload: { href: "/studio/streams?stream-demo" },
+				}),
+			],
+		});
+
+		const rendered = renderStudioStreamSurfaceDemo({
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+			},
+			locale: "en",
+			host: host as any,
+		});
+
+		expect((rendered as { html: string }).html).toContain("apps/dev");
+		expect((rendered as { html: string }).html).toContain(
+			"open-stream-workbench",
+		);
+		expect((rendered as { html: string }).html).toContain(
+			"/studio/streams?stream-demo",
+		);
+	});
+
+	it("keeps Studio stream surface context scoped to the demo plugin", () => {
+		const provider = createStudioStreamSurfaceContextProvider();
+
+		expect(
+			provider({
+				pluginId: "other-plugin",
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surface: {
+					layer: "homestead",
+					kind: "panel",
+					id: "studio-stream-panel",
+					slot: "streams",
+				},
+				locale: "en",
+			}),
+		).toBeUndefined();
 	});
 
 	it("mounts a visible toggle control in the Studio statusbar", () => {

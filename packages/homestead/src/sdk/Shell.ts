@@ -27,6 +27,8 @@ import {
 } from "./stream-observer.js";
 import {
 	homesteadSurfaceRenderContent,
+	type HomesteadSurfaceRenderContextProvider,
+	type HomesteadSurfaceRenderContextRequest,
 	type HomesteadSurfaceRenderResult,
 } from "./surface-renderer.js";
 
@@ -36,6 +38,10 @@ import ptBR from "@refarm.dev/locales/pt-BR.json";
 export interface ShellSlot {
 	id: string;
 	element: HTMLElement;
+}
+
+export interface StudioShellOptions {
+	surfaceContext?: HomesteadSurfaceRenderContextProvider;
 }
 
 /**
@@ -48,7 +54,10 @@ export class StudioShell {
 	private streamSessions: StreamSessionStateMap = {};
 	private streamChunks: StreamChunkStateMap = {};
 
-	constructor(private tractor: Tractor) {
+	constructor(
+		private tractor: Tractor,
+		private options: StudioShellOptions = {},
+	) {
 		this.l8n = new L8nHost();
 		this.setupL8n();
 		this.discoverSlots();
@@ -456,13 +465,21 @@ export class StudioShell {
 			if (plugin?.call && mount.surface) {
 				let renderResult: HomesteadSurfaceRenderResult;
 				try {
-					renderResult = (await plugin.call("renderHomesteadSurface", {
+					const renderRequest: HomesteadSurfaceRenderContextRequest = {
 						pluginId,
 						slotId,
 						mountSource: mount.source,
 						surface: mount.surface,
 						locale,
-					})) as HomesteadSurfaceRenderResult;
+					};
+					const host = await this.options.surfaceContext?.(renderRequest);
+					const surfaceRenderRequest = host
+						? { ...renderRequest, host }
+						: renderRequest;
+					renderResult = (await plugin.call(
+						"renderHomesteadSurface",
+						surfaceRenderRequest,
+					)) as HomesteadSurfaceRenderResult;
 				} catch (error) {
 					pluginWrap.dataset.refarmSurfaceRenderMode = "failed";
 					this.emitSurfaceRenderFailed(pluginId, mount, slotId, error);
@@ -543,14 +560,16 @@ export class StudioShell {
 	}
 }
 
-
 function surfaceRenderErrorMessage(error: unknown): string | undefined {
 	if (error instanceof Error) return error.message;
 	return typeof error === "string" && error.length > 0 ? error : undefined;
 }
 
-export async function setupStudioShell(tractor: Tractor): Promise<StudioShell> {
-	const shell = new StudioShell(tractor);
+export async function setupStudioShell(
+	tractor: Tractor,
+	options: StudioShellOptions = {},
+): Promise<StudioShell> {
+	const shell = new StudioShell(tractor, options);
 	await shell.setup();
 	return shell;
 }
