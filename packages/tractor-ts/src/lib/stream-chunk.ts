@@ -19,6 +19,11 @@ export interface StreamChunkState {
 export type StreamChunkStateMap = Record<string, StreamChunkState>;
 
 export const UNKNOWN_STREAM_REF = "__tractor:no-stream-ref__";
+export const TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS = new Set([
+	"final_text",
+	"final_tool_call",
+	"final_empty",
+]);
 
 export function emptyStreamChunkState(
 	streamRef: string | null = null,
@@ -103,4 +108,22 @@ export function reduceStreamChunkEventsByStream(
 	initialStateMap: StreamChunkStateMap = {},
 ): StreamChunkStateMap {
 	return events.reduce(applyStreamChunkEventToMap, initialStateMap);
+}
+
+export function isTerminalStreamChunkPayloadKind(
+	payloadKind: string | null,
+): boolean {
+	return (
+		typeof payloadKind === "string" &&
+		TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
+	);
+}
+
+export function isTerminalStreamChunk(event: StreamChunkEvent): boolean {
+	return (
+		event.is_final === true ||
+		isTerminalStreamChunkPayloadKind(
+			typeof event.payload_kind === "string" ? event.payload_kind : null,
+		)
+	);
 }

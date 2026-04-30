@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamChunkEvent,
 	emptyStreamChunkState,
+	isTerminalStreamChunk,
+	isTerminalStreamChunkPayloadKind,
 	orderStreamChunkEvents,
 	reduceStreamChunkEvents,
 	reduceStreamChunkEventsByStream,
@@ -82,6 +84,19 @@ describe("StreamChunk accumulator", () => {
 			isFinal: false,
 			payloadKind: null,
 		});
+	});
+
+	it("detects terminal stream chunk markers", () => {
+		expect(isTerminalStreamChunkPayloadKind("final_text")).toBe(true);
+		expect(isTerminalStreamChunkPayloadKind("final_tool_call")).toBe(true);
+		expect(isTerminalStreamChunkPayloadKind("final_empty")).toBe(true);
+		expect(isTerminalStreamChunkPayloadKind("text_delta")).toBe(false);
+		expect(isTerminalStreamChunk({ payload_kind: "final_tool_call" })).toBe(
+			true,
+		);
+		expect(
+			isTerminalStreamChunk({ payload_kind: "text_delta", is_final: true }),
+		).toBe(true);
 	});
 
 	it("preserves prior stream identity when events omit stream_ref", () => {
