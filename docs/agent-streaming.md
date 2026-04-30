@@ -61,15 +61,17 @@ accumulator.
 Generic stream observations are queryable without a daemon:
 
 ```bash
-tractor query --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref>
+tractor query --type StreamSession --prompt-ref <prompt-ref>
+tractor query --type StreamChunk --prompt-ref <prompt-ref>
+# Equivalent explicit form:
 tractor query --type StreamChunk --stream-ref urn:tractor:stream:agent-response:<prompt-ref>
 ```
 
 They can also be watched through the polling fallback:
 
 ```bash
-tractor watch --type StreamChunk --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
-tractor watch --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
+tractor watch --type StreamChunk --prompt-ref <prompt-ref> --until-final
+tractor watch --type StreamSession --prompt-ref <prompt-ref> --until-final
 ```
 
 For generic streams, `--until-final` stops on `is_final: true`, terminal
