@@ -85,6 +85,7 @@ export function mountStudioStreamDemoControl(
 
 	const button = document.createElement("button");
 	button.type = "button";
+	button.className = "refarm-btn refarm-btn-pill";
 	button.dataset.refarmStudioStreamDemo = "true";
 	button.textContent = options.enabled
 		? "Disable Studio stream demo"
@@ -93,15 +94,6 @@ export function mountStudioStreamDemoControl(
 		"aria-pressed",
 		options.enabled ? "true" : "false",
 	);
-	button.style.marginLeft = "1rem";
-	button.style.padding = "0.2rem 0.55rem";
-	button.style.border = "1px solid var(--refarm-border-default)";
-	button.style.borderRadius = "999px";
-	button.style.background = options.enabled
-		? "rgba(35, 134, 54, 0.12)"
-		: "transparent";
-	button.style.color = "inherit";
-	button.style.cursor = "pointer";
 	button.addEventListener("click", options.onToggle);
 
 	container.appendChild(button);

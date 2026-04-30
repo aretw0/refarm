@@ -5,24 +5,24 @@ const demoHref = `${import.meta.env.BASE_URL}?stream-demo`;
 ---
 
 <Layout title="Streams — Refarm Studio">
-  <section class="stream-workbench" aria-labelledby="stream-workbench-title">
-    <div class="stream-workbench__eyebrow">Studio dev surface</div>
-    <div class="stream-workbench__grid">
+  <section class="refarm-surface refarm-workbench" aria-labelledby="stream-workbench-title">
+    <div class="refarm-eyebrow stream-workbench__eyebrow">Studio dev surface</div>
+    <div class="refarm-workbench-grid">
       <div>
-        <h1 id="stream-workbench-title">Agent stream workbench</h1>
-        <p class="stream-workbench__lead">
-          Validate Homestead stream rendering inside <code>apps/dev</code> before
+        <h1 id="stream-workbench-title" class="refarm-workbench-title">Agent stream workbench</h1>
+        <p class="refarm-workbench-lead">
+          Validate Homestead stream rendering inside <code class="refarm-code">apps/dev</code> before
           promoting UI primitives to daily-driver app surfaces.
         </p>
-        <div class="stream-workbench__actions">
-          <a class="stream-workbench__primary" href={demoHref}>Enable demo stream</a>
-          <code>localStorage["refarm:studio:stream-demo"] = "1"</code>
+        <div class="refarm-cluster stream-workbench__actions">
+          <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={demoHref}>Enable demo stream</a>
+          <code class="refarm-code">localStorage["refarm:studio:stream-demo"] = "1"</code>
         </div>
       </div>
-      <aside class="stream-workbench__card" aria-label="Validation notes">
+      <aside class="refarm-surface-card stream-workbench__card" aria-label="Validation notes">
         <strong>What this proves</strong>
         <ul>
-          <li>Generic <code>StreamSession</code> and <code>StreamChunk</code> nodes are stored through Tractor.</li>
+          <li>Generic <code class="refarm-code">StreamSession</code> and <code class="refarm-code">StreamChunk</code> nodes are stored through Tractor.</li>
           <li>Homestead observes typed nodes without schema-specific sync logic.</li>
           <li>The Studio shell renders both statusbar and panel views.</li>
         </ul>
@@ -31,92 +31,20 @@ const demoHref = `${import.meta.env.BASE_URL}?stream-demo`;
   </section>
 
   <style>
-    .stream-workbench {
-      --stream-accent: #238636;
-      --stream-ink: var(--refarm-text-primary);
-      border: 1px solid var(--refarm-border-default);
-      border-radius: 28px;
-      padding: clamp(1.25rem, 3vw, 2.5rem);
-      background:
-        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.18), transparent 34rem),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(35, 134, 54, 0.06));
-      box-shadow: var(--refarm-shadow-lg, 0 24px 80px rgba(0, 0, 0, 0.12));
-    }
-
     .stream-workbench__eyebrow {
-      display: inline-flex;
       margin-bottom: 1rem;
       padding: 0.25rem 0.6rem;
       border: 1px solid rgba(35, 134, 54, 0.28);
       border-radius: 999px;
-      color: var(--stream-accent);
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
-
-    .stream-workbench__grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
-      gap: clamp(1rem, 4vw, 2rem);
-      align-items: stretch;
-    }
-
-    .stream-workbench h1 {
-      max-width: 12ch;
-      margin: 0;
-      color: var(--stream-ink);
-      font-size: clamp(2.3rem, 8vw, 5.5rem);
-      line-height: 0.88;
-      letter-spacing: -0.08em;
-    }
-
-    .stream-workbench__lead {
-      max-width: 42rem;
-      margin: 1.25rem 0 0;
-      color: var(--refarm-text-secondary);
-      font-size: clamp(1rem, 2vw, 1.25rem);
     }
 
     .stream-workbench__actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.8rem;
-      align-items: center;
       margin-top: 1.5rem;
     }
 
-    .stream-workbench__primary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 2.65rem;
-      padding: 0 1rem;
-      border-radius: 999px;
-      background: var(--stream-accent);
-      color: white;
-      font-weight: 800;
-      text-decoration: none;
-      box-shadow: 0 14px 34px rgba(35, 134, 54, 0.22);
-    }
-
-    .stream-workbench code {
-      border: 1px solid var(--refarm-border-default);
-      border-radius: 0.55rem;
-      padding: 0.2rem 0.35rem;
-      background: rgba(0, 0, 0, 0.04);
-      font-size: 0.84em;
-    }
-
     .stream-workbench__card {
-      display: grid;
       align-content: start;
-      gap: 0.9rem;
-      border: 1px solid var(--refarm-border-default);
-      border-radius: 22px;
       padding: 1.25rem;
-      background: var(--refarm-bg-elevated, rgba(255, 255, 255, 0.72));
     }
 
     .stream-workbench__card ul {
@@ -125,12 +53,6 @@ const demoHref = `${import.meta.env.BASE_URL}?stream-demo`;
       margin: 0;
       padding-left: 1.1rem;
       color: var(--refarm-text-secondary);
-    }
-
-    @media (max-width: 760px) {
-      .stream-workbench__grid {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </Layout>

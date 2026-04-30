@@ -51,6 +51,8 @@ describe("Studio stream demo seeding", () => {
 		});
 
 		expect(button.textContent).toBe("Enable Studio stream demo");
+		expect(button.className).toContain("refarm-btn");
+		expect(button.className).toContain("refarm-btn-pill");
 		expect(button.getAttribute("aria-pressed")).toBe("false");
 		button.click();
 		expect(onToggle).toHaveBeenCalledTimes(1);
