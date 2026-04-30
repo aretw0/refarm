@@ -138,6 +138,7 @@ Daemon mode (default, no subcommand):
 | `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
 | `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+| `--llm-stream-responses` | `false` | Set `LLM_STREAM_RESPONSES=1` before startup plugins load |
 
 Prompt/watch-specific flags are available via:
 - `tractor prompt --help`

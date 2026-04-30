@@ -9,6 +9,13 @@ Streaming is disabled by default. Enable it per process/session with:
 LLM_STREAM_RESPONSES=1
 ```
 
+For startup plugins loaded by the Tractor daemon, the equivalent governed CLI
+entrypoint is:
+
+```bash
+tractor --llm-stream-responses --plugin ./packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm
+```
+
 When enabled, pi-agent requests provider-level `stream: true`; Tractor keeps
 provider credentials and route enforcement in the host, reads the SSE response,
 dual-writes generic `StreamChunk` observations plus partial `AgentResponse`
