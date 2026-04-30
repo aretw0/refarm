@@ -89,7 +89,9 @@ plugin implements `renderHomesteadSurface`, Homestead calls it with the plugin
 id, slot id, mount source, surface declaration, and locale. Hosts can also
 configure a surface context provider that adds optional host-owned context and
 action descriptors under `host`, without hiding host-specific plugin
-registration or adding app behavior to Homestead. Plain string and
+registration or adding app behavior to Homestead. The SDK owns the reusable
+matching helper (`createScopedHomesteadSurfaceContextProvider(...)`); hosts own
+the concrete data and actions they expose. Plain string and
 `{ "text": "..." }` results write text; `{ "html": "..." }` is explicit
 trusted HTML. Rendered surfaces then emit `ui:surface_rendered`, while thrown
 hook failures mark the wrapper as `failed` and emit `ui:surface_render_failed`.

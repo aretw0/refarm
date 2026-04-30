@@ -35,6 +35,20 @@ export type HomesteadSurfaceRenderContextProvider = (
 	| undefined
 	| Promise<HomesteadSurfaceRenderHostContext | undefined>;
 
+export interface HomesteadSurfaceRenderContextScope {
+	pluginId?: string;
+	slotId?: string;
+	surfaceId?: string;
+	surfaceKind?: string;
+}
+
+export type HomesteadSurfaceRenderContextFactory = (
+	request: HomesteadSurfaceRenderContextRequest,
+) =>
+	| HomesteadSurfaceRenderHostContext
+	| undefined
+	| Promise<HomesteadSurfaceRenderHostContext | undefined>;
+
 export type HomesteadSurfaceRenderResult =
 	| string
 	| {
@@ -47,6 +61,30 @@ export type HomesteadSurfaceRenderResult =
 export type HomesteadSurfaceRenderContent =
 	| { kind: "html"; value: string }
 	| { kind: "text"; value: string };
+
+export function homesteadSurfaceRenderContextMatches(
+	request: HomesteadSurfaceRenderContextRequest,
+	scope: HomesteadSurfaceRenderContextScope,
+): boolean {
+	if (scope.pluginId && request.pluginId !== scope.pluginId) return false;
+	if (scope.slotId && request.slotId !== scope.slotId) return false;
+	if (scope.surfaceId && request.surface?.id !== scope.surfaceId) return false;
+	if (scope.surfaceKind && request.surface?.kind !== scope.surfaceKind) {
+		return false;
+	}
+
+	return true;
+}
+
+export function createScopedHomesteadSurfaceContextProvider(
+	scope: HomesteadSurfaceRenderContextScope,
+	createContext: HomesteadSurfaceRenderContextFactory,
+): HomesteadSurfaceRenderContextProvider {
+	return (request) =>
+		homesteadSurfaceRenderContextMatches(request, scope)
+			? createContext(request)
+			: undefined;
+}
 
 /**
  * Normalize plugin-provided Homestead surface render results into a DOM write

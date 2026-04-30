@@ -4,10 +4,11 @@ import type {
 	Tractor,
 } from "@refarm.dev/tractor";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
-import type {
-	HomesteadSurfaceRenderContextProvider,
-	HomesteadSurfaceRenderRequest,
-	HomesteadSurfaceRenderResult,
+import {
+	createScopedHomesteadSurfaceContextProvider,
+	type HomesteadSurfaceRenderContextProvider,
+	type HomesteadSurfaceRenderRequest,
+	type HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
@@ -126,11 +127,12 @@ export function createStudioStreamSurfaceContextProvider(
 	options: StudioStreamSurfaceContextProviderOptions = {},
 ): HomesteadSurfaceRenderContextProvider {
 	const baseUrl = options.baseUrl ?? "/";
-	return (request) => {
-		if (request.pluginId !== STUDIO_STREAM_SURFACE_PLUGIN_ID) return undefined;
-		if (request.surface?.id !== "studio-stream-panel") return undefined;
-
-		return {
+	return createScopedHomesteadSurfaceContextProvider(
+		{
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			surfaceId: "studio-stream-panel",
+		},
+		() => ({
 			hostId: "apps/dev",
 			data: {
 				streamRef: DEMO_STREAM_REF,
@@ -144,8 +146,8 @@ export function createStudioStreamSurfaceContextProvider(
 					payload: { href: `${baseUrl}streams?stream-demo` },
 				},
 			],
-		};
-	};
+		}),
+	);
 }
 
 export function createStudioStreamSurfaceDemoPlugin(

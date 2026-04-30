@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { homesteadSurfaceRenderContent } from "../src/sdk/surface-renderer";
+import {
+	createScopedHomesteadSurfaceContextProvider,
+	homesteadSurfaceRenderContent,
+	homesteadSurfaceRenderContextMatches,
+} from "../src/sdk/surface-renderer";
 
 describe("homesteadSurfaceRenderContent", () => {
 	it("normalizes explicit HTML render results", () => {
@@ -23,5 +27,60 @@ describe("homesteadSurfaceRenderContent", () => {
 	it("ignores empty or unsupported render results", () => {
 		expect(homesteadSurfaceRenderContent(null)).toBeUndefined();
 		expect(homesteadSurfaceRenderContent({})).toBeUndefined();
+	});
+});
+
+describe("Homestead surface render context helpers", () => {
+	const request = {
+		pluginId: "studio-stream-surface-demo",
+		slotId: "streams",
+		mountSource: "extension-surface" as const,
+		surface: {
+			layer: "homestead" as const,
+			kind: "panel",
+			id: "studio-stream-panel",
+			slot: "streams",
+		},
+		locale: "en",
+	};
+
+	it("matches scoped host context requests", () => {
+		expect(
+			homesteadSurfaceRenderContextMatches(request, {
+				pluginId: "studio-stream-surface-demo",
+				slotId: "streams",
+				surfaceId: "studio-stream-panel",
+				surfaceKind: "panel",
+			}),
+		).toBe(true);
+		expect(
+			homesteadSurfaceRenderContextMatches(request, {
+				pluginId: "other-plugin",
+			}),
+		).toBe(false);
+	});
+
+	it("creates reusable scoped host context providers", async () => {
+		const provider = createScopedHomesteadSurfaceContextProvider(
+			{
+				pluginId: "studio-stream-surface-demo",
+				surfaceId: "studio-stream-panel",
+			},
+			() => ({
+				hostId: "apps/dev",
+				data: { streamCount: 1 },
+			}),
+		);
+
+		expect(await provider(request)).toEqual({
+			hostId: "apps/dev",
+			data: { streamCount: 1 },
+		});
+		expect(
+			provider({
+				...request,
+				pluginId: "other-plugin",
+			}),
+		).toBeUndefined();
 	});
 });
