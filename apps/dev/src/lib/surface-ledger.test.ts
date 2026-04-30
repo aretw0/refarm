@@ -18,6 +18,7 @@ describe("Studio surface ledger", () => {
 				state: "running",
 				surfaceKind: "panel",
 				surfaceId: "surface-ledger-panel",
+				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
 			}),
 		);
 
@@ -42,6 +43,9 @@ describe("Studio surface ledger", () => {
 		expect(ledger.textContent).toContain("1 rejected");
 		expect(ledger.textContent).toContain("studio-surface-diagnostics");
 		expect(ledger.textContent).toContain("surface-ledger-panel");
+		expect(ledger.textContent).toContain(
+			"caps: ui:panel:render, ui:stream:read",
+		);
 		expect(ledger.textContent).toContain("external-untrusted-surface");
 		expect(ledger.textContent).toContain(
 			"untrusted-plugin registry: registered",
@@ -139,6 +143,7 @@ function createSurfaceMount(metadata: {
 	state?: string;
 	surfaceKind?: string;
 	surfaceId?: string;
+	surfaceCapabilities?: string[];
 }): HTMLElement {
 	const element = document.createElement("div");
 	element.dataset.refarmPluginId = metadata.pluginId;
@@ -148,6 +153,10 @@ function createSurfaceMount(metadata: {
 	if (metadata.surfaceKind)
 		element.dataset.refarmSurfaceKind = metadata.surfaceKind;
 	if (metadata.surfaceId) element.dataset.refarmSurfaceId = metadata.surfaceId;
+	if (metadata.surfaceCapabilities?.length) {
+		element.dataset.refarmSurfaceCapabilities =
+			metadata.surfaceCapabilities.join(" ");
+	}
 	return element;
 }
 

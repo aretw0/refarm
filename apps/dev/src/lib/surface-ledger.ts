@@ -142,9 +142,17 @@ function renderMountedRow(
 		surface.surfaceId ?? surface.mountSource,
 		surface.slotId,
 		surface.surfaceKind ?? "legacy",
-		surface.state ? `state: ${surface.state}` : "accepted",
+		mountedSurfaceGateDetail(surface),
 	]);
 	return row;
+}
+
+function mountedSurfaceGateDetail(surface: MountedHomesteadSurface): string {
+	const state = surface.state ? `state: ${surface.state}` : "accepted";
+	const capabilities = surface.surfaceCapabilities?.length
+		? ` caps: ${surface.surfaceCapabilities.join(", ")}`
+		: "";
+	return `${state}${capabilities}`;
 }
 
 function renderRejectedRow(

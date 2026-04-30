@@ -110,6 +110,7 @@ describe("StudioShell Orchestrator", () => {
         const surfaceMount = main?.querySelector("[data-refarm-surface-id='stream-panel']");
         expect(surfaceMount?.getAttribute("data-refarm-mount-source")).toBe("extension-surface");
         expect(surfaceMount?.getAttribute("data-refarm-surface-kind")).toBe("panel");
+        expect(surfaceMount?.getAttribute("data-refarm-surface-capabilities")).toBe("ui:panel:render");
         expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
             event: "ui:surface_mounted",
             pluginId: "surface-plugin",
@@ -119,6 +120,7 @@ describe("StudioShell Orchestrator", () => {
                 surfaceId: "stream-panel",
                 surfaceKind: "panel",
                 surfaceLayer: "homestead",
+                surfaceCapabilities: ["ui:panel:render"],
             },
         });
     });

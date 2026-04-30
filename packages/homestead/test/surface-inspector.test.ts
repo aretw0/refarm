@@ -21,6 +21,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceLayer: "homestead",
 				surfaceKind: "panel",
 				surfaceId: "stream-panel",
+				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
 			}),
 			createMountElement({
 				pluginId: "legacy-plugin",
@@ -38,6 +39,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceLayer: "homestead",
 				surfaceKind: "panel",
 				surfaceId: "stream-panel",
+				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
 			},
 			{
 				pluginId: "legacy-plugin",
@@ -47,6 +49,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceLayer: undefined,
 				surfaceKind: undefined,
 				surfaceId: undefined,
+				surfaceCapabilities: undefined,
 			},
 		]);
 	});
@@ -61,7 +64,9 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceKind: "panel",
 				surfaceId: "stream-panel",
 			}),
-		).toBe("stream-plugin:extension-surface:streams:homestead:panel:stream-panel");
+		).toBe(
+			"stream-plugin:extension-surface:streams:homestead:panel:stream-panel",
+		);
 
 		expect(
 			mountedHomesteadSurfaceKey({
@@ -81,17 +86,18 @@ describe("listMountedHomesteadSurfaces", () => {
 				event: "system:plugin_state_changed",
 			}),
 		).toBe(true);
-		expect(isHomesteadSurfaceChangeEvent({ event: "storage:io" })).toBe(
-			false,
-		);
+		expect(isHomesteadSurfaceChangeEvent({ event: "storage:io" })).toBe(false);
 	});
 
 	it("observes only telemetry events that can change mounted surfaces", () => {
 		const telemetry = createTelemetrySource();
 		const observed: string[] = [];
-		const dispose = observeMountedHomesteadSurfaceChanges(telemetry, (event) => {
-			observed.push(event.event);
-		});
+		const dispose = observeMountedHomesteadSurfaceChanges(
+			telemetry,
+			(event) => {
+				observed.push(event.event);
+			},
+		);
 
 		telemetry.emit({ event: "storage:io" });
 		telemetry.emit({ event: "ui:surface_mounted" });
@@ -149,6 +155,7 @@ function createMountElement(metadata: {
 	surfaceLayer?: string;
 	surfaceKind?: string;
 	surfaceId?: string;
+	surfaceCapabilities?: string[];
 }): HTMLElement {
 	const element = document.createElement("div");
 	element.dataset.refarmPluginId = metadata.pluginId;
@@ -160,6 +167,10 @@ function createMountElement(metadata: {
 	if (metadata.surfaceKind)
 		element.dataset.refarmSurfaceKind = metadata.surfaceKind;
 	if (metadata.surfaceId) element.dataset.refarmSurfaceId = metadata.surfaceId;
+	if (metadata.surfaceCapabilities?.length) {
+		element.dataset.refarmSurfaceCapabilities =
+			metadata.surfaceCapabilities.join(" ");
+	}
 	return element;
 }
 

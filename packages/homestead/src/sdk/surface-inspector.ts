@@ -6,6 +6,7 @@ export interface MountedHomesteadSurface {
 	surfaceLayer?: string;
 	surfaceKind?: string;
 	surfaceId?: string;
+	surfaceCapabilities?: string[];
 }
 
 export interface HomesteadSurfaceTelemetryEvent {
@@ -114,6 +115,15 @@ function stringArrayPayloadValue(value: unknown): string[] | undefined {
 	return strings.length > 0 ? strings : undefined;
 }
 
+function dataAttributeListValue(value?: string): string[] | undefined {
+	if (!value) return undefined;
+	const strings = value
+		.split(" ")
+		.map((item) => item.trim())
+		.filter((item) => item.length > 0);
+	return strings.length > 0 ? strings : undefined;
+}
+
 /**
  * Inspect Homestead DOM mounts. Studio tooling can use this to correlate a
  * manifest-declared surface with the shell wrapper that was actually activated.
@@ -133,5 +143,8 @@ export function listMountedHomesteadSurfaces(
 		surfaceLayer: element.dataset.refarmSurfaceLayer,
 		surfaceKind: element.dataset.refarmSurfaceKind,
 		surfaceId: element.dataset.refarmSurfaceId,
+		surfaceCapabilities: dataAttributeListValue(
+			element.dataset.refarmSurfaceCapabilities,
+		),
 	}));
 }

@@ -393,6 +393,10 @@ export class StudioShell {
 			pluginWrap.dataset.refarmSurfaceLayer = mount.surface.layer;
 			pluginWrap.dataset.refarmSurfaceKind = mount.surface.kind;
 			pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
+			if (mount.surface.capabilities?.length) {
+				pluginWrap.dataset.refarmSurfaceCapabilities =
+					mount.surface.capabilities.join(" ");
+			}
 		}
 
 		// Initial State Reflection
@@ -412,6 +416,7 @@ export class StudioShell {
 				surfaceId: mount.surface?.id,
 				surfaceKind: mount.surface?.kind,
 				surfaceLayer: mount.surface?.layer,
+				surfaceCapabilities: mount.surface?.capabilities,
 			},
 		});
 
