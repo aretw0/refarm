@@ -1,5 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-import { createStudioPluginHandle } from "../src/sdk/plugin-handle";
+import {
+	createHomesteadSurfacePluginHandle,
+	createStudioPluginHandle,
+} from "../src/sdk/plugin-handle";
 
 describe("createStudioPluginHandle", () => {
 	it("creates an internal Studio plugin handle by default", async () => {
@@ -36,6 +39,47 @@ describe("createStudioPluginHandle", () => {
 		});
 
 		expect(plugin.manifest.entry).toBe("./dist/external.mjs");
+	});
+
+	it("creates Homestead surface handles without repeating layer boilerplate", () => {
+		const plugin = createHomesteadSurfacePluginHandle({
+			id: "surface-fixture",
+			name: "Surface Fixture",
+			manifest: {
+				extensions: {
+					surfaces: [
+						{
+							layer: "asset",
+							kind: "theme-pack",
+							id: "surface-theme",
+						},
+					],
+				},
+			},
+			surfaces: [
+				{
+					kind: "panel",
+					id: "surface-panel",
+					slot: "main",
+					capabilities: ["ui:panel:render"],
+				},
+			],
+		});
+
+		expect(plugin.manifest.extensions?.surfaces).toEqual([
+			{
+				layer: "asset",
+				kind: "theme-pack",
+				id: "surface-theme",
+			},
+			{
+				layer: "homestead",
+				kind: "panel",
+				id: "surface-panel",
+				slot: "main",
+				capabilities: ["ui:panel:render"],
+			},
+		]);
 	});
 
 	it("uses provided telemetry and call handlers", async () => {

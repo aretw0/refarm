@@ -1,3 +1,4 @@
+import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
 import type { PluginInstance } from "@refarm.dev/tractor";
 
 export type StudioPluginTelemetryEmitter = (
@@ -15,6 +16,18 @@ export interface CreateStudioPluginHandleOptions {
 	emitTelemetry?: StudioPluginTelemetryEmitter;
 	state?: PluginInstance["state"];
 	terminate?: PluginInstance["terminate"];
+}
+
+export type HomesteadSurfaceDeclarationInput = Omit<
+	ExtensionSurfaceDeclaration,
+	"layer"
+> & {
+	layer?: "homestead";
+};
+
+export interface CreateHomesteadSurfacePluginHandleOptions
+	extends CreateStudioPluginHandleOptions {
+	surfaces: HomesteadSurfaceDeclarationInput[];
 }
 
 /**
@@ -45,4 +58,32 @@ export function createStudioPluginHandle(
 		emitTelemetry: options.emitTelemetry ?? (() => {}),
 		state: options.state ?? "running",
 	};
+}
+
+/**
+ * Create a local plugin handle with manifest-declared Homestead surfaces.
+ *
+ * Hosts still choose when to register the returned handle. This helper only
+ * centralizes the shape of surface declarations so Studio examples do not
+ * duplicate manifest boilerplate or accidentally omit the `homestead` layer.
+ */
+export function createHomesteadSurfacePluginHandle(
+	options: CreateHomesteadSurfacePluginHandleOptions,
+): PluginInstance {
+	const homesteadSurfaces = options.surfaces.map((surface) => ({
+		...surface,
+		layer: "homestead" as const,
+	}));
+	const existingSurfaces = options.manifest?.extensions?.surfaces ?? [];
+
+	return createStudioPluginHandle({
+		...options,
+		manifest: {
+			...options.manifest,
+			extensions: {
+				...options.manifest?.extensions,
+				surfaces: [...existingSurfaces, ...homesteadSurfaces],
+			},
+		},
+	});
 }

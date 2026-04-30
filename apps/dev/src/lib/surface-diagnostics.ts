@@ -1,5 +1,5 @@
 import type { PluginInstance } from "@refarm.dev/tractor";
-import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
+import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 
 export const STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID =
 	"studio-surface-diagnostics";
@@ -21,42 +21,32 @@ export function createStudioSurfaceDiagnosticsPlugins(
 	emitTelemetry: StudioSurfaceDiagnosticsTelemetry = () => {},
 ): PluginInstance[] {
 	return [
-		createStudioPluginHandle({
+		createHomesteadSurfacePluginHandle({
 			id: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
 			name: "Studio Surface Diagnostics",
-			manifest: {
-				extensions: {
-					surfaces: [
-						{
-							layer: "homestead",
-							kind: "panel",
-							id: "surface-ledger-panel",
-							slot: "main",
-							capabilities: ["ui:panel:render"],
-						},
-					],
+			surfaces: [
+				{
+					kind: "panel",
+					id: "surface-ledger-panel",
+					slot: "main",
+					capabilities: ["ui:panel:render"],
 				},
-			},
+			],
 			emitTelemetry: (event, payload) =>
 				emitTelemetry(STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID, event, payload),
 		}),
-		createStudioPluginHandle({
+		createHomesteadSurfacePluginHandle({
 			id: EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID,
 			name: "External Untrusted Surface",
 			entry: "./dist/untrusted-surface.mjs",
-			manifest: {
-				extensions: {
-					surfaces: [
-						{
-							layer: "homestead",
-							kind: "panel",
-							id: "external-ledger-panel",
-							slot: "main",
-							capabilities: ["ui:panel:render"],
-						},
-					],
+			surfaces: [
+				{
+					kind: "panel",
+					id: "external-ledger-panel",
+					slot: "main",
+					capabilities: ["ui:panel:render"],
 				},
-			},
+			],
 			emitTelemetry: (event, payload) =>
 				emitTelemetry(EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID, event, payload),
 		}),

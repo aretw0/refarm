@@ -12,6 +12,7 @@ Homestead acts as the "Face" of the sovereign citizen, providing a portal to the
 - **`setupStudioShell(...)`**: Shared shell setup helper that instantiates `StudioShell`, runs `setup()`, and returns the shell without hiding host-specific plugin registration.
 - **`bootStudioRuntime(...)`**: Shared browser runtime boot helper for OPFS SQLite, Loro CRDT storage, optional browser sync, identity stubs, and Tractor boot.
 - **`createStudioPluginHandle(...)`**: Shared local plugin-handle factory for first-party hosts and Studio experiments.
+- **`createHomesteadSurfacePluginHandle(...)`**: Shared helper for local plugins that declare Homestead surfaces without repeating manifest boilerplate.
 - **`HeraldPlugin`**: Identity and presence management.
 - **`FireflyPlugin`**: System-wide notification system.
 

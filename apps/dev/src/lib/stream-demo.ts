@@ -3,7 +3,7 @@ import type {
 	SovereignNode,
 	Tractor,
 } from "@refarm.dev/tractor";
-import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
+import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
 export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";
@@ -84,22 +84,17 @@ export async function seedStudioStreamDemo(tractor: Tractor): Promise<void> {
 export function createStudioStreamSurfaceDemoPlugin(
 	emitTelemetry: (event: string, payload?: unknown) => void = () => {},
 ): PluginInstance {
-	return createStudioPluginHandle({
+	return createHomesteadSurfacePluginHandle({
 		id: STUDIO_STREAM_SURFACE_PLUGIN_ID,
 		name: "Studio Stream Surface Demo",
-		manifest: {
-			extensions: {
-				surfaces: [
-					{
-						layer: "homestead",
-						kind: "panel",
-						id: "studio-stream-panel",
-						slot: "streams",
-						capabilities: ["ui:panel:render", "ui:stream:read"],
-					},
-				],
+		surfaces: [
+			{
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+				capabilities: ["ui:panel:render", "ui:stream:read"],
 			},
-		},
+		],
 		emitTelemetry,
 	});
 }
