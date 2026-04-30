@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamSessionEvent,
 	emptyStreamSessionState,
+	isAgentResponseStreamSession,
 	isCompletedStreamSession,
 	isFailedStreamSession,
+	isStreamSessionKind,
 	isStreamSessionStatus,
 	isTerminalStreamSession,
 	isTerminalStreamSessionStatus,
@@ -49,6 +51,8 @@ describe("StreamSession accumulator", () => {
 			chunkCount: 3,
 			metadata: { projection: "AgentResponse" },
 		});
+		expect(isStreamSessionKind(state.streamKind)).toBe(true);
+		expect(isAgentResponseStreamSession(state)).toBe(true);
 	});
 
 	it("groups interleaved sessions by stream_ref", () => {

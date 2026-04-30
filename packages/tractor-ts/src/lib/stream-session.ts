@@ -1,6 +1,6 @@
 export interface StreamSessionEvent {
 	stream_ref?: string | null;
-	stream_kind?: string | null;
+	stream_kind?: StreamSessionKind | string | null;
 	status?: StreamSessionStatus | string | null;
 	started_at_ns?: number | null;
 	updated_at_ns?: number | null;
@@ -13,7 +13,7 @@ export interface StreamSessionEvent {
 
 export interface StreamSessionState {
 	streamRef: string | null;
-	streamKind: string | null;
+	streamKind: StreamSessionKind | string | null;
 	status: StreamSessionStatus | string | null;
 	startedAtNs: number | null;
 	updatedAtNs: number | null;
@@ -26,9 +26,12 @@ export interface StreamSessionState {
 export type StreamSessionStateMap = Record<string, StreamSessionState>;
 
 export const UNKNOWN_STREAM_SESSION_REF = "__tractor:no-stream-session-ref__";
+export const STREAM_SESSION_KIND_AGENT_RESPONSE = "agent-response";
 export const STREAM_SESSION_STATUS_ACTIVE = "active";
 export const STREAM_SESSION_STATUS_COMPLETED = "completed";
 export const STREAM_SESSION_STATUS_FAILED = "failed";
+
+export type StreamSessionKind = typeof STREAM_SESSION_KIND_AGENT_RESPONSE;
 
 export type StreamSessionStatus =
 	| typeof STREAM_SESSION_STATUS_ACTIVE
@@ -113,6 +116,18 @@ export function reduceStreamSessionEventsByStream(
 	initialStateMap: StreamSessionStateMap = {},
 ): StreamSessionStateMap {
 	return events.reduce(applyStreamSessionEventToMap, initialStateMap);
+}
+
+export function isStreamSessionKind(
+	streamKind: string | null,
+): streamKind is StreamSessionKind {
+	return streamKind === STREAM_SESSION_KIND_AGENT_RESPONSE;
+}
+
+export function isAgentResponseStreamSession(
+	state: StreamSessionState,
+): boolean {
+	return state.streamKind === STREAM_SESSION_KIND_AGENT_RESPONSE;
 }
 
 export function isStreamSessionStatus(
