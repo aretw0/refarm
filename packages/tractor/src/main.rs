@@ -192,9 +192,18 @@ struct WatchArgs {
     #[arg(long, default_value = "default")]
     namespace: String,
 
+    /// Node type to watch. AgentResponse keeps the compatibility plain renderer;
+    /// StreamChunk/StreamSession use generic node rendering.
+    #[arg(long, default_value = "AgentResponse")]
+    r#type: String,
+
     /// Filter by source_plugin (e.g. pi-agent). Empty = all.
     #[arg(long, default_value = "pi-agent")]
     agent: String,
+
+    /// Filter payloads by stream_ref (useful for StreamChunk/StreamSession).
+    #[arg(long)]
+    stream_ref: Option<String>,
 
     /// Poll interval (milliseconds)
     #[arg(long, default_value_t = 250)]
@@ -432,12 +441,40 @@ async fn run_prompt(args: PromptArgs) -> Result<()> {
 
 async fn run_watch(args: WatchArgs) -> Result<()> {
     let format = OutputFormat::from_str(&args.format);
-    let mut seen = snapshot_seen_response_ids(&args.namespace, &args.agent)?;
     let timeout = if args.timeout_ms == 0 {
         None
     } else {
         Some(Duration::from_millis(args.timeout_ms))
     };
+
+    if args.r#type != "AgentResponse" || args.stream_ref.is_some() {
+        let mut seen = snapshot_seen_node_fingerprints(
+            &args.namespace,
+            &args.r#type,
+            &args.agent,
+            args.stream_ref.as_deref(),
+        )?;
+
+        let _ = poll_node_rows(
+            &args.namespace,
+            &args.r#type,
+            &args.agent,
+            args.stream_ref.as_deref(),
+            &mut seen,
+            PollNodeRowsOptions {
+                poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
+                timeout,
+                stop_after_first: args.once,
+                stop_on_terminal: args.until_final,
+                format,
+            },
+        )
+        .await?;
+
+        return Ok(());
+    }
+
+    let mut seen = snapshot_seen_response_ids(&args.namespace, &args.agent)?;
 
     let _ = poll_agent_responses(
         &args.namespace,
@@ -636,6 +673,84 @@ fn cli_node_time_key(row: &tractor::storage::NodeRow) -> (u64, u64) {
     (timestamp, sequence)
 }
 
+fn node_row_fingerprint(row: &tractor::storage::NodeRow) -> String {
+    format!("{}\u{0}{}", row.id, row.payload)
+}
+
+fn snapshot_seen_node_fingerprints(
+    namespace: &str,
+    node_type: &str,
+    agent_filter: &str,
+    stream_ref_filter: Option<&str>,
+) -> Result<HashSet<String>> {
+    let storage = NativeStorage::open(namespace)
+        .with_context(|| format!("open storage namespace '{namespace}'"))?;
+
+    let seen = storage
+        .query_nodes(node_type)?
+        .into_iter()
+        .filter(|row| row_matches_cli_filters(row, agent_filter, stream_ref_filter))
+        .map(|row| node_row_fingerprint(&row))
+        .collect::<HashSet<_>>();
+
+    Ok(seen)
+}
+
+fn collect_new_node_rows(
+    namespace: &str,
+    node_type: &str,
+    agent_filter: &str,
+    stream_ref_filter: Option<&str>,
+    seen: &HashSet<String>,
+) -> Result<Vec<tractor::storage::NodeRow>> {
+    let storage = NativeStorage::open(namespace)
+        .with_context(|| format!("open storage namespace '{namespace}'"))?;
+
+    let mut rows = storage
+        .query_nodes(node_type)?
+        .into_iter()
+        .filter(|row| row_matches_cli_filters(row, agent_filter, stream_ref_filter))
+        .filter(|row| !seen.contains(&node_row_fingerprint(row)))
+        .collect::<Vec<_>>();
+    rows.sort_by(cli_node_order);
+    Ok(rows)
+}
+
+fn print_node_row(row: &tractor::storage::NodeRow, format: OutputFormat) {
+    match format {
+        OutputFormat::Json => {
+            let payload = serde_json::from_str::<serde_json::Value>(&row.payload)
+                .unwrap_or_else(|_| serde_json::Value::String(row.payload.clone()));
+            let line = serde_json::json!({
+                "id": row.id,
+                "type": row.type_,
+                "source_plugin": row.source_plugin,
+                "updated_at": row.updated_at,
+                "payload": payload,
+            });
+            println!("{}", line);
+        }
+        OutputFormat::Plain => {
+            println!("{}", row.payload);
+        }
+    }
+}
+
+fn node_row_is_terminal(row: &tractor::storage::NodeRow) -> bool {
+    let Ok(value) = serde_json::from_str::<serde_json::Value>(&row.payload) else {
+        return false;
+    };
+
+    if value.get("is_final").and_then(|field| field.as_bool()) == Some(true) {
+        return true;
+    }
+
+    matches!(
+        value.get("status").and_then(|field| field.as_str()),
+        Some("completed" | "failed")
+    )
+}
+
 fn snapshot_seen_response_ids(namespace: &str, agent_filter: &str) -> Result<HashSet<String>> {
     let storage = NativeStorage::open(namespace)
         .with_context(|| format!("open storage namespace '{namespace}'"))?;
@@ -827,6 +942,52 @@ async fn poll_agent_responses(
     }
 }
 
+struct PollNodeRowsOptions {
+    poll_interval: Duration,
+    timeout: Option<Duration>,
+    stop_after_first: bool,
+    stop_on_terminal: bool,
+    format: OutputFormat,
+}
+
+async fn poll_node_rows(
+    namespace: &str,
+    node_type: &str,
+    agent_filter: &str,
+    stream_ref_filter: Option<&str>,
+    seen: &mut HashSet<String>,
+    options: PollNodeRowsOptions,
+) -> Result<bool> {
+    let deadline = options.timeout.map(|d| Instant::now() + d);
+
+    loop {
+        if let Some(deadline) = deadline {
+            if Instant::now() >= deadline {
+                return Ok(false);
+            }
+        }
+
+        let rows = collect_new_node_rows(namespace, node_type, agent_filter, stream_ref_filter, seen)?;
+        let mut got_terminal = false;
+
+        for row in rows {
+            seen.insert(node_row_fingerprint(&row));
+            got_terminal |= node_row_is_terminal(&row);
+            print_node_row(&row, options.format);
+
+            if options.stop_after_first {
+                return Ok(got_terminal);
+            }
+        }
+
+        if options.stop_on_terminal && got_terminal {
+            return Ok(true);
+        }
+
+        sleep(options.poll_interval).await;
+    }
+}
+
 // Bring daemon module into scope for main.rs
 use tractor::daemon;
 
@@ -960,6 +1121,38 @@ mod tests {
 
         assert_eq!(rows[0].id, "chunk-a");
         assert_eq!(rows[1].id, "chunk-b");
+    }
+
+    #[test]
+    fn generic_watch_detects_terminal_stream_rows() {
+        let final_chunk = tractor::storage::NodeRow {
+            id: "chunk-final".to_string(),
+            type_: "StreamChunk".to_string(),
+            context: None,
+            payload: serde_json::json!({ "is_final": true }).to_string(),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-30T00:00:00Z".to_string(),
+        };
+        let failed_session = tractor::storage::NodeRow {
+            id: "session-failed".to_string(),
+            type_: "StreamSession".to_string(),
+            context: None,
+            payload: serde_json::json!({ "status": "failed" }).to_string(),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-30T00:00:00Z".to_string(),
+        };
+        let active_session = tractor::storage::NodeRow {
+            id: "session-active".to_string(),
+            type_: "StreamSession".to_string(),
+            context: None,
+            payload: serde_json::json!({ "status": "active" }).to_string(),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-30T00:00:00Z".to_string(),
+        };
+
+        assert!(node_row_is_terminal(&final_chunk));
+        assert!(node_row_is_terminal(&failed_session));
+        assert!(!node_row_is_terminal(&active_session));
     }
 
     #[test]
