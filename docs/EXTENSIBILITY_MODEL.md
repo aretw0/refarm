@@ -67,9 +67,14 @@ from manifest declaration to actual UI activation.
 The Homestead SDK also exports `listMountedHomesteadSurfaces(...)` so `apps/dev`
 and future inspectors can query the currently mounted surface graph from the DOM
 without coupling to private shell internals.
+Homestead also owns the semantic diagnostics helpers for this graph:
+`mountedHomesteadSurfaceKey(...)` produces stable mount identity keys and
+`observeMountedHomesteadSurfaceChanges(...)` centralizes which telemetry events
+can change the mounted surface graph. Apps can render their own diagnostics, but
+they should not duplicate Homestead's surface semantics.
 The Studio app now consumes that helper through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders a small mounted
-surface inspector after shell setup. This closes the loop from manifest
+surface inspector that refreshes from Homestead surface telemetry. This closes the loop from manifest
 declaration to visible Studio diagnostics while keeping private shell internals
 encapsulated.
 
