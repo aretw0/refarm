@@ -152,7 +152,10 @@ function mountedSurfaceGateDetail(surface: MountedHomesteadSurface): string {
 	const capabilities = surface.surfaceCapabilities?.length
 		? ` caps: ${surface.surfaceCapabilities.join(", ")}`
 		: "";
-	return `${state}${capabilities}`;
+	const renderMode = surface.surfaceRenderMode
+		? ` render: ${surface.surfaceRenderMode}`
+		: "";
+	return `${state}${capabilities}${renderMode}`;
 }
 
 function renderRejectedRow(

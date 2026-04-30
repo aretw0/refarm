@@ -156,7 +156,9 @@ describe("StudioShell Orchestrator", () => {
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
-        expect(main?.querySelector("[data-rendered-surface='stream']")?.textContent).toBe(
+        const surfaceMount = main?.querySelector<HTMLElement>("[data-refarm-surface-id='rendered-stream-panel']");
+        expect(surfaceMount?.dataset.refarmSurfaceRenderMode).toBe("html");
+        expect(surfaceMount?.querySelector("[data-rendered-surface='stream']")?.textContent).toBe(
             "Plugin stream panel",
         );
         expect(renderHomesteadSurface).toHaveBeenCalledWith("renderHomesteadSurface", {
@@ -171,6 +173,18 @@ describe("StudioShell Orchestrator", () => {
                 capabilities: ["ui:panel:render", "ui:stream:read"],
             }),
             locale: "en",
+        });
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_rendered",
+            pluginId: "rendering-surface-plugin",
+            payload: {
+                slotId: "main",
+                mountSource: "extension-surface",
+                surfaceId: "rendered-stream-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                surfaceRenderMode: "html",
+            },
         });
     });
 

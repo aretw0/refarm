@@ -7,6 +7,7 @@ export interface MountedHomesteadSurface {
 	surfaceKind?: string;
 	surfaceId?: string;
 	surfaceCapabilities?: string[];
+	surfaceRenderMode?: string;
 }
 
 export interface HomesteadSurfaceTelemetryEvent {
@@ -23,6 +24,7 @@ export interface HomesteadSurfaceTelemetrySource {
 
 export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
 	"ui:surface_mounted",
+	"ui:surface_rendered",
 	"system:plugin_state_changed",
 ] as const;
 
@@ -146,5 +148,6 @@ export function listMountedHomesteadSurfaces(
 		surfaceCapabilities: dataAttributeListValue(
 			element.dataset.refarmSurfaceCapabilities,
 		),
+		surfaceRenderMode: element.dataset.refarmSurfaceRenderMode,
 	}));
 }

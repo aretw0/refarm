@@ -397,6 +397,7 @@ export class StudioShell {
 			pluginWrap.dataset.refarmSurfaceLayer = mount.surface.layer;
 			pluginWrap.dataset.refarmSurfaceKind = mount.surface.kind;
 			pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
+			pluginWrap.dataset.refarmSurfaceRenderMode = "wrapper";
 			if (mount.surface.capabilities?.length) {
 				pluginWrap.dataset.refarmSurfaceCapabilities =
 					mount.surface.capabilities.join(" ");
@@ -462,14 +463,18 @@ export class StudioShell {
 				})) as HomesteadSurfaceRenderResult;
 				const renderContent = homesteadSurfaceRenderContent(renderResult);
 				if (renderContent?.kind === "html") {
+					pluginWrap.dataset.refarmSurfaceRenderMode = "html";
 					const fragment = document
 						.createRange()
 						.createContextualFragment(renderContent.value);
 					pluginWrap.replaceChildren(fragment);
+					this.emitSurfaceRendered(pluginId, mount, slotId, "html");
 					return;
 				}
 				if (renderContent?.kind === "text") {
+					pluginWrap.dataset.refarmSurfaceRenderMode = "text";
 					pluginWrap.textContent = renderContent.value;
+					this.emitSurfaceRendered(pluginId, mount, slotId, "text");
 					return;
 				}
 			}
@@ -481,6 +486,26 @@ export class StudioShell {
 		} catch (e) {
 			this.logError(`[shell] Failed to render plugin ${pluginId}`, e);
 		}
+	}
+
+	private emitSurfaceRendered(
+		pluginId: string,
+		mount: HomesteadSurfaceMount,
+		slotId: string,
+		surfaceRenderMode: "html" | "text",
+	) {
+		this.tractor.emitTelemetry({
+			event: "ui:surface_rendered",
+			pluginId,
+			payload: {
+				slotId,
+				mountSource: mount.source,
+				surfaceId: mount.surface?.id,
+				surfaceKind: mount.surface?.kind,
+				surfaceLayer: mount.surface?.layer,
+				surfaceRenderMode,
+			},
+		});
 	}
 
 	private updateStatus(text: string) {

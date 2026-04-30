@@ -22,6 +22,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceKind: "panel",
 				surfaceId: "stream-panel",
 				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
+				surfaceRenderMode: "html",
 			}),
 			createMountElement({
 				pluginId: "legacy-plugin",
@@ -40,6 +41,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceKind: "panel",
 				surfaceId: "stream-panel",
 				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
+				surfaceRenderMode: "html",
 			},
 			{
 				pluginId: "legacy-plugin",
@@ -50,6 +52,7 @@ describe("listMountedHomesteadSurfaces", () => {
 				surfaceKind: undefined,
 				surfaceId: undefined,
 				surfaceCapabilities: undefined,
+				surfaceRenderMode: undefined,
 			},
 		]);
 	});
@@ -81,6 +84,9 @@ describe("listMountedHomesteadSurfaces", () => {
 		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_mounted" })).toBe(
 			true,
 		);
+		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_rendered" })).toBe(
+			true,
+		);
 		expect(
 			isHomesteadSurfaceChangeEvent({
 				event: "system:plugin_state_changed",
@@ -101,12 +107,14 @@ describe("listMountedHomesteadSurfaces", () => {
 
 		telemetry.emit({ event: "storage:io" });
 		telemetry.emit({ event: "ui:surface_mounted" });
+		telemetry.emit({ event: "ui:surface_rendered" });
 		telemetry.emit({ event: "system:plugin_state_changed" });
 		dispose();
 		telemetry.emit({ event: "ui:surface_mounted" });
 
 		expect(observed).toEqual([
 			"ui:surface_mounted",
+			"ui:surface_rendered",
 			"system:plugin_state_changed",
 		]);
 	});
@@ -156,6 +164,7 @@ function createMountElement(metadata: {
 	surfaceKind?: string;
 	surfaceId?: string;
 	surfaceCapabilities?: string[];
+	surfaceRenderMode?: string;
 }): HTMLElement {
 	const element = document.createElement("div");
 	element.dataset.refarmPluginId = metadata.pluginId;
@@ -170,6 +179,9 @@ function createMountElement(metadata: {
 	if (metadata.surfaceCapabilities?.length) {
 		element.dataset.refarmSurfaceCapabilities =
 			metadata.surfaceCapabilities.join(" ");
+	}
+	if (metadata.surfaceRenderMode) {
+		element.dataset.refarmSurfaceRenderMode = metadata.surfaceRenderMode;
 	}
 	return element;
 }
