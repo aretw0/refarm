@@ -75,6 +75,11 @@ Homestead also allow-lists surface `kind` values before activation (`panel`,
 `widget`, `statusbar`, and `editor` by default). Unsupported kinds are rejected
 as `unsupported-kind` until the host intentionally exposes the behavior and trust
 model for that kind.
+Finally, the shell checks plugin trust before mounting otherwise valid extension
+surfaces. Internal Studio plugins (`internal:*`) are allowed explicitly; external
+plugin surfaces must come from a registry entry in `validated` or `active` state,
+otherwise they are rejected as `untrusted-plugin` with registry status in
+telemetry.
 
 Mounting preserves surface identity in the DOM and telemetry. Extension surface
 wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
