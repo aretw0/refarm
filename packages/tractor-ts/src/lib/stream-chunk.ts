@@ -2,7 +2,7 @@ export interface StreamChunkEvent {
 	stream_ref?: string | null;
 	content?: string | null;
 	sequence?: number | null;
-	payload_kind?: TerminalStreamChunkPayloadKind | string | null;
+	payload_kind?: StreamChunkPayloadKind | string | null;
 	is_final?: boolean | null;
 	metadata?: unknown;
 	[key: string]: unknown;
@@ -13,20 +13,32 @@ export interface StreamChunkState {
 	content: string;
 	lastSequence: number | null;
 	isFinal: boolean;
-	payloadKind: TerminalStreamChunkPayloadKind | string | null;
+	payloadKind: StreamChunkPayloadKind | string | null;
 }
 
 export type StreamChunkStateMap = Record<string, StreamChunkState>;
 
 export const UNKNOWN_STREAM_REF = "__tractor:no-stream-ref__";
+export const STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA = "text_delta";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT = "final_text";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL = "final_tool_call";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY = "final_empty";
+
+export type StreamChunkPayloadKind =
+	| typeof STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA
+	| TerminalStreamChunkPayloadKind;
 
 export type TerminalStreamChunkPayloadKind =
 	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT
 	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL
 	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY;
+
+export const STREAM_CHUNK_PAYLOAD_KINDS = new Set([
+	STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA,
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT,
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL,
+	STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY,
+]);
 
 export const TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS = new Set([
 	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT,
@@ -117,6 +129,21 @@ export function reduceStreamChunkEventsByStream(
 	initialStateMap: StreamChunkStateMap = {},
 ): StreamChunkStateMap {
 	return events.reduce(applyStreamChunkEventToMap, initialStateMap);
+}
+
+export function isStreamChunkPayloadKind(
+	payloadKind: string | null,
+): payloadKind is StreamChunkPayloadKind {
+	return (
+		typeof payloadKind === "string" &&
+		STREAM_CHUNK_PAYLOAD_KINDS.has(payloadKind)
+	);
+}
+
+export function isTextDeltaStreamChunkPayloadKind(
+	payloadKind: string | null,
+): payloadKind is typeof STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA {
+	return payloadKind === STREAM_CHUNK_PAYLOAD_KIND_TEXT_DELTA;
 }
 
 export function isTerminalStreamChunkPayloadKind(

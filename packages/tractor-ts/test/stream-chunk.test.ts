@@ -5,9 +5,11 @@ import {
 	isFinalEmptyStreamChunkPayloadKind,
 	isFinalTextStreamChunkPayloadKind,
 	isFinalToolCallStreamChunkPayloadKind,
+	isStreamChunkPayloadKind,
 	isTerminalStreamChunk,
 	isTerminalStreamChunkPayloadKind,
 	isTerminalStreamChunkState,
+	isTextDeltaStreamChunkPayloadKind,
 	orderStreamChunkEvents,
 	reduceStreamChunkEvents,
 	reduceStreamChunkEventsByStream,
@@ -90,7 +92,12 @@ describe("StreamChunk accumulator", () => {
 		});
 	});
 
-	it("detects terminal stream chunk markers", () => {
+	it("detects stream chunk payload kinds", () => {
+		expect(isStreamChunkPayloadKind("text_delta")).toBe(true);
+		expect(isStreamChunkPayloadKind("final_text")).toBe(true);
+		expect(isStreamChunkPayloadKind("unexpected_kind")).toBe(false);
+		expect(isTextDeltaStreamChunkPayloadKind("text_delta")).toBe(true);
+		expect(isTextDeltaStreamChunkPayloadKind("final_text")).toBe(false);
 		expect(isTerminalStreamChunkPayloadKind("final_text")).toBe(true);
 		expect(isTerminalStreamChunkPayloadKind("final_tool_call")).toBe(true);
 		expect(isTerminalStreamChunkPayloadKind("final_empty")).toBe(true);
