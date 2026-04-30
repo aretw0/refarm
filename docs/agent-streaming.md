@@ -88,8 +88,10 @@ multiple `prompt_ref` values may be interleaved. Use
 same prompt, or `promptRefFromAgentResponseStreamRef(streamRef)` to map back.
 Consumers that observe generic `StreamChunk` nodes directly can use
 `reduceStreamChunkEvents(...)`,
-`reduceStreamChunkEventsByStream(...)`, `isTerminalStreamChunk(...)`, or
-`isTerminalStreamChunkState(...)`. Consumers that observe `StreamSession`
+`reduceStreamChunkEventsByStream(...)`, `isTerminalStreamChunk(...)`,
+`isTerminalStreamChunkState(...)`, or final-kind helpers such as
+`isFinalToolCallStreamChunkPayloadKind(...)`. Consumers that observe
+`StreamSession`
 lifecycle nodes can use `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
 `isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
