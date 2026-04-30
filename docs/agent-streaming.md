@@ -170,6 +170,12 @@ npm --prefix packages/homestead test
 npm --prefix packages/homestead run type-check
 ```
 
+Validate the Homestead + Studio (`apps/dev`) browser path with:
+
+```bash
+npm run agent:streaming:studio
+```
+
 Run the WASM harness only when the `pi_agent.wasm` artifact is fresh:
 
 ```bash
