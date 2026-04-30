@@ -139,9 +139,11 @@ Context engineering follows the pi-test-harness model:
 
 ---
 
-## v0.2.0 — Farmhand graduation
+## Daily-driver Farmhand graduation track (legacy `v0.2.0` bucket)
 
 **Scope**: Rename, streaming, project-level config, expanded tooling, daily-driver CLI.
+
+> Recalibration: this section is not a promise to increment to `v0.2.0` after the checklist fills out. It is the pre-`v0.1.0` work needed for Refarm to become the creator's daily driver and eventually replace the current external pi workflow. Items that do not improve that path should be challenged before implementation.
 
 ### Naming
 
