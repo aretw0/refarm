@@ -1,37 +1,38 @@
 {
-	"context": "Checkpoint update 2026-04-29T23:20Z after CI recovery. Development resumed after compaction. Latest lane remains generic StreamChunk observations + AgentResponse projection. Host-owned credentials and opt-in LLM streaming boundary preserved.",
-	"timestamp": "2026-04-29T23:20:00.000Z",
+	"context": "Checkpoint 2026-04-30T00:32Z. Continued generic streaming substrate work in atomic slices after CI recovery. Host-owned provider credentials/routes preserved. Do not use GitHub Actions as exploratory testing; all recent pushes were preceded by local scoped reproduction/validation.",
+	"timestamp": "2026-04-30T00:32:00.000Z",
 	"current_phase": 13,
 	"current_tasks": [
-		"CI run 25138262304 for d2205ae0 failed in @refarm.dev/tractor-rs#test:unit. Root failing test was host::wasi_bridge::tests::complete_http_stream_stores_first_chunk_before_response_closes with ureq/stable chunked transfer decoding error. Other route tests failed only because ENV_LOCK was poisoned after the first panic.",
-		"Failure reproduced locally with the closest safe command: cd packages/tractor && RUSTUP_TOOLCHAIN=stable cargo test --lib complete_http_stream_stores_first_chunk_before_response_closes -- --nocapture. Non-stable/default local toolchain did not reproduce, stable did.",
-		"Fix committed locally: cf42c0a0 test(tractor): use content-length drip stream fixture. The drip SSE test now uses content-length response framing while still flushing first bytes before releasing the tail, preserving the incremental persistence assertion without relying on chunked decoding behavior.",
-		"Additional clippy cleanup committed locally: e95387e1 test(tractor): initialize stream assembly in one expression. This fixed a clippy warning surfaced while validating recent stream tests.",
-		"Local validation after fixes passed: RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet in packages/tractor; npm --prefix packages/tractor run lint; npm run agent:streaming:check; npm run agent:streaming:harness; npm run agent:streaming:clients; npm run project:validate --silent; git diff --check.",
-		"Important process note: do not use GitHub Actions as the test platform. Before pushing again, reproduce failures locally with closest safe command. Full cargo test remains avoided locally because AGENTS.md warns against unscoped cargo test in this 8GB environment; stable --lib matched the failing CI target without triggering the OOM risk."
+		"Pushed green stack through 3e44f294 earlier: StreamSession lifecycle observations, harness assertion, docs, and TypeScript StreamSession accumulator. CI run 25140284058 passed.",
+		"Added follow-up slice: failed stream reader paths now mark the StreamSession status as failed before returning the read/body-limit error. Commit pushed: 6ee732ce fix(tractor): mark failed stream sessions.",
+		"Added follow-up TS utility slice: isTerminalStreamSessionStatus(...) and isTerminalStreamSession(...) for completed/failed StreamSession states. Commit pushed: ecc7bf6c feat(tractor-ts): detect terminal stream sessions.",
+		"Local validation before push passed: cd packages/tractor && RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet; npm --prefix packages/tractor run lint; npm run agent:streaming:check; npm run agent:streaming:harness; npm run agent:streaming:clients; npm run project:validate --silent; git diff --check.",
+		"Push preflight passed with known advisory broad test warnings. Latest pushed CI run is 25141050981 for ecc7bf6c and was queued at checkpoint time. Previous latest run 25140284058 was success.",
+		"Disk cleanup performed with npm run clean:light after push. Disk improved from about 3.3GB free to about 3.9GB free. Rust targets still around 5GB combined before cleanup; disk remains tight."
 	],
 	"blockers": [
-		"Disk still tight: around 4.0GB free after local validations. Avoid global builds. Use npm run clean:light at checkpoints if needed.",
-		"Current local HEAD includes handoff/update/fix commits not yet pushed at the moment this handoff update is written. Check git status and log before push.",
-		"Broad clippy --tests was intentionally not used as a gate: it surfaces existing await_holding_lock debt in packages/tractor/tests/pi_agent_harness.rs unrelated to this slice. The package lint script uses cargo clippy without --tests and passes.",
-		"pi-lens/LSP monitor continues crashing on Rust/Markdown writes with memory access out of bounds."
+		"Latest CI run 25141050981 is pending/queued at checkpoint time. Next session should check it, but only use CI as final confirmation; if it fails, inspect logs and reproduce locally first.",
+		"Disk remains tight (~3.9GB free after clean:light). Avoid global builds/tests. Use scoped checks and clean:light at checkpoints.",
+		"Full tractor-ts unit suite remains noisy locally because fixture/WASM context is incomplete; use npm run agent:streaming:clients for the streaming client lane.",
+		"Broad cargo clippy --tests still surfaces unrelated await_holding_lock debt in pi_agent_harness; package lint without --tests passes.",
+		"pi-lens/LSP monitor continues to crash on Rust/Markdown writes with memory access out of bounds."
 	],
 	"next_actions": [
-		"If working tree is clean, push develop only after confirming the local validation list remains green.",
-		"After push, use gh run watch --exit-status only as final confirmation, not as exploratory testing. If it fails, inspect logs and reproduce locally before another push.",
-		"Next technical slices after CI recovery: introduce StreamSession node/builder, or add generic StreamChunk query/watch ergonomics. Keep slices atomic.",
-		"If touching streaming tests again, run stable cargo test --lib for tractor before push."
+		"First next command: git status --short; git rev-parse --short HEAD; df -h /workspaces/refarm; GH_PROMPT_DISABLED=1 gh run view 25141050981 --repo aretw0/refarm or gh run watch 25141050981 --repo aretw0/refarm --exit-status if final confirmation is desired.",
+		"If run 25141050981 failed, use gh run view --log-failed, identify the exact failing command, reproduce locally with the closest scoped equivalent, then fix in an atomic commit.",
+		"If CI is green, continue next technical slice: generic StreamChunk/StreamSession query or watch ergonomics in Tractor CLI, or defer UI/WebSocket consumer verification. Keep changes package-scoped and small.",
+		"Before any push, run the scoped validation relevant to changed files. For Rust streaming: stable cargo test --lib plus npm --prefix packages/tractor run lint and npm run agent:streaming:check. For TS clients: npm run agent:streaming:clients. Run harness only if the host streaming path/harness assertions changed."
 	],
 	"open_questions": [
-		"Should StreamSession be introduced next, or should StreamChunk-only dual-write be observed in consumers first?",
-		"Should generic StreamChunk nodes be exposed through a CLI/watch API before deeper provider parser extraction?",
-		"Should final markers exist for tool-call-only streams as distinct payload kinds?",
-		"Should env-only LLM_STREAM_RESPONSES be promoted into governed config in a later ADR/task?"
+		"Should Tractor CLI get a generic stream watch/query command for StreamChunk/StreamSession before UI work?",
+		"Should StreamSession record failure reason in sanitized metadata, or is status=failed enough for now?",
+		"Should tool-call-only streams emit final StreamChunk payload kinds such as final_tool_call/final_empty?",
+		"Should LLM_STREAM_RESPONSES move from env-only to governed config soon?"
 	],
 	"key_decisions_pending": [
-		"StreamSession schema/lifecycle.",
-		"Generic StreamChunk retention/compaction policy.",
-		"WebSocket/UI projection strategy for StreamChunk vs AgentResponse.",
+		"Generic stream watch/query UX.",
+		"StreamChunk/StreamSession retention and compaction policy.",
+		"WebSocket/UI consumer strategy for StreamChunk vs AgentResponse projections.",
 		"AgentResponse projection compatibility horizon."
 	],
 	"files_in_flux": []
