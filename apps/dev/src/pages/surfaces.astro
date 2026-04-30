@@ -52,10 +52,11 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
     <div class="refarm-surface-card surfaces-ledger__panel">
       <p class="refarm-eyebrow">Expected proof</p>
       <ul class="surfaces-proof-list">
-        <li><span class="refarm-badge">mount</span> <code class="refarm-code">studio-surface-diagnostics</code> in <code class="refarm-code">main</code></li>
+        <li><span class="refarm-badge">mount</span> <code class="refarm-code">studio-surface-diagnostics</code> in <code class="refarm-code">streams</code></li>
         <li><span class="refarm-badge">render</span> <code class="refarm-code">external-validated-surface</code> with <code class="refarm-code">registry: validated</code></li>
         <li><span class="refarm-badge">fail</span> <code class="refarm-code">failing-surface-diagnostics</code> with <code class="refarm-code">render: failed</code></li>
         <li><span class="refarm-badge">reject</span> <code class="refarm-code">untrusted-plugin</code> with <code class="refarm-code">registry: unregistered</code></li>
+        <li><span class="refarm-badge">action</span> click the diagnostics surface action to emit requested/failed telemetry</li>
         <li><span class="refarm-badge">audit</span> telemetry visible through Homestead inspector helpers</li>
       </ul>
     </div>
@@ -167,6 +168,8 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
   import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
   import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
   import {
+    createStudioSurfaceDiagnosticsActionHandler,
+    createStudioSurfaceDiagnosticsContextProvider,
     createStudioSurfaceDiagnosticsPlugins,
     EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID,
   } from "../lib/surface-diagnostics";
@@ -195,7 +198,10 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       tractor.plugins.registerInternal(plugin);
     }
 
-    await setupStudioShell(tractor);
+    await setupStudioShell(tractor, {
+      surfaceContext: createStudioSurfaceDiagnosticsContextProvider(),
+      surfaceAction: createStudioSurfaceDiagnosticsActionHandler(),
+    });
 
     const ledgerSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-ledger-slot]");
     if (ledgerSlot) {

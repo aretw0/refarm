@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createStudioSurfaceDiagnosticsActionHandler,
+	createStudioSurfaceDiagnosticsContextProvider,
 	createStudioSurfaceDiagnosticsPlugins,
 	EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID,
 	EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID,
 	FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+	renderStudioSurfaceDiagnostics,
 	STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+	SURFACE_DIAGNOSTICS_ACTION_ID,
 } from "./surface-diagnostics";
 
 describe("createStudioSurfaceDiagnosticsPlugins", () => {
@@ -29,7 +33,7 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 			expect(plugin.manifest.extensions?.surfaces?.[0]).toMatchObject({
 				layer: "homestead",
 				kind: "panel",
-				slot: "main",
+				slot: "streams",
 				capabilities: ["ui:panel:render"],
 			});
 		}
@@ -65,6 +69,115 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 			"untrusted:event",
 			{ ok: false },
 		);
+	});
+
+	it("provides an executable internal diagnostics surface", async () => {
+		const plugins = createStudioSurfaceDiagnosticsPlugins();
+		const trusted = plugins[0];
+
+		const rendered = await trusted?.call("renderHomesteadSurface", {
+			pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface: trusted.manifest.extensions?.surfaces?.[0],
+			locale: "en",
+			host: createStudioSurfaceDiagnosticsContextProvider()({
+				pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surface: trusted.manifest.extensions?.surfaces?.[0],
+				locale: "en",
+			}),
+		});
+
+		expect(rendered).toMatchObject({
+			html: expect.stringContaining(
+				`data-refarm-surface-action-id="${SURFACE_DIAGNOSTICS_ACTION_ID}"`,
+			),
+		});
+		await expect(trusted?.call("other", {})).resolves.toBeNull();
+	});
+
+	it("renders escaped diagnostics surface host context", () => {
+		const rendered = renderStudioSurfaceDiagnostics({
+			pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: "surface-ledger-panel",
+				slot: "streams",
+			},
+			locale: "en",
+			host: {
+				hostId: '<apps/dev & "studio">',
+				actions: [
+					{
+						id: SURFACE_DIAGNOSTICS_ACTION_ID,
+						label: "Run <denied> action",
+					},
+				],
+			},
+		});
+
+		expect((rendered as { html: string }).html).toContain(
+			"&lt;apps/dev &amp; &quot;studio&quot;&gt;",
+		);
+		expect((rendered as { html: string }).html).toContain(
+			"Run &lt;denied&gt; action",
+		);
+	});
+
+	it("keeps diagnostics surface context and action behavior in apps/dev", async () => {
+		const surface = {
+			layer: "homestead" as const,
+			kind: "panel" as const,
+			id: "surface-ledger-panel",
+			slot: "streams",
+		};
+		const context = createStudioSurfaceDiagnosticsContextProvider();
+		const action = createStudioSurfaceDiagnosticsActionHandler();
+		const host = await context({
+			pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface,
+			locale: "en",
+		});
+
+		expect(host).toMatchObject({
+			hostId: "apps/dev",
+			actions: [
+				expect.objectContaining({
+					id: SURFACE_DIAGNOSTICS_ACTION_ID,
+					intent: "studio:diagnostic-denied",
+				}),
+			],
+		});
+		expect(() =>
+			action({
+				pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surface,
+				locale: "en",
+				host: host ?? undefined,
+				action: host?.actions?.[0] ?? {
+					id: SURFACE_DIAGNOSTICS_ACTION_ID,
+					label: "Run denied diagnostic action",
+				},
+			}),
+		).toThrow("diagnostic action denied by host");
+		expect(
+			context({
+				pluginId: "other-plugin",
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surface,
+				locale: "en",
+			}),
+		).toBeUndefined();
 	});
 
 	it("provides a fixture that fails only the render hook", async () => {
