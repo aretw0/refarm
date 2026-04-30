@@ -108,8 +108,8 @@ the shell chooses which node types to observe and how to present them.
 The remaining gap is a plugin-provided daily-driver stream panel/editor surface
 with deeper runtime trust checks beyond slot-level capability filtering. The
 terminal plugin is still a passive DOM log sink, so future slices should keep UI
-experimentation in Homestead/Studio dev until the shell primitive is stable
-enough for `me` or `social` app surfaces.
+experimentation in Homestead and the Studio app (`apps/dev`) until the shell
+primitive is stable enough for `me` or `social` app surfaces.
 
 TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
