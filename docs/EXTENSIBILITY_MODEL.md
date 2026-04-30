@@ -46,9 +46,21 @@ The manifest should remain a shared contract, not a runtime implementation. Addi
 
 Hosts that do not understand a surface must ignore it safely. Hosts that do understand it must still enforce capabilities, integrity, and trust policy before activation.
 
+The shared manifest package exposes small host-neutral helpers for this contract:
+
+- `getExtensionSurfaces(manifest, layer?)` for layer-scoped discovery;
+- `extensionSurfaceKey(surface)` for stable `layer:id` keys;
+- `isExtensionSurfaceLayer(value)` for host-side guards.
+
+Homestead already consumes this contract for `homestead` surfaces: `StudioShell`
+resolves legacy `ui.slots` plus manifest-declared `extensions.surfaces[]` entries
+with `layer: "homestead"` and mounts them into the declared shell slot. Runtime
+activation remains capability/trust-gated by the plugin host; surface discovery
+only decides where an already-loaded plugin is presented.
+
 ## Daily-driver order of attack
 
-1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views.
+1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar subscriber landed; next step is a richer panel/editor surface.
 2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.

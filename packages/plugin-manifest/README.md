@@ -117,6 +117,18 @@ Plugins may declare additive extension surfaces under `extensions.surfaces` so o
 
 Valid surface layers are `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`. Unknown hosts must ignore unknown surfaces safely; hosts that understand a surface still need to enforce capabilities, integrity, and trust policy before activation. See `docs/EXTENSIBILITY_MODEL.md` in the monorepo for the long-term model.
 
+Host-neutral helpers are exported for discovery:
+
+```typescript
+import {
+  extensionSurfaceKey,
+  getExtensionSurfaces,
+  isExtensionSurfaceLayer,
+} from "@refarm.dev/plugin-manifest";
+
+const homesteadSurfaces = getExtensionSurfaces(manifest, "homestead");
+```
+
 ## API
 
 ### `validatePluginManifest(manifest: PluginManifest): ManifestValidationResult`
