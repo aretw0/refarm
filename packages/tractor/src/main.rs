@@ -757,6 +757,13 @@ fn node_row_is_terminal(row: &tractor::storage::NodeRow) -> bool {
         return true;
     }
 
+    if matches!(
+        value.get("payload_kind").and_then(|field| field.as_str()),
+        Some("final_text" | "final_tool_call" | "final_empty")
+    ) {
+        return true;
+    }
+
     matches!(
         value.get("status").and_then(|field| field.as_str()),
         Some("completed" | "failed")
@@ -1177,6 +1184,14 @@ mod tests {
             source_plugin: Some("pi-agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
+        let final_marker = tractor::storage::NodeRow {
+            id: "chunk-marker".to_string(),
+            type_: "StreamChunk".to_string(),
+            context: None,
+            payload: serde_json::json!({ "payload_kind": "final_tool_call" }).to_string(),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-30T00:00:00Z".to_string(),
+        };
         let failed_session = tractor::storage::NodeRow {
             id: "session-failed".to_string(),
             type_: "StreamSession".to_string(),
@@ -1195,6 +1210,7 @@ mod tests {
         };
 
         assert!(node_row_is_terminal(&final_chunk));
+        assert!(node_row_is_terminal(&final_marker));
         assert!(node_row_is_terminal(&failed_session));
         assert!(!node_row_is_terminal(&active_session));
     }
