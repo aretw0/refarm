@@ -1,5 +1,20 @@
-import { L8nHost, TRACTOR_LOG_PRIORITY } from "@refarm.dev/tractor";
-import type { Tractor, SovereignNode, TelemetryEvent } from "@refarm.dev/tractor";
+import {
+  applyStreamChunkEventToMap,
+  applyStreamSessionEventToMap,
+  L8nHost,
+  streamObservationViewsByStream,
+  TRACTOR_LOG_PRIORITY,
+} from "@refarm.dev/tractor";
+import type {
+  StreamChunkEvent,
+  StreamChunkStateMap,
+  StreamObservationView,
+  StreamSessionEvent,
+  StreamSessionStateMap,
+  Tractor,
+  SovereignNode,
+  TelemetryEvent,
+} from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
 
 import en from "@refarm.dev/locales/en.json";
@@ -17,6 +32,8 @@ export interface ShellSlot {
 export class StudioShell {
   private l8n: L8nHost;
   private slots: Map<string, HTMLElement> = new Map();
+  private streamSessions: StreamSessionStateMap = {};
+  private streamChunks: StreamChunkStateMap = {};
 
   constructor(private tractor: Tractor) {
     this.l8n = new L8nHost();
@@ -92,6 +109,8 @@ export class StudioShell {
       }
     });
 
+    this.setupStreamObservationSubscriber();
+
     // 1. Check for active UI plugins
     const apps = this.tractor.plugins.getAllPlugins();
     let hasUi = false;
@@ -111,6 +130,67 @@ export class StudioShell {
     }
 
     this.updateStatus(this.l8n.t("refarm:core/status_ready"));
+  }
+
+  private setupStreamObservationSubscriber() {
+    this.tractor.onNode("StreamSession", async (node: SovereignNode) => {
+      this.streamSessions = applyStreamSessionEventToMap(
+        this.streamSessions,
+        node as StreamSessionEvent,
+      );
+      this.renderStreamObservationPanel();
+    });
+
+    this.tractor.onNode("StreamChunk", async (node: SovereignNode) => {
+      this.streamChunks = applyStreamChunkEventToMap(
+        this.streamChunks,
+        node as StreamChunkEvent,
+      );
+      this.renderStreamObservationPanel();
+    });
+  }
+
+  private renderStreamObservationPanel() {
+    const statusSlot = this.slots.get("statusbar");
+    if (!statusSlot) return;
+
+    let panel = statusSlot.querySelector<HTMLElement>("[data-refarm-stream-observer]");
+    if (!panel) {
+      panel = document.createElement("section");
+      panel.dataset.refarmStreamObserver = "true";
+      panel.setAttribute("aria-label", "Live agent streams");
+      panel.style.display = "inline-flex";
+      panel.style.gap = "0.5rem";
+      panel.style.marginLeft = "1rem";
+      panel.style.maxWidth = "60vw";
+      panel.style.verticalAlign = "middle";
+      statusSlot.appendChild(panel);
+    }
+
+    const views = Object.values(
+      streamObservationViewsByStream(this.streamSessions, this.streamChunks),
+    ).sort((left, right) =>
+      (left.streamRef ?? "").localeCompare(right.streamRef ?? ""),
+    );
+
+    panel.hidden = views.length === 0;
+    panel.innerHTML = views.map((view) => this.renderStreamObservationView(view)).join("");
+  }
+
+  private renderStreamObservationView(view: StreamObservationView): string {
+    const label = view.promptRef ?? view.streamRef ?? "stream";
+    const status = view.status ?? (view.isTerminal ? "completed" : "observed");
+    const content = view.content || (view.isActive ? "Streaming…" : "Waiting for content…");
+    const tone = view.isActive ? "🟢" : view.isTerminal ? "✅" : "🟡";
+
+    return `
+      <article data-stream-ref="${escapeHtml(view.streamRef ?? "")}" style="display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; max-width: 34rem; padding: 0.15rem 0.5rem; border: 1px solid var(--refarm-border-default); border-radius: 999px; background: rgba(0,0,0,0.04);">
+        <span aria-hidden="true">${tone}</span>
+        <strong style="white-space: nowrap;">${escapeHtml(label)}</strong>
+        <span style="opacity: 0.7; white-space: nowrap;">${escapeHtml(status)}</span>
+        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(content)}</span>
+      </article>
+    `;
   }
 
   private async renderSystemHelp() {
@@ -266,4 +346,13 @@ export class StudioShell {
     const statusEl = document.getElementById("system-status");
     if (statusEl) statusEl.textContent = text;
   }
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
