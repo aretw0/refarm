@@ -97,6 +97,10 @@ they should not duplicate Homestead's surface semantics.
 Rejected activation telemetry is also normalized by Homestead helpers, while the
 Studio inspector displays recent `ui:surface_rejected` events from Tractor's
 telemetry buffer and refreshes when new rejection events arrive.
+Studio also exposes `/surfaces` as a dedicated activation ledger. That page
+boots a tiny diagnostics runtime to prove both sides of the policy: an explicit
+internal surface mounts, while an external unregistered surface is rejected as
+`untrusted-plugin` with registry status visible in the inspector.
 Stream rendering now writes into its own `[data-refarm-stream-panel]` child
 instead of replacing the entire `streams` slot, so plugin-provided panels mounted
 into that slot survive live stream updates. Declared surface mounts also unhide
