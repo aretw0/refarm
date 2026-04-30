@@ -1,29 +1,31 @@
 {
-  "context": "Checkpoint 2026-04-30T19:55Z after continuing Homestead/Studio plugin-surface work. Branch develop is synchronized with origin/develop at 80aa57af unless a later handoff checkpoint commit is created. Disk remains constrained but stable at about 9.3GB free on /workspaces/refarm; no cleanup was run because free space is stable and caches are useful. Worktree was clean before writing this handoff.",
-  "timestamp": "2026-04-30T19:55:00.000Z",
-  "current_phase": 24,
+  "context": "Checkpoint 2026-04-30T20:23Z after continuing Homestead/Studio plugin-surface diagnostics. Branch develop is synchronized with origin/develop at 164a3c23 unless a later handoff checkpoint commit is created. Disk remains constrained but stable at about 9.1GB free on /workspaces/refarm; no cleanup was run because free space is stable and caches are useful. The known generated sqlite worker diff appeared after apps/dev build and was restored because it was not intentional work.",
+  "timestamp": "2026-04-30T20:23:00.000Z",
+  "current_phase": 25,
   "current_tasks": [
     "Pushed CI-green commit 5176f7c8 `feat(homestead): audit surface render mode`: Homestead writes `data-refarm-surface-render-mode` on surface wrappers (`wrapper`, `html`, `text`), emits `ui:surface_rendered` after successful plugin render hooks, `surface-inspector` reads `surfaceRenderMode`, and apps/dev `/surfaces` ledger shows `render: ...`. CI run 25185289679 succeeded.",
-    "Pushed CI-green commit e8e3a146 `docs(extensibility): describe surface render diagnostics`: documented `renderHomesteadSurface`, renderer-only behavior, `ui:surface_rendered`, and wrapper-only vs executable UI diagnostics. CI run 25185720868 succeeded.",
     "Pushed CI-green commit 3a5f0bc5 `feat(homestead): report surface render failures`: render hook exceptions now mark the wrapper render mode as `failed`, emit `ui:surface_render_failed` with slot/surface metadata and errorMessage, and `surface-inspector` treats failures as mounted-surface graph change events so Studio ledgers refresh. CI run 25185875575 succeeded.",
-    "Pushed CI-green commit 80aa57af `docs(homestead): document surface render failures`: README and extensibility docs now mention render-mode metadata and failure telemetry. CI run 25186085145 succeeded.",
-    "Latest local validations for the code slice passed before push: `npm --prefix packages/homestead test -- Shell.test.ts surface-inspector.test.ts`, `npm --prefix packages/homestead run type-check`, `npm --prefix packages/homestead run build`, `npm run project:validate --silent`, and `git diff --check`. Pre-push lint/type/unit checks for homestead also passed.",
-    "Important resolved gotcha remains: importing types from broad `@refarm.dev/homestead/sdk` in apps/dev can pull `Shell.ts` through TS path mappings and reintroduce locale import resolution issues. Prefer narrow subpaths such as `@refarm.dev/homestead/sdk/surface-renderer`, `surface-inspector`, `plugin-handle`, `runtime`, and `shell` for app internals."
+    "Pushed CI-green commit 851e3a0f `test(homestead): preserve executable stream surfaces`: Homestead test now proves an executable plugin-provided surface mounted in the `streams` slot survives while Homestead renders live stream observations into `[data-refarm-stream-panel]` in the same slot, with render mode `html`. CI run 25186642664 succeeded.",
+    "Pushed CI-green commit 164a3c23 `feat(app-dev): show failed surface diagnostics`: apps/dev `/surfaces` diagnostics now include trusted mounted fixture, trusted failing render fixture, and external untrusted rejected fixture. The page describes mount/fail/reject proof. `surface-diagnostics.test.ts`, apps/dev type-check, apps/dev build, project validate, and diff check passed locally. CI run 25187078792 succeeded.",
+    "Pushed docs commits e8e3a146 and 80aa57af documenting render diagnostics/failure semantics. Latest handoff checkpoint before this one was 3df57275.",
+    "Push hook for 164a3c23 had non-blocking local lint/unit timeouts, but local targeted tests/type-check/build passed before push and CI completed green.",
+    "Known generated artifact caveat occurred again after apps/dev build: `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` changed by inlining LANG. It was inspected and restored."
   ],
   "blockers": [
-    "Disk remains 99% used on the host mount with about 9.3GB free. Stable; no cleanup needed now. Check before broad builds. Use `npm run clean:light --silent` only if generated artifacts grow meaningfully or free space drops near 2-3GB.",
-    "Builds can rewrite `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` by inlining the LANG expression. Continue to inspect and `git restore` unless intentionally working on that validation artifact. It did not change during the latest Homestead-only builds.",
+    "Disk remains 99% used on the host mount with about 9.1GB free. Stable; no cleanup needed now. Check before broad builds. Use `npm run clean:light --silent` only if generated artifacts grow meaningfully or free space drops near 2-3GB.",
+    "Builds can rewrite `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` by inlining the LANG expression. Continue to inspect and `git restore` unless intentionally working on that validation artifact.",
     "Rust target dirs were previously cleaned. Avoid broad Rust commands unless Rust is touched; use scoped commands from AGENTS.md.",
     "Known Vite browser externalization warnings for `node:fs/promises` and `node:path` remain non-blocking for apps/dev/apps/me builds.",
-    "Known moderate npm audit findings remain non-blocking: Astro, DOMPurify, PostCSS, uuid transitive chains; 0 high/critical in pre-push/CI checks."
+    "Known moderate npm audit findings remain non-blocking: Astro, DOMPurify, PostCSS, uuid transitive chains; 0 high/critical in pre-push/CI checks.",
+    "CI duration is becoming noticeable: user wants to later evaluate GitHub Actions speedups, but only if improvements do not damage the Actions architecture/composability already built."
   ],
   "next_actions": [
     "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`.",
-    "If this handoff is committed, push it and watch CI. It should be a docs/project-only change and skip most heavy jobs.",
-    "Next best atomic slice: add the Homestead/AppDev integration proof that `StudioShell` preserves both an executable plugin surface in `streams` and Homestead's built-in `[data-refarm-stream-panel]` live stream observer in the same slot, including render mode diagnostics.",
+    "If this handoff is committed, push it and watch CI. It should be a project-only change and skip most heavy jobs.",
+    "Next best atomic slice: decide whether to formalize `renderHomesteadSurface` in plugin-manifest docs as a Homestead host convention, while keeping manifest execution-neutral and `ui:panel:render` as the capability gate.",
     "Next daily-driver slice: evolve `renderStudioStreamSurfaceDemo(...)` from a static panel toward a host-owned surface context/action contract. Keep app behavior in apps/dev and Homestead primitives semantic; do not put app-specific actions in Homestead or DS.",
-    "Next diagnostics slice: update apps/dev `/surfaces` fixture to include a deliberately failing trusted render surface so the ledger visibly proves mounted, rejected, rendered, and failed paths. Keep the presenter in apps/dev; Homestead `surface-inspector` remains semantic/read-only.",
-    "Next manifest/docs slice: decide whether to formally document `renderHomesteadSurface` as a host-specific method convention in plugin-manifest README, while clarifying that `ui:panel:render` remains the capability gate and the manifest does not execute hooks itself.",
+    "Next diagnostics slice: surface-ledger could show failed render error details if useful, but keep presenter logic in apps/dev and Homestead `surface-inspector` read-only/semantic. Current table already shows `render: failed` from DOM metadata.",
+    "Potential CI-speed follow-up: inspect recent workflow timings and changed-area filters before changing YAML. Candidate improvements should preserve pinned-action/reusable/local-action architecture, avoid broad reordering, and be backed by run timing evidence.",
     "If future apps/social starts, consume `bootStudioRuntime(...)`, `setupStudioShell(...)`, `createStudioPluginHandle(...)`/`createHomesteadSurfacePluginHandle(...)`, and renderer-only subpaths rather than importing the full Homestead SDK in app internals."
   ],
   "open_questions": [
@@ -31,13 +33,15 @@
     "Should plugin-provided `{ html }` be sanitized or restricted further before broader external plugin enablement? Current gate relies on Homestead trust activation; plain string/`{ text }` remains safe text path; failed render hooks are now auditable.",
     "Should `@refarm.dev/homestead/sdk/surface-renderer` be documented in plugin-manifest README alongside `surface-inspector` as preferred narrow imports for app internals?",
     "Should the Studio stream surface eventually consume live stream state directly via a host callback/context, or should Homestead remain the sole stream observer and executable surfaces only render static plugin affordances initially?",
-    "Do apps/dev and apps/me need shared TS path generation for Homestead subpaths to avoid manual path-map drift?"
+    "Do apps/dev and apps/me need shared TS path generation for Homestead subpaths to avoid manual path-map drift?",
+    "Which GitHub Actions jobs dominate runtime after changed-area filtering: quality verify, build, e2e, audit, or metrics? Gather evidence before tuning."
   ],
   "key_decisions_pending": [
     "Whether to formalize `renderHomesteadSurface` in plugin-manifest docs now or wait for one more executable plugin surface/failure fixture.",
-    "Whether the next lane should be integration proof in Homestead tests, apps/dev failing surface diagnostics, or first host-owned action/context contract.",
+    "Whether next lane should be plugin-manifest docs, first host-owned action/context contract, or a small ledger error-detail presenter.",
     "Whether to introduce a centralized app tsconfig path preset for Homestead subpaths.",
-    "Whether to schedule cleanup soon; current disk is stable, so no cleanup was run."
+    "Whether to schedule cleanup soon; current disk is stable, so no cleanup was run.",
+    "Whether/how to speed up GitHub Actions without weakening the composable architecture."
   ],
   "files_in_flux": []
 }
