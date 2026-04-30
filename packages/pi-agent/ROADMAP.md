@@ -209,7 +209,8 @@ Context engineering follows the pi-test-harness model:
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamChunk` accumulator for clients that consume host stream observations directly
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamSession` accumulator for clients that consume host stream lifecycle observations
 - [x] `streaming_reader_available()` is true for the host-proxied Tractor stream bridge
-- [ ] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client
+- [x] Tractor daemon exposes `--llm-stream-responses` as a governed CLI opt-in for startup plugins
+- [x] Wire format: server-sent event text deltas in partial `AgentResponse.content` chunks, reassembled by client accumulators
 
 ### `.refarm/` project convention
 
