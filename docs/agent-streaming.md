@@ -103,8 +103,9 @@ latest chunk `metadata`, with helpers such as `streamChunkPromptRef(...)`,
 `streamChunkProviderFamily(...)`, and `streamChunkModel(...)` for UI labels.
 Consumers that observe `StreamSession` lifecycle nodes can use
 `reduceStreamSessionEvents(...)`,
-`reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
-`isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
+`reduceStreamSessionEventsByStream(...)`, `isActiveStreamSession(...)`,
+`isTerminalStreamSession(...)`, `isCompletedStreamSession(...)`,
+`isFailedStreamSession(...)`,
 `streamSessionPromptRef(...)`, `streamSessionProviderFamily(...)`,
 `streamSessionModel(...)`, `streamSessionFailureKind(...)`, or
 `streamSessionFailureReason(...)`. The package also exports status/kind/payload
