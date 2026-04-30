@@ -109,9 +109,10 @@ Rejected activation telemetry is also normalized by Homestead helpers, while the
 Studio inspector displays recent `ui:surface_rejected` events from Tractor's
 telemetry buffer and refreshes when new rejection events arrive.
 Studio also exposes `/surfaces` as a dedicated activation ledger. That page
-boots a tiny diagnostics runtime to prove both sides of the policy: an explicit
-internal surface mounts, while an external unregistered surface is rejected as
-`untrusted-plugin` with registry status visible in a structured ledger presenter.
+boots a tiny diagnostics runtime to prove the policy path: an explicit internal
+surface mounts, a registry-validated external surface renders, and an external
+unregistered surface is rejected as `untrusted-plugin` with registry status
+visible in a structured ledger presenter.
 The Homestead `surface-inspector` remains intentionally semantic/read-only;
 Studio-owned presenters decide whether those diagnostics appear as tables,
 graphs, filters, or compact statusbar summaries.
