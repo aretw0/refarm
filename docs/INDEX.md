@@ -58,6 +58,7 @@ Detailed planning for the following tracks is now consolidated in the **[Evoluti
 Checklists e guias para o gate diário antes de qualquer v0.1.0:
 
 - **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Daily-driver-first gate; contract publication remains on hold until Refarm can replace the current pi workflow or there is explicit human override
+- **[Daily-Driver Parity Checklist](DAILY_DRIVER_PARITY.md)** — Capability checklist mapping current pi workflow needs to Refarm surfaces and local validation signals
 - **[Gate 3 Spec](gate3-homestead-tractor-spec.md)** — Homestead × Tractor integration spec (POC vs consolidated distro)
 - **[Schema Migration Strategy](schema-migration-strategy.md)** — SCHEMA_V1 freeze, upgrade contract, `refarm migrate` CLI
 - **[Distro Evolution Model](distro-evolution-model.md)** — Bootstrap → Sovereign → Social canonical spec
