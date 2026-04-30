@@ -77,6 +77,9 @@ Homestead also owns the semantic diagnostics helpers for this graph:
 `observeMountedHomesteadSurfaceChanges(...)` centralizes which telemetry events
 can change the mounted surface graph. Apps can render their own diagnostics, but
 they should not duplicate Homestead's surface semantics.
+Rejected activation telemetry is also normalized by Homestead helpers, while the
+Studio inspector displays recent `ui:surface_rejected` events from Tractor's
+telemetry buffer and refreshes when new rejection events arrive.
 Stream rendering now writes into its own `[data-refarm-stream-panel]` child
 instead of replacing the entire `streams` slot, so plugin-provided panels mounted
 into that slot survive live stream updates. Declared surface mounts also unhide
