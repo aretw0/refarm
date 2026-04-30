@@ -1,50 +1,50 @@
 {
-  "context": "Checkpoint 2026-04-30T22:03Z after another atomic product/extensibility slice. Branch develop is intentionally local-ahead of origin/develop by 9 commits because user requested batching local work instead of pushing/watching GitHub Actions for every slice. Worktree should be clean after this handoff commit. Disk remains constrained but stable at ~13GB free on /workspaces/refarm; no cleanup was necessary.",
-  "timestamp": "2026-04-30T22:03:00.000Z",
-  "current_phase": 26,
+  "context": "Checkpoint 2026-04-30T22:38Z after Astro-first UI architecture and first custom-element island slice. Branch develop is intentionally local-ahead of origin/develop by 16 commits because user requested batching local work instead of pushing/watching GitHub Actions after each small slice. Worktree should be clean after this handoff commit. Disk remains constrained but stable at ~13GB free on /workspaces/refarm; no cleanup was necessary.",
+  "timestamp": "2026-04-30T22:38:00.000Z",
+  "current_phase": 27,
   "current_tasks": [
     "Latest remote-pushed/CI-green baseline remains 4e02e548 `refactor(homestead): scope surface context providers` unless pushed later.",
-    "Local commits ahead of origin/develop now include: 1f980843 `feat(app-dev): prove registry validated surfaces`; 6c54c16c `chore(backlog): note e2e pipeline speedups`; 109bd170 `feat(homestead): share plugin registry helper`; e5ce03ee `chore(project): checkpoint registry surface flow`; 8c2ec2ac `feat(homestead): dispatch surface host actions`; dfd2b65f `refactor(homestead): scope surface action handlers`; 5e77390b `docs(homestead): clarify studio primitive boundary`; dce97ebd `chore(project): checkpoint surface action primitives`; 85f81667 `feat(homestead): inspect surface action diagnostics`.",
-    "85f81667 added semantic Homestead surface action diagnostics: `HOMESTEAD_SURFACE_ACTION_EVENTS`, `isHomesteadSurfaceActionEvent(...)`, `homesteadSurfaceActionFromTelemetry(...)`, and `listHomesteadSurfaceActions(...)` in `@refarm.dev/homestead/sdk/surface-inspector`. These parse `ui:surface_action_requested` and `ui:surface_action_failed` telemetry into read-only diagnostics.",
-    "apps/dev `/surfaces` ledger now consumes Homestead action diagnostics and renders action rows plus an action metric. Reactive ledger refresh now persists action telemetry events as they arrive, while keeping presenter/table rendering in apps/dev and semantic interpretation in Homestead SDK.",
-    "Documentation updated in `docs/EXTENSIBILITY_MODEL.md` to mention action requested/failed diagnostics in the Studio ledger loop.",
-    "Attempted to add a Homestead Shell test for failed `surfaceAction`, but the edit autoformatted `packages/homestead/test/Shell.test.ts` into a huge diff (~1250 changed lines). Reverted it with `git restore` to respect the repo instruction to avoid large autoformat diffs in Shell.test. Do not reattempt there unless using a surgical approach that preserves formatting.",
-    "Validations passed for latest slice: `npm --prefix packages/homestead test -- surface-inspector.test.ts`; `npm --prefix packages/homestead run type-check`; `npm --prefix packages/homestead run build`; `npm --prefix apps/dev test -- surface-ledger.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/dev run build`; `npm run project:validate --silent`; `git diff --check`.",
-    "Known Vite browser-externalization warnings appeared during apps/dev build for `node:fs/promises` and `node:path`; unchanged/non-blocking. No sqlite benchmark worker diff appeared after the build.",
+    "Local commits ahead of origin/develop now include the prior Homestead/plugin surface action batch plus new UI architecture commits: c3cb4a2e `feat(app-dev): prove surface action telemetry`; 4b01e422 `feat(homestead): compose surface host contracts`; ff8918eb `docs(plugins): document surface action contract`; 25834a7b `docs(ui): define astro-first architecture`; b0f73faa `refactor(app-dev): mount surface ledger as custom element`; b0b98670 `docs(ui): checkpoint ledger island boundary`.",
+    "25834a7b added `docs/UI_ARCHITECTURE.md` with the accepted policy: Astro owns stable page/layout composition; Homestead owns runtime/surface contracts; live runtime state should use small controllers/custom elements; plugin-rendered HTML remains a trust-gated Homestead surface boundary. `docs/EXTENSIBILITY_MODEL.md` links to it.",
+    "b0f73faa introduced a custom-element boundary for the `/surfaces` ledger: `STUDIO_SURFACE_LEDGER_ELEMENT_NAME`, `defineStudioSurfaceLedgerElement(...)`, `mountReactiveStudioSurfaceLedgerElement(...)`, `StudioSurfaceLedgerMountOptions`, and `StudioSurfaceLedgerElement` in `apps/dev/src/lib/surface-ledger.ts`. `apps/dev/src/pages/surfaces.astro` now renders `<refarm-surface-ledger ...>` as stable Astro markup and wires it with the runtime helper after boot.",
+    "b0b98670 updated `docs/UI_ARCHITECTURE.md` to note that `surface-ledger.ts` has an island/custom-element boundary but should not keep growing as an unbounded DOM renderer. Future work should push stable table/copy structure toward Astro or another shared primitive.",
+    "Previous slice details still matter: Homestead SDK has action telemetry helpers in `surface-inspector`, action/context compose helpers in `surface-renderer`, `/surfaces` can trigger requested/failed action telemetry, and plugin docs/examples now document `request.host.actions` plus `data-refarm-surface-action-id`.",
+    "Validation passed for new UI/custom-element work: `npm --prefix apps/dev test -- surface-ledger.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/dev run build`; `npm run project:validate --silent`; `git diff --check`. Earlier in the same turn also passed Homestead/app validations for surface action composition and plugin example smoke commands.",
+    "Known Vite browser-externalization warnings appeared during apps/dev build for `node:fs/promises` and `node:path`; unchanged/non-blocking. No sqlite benchmark worker diff appeared after builds.",
     "Disk snapshot: `/workspaces/refarm` about 13GB free, 98% used. No cleanup run."
   ],
   "blockers": [
     "Do not push/watch GitHub Actions after every small slice. User preference remains: validate locally, accumulate meaningful package, then push/monitor CI once.",
     "Disk is stable at ~13GB free but host remains 98% used. No cleanup was run. Use `npm run clean:light --silent` only if generated artifacts grow meaningfully or free space drops near 2-3GB.",
-    "CI/E2E speed work is explicitly backlogged in `.pi/todos/e1279bab.md`; do not switch to that lane unless requested or after product/extensibility batch is ready.",
+    "CI/E2E speed work is explicitly backlogged in `.pi/todos/e1279bab.md`; do not switch to that lane unless requested or after product/extensibility/UI architecture batch is ready.",
     "Builds can rewrite `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` by inlining the LANG expression. Inspect and restore unless intentional.",
     "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary.",
     "Project task append tooling previously failed because old `.project/tasks.json` entries have schema-invalid `phase: null`. Avoid appending tasks there unless normalizing old phases intentionally.",
-    "Avoid editing `packages/homestead/test/Shell.test.ts` with tools that autoformat the whole file. Use very surgical patching or avoid adding tests there until formatting policy/tooling is addressed."
+    "Avoid editing `packages/homestead/test/Shell.test.ts` with tools that autoformat the whole file. A previous attempt produced a huge diff and was reverted."
   ],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect develop ahead 10 if this handoff is committed locally.",
-    "Commit this handoff checkpoint as `chore(project): checkpoint surface action diagnostics` if not already committed.",
-    "Next best product lane: make action diagnostics interactive in the Studio workbench by triggering the stream surface action and showing requested/failed telemetry in `/surfaces`, but keep concrete navigation/failure behavior in apps/dev and semantic parsing in Homestead SDK.",
-    "Alternative atomic slice: add a non-Shell unit test around `StudioShell` action failure by extracting small pure telemetry payload helpers from Shell into `surface-renderer` or a new helper module, avoiding huge `Shell.test.ts` diffs.",
-    "Alternative atomic slice: formalize `renderHomesteadSurface` + `data-refarm-surface-action-id` in plugin-manifest docs/examples, including an external validated text/action surface example.",
-    "Alternative atomic slice: add a generic `composeHomesteadSurfaceActionHandlers(...)` SDK helper only if multiple host action handlers become necessary; do not add speculative semantics.",
+    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -15`. Expect develop ahead 17 if this handoff is committed locally.",
+    "Commit this handoff checkpoint as `chore(project): checkpoint astro ui architecture` if not already committed.",
+    "Best next slice: extract `apps/dev/src/pages/surfaces.astro` inline boot logic into a small `apps/dev/src/lib/surface-diagnostics-runtime.ts` controller. Keep Astro page as readable composition and runtime boot/test logic in TS. Add a focused unit test for the boot helper if feasible without mocking too much Tractor; otherwise type-check/build validate.",
+    "Alternative next slice: create a similar custom-element boundary for `apps/dev/src/lib/surface-inspector.ts` and render a stable `<refarm-surface-inspector>` tag in `index.astro`, keeping subscriptions/cleanup inside the element.",
+    "Alternative next slice: reduce manual DOM construction in `surface-ledger.ts` by moving stable table shell/copy into Astro and limiting TS to rows/metrics. Do this carefully; avoid large DOM rewrites.",
+    "Alternative next slice: add Homestead README mention of `composeHomesteadSurfaceContextProviders(...)` / `composeHomesteadSurfaceActionHandlers(...)` after action composition landed.",
     "Before pushing accumulated batch: rerun scoped validations for Homestead/apps/dev plus `npm run project:validate --silent`, `git diff --check`, and likely `npm --prefix apps/dev run build`; then push once and monitor CI once.",
     "If disk drops near 2-3GB free, run `npm run clean:light --silent` and re-check `df -h /workspaces/refarm`."
   ],
   "open_questions": [
-    "Should surface action failure telemetry be tested by extracting pure payload builders from `StudioShell` to avoid touching the fragile `Shell.test.ts` formatting?",
-    "Should the `/surfaces` ledger distinguish action requested vs failed in separate metrics, or keep one combined actions metric?",
-    "Should action diagnostics also appear in the compact statusbar inspector, or only the structured `/surfaces` ledger for now?",
-    "Should `renderHomesteadSurface` and `data-refarm-surface-action-id` become a formal plugin-manifest host convention now?",
+    "Should `surface-inspector.ts` also become a custom element before further product work, or is `surface-diagnostics-runtime.ts` extraction the higher-value Astro-first slice?",
+    "Should `surface-ledger.ts` row/table rendering stay imperative for now, or should we introduce an Astro-rendered table shell plus a minimal row-updater controller?",
+    "Should `packages/homestead/src/sdk/Shell.ts` trusted HTML rendering get a named sanitizer/trust policy before richer external surfaces?",
     "When pushing accumulated commits, should the local handoff/backlog commits stay in history or be squashed/reordered?",
-    "Should `apps/me` adopt the Studio runtime/action primitives now as a smoke consumer, or wait until plugin lifecycle is less fixture-driven?"
+    "Should `apps/me` adopt the Studio runtime/action primitives as a smoke consumer now, or wait until the UI architecture refactor stabilizes `apps/dev` first?"
   ],
   "key_decisions_pending": [
-    "Next lane choice: registered plugin lifecycle surface, action diagnostics UX polish, manifest/example documentation, or push/CI batch.",
+    "Next lane choice: Astro-first runtime extraction, surface-inspector custom element, registered plugin lifecycle surface, or push/CI batch.",
+    "Accepted UI policy: Astro-first composition, Homestead runtime contracts, small client controllers/custom elements, no accidental React. Continue enforcing this in code placement.",
     "Boundary decision remains active: Studio is shared Homestead primitive; `apps/dev` is only reference workbench. Continue enforcing this in code placement.",
     "Whether to harden HTML sanitization/trust policy before adding richer executable external surfaces.",
-    "When to spend CI/E2E optimization backlog work vs continue product/extensibility work."
+    "When to spend CI/E2E optimization backlog work vs continue product/extensibility/UI architecture work."
   ],
   "files_in_flux": [
     ".project/handoff.json"
