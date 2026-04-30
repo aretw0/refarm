@@ -68,7 +68,8 @@ multiple `prompt_ref` values may be interleaved. Consumers that observe generic
 `reduceStreamChunkEventsByStream(...)`, or `isTerminalStreamChunk(...)`.
 Consumers that observe `StreamSession`
 lifecycle nodes can use `reduceStreamSessionEvents(...)`,
-`reduceStreamSessionEventsByStream(...)`, or `isTerminalStreamSession(...)`.
+`reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
+`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`.
 Use `orderAgentResponseStreamEvents(...)`
 or `orderStreamChunkEvents(...)` before reducing if the source does not already
 emit events in sequence order.
