@@ -8,6 +8,10 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
+    "./sdk/surface-inspector": {
+      "types": "./dist/sdk/surface-inspector.d.ts",
+      "import": "./dist/sdk/surface-inspector.js"
+    },
     "./ui": {
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"

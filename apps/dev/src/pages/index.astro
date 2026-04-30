@@ -46,6 +46,7 @@ import Layout from "../layouts/Layout.astro";
     shouldSeedStudioStreamDemo,
     STUDIO_STREAM_DEMO_STORAGE_KEY,
   } from "../lib/stream-demo";
+  import { mountStudioSurfaceInspector } from "../lib/surface-inspector";
 
   async function boot() {
     try {
@@ -145,6 +146,7 @@ import Layout from "../layouts/Layout.astro";
             window.location.reload();
           },
         });
+        mountStudioSurfaceInspector(statusbar);
       }
 
       if (streamDemoEnabled) {
