@@ -45,7 +45,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
         This page boots a tiny diagnostics runtime: one internal trusted surface should mount, while one external
         unregistered surface should be rejected as <code class="refarm-code">untrusted-plugin</code>.
       </p>
-      <div class="surfaces-ledger__inspector" data-refarm-surfaces-inspector-slot></div>
+      <div class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></div>
     </div>
 
     <div class="refarm-surface-card surfaces-ledger__panel">
@@ -129,6 +129,28 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       align-items: center;
     }
 
+    :global(.surface-ledger-table) {
+      width: 100%;
+      margin-top: 1rem;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+
+    :global(.surface-ledger-table th),
+    :global(.surface-ledger-table td) {
+      padding: 0.65rem 0.5rem;
+      border-bottom: 1px solid rgba(139, 148, 158, 0.18);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    :global(.surface-ledger-table th) {
+      color: var(--refarm-text-secondary);
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
     @media (max-width: 860px) {
       .surfaces-ledger {
         grid-template-columns: 1fr;
@@ -140,7 +162,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 <script>
   import { bootStudioRuntime, StudioShell } from "@refarm.dev/homestead/sdk";
   import { createStudioSurfaceDiagnosticsPlugins } from "../lib/surface-diagnostics";
-  import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
+  import { mountReactiveStudioSurfaceLedger } from "../lib/surface-ledger";
 
   function setStatus(text: string) {
     const status = document.querySelector<HTMLElement>("[data-refarm-surfaces-status]");
@@ -163,9 +185,9 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
     const shell = new StudioShell(tractor);
     await shell.setup();
 
-    const inspectorSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-inspector-slot]");
-    if (inspectorSlot) {
-      mountReactiveStudioSurfaceInspector(inspectorSlot, {
+    const ledgerSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-ledger-slot]");
+    if (ledgerSlot) {
+      mountReactiveStudioSurfaceLedger(ledgerSlot, {
         telemetry: tractor,
         telemetryEvents: tractor.telemetry.dump(),
       });
@@ -176,12 +198,12 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
   bootSurfaceDiagnostics().catch((error) => {
     console.error("[studio/surfaces] Boot failed", error);
     setStatus("Boot failed");
-    const inspectorSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-inspector-slot]");
-    if (inspectorSlot) {
+    const ledgerSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-ledger-slot]");
+    if (ledgerSlot) {
       const message = document.createElement("p");
       message.className = "refarm-card-body";
       message.textContent = `Surface diagnostics boot failed: ${(error as Error).message}`;
-      inspectorSlot.replaceChildren(message);
+      ledgerSlot.replaceChildren(message);
     }
   });
 </script>
