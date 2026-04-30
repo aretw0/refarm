@@ -8,6 +8,10 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
+    "./sdk/runtime": {
+      "types": "./dist/sdk/runtime.d.ts",
+      "import": "./dist/sdk/runtime.js"
+    },
     "./sdk/surface-inspector": {
       "types": "./dist/sdk/surface-inspector.d.ts",
       "import": "./dist/sdk/surface-inspector.js"
@@ -27,6 +31,8 @@
   "dependencies": {
     "@refarm.dev/ds": "*",
     "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/storage-sqlite": "*",
+    "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
     "astro": "^6.1.8"
   },

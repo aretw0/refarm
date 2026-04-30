@@ -138,10 +138,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 </Layout>
 
 <script>
-  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
-  import { LoroCRDTStorage, randomPeerId } from "@refarm.dev/sync-loro";
-  import { Tractor } from "@refarm.dev/tractor";
-  import { StudioShell } from "@refarm.dev/homestead/sdk";
+  import { bootStudioRuntime, StudioShell } from "@refarm.dev/homestead/sdk";
   import { createStudioSurfaceDiagnosticsPlugins } from "../lib/surface-diagnostics";
   import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
 
@@ -151,22 +148,10 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
   }
 
   async function bootSurfaceDiagnostics() {
-    const sqliteStorage = await new OPFSSQLiteAdapter().open(`refarm-surfaces-${Date.now()}`);
-    const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
-    const identity = {
-      id: "surface-diagnostics",
-      getPublicKey: async () => "surface-diagnostics",
-      sign: async (data: string) => data,
-    };
-
-    const tractor = await Tractor.boot({
-      storage: storage as any,
-      identity: identity as any,
+    const { tractor } = await bootStudioRuntime({
+      databaseName: `refarm-surfaces-${Date.now()}`,
       namespace: "studio-surfaces",
-      envMetadata: {
-        version: "0.1.0-solo-fertil",
-        commit: "dev",
-      },
+      identityId: "surface-diagnostics",
     });
 
     for (const plugin of createStudioSurfaceDiagnosticsPlugins((pluginId, event, payload) =>

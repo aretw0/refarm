@@ -1,4 +1,5 @@
 export * from "./Shell.js";
+export * from "./runtime.js";
 export * from "./surface-inspector.js";
 export * from "./surface-slots.js";
 export * from "./stream-observer.js";

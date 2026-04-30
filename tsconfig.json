@@ -14,6 +14,12 @@
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
+      "@refarm.dev/homestead/sdk/runtime": [
+        "./packages/homestead/src/sdk/runtime"
+      ],
+      "@refarm.dev/homestead/sdk/surface-inspector": [
+        "./packages/homestead/src/sdk/surface-inspector"
+      ],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
       "@refarm.dev/identity-contract-v1": [
         "./packages/identity-contract-v1/src/index"
