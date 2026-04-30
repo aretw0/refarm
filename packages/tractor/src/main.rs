@@ -1217,6 +1217,32 @@ mod tests {
     }
 
     #[test]
+    fn watch_cli_accepts_prompt_ref_stream_filter() {
+        let cli = Cli::try_parse_from([
+            "tractor",
+            "watch",
+            "--type",
+            "StreamChunk",
+            "--prompt-ref",
+            "prompt-1",
+            "--until-final",
+        ])
+        .expect("cli parse");
+
+        let Some(Command::Watch(args)) = cli.command else {
+            panic!("expected watch command");
+        };
+        assert_eq!(args.r#type, "StreamChunk");
+        assert_eq!(args.prompt_ref.as_deref(), Some("prompt-1"));
+        assert!(args.until_final);
+        assert_eq!(
+            resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())
+                .expect("stream ref filter"),
+            Some("urn:tractor:stream:agent-response:prompt-1".to_string())
+        );
+    }
+
+    #[test]
     fn query_cli_accepts_prompt_ref_stream_filter() {
         let cli = Cli::try_parse_from([
             "tractor",
@@ -1245,6 +1271,13 @@ mod tests {
         let err = resolve_stream_ref_filter(Some("stream-a"), Some("prompt-a"))
             .expect_err("ambiguous stream filters should fail");
         assert!(err.to_string().contains("either --stream-ref or --prompt-ref"));
+    }
+
+    #[test]
+    fn stream_ref_filter_rejects_empty_prompt_refs() {
+        let err = resolve_stream_ref_filter(None, Some(""))
+            .expect_err("empty prompt refs should fail");
+        assert!(err.to_string().contains("--prompt-ref must not be empty"));
     }
 
     #[test]
