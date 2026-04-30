@@ -15,7 +15,7 @@ Refarm should unlock extension without locking the ecosystem into one runtime. T
 | Surface      | Host                            | Typical use                                                     | Promotion signal                                         |
 | ------------ | ------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
 | `tractor`    | native/headless daemon          | storage adapters, indexers, agent/tool bridges, background work | passes scoped runtime tests and survives daemon restart  |
-| `homestead`  | browser shell / `apps/me`       | panels, widgets, editors, stream renderers                      | mounts in real DOM slots and reconnects after reload     |
+| `homestead`  | browser shell / Studio dev      | panels, widgets, editors, stream renderers                      | mounts in real DOM slots and reconnects after reload     |
 | `pi`         | local automaton / agent harness | filesystem tools, local scripts, reminders, hardware hooks      | host-authorized, auditable, and recoverable from handoff |
 | `automation` | Windmill/workflow layer         | scheduled tasks, macros, recurring operations                   | ownership and retry semantics are explicit               |
 | `desktop`    | native/OS integration           | file watchers, tray/menu actions, platform affordances          | isolated permissions and rollback path exist             |
@@ -58,9 +58,13 @@ with `layer: "homestead"` and mounts them into the declared shell slot. Runtime
 activation remains capability/trust-gated by the plugin host; surface discovery
 only decides where an already-loaded plugin is presented.
 
+Short-term UI experiments should land in Homestead/Studio dev, not the `me` or
+`social` surfaces. Those app surfaces can consume stabilized primitives after
+the Studio shell proves the workflow.
+
 ## Daily-driver order of attack
 
-1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar subscriber landed; next step is a richer panel/editor surface.
+1. **UI stream renderer** — first `homestead`/UI consumer of generic `StreamSession` and `StreamChunk` views. Initial statusbar and richer stream panel landed; next step is a plugin-provided panel/editor surface with explicit capability enforcement.
 2. **Project memory surface** — durable `.project`/graph-backed work state usable across sessions.
 3. **Automation surface** — reminders/scheduled checks with explicit ownership and retry rules.
 4. **Plugin management surface** — install/list/remove plugins with SHA-256 validation and OPFS cache visibility.

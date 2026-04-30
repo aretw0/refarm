@@ -100,14 +100,16 @@ one of the reducers below.
 Homestead now has the first production UI subscriber for generic stream nodes:
 `StudioShell` listens for `StreamSession` and `StreamChunk` writes through
 `Tractor.onNode(...)`, reduces them with the shared Tractor helpers, and renders
-a compact live stream pill in the `statusbar` slot. This keeps
+a compact live stream pill in the `statusbar` slot plus a richer panel in the
+Homestead `streams` slot when present. This keeps
 `BrowserSyncClient` schema-neutral: sync still transports graph updates, while
 the shell chooses which node types to observe and how to present them.
 
-The remaining gap is a richer daily-driver stream panel/editor surface. The
-terminal plugin is still a passive DOM log sink, so future slices should promote
-the Homestead statusbar subscriber into a dedicated `homestead` extension
-surface once UI slots and manifest-declared surfaces are wired end to end.
+The remaining gap is a plugin-provided daily-driver stream panel/editor surface
+with explicit surface capability checks. The terminal plugin is still a passive
+DOM log sink, so future slices should keep UI experimentation in
+Homestead/Studio dev until the shell primitive is stable enough for `me` or
+`social` app surfaces.
 
 TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
