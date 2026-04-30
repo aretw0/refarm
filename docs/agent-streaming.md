@@ -75,8 +75,10 @@ TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
 from `@refarm.dev/tractor` as the default `AgentResponse` accumulation
 primitive, or `reduceAgentResponseStreamEventsByPrompt(...)` when events from
-multiple `prompt_ref` values may be interleaved. Consumers that observe generic
-`StreamChunk` nodes directly can use `reduceStreamChunkEvents(...)`,
+multiple `prompt_ref` values may be interleaved. Use
+`agentResponseStreamRef(promptRef)` to derive the generic `stream_ref` for the
+same prompt. Consumers that observe generic `StreamChunk` nodes directly can use
+`reduceStreamChunkEvents(...)`,
 `reduceStreamChunkEventsByStream(...)`, `isTerminalStreamChunk(...)`, or
 `isTerminalStreamChunkState(...)`. Consumers that observe `StreamSession`
 lifecycle nodes can use `reduceStreamSessionEvents(...)`,
