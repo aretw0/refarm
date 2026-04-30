@@ -26,6 +26,9 @@ export interface StreamSessionState {
 export type StreamSessionStateMap = Record<string, StreamSessionState>;
 
 export const UNKNOWN_STREAM_SESSION_REF = "__tractor:no-stream-session-ref__";
+export const STREAM_SESSION_STATUS_ACTIVE = "active";
+export const STREAM_SESSION_STATUS_COMPLETED = "completed";
+export const STREAM_SESSION_STATUS_FAILED = "failed";
 
 export function emptyStreamSessionState(
 	streamRef: string | null = null,
@@ -108,7 +111,18 @@ export function reduceStreamSessionEventsByStream(
 }
 
 export function isTerminalStreamSessionStatus(status: string | null): boolean {
-	return status === "completed" || status === "failed";
+	return (
+		status === STREAM_SESSION_STATUS_COMPLETED ||
+		status === STREAM_SESSION_STATUS_FAILED
+	);
+}
+
+export function isCompletedStreamSession(state: StreamSessionState): boolean {
+	return state.status === STREAM_SESSION_STATUS_COMPLETED;
+}
+
+export function isFailedStreamSession(state: StreamSessionState): boolean {
+	return state.status === STREAM_SESSION_STATUS_FAILED;
 }
 
 export function isTerminalStreamSession(state: StreamSessionState): boolean {

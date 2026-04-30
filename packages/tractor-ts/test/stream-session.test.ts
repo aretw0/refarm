@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamSessionEvent,
 	emptyStreamSessionState,
+	isCompletedStreamSession,
+	isFailedStreamSession,
 	isTerminalStreamSession,
 	isTerminalStreamSessionStatus,
 	orderStreamSessionEvents,
@@ -101,6 +103,18 @@ describe("StreamSession accumulator", () => {
 			isTerminalStreamSession({
 				...emptyStreamSessionState("stream-terminal"),
 				status: "completed",
+			}),
+		).toBe(true);
+		expect(
+			isCompletedStreamSession({
+				...emptyStreamSessionState("stream-completed"),
+				status: "completed",
+			}),
+		).toBe(true);
+		expect(
+			isFailedStreamSession({
+				...emptyStreamSessionState("stream-failed"),
+				status: "failed",
 			}),
 		).toBe(true);
 	});
