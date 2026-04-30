@@ -102,8 +102,10 @@ Consumers that observe `StreamSession` lifecycle nodes can use
 `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
 `isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
-`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. The
-package also exports status/kind/payload constants and type guards plus the
+`streamSessionPromptRef(...)`, `streamSessionProviderFamily(...)`,
+`streamSessionModel(...)`, `streamSessionFailureKind(...)`, or
+`streamSessionFailureReason(...)`. The package also exports status/kind/payload
+constants and type guards plus the
 `StreamSessionStatus`, `StreamSessionKind`, `StreamChunkPayloadKind`, and
 `TerminalStreamChunkPayloadKind` type aliases for switch statements and UI state
 machines.
