@@ -114,6 +114,9 @@ rendering belongs in the UI consumer that subscribes to Tractor nodes.
 - [ ] For streaming views, order by `sequence`, stop on `is_final` or terminal
       session status, and use the `@refarm.dev/tractor` reducers instead of
       concatenating CRDT updates ad hoc.
+- [ ] Render generic stream labels from reducer metadata helpers
+      (`streamChunkProviderFamily`, `streamChunkModel`,
+      `streamSessionDurationNs`) rather than parsing opaque metadata in UI code.
 - [ ] When an `AgentResponse` has `tool_calls`, render each call inline:
   ```
   ▶ bash ["grep", "-rn", "fn react", "src/"]
