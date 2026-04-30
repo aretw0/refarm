@@ -71,6 +71,32 @@ describe("Studio surface inspector", () => {
 		);
 	});
 
+	it("renders rejected surface activation diagnostics from telemetry history", () => {
+		const container = document.createElement("div");
+		const inspector = mountStudioSurfaceInspector(
+			container,
+			document.createElement("div"),
+			{
+				telemetryEvents: [
+					{
+						event: "ui:surface_rejected",
+						pluginId: "plugin-a",
+						payload: {
+							reason: "unsupported-capability",
+							surfaceId: "secrets-panel",
+							missingCapabilities: ["ui:secrets:read"],
+						},
+					},
+				],
+			},
+		);
+
+		expect(inspector.textContent).toContain("1 rejected surface");
+		expect(inspector.textContent).toContain(
+			"plugin-a · secrets-panel: unsupported-capability (ui:secrets:read)",
+		);
+	});
+
 	it("refreshes when surface mount telemetry arrives", () => {
 		const container = document.createElement("div");
 		const root = document.createElement("div");
@@ -100,6 +126,29 @@ describe("Studio surface inspector", () => {
 		expect(
 			container.querySelectorAll("[data-refarm-studio-surface-inspector]"),
 		).toHaveLength(1);
+	});
+
+	it("refreshes when surface rejection telemetry arrives", () => {
+		const container = document.createElement("div");
+		const telemetry = createTelemetrySource();
+		const controller = mountReactiveStudioSurfaceInspector(container, {
+			root: document.createElement("div"),
+			telemetry,
+		});
+
+		telemetry.emit({
+			event: "ui:surface_rejected",
+			pluginId: "plugin-a",
+			payload: {
+				reason: "missing-slot",
+				surfaceId: "floating-panel",
+			},
+		});
+
+		expect(controller.element.textContent).toContain("1 rejected surface");
+		expect(controller.element.textContent).toContain(
+			"plugin-a · floating-panel: missing-slot",
+		);
 	});
 
 	it("disposes reactive telemetry subscriptions", () => {

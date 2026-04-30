@@ -157,7 +157,10 @@ import Layout from "../layouts/Layout.astro";
             window.location.reload();
           },
         });
-        mountReactiveStudioSurfaceInspector(statusbar, { telemetry: tractor });
+        mountReactiveStudioSurfaceInspector(statusbar, {
+          telemetry: tractor,
+          telemetryEvents: tractor.telemetry.dump(),
+        });
       }
 
       if (streamDemoEnabled) {

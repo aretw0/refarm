@@ -1,9 +1,12 @@
 import {
+	isHomesteadSurfaceChangeEvent,
+	listRejectedHomesteadSurfaces,
 	listMountedHomesteadSurfaces,
 	mountedHomesteadSurfaceKey,
-	observeMountedHomesteadSurfaceChanges,
 	type HomesteadSurfaceTelemetrySource,
+	type HomesteadSurfaceTelemetryEvent,
 	type MountedHomesteadSurface,
+	type RejectedHomesteadSurfaceActivation,
 } from "@refarm.dev/homestead/sdk/surface-inspector";
 
 export function mountedSurfaceLabel(surface: MountedHomesteadSurface): string {
@@ -16,12 +19,16 @@ export function mountedSurfaceLabel(surface: MountedHomesteadSurface): string {
 export function mountStudioSurfaceInspector(
 	container: HTMLElement,
 	root: ParentNode = document,
+	options: { telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[] } = {},
 ): HTMLElement {
 	container
 		.querySelector<HTMLElement>("[data-refarm-studio-surface-inspector]")
 		?.remove();
 
 	const surfaces = listMountedHomesteadSurfaces(root);
+	const rejectedSurfaces = listRejectedHomesteadSurfaces(
+		options.telemetryEvents ?? [],
+	);
 	const details = document.createElement("details");
 	details.dataset.refarmStudioSurfaceInspector = "true";
 	details.className = "refarm-surface-card";
@@ -50,6 +57,9 @@ export function mountStudioSurfaceInspector(
 	}
 
 	details.appendChild(list);
+	if (rejectedSurfaces.length > 0) {
+		details.appendChild(renderRejectedSurfaceList(rejectedSurfaces));
+	}
 	container.appendChild(details);
 	return details;
 }
@@ -65,21 +75,33 @@ export function mountReactiveStudioSurfaceInspector(
 	options: {
 		root?: ParentNode;
 		telemetry?: HomesteadSurfaceTelemetrySource;
+		telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[];
 	} = {},
 ): StudioSurfaceInspectorController {
 	const root = options.root ?? document;
-	let currentElement = mountStudioSurfaceInspector(container, root);
+	const telemetryEvents = [...(options.telemetryEvents ?? [])];
+	let currentElement = mountStudioSurfaceInspector(container, root, {
+		telemetryEvents,
+	});
 
 	const refresh = () => {
 		const wasOpen = currentElement.hasAttribute("open");
-		currentElement = mountStudioSurfaceInspector(container, root);
+		currentElement = mountStudioSurfaceInspector(container, root, {
+			telemetryEvents,
+		});
 		if (wasOpen) currentElement.setAttribute("open", "");
 		return currentElement;
 	};
 
-	const disposeTelemetry = options.telemetry
-		? observeMountedHomesteadSurfaceChanges(options.telemetry, refresh)
-		: undefined;
+	const disposeTelemetry = options.telemetry?.observe((event) => {
+		if (event.event === "ui:surface_rejected") {
+			telemetryEvents.push(event);
+			refresh();
+			return;
+		}
+
+		if (isHomesteadSurfaceChangeEvent(event)) refresh();
+	});
 
 	return {
 		get element() {
@@ -90,6 +112,42 @@ export function mountReactiveStudioSurfaceInspector(
 			if (typeof disposeTelemetry === "function") disposeTelemetry();
 		},
 	};
+}
+
+function renderRejectedSurfaceList(
+	rejectedSurfaces: RejectedHomesteadSurfaceActivation[],
+): HTMLElement {
+	const section = document.createElement("section");
+	section.className = "refarm-stack";
+	section.style.marginTop = "0.75rem";
+
+	const title = document.createElement("strong");
+	title.className = "refarm-card-title";
+	title.textContent = `${rejectedSurfaces.length} rejected surface${rejectedSurfaces.length === 1 ? "" : "s"}`;
+	section.appendChild(title);
+
+	const list = document.createElement("ul");
+	list.className = "refarm-stack";
+	list.style.margin = "0";
+	list.style.paddingLeft = "1rem";
+	for (const surface of rejectedSurfaces) {
+		list.appendChild(renderRejectedSurfaceListItem(surface));
+	}
+	section.appendChild(list);
+	return section;
+}
+
+function renderRejectedSurfaceListItem(
+	surface: RejectedHomesteadSurfaceActivation,
+): HTMLLIElement {
+	const item = document.createElement("li");
+	item.className = "refarm-card-body";
+	const name = [surface.pluginId, surface.surfaceId].filter(Boolean).join(" · ");
+	const missing = surface.missingCapabilities?.length
+		? ` (${surface.missingCapabilities.join(", ")})`
+		: "";
+	item.textContent = `${name || "unknown surface"}: ${surface.reason}${missing}`;
+	return item;
 }
 
 function renderSurfaceListItem(
