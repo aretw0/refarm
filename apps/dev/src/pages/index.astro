@@ -49,6 +49,7 @@ import Layout from "../layouts/Layout.astro";
     STUDIO_STREAM_SURFACE_PLUGIN_ID,
   } from "../lib/stream-demo";
   import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
+  import { createStudioPluginHandle } from "../lib/studio-plugin";
 
   async function boot() {
     try {
@@ -91,11 +92,11 @@ import Layout from "../layouts/Layout.astro";
       const sower = new SowerPlugin(tractor);
       const firefly = new FireflyPlugin(tractor);
 
-      tractor.plugins.registerInternal({
+      tractor.plugins.registerInternal(createStudioPluginHandle({
         id: "sower",
         name: "O Semeador",
-        manifest: { id: "sower", name: "O Semeador", version: "0.1.0", entry: "", capabilities: { providersApi: ["onboarding"] } } as any,
-        call: async (fn, args: any) => {
+        manifest: { capabilities: { providersApi: ["onboarding"] } } as any,
+        call: async (fn, args: unknown) => {
           if (fn === "get-help-nodes") return [JSON.stringify(await sower.getOnboardingNode())];
           if (fn === "on-event") {
             const [event, payload] = args as [string, string];
@@ -103,34 +104,28 @@ import Layout from "../layouts/Layout.astro";
           }
           return null;
         },
-        terminate: () => {},
         emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "sower" }),
         state: "idle"
-      });
+      }));
 
-      tractor.plugins.registerInternal({
+      tractor.plugins.registerInternal(createStudioPluginHandle({
         id: "scarecrow",
         name: "O Espantalho",
-        manifest: { id: "scarecrow", name: "O Espantalho", version: "0.1.0", entry: "", capabilities: {} } as any,
-        call: async () => null,
-        terminate: () => {},
         emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "scarecrow" }),
         state: "idle"
-      });
+      }));
       
-      tractor.plugins.registerInternal({
+      tractor.plugins.registerInternal(createStudioPluginHandle({
         id: "firefly",
         name: "O Vagalume",
-        manifest: { id: "firefly", name: "O Vagalume", version: "0.1.0", entry: "", capabilities: {} } as any,
         call: async (fn, args: any) => {
           if (fn === "show-toast") firefly.showToast(args.message, args.actionable);
           if (fn === "spotlight") firefly.spotlight(args.targetId, args.message);
           return null;
         },
-        terminate: () => {},
         emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" }),
         state: "idle"
-      });
+      }));
 
       if (streamDemoEnabled) {
         tractor.plugins.registerInternal(

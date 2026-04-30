@@ -1,4 +1,9 @@
-import type { PluginInstance, SovereignNode, Tractor } from "@refarm.dev/tractor";
+import type {
+	PluginInstance,
+	SovereignNode,
+	Tractor,
+} from "@refarm.dev/tractor";
+import { createStudioPluginHandle } from "./studio-plugin";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
 export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";
@@ -79,15 +84,10 @@ export async function seedStudioStreamDemo(tractor: Tractor): Promise<void> {
 export function createStudioStreamSurfaceDemoPlugin(
 	emitTelemetry: (event: string, payload?: unknown) => void = () => {},
 ): PluginInstance {
-	return {
+	return createStudioPluginHandle({
 		id: STUDIO_STREAM_SURFACE_PLUGIN_ID,
 		name: "Studio Stream Surface Demo",
 		manifest: {
-			id: STUDIO_STREAM_SURFACE_PLUGIN_ID,
-			name: "Studio Stream Surface Demo",
-			version: "0.1.0",
-			entry: "internal:studio-stream-surface-demo",
-			capabilities: {},
 			extensions: {
 				surfaces: [
 					{
@@ -99,12 +99,9 @@ export function createStudioStreamSurfaceDemoPlugin(
 					},
 				],
 			},
-		} as PluginInstance["manifest"],
-		call: async () => null,
-		terminate: () => {},
+		},
 		emitTelemetry,
-		state: "running",
-	};
+	});
 }
 
 export function mountStudioStreamDemoControl(
@@ -122,10 +119,7 @@ export function mountStudioStreamDemoControl(
 	button.textContent = options.enabled
 		? "Disable Studio stream demo"
 		: "Enable Studio stream demo";
-	button.setAttribute(
-		"aria-pressed",
-		options.enabled ? "true" : "false",
-	);
+	button.setAttribute("aria-pressed", options.enabled ? "true" : "false");
 	button.addEventListener("click", options.onToggle);
 
 	container.appendChild(button);

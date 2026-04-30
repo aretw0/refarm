@@ -143,6 +143,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
   import { Tractor } from "@refarm.dev/tractor";
   import { StudioShell } from "@refarm.dev/homestead/sdk";
   import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
+  import { createStudioPluginHandle } from "../lib/studio-plugin";
 
   function setStatus(text: string) {
     const status = document.querySelector<HTMLElement>("[data-refarm-surfaces-status]");
@@ -168,15 +169,10 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       },
     });
 
-    tractor.plugins.registerInternal({
+    tractor.plugins.registerInternal(createStudioPluginHandle({
       id: "studio-surface-diagnostics",
       name: "Studio Surface Diagnostics",
       manifest: {
-        id: "studio-surface-diagnostics",
-        name: "Studio Surface Diagnostics",
-        version: "0.1.0",
-        entry: "internal:studio-surface-diagnostics",
-        capabilities: {},
         extensions: {
           surfaces: [
             {
@@ -189,21 +185,14 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
           ],
         },
       } as any,
-      call: async () => null,
-      terminate: () => {},
       emitTelemetry: (event, payload) => tractor.emitTelemetry({ event, payload, pluginId: "studio-surface-diagnostics" }),
-      state: "running",
-    });
+    }));
 
-    tractor.plugins.registerInternal({
+    tractor.plugins.registerInternal(createStudioPluginHandle({
       id: "external-untrusted-surface",
       name: "External Untrusted Surface",
+      entry: "./dist/untrusted-surface.mjs",
       manifest: {
-        id: "external-untrusted-surface",
-        name: "External Untrusted Surface",
-        version: "0.1.0",
-        entry: "./dist/untrusted-surface.mjs",
-        capabilities: {},
         extensions: {
           surfaces: [
             {
@@ -216,11 +205,8 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
           ],
         },
       } as any,
-      call: async () => null,
-      terminate: () => {},
       emitTelemetry: (event, payload) => tractor.emitTelemetry({ event, payload, pluginId: "external-untrusted-surface" }),
-      state: "running",
-    });
+    }));
 
     const shell = new StudioShell(tractor);
     await shell.setup();
