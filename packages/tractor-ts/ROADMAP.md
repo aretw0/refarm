@@ -6,6 +6,12 @@
 
 ---
 
+## pi-era recalibration
+
+`@refarm.dev/tractor-ts` is on the daily-driver critical path as the browser/client helper layer for Tractor observations, runtime descriptors, stream reducers, and future UI subscriptions. Version headings below are legacy capability buckets, not promises to publish `v0.2.0+` after `v0.1.0`; prioritize helpers that let `apps/me` replace the current external pi workflow.
+
+---
+
 ## Overview
 
 The **Kernel** is the core orchestration layer of Refarm responsible for:
