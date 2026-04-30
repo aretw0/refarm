@@ -5,8 +5,6 @@ import {
   streamObservationViewsByStream,
   TRACTOR_LOG_PRIORITY,
 } from "@refarm.dev/tractor";
-import { getExtensionSurfaces } from "@refarm.dev/plugin-manifest";
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import type {
   StreamChunkEvent,
   StreamChunkStateMap,
@@ -18,6 +16,7 @@ import type {
   TelemetryEvent,
 } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
+import { resolveHomesteadSurfaceSlots } from "./surface-slots.js";
 
 import en from "@refarm.dev/locales/en.json";
 import ptBR from "@refarm.dev/locales/pt-BR.json";
@@ -118,7 +117,7 @@ export class StudioShell {
     let hasUi = false;
     
     for (const plugin of apps) {
-      const slots = this.resolvePluginSlots(plugin.manifest);
+      const slots = resolveHomesteadSurfaceSlots(plugin.manifest);
       if (slots.length > 0) {
         hasUi = true;
         for (const slotId of slots) {
@@ -133,23 +132,6 @@ export class StudioShell {
     }
 
     this.updateStatus(this.l8n.t("refarm:core/status_ready"));
-  }
-
-  private resolvePluginSlots(manifest: PluginManifest): string[] {
-    const slots = new Set<string>();
-
-    for (const slotId of manifest.ui?.slots ?? []) {
-      if (typeof slotId === "string" && slotId.trim().length > 0) {
-        slots.add(slotId);
-      }
-    }
-
-    for (const surface of getExtensionSurfaces(manifest, "homestead")) {
-      if (surface.slot === undefined || surface.slot.trim().length === 0) continue;
-      slots.add(surface.slot);
-    }
-
-    return [...slots];
   }
 
   private setupStreamObservationSubscriber() {
