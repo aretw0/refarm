@@ -19,6 +19,9 @@
       ],
       "@refarm.dev/homestead/sdk/surface-inspector": [
         "../../packages/homestead/dist/sdk/surface-inspector.d.ts"
+      ],
+      "@refarm.dev/homestead/sdk/surface-renderer": [
+        "../../packages/homestead/dist/sdk/surface-renderer.d.ts"
       ]
     }
   },

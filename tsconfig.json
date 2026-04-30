@@ -26,6 +26,9 @@
       "@refarm.dev/homestead/sdk/surface-inspector": [
         "./packages/homestead/src/sdk/surface-inspector"
       ],
+      "@refarm.dev/homestead/sdk/surface-renderer": [
+        "./packages/homestead/src/sdk/surface-renderer"
+      ],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
       "@refarm.dev/identity-contract-v1": [
         "./packages/identity-contract-v1/src/index"

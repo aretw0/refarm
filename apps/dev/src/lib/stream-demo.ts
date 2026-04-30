@@ -4,6 +4,10 @@ import type {
 	Tractor,
 } from "@refarm.dev/tractor";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
+import type {
+	HomesteadSurfaceRenderRequest,
+	HomesteadSurfaceRenderResult,
+} from "@refarm.dev/homestead/sdk/surface-renderer";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
 export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";
@@ -81,12 +85,33 @@ export async function seedStudioStreamDemo(tractor: Tractor): Promise<void> {
 	}
 }
 
+export function renderStudioStreamSurfaceDemo(
+	request: HomesteadSurfaceRenderRequest,
+): HomesteadSurfaceRenderResult {
+	const surfaceId = escapeStudioStreamSurfaceText(
+		request.surface?.id ?? "studio-stream-panel",
+	);
+	const slotId = escapeStudioStreamSurfaceText(request.slotId);
+	return {
+		html: `<section class="refarm-surface-card refarm-stack" data-refarm-studio-stream-surface="${surfaceId}">
+			<p class="refarm-eyebrow">Executable Studio surface</p>
+			<h3>Daily stream cockpit</h3>
+			<p>This panel is rendered by <code class="refarm-code">${STUDIO_STREAM_SURFACE_PLUGIN_ID}</code> through Homestead's <code class="refarm-code">renderHomesteadSurface</code> hook.</p>
+			<p>Mounted in <strong>${slotId}</strong> with stream read capability.</p>
+		</section>`,
+	};
+}
+
 export function createStudioStreamSurfaceDemoPlugin(
 	emitTelemetry: (event: string, payload?: unknown) => void = () => {},
 ): PluginInstance {
 	return createHomesteadSurfacePluginHandle({
 		id: STUDIO_STREAM_SURFACE_PLUGIN_ID,
 		name: "Studio Stream Surface Demo",
+		call: async (fn, args) =>
+			fn === "renderHomesteadSurface"
+				? renderStudioStreamSurfaceDemo(args as HomesteadSurfaceRenderRequest)
+				: null,
 		surfaces: [
 			{
 				kind: "panel",
@@ -119,4 +144,13 @@ export function mountStudioStreamDemoControl(
 
 	container.appendChild(button);
 	return button;
+}
+
+function escapeStudioStreamSurfaceText(value: string): string {
+	return value
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
 }

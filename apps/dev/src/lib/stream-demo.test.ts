@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
 	createStudioStreamSurfaceDemoPlugin,
 	mountStudioStreamDemoControl,
+	renderStudioStreamSurfaceDemo,
 	seedStudioStreamDemo,
 	shouldSeedStudioStreamDemo,
 	STUDIO_STREAM_SURFACE_PLUGIN_ID,
@@ -43,7 +44,7 @@ describe("Studio stream demo seeding", () => {
 		);
 	});
 
-	it("creates a Homestead surface plugin for the Studio stream demo", () => {
+	it("creates a Homestead surface plugin for the Studio stream demo", async () => {
 		const plugin = createStudioStreamSurfaceDemoPlugin();
 
 		expect(plugin.id).toBe(STUDIO_STREAM_SURFACE_PLUGIN_ID);
@@ -57,6 +58,39 @@ describe("Studio stream demo seeding", () => {
 				capabilities: ["ui:panel:render", "ui:stream:read"],
 			}),
 		]);
+
+		const rendered = await plugin.call("renderHomesteadSurface", {
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			surface: plugin.manifest.extensions?.surfaces?.[0],
+			locale: "en",
+		});
+		expect(rendered).toMatchObject({
+			html: expect.stringContaining(
+				'data-refarm-studio-stream-surface="studio-stream-panel"',
+			),
+		});
+	});
+
+	it("renders escaped executable stream surface markup", () => {
+		const rendered = renderStudioStreamSurfaceDemo({
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			slotId: "<streams>",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: 'studio-"stream"-panel',
+				slot: "streams",
+			},
+			locale: "en",
+		});
+
+		expect(rendered).toMatchObject({
+			html: expect.stringContaining("studio-&quot;stream&quot;-panel"),
+		});
+		expect((rendered as { html: string }).html).toContain("&lt;streams&gt;");
 	});
 
 	it("mounts a visible toggle control in the Studio statusbar", () => {
@@ -79,7 +113,9 @@ describe("Studio stream demo seeding", () => {
 			enabled: true,
 			onToggle,
 		});
-		expect(container.querySelectorAll("[data-refarm-studio-stream-demo]")).toHaveLength(1);
+		expect(
+			container.querySelectorAll("[data-refarm-studio-stream-demo]"),
+		).toHaveLength(1);
 		expect(replacement.textContent).toBe("Disable Studio stream demo");
 		expect(replacement.getAttribute("aria-pressed")).toBe("true");
 	});

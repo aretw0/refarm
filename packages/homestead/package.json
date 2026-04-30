@@ -24,6 +24,10 @@
       "types": "./dist/sdk/surface-inspector.d.ts",
       "import": "./dist/sdk/surface-inspector.js"
     },
+    "./sdk/surface-renderer": {
+      "types": "./dist/sdk/surface-renderer.d.ts",
+      "import": "./dist/sdk/surface-renderer.js"
+    },
     "./ui": {
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"
