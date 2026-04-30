@@ -242,6 +242,14 @@ struct QueryArgs {
     #[arg(long)]
     r#type: String,
 
+    /// Filter by source_plugin (empty = all).
+    #[arg(long, default_value = "")]
+    agent: String,
+
+    /// Filter payloads by stream_ref (useful for StreamChunk/StreamSession).
+    #[arg(long)]
+    stream_ref: Option<String>,
+
     /// Maximum number of nodes to return.
     #[arg(long, default_value_t = 100)]
     limit: usize,
@@ -537,7 +545,9 @@ fn run_query(args: QueryArgs) -> Result<()> {
     let storage = NativeStorage::open(&args.namespace)
         .with_context(|| format!("open storage namespace '{}'", args.namespace))?;
 
-    let rows = storage.query_nodes(&args.r#type)?;
+    let mut rows = storage.query_nodes(&args.r#type)?;
+    rows.retain(|row| row_matches_cli_filters(row, &args.agent, args.stream_ref.as_deref()));
+    rows.sort_by(cli_node_order);
     let rows: Vec<_> = rows.into_iter().take(args.limit).collect();
 
     if args.format.eq_ignore_ascii_case("json") {
@@ -573,6 +583,57 @@ fn run_store_node(args: StoreNodeArgs) -> Result<()> {
 
     println!("stored {node_type} {node_id}");
     Ok(())
+}
+
+fn row_matches_cli_filters(
+    row: &tractor::storage::NodeRow,
+    agent_filter: &str,
+    stream_ref_filter: Option<&str>,
+) -> bool {
+    if !agent_filter.is_empty() && row.source_plugin.as_deref() != Some(agent_filter) {
+        return false;
+    }
+
+    let Some(stream_ref_filter) = stream_ref_filter else {
+        return true;
+    };
+
+    serde_json::from_str::<serde_json::Value>(&row.payload)
+        .ok()
+        .and_then(|value| {
+            value
+                .get("stream_ref")
+                .and_then(|stream_ref| stream_ref.as_str())
+                .map(|stream_ref| stream_ref == stream_ref_filter)
+        })
+        .unwrap_or(false)
+}
+
+fn cli_node_order(
+    left: &tractor::storage::NodeRow,
+    right: &tractor::storage::NodeRow,
+) -> std::cmp::Ordering {
+    cli_node_time_key(left)
+        .cmp(&cli_node_time_key(right))
+        .then(left.id.cmp(&right.id))
+}
+
+fn cli_node_time_key(row: &tractor::storage::NodeRow) -> (u64, u64) {
+    let value = serde_json::from_str::<serde_json::Value>(&row.payload).ok();
+    let timestamp = value
+        .as_ref()
+        .and_then(|v| {
+            v.get("timestamp_ns")
+                .or_else(|| v.get("updated_at_ns"))
+                .or_else(|| v.get("started_at_ns"))
+                .and_then(|field| field.as_u64())
+        })
+        .unwrap_or(0);
+    let sequence = value
+        .as_ref()
+        .and_then(|v| v.get("sequence").and_then(|field| field.as_u64()))
+        .unwrap_or(0);
+    (timestamp, sequence)
 }
 
 fn snapshot_seen_response_ids(namespace: &str, agent_filter: &str) -> Result<HashSet<String>> {
@@ -850,6 +911,55 @@ mod tests {
 
         assert_eq!(output.stdout, "done\n");
         assert_eq!(output.stderr, "# 3→4 tokens  $0.0000  25ms\n");
+    }
+
+    #[test]
+    fn query_cli_filters_stream_rows_by_agent_and_stream_ref() {
+        let row = tractor::storage::NodeRow {
+            id: "chunk-1".to_string(),
+            type_: "StreamChunk".to_string(),
+            context: None,
+            payload: serde_json::json!({
+                "@type": "StreamChunk",
+                "stream_ref": "stream-a",
+                "sequence": 1,
+                "timestamp_ns": 10,
+            })
+            .to_string(),
+            source_plugin: Some("pi-agent".to_string()),
+            updated_at: "2026-04-30T00:00:00Z".to_string(),
+        };
+
+        assert!(row_matches_cli_filters(&row, "pi-agent", Some("stream-a")));
+        assert!(!row_matches_cli_filters(&row, "other-agent", Some("stream-a")));
+        assert!(!row_matches_cli_filters(&row, "pi-agent", Some("stream-b")));
+    }
+
+    #[test]
+    fn query_cli_orders_stream_rows_by_timestamp_and_sequence() {
+        let mut rows = vec![
+            tractor::storage::NodeRow {
+                id: "chunk-b".to_string(),
+                type_: "StreamChunk".to_string(),
+                context: None,
+                payload: serde_json::json!({ "timestamp_ns": 10, "sequence": 2 }).to_string(),
+                source_plugin: Some("pi-agent".to_string()),
+                updated_at: "2026-04-30T00:00:00Z".to_string(),
+            },
+            tractor::storage::NodeRow {
+                id: "chunk-a".to_string(),
+                type_: "StreamChunk".to_string(),
+                context: None,
+                payload: serde_json::json!({ "timestamp_ns": 10, "sequence": 1 }).to_string(),
+                source_plugin: Some("pi-agent".to_string()),
+                updated_at: "2026-04-30T00:00:00Z".to_string(),
+            },
+        ];
+
+        rows.sort_by(cli_node_order);
+
+        assert_eq!(rows[0].id, "chunk-a");
+        assert_eq!(rows[1].id, "chunk-b");
     }
 
     #[test]
