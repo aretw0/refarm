@@ -10,6 +10,8 @@ export interface MountedHomesteadSurface {
 
 export interface HomesteadSurfaceTelemetryEvent {
 	event: string;
+	pluginId?: string;
+	payload?: Record<string, unknown>;
 }
 
 export interface HomesteadSurfaceTelemetrySource {
@@ -25,6 +27,16 @@ export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
 
 export type HomesteadSurfaceChangeEventName =
 	(typeof HOMESTEAD_SURFACE_CHANGE_EVENTS)[number];
+
+export interface RejectedHomesteadSurfaceActivation {
+	pluginId?: string;
+	reason: string;
+	surfaceId?: string;
+	surfaceKind?: string;
+	surfaceLayer?: string;
+	slotId?: string;
+	missingCapabilities?: string[];
+}
 
 export function isHomesteadSurfaceChangeEvent(
 	event: HomesteadSurfaceTelemetryEvent,
@@ -57,6 +69,45 @@ export function observeMountedHomesteadSurfaceChanges(
 		if (isHomesteadSurfaceChangeEvent(event)) onChange(event);
 	});
 	return typeof dispose === "function" ? dispose : () => {};
+}
+
+export function rejectedHomesteadSurfaceFromTelemetry(
+	event: HomesteadSurfaceTelemetryEvent,
+): RejectedHomesteadSurfaceActivation | undefined {
+	if (event.event !== "ui:surface_rejected") return undefined;
+	const payload = event.payload ?? {};
+	return {
+		pluginId: event.pluginId,
+		reason: stringPayloadValue(payload.reason) ?? "unknown",
+		surfaceId: stringPayloadValue(payload.surfaceId),
+		surfaceKind: stringPayloadValue(payload.surfaceKind),
+		surfaceLayer: stringPayloadValue(payload.surfaceLayer),
+		slotId: stringPayloadValue(payload.slotId),
+		missingCapabilities: stringArrayPayloadValue(payload.missingCapabilities),
+	};
+}
+
+export function listRejectedHomesteadSurfaces(
+	events: readonly HomesteadSurfaceTelemetryEvent[],
+): RejectedHomesteadSurfaceActivation[] {
+	return events.flatMap((event) => {
+		const rejection = rejectedHomesteadSurfaceFromTelemetry(event);
+		return rejection ? [rejection] : [];
+	});
+}
+
+function stringPayloadValue(value: unknown): string | undefined {
+	return typeof value === "string" && value.trim().length > 0
+		? value
+		: undefined;
+}
+
+function stringArrayPayloadValue(value: unknown): string[] | undefined {
+	if (!Array.isArray(value)) return undefined;
+	const strings = value.filter(
+		(item): item is string => typeof item === "string" && item.length > 0,
+	);
+	return strings.length > 0 ? strings : undefined;
 }
 
 /**

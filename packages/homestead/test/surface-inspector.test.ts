@@ -2,9 +2,11 @@
 import { describe, expect, it } from "vitest";
 import {
 	isHomesteadSurfaceChangeEvent,
+	listRejectedHomesteadSurfaces,
 	listMountedHomesteadSurfaces,
 	mountedHomesteadSurfaceKey,
 	observeMountedHomesteadSurfaceChanges,
+	rejectedHomesteadSurfaceFromTelemetry,
 	type HomesteadSurfaceTelemetryEvent,
 } from "../src/sdk/surface-inspector";
 
@@ -101,6 +103,37 @@ describe("listMountedHomesteadSurfaces", () => {
 			"ui:surface_mounted",
 			"system:plugin_state_changed",
 		]);
+	});
+
+	it("extracts rejected surface activations from telemetry", () => {
+		const event: HomesteadSurfaceTelemetryEvent = {
+			event: "ui:surface_rejected",
+			pluginId: "plugin-a",
+			payload: {
+				reason: "unsupported-capability",
+				surfaceId: "secrets-panel",
+				surfaceKind: "panel",
+				surfaceLayer: "homestead",
+				slotId: "main",
+				missingCapabilities: ["ui:secrets:read"],
+			},
+		};
+
+		expect(rejectedHomesteadSurfaceFromTelemetry(event)).toEqual({
+			pluginId: "plugin-a",
+			reason: "unsupported-capability",
+			surfaceId: "secrets-panel",
+			surfaceKind: "panel",
+			surfaceLayer: "homestead",
+			slotId: "main",
+			missingCapabilities: ["ui:secrets:read"],
+		});
+		expect(
+			listRejectedHomesteadSurfaces([{ event: "storage:io" }, event]),
+		).toHaveLength(1);
+		expect(
+			rejectedHomesteadSurfaceFromTelemetry({ event: "ui:surface_mounted" }),
+		).toBeUndefined();
 	});
 });
 
