@@ -18,6 +18,7 @@ export * from "./lib/l8n-host";
 export * from "./lib/secret-host";
 export * from "./lib/stream-chunk";
 export * from "./lib/stream-session";
+export * from "./lib/stream-view";
 export * from "./lib/telemetry";
 export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
 export * from "./lib/types";

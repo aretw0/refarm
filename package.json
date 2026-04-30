@@ -82,7 +82,7 @@
 		"agent:lsp:harness": "cd packages/tractor && timeout 90 cargo test --test pi_agent_harness harness_tool_use_dispatched_and_result_fed_back -- --ignored --test-threads=1 --nocapture && timeout 90 cargo test --test pi_agent_harness harness_find_references_tool_reads_lsp_locations -- --ignored --test-threads=1 --nocapture && timeout 90 cargo test --test pi_agent_harness harness_rename_symbol_tool_updates_workspace_file_via_lsp -- --ignored --test-threads=1 --nocapture",
 		"agent:lsp:harness:build": "cd packages/pi-agent && cargo component build --release && cd ../.. && npm run agent:lsp:harness",
 		"agent:streaming:check": "cd packages/pi-agent && cargo check --target wasm32-wasip1 --quiet && cargo test --lib streaming_config --quiet && cargo test --lib provider_runtime_stream_body_gate --quiet && cd ../tractor && cargo check --quiet && cargo test --lib read_sse_data_events_limited --quiet && cargo test --lib complete_http_stream --quiet && cargo test --lib store_stream_agent_response_chunks_from_reader --quiet",
-		"agent:streaming:clients": "npm --prefix packages/tractor-ts run type-check && npm --prefix packages/tractor-ts run test:unit -- agent-response-stream.test.ts stream-chunk.test.ts stream-session.test.ts",
+		"agent:streaming:clients": "npm --prefix packages/tractor-ts run type-check && npm --prefix packages/tractor-ts run test:unit -- agent-response-stream.test.ts stream-chunk.test.ts stream-session.test.ts stream-view.test.ts",
 		"agent:streaming:harness": "cd packages/tractor && cargo test --test pi_agent_harness harness_streaming -- --ignored --test-threads=1",
 		"agent:streaming:harness:build": "cd packages/pi-agent && cargo component build --release -p pi-agent && cd ../.. && npm run agent:streaming:harness"
 	},
