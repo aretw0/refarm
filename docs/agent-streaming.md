@@ -47,6 +47,18 @@ guest.
 - Retention is conservative: stream observations are not implicitly compacted on
   write. Future cleanup should use a governed delete/compact primitive.
 
+## Retention posture
+
+Stream persistence is append-only by default. Do not add implicit write-path
+cleanup for `StreamChunk` or `StreamSession` rows: those observations may be the
+only audit trail for partial output or future non-LLM progress streams.
+
+Future compaction should be a separate governed operation with a dry-run. It
+should require an explicit namespace and stream scope, operate only on terminal
+streams, preserve the terminal `StreamSession` summary, and keep compatibility
+projections such as final `AgentResponse` nodes unless projection cleanup is
+requested separately.
+
 ## CLI consumption
 
 `tractor prompt --format plain` and `tractor watch --format plain` render partial
