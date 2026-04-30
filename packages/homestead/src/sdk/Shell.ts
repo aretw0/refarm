@@ -5,6 +5,8 @@ import {
   streamObservationViewsByStream,
   TRACTOR_LOG_PRIORITY,
 } from "@refarm.dev/tractor";
+import { getExtensionSurfaces } from "@refarm.dev/plugin-manifest";
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import type {
   StreamChunkEvent,
   StreamChunkStateMap,
@@ -133,12 +135,7 @@ export class StudioShell {
     this.updateStatus(this.l8n.t("refarm:core/status_ready"));
   }
 
-  private resolvePluginSlots(manifest: {
-    ui?: { slots?: string[] };
-    extensions?: {
-      surfaces?: Array<{ layer?: string; kind?: string; slot?: string }>;
-    };
-  }): string[] {
+  private resolvePluginSlots(manifest: PluginManifest): string[] {
     const slots = new Set<string>();
 
     for (const slotId of manifest.ui?.slots ?? []) {
@@ -147,8 +144,7 @@ export class StudioShell {
       }
     }
 
-    for (const surface of manifest.extensions?.surfaces ?? []) {
-      if (surface.layer !== "homestead") continue;
+    for (const surface of getExtensionSurfaces(manifest, "homestead")) {
       if (surface.slot === undefined || surface.slot.trim().length === 0) continue;
       slots.add(surface.slot);
     }
