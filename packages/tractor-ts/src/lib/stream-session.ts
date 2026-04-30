@@ -189,6 +189,15 @@ export function streamSessionModel(state: StreamSessionState): string | null {
 	return metadataStringField(state.metadata, "model");
 }
 
+export function streamSessionDurationNs(
+	state: StreamSessionState,
+): number | null {
+	if (state.startedAtNs === null || state.completedAtNs === null) {
+		return null;
+	}
+	return Math.max(0, state.completedAtNs - state.startedAtNs);
+}
+
 export function streamSessionFailureReason(
 	state: StreamSessionState,
 ): string | null {

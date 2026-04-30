@@ -13,6 +13,7 @@ import {
 	orderStreamSessionEvents,
 	reduceStreamSessionEvents,
 	reduceStreamSessionEventsByStream,
+	streamSessionDurationNs,
 	streamSessionFailureKind,
 	streamSessionFailureReason,
 	streamSessionModel,
@@ -72,6 +73,7 @@ describe("StreamSession accumulator", () => {
 		expect(streamSessionPromptRef(state)).toBe("prompt-a");
 		expect(streamSessionProviderFamily(state)).toBe("openai");
 		expect(streamSessionModel(state)).toBe("gpt-test");
+		expect(streamSessionDurationNs(state)).toBe(100);
 	});
 
 	it("groups interleaved sessions by stream_ref", () => {
