@@ -97,12 +97,17 @@ one of the reducers below.
 
 ### Consumer audit (2026-04)
 
-Current production UI code does not yet subscribe to generic stream nodes. The
-known stream-aware code lives in `@refarm.dev/tractor` TypeScript helpers and
-tests, while `packages/terminal-plugin/src/index.ts` remains a passive DOM log
-sink. Therefore the next implementation slice should add a real UI subscriber
-that reads `StreamSession`/`StreamChunk` observations and feeds the reducer
-helpers; it should not put schema-specific logic into `BrowserSyncClient`.
+Homestead now has the first production UI subscriber for generic stream nodes:
+`StudioShell` listens for `StreamSession` and `StreamChunk` writes through
+`Tractor.onNode(...)`, reduces them with the shared Tractor helpers, and renders
+a compact live stream pill in the `statusbar` slot. This keeps
+`BrowserSyncClient` schema-neutral: sync still transports graph updates, while
+the shell chooses which node types to observe and how to present them.
+
+The remaining gap is a richer daily-driver stream panel/editor surface. The
+terminal plugin is still a passive DOM log sink, so future slices should promote
+the Homestead statusbar subscriber into a dedicated `homestead` extension
+surface once UI slots and manifest-declared surfaces are wired end to end.
 
 TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
@@ -154,6 +159,13 @@ Validate TypeScript client accumulation helpers with:
 
 ```bash
 npm run agent:streaming:clients
+```
+
+Validate the Homestead UI subscriber with:
+
+```bash
+npm --prefix packages/homestead test
+npm --prefix packages/homestead run type-check
 ```
 
 Run the WASM harness only when the `pi_agent.wasm` artifact is fresh:
