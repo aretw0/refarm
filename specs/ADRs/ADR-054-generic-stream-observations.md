@@ -27,10 +27,12 @@ views.
 
 Introduce generic stream observation nodes owned by the host:
 
-- `StreamSession` records stream lifecycle metadata keyed by `stream_ref`.
+- `StreamSession` records stream lifecycle metadata keyed by `stream_ref`,
+  including terminal statuses such as `completed` and `failed`.
 - `StreamChunk` records ordered chunks from any stream.
 - `StreamChunk` carries a `stream_ref`, `sequence`, `payload_kind`, `content`,
-  `is_final`, `timestamp_ns`, and opaque `metadata` object.
+  `is_final`, `timestamp_ns`, and opaque `metadata` object. Terminal chunk
+  payload kinds may distinguish text, tool-call-only, and empty completions.
 - Domain-specific compatibility nodes remain projections. For LLM streaming, the
   host will dual-write `StreamChunk` observations and the existing partial
   `AgentResponse` projection during the migration period.
