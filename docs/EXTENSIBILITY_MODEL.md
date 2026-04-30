@@ -68,6 +68,10 @@ planning, so manifest surfaces targeting unknown Homestead slots are rejected as
 `unknown-slot` before any wrapper is created. Legacy `ui.slots` entries outside
 the current shell are ignored for compatibility, while the multi-surface path is
 audited explicitly.
+Homestead also allow-lists surface `kind` values before activation (`panel`,
+`widget`, `statusbar`, and `editor` by default). Unsupported kinds are rejected
+as `unsupported-kind` until the host intentionally exposes the behavior and trust
+model for that kind.
 
 Mounting preserves surface identity in the DOM and telemetry. Extension surface
 wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
