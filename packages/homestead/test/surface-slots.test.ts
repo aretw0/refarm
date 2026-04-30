@@ -36,4 +36,38 @@ describe("resolveHomesteadSurfaceSlots", () => {
 			"activity",
 		]);
 	});
+
+	it("ignores homestead surfaces that require unauthorized capabilities", () => {
+		const manifest = createMockManifest({
+			ui: { slots: ["statusbar"] },
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "authorized-stream-panel",
+						slot: "streams",
+						capabilities: ["ui:stream:read"],
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "unauthorized-secrets-panel",
+						slot: "secrets",
+						capabilities: ["ui:secrets:read"],
+					},
+				],
+			},
+		});
+
+		expect(resolveHomesteadSurfaceSlots(manifest)).toEqual([
+			"statusbar",
+			"streams",
+		]);
+		expect(
+			resolveHomesteadSurfaceSlots(manifest, {
+				allowedCapabilities: ["ui:secrets:read"],
+			}),
+		).toEqual(["statusbar", "secrets"]);
+	});
 });
