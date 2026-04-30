@@ -4,6 +4,8 @@
 **Parent**: [Main Roadmap](../../roadmaps/MAIN.md)  
 **Process**: SDD → BDD → TDD → DDD ([Workflow Guide](../../docs/WORKFLOW.md))
 
+> Version headings below are capability horizons, not release commitments. Until Refarm is a daily driver, post-`v0.1.0` items remain backlog labels and must be prioritized only when they improve the daily-driver path.
+
 ---
 
 ## v0.1.0 - Binary Interop (DONE)
