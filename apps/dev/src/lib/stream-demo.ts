@@ -6,6 +6,7 @@ import type {
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createScopedHomesteadSurfaceContextProvider,
+	type HomesteadSurfaceRenderActionHandler,
 	type HomesteadSurfaceRenderContextProvider,
 	type HomesteadSurfaceRenderRequest,
 	type HomesteadSurfaceRenderResult,
@@ -22,6 +23,10 @@ export interface StudioStreamDemoControlOptions {
 
 export interface StudioStreamSurfaceContextProviderOptions {
 	baseUrl?: string;
+}
+
+export interface StudioStreamSurfaceActionHandlerOptions {
+	navigate?: (href: string) => void;
 }
 
 export function shouldSeedStudioStreamDemo(
@@ -106,9 +111,10 @@ export function renderStudioStreamSurfaceDemo(
 	);
 	const actionLinks = (request.host?.actions ?? [])
 		.map((action) => {
+			const actionId = escapeStudioStreamSurfaceText(action.id);
 			const href =
 				typeof action.payload?.href === "string" ? action.payload.href : "#";
-			return `<a class="refarm-btn refarm-btn-pill" data-refarm-studio-surface-action="${escapeStudioStreamSurfaceText(action.id)}" href="${escapeStudioStreamSurfaceText(href)}">${escapeStudioStreamSurfaceText(action.label)}</a>`;
+			return `<a class="refarm-btn refarm-btn-pill" data-refarm-surface-action-id="${actionId}" data-refarm-studio-surface-action="${actionId}" href="${escapeStudioStreamSurfaceText(href)}">${escapeStudioStreamSurfaceText(action.label)}</a>`;
 		})
 		.join("");
 	return {
@@ -148,6 +154,27 @@ export function createStudioStreamSurfaceContextProvider(
 			],
 		}),
 	);
+}
+
+export function createStudioStreamSurfaceActionHandler(
+	options: StudioStreamSurfaceActionHandlerOptions = {},
+): HomesteadSurfaceRenderActionHandler {
+	return ({ action, pluginId }) => {
+		if (pluginId !== STUDIO_STREAM_SURFACE_PLUGIN_ID) return;
+		if (action.intent !== "studio:navigate") return;
+
+		const href = action.payload?.href;
+		if (typeof href !== "string" || href.length === 0) {
+			throw new Error(`Studio surface action ${action.id} is missing an href`);
+		}
+
+		const navigate =
+			options.navigate ??
+			((targetHref: string) => {
+				window.location.href = targetHref;
+			});
+		navigate(href);
+	};
 }
 
 export function createStudioStreamSurfaceDemoPlugin(

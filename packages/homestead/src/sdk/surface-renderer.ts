@@ -23,6 +23,16 @@ export interface HomesteadSurfaceRenderHostContext {
 	actions?: HomesteadSurfaceRenderAction[];
 }
 
+export interface HomesteadSurfaceRenderActionRequest
+	extends HomesteadSurfaceRenderContextRequest {
+	action: HomesteadSurfaceRenderAction;
+	host?: HomesteadSurfaceRenderHostContext;
+}
+
+export type HomesteadSurfaceRenderActionHandler = (
+	request: HomesteadSurfaceRenderActionRequest,
+) => void | Promise<void>;
+
 export type HomesteadSurfaceRenderContextRequest = Omit<
 	HomesteadSurfaceRenderRequest,
 	"host"
@@ -84,6 +94,14 @@ export function createScopedHomesteadSurfaceContextProvider(
 		homesteadSurfaceRenderContextMatches(request, scope)
 			? createContext(request)
 			: undefined;
+}
+
+export function homesteadSurfaceRenderActionById(
+	host: HomesteadSurfaceRenderHostContext | undefined,
+	actionId: string | undefined | null,
+): HomesteadSurfaceRenderAction | undefined {
+	if (!actionId) return undefined;
+	return host?.actions?.find((action) => action.id === actionId);
 }
 
 /**

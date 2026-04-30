@@ -43,6 +43,7 @@ import Layout from "../layouts/Layout.astro";
   } from "@refarm.dev/homestead/sdk/runtime";
   import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
   import {
+    createStudioStreamSurfaceActionHandler,
     createStudioStreamSurfaceContextProvider,
     createStudioStreamSurfaceDemoPlugin,
     mountStudioStreamDemoControl,
@@ -132,6 +133,7 @@ import Layout from "../layouts/Layout.astro";
         surfaceContext: createStudioStreamSurfaceContextProvider({
           baseUrl: import.meta.env.BASE_URL,
         }),
+        surfaceAction: createStudioStreamSurfaceActionHandler(),
       });
 
       const statusbar = document.getElementById("refarm-slot-statusbar");

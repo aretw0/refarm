@@ -27,8 +27,12 @@ import {
 } from "./stream-observer.js";
 import {
 	homesteadSurfaceRenderContent,
+	homesteadSurfaceRenderActionById,
+	type HomesteadSurfaceRenderAction,
+	type HomesteadSurfaceRenderActionHandler,
 	type HomesteadSurfaceRenderContextProvider,
 	type HomesteadSurfaceRenderContextRequest,
+	type HomesteadSurfaceRenderHostContext,
 	type HomesteadSurfaceRenderResult,
 } from "./surface-renderer.js";
 
@@ -42,6 +46,7 @@ export interface ShellSlot {
 
 export interface StudioShellOptions {
 	surfaceContext?: HomesteadSurfaceRenderContextProvider;
+	surfaceAction?: HomesteadSurfaceRenderActionHandler;
 }
 
 /**
@@ -464,15 +469,17 @@ export class StudioShell {
 
 			if (plugin?.call && mount.surface) {
 				let renderResult: HomesteadSurfaceRenderResult;
+				let host: HomesteadSurfaceRenderHostContext | undefined;
+				let renderRequest: HomesteadSurfaceRenderContextRequest | undefined;
 				try {
-					const renderRequest: HomesteadSurfaceRenderContextRequest = {
+					renderRequest = {
 						pluginId,
 						slotId,
 						mountSource: mount.source,
 						surface: mount.surface,
 						locale,
 					};
-					const host = await this.options.surfaceContext?.(renderRequest);
+					host = await this.options.surfaceContext?.(renderRequest);
 					const surfaceRenderRequest = host
 						? { ...renderRequest, host }
 						: renderRequest;
@@ -487,6 +494,9 @@ export class StudioShell {
 				}
 
 				const renderContent = homesteadSurfaceRenderContent(renderResult);
+				if (renderRequest) {
+					this.attachSurfaceActionHandler(pluginWrap, renderRequest, host);
+				}
 				if (renderContent?.kind === "html") {
 					pluginWrap.dataset.refarmSurfaceRenderMode = "html";
 					const fragment = document
@@ -510,6 +520,46 @@ export class StudioShell {
 			}
 		} catch (e) {
 			this.logError(`[shell] Failed to render plugin ${pluginId}`, e);
+		}
+	}
+
+	private attachSurfaceActionHandler(
+		pluginWrap: HTMLElement,
+		renderRequest: HomesteadSurfaceRenderContextRequest,
+		host: HomesteadSurfaceRenderHostContext | undefined,
+	) {
+		if (!this.options.surfaceAction || !host?.actions?.length) return;
+
+		pluginWrap.addEventListener("click", (event) => {
+			const target = event.target;
+			if (!(target instanceof Element)) return;
+
+			const actionElement = target.closest<HTMLElement>(
+				"[data-refarm-surface-action-id]",
+			);
+			if (!actionElement || !pluginWrap.contains(actionElement)) return;
+
+			const action = homesteadSurfaceRenderActionById(
+				host,
+				actionElement.dataset.refarmSurfaceActionId,
+			);
+			if (!action) return;
+
+			event.preventDefault();
+			void this.handleSurfaceAction(renderRequest, host, action);
+		});
+	}
+
+	private async handleSurfaceAction(
+		renderRequest: HomesteadSurfaceRenderContextRequest,
+		host: HomesteadSurfaceRenderHostContext,
+		action: HomesteadSurfaceRenderAction,
+	) {
+		this.emitSurfaceActionRequested(renderRequest, action);
+		try {
+			await this.options.surfaceAction?.({ ...renderRequest, host, action });
+		} catch (error) {
+			this.emitSurfaceActionFailed(renderRequest, action, error);
 		}
 	}
 
@@ -549,6 +599,46 @@ export class StudioShell {
 				surfaceKind: mount.surface?.kind,
 				surfaceLayer: mount.surface?.layer,
 				surfaceRenderMode: "failed",
+				errorMessage: surfaceRenderErrorMessage(error),
+			},
+		});
+	}
+
+	private emitSurfaceActionRequested(
+		renderRequest: HomesteadSurfaceRenderContextRequest,
+		action: HomesteadSurfaceRenderAction,
+	) {
+		this.tractor.emitTelemetry({
+			event: "ui:surface_action_requested",
+			pluginId: renderRequest.pluginId,
+			payload: {
+				slotId: renderRequest.slotId,
+				mountSource: renderRequest.mountSource,
+				surfaceId: renderRequest.surface?.id,
+				surfaceKind: renderRequest.surface?.kind,
+				surfaceLayer: renderRequest.surface?.layer,
+				actionId: action.id,
+				actionIntent: action.intent,
+			},
+		});
+	}
+
+	private emitSurfaceActionFailed(
+		renderRequest: HomesteadSurfaceRenderContextRequest,
+		action: HomesteadSurfaceRenderAction,
+		error: unknown,
+	) {
+		this.tractor.emitTelemetry({
+			event: "ui:surface_action_failed",
+			pluginId: renderRequest.pluginId,
+			payload: {
+				slotId: renderRequest.slotId,
+				mountSource: renderRequest.mountSource,
+				surfaceId: renderRequest.surface?.id,
+				surfaceKind: renderRequest.surface?.kind,
+				surfaceLayer: renderRequest.surface?.layer,
+				actionId: action.id,
+				actionIntent: action.intent,
 				errorMessage: surfaceRenderErrorMessage(error),
 			},
 		});

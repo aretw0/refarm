@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createStudioStreamSurfaceActionHandler,
 	createStudioStreamSurfaceContextProvider,
 	createStudioStreamSurfaceDemoPlugin,
 	mountStudioStreamDemoControl,
@@ -144,8 +145,45 @@ describe("Studio stream demo seeding", () => {
 			"open-stream-workbench",
 		);
 		expect((rendered as { html: string }).html).toContain(
+			'data-refarm-surface-action-id="open-stream-workbench"',
+		);
+		expect((rendered as { html: string }).html).toContain(
 			"/studio/streams?stream-demo",
 		);
+	});
+
+	it("keeps concrete Studio navigation behavior in apps/dev", () => {
+		const navigate = vi.fn();
+		const handler = createStudioStreamSurfaceActionHandler({ navigate });
+
+		handler({
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			slotId: "streams",
+			mountSource: "extension-surface",
+			locale: "en",
+			action: {
+				id: "open-stream-workbench",
+				label: "Open stream workbench",
+				intent: "studio:navigate",
+				payload: { href: "/streams?stream-demo" },
+			},
+		});
+
+		expect(navigate).toHaveBeenCalledWith("/streams?stream-demo");
+
+		handler({
+			pluginId: "other-plugin",
+			slotId: "streams",
+			mountSource: "extension-surface",
+			locale: "en",
+			action: {
+				id: "open-stream-workbench",
+				label: "Open stream workbench",
+				intent: "studio:navigate",
+				payload: { href: "/ignored" },
+			},
+		});
+		expect(navigate).toHaveBeenCalledTimes(1);
 	});
 
 	it("keeps Studio stream surface context scoped to the demo plugin", () => {

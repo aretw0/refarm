@@ -123,7 +123,11 @@ their target slot during activation.
 The opt-in Studio stream demo registers an internal manifest-declared
 `homestead` panel in that same `streams` slot, giving the daily-driver path a
 real surface mount to inspect without promoting the experiment into `me` or
-`social` prematurely.
+`social` prematurely. Homestead owns the reusable action contract for those
+surfaces: rendered controls identify host actions with
+`data-refarm-surface-action-id`, `StudioShell` resolves them against the
+host-provided context, emits action telemetry, and delegates the concrete effect
+to the host-provided `surfaceAction` handler.
 The Studio app now consumes that helper through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders both a compact
 statusbar inspector and a structured `/surfaces` ledger that refresh from

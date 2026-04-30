@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	createScopedHomesteadSurfaceContextProvider,
+	homesteadSurfaceRenderActionById,
 	homesteadSurfaceRenderContent,
 	homesteadSurfaceRenderContextMatches,
 } from "../src/sdk/surface-renderer";
@@ -27,6 +28,27 @@ describe("homesteadSurfaceRenderContent", () => {
 	it("ignores empty or unsupported render results", () => {
 		expect(homesteadSurfaceRenderContent(null)).toBeUndefined();
 		expect(homesteadSurfaceRenderContent({})).toBeUndefined();
+	});
+
+	it("finds host-declared actions by stable id", () => {
+		expect(
+			homesteadSurfaceRenderActionById(
+				{
+					hostId: "apps/dev",
+					actions: [
+						{ id: "open-streams", label: "Open streams" },
+						{ id: "retry-stream", label: "Retry stream" },
+					],
+				},
+				"retry-stream",
+			),
+		).toEqual({ id: "retry-stream", label: "Retry stream" });
+		expect(
+			homesteadSurfaceRenderActionById(undefined, "missing"),
+		).toBeUndefined();
+		expect(
+			homesteadSurfaceRenderActionById({ actions: [] }, null),
+		).toBeUndefined();
 	});
 });
 

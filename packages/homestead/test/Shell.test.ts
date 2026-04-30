@@ -256,6 +256,95 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should dispatch host-owned surface actions from rendered markup", async () => {
+        const renderHomesteadSurface = vi.fn().mockResolvedValue({
+            html: '<button type="button" data-refarm-surface-action-id="open-streams">Open streams</button>',
+        });
+        const surfaceContext = vi.fn().mockResolvedValue({
+            hostId: "apps/dev",
+            actions: [
+                {
+                    id: "open-streams",
+                    label: "Open streams",
+                    intent: "studio:navigate",
+                    payload: { href: "/streams" },
+                },
+            ],
+        });
+        const surfaceAction = vi.fn().mockResolvedValue(undefined);
+        const plugin = {
+            id: "action-surface-plugin",
+            state: "running",
+            call: renderHomesteadSurface,
+            manifest: {
+                entry: "internal:action-surface-plugin",
+                capabilities: { provides: [], requires: [] },
+                extensions: {
+                    surfaces: [
+                        {
+                            layer: "homestead",
+                            kind: "panel",
+                            id: "action-panel",
+                            slot: "main",
+                            capabilities: ["ui:panel:render"],
+                        },
+                    ],
+                },
+            },
+        };
+        tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
+        tractorMock.plugins.get.mockReturnValue(plugin);
+
+        const shell = new StudioShell(tractorMock as any, {
+            surfaceContext,
+            surfaceAction,
+        });
+        await shell.setup();
+
+        document
+            .querySelector<HTMLButtonElement>("[data-refarm-surface-action-id='open-streams']")
+            ?.click();
+        await Promise.resolve();
+
+        expect(surfaceAction).toHaveBeenCalledWith({
+            pluginId: "action-surface-plugin",
+            slotId: "main",
+            mountSource: "extension-surface",
+            surface: expect.objectContaining({ id: "action-panel" }),
+            locale: "en",
+            host: {
+                hostId: "apps/dev",
+                actions: [
+                    {
+                        id: "open-streams",
+                        label: "Open streams",
+                        intent: "studio:navigate",
+                        payload: { href: "/streams" },
+                    },
+                ],
+            },
+            action: {
+                id: "open-streams",
+                label: "Open streams",
+                intent: "studio:navigate",
+                payload: { href: "/streams" },
+            },
+        });
+        expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
+            event: "ui:surface_action_requested",
+            pluginId: "action-surface-plugin",
+            payload: {
+                slotId: "main",
+                mountSource: "extension-surface",
+                surfaceId: "action-panel",
+                surfaceKind: "panel",
+                surfaceLayer: "homestead",
+                actionId: "open-streams",
+                actionIntent: "studio:navigate",
+            },
+        });
+    });
+
     it("should emit telemetry when homestead surface rendering fails", async () => {
         const renderHomesteadSurface = vi.fn().mockRejectedValue(new Error("render boom"));
         const plugin = {
