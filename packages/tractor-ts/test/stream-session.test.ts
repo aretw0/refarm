@@ -153,6 +153,19 @@ describe("StreamSession accumulator", () => {
 		).toBe(true);
 	});
 
+	it("returns null or zero for incomplete and inverted durations", () => {
+		expect(
+			streamSessionDurationNs(emptyStreamSessionState("stream-open")),
+		).toBe(null);
+		expect(
+			streamSessionDurationNs({
+				...emptyStreamSessionState("stream-inverted"),
+				startedAtNs: 200,
+				completedAtNs: 100,
+			}),
+		).toBe(0);
+	});
+
 	it("extracts sanitized failure metadata", () => {
 		const state = reduceStreamSessionEvents([
 			{
