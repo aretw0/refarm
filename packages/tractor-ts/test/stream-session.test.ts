@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
 	applyStreamSessionEvent,
 	emptyStreamSessionState,
+	isTerminalStreamSession,
+	isTerminalStreamSessionStatus,
 	reduceStreamSessionEvents,
 	reduceStreamSessionEventsByStream,
 	UNKNOWN_STREAM_SESSION_REF,
@@ -65,6 +67,18 @@ describe("StreamSession accumulator", () => {
 			chunkCount: 9,
 			metadata: null,
 		});
+	});
+
+	it("detects terminal stream session statuses", () => {
+		expect(isTerminalStreamSessionStatus("active")).toBe(false);
+		expect(isTerminalStreamSessionStatus("completed")).toBe(true);
+		expect(isTerminalStreamSessionStatus("failed")).toBe(true);
+		expect(
+			isTerminalStreamSession({
+				...emptyStreamSessionState("stream-terminal"),
+				status: "completed",
+			}),
+		).toBe(true);
 	});
 
 	it("preserves prior identity and ignores non-finite counters", () => {

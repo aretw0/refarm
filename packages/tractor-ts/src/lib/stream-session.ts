@@ -99,6 +99,14 @@ export function reduceStreamSessionEventsByStream(
 	return events.reduce(applyStreamSessionEventToMap, initialStateMap);
 }
 
+export function isTerminalStreamSessionStatus(status: string | null): boolean {
+	return status === "completed" || status === "failed";
+}
+
+export function isTerminalStreamSession(state: StreamSessionState): boolean {
+	return isTerminalStreamSessionStatus(state.status);
+}
+
 function finiteNumberOr(
 	value: number | null | undefined,
 	fallback: number | null,

@@ -49,8 +49,9 @@ primitive, or `reduceAgentResponseStreamEventsByPrompt(...)` when events from
 multiple `prompt_ref` values may be interleaved. Consumers that observe generic
 `StreamChunk` nodes directly can use `reduceStreamChunkEvents(...)` or
 `reduceStreamChunkEventsByStream(...)`. Consumers that observe `StreamSession`
-lifecycle nodes can use `reduceStreamSessionEvents(...)` or
-`reduceStreamSessionEventsByStream(...)`. Use `orderAgentResponseStreamEvents(...)`
+lifecycle nodes can use `reduceStreamSessionEvents(...)`,
+`reduceStreamSessionEventsByStream(...)`, or `isTerminalStreamSession(...)`.
+Use `orderAgentResponseStreamEvents(...)`
 or `orderStreamChunkEvents(...)` before reducing if the source does not already
 emit events in sequence order.
 
