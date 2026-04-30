@@ -27,8 +27,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@refarm.dev/silo": "*",
     "@refarm.dev/tractor": "*",
-    "@refarm.dev/silo": "*"
+    "@refarm.dev/windmill": "*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
