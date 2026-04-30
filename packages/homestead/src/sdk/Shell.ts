@@ -25,6 +25,10 @@ import {
 	renderStreamStatusbarHtml,
 	sortedStreamObservationViews,
 } from "./stream-observer.js";
+import {
+	homesteadSurfaceRenderContent,
+	type HomesteadSurfaceRenderResult,
+} from "./surface-renderer.js";
 
 import en from "@refarm.dev/locales/en.json";
 import ptBR from "@refarm.dev/locales/pt-BR.json";
@@ -431,11 +435,11 @@ export class StudioShell {
 
 		try {
 			const plugin = this.tractor.plugins.get(pluginId);
+			const locale = this.l8n.getLocale();
 
 			// Automatic i18n Registration
 			if (plugin?.manifest.i18n) {
 				const bundle = plugin.manifest.i18n;
-				const locale = this.l8n.getLocale();
 
 				if (typeof bundle === "object") {
 					const keys = bundle[locale] || bundle["en"] || bundle;
@@ -448,7 +452,29 @@ export class StudioShell {
 				}
 			}
 
-			const api = this.tractor.plugins.findByApi(`${pluginId}:ui`);
+			if (plugin?.call && mount.surface) {
+				const renderResult = (await plugin.call("renderHomesteadSurface", {
+					pluginId,
+					slotId,
+					mountSource: mount.source,
+					surface: mount.surface,
+					locale,
+				})) as HomesteadSurfaceRenderResult;
+				const renderContent = homesteadSurfaceRenderContent(renderResult);
+				if (renderContent?.kind === "html") {
+					const fragment = document
+						.createRange()
+						.createContextualFragment(renderContent.value);
+					pluginWrap.replaceChildren(fragment);
+					return;
+				}
+				if (renderContent?.kind === "text") {
+					pluginWrap.textContent = renderContent.value;
+					return;
+				}
+			}
+
+			const api = this.tractor.plugins.findByApi?.(`${pluginId}:ui`);
 			if (api) {
 				pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
 			}

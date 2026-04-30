@@ -125,6 +125,55 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should render plugin-provided homestead surface content", async () => {
+        const renderHomesteadSurface = vi.fn().mockResolvedValue({
+            html: '<section data-rendered-surface="stream">Plugin stream panel</section>',
+        });
+        const plugin = {
+            id: "rendering-surface-plugin",
+            state: "running",
+            call: renderHomesteadSurface,
+            manifest: {
+                entry: "internal:rendering-surface-plugin",
+                capabilities: { provides: [], requires: [] },
+                extensions: {
+                    surfaces: [
+                        {
+                            layer: "homestead",
+                            kind: "panel",
+                            id: "rendered-stream-panel",
+                            slot: "main",
+                            capabilities: ["ui:panel:render", "ui:stream:read"],
+                        },
+                    ],
+                },
+            },
+        };
+        tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
+        tractorMock.plugins.get.mockReturnValue(plugin);
+
+        const shell = new StudioShell(tractorMock as any);
+        await shell.setup();
+
+        const main = document.getElementById("refarm-slot-main");
+        expect(main?.querySelector("[data-rendered-surface='stream']")?.textContent).toBe(
+            "Plugin stream panel",
+        );
+        expect(renderHomesteadSurface).toHaveBeenCalledWith("renderHomesteadSurface", {
+            pluginId: "rendering-surface-plugin",
+            slotId: "main",
+            mountSource: "extension-surface",
+            surface: expect.objectContaining({
+                id: "rendered-stream-panel",
+                kind: "panel",
+                layer: "homestead",
+                slot: "main",
+                capabilities: ["ui:panel:render", "ui:stream:read"],
+            }),
+            locale: "en",
+        });
+    });
+
     it("should emit telemetry for rejected homestead extension surfaces", async () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([
             {
