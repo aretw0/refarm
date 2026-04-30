@@ -92,6 +92,7 @@ Consumers that observe generic `StreamChunk` nodes directly can use
 `isTerminalStreamChunkState(...)`. Consumers that observe `StreamSession`
 lifecycle nodes can use `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
+`isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
 `streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`.
 Use `orderAgentResponseStreamEvents(...)`, `orderStreamChunkEvents(...)`, or
 `orderStreamSessionEvents(...)` before reducing if the source does not already
