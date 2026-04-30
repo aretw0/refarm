@@ -105,6 +105,13 @@ Homestead `streams` slot when present. This keeps
 `BrowserSyncClient` schema-neutral: sync still transports graph updates, while
 the shell chooses which node types to observe and how to present them.
 
+The Studio app (`apps/dev`) exposes an opt-in stream demo for validating that
+browser path without touching `me` or `social`: click the statusbar toggle, open
+`/?stream-demo`, open `/?streamDemo=1`, or set
+`localStorage["refarm:studio:stream-demo"] = "1"`. The demo writes generic
+`StreamSession` and `StreamChunk` nodes through Tractor so Homestead renders the
+same path used by real agent streams.
+
 The remaining gap is a plugin-provided daily-driver stream panel/editor surface
 with deeper runtime trust checks beyond slot-level capability filtering. The
 terminal plugin is still a passive DOM log sink, so future slices should keep UI
