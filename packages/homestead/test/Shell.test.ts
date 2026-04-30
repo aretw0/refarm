@@ -111,6 +111,45 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
+    it("should preserve mounted stream-slot surfaces while rendering live streams", async () => {
+        tractorMock.plugins.getAllPlugins.mockReturnValue([
+            {
+                id: "stream-surface-plugin",
+                manifest: {
+                    extensions: {
+                        surfaces: [
+                            {
+                                layer: "homestead",
+                                kind: "panel",
+                                id: "plugin-stream-panel",
+                                slot: "streams",
+                            },
+                        ],
+                    },
+                },
+            },
+        ]);
+
+        const shell = new StudioShell(tractorMock as any);
+        await shell.setup();
+
+        const streams = document.getElementById("refarm-slot-streams");
+        expect(streams?.hidden).toBe(false);
+        expect(streams?.querySelector("[data-refarm-surface-id='plugin-stream-panel']")).toBeTruthy();
+
+        await nodeHandlers.StreamSession({
+            "@type": "StreamSession",
+            "@id": "urn:tractor:stream:agent-response:prompt-b",
+            stream_ref: "urn:tractor:stream:agent-response:prompt-b",
+            stream_kind: "agent-response",
+            status: "active",
+            metadata: { prompt_ref: "prompt-b" },
+        });
+
+        expect(streams?.querySelector("[data-refarm-surface-id='plugin-stream-panel']")).toBeTruthy();
+        expect(streams?.querySelector("[data-refarm-stream-panel]")?.textContent).toContain("prompt-b");
+    });
+
     it("should update system status during orchestration", async () => {
         const shell = new StudioShell(tractorMock as any);
         await shell.setup();

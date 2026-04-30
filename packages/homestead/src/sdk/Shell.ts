@@ -184,8 +184,19 @@ export class StudioShell {
     }
 
     if (streamSlot) {
-      streamSlot.hidden = views.length === 0;
-      streamSlot.innerHTML = renderStreamPanelHtml(views);
+      let panel = streamSlot.querySelector<HTMLElement>("[data-refarm-stream-panel]");
+      if (!panel) {
+        panel = document.createElement("section");
+        panel.dataset.refarmStreamPanel = "true";
+        panel.setAttribute("aria-label", "Live agent stream panel");
+        streamSlot.appendChild(panel);
+      }
+
+      panel.hidden = views.length === 0;
+      panel.innerHTML = renderStreamPanelHtml(views);
+      streamSlot.hidden =
+        views.length === 0 &&
+        !streamSlot.querySelector("[data-refarm-plugin-id]");
     }
   }
 
@@ -286,6 +297,7 @@ export class StudioShell {
       this.logWarn(`[shell] Slot ${slotId} not found for plugin ${pluginId}`);
       return;
     }
+    container.hidden = false;
 
     // Clear default content if this is the first plugin
     if (container.children.length === 0 || container.querySelector('a[href]')) {
