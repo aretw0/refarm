@@ -105,8 +105,11 @@ Inspired by Claude Code's tool call display.
 ### Agent activity stream
 
 _Current audit_: `src/index.ts` is still a passive DOM log sink and does not yet
-consume CRDT nodes directly. Keep `BrowserSyncClient` schema-neutral; stream
-rendering belongs in the UI consumer that subscribes to Tractor nodes.
+consume CRDT nodes directly. A workspace scan currently finds `StreamChunk`,
+`StreamSession`, and `AgentResponse` stream consumer code only in
+`@refarm.dev/tractor` helpers/tests, not in a production UI subscriber. Keep
+`BrowserSyncClient` schema-neutral; stream rendering belongs in the UI consumer
+that subscribes to Tractor nodes.
 
 - [ ] Subscribe to `AgentResponse` CRDT nodes alongside `ShellOutput` for the
       compatibility projection, or subscribe to generic `StreamChunk` /
