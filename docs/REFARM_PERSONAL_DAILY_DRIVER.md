@@ -20,6 +20,7 @@
 ## The Personal User: You
 
 **Problem Statement:**
+
 - Scattered tools: GitHub issues, Notion, Signal chats, terminal notes, doc fragments
 - No single source of truth for work/life data
 - No real offline-first experience (everything requires sync back to proprietary cloud)
@@ -27,6 +28,7 @@
 - No cryptographic proof of authorship or ideas
 
 **Goal:**
+
 - One place to think, organize, and execute — **owned entirely by you**
 - Sovereign backup and recovery — portable across devices
 - Machine-friendly queries and automation
@@ -37,17 +39,24 @@
 
 ## Publishing Strategy for v0.1.0
 
-### TIER 1: Publish NOW (Minimal, Foundational, Contracts-First)
+### 2026-04 recalibration: daily driver before publishing
+
+Do not treat package readiness as sufficient reason to publish `v0.1.0`. Refarm earns `v0.1.0` only when it is the creator's daily driver: the place used instead of the current pi instance for planning, coding, memory, automation, and local agent work. Older package/version buckets below are useful inventory, but they are not release promises.
+
+### TIER 1: Candidate contracts (hold until daily-driver gate)
 
 These packages form the **substrate** that others can build on. They answer: "What is a Refarm-compatible system?"
 
 **For npm**:
+
 1. **`@aretw0/storage-contract-v1`** — Interface for any system to speak "Refarm storage"
+
    - 6 conformance tests ✅
    - Ready for third-party implementations
    - Stability: **IMMUTABLE** (breaking changes → v2 contract)
 
 2. **`@aretw0/sync-contract-v1`** — CRDT delta format for interoperable sync
+
    - 4 conformance tests ✅
    - Enables Loro, Automerge, or other CRDTs to plug in
    - Stability: **IMMUTABLE**
@@ -70,12 +79,14 @@ These are the **reference implementations** and personal tools. Publish after yo
 #### Core Infrastructure (Publish v0.2.0+)
 
 1. **`packages/tractor`** (Rust daemon)
+
    - ✅ Technically ready (52/52 tests, ADR-048 graduated)
    - **BUT**: Consumer testing still WIP (Gate 2/3)
    - **Publish after** Gate 3 finishes (when Homestead ↔ Tractor integration proven)
    - Target: **mid-late April 2026** (next sprint)
 
 2. **`packages/barn`** (Plugin lifecycle, OPFS, SHA-256)
+
    - Mature this in your daily workflow first
    - Needed for `installPlugin()` to be rock-solid
    - **Publish after** you've hot-swapped plugins dozens of times
@@ -108,6 +119,7 @@ This keeps velocity high in `dev` while protecting your daily-driver reliability
 The current `plugin-manifest` is **WASM-only**. But Refarm's real power comes from **extensibility across every layer**:
 
 **Multi-Layer Plugin Vision**:
+
 - **Pi layer** (local automaton) — scripts, cron jobs, hardware interaction, local data processing
 - **Tractor layer** (serverside logic) — custom storage backends, indexing, business logic, resource management
 - **Homestead/Frontend layer** (UI/UX) — widgets, sidebars, content editors, custom visualizations
@@ -117,6 +129,7 @@ The current `plugin-manifest` is **WASM-only**. But Refarm's real power comes fr
 If we publish `plugin-manifest` now, we lock the ecosystem into **WASM-only thinking**. Instead, you must:
 
 **Blockers to Publishing**:
+
 - [ ] **Pi Layer Design**: How do you describe a Pi plugin (Rust binary? Python? Shell script?)
 - [ ] **Manifest Generalization**: Single schema that describes plugins across all 5 layers
 - [ ] **Inter-Layer Composition**: Can a Pi plugin trigger a Homestead widget? Can a workflow step call a Tractor backend?
@@ -124,6 +137,7 @@ If we publish `plugin-manifest` now, we lock the ecosystem into **WASM-only thin
 - [ ] **Discovery & Loading**: How does Refarm discover, validate, and load plugins from Nostr and local sources across layers?
 
 **Expected Outcome**:
+
 ```
 v0.1.0-contracts: (3 contracts)
   @aretw0/storage-contract-v1
@@ -144,16 +158,19 @@ v0.2.0-core: (includes plugin ecosystem)
 #### Personal Tools (Keep Private, Genericize Later)
 
 4. **`packages/silo`** (Secret provisioning)
+
    - Your personal secret manager
    - Not a generic library; tailored to your threat model
    - **Publish later** if others adopt the pattern
 
 5. **`packages/creek`** (Telemetry, logging)
+
    - Your observability into Refarm's own health
    - Personal at first, genericizable later
    - **Keep private** until v0.2.0
 
 6. **`packages/plugin-tem`** (AI/LLM reasoning)
+
    - Tightly coupled to your reasoning preferences (Claude, local models, etc.)
    - Personal tool
    - **Keep private** until v1.0 (or publish as example, not reference)
@@ -179,6 +196,7 @@ TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
 ```
 
 **Why `plugin-manifest` is deferred**:
+
 - v0.1.0 publishes **foundational contracts** (storage, sync, identity)
 - `plugin-manifest` encompasses too much architectural decisions about Pi, extensibility, and discovery
 - Premature publication locks the ecosystem into WASM-only; must generalize across all layers first
@@ -206,7 +224,7 @@ TIER 1 (npm v0.1.0)           TIER 2 (Private, Private Maturation) → v0.2.0
 ### For Ecosystem Growth (Later, v0.2.0+)
 
 - [ ] Third-party reference implementation (someone else implements `storage-contract-v1`)
-- [ ] Tractor documentation stable enough for others to run  locally
+- [ ] Tractor documentation stable enough for others to run locally
 - [ ] Plugin examples: at least 3 published plugins (even if personal)
 
 ---
@@ -262,14 +280,17 @@ git tag @aretw0/identity-contract-v1@0.1.0 && git push origin @aretw0/identity-c
 ## Communication
 
 **To contributors/ecosystem** (README, docs):
+
 > "Refarm v0.1.0 publishes **capability contracts** only. These define how any system can implement Refarm-compatible storage, sync, and identity. Reference implementations (tractor, Homestead, plugins) will mature privately and release later as v0.2.0+. For now, see [INSPIRATIONS.md](./INSPIRATIONS.md) and [DEVELOPING.md](../docs/DEVELOPMENT_RESOLUTION.md) to understand the vision."
 
 **To yourself** (in this doc):
+
 > "You are the daily user. Publish contracts. Keep your tools private. Validate for 6 months. Release reference implementations when stable."
 
 ---
 
 **See Also**:
+
 - [RELEASE_POLICY.md](./RELEASE_POLICY.md) — Kernel / Apps / Plugins velocity
 - [v0.1.0-release-gate.md](./v0.1.0-release-gate.md) — Technical gates (still applies)
 - [USER_STORY.md](./USER_STORY.md) — Update with personal user journey
