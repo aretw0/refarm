@@ -116,3 +116,15 @@ export function reduceAgentResponseStreamEventsByPrompt(
 ): AgentResponseStreamStateMap {
 	return events.reduce(applyAgentResponseStreamEventToMap, initialStateMap);
 }
+
+export function isTerminalAgentResponseStreamEvent(
+	event: AgentResponseStreamEvent,
+): boolean {
+	return event.is_final === true;
+}
+
+export function isTerminalAgentResponseStreamState(
+	state: AgentResponseStreamState,
+): boolean {
+	return state.isFinal === true;
+}

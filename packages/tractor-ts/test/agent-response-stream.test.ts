@@ -3,6 +3,8 @@ import {
 	agentResponseStreamRef,
 	applyAgentResponseStreamEvent,
 	emptyAgentResponseStreamState,
+	isTerminalAgentResponseStreamEvent,
+	isTerminalAgentResponseStreamState,
 	orderAgentResponseStreamEvents,
 	reduceAgentResponseStreamEvents,
 	reduceAgentResponseStreamEventsByPrompt,
@@ -39,6 +41,17 @@ describe("AgentResponse streaming accumulator", () => {
 			lastSequence: 2,
 			isFinal: true,
 		});
+	});
+
+	it("detects terminal AgentResponse stream events and state", () => {
+		expect(isTerminalAgentResponseStreamEvent({ is_final: true })).toBe(true);
+		expect(isTerminalAgentResponseStreamEvent({ is_final: false })).toBe(false);
+		expect(
+			isTerminalAgentResponseStreamState({
+				...emptyAgentResponseStreamState("prompt-terminal"),
+				isFinal: true,
+			}),
+		).toBe(true);
 	});
 
 	it("orders events by sequence without mutating the input", () => {
