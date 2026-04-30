@@ -191,3 +191,33 @@ export function isTerminalStreamChunkState(state: StreamChunkState): boolean {
 		isTerminalStreamChunkPayloadKind(state.payloadKind)
 	);
 }
+
+export function streamChunkProjection(state: StreamChunkState): string | null {
+	return metadataStringField(state.metadata, "projection");
+}
+
+export function streamChunkPromptRef(state: StreamChunkState): string | null {
+	return metadataStringField(state.metadata, "prompt_ref");
+}
+
+export function streamChunkProviderFamily(
+	state: StreamChunkState,
+): string | null {
+	return metadataStringField(state.metadata, "provider_family");
+}
+
+export function streamChunkModel(state: StreamChunkState): string | null {
+	return metadataStringField(state.metadata, "model");
+}
+
+function metadataStringField(metadata: unknown, field: string): string | null {
+	if (
+		typeof metadata !== "object" ||
+		metadata === null ||
+		!(field in metadata)
+	) {
+		return null;
+	}
+	const value = (metadata as Record<string, unknown>)[field];
+	return typeof value === "string" ? value : null;
+}

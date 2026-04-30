@@ -13,6 +13,10 @@ import {
 	orderStreamChunkEvents,
 	reduceStreamChunkEvents,
 	reduceStreamChunkEventsByStream,
+	streamChunkModel,
+	streamChunkProjection,
+	streamChunkPromptRef,
+	streamChunkProviderFamily,
 	UNKNOWN_STREAM_REF,
 } from "../src/lib/stream-chunk";
 
@@ -127,7 +131,12 @@ describe("StreamChunk accumulator", () => {
 				stream_ref: "stream-a",
 				content: "delta",
 				sequence: 0,
-				metadata: { prompt_ref: "prompt-a", projection: "AgentResponse" },
+				metadata: {
+					prompt_ref: "prompt-a",
+					projection: "AgentResponse",
+					provider_family: "openai",
+					model: "gpt-test",
+				},
 			},
 			{
 				stream_ref: "stream-a",
@@ -140,7 +149,13 @@ describe("StreamChunk accumulator", () => {
 		expect(state.metadata).toEqual({
 			prompt_ref: "prompt-a",
 			projection: "AgentResponse",
+			provider_family: "openai",
+			model: "gpt-test",
 		});
+		expect(streamChunkPromptRef(state)).toBe("prompt-a");
+		expect(streamChunkProjection(state)).toBe("AgentResponse");
+		expect(streamChunkProviderFamily(state)).toBe("openai");
+		expect(streamChunkModel(state)).toBe("gpt-test");
 	});
 
 	it("preserves prior stream identity when events omit stream_ref", () => {
