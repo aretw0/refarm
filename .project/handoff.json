@@ -1,44 +1,48 @@
 {
-  "context": "Checkpoint 2026-04-30T06:24Z after extensibility/multi-surface slices. Branch develop is clean and ahead of origin/develop by 12 local commits. Last pushed remote baseline remains origin/develop at 3f512fae. Disk remains constrained but stable at about 7.6GB free; repo itself is about 1.5GB, with node_modules about 975MB, so no cleanup was run because it would save little and increase rebuild cost.",
-  "timestamp": "2026-04-30T06:24:00.000Z",
+  "context": "Checkpoint 2026-04-30T11:08Z after Homestead/Studio extensibility and surface diagnostics slices. Branch develop is clean and ahead of origin/develop by 36 local commits. Disk remains constrained but stable at about 7.5GB free; repo is about 1.5GB and node_modules about 975MB, so no cleanup was run because current artifacts are small and cleanup would increase rebuild cost.",
+  "timestamp": "2026-04-30T11:08:00.000Z",
   "current_phase": 19,
   "current_tasks": [
-    "Completed atomic extensibility slices since prior handoff: docs multi-surface model, plugin-manifest validation/helpers, Homestead surface mounting, real stream UI subscriber, multi-surface example, and example conformance coverage.",
-    "Local HEAD at handoff: a626c482 test(plugin-manifest): cover multi-surface example. Recent local commits ahead of origin include 2329c56d docs(examples): add multi-surface plugin manifest, 272c42eb refactor(homestead): extract surface slot resolver, 9d2dea87 docs(extensibility): document surface discovery path, 5999170d refactor(homestead): use shared surface helpers, 3a829d4f feat(plugin-manifest): expose extension surface helpers, 750c6af6 feat(homestead): mount declared extension surfaces, 3258e185 docs(streaming): record homestead stream subscriber, a9b9b5c3 feat(homestead): render live stream observations, 22136a13 fix(tractor-ts): notify typed node subscribers, and 8fc9fab9 feat(plugin-manifest): validate extension surfaces.",
-    "Plugin manifest now models optional `extensions.surfaces` with layers `tractor`, `homestead`, `pi`, `automation`, `desktop`, and `asset`; validator rejects malformed/duplicate layer-id pairs.",
-    "Plugin manifest exports host-neutral helpers: `getExtensionSurfaces(...)`, `extensionSurfaceKey(...)`, `isExtensionSurfaceLayer(...)`, and `EXTENSION_SURFACE_LAYERS`. Tests cover helper behavior and the multi-surface example manifest.",
-    "Tractor TS now emits `storage:node:written` after `storeNode(...)`, making `Tractor.onNode(type, handler)` actually reactive for stored graph nodes.",
-    "Homestead `StudioShell` now subscribes to `StreamSession` and `StreamChunk` via `Tractor.onNode(...)`, reduces them with Tractor stream helpers, and renders a compact live stream statusbar pill. BrowserSyncClient remains schema-neutral.",
-    "Homestead now mounts manifest-declared `homestead` extension surfaces into shell slots while preserving legacy `ui.slots`; slot resolution was extracted to `resolveHomesteadSurfaceSlots(...)` and exported from `@refarm.dev/homestead/sdk`.",
-    "Added `examples/multi-surface-plugin/` with a valid manifest declaring `homestead`, `asset`, and `automation` surfaces; plugin-manifest tests now validate this example stays conformant.",
-    "Validation passed in this stream: `npm --prefix packages/plugin-manifest run test`, `npm --prefix packages/plugin-manifest run test:conformance`, `npm --prefix packages/homestead test`, `npm --prefix packages/homestead run type-check`, `npm --prefix packages/homestead run build`, `npm --prefix packages/tractor-ts run test:unit -- telemetry.test.ts`, `npm --prefix packages/tractor-ts run type-check`, `npm --prefix packages/tractor-ts run build`, `npm run project:validate --silent`, and `git diff --check`."
+    "Completed the multi-surface extensibility path from manifest declaration to Homestead mounting, DOM identity, telemetry, SDK inspection, and Studio diagnostics. Current HEAD before this handoff update: 52226e6e docs(studio): record mounted surface diagnostics.",
+    "The local branch is ahead of origin/develop by 36 commits. Recent important commits include: 9209385f feat(app-dev): render mounted surface inspector; a162e0e7 feat(homestead): expose mounted surface inspector; 1705b31b feat(homestead): emit surface mount telemetry; f4e628d3 feat(homestead): preserve extension surface mount identity; 44c2cfca feat(ds): add reusable UI surface primitives; 8dc78bce refactor(homestead): render streams with ds primitives; a37c694d refactor(app-dev): consume ds stream workbench primitives; b6e7b92b feat(homestead): link streams workbench in shell nav; 1117f3e1 feat(app-dev): add stream workbench page; fbabc568 feat(app-dev): seed opt-in stream demo.",
+    "User clarified short-term UI experiments should be in Homestead plus Studio app `apps/dev`, not `me` or `social`. Docs were updated to anchor this direction.",
+    "`@refarm.dev/ds` is now the home for reusable framework-agnostic visual primitives. Added DS classes for surfaces, panels, pills, badges, cards, buttons, code chips, workbench layout, stacks, and clusters. Homestead and apps/dev now consume these classes for stream/status/workbench UI while keeping domain behavior local.",
+    "Homestead stream UI now consumes DS primitives and renders both statusbar pill and `streams` panel from generic `StreamSession` and `StreamChunk` observations. BrowserSyncClient remains schema-neutral.",
+    "`apps/dev` now has an opt-in stream demo: enable with the statusbar toggle, `/?stream-demo`, `/?streamDemo=1`, or localStorage key `refarm:studio:stream-demo=1`. It seeds generic stream nodes through Tractor to exercise the same Homestead render path real agent streams use.",
+    "`apps/dev` has a `/streams` workbench page linked from Homestead nav. Build confirmed `/streams/index.html`.",
+    "Homestead surface mounting now preserves mount identity: wrappers get `data-refarm-plugin-id`, `data-refarm-slot-id`, `data-refarm-mount-source`, and for extension surfaces also `data-refarm-surface-layer`, `data-refarm-surface-kind`, `data-refarm-surface-id`.",
+    "Homestead emits `ui:surface_mounted` telemetry for each mount with pluginId, slotId, mountSource, and surface metadata. This creates an auditable manifest -> slot -> DOM path.",
+    "Homestead SDK exports `listMountedHomesteadSurfaces(...)` via subpath `@refarm.dev/homestead/sdk/surface-inspector`. `apps/dev` consumes that helper to render a small mounted-surface inspector after shell setup.",
+    "Validation passed in this stream: `npm --prefix packages/ds run test`, `npm --prefix packages/ds run build`, `npm --prefix packages/homestead test`, `npm --prefix packages/homestead run type-check`, `npm --prefix packages/homestead run build`, `npm --prefix apps/dev test`, `npm --prefix apps/dev run type-check`, `npm --prefix apps/dev run build`, `npm run agent:streaming:studio`, `npm run project:validate --silent`, and `git diff --check`."
   ],
   "blockers": [
-    "Disk is still 99% used on the host mount with about 7.6GB free. The repo is only about 1.5GB and derived artifact totals are low; avoid unnecessary cleanups unless free space falls near 2-3GB or new large artifacts appear.",
-    "Rust target dirs were previously removed by clean:heavy, so broad Rust checks will rebuild from scratch and may consume disk. Use scoped Rust commands from AGENTS.md only when Rust is touched.",
-    "Full tractor-ts unit suite remains known-noisy when WASM fixtures are missing after cleanup. Prefer focused tests (`telemetry.test.ts`, stream helper tests, or `npm run agent:streaming:clients`) unless intentionally rebuilding fixtures.",
-    "pi-lens/LSP may warn or crash on Markdown writes; re-read files after auto-format/fix warnings and prefer direct read/edit for docs."
+    "Disk is still 99% used on the host mount with about 7.5GB free. The repo is about 1.5GB; current generated artifacts are not large enough to justify cleanup. Recheck disk before broad builds and use cleanup only if free space falls near 2-3GB or new large artifacts appear.",
+    "Rust target dirs were previously removed by clean:heavy. Broad Rust checks will rebuild from scratch and may consume disk. Use scoped Rust commands from AGENTS.md only if Rust is touched.",
+    "Full tractor-ts unit suite remains known-noisy when WASM fixtures are missing after cleanup. Prefer focused tests or `npm run agent:streaming:clients` / `npm run agent:streaming:studio` unless intentionally rebuilding fixtures.",
+    "`apps/dev` importing from the Homestead SDK barrel can pull `Shell` and locale imports through dist. For inspector-only consumers use the explicit subpath `@refarm.dev/homestead/sdk/surface-inspector`, which was added for this reason.",
+    "pi-lens/auto-fix may warn on Markdown or innerHTML usage. Re-read files after auto-format/fix warnings and avoid new unsafe innerHTML in tests/helpers."
   ],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`.",
-    "Before push, consider running the economical aggregate gate for touched areas: `npm --prefix packages/plugin-manifest run test && npm --prefix packages/homestead test && npm --prefix packages/homestead run type-check && npm run project:validate --silent && git diff --check`.",
-    "Push the 12 local commits to origin/develop when ready, then watch CI with `GH_PROMPT_DISABLED=1 gh run watch --repo aretw0/refarm --exit-status` or list runs first if needed.",
-    "Next technical slice: promote the Homestead stream statusbar pill into a richer `homestead` extension surface/panel using the declared `stream-panel` model from the multi-surface example.",
-    "Next contract slice: add host-side capability checks for `extensions.surfaces[].capabilities` before mounting/activating richer surfaces; keep discovery separate from activation.",
-    "Next daily-driver slice: map `docs/DAILY_DRIVER_PARITY.md` rows to concrete surfaces/commands now that stream output and manifest surfaces have a working path.",
-    "Run `npm run clean:light --silent` only at checkpoint boundaries if `.turbo` or Rust incremental artifacts reappear; use `clean:heavy` only near critical disk pressure."
+    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -16`.",
+    "Before pushing, run an economical aggregate gate for touched areas: `npm run agent:streaming:studio && npm --prefix packages/ds run test && npm --prefix packages/ds run build && npm run project:validate --silent && git diff --check`.",
+    "Consider pushing the 36 local commits to origin/develop as a checkpoint, then watch CI. This is a large local-ahead stack now.",
+    "Next technical slice: make the Studio mounted-surface inspector update after `ui:surface_mounted` telemetry events instead of only after initial shell setup. Keep it in `apps/dev` and avoid `me`/`social`.",
+    "Next extensibility slice: add an example plugin/surface that mounts into `streams` or `main` so the inspector displays a non-zero real extension surface without hand-crafted DOM.",
+    "Next governance slice: formalize deeper surface activation trust checks beyond slot-level capability filtering. Current gate filters declared surface capabilities before mounting, but runtime trust still belongs deeper in plugin host activation.",
+    "Next DS slice: continue moving generic inline shell/help styles into DS primitives, but keep stream-specific logic and text in Homestead/apps-dev.",
+    "Run `npm run clean:light --silent` only at checkpoint boundaries if `.turbo` or incremental artifacts grow. Use heavy cleanup only near critical disk pressure."
   ],
   "open_questions": [
-    "Should Homestead surface mounting require explicit capability grants before adding plugin DOM wrappers, or should that wait until richer surface rendering beyond placeholder wrappers?",
-    "Should multi-surface examples live under `examples/` only, or become workspace packages with build/test scripts once they include executable code?",
-    "Should `ui.slots` be formally deprecated in favor of `extensions.surfaces` after enough hosts consume the new contract?",
-    "Should stream observation UI stay in Homestead shell, move to a plugin-provided panel, or support both shell status and panel views?"
+    "Should the Studio surface inspector become a `/surfaces` page, remain statusbar diagnostics, or both?",
+    "Should `ui.slots` become deprecated once `extensions.surfaces` has a real executable plugin example and inspector coverage?",
+    "What should be the first real plugin-provided `homestead` surface: stream panel/editor, plugin management panel, or project memory surface?",
+    "Where exactly should deeper surface trust be enforced: before DOM wrapper creation in Homestead, inside PluginHost activation, or both with different responsibilities?"
   ],
   "key_decisions_pending": [
-    "Capability enforcement boundary for manifest-declared surfaces.",
-    "Promotion path from statusbar stream pill to full daily-driver stream panel/editor.",
-    "Whether to push current local commits as one batch now or continue local slicing until a larger checkpoint.",
-    "Whether to convert daily-driver parity checklist into canonical .project tasks for traceability."
+    "Push timing for the now-large local commit stack ahead of origin/develop.",
+    "First real executable multi-surface plugin example location: `examples/` vs workspace package.",
+    "Runtime trust boundary for manifest-declared surfaces.",
+    "Whether daily-driver parity checklist should be converted into canonical .project tasks after the current surface path stabilizes."
   ],
   "files_in_flux": []
 }
