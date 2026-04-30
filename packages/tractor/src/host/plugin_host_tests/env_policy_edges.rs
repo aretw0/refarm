@@ -54,6 +54,17 @@
     }
 
     #[test]
+    fn forwarded_llm_env_vars_from_iter_allows_stream_responses_flag() {
+        let out = forwarded_llm_env_vars_from_iter(vec![(
+            "LLM_STREAM_RESPONSES".to_string(),
+            "1".to_string(),
+        )]);
+        let map: std::collections::HashMap<_, _> = out.into_iter().collect();
+
+        assert_eq!(map.get("LLM_STREAM_RESPONSES"), Some(&"1".to_string()));
+    }
+
+    #[test]
     fn forwarded_llm_env_vars_from_iter_limits_input_scan_window() {
         let mut vars: Vec<(String, String)> = (0..512)
             .map(|i| (format!("OTHER_{i}"), "x".to_string()))
