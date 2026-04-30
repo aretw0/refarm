@@ -411,6 +411,11 @@ data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"
     assert_eq!(stored_chunks, 0);
     assert_eq!(last_sequence, None);
     assert!(sync.query_nodes("AgentResponse").unwrap().is_empty());
+    let stream_rows = sync.query_nodes("StreamChunk").unwrap();
+    assert_eq!(stream_rows.len(), 1);
+    let stream_chunk: serde_json::Value = serde_json::from_str(&stream_rows[0].payload).unwrap();
+    assert_eq!(stream_chunk["payload_kind"], "final_tool_call");
+    assert_eq!(stream_chunk["is_final"], true);
     let json: serde_json::Value = serde_json::from_slice(&final_body).unwrap();
     let tool_call = &json["choices"][0]["message"]["tool_calls"][0];
     assert_eq!(tool_call["id"], "call_1");
