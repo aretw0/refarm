@@ -93,15 +93,15 @@ same prompt, or `promptRefFromAgentResponseStreamRef(streamRef)` to map back.
 Consumers that observe generic `StreamChunk` nodes directly can use
 `reduceStreamChunkEvents(...)`,
 `reduceStreamChunkEventsByStream(...)`, `isTerminalStreamChunk(...)`,
-`isTerminalStreamChunkState(...)`, or final-kind helpers such as
+`isTerminalStreamChunkState(...)`, `isStreamChunkPayloadKind(...)`,
+`isTextDeltaStreamChunkPayloadKind(...)`, or final-kind helpers such as
 `isFinalToolCallStreamChunkPayloadKind(...)`. Consumers that observe
-`StreamSession`
-lifecycle nodes can use `reduceStreamSessionEvents(...)`,
+`StreamSession` lifecycle nodes can use `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
 `isCompletedStreamSession(...)`, `isFailedStreamSession(...)`,
 `streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. The
 package also exports status/kind/payload constants and type guards plus the
-`StreamSessionStatus`, `StreamSessionKind`, and
+`StreamSessionStatus`, `StreamSessionKind`, `StreamChunkPayloadKind`, and
 `TerminalStreamChunkPayloadKind` type aliases for switch statements and UI state
 machines.
 Use `orderAgentResponseStreamEvents(...)`, `orderStreamChunkEvents(...)`, or
