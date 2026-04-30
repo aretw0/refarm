@@ -63,6 +63,11 @@ rejections for missing slots, unsupported capabilities, or duplicate surface
 IDs. The shell emits `ui:surface_rejected` telemetry for rejected declarations,
 so capability filtering is visible to Studio diagnostics instead of failing
 silently.
+The shell also passes its discovered DOM slot allow-list into activation
+planning, so manifest surfaces targeting unknown Homestead slots are rejected as
+`unknown-slot` before any wrapper is created. Legacy `ui.slots` entries outside
+the current shell are ignored for compatibility, while the multi-surface path is
+audited explicitly.
 
 Mounting preserves surface identity in the DOM and telemetry. Extension surface
 wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
