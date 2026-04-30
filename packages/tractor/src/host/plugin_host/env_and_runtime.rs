@@ -55,6 +55,7 @@ fn refarm_config_env_vars_from(base: &std::path::Path) -> Vec<(String, String)> 
     push_trimmed_lower_env_var(&mut vars, "LLM_PROVIDER", cfg["provider"].as_str());
     push_trimmed_env_var(&mut vars, "LLM_MODEL", cfg["model"].as_str());
     push_trimmed_lower_env_var(&mut vars, "LLM_DEFAULT_PROVIDER", cfg["default_provider"].as_str());
+    push_bool_env_var(&mut vars, "LLM_STREAM_RESPONSES", cfg["stream_responses"].as_bool());
     if let Some(budgets) = cfg["budgets"].as_object() {
         for (provider, amount) in budgets.iter().take(MAX_CONFIG_BUDGET_VARS) {
             let Some(provider_token) = sanitize_budget_provider_for_env(provider) else {
@@ -135,6 +136,15 @@ fn push_trimmed_lower_env_var(vars: &mut Vec<(String, String)>, key: &str, value
     {
         upsert_env_var_vec(vars, key.to_string(), lowered);
     }
+}
+
+fn push_bool_env_var(vars: &mut Vec<(String, String)>, key: &str, value: Option<bool>) {
+    let Some(value) = value else { return; };
+    upsert_env_var_vec(
+        vars,
+        key.to_string(),
+        if value { "1" } else { "0" }.to_string(),
+    );
 }
 
 fn is_safe_provider_token(value: &str) -> bool {

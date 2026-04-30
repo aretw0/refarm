@@ -83,6 +83,48 @@
     }
 
     #[test]
+    fn refarm_config_env_vars_maps_stream_responses_bool() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":true}"#)
+            .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_STREAM_RESPONSES"], "1");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_maps_stream_responses_false() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":false}"#)
+            .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert_eq!(map["LLM_STREAM_RESPONSES"], "0");
+    }
+
+    #[test]
+    fn refarm_config_env_vars_ignores_non_bool_stream_responses() {
+        let dir = tempfile::tempdir().unwrap();
+        let refarm_dir = dir.path().join(".refarm");
+        std::fs::create_dir_all(&refarm_dir).unwrap();
+        std::fs::write(refarm_dir.join("config.json"), r#"{"stream_responses":"true"}"#)
+            .unwrap();
+
+        let vars = refarm_config_env_vars_from(dir.path());
+        let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
+
+        assert!(!map.contains_key("LLM_STREAM_RESPONSES"));
+    }
+
+    #[test]
     fn refarm_config_env_vars_ignores_non_numeric_budgets() {
         let dir = tempfile::tempdir().unwrap();
         let refarm_dir = dir.path().join(".refarm");
