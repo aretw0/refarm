@@ -83,11 +83,25 @@ cargo test --all
 
 # Watch new AgentResponse nodes from storage
 ./target/release/tractor watch --namespace default --agent pi-agent --until-final
+
+# Inspect generic stream observations for one prompt stream
+./target/release/tractor query \
+  --namespace default \
+  --type StreamChunk \
+  --stream-ref urn:tractor:stream:agent-response:<prompt-ref>
+
+# Watch generic stream lifecycle/chunks until a terminal marker appears
+./target/release/tractor watch \
+  --namespace default \
+  --type StreamSession \
+  --stream-ref urn:tractor:stream:agent-response:<prompt-ref> \
+  --until-final
 ```
 
 Notes:
 - `prompt` sends JSON text frame: `{ "type": "user:prompt", "agent": "...", "payload": "..." }`.
-- Waiting/watching uses SQLite polling (`AgentResponse`) as a resilient fallback path.
+- Waiting/watching uses SQLite polling (`AgentResponse` by default) as a resilient fallback path.
+- Generic stream observation polling supports `StreamChunk` and `StreamSession` via `--type` plus `--stream-ref`.
 
 ---
 
