@@ -18,6 +18,12 @@ use tractor::{
     trust::SecurityMode,
 };
 
+const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
+const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL: &str = "final_tool_call";
+const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY: &str = "final_empty";
+const STREAM_SESSION_STATUS_COMPLETED: &str = "completed";
+const STREAM_SESSION_STATUS_FAILED: &str = "failed";
+
 #[derive(Parser, Debug)]
 #[command(name = "tractor", about = "Refarm sovereign WASM plugin host")]
 struct Cli {
@@ -759,14 +765,18 @@ fn node_row_is_terminal(row: &tractor::storage::NodeRow) -> bool {
 
     if matches!(
         value.get("payload_kind").and_then(|field| field.as_str()),
-        Some("final_text" | "final_tool_call" | "final_empty")
+        Some(
+            STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT
+                | STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL
+                | STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY,
+        )
     ) {
         return true;
     }
 
     matches!(
         value.get("status").and_then(|field| field.as_str()),
-        Some("completed" | "failed")
+        Some(STREAM_SESSION_STATUS_COMPLETED | STREAM_SESSION_STATUS_FAILED)
     )
 }
 
@@ -1188,7 +1198,7 @@ mod tests {
             id: "chunk-marker".to_string(),
             type_: "StreamChunk".to_string(),
             context: None,
-            payload: serde_json::json!({ "payload_kind": "final_tool_call" }).to_string(),
+            payload: serde_json::json!({ "payload_kind": STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL }).to_string(),
             source_plugin: Some("pi-agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
@@ -1196,7 +1206,7 @@ mod tests {
             id: "session-failed".to_string(),
             type_: "StreamSession".to_string(),
             context: None,
-            payload: serde_json::json!({ "status": "failed" }).to_string(),
+            payload: serde_json::json!({ "status": STREAM_SESSION_STATUS_FAILED }).to_string(),
             source_plugin: Some("pi-agent".to_string()),
             updated_at: "2026-04-30T00:00:00Z".to_string(),
         };
