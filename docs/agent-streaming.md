@@ -129,8 +129,11 @@ Consumers that observe `StreamSession` lifecycle nodes can use
 `isFailedStreamSession(...)`,
 `streamSessionPromptRef(...)`, `streamSessionProviderFamily(...)`,
 `streamSessionModel(...)`, `streamSessionDurationNs(...)`,
-`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. The
-package also exports status/kind/payload
+`streamSessionFailureKind(...)`, or `streamSessionFailureReason(...)`. UI code
+that already has both reduced maps can use `streamObservationView(...)` or
+`streamObservationViewsByStream(...)` to derive a render-friendly model with
+content, lifecycle status, terminality, provider labels, duration, and failure
+metadata. The package also exports status/kind/payload
 constants and type guards plus the
 `StreamSessionStatus`, `StreamSessionKind`, `StreamChunkPayloadKind`, and
 `TerminalStreamChunkPayloadKind` type aliases for switch statements and UI state
