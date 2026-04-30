@@ -57,6 +57,9 @@ describe("StudioShell Orchestrator", () => {
         const statusbar = document.getElementById("refarm-slot-statusbar");
         expect(statusbar?.innerHTML).toContain("plugin-view");
         expect(statusbar?.innerHTML).toContain("test-plugin");
+        expect(
+            statusbar?.querySelector("[data-refarm-plugin-id='test-plugin']")?.getAttribute("data-refarm-mount-source"),
+        ).toBe("legacy-ui-slot");
     });
 
     it("should inject homestead extension surfaces into declared slots", async () => {
@@ -92,6 +95,9 @@ describe("StudioShell Orchestrator", () => {
         const statusbar = document.getElementById("refarm-slot-statusbar");
         expect(main?.innerHTML).toContain("surface-plugin");
         expect(statusbar?.innerHTML).not.toContain("surface-plugin");
+        const surfaceMount = main?.querySelector("[data-refarm-surface-id='stream-panel']");
+        expect(surfaceMount?.getAttribute("data-refarm-mount-source")).toBe("extension-surface");
+        expect(surfaceMount?.getAttribute("data-refarm-surface-kind")).toBe("panel");
     });
 
     it("should update system status during orchestration", async () => {

@@ -14,7 +14,10 @@ import type {
   TelemetryEvent,
 } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
-import { resolveHomesteadSurfaceSlots } from "./surface-slots.js";
+import {
+  resolveHomesteadSurfaceMounts,
+  type HomesteadSurfaceMount,
+} from "./surface-slots.js";
 import {
   renderStreamPanelHtml,
   renderStreamStatusbarHtml,
@@ -120,11 +123,11 @@ export class StudioShell {
     let hasUi = false;
     
     for (const plugin of apps) {
-      const slots = resolveHomesteadSurfaceSlots(plugin.manifest);
-      if (slots.length > 0) {
+      const mounts = resolveHomesteadSurfaceMounts(plugin.manifest);
+      if (mounts.length > 0) {
         hasUi = true;
-        for (const slotId of slots) {
-          await this.injectPluginIntoSlot(plugin.id, slotId);
+        for (const mount of mounts) {
+          await this.injectPluginIntoSlot(plugin.id, mount);
         }
       }
     }
@@ -276,7 +279,8 @@ export class StudioShell {
     `;
   }
 
-  private async injectPluginIntoSlot(pluginId: string, slotId: string) {
+  private async injectPluginIntoSlot(pluginId: string, mount: HomesteadSurfaceMount) {
+    const slotId = mount.slotId;
     const container = this.slots.get(slotId);
     if (!container) {
       this.logWarn(`[shell] Slot ${slotId} not found for plugin ${pluginId}`);
@@ -291,6 +295,14 @@ export class StudioShell {
     const pluginWrap = document.createElement('div');
     const pluginIdSanitized = pluginId.replace(/[^a-z0-9]/g, '-');
     pluginWrap.className = `plugin-view plugin-${pluginIdSanitized}`;
+    pluginWrap.dataset.refarmPluginId = pluginId;
+    pluginWrap.dataset.refarmSlotId = slotId;
+    pluginWrap.dataset.refarmMountSource = mount.source;
+    if (mount.surface) {
+      pluginWrap.dataset.refarmSurfaceLayer = mount.surface.layer;
+      pluginWrap.dataset.refarmSurfaceKind = mount.surface.kind;
+      pluginWrap.dataset.refarmSurfaceId = mount.surface.id;
+    }
     
     // Initial State Reflection
     const plugin = this.tractor.plugins.get(pluginId);
