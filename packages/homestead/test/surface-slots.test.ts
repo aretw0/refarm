@@ -182,4 +182,48 @@ describe("resolveHomesteadSurfaceSlots", () => {
 			{ reason: "unknown-slot", surface: { id: "ghost-panel" } },
 		]);
 	});
+
+	it("rejects homestead surfaces with unsupported host kinds", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "known-panel",
+						slot: "main",
+					},
+					{
+						layer: "homestead",
+						kind: "fullscreen-overlay",
+						id: "overlay-panel",
+						slot: "main",
+					},
+				],
+			},
+		});
+
+		const plan = resolveHomesteadSurfaceActivationPlan(manifest);
+
+		expect(plan.mounts).toMatchObject([
+			{ slotId: "main", source: "legacy-ui-slot" },
+			{
+				slotId: "main",
+				source: "extension-surface",
+				surface: { id: "known-panel", kind: "panel" },
+			},
+		]);
+		expect(plan.rejected).toMatchObject([
+			{
+				reason: "unsupported-kind",
+				surface: { id: "overlay-panel", kind: "fullscreen-overlay" },
+			},
+		]);
+
+		expect(
+			resolveHomesteadSurfaceActivationPlan(manifest, {
+				allowedKinds: ["panel", "fullscreen-overlay"],
+			}).rejected,
+		).toEqual([]);
+	});
 });

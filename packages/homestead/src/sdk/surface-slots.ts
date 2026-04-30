@@ -9,8 +9,16 @@ export const DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES = new Set([
 	"ui:stream:read",
 ]);
 
+export const DEFAULT_HOMESTEAD_SURFACE_KINDS = new Set([
+	"panel",
+	"widget",
+	"statusbar",
+	"editor",
+]);
+
 export interface HomesteadSurfaceSlotOptions {
 	allowedCapabilities?: ReadonlySet<string> | readonly string[];
+	allowedKinds?: ReadonlySet<string> | readonly string[];
 	availableSlots?: ReadonlySet<string> | readonly string[];
 }
 
@@ -23,6 +31,7 @@ export interface HomesteadSurfaceMount {
 export type HomesteadSurfaceRejectionReason =
 	| "missing-slot"
 	| "unknown-slot"
+	| "unsupported-kind"
 	| "unsupported-capability"
 	| "duplicate-surface-id";
 
@@ -79,6 +88,7 @@ export function resolveHomesteadSurfaceActivationPlan(
 	const allowedCapabilities = normalizeAllowedCapabilities(
 		options.allowedCapabilities,
 	);
+	const allowedKinds = normalizeAllowedKinds(options.allowedKinds);
 	const availableSlots = normalizeAvailableSlots(options.availableSlots);
 
 	for (const slotId of manifest.ui?.slots ?? []) {
@@ -99,6 +109,11 @@ export function resolveHomesteadSurfaceActivationPlan(
 
 		if (availableSlots && !availableSlots.has(surface.slot)) {
 			rejected.push({ reason: "unknown-slot", surface });
+			continue;
+		}
+
+		if (!allowedKinds.has(surface.kind)) {
+			rejected.push({ reason: "unsupported-kind", surface });
 			continue;
 		}
 
@@ -135,6 +150,13 @@ function normalizeAllowedCapabilities(
 ): ReadonlySet<string> {
 	if (capabilities instanceof Set) return capabilities;
 	return new Set(capabilities ?? DEFAULT_HOMESTEAD_SURFACE_CAPABILITIES);
+}
+
+function normalizeAllowedKinds(
+	kinds: HomesteadSurfaceSlotOptions["allowedKinds"],
+): ReadonlySet<string> {
+	if (kinds instanceof Set) return kinds;
+	return new Set(kinds ?? DEFAULT_HOMESTEAD_SURFACE_KINDS);
 }
 
 function normalizeAvailableSlots(
