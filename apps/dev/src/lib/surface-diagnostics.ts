@@ -3,6 +3,8 @@ import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/pl
 
 export const STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID =
 	"studio-surface-diagnostics";
+export const FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID =
+	"failing-surface-diagnostics";
 export const EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID =
 	"external-untrusted-surface";
 
@@ -14,8 +16,8 @@ export type StudioSurfaceDiagnosticsTelemetry = (
 
 /**
  * Fixtures used by the `/surfaces` Studio ledger to prove both sides of the
- * Homestead trust policy: explicit internal surfaces mount, unregistered
- * external surfaces are rejected.
+ * Homestead trust policy: explicit internal surfaces mount, executable render
+ * failures are reported, and unregistered external surfaces are rejected.
  */
 export function createStudioSurfaceDiagnosticsPlugins(
 	emitTelemetry: StudioSurfaceDiagnosticsTelemetry = () => {},
@@ -34,6 +36,26 @@ export function createStudioSurfaceDiagnosticsPlugins(
 			],
 			emitTelemetry: (event, payload) =>
 				emitTelemetry(STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID, event, payload),
+		}),
+		createHomesteadSurfacePluginHandle({
+			id: FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID,
+			name: "Failing Surface Diagnostics",
+			surfaces: [
+				{
+					kind: "panel",
+					id: "failing-ledger-panel",
+					slot: "main",
+					capabilities: ["ui:panel:render"],
+				},
+			],
+			call: async (fn) => {
+				if (fn === "renderHomesteadSurface") {
+					throw new Error("diagnostic render failure");
+				}
+				return null;
+			},
+			emitTelemetry: (event, payload) =>
+				emitTelemetry(FAILING_SURFACE_DIAGNOSTICS_PLUGIN_ID, event, payload),
 		}),
 		createHomesteadSurfacePluginHandle({
 			id: EXTERNAL_UNTRUSTED_SURFACE_PLUGIN_ID,

@@ -42,8 +42,9 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
         <span class="refarm-badge" data-refarm-surfaces-status>Booting</span>
       </div>
       <p class="refarm-card-body">
-        This page boots a tiny diagnostics runtime: one internal trusted surface should mount, while one external
-        unregistered surface should be rejected as <code class="refarm-code">untrusted-plugin</code>.
+        This page boots a tiny diagnostics runtime: one internal trusted surface should mount, one trusted executable
+        fixture should fail rendering audibly, and one external unregistered surface should be rejected as
+        <code class="refarm-code">untrusted-plugin</code>.
       </p>
       <div class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></div>
     </div>
@@ -52,6 +53,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       <p class="refarm-eyebrow">Expected proof</p>
       <ul class="surfaces-proof-list">
         <li><span class="refarm-badge">mount</span> <code class="refarm-code">studio-surface-diagnostics</code> in <code class="refarm-code">main</code></li>
+        <li><span class="refarm-badge">fail</span> <code class="refarm-code">failing-surface-diagnostics</code> with <code class="refarm-code">render: failed</code></li>
         <li><span class="refarm-badge">reject</span> <code class="refarm-code">untrusted-plugin</code> with <code class="refarm-code">registry: unregistered</code></li>
         <li><span class="refarm-badge">audit</span> telemetry visible through Homestead inspector helpers</li>
       </ul>
