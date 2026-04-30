@@ -4,6 +4,7 @@ import {
 	emptyStreamSessionState,
 	isTerminalStreamSession,
 	isTerminalStreamSessionStatus,
+	orderStreamSessionEvents,
 	reduceStreamSessionEvents,
 	reduceStreamSessionEventsByStream,
 	streamSessionFailureKind,
@@ -69,6 +70,27 @@ describe("StreamSession accumulator", () => {
 			chunkCount: 9,
 			metadata: null,
 		});
+	});
+
+	it("orders session snapshots by lifecycle timestamp without mutating input", () => {
+		const events = [
+			{ stream_ref: "stream-a", status: "completed", updated_at_ns: 300 },
+			{ stream_ref: "stream-a", status: "active", started_at_ns: 100 },
+			{ stream_ref: "stream-a", status: "unknown" },
+		];
+
+		const ordered = orderStreamSessionEvents(events);
+
+		expect(ordered.map((event) => event.status)).toEqual([
+			"active",
+			"completed",
+			"unknown",
+		]);
+		expect(events.map((event) => event.status)).toEqual([
+			"completed",
+			"active",
+			"unknown",
+		]);
 	});
 
 	it("detects terminal stream session statuses", () => {

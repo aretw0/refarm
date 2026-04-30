@@ -71,6 +71,14 @@ export function reduceStreamSessionEvents(
 	return events.reduce(applyStreamSessionEvent, initialState);
 }
 
+export function orderStreamSessionEvents<T extends StreamSessionEvent>(
+	events: readonly T[],
+): T[] {
+	return [...events].sort(
+		(a, b) => streamSessionSortValue(a) - streamSessionSortValue(b),
+	);
+}
+
 export function streamSessionKey(event: StreamSessionEvent): string {
 	return typeof event.stream_ref === "string"
 		? event.stream_ref
@@ -117,6 +125,15 @@ export function streamSessionFailureKind(
 	state: StreamSessionState,
 ): string | null {
 	return metadataStringField(state.metadata, "failure_kind");
+}
+
+function streamSessionSortValue(event: StreamSessionEvent): number {
+	return (
+		finiteNumberOr(event.updated_at_ns, null) ??
+		finiteNumberOr(event.completed_at_ns, null) ??
+		finiteNumberOr(event.started_at_ns, null) ??
+		Number.MAX_SAFE_INTEGER
+	);
 }
 
 function metadataStringField(metadata: unknown, field: string): string | null {
