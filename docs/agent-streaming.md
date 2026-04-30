@@ -59,6 +59,11 @@ tractor watch --type StreamChunk --stream-ref urn:tractor:stream:agent-response:
 tractor watch --type StreamSession --stream-ref urn:tractor:stream:agent-response:<prompt-ref> --until-final
 ```
 
+WebSocket/browser sync remains schema-neutral: `BrowserSyncClient` transports
+Loro binary updates and does not special-case `AgentResponse`, `StreamChunk`, or
+`StreamSession`. UI code should decide which node type it observes and then use
+one of the reducers below.
+
 TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
 from `@refarm.dev/tractor` as the default `AgentResponse` accumulation
