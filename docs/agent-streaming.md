@@ -95,6 +95,15 @@ Loro binary updates and does not special-case `AgentResponse`, `StreamChunk`, or
 `StreamSession`. UI code should decide which node type it observes and then use
 one of the reducers below.
 
+### Consumer audit (2026-04)
+
+Current production UI code does not yet subscribe to generic stream nodes. The
+known stream-aware code lives in `@refarm.dev/tractor` TypeScript helpers and
+tests, while `packages/terminal-plugin/src/index.ts` remains a passive DOM log
+sink. Therefore the next implementation slice should add a real UI subscriber
+that reads `StreamSession`/`StreamChunk` observations and feeds the reducer
+helpers; it should not put schema-specific logic into `BrowserSyncClient`.
+
 TypeScript consumers can use
 `applyAgentResponseStreamEvent(...)` / `reduceAgentResponseStreamEvents(...)`
 from `@refarm.dev/tractor` as the default `AgentResponse` accumulation
