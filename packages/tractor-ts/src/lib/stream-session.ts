@@ -151,6 +151,10 @@ export function isTerminalStreamSessionStatus(
 	);
 }
 
+export function isActiveStreamSession(state: StreamSessionState): boolean {
+	return state.status === STREAM_SESSION_STATUS_ACTIVE;
+}
+
 export function isCompletedStreamSession(state: StreamSessionState): boolean {
 	return state.status === STREAM_SESSION_STATUS_COMPLETED;
 }
