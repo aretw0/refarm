@@ -1,7 +1,7 @@
 export interface StreamSessionEvent {
 	stream_ref?: string | null;
 	stream_kind?: string | null;
-	status?: string | null;
+	status?: StreamSessionStatus | string | null;
 	started_at_ns?: number | null;
 	updated_at_ns?: number | null;
 	completed_at_ns?: number | null;
@@ -14,7 +14,7 @@ export interface StreamSessionEvent {
 export interface StreamSessionState {
 	streamRef: string | null;
 	streamKind: string | null;
-	status: string | null;
+	status: StreamSessionStatus | string | null;
 	startedAtNs: number | null;
 	updatedAtNs: number | null;
 	completedAtNs: number | null;
@@ -29,6 +29,11 @@ export const UNKNOWN_STREAM_SESSION_REF = "__tractor:no-stream-session-ref__";
 export const STREAM_SESSION_STATUS_ACTIVE = "active";
 export const STREAM_SESSION_STATUS_COMPLETED = "completed";
 export const STREAM_SESSION_STATUS_FAILED = "failed";
+
+export type StreamSessionStatus =
+	| typeof STREAM_SESSION_STATUS_ACTIVE
+	| typeof STREAM_SESSION_STATUS_COMPLETED
+	| typeof STREAM_SESSION_STATUS_FAILED;
 
 export function emptyStreamSessionState(
 	streamRef: string | null = null,

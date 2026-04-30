@@ -2,7 +2,7 @@ export interface StreamChunkEvent {
 	stream_ref?: string | null;
 	content?: string | null;
 	sequence?: number | null;
-	payload_kind?: string | null;
+	payload_kind?: TerminalStreamChunkPayloadKind | string | null;
 	is_final?: boolean | null;
 	metadata?: unknown;
 	[key: string]: unknown;
@@ -13,7 +13,7 @@ export interface StreamChunkState {
 	content: string;
 	lastSequence: number | null;
 	isFinal: boolean;
-	payloadKind: string | null;
+	payloadKind: TerminalStreamChunkPayloadKind | string | null;
 }
 
 export type StreamChunkStateMap = Record<string, StreamChunkState>;
@@ -22,6 +22,12 @@ export const UNKNOWN_STREAM_REF = "__tractor:no-stream-ref__";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT = "final_text";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL = "final_tool_call";
 export const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY = "final_empty";
+
+export type TerminalStreamChunkPayloadKind =
+	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT
+	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL
+	| typeof STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY;
+
 export const TERMINAL_STREAM_CHUNK_PAYLOAD_KINDS = new Set([
 	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT,
 	STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL,
