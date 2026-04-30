@@ -66,14 +66,14 @@ Use the smallest command that can falsify the change you just made. Bigger gates
 are still valuable, but they should be checkpoints, not reflexes after every
 edit.
 
-| Situation                                  | Preferred local signal                                   | Avoid until checkpoint                  |
-| ------------------------------------------ | -------------------------------------------------------- | --------------------------------------- |
-| Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`              | full `cargo test`                       |
-| Rust API shape changed                     | focused test + `cargo check --quiet` in that package     | rebuilding unrelated crates             |
-| pi-agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`             | `cargo component build --release`       |
-| pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential              | full harness suite repeatedly           |
-| TS package edit                            | `npm --prefix <pkg> run type-check` or direct unit suite | repo-wide `turbo build`                 |
-| Before push                                | one scoped gate, then CI                                 | re-running the same heavy gate manually |
+| Situation                                  | Preferred local signal                                                                           | Avoid until checkpoint                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------ | --------------------------------------------- |
+| Pure Rust parser/helper edit               | `cargo test --lib <test_or_module> --quiet`                                                      | full `cargo test`                             |
+| Rust API shape changed                     | focused test + `cargo check --quiet` in that package                                             | rebuilding unrelated crates                   |
+| pi-agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release`             |
+| pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
+| TS package edit                            | `npm --prefix <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
+| Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
 
 For the current pi-agent streaming lane, prefer the wrapper scripts:
 
