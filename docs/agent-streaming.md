@@ -96,7 +96,8 @@ Consumers that observe generic `StreamChunk` nodes directly can use
 `isTerminalStreamChunkState(...)`, `isStreamChunkPayloadKind(...)`,
 `isTextDeltaStreamChunkPayloadKind(...)`, or final-kind helpers such as
 `isFinalToolCallStreamChunkPayloadKind(...)`; the reducer also preserves the
-latest chunk `metadata` for UI labels such as provider/model/prompt refs.
+latest chunk `metadata`, with helpers such as `streamChunkPromptRef(...)`,
+`streamChunkProviderFamily(...)`, and `streamChunkModel(...)` for UI labels.
 Consumers that observe `StreamSession` lifecycle nodes can use
 `reduceStreamSessionEvents(...)`,
 `reduceStreamSessionEventsByStream(...)`, `isTerminalStreamSession(...)`,
