@@ -46,6 +46,7 @@ import Layout from "../layouts/Layout.astro";
     seedStudioStreamDemo,
     shouldSeedStudioStreamDemo,
     STUDIO_STREAM_DEMO_STORAGE_KEY,
+    STUDIO_STREAM_SURFACE_PLUGIN_ID,
   } from "../lib/stream-demo";
   import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
 
@@ -134,7 +135,7 @@ import Layout from "../layouts/Layout.astro";
       if (streamDemoEnabled) {
         tractor.plugins.registerInternal(
           createStudioStreamSurfaceDemoPlugin((event, payload) =>
-            tractor.emitTelemetry({ event, payload, pluginId: "studio-stream-surface-demo" }),
+            tractor.emitTelemetry({ event, payload, pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID }),
           ),
         );
       }
