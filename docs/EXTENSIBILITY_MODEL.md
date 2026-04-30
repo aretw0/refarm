@@ -12,14 +12,14 @@ Refarm should unlock extension without locking the ecosystem into one runtime. T
 
 ## Canonical surfaces
 
-| Surface      | Host                            | Typical use                                                     | Promotion signal                                         |
-| ------------ | ------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
-| `tractor`    | native/headless daemon          | storage adapters, indexers, agent/tool bridges, background work | passes scoped runtime tests and survives daemon restart  |
-| `homestead`  | browser shell / `apps/dev` Studio | panels, widgets, editors, stream renderers                    | mounts in real DOM slots and reconnects after reload     |
-| `pi`         | local automaton / agent harness | filesystem tools, local scripts, reminders, hardware hooks      | host-authorized, auditable, and recoverable from handoff |
-| `automation` | Windmill/workflow layer         | scheduled tasks, macros, recurring operations                   | ownership and retry semantics are explicit               |
-| `desktop`    | native/OS integration           | file watchers, tray/menu actions, platform affordances          | isolated permissions and rollback path exist             |
-| `asset`      | cache/CDN/OPFS                  | themes, templates, dictionaries, model files                    | integrity checked and garbage-collectable                |
+| Surface      | Host                              | Typical use                                                     | Promotion signal                                         |
+| ------------ | --------------------------------- | --------------------------------------------------------------- | -------------------------------------------------------- |
+| `tractor`    | native/headless daemon            | storage adapters, indexers, agent/tool bridges, background work | passes scoped runtime tests and survives daemon restart  |
+| `homestead`  | browser shell / `apps/dev` Studio | panels, widgets, editors, stream renderers                      | mounts in real DOM slots and reconnects after reload     |
+| `pi`         | local automaton / agent harness   | filesystem tools, local scripts, reminders, hardware hooks      | host-authorized, auditable, and recoverable from handoff |
+| `automation` | Windmill/workflow layer           | scheduled tasks, macros, recurring operations                   | ownership and retry semantics are explicit               |
+| `desktop`    | native/OS integration             | file watchers, tray/menu actions, platform affordances          | isolated permissions and rollback path exist             |
+| `asset`      | cache/CDN/OPFS                    | themes, templates, dictionaries, model files                    | integrity checked and garbage-collectable                |
 
 ## Manifest shape direction
 
@@ -100,7 +100,10 @@ telemetry buffer and refreshes when new rejection events arrive.
 Studio also exposes `/surfaces` as a dedicated activation ledger. That page
 boots a tiny diagnostics runtime to prove both sides of the policy: an explicit
 internal surface mounts, while an external unregistered surface is rejected as
-`untrusted-plugin` with registry status visible in the inspector.
+`untrusted-plugin` with registry status visible in a structured ledger presenter.
+The Homestead `surface-inspector` remains intentionally semantic/read-only;
+Studio-owned presenters decide whether those diagnostics appear as tables,
+graphs, filters, or compact statusbar summaries.
 Stream rendering now writes into its own `[data-refarm-stream-panel]` child
 instead of replacing the entire `streams` slot, so plugin-provided panels mounted
 into that slot survive live stream updates. Declared surface mounts also unhide
@@ -110,10 +113,10 @@ The opt-in Studio stream demo registers an internal manifest-declared
 real surface mount to inspect without promoting the experiment into `me` or
 `social` prematurely.
 The Studio app now consumes that helper through the
-`@refarm.dev/homestead/sdk/surface-inspector` subpath and renders a small mounted
-surface inspector that refreshes from Homestead surface telemetry. This closes the loop from manifest
-declaration to visible Studio diagnostics while keeping private shell internals
-encapsulated.
+`@refarm.dev/homestead/sdk/surface-inspector` subpath and renders both a compact
+statusbar inspector and a structured `/surfaces` ledger that refresh from
+Homestead surface telemetry. This closes the loop from manifest declaration to
+visible Studio diagnostics while keeping private shell internals encapsulated.
 
 Short-term UI experiments should land in Homestead and the Studio app
 (`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
