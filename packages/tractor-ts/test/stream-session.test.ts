@@ -14,6 +14,10 @@ import {
 	reduceStreamSessionEventsByStream,
 	streamSessionFailureKind,
 	streamSessionFailureReason,
+	streamSessionModel,
+	streamSessionProjection,
+	streamSessionPromptRef,
+	streamSessionProviderFamily,
 	UNKNOWN_STREAM_SESSION_REF,
 } from "../src/lib/stream-session";
 
@@ -28,7 +32,12 @@ describe("StreamSession accumulator", () => {
 				updated_at_ns: 100,
 				last_sequence: null,
 				chunk_count: 0,
-				metadata: { projection: "AgentResponse" },
+				metadata: {
+					projection: "AgentResponse",
+					prompt_ref: "prompt-a",
+					provider_family: "openai",
+					model: "gpt-test",
+				},
 			},
 			{
 				stream_ref: "stream-a",
@@ -49,10 +58,19 @@ describe("StreamSession accumulator", () => {
 			completedAtNs: 200,
 			lastSequence: 2,
 			chunkCount: 3,
-			metadata: { projection: "AgentResponse" },
+			metadata: {
+				projection: "AgentResponse",
+				prompt_ref: "prompt-a",
+				provider_family: "openai",
+				model: "gpt-test",
+			},
 		});
 		expect(isStreamSessionKind(state.streamKind)).toBe(true);
 		expect(isAgentResponseStreamSession(state)).toBe(true);
+		expect(streamSessionProjection(state)).toBe("AgentResponse");
+		expect(streamSessionPromptRef(state)).toBe("prompt-a");
+		expect(streamSessionProviderFamily(state)).toBe("openai");
+		expect(streamSessionModel(state)).toBe("gpt-test");
 	});
 
 	it("groups interleaved sessions by stream_ref", () => {

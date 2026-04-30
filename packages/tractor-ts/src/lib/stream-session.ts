@@ -163,6 +163,28 @@ export function isTerminalStreamSession(state: StreamSessionState): boolean {
 	return isTerminalStreamSessionStatus(state.status);
 }
 
+export function streamSessionProjection(
+	state: StreamSessionState,
+): string | null {
+	return metadataStringField(state.metadata, "projection");
+}
+
+export function streamSessionPromptRef(
+	state: StreamSessionState,
+): string | null {
+	return metadataStringField(state.metadata, "prompt_ref");
+}
+
+export function streamSessionProviderFamily(
+	state: StreamSessionState,
+): string | null {
+	return metadataStringField(state.metadata, "provider_family");
+}
+
+export function streamSessionModel(state: StreamSessionState): string | null {
+	return metadataStringField(state.metadata, "model");
+}
+
 export function streamSessionFailureReason(
 	state: StreamSessionState,
 ): string | null {
