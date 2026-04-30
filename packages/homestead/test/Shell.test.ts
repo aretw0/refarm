@@ -326,33 +326,42 @@ describe("StudioShell Orchestrator", () => {
         });
     });
 
-    it("should preserve mounted stream-slot surfaces while rendering live streams", async () => {
-        tractorMock.plugins.getAllPlugins.mockReturnValue([
-            {
-                id: "stream-surface-plugin",
-                manifest: {
-                    entry: "internal:stream-surface-plugin",
-                    extensions: {
-                        surfaces: [
-                            {
-                                layer: "homestead",
-                                kind: "panel",
-                                id: "plugin-stream-panel",
-                                slot: "streams",
-                                capabilities: ["ui:panel:render"],
-                            },
-                        ],
-                    },
+    it("should preserve executable stream-slot surfaces while rendering live streams", async () => {
+        const renderHomesteadSurface = vi.fn().mockResolvedValue({
+            html: '<section data-rendered-stream-surface="true">Plugin stream cockpit</section>',
+        });
+        const plugin = {
+            id: "stream-surface-plugin",
+            state: "running",
+            call: renderHomesteadSurface,
+            manifest: {
+                entry: "internal:stream-surface-plugin",
+                extensions: {
+                    surfaces: [
+                        {
+                            layer: "homestead",
+                            kind: "panel",
+                            id: "plugin-stream-panel",
+                            slot: "streams",
+                            capabilities: ["ui:panel:render", "ui:stream:read"],
+                        },
+                    ],
                 },
             },
-        ]);
+        };
+        tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
+        tractorMock.plugins.get.mockReturnValue(plugin);
 
         const shell = new StudioShell(tractorMock as any);
         await shell.setup();
 
         const streams = document.getElementById("refarm-slot-streams");
         expect(streams?.hidden).toBe(false);
-        expect(streams?.querySelector("[data-refarm-surface-id='plugin-stream-panel']")).toBeTruthy();
+        const surfaceMount = streams?.querySelector<HTMLElement>("[data-refarm-surface-id='plugin-stream-panel']");
+        expect(surfaceMount?.dataset.refarmSurfaceRenderMode).toBe("html");
+        expect(surfaceMount?.querySelector("[data-rendered-stream-surface='true']")?.textContent).toBe(
+            "Plugin stream cockpit",
+        );
 
         await nodeHandlers.StreamSession({
             "@type": "StreamSession",
@@ -364,6 +373,9 @@ describe("StudioShell Orchestrator", () => {
         });
 
         expect(streams?.querySelector("[data-refarm-surface-id='plugin-stream-panel']")).toBeTruthy();
+        expect(streams?.querySelector("[data-rendered-stream-surface='true']")?.textContent).toBe(
+            "Plugin stream cockpit",
+        );
         expect(streams?.querySelector("[data-refarm-stream-panel]")?.textContent).toContain("prompt-b");
     });
 
