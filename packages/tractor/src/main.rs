@@ -1124,6 +1124,30 @@ mod tests {
     }
 
     #[test]
+    fn watch_cli_accepts_generic_stream_filters() {
+        let cli = Cli::try_parse_from([
+            "tractor",
+            "watch",
+            "--type",
+            "StreamChunk",
+            "--stream-ref",
+            "urn:tractor:stream:agent-response:prompt-1",
+            "--until-final",
+        ])
+        .expect("cli parse");
+
+        let Some(Command::Watch(args)) = cli.command else {
+            panic!("expected watch command");
+        };
+        assert_eq!(args.r#type, "StreamChunk");
+        assert_eq!(
+            args.stream_ref.as_deref(),
+            Some("urn:tractor:stream:agent-response:prompt-1")
+        );
+        assert!(args.until_final);
+    }
+
+    #[test]
     fn generic_watch_detects_terminal_stream_rows() {
         let final_chunk = tractor::storage::NodeRow {
             id: "chunk-final".to_string(),
