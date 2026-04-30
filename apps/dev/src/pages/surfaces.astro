@@ -142,8 +142,8 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
   import { LoroCRDTStorage, randomPeerId } from "@refarm.dev/sync-loro";
   import { Tractor } from "@refarm.dev/tractor";
   import { StudioShell } from "@refarm.dev/homestead/sdk";
+  import { createStudioSurfaceDiagnosticsPlugins } from "../lib/surface-diagnostics";
   import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
-  import { createStudioPluginHandle } from "../lib/studio-plugin";
 
   function setStatus(text: string) {
     const status = document.querySelector<HTMLElement>("[data-refarm-surfaces-status]");
@@ -169,44 +169,11 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       },
     });
 
-    tractor.plugins.registerInternal(createStudioPluginHandle({
-      id: "studio-surface-diagnostics",
-      name: "Studio Surface Diagnostics",
-      manifest: {
-        extensions: {
-          surfaces: [
-            {
-              layer: "homestead",
-              kind: "panel",
-              id: "surface-ledger-panel",
-              slot: "main",
-              capabilities: ["ui:panel:render"],
-            },
-          ],
-        },
-      } as any,
-      emitTelemetry: (event, payload) => tractor.emitTelemetry({ event, payload, pluginId: "studio-surface-diagnostics" }),
-    }));
-
-    tractor.plugins.registerInternal(createStudioPluginHandle({
-      id: "external-untrusted-surface",
-      name: "External Untrusted Surface",
-      entry: "./dist/untrusted-surface.mjs",
-      manifest: {
-        extensions: {
-          surfaces: [
-            {
-              layer: "homestead",
-              kind: "panel",
-              id: "external-ledger-panel",
-              slot: "main",
-              capabilities: ["ui:panel:render"],
-            },
-          ],
-        },
-      } as any,
-      emitTelemetry: (event, payload) => tractor.emitTelemetry({ event, payload, pluginId: "external-untrusted-surface" }),
-    }));
+    for (const plugin of createStudioSurfaceDiagnosticsPlugins((pluginId, event, payload) =>
+      tractor.emitTelemetry({ event, payload, pluginId }),
+    )) {
+      tractor.plugins.registerInternal(plugin);
+    }
 
     const shell = new StudioShell(tractor);
     await shell.setup();
