@@ -1,7 +1,10 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
 import {
+	homesteadSurfaceActionFromTelemetry,
+	isHomesteadSurfaceActionEvent,
 	isHomesteadSurfaceChangeEvent,
+	listHomesteadSurfaceActions,
 	listRejectedHomesteadSurfaces,
 	listMountedHomesteadSurfaces,
 	mountedHomesteadSurfaceKey,
@@ -84,18 +87,30 @@ describe("listMountedHomesteadSurfaces", () => {
 		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_mounted" })).toBe(
 			true,
 		);
-		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_rendered" })).toBe(
-			true,
-		);
-		expect(isHomesteadSurfaceChangeEvent({ event: "ui:surface_render_failed" })).toBe(
-			true,
-		);
+		expect(
+			isHomesteadSurfaceChangeEvent({ event: "ui:surface_rendered" }),
+		).toBe(true);
+		expect(
+			isHomesteadSurfaceChangeEvent({ event: "ui:surface_render_failed" }),
+		).toBe(true);
 		expect(
 			isHomesteadSurfaceChangeEvent({
 				event: "system:plugin_state_changed",
 			}),
 		).toBe(true);
 		expect(isHomesteadSurfaceChangeEvent({ event: "storage:io" })).toBe(false);
+	});
+
+	it("detects surface action telemetry events", () => {
+		expect(
+			isHomesteadSurfaceActionEvent({ event: "ui:surface_action_requested" }),
+		).toBe(true);
+		expect(
+			isHomesteadSurfaceActionEvent({ event: "ui:surface_action_failed" }),
+		).toBe(true);
+		expect(isHomesteadSurfaceActionEvent({ event: "ui:surface_mounted" })).toBe(
+			false,
+		);
 	});
 
 	it("observes only telemetry events that can change mounted surfaces", () => {
@@ -156,6 +171,57 @@ describe("listMountedHomesteadSurfaces", () => {
 		).toHaveLength(1);
 		expect(
 			rejectedHomesteadSurfaceFromTelemetry({ event: "ui:surface_mounted" }),
+		).toBeUndefined();
+	});
+
+	it("extracts surface action diagnostics from telemetry", () => {
+		const requested: HomesteadSurfaceTelemetryEvent = {
+			event: "ui:surface_action_requested",
+			pluginId: "studio-stream-surface-demo",
+			payload: {
+				actionId: "open-stream-workbench",
+				actionIntent: "studio:navigate",
+				surfaceId: "studio-stream-panel",
+				surfaceKind: "panel",
+				surfaceLayer: "homestead",
+				slotId: "streams",
+				mountSource: "extension-surface",
+			},
+		};
+		const failed: HomesteadSurfaceTelemetryEvent = {
+			event: "ui:surface_action_failed",
+			pluginId: "studio-stream-surface-demo",
+			payload: {
+				actionId: "retry-stream",
+				actionIntent: "studio:retry",
+				errorMessage: "retry unavailable",
+			},
+		};
+
+		expect(homesteadSurfaceActionFromTelemetry(requested)).toEqual({
+			pluginId: "studio-stream-surface-demo",
+			status: "requested",
+			actionId: "open-stream-workbench",
+			actionIntent: "studio:navigate",
+			surfaceId: "studio-stream-panel",
+			surfaceKind: "panel",
+			surfaceLayer: "homestead",
+			slotId: "streams",
+			mountSource: "extension-surface",
+			errorMessage: undefined,
+		});
+		expect(homesteadSurfaceActionFromTelemetry(failed)).toMatchObject({
+			status: "failed",
+			actionId: "retry-stream",
+			errorMessage: "retry unavailable",
+		});
+		expect(
+			listHomesteadSurfaceActions([{ event: "storage:io" }, requested, failed]),
+		).toHaveLength(2);
+		expect(
+			homesteadSurfaceActionFromTelemetry({
+				event: "ui:surface_action_requested",
+			}),
 		).toBeUndefined();
 	});
 });

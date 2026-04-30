@@ -44,12 +44,45 @@ export interface RejectedHomesteadSurfaceActivation {
 	registryStatus?: string;
 }
 
+export type HomesteadSurfaceActionStatus = "requested" | "failed";
+
+export interface HomesteadSurfaceActionDiagnostic {
+	pluginId?: string;
+	status: HomesteadSurfaceActionStatus;
+	actionId: string;
+	actionIntent?: string;
+	surfaceId?: string;
+	surfaceKind?: string;
+	surfaceLayer?: string;
+	slotId?: string;
+	mountSource?: string;
+	errorMessage?: string;
+}
+
+export const HOMESTEAD_SURFACE_ACTION_EVENTS = [
+	"ui:surface_action_requested",
+	"ui:surface_action_failed",
+] as const;
+
+export type HomesteadSurfaceActionEventName =
+	(typeof HOMESTEAD_SURFACE_ACTION_EVENTS)[number];
+
 export function isHomesteadSurfaceChangeEvent(
 	event: HomesteadSurfaceTelemetryEvent,
 ): event is HomesteadSurfaceTelemetryEvent & {
 	event: HomesteadSurfaceChangeEventName;
 } {
 	return (HOMESTEAD_SURFACE_CHANGE_EVENTS as readonly string[]).includes(
+		event.event,
+	);
+}
+
+export function isHomesteadSurfaceActionEvent(
+	event: HomesteadSurfaceTelemetryEvent,
+): event is HomesteadSurfaceTelemetryEvent & {
+	event: HomesteadSurfaceActionEventName;
+} {
+	return (HOMESTEAD_SURFACE_ACTION_EVENTS as readonly string[]).includes(
 		event.event,
 	);
 }
@@ -101,6 +134,37 @@ export function listRejectedHomesteadSurfaces(
 	return events.flatMap((event) => {
 		const rejection = rejectedHomesteadSurfaceFromTelemetry(event);
 		return rejection ? [rejection] : [];
+	});
+}
+
+export function homesteadSurfaceActionFromTelemetry(
+	event: HomesteadSurfaceTelemetryEvent,
+): HomesteadSurfaceActionDiagnostic | undefined {
+	if (!isHomesteadSurfaceActionEvent(event)) return undefined;
+	const payload = event.payload ?? {};
+	const actionId = stringPayloadValue(payload.actionId);
+	if (!actionId) return undefined;
+
+	return {
+		pluginId: event.pluginId,
+		status: event.event === "ui:surface_action_failed" ? "failed" : "requested",
+		actionId,
+		actionIntent: stringPayloadValue(payload.actionIntent),
+		surfaceId: stringPayloadValue(payload.surfaceId),
+		surfaceKind: stringPayloadValue(payload.surfaceKind),
+		surfaceLayer: stringPayloadValue(payload.surfaceLayer),
+		slotId: stringPayloadValue(payload.slotId),
+		mountSource: stringPayloadValue(payload.mountSource),
+		errorMessage: stringPayloadValue(payload.errorMessage),
+	};
+}
+
+export function listHomesteadSurfaceActions(
+	events: readonly HomesteadSurfaceTelemetryEvent[],
+): HomesteadSurfaceActionDiagnostic[] {
+	return events.flatMap((event) => {
+		const action = homesteadSurfaceActionFromTelemetry(event);
+		return action ? [action] : [];
 	});
 }
 

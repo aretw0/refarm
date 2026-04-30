@@ -1,8 +1,11 @@
 import {
+	isHomesteadSurfaceActionEvent,
 	isHomesteadSurfaceChangeEvent,
+	listHomesteadSurfaceActions,
 	listMountedHomesteadSurfaces,
 	listRejectedHomesteadSurfaces,
 	mountedHomesteadSurfaceKey,
+	type HomesteadSurfaceActionDiagnostic,
 	type HomesteadSurfaceTelemetryEvent,
 	type HomesteadSurfaceTelemetrySource,
 	type MountedHomesteadSurface,
@@ -25,9 +28,9 @@ export function mountStudioSurfaceLedger(
 		?.remove();
 
 	const mountedSurfaces = listMountedHomesteadSurfaces(root);
-	const rejectedSurfaces = listRejectedHomesteadSurfaces(
-		options.telemetryEvents ?? [],
-	);
+	const telemetryEvents = options.telemetryEvents ?? [];
+	const rejectedSurfaces = listRejectedHomesteadSurfaces(telemetryEvents);
+	const surfaceActions = listHomesteadSurfaceActions(telemetryEvents);
 	const ledger = document.createElement("section");
 	ledger.dataset.refarmStudioSurfaceLedger = "true";
 	ledger.className = "refarm-stack";
@@ -37,6 +40,7 @@ export function mountStudioSurfaceLedger(
 	summary.className = "refarm-cluster";
 	summary.appendChild(renderMetric("mounted", mountedSurfaces.length));
 	summary.appendChild(renderMetric("rejected", rejectedSurfaces.length));
+	summary.appendChild(renderMetric("actions", surfaceActions.length));
 	ledger.appendChild(summary);
 
 	const table = document.createElement("table");
@@ -49,6 +53,9 @@ export function mountStudioSurfaceLedger(
 	}
 	for (const surface of rejectedSurfaces) {
 		body.appendChild(renderRejectedRow(surface));
+	}
+	for (const action of surfaceActions) {
+		body.appendChild(renderActionRow(action));
 	}
 
 	if (body.children.length === 0) {
@@ -82,7 +89,10 @@ export function mountReactiveStudioSurfaceLedger(
 	};
 
 	const disposeTelemetry = options.telemetry?.observe((event) => {
-		if (event.event === "ui:surface_rejected") {
+		if (
+			event.event === "ui:surface_rejected" ||
+			isHomesteadSurfaceActionEvent(event)
+		) {
 			telemetryEvents.push(event);
 			refresh();
 			return;
@@ -176,6 +186,29 @@ function renderRejectedRow(
 		surface.slotId ?? "unknown",
 		surface.surfaceKind ?? "unknown",
 		`${surface.reason}${missing}${trust}`,
+	]);
+	return row;
+}
+
+function renderActionRow(
+	action: HomesteadSurfaceActionDiagnostic,
+): HTMLTableRowElement {
+	const row = document.createElement("tr");
+	row.dataset.refarmSurfaceLedgerState = `action-${action.status}`;
+	const detail = [
+		`action: ${action.actionId}`,
+		action.actionIntent ? `intent: ${action.actionIntent}` : undefined,
+		action.errorMessage ? `error: ${action.errorMessage}` : undefined,
+	]
+		.filter(Boolean)
+		.join(" ");
+	appendCells(row, [
+		action.status === "failed" ? "action failed" : "action requested",
+		action.pluginId ?? "unknown",
+		action.surfaceId ?? action.mountSource ?? "unknown",
+		action.slotId ?? "unknown",
+		action.surfaceKind ?? "unknown",
+		detail,
 	]);
 	return row;
 }

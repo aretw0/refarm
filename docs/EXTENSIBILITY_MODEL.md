@@ -128,11 +128,12 @@ surfaces: rendered controls identify host actions with
 `data-refarm-surface-action-id`, `StudioShell` resolves them against the
 host-provided context, emits action telemetry, and delegates the concrete effect
 to the host-provided `surfaceAction` handler.
-The Studio app now consumes that helper through the
+The Studio app now consumes those helpers through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders both a compact
 statusbar inspector and a structured `/surfaces` ledger that refresh from
-Homestead surface telemetry. This closes the loop from manifest declaration to
-visible Studio diagnostics while keeping private shell internals encapsulated.
+Homestead surface telemetry, including action requested/failed diagnostics. This
+closes the loop from manifest declaration to visible Studio diagnostics while
+keeping private shell internals encapsulated.
 
 Terminology note: **Studio** is a shared Homestead primitive, not synonymous
 with `apps/dev`. Homestead owns the reusable Studio runtime/shell/surface

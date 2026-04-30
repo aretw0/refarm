@@ -37,11 +37,24 @@ describe("Studio surface ledger", () => {
 						registryStatus: "registered",
 					},
 				},
+				{
+					event: "ui:surface_action_requested",
+					pluginId: "studio-surface-diagnostics",
+					payload: {
+						actionId: "open-ledger",
+						actionIntent: "studio:navigate",
+						surfaceId: "surface-ledger-panel",
+						slotId: "main",
+						surfaceKind: "panel",
+						mountSource: "extension-surface",
+					},
+				},
 			],
 		});
 
 		expect(ledger.textContent).toContain("1 mounted");
 		expect(ledger.textContent).toContain("1 rejected");
+		expect(ledger.textContent).toContain("1 actions");
 		expect(ledger.textContent).toContain("studio-surface-diagnostics");
 		expect(ledger.textContent).toContain("surface-ledger-panel");
 		expect(ledger.textContent).toContain(
@@ -52,11 +65,19 @@ describe("Studio surface ledger", () => {
 		expect(ledger.textContent).toContain(
 			"untrusted-plugin registry: registered",
 		);
+		expect(ledger.textContent).toContain("action requested");
+		expect(ledger.textContent).toContain("action: open-ledger");
+		expect(ledger.textContent).toContain("intent: studio:navigate");
 		expect(
 			ledger.querySelectorAll('[data-refarm-surface-ledger-state="mounted"]'),
 		).toHaveLength(1);
 		expect(
 			ledger.querySelectorAll('[data-refarm-surface-ledger-state="rejected"]'),
+		).toHaveLength(1);
+		expect(
+			ledger.querySelectorAll(
+				'[data-refarm-surface-ledger-state="action-requested"]',
+			),
 		).toHaveLength(1);
 	});
 
@@ -112,6 +133,23 @@ describe("Studio surface ledger", () => {
 		expect(controller.element.textContent).toContain("1 rejected");
 		expect(controller.element.textContent).toContain(
 			"missing-required-capability missing: ui:panel:render",
+		);
+
+		telemetry.emit({
+			event: "ui:surface_action_failed",
+			pluginId: "studio-surface-diagnostics",
+			payload: {
+				actionId: "open-ledger",
+				actionIntent: "studio:navigate",
+				surfaceId: "surface-ledger-panel",
+				errorMessage: "navigation blocked",
+			},
+		});
+
+		expect(controller.element.textContent).toContain("1 actions");
+		expect(controller.element.textContent).toContain("action failed");
+		expect(controller.element.textContent).toContain(
+			"error: navigation blocked",
 		);
 	});
 
