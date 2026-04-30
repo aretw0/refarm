@@ -1,6 +1,12 @@
 import type { SovereignNode, Tractor } from "@refarm.dev/tractor";
 
 const DEMO_STREAM_REF = "urn:tractor:stream:agent-response:studio-demo";
+export const STUDIO_STREAM_DEMO_STORAGE_KEY = "refarm:studio:stream-demo";
+
+export interface StudioStreamDemoControlOptions {
+	enabled: boolean;
+	onToggle: () => void;
+}
 
 export function shouldSeedStudioStreamDemo(
 	url: string,
@@ -67,4 +73,37 @@ export async function seedStudioStreamDemo(tractor: Tractor): Promise<void> {
 	for (const node of studioStreamDemoNodes()) {
 		await tractor.storeNode(node, "none");
 	}
+}
+
+export function mountStudioStreamDemoControl(
+	container: HTMLElement,
+	options: StudioStreamDemoControlOptions,
+): HTMLButtonElement {
+	container
+		.querySelector<HTMLElement>("[data-refarm-studio-stream-demo]")
+		?.remove();
+
+	const button = document.createElement("button");
+	button.type = "button";
+	button.dataset.refarmStudioStreamDemo = "true";
+	button.textContent = options.enabled
+		? "Disable Studio stream demo"
+		: "Enable Studio stream demo";
+	button.setAttribute(
+		"aria-pressed",
+		options.enabled ? "true" : "false",
+	);
+	button.style.marginLeft = "1rem";
+	button.style.padding = "0.2rem 0.55rem";
+	button.style.border = "1px solid var(--refarm-border-default)";
+	button.style.borderRadius = "999px";
+	button.style.background = options.enabled
+		? "rgba(35, 134, 54, 0.12)"
+		: "transparent";
+	button.style.color = "inherit";
+	button.style.cursor = "pointer";
+	button.addEventListener("click", options.onToggle);
+
+	container.appendChild(button);
+	return button;
 }

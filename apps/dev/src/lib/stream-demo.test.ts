@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	mountStudioStreamDemoControl,
 	seedStudioStreamDemo,
 	shouldSeedStudioStreamDemo,
 	studioStreamDemoNodes,
@@ -38,5 +39,28 @@ describe("Studio stream demo seeding", () => {
 			expect.objectContaining({ "@type": "StreamSession" }),
 			"none",
 		);
+	});
+
+	it("mounts a visible toggle control in the Studio statusbar", () => {
+		const container = document.createElement("div");
+		const onToggle = vi.fn();
+
+		const button = mountStudioStreamDemoControl(container, {
+			enabled: false,
+			onToggle,
+		});
+
+		expect(button.textContent).toBe("Enable Studio stream demo");
+		expect(button.getAttribute("aria-pressed")).toBe("false");
+		button.click();
+		expect(onToggle).toHaveBeenCalledTimes(1);
+
+		const replacement = mountStudioStreamDemoControl(container, {
+			enabled: true,
+			onToggle,
+		});
+		expect(container.querySelectorAll("[data-refarm-studio-stream-demo]")).toHaveLength(1);
+		expect(replacement.textContent).toBe("Disable Studio stream demo");
+		expect(replacement.getAttribute("aria-pressed")).toBe("true");
 	});
 });
