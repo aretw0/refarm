@@ -155,7 +155,7 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 				}),
 			],
 		});
-		expect(() =>
+		await expect(
 			action({
 				pluginId: STUDIO_SURFACE_DIAGNOSTICS_PLUGIN_ID,
 				slotId: "streams",
@@ -168,7 +168,7 @@ describe("createStudioSurfaceDiagnosticsPlugins", () => {
 					label: "Run denied diagnostic action",
 				},
 			}),
-		).toThrow("diagnostic action denied by host");
+		).rejects.toThrow("diagnostic action denied by host");
 		expect(
 			context({
 				pluginId: "other-plugin",

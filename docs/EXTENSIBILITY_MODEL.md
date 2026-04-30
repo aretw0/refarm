@@ -127,7 +127,10 @@ real surface mount to inspect without promoting the experiment into `me` or
 surfaces: rendered controls identify host actions with
 `data-refarm-surface-action-id`, `StudioShell` resolves them against the
 host-provided context, emits action telemetry, and delegates the concrete effect
-to the host-provided `surfaceAction` handler.
+to the host-provided `surfaceAction` handler. Hosts can keep each surface's
+context and action semantics isolated with scoped providers/handlers, then
+combine them with Homestead's compose helpers when a page installs multiple
+surface families.
 The Studio app now consumes those helpers through the
 `@refarm.dev/homestead/sdk/surface-inspector` subpath and renders both a compact
 statusbar inspector and a structured `/surfaces` ledger that refresh from

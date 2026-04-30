@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+	composeHomesteadSurfaceActionHandlers,
+	composeHomesteadSurfaceContextProviders,
 	createScopedHomesteadSurfaceActionHandler,
 	createScopedHomesteadSurfaceContextProvider,
 	homesteadSurfaceRenderActionById,
@@ -95,17 +97,54 @@ describe("Homestead surface render context helpers", () => {
 			},
 		);
 
-		await handler({
-			...request,
-			action: { id: "open-streams", label: "Open streams" },
-		});
-		await handler({
-			...request,
-			pluginId: "other-plugin",
-			action: { id: "ignored", label: "Ignored" },
-		});
+		await expect(
+			handler({
+				...request,
+				action: { id: "open-streams", label: "Open streams" },
+			}),
+		).resolves.toBe(true);
+		await expect(
+			handler({
+				...request,
+				pluginId: "other-plugin",
+				action: { id: "ignored", label: "Ignored" },
+			}),
+		).resolves.toBe(false);
 
 		expect(handled).toEqual(["open-streams"]);
+	});
+
+	it("composes host action handlers until one handles the request", async () => {
+		const handled: string[] = [];
+		const first = createScopedHomesteadSurfaceActionHandler(
+			{ pluginId: "other-plugin" },
+			({ action }) => {
+				handled.push(`first:${action.id}`);
+			},
+		);
+		const second = createScopedHomesteadSurfaceActionHandler(
+			{ pluginId: "studio-stream-surface-demo" },
+			({ action }) => {
+				handled.push(`second:${action.id}`);
+			},
+		);
+		const composed = composeHomesteadSurfaceActionHandlers(first, second);
+
+		await expect(
+			composed({
+				...request,
+				action: { id: "open-streams", label: "Open streams" },
+			}),
+		).resolves.toBe(true);
+		await expect(
+			composed({
+				...request,
+				pluginId: "missing-plugin",
+				action: { id: "ignored", label: "Ignored" },
+			}),
+		).resolves.toBe(false);
+
+		expect(handled).toEqual(["second:open-streams"]);
 	});
 
 	it("creates reusable scoped host context providers", async () => {
@@ -128,6 +167,26 @@ describe("Homestead surface render context helpers", () => {
 			provider({
 				...request,
 				pluginId: "other-plugin",
+			}),
+		).toBeUndefined();
+	});
+
+	it("composes host context providers until one returns context", async () => {
+		const first = createScopedHomesteadSurfaceContextProvider(
+			{ pluginId: "other-plugin" },
+			() => ({ hostId: "other" }),
+		);
+		const second = createScopedHomesteadSurfaceContextProvider(
+			{ pluginId: "studio-stream-surface-demo" },
+			() => ({ hostId: "apps/dev" }),
+		);
+		const composed = composeHomesteadSurfaceContextProviders(first, second);
+
+		expect(await composed(request)).toEqual({ hostId: "apps/dev" });
+		expect(
+			await composed({
+				...request,
+				pluginId: "missing-plugin",
 			}),
 		).toBeUndefined();
 	});

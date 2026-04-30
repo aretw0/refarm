@@ -29,9 +29,13 @@ export interface HomesteadSurfaceRenderActionRequest
 	host?: HomesteadSurfaceRenderHostContext;
 }
 
+export type HomesteadSurfaceRenderActionHandlerResult = boolean | void;
+
 export type HomesteadSurfaceRenderActionHandler = (
 	request: HomesteadSurfaceRenderActionRequest,
-) => void | Promise<void>;
+) =>
+	| HomesteadSurfaceRenderActionHandlerResult
+	| Promise<HomesteadSurfaceRenderActionHandlerResult>;
 
 export type HomesteadSurfaceRenderActionScopedHandler = (
 	request: HomesteadSurfaceRenderActionRequest,
@@ -95,19 +99,44 @@ export function createScopedHomesteadSurfaceContextProvider(
 	createContext: HomesteadSurfaceRenderContextFactory,
 ): HomesteadSurfaceRenderContextProvider {
 	return (request) =>
-			homesteadSurfaceRenderContextMatches(request, scope)
+		homesteadSurfaceRenderContextMatches(request, scope)
 			? createContext(request)
 			: undefined;
+}
+
+export function composeHomesteadSurfaceContextProviders(
+	...providers: HomesteadSurfaceRenderContextProvider[]
+): HomesteadSurfaceRenderContextProvider {
+	return async (request) => {
+		for (const provider of providers) {
+			const context = await provider(request);
+			if (context) return context;
+		}
+		return undefined;
+	};
 }
 
 export function createScopedHomesteadSurfaceActionHandler(
 	scope: HomesteadSurfaceRenderContextScope,
 	handleAction: HomesteadSurfaceRenderActionScopedHandler,
 ): HomesteadSurfaceRenderActionHandler {
-	return (request) =>
-		homesteadSurfaceRenderContextMatches(request, scope)
-			? handleAction(request)
-			: undefined;
+	return async (request) => {
+		if (!homesteadSurfaceRenderContextMatches(request, scope)) return false;
+		await handleAction(request);
+		return true;
+	};
+}
+
+export function composeHomesteadSurfaceActionHandlers(
+	...handlers: HomesteadSurfaceRenderActionHandler[]
+): HomesteadSurfaceRenderActionHandler {
+	return async (request) => {
+		for (const handler of handlers) {
+			const result = await handler(request);
+			if (result !== false) return result ?? true;
+		}
+		return false;
+	};
 }
 
 export function homesteadSurfaceRenderActionById(
