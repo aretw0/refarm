@@ -39,6 +39,9 @@ Introduce generic stream observation nodes owned by the host:
 - Retention is explicit and conservative: no automatic compaction deletes
   `StreamChunk` or `StreamSession` observations until a governed delete/compact
   primitive exists and consumers have migrated from compatibility projections.
+- The future compact primitive must be opt-in, scoped by namespace and stream
+  identity, dry-run capable, and must preserve enough terminal lifecycle state
+  for consumers to detect completion after historical chunks are removed.
 - Generic transport/framing remains separate from domain codecs:
   - `tractor::streaming` owns generic framing and stream observation builders.
   - LLM/provider parsing remains in the LLM bridge layer.
@@ -56,6 +59,29 @@ Introduce generic stream observation nodes owned by the host:
 - Host-owned credentials and route enforcement remain unchanged.
 - The architecture aligns with Refarm's source-of-truth model: generic
   observations first, domain projections second.
+
+### Retention and Compaction Policy
+
+The default policy is append-only retention. Automatic write-path cleanup is
+forbidden because stream chunks may be the only durable audit trail for partial
+provider output, live tool progress, or future non-LLM producers.
+
+A future governed compaction operation may remove historical `StreamChunk`
+records only when all of the following are true:
+
+1. The operator explicitly selects the namespace and stream scope.
+2. A dry-run reports the candidate streams, chunk counts, byte estimate, and
+   terminal state that would remain.
+3. The stream has a terminal `StreamSession` (`completed` or `failed`) or an
+   explicit final `StreamChunk` marker.
+4. The operation preserves the terminal `StreamSession` and enough summary
+   metadata for UIs to render status, timing, provider/model labels, and failure
+   details after compaction.
+5. Compatibility projections such as final `AgentResponse` nodes are preserved
+   unless the caller opts into projection cleanup separately.
+
+Until that primitive exists, storage pressure should be handled by operational
+cleanup outside the stream write path rather than by implicit deletion.
 
 ### Negative Consequences
 
