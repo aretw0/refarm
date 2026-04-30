@@ -1,34 +1,34 @@
 {
-	"context": "Checkpoint 2026-04-30T00:52Z after generic stream CLI slices. Branch develop; latest pushed HEAD 68e0fe80 test(tractor): parse generic stream watch filters. Host-owned provider credentials/routes and opt-in LLM streaming preserved. Use CI only as final confirmation; reproduce any failures locally first.",
-	"timestamp": "2026-04-30T00:52:00.000Z",
+	"context": "Checkpoint 2026-04-30T01:31Z after terminal stream observation slices. Branch develop; latest pushed HEAD ce5887d7 docs(tractor): document stream query watch. Host-owned provider credentials/routes and opt-in LLM_STREAM_RESPONSES preserved. CI should be used only as final confirmation; reproduce failures locally before pushing fixes.",
+	"timestamp": "2026-04-30T01:31:00.000Z",
 	"current_phase": 13,
 	"current_tasks": [
-		"Previous CI run 25141050981 for ecc7bf6c passed.",
-		"Pushed generic stream CLI ergonomics stack: c9d055a3 handoff checkpoint; 5e91023e feat(tractor): filter stream query results; 81539110 feat(tractor): watch generic stream nodes; 16927e37 docs(agent): document generic stream CLI; 4d0c9218 docs(agent): update stream CLI roadmap; 68e0fe80 test(tractor): parse generic stream watch filters.",
-		"Tractor query now accepts --agent and --stream-ref filters and sorts stream-ish payloads by timestamp_ns/updated_at_ns/started_at_ns plus sequence/id. This makes StreamChunk and StreamSession inspection usable without daemon.",
-		"Tractor watch now accepts --type and --stream-ref. AgentResponse without --stream-ref keeps the compatibility renderer. Generic StreamChunk/StreamSession watch uses payload fingerprints so StreamSession upserts can be observed, and --until-final stops on is_final=true or status completed/failed.",
-		"Docs updated in docs/agent-streaming.md with generic query/watch examples. ROADMAP updated for generic StreamChunk/StreamSession CLI query/watch.",
-		"Local validations run for the CLI slices: RUSTUP_TOOLCHAIN=stable cargo test --bin tractor --quiet; targeted cargo test --bin tractor watch_cli_accepts_generic_stream_filters --quiet; npm --prefix packages/tractor run lint; npm run project:validate --silent; git diff --check.",
-		"Disk cleanup performed with npm run clean:light after push; free disk back to about 3.9GB."
+		"CI run 25141617545 for 68e0fe80 passed. CI run 25142298915 for d2b9689b passed. Latest CI run 25142670433 for ce5887d7 is in_progress at checkpoint time.",
+		"Pushed prior generic stream CLI stack plus terminal followups. Important pushed commits after prior checkpoint: ed517ef8 feat(tractor): annotate failed stream sessions; 0fce926a feat(tractor): classify final stream chunks; 6af7d7e0 docs(agent): describe terminal stream markers; 1b059855 feat(tractor-ts): detect terminal stream chunks; d2b9689b docs(agent): mention terminal chunk helper; 57bc9aa6 feat(tractor-ts): expose stream failure metadata; cf98a1d3 docs(agent): mention stream failure helpers; e6d68406 docs(adr): clarify terminal stream observations; 24fe8d9f docs(agent): clarify websocket stream consumers; 3b7096c1 test(tractor): assert tool stream final marker; ce5887d7 docs(tractor): document stream query watch.",
+		"Failed stream reader paths now annotate StreamSession metadata with sanitized failure_kind=stream_read_failed and failure_reason. TS exposes streamSessionFailureKind(...) and streamSessionFailureReason(...).",
+		"Final generic StreamChunk markers now classify payload_kind as final_text, final_tool_call, or final_empty. TS exposes isTerminalStreamChunkPayloadKind(...) and isTerminalStreamChunk(...).",
+		"Docs updated: docs/agent-streaming.md, packages/pi-agent/ROADMAP.md, specs/ADRs/ADR-054-generic-stream-observations.md, packages/tractor/README.md. WebSocket/browser sync clarification: BrowserSyncClient remains schema-neutral Loro binary transport; UI code chooses AgentResponse vs StreamChunk/StreamSession reducers.",
+		"Local validation before latest push passed: cd packages/tractor && RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet; npm --prefix packages/tractor run lint; npm run agent:streaming:check; npm run agent:streaming:clients; npm run project:validate --silent; git diff --check. Pre-push hooks passed with known advisory broad test warnings.",
+		"Disk cleanup performed with npm run clean:light after latest push; free disk about 3.6GB."
 	],
 	"blockers": [
-		"Latest CI run 25141617545 for 68e0fe80 is pending at checkpoint time. Prior run 25141496190 for 16927e37 was still in progress when checked. If either fails, inspect logs and reproduce locally before pushing fixes.",
-		"Disk remains tight (~3.9GB free). Avoid global builds and full cargo test. Use package-scoped/targeted checks and clean:light at checkpoints.",
-		"Full tractor-ts suite remains noisy locally due missing WASM fixtures; use npm run agent:streaming:clients for streaming client helpers.",
+		"Latest CI run 25142670433 is in_progress at checkpoint time. If it fails, inspect logs and reproduce locally with the closest scoped equivalent before pushing.",
+		"Disk remains tight (~3.6GB free). Avoid full/global builds. Use scoped checks and npm run clean:light at checkpoints.",
+		"Full tractor-ts suite remains noisy locally due missing WASM fixtures; use npm run agent:streaming:clients for stream client helpers.",
 		"Broad cargo clippy --tests still surfaces unrelated await_holding_lock debt in packages/tractor/tests/pi_agent_harness.rs; package lint without --tests passes.",
-		"pi-lens/LSP monitor keeps crashing on Rust/Markdown writes with memory access out of bounds. Re-read files after edits."
+		"pi-lens/LSP monitor continues crashing on Rust/Markdown writes with memory access out of bounds. Re-read files after edits."
 	],
 	"next_actions": [
-		"First check: git status --short; git rev-parse --short HEAD; df -h /workspaces/refarm; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 4.",
-		"If CI run 25141617545 or 25141496190 fails, use gh run view --log-failed, map to exact command, reproduce locally with the closest scoped equivalent, then fix atomically.",
-		"Next technical slices if CI is green: verify actual WebSocket/UI consumers and document whether they consume AgentResponse compatibility projections or generic StreamChunk/StreamSession; consider StreamSession failure reason metadata; consider final payload kinds for tool-call-only streams; consider governed config for LLM_STREAM_RESPONSES.",
-		"For future Tractor CLI changes, run cd packages/tractor && RUSTUP_TOOLCHAIN=stable cargo test --bin tractor --quiet && npm run lint. For streaming host changes, add RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet and npm run agent:streaming:check; run harness only when host/harness path changes."
+		"First check after compaction: git status --short; git rev-parse --short HEAD; df -h /workspaces/refarm; GH_PROMPT_DISABLED=1 gh run list --repo aretw0/refarm --branch develop --limit 4.",
+		"If CI 25142670433 failed, run gh run view 25142670433 --repo aretw0/refarm --log-failed, identify exact command, reproduce locally with scoped equivalent, then fix atomically.",
+		"If CI is green, next technical slices: consider governed config/CLI policy for LLM_STREAM_RESPONSES; consider retention/compaction policy for StreamChunk/StreamSession; verify any concrete UI package that renders AgentResponse can adopt the TS reducers; consider adding StreamSession failure metadata to user-facing UI once a UI consumer exists.",
+		"For Rust streaming host changes: run RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet in packages/tractor, npm --prefix packages/tractor run lint, and npm run agent:streaming:check. For TS stream helper changes: npm run agent:streaming:clients. Run harness only when host/harness path changes."
 	],
 	"open_questions": [
-		"Should generic StreamSession failure observations include sanitized error metadata, or is status=failed enough for now?",
-		"Should tool-call-only streams emit final StreamChunk payload kinds such as final_tool_call/final_empty?",
-		"Should WebSocket/browser clients adopt StreamChunk/StreamSession directly or continue using AgentResponse compatibility projection for first UI migration?",
-		"Should LLM_STREAM_RESPONSES move from env-only to governed config/CLI policy soon?"
+		"Should LLM_STREAM_RESPONSES move from env-only to governed config/CLI policy?",
+		"What retention/compaction policy should apply to high-volume StreamChunk nodes?",
+		"Should UI migration consume StreamChunk/StreamSession directly, or continue AgentResponse projection until compatibility horizon is defined?",
+		"Should final_tool_call StreamChunk eventually include structured tool-call metadata, or remain a terminal marker with synthesized final provider JSON as the authoritative structured source?"
 	],
 	"key_decisions_pending": [
 		"Generic stream observation retention/compaction policy.",
