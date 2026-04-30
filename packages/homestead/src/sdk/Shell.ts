@@ -2,13 +2,11 @@ import {
   applyStreamChunkEventToMap,
   applyStreamSessionEventToMap,
   L8nHost,
-  streamObservationViewsByStream,
   TRACTOR_LOG_PRIORITY,
 } from "@refarm.dev/tractor";
 import type {
   StreamChunkEvent,
   StreamChunkStateMap,
-  StreamObservationView,
   StreamSessionEvent,
   StreamSessionStateMap,
   Tractor,
@@ -17,6 +15,10 @@ import type {
 } from "@refarm.dev/tractor";
 import { A11yGuard } from "./A11yGuard.js";
 import { resolveHomesteadSurfaceSlots } from "./surface-slots.js";
+import {
+  renderStreamStatusbarHtml,
+  sortedStreamObservationViews,
+} from "./stream-observer.js";
 
 import en from "@refarm.dev/locales/en.json";
 import ptBR from "@refarm.dev/locales/pt-BR.json";
@@ -169,30 +171,10 @@ export class StudioShell {
       statusSlot.appendChild(panel);
     }
 
-    const views = Object.values(
-      streamObservationViewsByStream(this.streamSessions, this.streamChunks),
-    ).sort((left, right) =>
-      (left.streamRef ?? "").localeCompare(right.streamRef ?? ""),
-    );
+    const views = sortedStreamObservationViews(this.streamSessions, this.streamChunks);
 
     panel.hidden = views.length === 0;
-    panel.innerHTML = views.map((view) => this.renderStreamObservationView(view)).join("");
-  }
-
-  private renderStreamObservationView(view: StreamObservationView): string {
-    const label = view.promptRef ?? view.streamRef ?? "stream";
-    const status = view.status ?? (view.isTerminal ? "completed" : "observed");
-    const content = view.content || (view.isActive ? "Streaming…" : "Waiting for content…");
-    const tone = view.isActive ? "🟢" : view.isTerminal ? "✅" : "🟡";
-
-    return `
-      <article data-stream-ref="${escapeHtml(view.streamRef ?? "")}" style="display: inline-flex; align-items: center; gap: 0.35rem; min-width: 0; max-width: 34rem; padding: 0.15rem 0.5rem; border: 1px solid var(--refarm-border-default); border-radius: 999px; background: rgba(0,0,0,0.04);">
-        <span aria-hidden="true">${tone}</span>
-        <strong style="white-space: nowrap;">${escapeHtml(label)}</strong>
-        <span style="opacity: 0.7; white-space: nowrap;">${escapeHtml(status)}</span>
-        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(content)}</span>
-      </article>
-    `;
+    panel.innerHTML = renderStreamStatusbarHtml(views);
   }
 
   private async renderSystemHelp() {
@@ -348,13 +330,4 @@ export class StudioShell {
     const statusEl = document.getElementById("system-status");
     if (statusEl) statusEl.textContent = text;
   }
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
