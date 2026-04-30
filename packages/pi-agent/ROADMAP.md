@@ -155,7 +155,9 @@ Context engineering follows the pi-test-harness model:
 
 - [x] `tractor prompt --agent pi-agent "do something"` subcommand
 - [x] `tractor watch` — polling loop for AgentResponse nodes
+- [x] `tractor watch --type StreamChunk|StreamSession --stream-ref <ref> --until-final` — poll generic stream observations
 - [x] `tractor query --type <T> --namespace <N>` — read CRDT nodes from local storage (no daemon)
+- [x] `tractor query --type StreamChunk|StreamSession --stream-ref <ref>` — inspect generic stream observations
 - [x] `tractor store-node --payload <JSON>` — store raw CRDT node (no daemon)
 - [x] `npm run agent:daemon` — start tractor in background with PID file
 - [x] `npm run agent:stop` — graceful stop via PID file
@@ -202,6 +204,7 @@ Context engineering follows the pi-test-harness model:
 - [x] Tractor preserves streamed usage counts in synthesized final provider JSON when providers emit usage SSE events
 - [x] End-to-end harness proves `LLM_STREAM_RESPONSES=1` emits provider `stream:true`, stores partial chunks, stores a final response with sequence after the last partial, and preserves streamed tool-call round trips
 - [x] Tractor CLI plain output renders partial chunks as deltas and avoids reprinting the full final content after streamed partials
+- [x] Tractor CLI can query and watch generic `StreamChunk` / `StreamSession` nodes with `stream_ref` filters
 - [x] `@refarm.dev/tractor` exports a TypeScript `AgentResponse` stream accumulator for structured clients that consume partial/final events
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamChunk` accumulator for clients that consume host stream observations directly
 - [x] `@refarm.dev/tractor` exports a generic TypeScript `StreamSession` accumulator for clients that consume host stream lifecycle observations
