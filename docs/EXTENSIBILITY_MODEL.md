@@ -58,6 +58,11 @@ with `layer: "homestead"` and mounts them into the declared shell slot. Surface
 slot resolution now gates declared surface capabilities against the Homestead
 allow-list before mounting; deeper runtime activation remains trust-gated by the
 plugin host.
+Homestead resolves this as an explicit activation plan: accepted mounts plus
+rejections for missing slots, unsupported capabilities, or duplicate surface
+IDs. The shell emits `ui:surface_rejected` telemetry for rejected declarations,
+so capability filtering is visible to Studio diagnostics instead of failing
+silently.
 
 Mounting preserves surface identity in the DOM and telemetry. Extension surface
 wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
