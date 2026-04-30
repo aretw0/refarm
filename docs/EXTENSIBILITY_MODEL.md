@@ -59,6 +59,12 @@ slot resolution now gates declared surface capabilities against the Homestead
 allow-list before mounting; deeper runtime activation remains trust-gated by the
 plugin host.
 
+Mounting preserves surface identity in the DOM and telemetry. Extension surface
+wrappers receive `data-refarm-surface-layer`, `data-refarm-surface-kind`, and
+`data-refarm-surface-id`; every mount emits `ui:surface_mounted` with slot,
+source, and surface metadata. This gives future Studio tooling an auditable path
+from manifest declaration to actual UI activation.
+
 Short-term UI experiments should land in Homestead and the Studio app
 (`apps/dev`), not the `me` or `social` surfaces. Those app surfaces can consume
 stabilized primitives after the Studio shell proves the workflow.
