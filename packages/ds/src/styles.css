@@ -19,6 +19,18 @@
     gap: 1.5rem;
 }
 
+.refarm-stack {
+    display: grid;
+    gap: var(--refarm-stack-gap, 0.75rem);
+}
+
+.refarm-cluster {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--refarm-cluster-gap, 0.75rem);
+    align-items: center;
+}
+
 /* Glassmorphism Surface */
 .refarm-glass {
     background: var(--refarm-glass-bg);
@@ -26,6 +38,40 @@
     -webkit-backdrop-filter: var(--refarm-glass-blur);
     border: 1px solid var(--refarm-border-default);
     box-shadow: var(--refarm-shadow-md);
+}
+
+.refarm-surface {
+    border: 1px solid var(--refarm-border-default);
+    border-radius: var(--refarm-surface-radius, var(--refarm-radius-lg));
+    background: var(--refarm-surface-bg, var(--refarm-bg-elevated));
+    box-shadow: var(--refarm-surface-shadow, var(--refarm-shadow-sm));
+}
+
+.refarm-surface-tinted {
+    --refarm-surface-bg: linear-gradient(135deg, rgba(35, 134, 54, 0.08), rgba(0, 0, 0, 0.02));
+}
+
+.refarm-panel {
+    padding: var(--refarm-panel-padding, 1rem);
+}
+
+.refarm-panel-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-bottom: var(--refarm-panel-header-gap, 0.85rem);
+}
+
+.refarm-eyebrow {
+    display: inline-flex;
+    margin: 0;
+    color: var(--refarm-accent-primary);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    line-height: 1.2;
+    text-transform: uppercase;
 }
 
 /* Interactive Components */
@@ -70,6 +116,16 @@
     background: var(--refarm-accent-secondary);
 }
 
+.refarm-btn-pill {
+    border-radius: 999px;
+    padding: 0.2rem 0.55rem;
+}
+
+.refarm-btn[aria-pressed="true"] {
+    background: rgba(35, 134, 54, 0.12);
+    border-color: var(--refarm-accent-muted);
+}
+
 /* Data Display */
 .refarm-tag {
     display: inline-flex;
@@ -80,6 +136,131 @@
     font-family: var(--refarm-font-mono);
     font-size: 0.75rem;
     color: var(--refarm-accent-primary);
+}
+
+.refarm-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-width: 0;
+    max-width: var(--refarm-pill-max-width, 34rem);
+    padding: 0.15rem 0.5rem;
+    border: 1px solid var(--refarm-border-default);
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.04);
+}
+
+.refarm-pill-label,
+.refarm-pill-meta {
+    white-space: nowrap;
+}
+
+.refarm-pill-meta {
+    opacity: 0.7;
+}
+
+.refarm-pill-content {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.refarm-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 0.15rem 0.45rem;
+    background: rgba(35, 134, 54, 0.12);
+    color: var(--refarm-accent-primary);
+    font-size: 0.7rem;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.refarm-surface-card {
+    display: grid;
+    gap: 0.45rem;
+    padding: var(--refarm-card-padding, 0.8rem);
+    border: 1px solid var(--refarm-border-default);
+    border-radius: var(--refarm-card-radius, 0.9rem);
+    background: var(--refarm-card-bg, var(--refarm-bg-elevated));
+}
+
+.refarm-card-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+}
+
+.refarm-card-title {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+}
+
+.refarm-card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.72rem;
+    opacity: 0.72;
+}
+
+.refarm-card-body {
+    margin: 0;
+    color: var(--refarm-text-secondary);
+    font-size: 0.84rem;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.refarm-code {
+    border: 1px solid var(--refarm-border-default);
+    border-radius: 0.55rem;
+    padding: 0.2rem 0.35rem;
+    background: rgba(0, 0, 0, 0.04);
+    font-size: 0.84em;
+}
+
+.refarm-workbench {
+    --refarm-surface-radius: 28px;
+    --refarm-surface-shadow: var(--refarm-shadow-lg);
+    padding: clamp(1.25rem, 3vw, 2.5rem);
+    background:
+        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.18), transparent 34rem),
+        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(35, 134, 54, 0.06));
+}
+
+.refarm-workbench-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.4fr) minmax(18rem, 0.8fr);
+    gap: clamp(1rem, 4vw, 2rem);
+    align-items: stretch;
+}
+
+.refarm-workbench-title {
+    max-width: 12ch;
+    margin: 0;
+    color: var(--refarm-text-primary);
+    font-size: clamp(2.3rem, 8vw, 5.5rem);
+    letter-spacing: -0.08em;
+    line-height: 0.88;
+}
+
+.refarm-workbench-lead {
+    max-width: 42rem;
+    margin: 1.25rem 0 0;
+    color: var(--refarm-text-secondary);
+    font-size: clamp(1rem, 2vw, 1.25rem);
+}
+
+@media (max-width: 760px) {
+    .refarm-workbench-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .refarm-input {
