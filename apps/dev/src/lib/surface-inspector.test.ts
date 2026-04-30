@@ -1,10 +1,10 @@
 /** @vitest-environment jsdom */
 import { describe, expect, it } from "vitest";
+import type { HomesteadSurfaceTelemetryEvent } from "@refarm.dev/homestead/sdk/surface-inspector";
 import {
 	mountedSurfaceLabel,
 	mountReactiveStudioSurfaceInspector,
 	mountStudioSurfaceInspector,
-	type StudioSurfaceTelemetryEvent,
 } from "./surface-inspector";
 
 describe("Studio surface inspector", () => {
@@ -145,13 +145,13 @@ function createSurfaceMount(metadata: {
 }
 
 function createTelemetrySource() {
-	const listeners = new Set<(event: StudioSurfaceTelemetryEvent) => void>();
+	const listeners = new Set<(event: HomesteadSurfaceTelemetryEvent) => void>();
 	return {
-		observe(listener: (event: StudioSurfaceTelemetryEvent) => void) {
+		observe(listener: (event: HomesteadSurfaceTelemetryEvent) => void) {
 			listeners.add(listener);
 			return () => listeners.delete(listener);
 		},
-		emit(event: StudioSurfaceTelemetryEvent) {
+		emit(event: HomesteadSurfaceTelemetryEvent) {
 			for (const listener of listeners) listener(event);
 		},
 	};

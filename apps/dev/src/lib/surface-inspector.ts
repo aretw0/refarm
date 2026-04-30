@@ -1,6 +1,8 @@
 import {
 	listMountedHomesteadSurfaces,
 	mountedHomesteadSurfaceKey,
+	observeMountedHomesteadSurfaceChanges,
+	type HomesteadSurfaceTelemetrySource,
 	type MountedHomesteadSurface,
 } from "@refarm.dev/homestead/sdk/surface-inspector";
 
@@ -52,16 +54,6 @@ export function mountStudioSurfaceInspector(
 	return details;
 }
 
-export interface StudioSurfaceTelemetryEvent {
-	event: string;
-}
-
-export interface StudioSurfaceTelemetrySource {
-	observe(
-		listener: (event: StudioSurfaceTelemetryEvent) => void,
-	): (() => void) | void;
-}
-
 export interface StudioSurfaceInspectorController {
 	readonly element: HTMLElement;
 	refresh(): HTMLElement;
@@ -72,7 +64,7 @@ export function mountReactiveStudioSurfaceInspector(
 	container: HTMLElement,
 	options: {
 		root?: ParentNode;
-		telemetry?: StudioSurfaceTelemetrySource;
+		telemetry?: HomesteadSurfaceTelemetrySource;
 	} = {},
 ): StudioSurfaceInspectorController {
 	const root = options.root ?? document;
@@ -85,10 +77,9 @@ export function mountReactiveStudioSurfaceInspector(
 		return currentElement;
 	};
 
-	const disposeTelemetry = options.telemetry?.observe((event) => {
-		if (event.event === "ui:surface_mounted") refresh();
-		if (event.event === "system:plugin_state_changed") refresh();
-	});
+	const disposeTelemetry = options.telemetry
+		? observeMountedHomesteadSurfaceChanges(options.telemetry, refresh)
+		: undefined;
 
 	return {
 		get element() {

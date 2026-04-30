@@ -8,6 +8,34 @@ export interface MountedHomesteadSurface {
 	surfaceId?: string;
 }
 
+export interface HomesteadSurfaceTelemetryEvent {
+	event: string;
+}
+
+export interface HomesteadSurfaceTelemetrySource {
+	observe(
+		listener: (event: HomesteadSurfaceTelemetryEvent) => void,
+	): (() => void) | void;
+}
+
+export const HOMESTEAD_SURFACE_CHANGE_EVENTS = [
+	"ui:surface_mounted",
+	"system:plugin_state_changed",
+] as const;
+
+export type HomesteadSurfaceChangeEventName =
+	(typeof HOMESTEAD_SURFACE_CHANGE_EVENTS)[number];
+
+export function isHomesteadSurfaceChangeEvent(
+	event: HomesteadSurfaceTelemetryEvent,
+): event is HomesteadSurfaceTelemetryEvent & {
+	event: HomesteadSurfaceChangeEventName;
+} {
+	return (HOMESTEAD_SURFACE_CHANGE_EVENTS as readonly string[]).includes(
+		event.event,
+	);
+}
+
 export function mountedHomesteadSurfaceKey(
 	surface: MountedHomesteadSurface,
 ): string {
@@ -19,6 +47,16 @@ export function mountedHomesteadSurfaceKey(
 		surface.surfaceKind ?? "",
 		surface.surfaceId ?? "",
 	].join(":");
+}
+
+export function observeMountedHomesteadSurfaceChanges(
+	telemetry: HomesteadSurfaceTelemetrySource,
+	onChange: (event: HomesteadSurfaceTelemetryEvent) => void,
+): () => void {
+	const dispose = telemetry.observe((event) => {
+		if (isHomesteadSurfaceChangeEvent(event)) onChange(event);
+	});
+	return typeof dispose === "function" ? dispose : () => {};
 }
 
 /**
