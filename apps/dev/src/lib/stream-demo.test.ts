@@ -160,6 +160,12 @@ describe("Studio stream demo seeding", () => {
 			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
 			slotId: "streams",
 			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+			},
 			locale: "en",
 			action: {
 				id: "open-stream-workbench",
@@ -175,6 +181,12 @@ describe("Studio stream demo seeding", () => {
 			pluginId: "other-plugin",
 			slotId: "streams",
 			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: "studio-stream-panel",
+				slot: "streams",
+			},
 			locale: "en",
 			action: {
 				id: "open-stream-workbench",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	createScopedHomesteadSurfaceActionHandler,
 	createScopedHomesteadSurfaceContextProvider,
 	homesteadSurfaceRenderActionById,
 	homesteadSurfaceRenderContent,
@@ -80,6 +81,31 @@ describe("Homestead surface render context helpers", () => {
 				pluginId: "other-plugin",
 			}),
 		).toBe(false);
+	});
+
+	it("creates reusable scoped host action handlers", async () => {
+		const handled: string[] = [];
+		const handler = createScopedHomesteadSurfaceActionHandler(
+			{
+				pluginId: "studio-stream-surface-demo",
+				surfaceId: "studio-stream-panel",
+			},
+			({ action }) => {
+				handled.push(action.id);
+			},
+		);
+
+		await handler({
+			...request,
+			action: { id: "open-streams", label: "Open streams" },
+		});
+		await handler({
+			...request,
+			pluginId: "other-plugin",
+			action: { id: "ignored", label: "Ignored" },
+		});
+
+		expect(handled).toEqual(["open-streams"]);
 	});
 
 	it("creates reusable scoped host context providers", async () => {

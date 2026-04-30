@@ -33,6 +33,10 @@ export type HomesteadSurfaceRenderActionHandler = (
 	request: HomesteadSurfaceRenderActionRequest,
 ) => void | Promise<void>;
 
+export type HomesteadSurfaceRenderActionScopedHandler = (
+	request: HomesteadSurfaceRenderActionRequest,
+) => void | Promise<void>;
+
 export type HomesteadSurfaceRenderContextRequest = Omit<
 	HomesteadSurfaceRenderRequest,
 	"host"
@@ -91,8 +95,18 @@ export function createScopedHomesteadSurfaceContextProvider(
 	createContext: HomesteadSurfaceRenderContextFactory,
 ): HomesteadSurfaceRenderContextProvider {
 	return (request) =>
-		homesteadSurfaceRenderContextMatches(request, scope)
+			homesteadSurfaceRenderContextMatches(request, scope)
 			? createContext(request)
+			: undefined;
+}
+
+export function createScopedHomesteadSurfaceActionHandler(
+	scope: HomesteadSurfaceRenderContextScope,
+	handleAction: HomesteadSurfaceRenderActionScopedHandler,
+): HomesteadSurfaceRenderActionHandler {
+	return (request) =>
+		homesteadSurfaceRenderContextMatches(request, scope)
+			? handleAction(request)
 			: undefined;
 }
 

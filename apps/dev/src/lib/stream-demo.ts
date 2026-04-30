@@ -5,6 +5,7 @@ import type {
 } from "@refarm.dev/tractor";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
+	createScopedHomesteadSurfaceActionHandler,
 	createScopedHomesteadSurfaceContextProvider,
 	type HomesteadSurfaceRenderActionHandler,
 	type HomesteadSurfaceRenderContextProvider,
@@ -159,22 +160,29 @@ export function createStudioStreamSurfaceContextProvider(
 export function createStudioStreamSurfaceActionHandler(
 	options: StudioStreamSurfaceActionHandlerOptions = {},
 ): HomesteadSurfaceRenderActionHandler {
-	return ({ action, pluginId }) => {
-		if (pluginId !== STUDIO_STREAM_SURFACE_PLUGIN_ID) return;
-		if (action.intent !== "studio:navigate") return;
+	return createScopedHomesteadSurfaceActionHandler(
+		{
+			pluginId: STUDIO_STREAM_SURFACE_PLUGIN_ID,
+			surfaceId: "studio-stream-panel",
+		},
+		({ action }) => {
+			if (action.intent !== "studio:navigate") return;
 
-		const href = action.payload?.href;
-		if (typeof href !== "string" || href.length === 0) {
-			throw new Error(`Studio surface action ${action.id} is missing an href`);
-		}
+			const href = action.payload?.href;
+			if (typeof href !== "string" || href.length === 0) {
+				throw new Error(
+					`Studio surface action ${action.id} is missing an href`,
+				);
+			}
 
-		const navigate =
-			options.navigate ??
-			((targetHref: string) => {
-				window.location.href = targetHref;
-			});
-		navigate(href);
-	};
+			const navigate =
+				options.navigate ??
+				((targetHref: string) => {
+					window.location.href = targetHref;
+				});
+			navigate(href);
+		},
+	);
 }
 
 export function createStudioStreamSurfaceDemoPlugin(
