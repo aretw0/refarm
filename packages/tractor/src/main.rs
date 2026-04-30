@@ -22,6 +22,7 @@ const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TEXT: &str = "final_text";
 const STREAM_CHUNK_PAYLOAD_KIND_FINAL_TOOL_CALL: &str = "final_tool_call";
 const STREAM_CHUNK_PAYLOAD_KIND_FINAL_EMPTY: &str = "final_empty";
 const STREAM_SESSION_STATUS_COMPLETED: &str = "completed";
+const AGENT_RESPONSE_STREAM_REF_PREFIX: &str = "urn:tractor:stream:agent-response:";
 const STREAM_SESSION_STATUS_FAILED: &str = "failed";
 
 #[derive(Parser, Debug)]
@@ -218,6 +219,10 @@ struct WatchArgs {
     #[arg(long)]
     stream_ref: Option<String>,
 
+    /// Derive stream_ref from an AgentResponse prompt_ref.
+    #[arg(long)]
+    prompt_ref: Option<String>,
+
     /// Poll interval (milliseconds)
     #[arg(long, default_value_t = 250)]
     poll_interval_ms: u64,
@@ -271,6 +276,10 @@ struct QueryArgs {
     /// Filter payloads by stream_ref (useful for StreamChunk/StreamSession).
     #[arg(long)]
     stream_ref: Option<String>,
+
+    /// Derive stream_ref from an AgentResponse prompt_ref.
+    #[arg(long)]
+    prompt_ref: Option<String>,
 
     /// Maximum number of nodes to return.
     #[arg(long, default_value_t = 100)]
@@ -464,20 +473,22 @@ async fn run_watch(args: WatchArgs) -> Result<()> {
     } else {
         Some(Duration::from_millis(args.timeout_ms))
     };
+    let stream_ref_filter =
+        resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())?;
 
-    if args.r#type != "AgentResponse" || args.stream_ref.is_some() {
+    if args.r#type != "AgentResponse" || stream_ref_filter.is_some() {
         let mut seen = snapshot_seen_node_fingerprints(
             &args.namespace,
             &args.r#type,
             &args.agent,
-            args.stream_ref.as_deref(),
+            stream_ref_filter.as_deref(),
         )?;
 
         let _ = poll_node_rows(
             &args.namespace,
             &args.r#type,
             &args.agent,
-            args.stream_ref.as_deref(),
+            stream_ref_filter.as_deref(),
             &mut seen,
             PollNodeRowsOptions {
                 poll_interval: Duration::from_millis(args.poll_interval_ms.max(50)),
@@ -600,8 +611,10 @@ fn run_query(args: QueryArgs) -> Result<()> {
     let storage = NativeStorage::open(&args.namespace)
         .with_context(|| format!("open storage namespace '{}'", args.namespace))?;
 
+    let stream_ref_filter =
+        resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())?;
     let mut rows = storage.query_nodes(&args.r#type)?;
-    rows.retain(|row| row_matches_cli_filters(row, &args.agent, args.stream_ref.as_deref()));
+    rows.retain(|row| row_matches_cli_filters(row, &args.agent, stream_ref_filter.as_deref()));
     rows.sort_by(cli_node_order);
     let rows: Vec<_> = rows.into_iter().take(args.limit).collect();
 
@@ -638,6 +651,25 @@ fn run_store_node(args: StoreNodeArgs) -> Result<()> {
 
     println!("stored {node_type} {node_id}");
     Ok(())
+}
+
+fn resolve_stream_ref_filter(
+    stream_ref: Option<&str>,
+    prompt_ref: Option<&str>,
+) -> Result<Option<String>> {
+    match (stream_ref, prompt_ref) {
+        (Some(_), Some(_)) => {
+            anyhow::bail!("use either --stream-ref or --prompt-ref, not both")
+        }
+        (Some(stream_ref), None) => Ok(Some(stream_ref.to_string())),
+        (None, Some("")) => anyhow::bail!("--prompt-ref must not be empty"),
+        (None, Some(prompt_ref)) => Ok(Some(agent_response_stream_ref(prompt_ref))),
+        (None, None) => Ok(None),
+    }
+}
+
+fn agent_response_stream_ref(prompt_ref: &str) -> String {
+    format!("{AGENT_RESPONSE_STREAM_REF_PREFIX}{prompt_ref}")
 }
 
 fn row_matches_cli_filters(
@@ -1182,6 +1214,37 @@ mod tests {
             Some("urn:tractor:stream:agent-response:prompt-1")
         );
         assert!(args.until_final);
+    }
+
+    #[test]
+    fn query_cli_accepts_prompt_ref_stream_filter() {
+        let cli = Cli::try_parse_from([
+            "tractor",
+            "query",
+            "--type",
+            "StreamSession",
+            "--prompt-ref",
+            "prompt-1",
+        ])
+        .expect("cli parse");
+
+        let Some(Command::Query(args)) = cli.command else {
+            panic!("expected query command");
+        };
+        assert_eq!(args.r#type, "StreamSession");
+        assert_eq!(args.prompt_ref.as_deref(), Some("prompt-1"));
+        assert_eq!(
+            resolve_stream_ref_filter(args.stream_ref.as_deref(), args.prompt_ref.as_deref())
+                .expect("stream ref filter"),
+            Some("urn:tractor:stream:agent-response:prompt-1".to_string())
+        );
+    }
+
+    #[test]
+    fn stream_ref_filter_rejects_ambiguous_inputs() {
+        let err = resolve_stream_ref_filter(Some("stream-a"), Some("prompt-a"))
+            .expect_err("ambiguous stream filters should fail");
+        assert!(err.to_string().contains("either --stream-ref or --prompt-ref"));
     }
 
     #[test]
