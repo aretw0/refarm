@@ -40,6 +40,7 @@ import Layout from "../layouts/Layout.astro";
   import { LoroCRDTStorage, BrowserSyncClient, randomPeerId } from "@refarm.dev/sync-loro";
   import { Tractor } from "@refarm.dev/tractor";
   import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
+  import { seedStudioStreamDemo, shouldSeedStudioStreamDemo } from "../lib/stream-demo";
 
   async function boot() {
     try {
@@ -121,6 +122,10 @@ import Layout from "../layouts/Layout.astro";
       // 4. Handover to Shell Orchestrator
       const shell = new StudioShell(tractor);
       await shell.setup();
+
+      if (shouldSeedStudioStreamDemo(window.location.href, localStorage.getItem("refarm:studio:stream-demo"))) {
+        await seedStudioStreamDemo(tractor);
+      }
 
       // 5. Announce successful boot and monitor lifecycle
       herald.announce();
