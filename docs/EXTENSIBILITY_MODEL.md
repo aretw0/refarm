@@ -59,15 +59,18 @@ slot resolution now gates declared surface capabilities against the Homestead
 allow-list before mounting; deeper runtime activation remains trust-gated by the
 plugin host.
 Homestead resolves this as an explicit activation plan: accepted mounts plus
-rejections for missing slots, unsupported capabilities, or duplicate surface
-IDs. The shell emits `ui:surface_rejected` telemetry for rejected declarations,
-so capability filtering is visible to Studio diagnostics instead of failing
-silently.
+rejections for missing slots, missing required capabilities, unsupported
+capabilities, or duplicate surface IDs. The shell emits `ui:surface_rejected`
+telemetry for rejected declarations, so capability filtering is visible to
+Studio diagnostics instead of failing silently.
 The shell also passes its discovered DOM slot allow-list into activation
 planning, so manifest surfaces targeting unknown Homestead slots are rejected as
 `unknown-slot` before any wrapper is created. Legacy `ui.slots` entries outside
 the current shell are ignored for compatibility, while the multi-surface path is
 audited explicitly.
+Homestead extension surfaces must explicitly declare `ui:panel:render` before
+activation. This keeps render authority opt-in at the surface declaration level:
+omitted capabilities are not treated as implicit permission to render UI.
 Homestead also allow-lists surface `kind` values before activation (`panel`,
 `widget`, `statusbar`, and `editor` by default). Unsupported kinds are rejected
 as `unsupported-kind` until the host intentionally exposes the behavior and trust

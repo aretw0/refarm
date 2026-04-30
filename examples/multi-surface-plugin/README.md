@@ -12,6 +12,7 @@ The manifest declares:
 - legacy `ui.slots` fallback for current shell compatibility.
 
 Hosts that do not understand a surface should ignore it. Hosts that understand a surface should still enforce capability, integrity, and trust policy before activation.
+The Homestead panel declares both `ui:panel:render` and `ui:stream:read`: render authority is explicit, while stream access remains a separate capability.
 
 ## Validate
 
