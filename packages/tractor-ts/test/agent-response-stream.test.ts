@@ -3,6 +3,7 @@ import {
 	agentResponseStreamRef,
 	applyAgentResponseStreamEvent,
 	emptyAgentResponseStreamState,
+	isAgentResponseStreamRef,
 	isTerminalAgentResponseStreamEvent,
 	isTerminalAgentResponseStreamState,
 	orderAgentResponseStreamEvents,
@@ -17,6 +18,10 @@ describe("AgentResponse streaming accumulator", () => {
 		expect(agentResponseStreamRef("prompt-1")).toBe(
 			"urn:tractor:stream:agent-response:prompt-1",
 		);
+		expect(
+			isAgentResponseStreamRef("urn:tractor:stream:agent-response:prompt-1"),
+		).toBe(true);
+		expect(isAgentResponseStreamRef("stream-other")).toBe(false);
 		expect(
 			promptRefFromAgentResponseStreamRef(
 				"urn:tractor:stream:agent-response:prompt-1",

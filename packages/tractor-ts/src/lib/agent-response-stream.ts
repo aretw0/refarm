@@ -26,6 +26,10 @@ export function agentResponseStreamRef(promptRef: string): string {
 	return `${AGENT_RESPONSE_STREAM_REF_PREFIX}${promptRef}`;
 }
 
+export function isAgentResponseStreamRef(streamRef: string): boolean {
+	return streamRef.startsWith(AGENT_RESPONSE_STREAM_REF_PREFIX);
+}
+
 export function promptRefFromAgentResponseStreamRef(
 	streamRef: string,
 ): string | null {
