@@ -18,5 +18,8 @@
     "@refarm.dev/tsconfig": "*",
     "@refarm.dev/vtconfig": "*"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  }
 }
