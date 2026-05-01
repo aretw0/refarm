@@ -1,7 +1,7 @@
 import {
   homesteadHostRendererCan,
   type HomesteadHostRendererDescriptor,
-  type HomesteadHostRendererSnapshot,
+  type HomesteadHostSurfaceState,
   type HomesteadHostStreamState,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { TrustSummary } from "@refarm.dev/trust";
@@ -32,7 +32,7 @@ export interface RefarmStatusOptions {
   plugins?: {
     installed?: number;
     active?: number;
-    snapshot?: HomesteadHostRendererSnapshot;
+    surfaces?: HomesteadHostSurfaceState;
   };
 }
 
@@ -52,8 +52,8 @@ export function buildRefarmStatusJson(
     plugins: {
       installed: plugins?.installed ?? 0,
       active: plugins?.active ?? 0,
-      rejectedSurfaces: plugins?.snapshot?.surfaces?.rejected?.length ?? 0,
-      surfaceActions: plugins?.snapshot?.surfaces?.actions?.length ?? 0,
+      rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
+      surfaceActions: plugins?.surfaces?.actions?.length ?? 0,
     },
     trust,
     streams: {

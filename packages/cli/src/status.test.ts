@@ -53,15 +53,12 @@ describe("buildRefarmStatusJson", () => {
     const result = buildRefarmStatusJson({
       ...BASE_OPTIONS,
       plugins: {
-        snapshot: {
-          renderer: HEADLESS_RENDERER,
-          surfaces: {
-            rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-a" }],
-            actions: [
-              { actionId: "open-node", status: "requested", pluginId: "plugin-b" },
-              { actionId: "close-node", status: "failed", pluginId: "plugin-c" },
-            ],
-          },
+        surfaces: {
+          rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-a" }],
+          actions: [
+            { actionId: "open-node", status: "requested", pluginId: "plugin-b" },
+            { actionId: "close-node", status: "failed", pluginId: "plugin-c" },
+          ],
         },
       },
     });
