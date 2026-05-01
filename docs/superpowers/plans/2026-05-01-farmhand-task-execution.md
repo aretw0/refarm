@@ -44,7 +44,7 @@ apps/refarm/
 
 ---
 
-## Milestones locais (4 etapas)
+## Milestones locais (5 etapas)
 
 > Objetivo: permitir avanço incremental com checkpoints claros, sem “marchar cego”.
 
@@ -54,6 +54,7 @@ apps/refarm/
 - [x] Milestone 2 — Transportes Farmhand (file + http)
 - [x] Milestone 3 — Superfície CLI + governança de resolução TS
 - [x] Milestone 4 — Integridade arquitetural e smoke final
+- [x] Milestone 5 — Operação confiável (fila, recovery, observabilidade)
 
 ### Milestone 1 — Contrato + execução CRDT base
 
@@ -119,6 +120,46 @@ apps/refarm/
 - `npm --prefix apps/farmhand test && npm --prefix apps/farmhand run type-check`
 - `npm --prefix apps/refarm test && npm --prefix apps/refarm run type-check`
 - `npm audit` com resultado limpo **ou** residual explicitamente documentado
+
+---
+
+### Milestone 5 — Operação confiável (fila, recovery, observabilidade)
+
+**Escopo:** pós-plano inicial (desbloqueio operacional)
+
+- `effort-contract-v1` evoluído com status/campos operacionais:
+  - `EffortStatus` inclui `cancelled`
+  - `TaskResult` inclui `attempts`/`startedAt`
+  - `EffortResult` inclui `submittedAt`/`startedAt`/`attemptCount`/`lastUpdatedAt`
+  - `EffortLogEntry` + `EffortSummary`
+  - métodos opcionais no adapter (`list`, `logs`, `retry`, `cancel`, `summary`)
+- `FileTransportAdapter` ganhou:
+  - journal NDJSON em `~/.refarm/task-logs/<effortId>.ndjson`
+  - fila interna + recovery de `pending`/`in-progress` no startup
+  - controle por arquivos em `~/.refarm/task-control` (`*.retry.json`, `*.cancel.json`)
+  - retry policy com limite (`maxAttempts`, default 2)
+  - estados finais `done/failed/cancelled`
+- `HttpSidecar` expandido:
+  - `GET /efforts`
+  - `GET /efforts/summary`
+  - `GET /efforts/:id/logs`
+  - `POST /efforts/:id/retry`
+  - `POST /efforts/:id/cancel`
+- CLI `refarm task` expandida:
+  - `task list`
+  - `task logs <effortId> [--tail]`
+  - `task retry <effortId>`
+  - `task cancel <effortId>`
+  - `task status --json` com tentativas/idade
+
+**Gate de saída:**
+
+- `npm --prefix packages/effort-contract-v1 run type-check`
+- `npm --prefix packages/effort-contract-v1 run build`
+- `npm --prefix apps/farmhand run type-check`
+- `npm --prefix apps/farmhand test`
+- `npm --prefix apps/refarm run type-check`
+- `npm --prefix apps/refarm test`
 
 ---
 

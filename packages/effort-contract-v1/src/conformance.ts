@@ -48,7 +48,9 @@ export async function runEffortV1Conformance(
 				}
 
 				if (
-					!["pending", "in-progress", "done", "failed"].includes(result.status)
+					!["pending", "in-progress", "done", "failed", "cancelled"].includes(
+						result.status,
+					)
 				) {
 					failures.push(`query() returned invalid status: ${result.status}`);
 				}

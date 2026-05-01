@@ -1,9 +1,19 @@
 import http from "node:http";
-import type { Effort, EffortResult } from "@refarm.dev/effort-contract-v1";
+import type {
+	Effort,
+	EffortLogEntry,
+	EffortResult,
+	EffortSummary,
+} from "@refarm.dev/effort-contract-v1";
 
 export interface SidecarAdapter {
 	submit(effort: Effort): Promise<string>;
 	query(effortId: string): Promise<EffortResult | null>;
+	list(): Promise<EffortResult[]>;
+	logs(effortId: string): Promise<EffortLogEntry[] | null>;
+	retry(effortId: string): Promise<boolean>;
+	cancel(effortId: string): Promise<boolean>;
+	summary(): Promise<EffortSummary>;
 	process(effort: Effort): Promise<void>;
 }
 
@@ -43,6 +53,49 @@ export class HttpSidecar {
 				const effortId = await this.adapter.submit(effort);
 				void this.adapter.process(effort);
 				json(res, 200, { effortId });
+				return;
+			}
+
+			if (req.method === "GET" && url === "/efforts") {
+				json(res, 200, await this.adapter.list());
+				return;
+			}
+
+			if (req.method === "GET" && url === "/efforts/summary") {
+				json(res, 200, await this.adapter.summary());
+				return;
+			}
+
+			const logsMatch = url.match(/^\/efforts\/([^/]+)\/logs$/);
+			if (req.method === "GET" && logsMatch) {
+				const logs = await this.adapter.logs(logsMatch[1]);
+				if (!logs) {
+					json(res, 404, { error: "not found" });
+					return;
+				}
+				json(res, 200, logs);
+				return;
+			}
+
+			const retryMatch = url.match(/^\/efforts\/([^/]+)\/retry$/);
+			if (req.method === "POST" && retryMatch) {
+				const accepted = await this.adapter.retry(retryMatch[1]);
+				if (!accepted) {
+					json(res, 409, { error: "retry not allowed" });
+					return;
+				}
+				json(res, 202, { accepted: true });
+				return;
+			}
+
+			const cancelMatch = url.match(/^\/efforts\/([^/]+)\/cancel$/);
+			if (req.method === "POST" && cancelMatch) {
+				const accepted = await this.adapter.cancel(cancelMatch[1]);
+				if (!accepted) {
+					json(res, 409, { error: "cancel not allowed" });
+					return;
+				}
+				json(res, 202, { accepted: true });
 				return;
 			}
 

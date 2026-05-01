@@ -77,7 +77,7 @@ describe("FileTransportAdapter", () => {
 	});
 
 	it("process() marks EffortResult as failed when executor throws", async () => {
-		executor.mockRejectedValueOnce(new Error("kaboom"));
+		executor.mockRejectedValue(new Error("kaboom"));
 		const effort = makeEffort();
 		await adapter.process(effort);
 
@@ -85,5 +85,58 @@ describe("FileTransportAdapter", () => {
 		expect(result!.results[0].status).toBe("error");
 		expect(result!.results[0].error).toBe("kaboom");
 		expect(result!.status).toBe("failed");
+	});
+
+	it("retry() reprocesses a failed effort", async () => {
+		executor.mockRejectedValueOnce(new Error("first fail"));
+		const effort = makeEffort();
+		await adapter.submit(effort);
+		await adapter.process(effort);
+
+		executor.mockResolvedValueOnce({ status: "ok", result: "recovered" });
+		const accepted = await adapter.retry("e1");
+		expect(accepted).toBe(true);
+
+		const stop = adapter.watch();
+		await new Promise((resolve) => setTimeout(resolve, 120));
+		stop();
+
+		const result = await adapter.query("e1");
+		expect(result?.status).toBe("done");
+	});
+
+	it("cancel() marks effort as cancelled", async () => {
+		const effort = makeEffort();
+		await adapter.submit(effort);
+		const accepted = await adapter.cancel("e1");
+		expect(accepted).toBe(true);
+
+		const result = await adapter.query("e1");
+		expect(result?.status).toBe("cancelled");
+	});
+
+	it("logs() returns journal entries", async () => {
+		const effort = makeEffort();
+		await adapter.submit(effort);
+		await adapter.process(effort);
+
+		const logs = await adapter.logs("e1");
+		expect(logs).not.toBeNull();
+		expect(logs!.length).toBeGreaterThan(0);
+		expect(logs![0].event).toBe("submitted");
+	});
+
+	it("summary() aggregates by status", async () => {
+		const doneEffort = makeEffort({ id: "done-e", tasks: [] });
+		const pendingEffort = makeEffort({ id: "pending-e", tasks: [] });
+
+		await adapter.submit(doneEffort);
+		await adapter.process(doneEffort);
+		await adapter.submit(pendingEffort);
+
+		const summary = await adapter.summary();
+		expect(summary.total).toBeGreaterThanOrEqual(2);
+		expect(summary.done).toBeGreaterThanOrEqual(1);
+		expect(summary.pending).toBeGreaterThanOrEqual(1);
 	});
 });

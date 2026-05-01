@@ -7,6 +7,18 @@ function makeAdapter(result: EffortResult | null = null) {
 	return {
 		submit: vi.fn().mockResolvedValue("e1"),
 		query: vi.fn().mockResolvedValue(result),
+		list: vi.fn().mockResolvedValue([]),
+		logs: vi.fn().mockResolvedValue([]),
+		retry: vi.fn().mockResolvedValue(true),
+		cancel: vi.fn().mockResolvedValue(true),
+		summary: vi.fn().mockResolvedValue({
+			total: 0,
+			pending: 0,
+			inProgress: 0,
+			done: 0,
+			failed: 0,
+			cancelled: 0,
+		}),
 		process: vi.fn().mockResolvedValue(undefined),
 	};
 }
@@ -103,5 +115,49 @@ describe("HttpSidecar", () => {
 	it("returns 404 for unknown routes", async () => {
 		const { status } = await request(PORT, "GET", "/unknown");
 		expect(status).toBe(404);
+	});
+
+	it("GET /efforts returns effort list", async () => {
+		adapter.list.mockResolvedValueOnce([
+			{
+				effortId: "e1",
+				status: "pending",
+				results: [],
+			},
+		]);
+
+		const { status, body } = await request(PORT, "GET", "/efforts");
+		expect(status).toBe(200);
+		expect(Array.isArray(body)).toBe(true);
+		expect((body as any[])[0]?.effortId).toBe("e1");
+	});
+
+	it("GET /efforts/:id/logs returns logs", async () => {
+		adapter.logs.mockResolvedValueOnce([
+			{
+				effortId: "e1",
+				timestamp: new Date().toISOString(),
+				level: "info",
+				event: "submitted",
+				message: "submitted",
+			},
+		]);
+
+		const { status, body } = await request(PORT, "GET", "/efforts/e1/logs");
+		expect(status).toBe(200);
+		expect(Array.isArray(body)).toBe(true);
+	});
+
+	it("POST /efforts/:id/retry returns accepted", async () => {
+		adapter.retry.mockResolvedValueOnce(true);
+		const { status } = await request(PORT, "POST", "/efforts/e1/retry");
+		expect(status).toBe(202);
+		expect(adapter.retry).toHaveBeenCalledWith("e1");
+	});
+
+	it("POST /efforts/:id/cancel returns conflict when rejected", async () => {
+		adapter.cancel.mockResolvedValueOnce(false);
+		const { status } = await request(PORT, "POST", "/efforts/e1/cancel");
+		expect(status).toBe(409);
 	});
 });
