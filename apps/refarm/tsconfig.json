@@ -1,10 +1,7 @@
 {
   "extends": "@refarm.dev/tsconfig/node.json",
   "compilerOptions": {
-    "noEmit": true,
-    "paths": {
-      "@refarm.dev/cli/status": ["../../packages/cli/src/status.ts"]
-    }
+    "noEmit": true
   },
   "include": ["src/**/*", "test/**/*"]
 }

@@ -7,6 +7,7 @@ import { migrateCommand } from "./commands/migrate.js";
 import { deployCommand } from "./commands/deploy.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { statusCommand } from "./commands/status.js";
+import { taskCommand } from "./commands/task.js";
 
 export const program = new Command();
 
@@ -23,3 +24,4 @@ program.addCommand(migrateCommand);
 program.addCommand(deployCommand);
 program.addCommand(pluginCommand);
 program.addCommand(statusCommand);
+program.addCommand(taskCommand);

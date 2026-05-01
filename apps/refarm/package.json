@@ -16,6 +16,7 @@
   "dependencies": {
     "@refarm.dev/cli": "*",
     "@refarm.dev/config": "*",
+    "@refarm.dev/effort-contract-v1": "*",
     "@refarm.dev/health": "*",
     "@refarm.dev/homestead": "*",
     "@refarm.dev/registry": "*",

@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@refarm.dev/effort-contract-v1": "*",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/sync-loro": "*",
