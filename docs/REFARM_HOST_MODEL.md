@@ -97,7 +97,8 @@ All renderers should consume the same core vocabulary. Homestead exposes the fir
 
 Current apps remain useful proving grounds:
 
-- `apps/dev` proves Studio/workbench behavior and incubates platform mechanics;
+- `apps/dev` proves Studio/workbench behavior and incubates platform mechanics,
+  including Web and headless renderer descriptors over the shared host contract;
 - `apps/me` proves citizen-facing product flows and validates shared DS/Homestead
   primitives outside the workbench;
 - a future `apps/refarm` or `apps/cli` can be the installable CLI distro.
