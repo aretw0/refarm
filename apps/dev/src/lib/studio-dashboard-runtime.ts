@@ -1,3 +1,7 @@
+import {
+	createHomesteadHostRendererDescriptor,
+	type HomesteadHostRendererDescriptor,
+} from "@refarm.dev/homestead/sdk/host-renderer";
 import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	bootStudioRuntime,
@@ -24,6 +28,14 @@ import {
 export const STUDIO_DASHBOARD_LOADING_ID = "loading-overlay";
 export const STUDIO_DASHBOARD_STATUSBAR_ID = "refarm-slot-statusbar";
 export const STUDIO_DASHBOARD_MODE_STORAGE_KEY = "refarm:mode";
+export const STUDIO_DASHBOARD_RENDERER = createHomesteadHostRendererDescriptor(
+	"refarm-dev-web",
+	"web",
+	{
+		label: "Refarm Studio Web",
+		metadata: { app: "apps/dev" },
+	},
+);
 
 type StudioDashboardRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
 type StudioDashboardTractor = StudioDashboardRuntime["tractor"];
@@ -55,6 +67,7 @@ export interface StudioDashboardPluginConstructors {
 
 export interface StudioDashboardWorkbench {
 	tractor: StudioDashboardTractor;
+	renderer: HomesteadHostRendererDescriptor;
 	streamDemoEnabled: boolean;
 	inspector?: StudioSurfaceInspectorController;
 }
@@ -141,7 +154,12 @@ export async function bootStudioDashboardWorkbench(
 	herald.monitorLifecycle();
 	doc.getElementById(STUDIO_DASHBOARD_LOADING_ID)?.remove();
 
-	return { tractor, streamDemoEnabled, inspector };
+	return {
+		tractor,
+		renderer: STUDIO_DASHBOARD_RENDERER,
+		streamDemoEnabled,
+		inspector,
+	};
 }
 
 export function renderStudioDashboardBootFailure(

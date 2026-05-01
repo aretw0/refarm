@@ -11,6 +11,7 @@ import {
 	resolveStudioDashboardMode,
 	STUDIO_DASHBOARD_LOADING_ID,
 	STUDIO_DASHBOARD_MODE_STORAGE_KEY,
+	STUDIO_DASHBOARD_RENDERER,
 	STUDIO_DASHBOARD_STATUSBAR_ID,
 } from "./studio-dashboard-runtime";
 import { STUDIO_STREAM_DEMO_STORAGE_KEY } from "./stream-demo";
@@ -112,9 +113,17 @@ describe("studio dashboard runtime", () => {
 		expect(doc.getElementById(STUDIO_DASHBOARD_LOADING_ID)).toBeNull();
 		expect(workbench).toEqual({
 			tractor,
+			renderer: STUDIO_DASHBOARD_RENDERER,
 			streamDemoEnabled: true,
 			inspector: inspectorController,
 		});
+		expect(workbench.renderer).toEqual(
+			expect.objectContaining({
+				id: "refarm-dev-web",
+				kind: "web",
+				label: "Refarm Studio Web",
+			}),
+		);
 
 		toggleDemo?.();
 		expect(localStore.removeItem).toHaveBeenCalledWith(
