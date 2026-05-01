@@ -1,0 +1,22 @@
+{
+  "name": "@refarm.dev/trust",
+  "version": "0.1.0",
+  "description": "Refarm Trust — domain contract for trust profile and policy summaries",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/vtconfig": "*"
+  },
+  "license": "MIT"
+}
