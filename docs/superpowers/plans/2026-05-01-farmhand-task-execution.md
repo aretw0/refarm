@@ -56,6 +56,7 @@ apps/refarm/
 - [x] Milestone 4 — Integridade arquitetural e smoke final
 - [x] Milestone 5 — Operação confiável (fila, recovery, observabilidade)
 - [ ] Milestone 6 — Daily-driver loop (bridge Pi-layer + sessão persistente)
+      _(Slices 6.1 e 6.2 concluídos; 6.3 pendente)_
 
 ### Milestone 1 — Contrato + execução CRDT base
 
@@ -172,7 +173,10 @@ apps/refarm/
   - script `scripts/ci/smoke-task-execution-loop.mjs`
   - comando raiz `npm run task:execution:smoke`
   - gate em `.github/workflows/test.yml` condicionado por `run_task_smoke`
-- [ ] Slice 6.2 (próximo): contrato mínimo de sessão persistente (retomada de execução, links task/logs, checkpoint local)
+- [x] Slice 6.2 (mínimo): contrato de sessão persistente (retomada de execução, links task/logs, checkpoint local)
+  - `apps/refarm/src/commands/task-session.ts` (checkpoint local em `~/.refarm/sessions/task-session.v1.json`)
+  - `refarm task resume` para retomada/inspeção do checkpoint
+  - atualização automática do checkpoint em `run/status/list/logs/retry/cancel`
 - [ ] Slice 6.3 (próximo): ponte Pi-layer plugin (manifesto mínimo + execução via effort queue)
 
 **Gate de saída (Milestone 6):**

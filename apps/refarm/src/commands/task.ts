@@ -10,6 +10,10 @@ import type {
 } from "@refarm.dev/effort-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import {
+	createTaskSessionRecorder,
+	type TaskSessionRecorder,
+} from "./task-session.js";
 
 interface TaskOperationsAdapter extends EffortTransportAdapter {
 	list(): Promise<EffortResult[]>;
@@ -260,10 +264,19 @@ function deriveAttemptCount(result: EffortResult): number {
 	);
 }
 
+function safeSessionRecord(fn: () => void): void {
+	try {
+		fn();
+	} catch {
+		// session persistence must never break task operations
+	}
+}
+
 export function createTaskCommand(
 	adapterResolver: (
 		transport: string,
 	) => TaskOperationsAdapter = resolveAdapter,
+	sessionRecorder: TaskSessionRecorder = createTaskSessionRecorder(),
 ): Command {
 	const taskCommand = new Command("task").description(
 		"Manage Farmhand task efforts",
@@ -311,6 +324,12 @@ export function createTaskCommand(
 				};
 
 				const effortId = await adapter.submit(effort);
+				safeSessionRecord(() => {
+					sessionRecorder.rememberRun({
+						effort,
+						transport: opts.transport,
+					});
+				});
 				console.log(chalk.green(`Effort dispatched: ${chalk.bold(effortId)}`));
 				console.log(
 					chalk.gray(
@@ -335,6 +354,13 @@ export function createTaskCommand(
 
 				const printStatus = async (): Promise<boolean> => {
 					const result = await adapter.query(effortId);
+					safeSessionRecord(() => {
+						sessionRecorder.rememberStatus({
+							effortId,
+							transport: opts.transport,
+							result,
+						});
+					});
 					if (!result) {
 						if (opts.json) {
 							console.log(
@@ -410,6 +436,56 @@ export function createTaskCommand(
 		);
 
 	taskCommand
+		.command("resume")
+		.description("Show local task session checkpoint with resume hints")
+		.option("--json", "Print machine-readable JSON output")
+		.action(async (opts: { json?: boolean }) => {
+			const checkpoint = sessionRecorder.getCheckpoint();
+			if (!checkpoint) {
+				if (opts.json) {
+					console.log(JSON.stringify({ status: "empty" }, null, 2));
+					return;
+				}
+				console.log(chalk.gray("No task session checkpoint yet."));
+				return;
+			}
+
+			if (opts.json) {
+				console.log(JSON.stringify({ status: "ok", checkpoint }, null, 2));
+				return;
+			}
+
+			console.log(
+				chalk.bold(
+					`Task session updated ${checkpoint.updatedAt} (entries=${checkpoint.efforts.length})`,
+				),
+			);
+			if (checkpoint.activeEffortId) {
+				const active = checkpoint.efforts.find(
+					(entry) => entry.effortId === checkpoint.activeEffortId,
+				);
+				if (active) {
+					console.log(
+						chalk.yellow(
+							`Active effort: ${active.effortId} (${active.transport})`,
+						),
+					);
+					console.log(chalk.gray(`  Resume watch: ${active.statusCommand} --watch`));
+				}
+			}
+
+			for (const effort of checkpoint.efforts.slice(0, 10)) {
+				const status = effort.lastStatus ?? "unknown";
+				const lastTouch = effort.lastStatusAt ?? effort.lastLogAt ?? "-";
+				console.log(
+					`  ${effort.effortId}  status=${status} transport=${effort.transport} touched=${lastTouch}`,
+				);
+				console.log(chalk.gray(`    status: ${effort.statusCommand}`));
+				console.log(chalk.gray(`    logs:   ${effort.logsCommand}`));
+			}
+		});
+
+	taskCommand
 		.command("list")
 		.description("List known efforts and queue summary")
 		.option("--transport <type>", "Transport adapter: file or http", "file")
@@ -420,6 +496,12 @@ export function createTaskCommand(
 				adapter.summary(),
 				adapter.list(),
 			]);
+			safeSessionRecord(() => {
+				sessionRecorder.rememberList({
+					transport: opts.transport,
+					efforts,
+				});
+			});
 
 			if (opts.json) {
 				console.log(JSON.stringify({ summary, efforts }, null, 2));
@@ -458,6 +540,13 @@ export function createTaskCommand(
 			) => {
 				const adapter = adapterResolver(opts.transport);
 				const logs = await adapter.logs(effortId);
+				safeSessionRecord(() => {
+					sessionRecorder.rememberLogs({
+						effortId,
+						transport: opts.transport,
+						logs: logs ?? [],
+					});
+				});
 				if (!logs || logs.length === 0) {
 					console.log(chalk.gray("No logs yet."));
 					return;
@@ -498,6 +587,13 @@ export function createTaskCommand(
 				process.exitCode = 1;
 				return;
 			}
+			safeSessionRecord(() => {
+				sessionRecorder.rememberControl({
+					effortId,
+					transport: opts.transport,
+					action: "retry",
+				});
+			});
 			console.log(chalk.green(`Retry requested for effort ${effortId}`));
 		});
 
@@ -513,6 +609,13 @@ export function createTaskCommand(
 				process.exitCode = 1;
 				return;
 			}
+			safeSessionRecord(() => {
+				sessionRecorder.rememberControl({
+					effortId,
+					transport: opts.transport,
+					action: "cancel",
+				});
+			});
 			console.log(chalk.yellow(`Cancel requested for effort ${effortId}`));
 		});
 
