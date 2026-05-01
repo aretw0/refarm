@@ -80,6 +80,24 @@ Use a Homestead surface when the UI:
 - needs host context/actions through `renderHomesteadSurface(request)`;
 - should emit auditable mount/render/action telemetry.
 
+## Promotion path
+
+`apps/dev` is the proving ground, not the final owner. Once a pattern appears in
+more than one first-party surface or becomes useful outside the workbench,
+promote it deliberately:
+
+- **Homestead package**: runtime contracts, shell boot helpers, plugin/surface
+  orchestration, telemetry semantics, trust gates, and reusable live island
+  controllers that understand Homestead concepts.
+- **DS package**: framework-agnostic visual primitives, CSS tokens, layout/card/
+  badge/table/workbench classes, and accessibility-focused styling contracts.
+- **App packages**: host-specific fixtures, navigation behavior, copy, demo data,
+  presenter choices, and product routes.
+
+Do not promote app code wholesale. Split it by responsibility: semantic runtime
+mechanics go to Homestead; repeated visual language goes to DS; host behavior
+stays in the app.
+
 ## Current pressure points
 
 These files are acceptable for now but should not become unbounded UI
