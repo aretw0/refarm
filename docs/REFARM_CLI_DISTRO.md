@@ -73,7 +73,7 @@ policy, keep it in the CLI distro.
 
 1. Keep Web and headless renderer descriptors healthy in existing apps.
 2. Define a stable JSON shape for headless snapshots.
-3. Document the `refarm status` output before implementing it.
+3. Keep the `refarm status` output contract in [Refarm Status Output](./REFARM_STATUS_OUTPUT.md) stable before implementing it.
 4. Use `apps/refarm` as the expected distro path unless a later product constraint forces a rename.
 5. Scaffold only the smallest CLI that can print status from composed blocks.
 
