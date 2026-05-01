@@ -49,9 +49,12 @@ runtime properties that Astro cannot provide by itself after hydration.
 4. **Prefer custom elements for live islands.** When a runtime presenter needs
    lifecycle (`connectedCallback`, subscription cleanup, attributes), define a
    small custom element instead of inventing a bespoke mount/remount protocol.
-5. **Homestead remains semantic.** SDK helpers interpret surfaces, actions, and
+5. **Cultivate shared UI in DS.** When a visual pattern repeats across first-party
+   apps or Homestead surfaces, promote the framework-agnostic tokens/classes to
+   `@refarm.dev/ds` instead of copying app-local CSS.
+6. **Homestead remains semantic.** SDK helpers interpret surfaces, actions, and
    telemetry. Apps decide how to present them.
-6. **Generated artifacts remain derived.** Build outputs are observations; edit
+7. **Generated artifacts remain derived.** Build outputs are observations; edit
    source-level Astro/TS/CSS only.
 
 ## Astro vs controller decision checklist
@@ -87,7 +90,7 @@ frameworks:
   renderer indefinitely.
 - `apps/dev/src/lib/surface-inspector.ts`
 - `apps/dev/src/pages/index.astro` inline boot script
-- `apps/dev/src/pages/surfaces.astro` inline diagnostics boot script
+- `apps/dev/src/lib/surface-diagnostics-runtime.ts` extracted `/surfaces` boot controller; keep it focused on runtime wiring, not presentation
 - `packages/homestead/src/sdk/Shell.ts` runtime DOM writes and trusted surface
   rendering
 

@@ -164,69 +164,13 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 </Layout>
 
 <script>
-  import { registerStudioPluginManifest } from "@refarm.dev/homestead/sdk/plugin-handle";
-  import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
-  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
   import {
-    createStudioSurfaceDiagnosticsActionHandler,
-    createStudioSurfaceDiagnosticsContextProvider,
-    createStudioSurfaceDiagnosticsPlugins,
-    EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID,
-  } from "../lib/surface-diagnostics";
-  import {
-    defineStudioSurfaceLedgerElement,
-    mountReactiveStudioSurfaceLedgerElement,
-    type StudioSurfaceLedgerElement,
-  } from "../lib/surface-ledger";
+    bootStudioSurfaceDiagnosticsWorkbench,
+    renderStudioSurfaceDiagnosticsBootFailure,
+  } from "../lib/surface-diagnostics-runtime";
 
-  function setStatus(text: string) {
-    const status = document.querySelector<HTMLElement>("[data-refarm-surfaces-status]");
-    if (status) status.textContent = text;
-  }
-
-  async function bootSurfaceDiagnostics() {
-    const { tractor } = await bootStudioRuntime({
-      databaseName: `refarm-surfaces-${Date.now()}`,
-      namespace: "studio-surfaces",
-      identityId: "surface-diagnostics",
-    });
-
-    for (const plugin of createStudioSurfaceDiagnosticsPlugins((pluginId, event, payload) =>
-      tractor.emitTelemetry({ event, payload, pluginId }),
-    )) {
-      if (plugin.id === EXTERNAL_VALIDATED_SURFACE_PLUGIN_ID) {
-        await registerStudioPluginManifest(tractor.registry, plugin, {
-          status: "validated",
-        });
-      }
-      tractor.plugins.registerInternal(plugin);
-    }
-
-    await setupStudioShell(tractor, {
-      surfaceContext: createStudioSurfaceDiagnosticsContextProvider(),
-      surfaceAction: createStudioSurfaceDiagnosticsActionHandler(),
-    });
-
-    defineStudioSurfaceLedgerElement();
-    const ledgerSlot = document.querySelector<StudioSurfaceLedgerElement>("[data-refarm-surfaces-ledger-slot]");
-    if (ledgerSlot) {
-      mountReactiveStudioSurfaceLedgerElement(ledgerSlot, {
-        telemetry: tractor,
-        telemetryEvents: tractor.telemetry.dump(),
-      });
-    }
-    setStatus("Ready");
-  }
-
-  bootSurfaceDiagnostics().catch((error) => {
+  bootStudioSurfaceDiagnosticsWorkbench().catch((error) => {
     console.error("[studio/surfaces] Boot failed", error);
-    setStatus("Boot failed");
-    const ledgerSlot = document.querySelector<HTMLElement>("[data-refarm-surfaces-ledger-slot]");
-    if (ledgerSlot) {
-      const message = document.createElement("p");
-      message.className = "refarm-card-body";
-      message.textContent = `Surface diagnostics boot failed: ${(error as Error).message}`;
-      ledgerSlot.replaceChildren(message);
-    }
+    renderStudioSurfaceDiagnosticsBootFailure(error);
   });
 </script>
