@@ -3,6 +3,7 @@ import { initCommand } from "./commands/init.js";
 import { sowCommand } from "./commands/sow.js";
 import { guideCommand } from "./commands/guide.js";
 import { healthCommand } from "./commands/health.js";
+import { migrateCommand } from "./commands/migrate.js";
 
 export const program = new Command();
 
@@ -15,3 +16,4 @@ program.addCommand(initCommand);
 program.addCommand(sowCommand);
 program.addCommand(guideCommand);
 program.addCommand(healthCommand);
+program.addCommand(migrateCommand);
