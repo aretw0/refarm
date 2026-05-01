@@ -6,6 +6,7 @@
 		"baseUrl": ".",
 		"rootDir": "../..",
 		"paths": {
+			"@refarm.dev/locales/*": ["../../locales/*"],
 			"@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
 			"@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
 			"@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
