@@ -1,15 +1,14 @@
 {
-  "context": "Checkpoint 2026-05-01T03:08Z after continuing best lane for Refarm host potential: created a shared Homestead host-renderer contract and made apps/dev advertise the Studio Web renderer through it. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
-  "timestamp": "2026-05-01T03:08:00.000Z",
-  "current_phase": 32,
+  "context": "Checkpoint 2026-05-01T03:18Z after continuing host-renderer lane: added headless snapshot proof, centralized apps/dev renderer catalog, and made apps/me a second app consumer of the renderer contract. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
+  "timestamp": "2026-05-01T03:18:00.000Z",
+  "current_phase": 33,
   "current_tasks": [
-    "Latest commits: b61b5f64 `refactor(app-dev): advertise studio web renderer`; 5cc860cd `feat(homestead): define host renderer contract`; 4cec8a53 `chore(project): checkpoint refarm host model`; 961167bc `docs(architecture): define refarm host model`.",
-    "5cc860cd added `packages/homestead/src/sdk/host-renderer.ts` with renderer kinds (`web`, `tui`, `headless`), renderer capabilities, default capability sets, descriptor/snapshot/state interfaces, and helpers: `createHomesteadHostRendererDescriptor`, `homesteadHostRendererCan`, `missingHomesteadHostRendererCapabilities`, `normalizeHomesteadHostRendererCapabilities`, `isHomesteadHostRendererKind`.",
-    "Homestead now exports the host-renderer contract from `@refarm.dev/homestead/sdk` and subpath `@refarm.dev/homestead/sdk/host-renderer`; `packages/homestead/package.json` has the export. `packages/homestead/README.md` and `docs/REFARM_HOST_MODEL.md` document this as the first shared renderer vocabulary slice.",
-    "`apps/dev/tsconfig.json` and `apps/me/tsconfig.json` include path mappings for `@refarm.dev/homestead/sdk/host-renderer` to avoid source-mode import failures like earlier locale/custom-element issues.",
-    "b61b5f64 made `apps/dev/src/lib/studio-dashboard-runtime.ts` consume the new contract: it exports `STUDIO_DASHBOARD_RENDERER = createHomesteadHostRendererDescriptor('refarm-dev-web','web', ...)` and includes `renderer` in the returned `StudioDashboardWorkbench`. The test asserts the renderer descriptor.",
-    "Validations passed: `npm --prefix packages/homestead test -- host-renderer.test.ts`; `npm --prefix packages/homestead run type-check`; `npm --prefix packages/homestead run build`; `npm --prefix apps/dev test -- studio-dashboard-runtime.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/me run type-check`; `npm run project:validate --silent`; `git diff --check`.",
-    "Current state before this handoff commit: `develop...origin/develop [ahead 33]`. Disk remains around 14GB free, 98% used."
+    "Latest commits: 8420833a `refactor(app-me): advertise citizen web renderer`; ee6ab311 `refactor(app-dev): centralize studio renderer catalog`; 81c8f36f `feat(app-dev): add headless renderer snapshot`; d82eb6c8 `chore(project): checkpoint host renderer contract`; b61b5f64 `refactor(app-dev): advertise studio web renderer`; 5cc860cd `feat(homestead): define host renderer contract`.",
+    "81c8f36f added `apps/dev/src/lib/studio-headless-runtime.ts` and tests. It exports `STUDIO_HEADLESS_RENDERER` and `createStudioHeadlessSnapshot(...)`, deriving headless diagnostics/surface rejections/actions from semantic Homestead telemetry without DOM. This proves automation/headless can consume the same renderer vocabulary.",
+    "ee6ab311 added `apps/dev/src/lib/studio-renderers.ts` and tests, centralizing product-owned app/dev renderers: `STUDIO_WEB_RENDERER`, `STUDIO_HEADLESS_RENDERER`, `STUDIO_RENDERERS`, `findStudioRenderer(...)`, `resolveStudioRenderer(...)`. `studio-dashboard-runtime.ts` now aliases `STUDIO_DASHBOARD_RENDERER` from the catalog; `studio-headless-runtime.ts` imports headless descriptor from it.",
+    "8420833a added `apps/me/src/lib/me-renderers.ts` and tests so `apps/me` advertises `REFARM_ME_WEB_RENDERER` through the same Homestead host-renderer contract. `docs/REFARM_HOST_MODEL.md` now records apps/me validating Web renderer descriptors outside the workbench.",
+    "Validations passed after these slices: `npm --prefix apps/dev test -- studio-headless-runtime.test.ts`; `npm --prefix apps/dev test -- studio-renderers.test.ts studio-headless-runtime.test.ts studio-dashboard-runtime.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/me test -- me-renderers.test.ts`; `npm --prefix apps/me run type-check`; `npm run project:validate --silent`; `git diff --check`.",
+    "Current state before this handoff commit: `develop...origin/develop [ahead 37]`. Disk remains around 14GB free, 98% used."
   ],
   "blockers": [
     "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
@@ -19,17 +18,17 @@
     "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
   ],
   "next_actions": [
-    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -8`. Expect ahead 34 if this handoff commit is present, or ahead 33 before it.",
-    "Best next slice: create a headless consumer proof for the host-renderer contract, likely a small app/dev or docs/test helper that builds a headless descriptor and validates missing capabilities. Keep it tiny; do not scaffold a full CLI yet.",
-    "Alternative next slice: define the future `apps/refarm`/`apps/cli` command responsibility doc: modes (`web`, `tui`, `headless`), profiles, defaults, and packages composed. Do not put product CLI in `packages/`.",
-    "Alternative implementation slice: add a minimal `apps/refarm` skeleton only if explicitly desired; otherwise stay in docs/contracts until renderer consumers are clearer.",
+    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -10`. Expect ahead 38 if this handoff commit is present, or ahead 37 before it.",
+    "Best next lane: define a small product-level `apps/refarm`/CLI responsibility doc or skeleton plan (not code scaffold yet unless explicitly requested): commands/modes (`web`, `headless`, future `tui`), defaults, profiles, packages composed, and how it consumes app-owned renderer catalogs.",
+    "Alternative implementation lane: add a tiny shared Homestead helper for renderer catalogs only if multiple apps start duplicating find/resolve logic. Avoid premature extraction; current duplication is minimal.",
+    "Alternative UI/platform lane: create a future TUI renderer descriptor proof only as docs or tests; do not create a TUI package before the contract has real consumer pressure.",
     "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
   ],
   "open_questions": [
     "Should the future CLI distro be named `apps/refarm`, `apps/cli`, or another app name?",
     "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
     "What is the minimum agent loop required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?",
-    "Should the next proof be a headless descriptor consumer, a CLI distro responsibility doc, or a minimal apps/refarm skeleton?"
+    "Should the next proof be CLI responsibility doc, minimal apps/refarm skeleton, or a TUI descriptor plan?"
   ],
   "key_decisions_pending": [
     "DEC-031 remains accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
