@@ -88,9 +88,12 @@ frameworks:
 - `apps/dev/src/lib/surface-ledger.ts` now has a custom-element boundary; keep
   pushing stable table/copy structure toward Astro instead of growing the
   renderer indefinitely.
-- `apps/dev/src/lib/surface-inspector.ts`
-- `apps/dev/src/pages/index.astro` inline boot script
-- `apps/dev/src/lib/surface-diagnostics-runtime.ts` extracted `/surfaces` boot controller; keep it focused on runtime wiring, not presentation
+- `apps/dev/src/lib/surface-inspector.ts` now has a custom-element boundary;
+  keep its visual shell aligned with DS primitives.
+- `apps/dev/src/lib/studio-dashboard-runtime.ts` extracted dashboard boot
+  wiring; keep it focused on runtime/plugin setup, not presentation.
+- `apps/dev/src/lib/surface-diagnostics-runtime.ts` extracted `/surfaces` boot
+  controller; keep it focused on runtime wiring, not presentation.
 - `packages/homestead/src/sdk/Shell.ts` runtime DOM writes and trusted surface
   rendering
 
