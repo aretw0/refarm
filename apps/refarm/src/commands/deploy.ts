@@ -17,7 +17,7 @@ export const deployCommand = new Command("deploy")
       if (!fs.existsSync(configPath)) {
           throw new Error("refarm.config.json not found in current directory.");
       }
-      
+
       const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       const silo = new SiloCore(config);
       const tokens = await silo.provision();
@@ -26,14 +26,14 @@ export const deployCommand = new Command("deploy")
       Object.assign(process.env, tokens);
 
       const windmill = new Windmill(config, { dryRun: options.dryRun });
-      
+
       console.log(`🚀 Deploying to ${chalk.cyan(options.target)}...`);
-      
+
       const result = await windmill.deploy(options.target) as any;
-      
+
       if (result.status === "success" || result.status === "dry-run" || result.status === "partial_failure") {
           console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));
-          
+
           if (result.results) {
               console.log(chalk.gray("\n--- Target Summary ---"));
               for (const r of result.results) {
