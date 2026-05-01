@@ -145,10 +145,8 @@ Se aparecer “barbaridade”, **não ignorar**. Classificar e agir:
 ### Registro de integridade (achados em aberto)
 
 - **[Classe A | resolvido no Milestone 3]** `npm run tsconfig:guard` voltou a `OK` após remoção do alias local em `apps/refarm/tsconfig.json`.
-- **[Classe B | mitigado no Milestone 4]** Aplicado caminho seguro (sem `--force`) com atualização de lockfile + overrides de segurança (`dompurify`/`postcss` e alinhamentos não-breaking). Resultado: `npm audit` caiu de 9 para 7 moderadas.
-- **[Classe B | residual aceito/documentado]** Permanecem 7 moderadas, concentradas em duas cadeias:
-  - `astro` (instância `5.18.1` instalada para peer de `@refarm.dev/config`)
-  - `uuid <14` na cadeia `mermaid/storybook`
+- **[Classe B | mitigado no Milestone 4]** Aplicado caminho seguro (sem `--force`) com atualização de lockfile + overrides de segurança (`dompurify`/`postcss`) + alinhamento de peers Astro (`@astrojs/check` e `@refarm.dev/config`). Resultado: `npm audit` caiu de 9 para 6 moderadas.
+- **[Classe B | residual aceito/documentado]** Permanecem 6 moderadas, agora concentradas apenas na cadeia `uuid <14` (mermaid/storybook).
   Remediação total sugerida por npm exige ação potencialmente breaking (`npm audit fix --force`, incluindo downgrade em toolchain). Decisão: **não aplicar sem janela específica de hardening**.
 
 ---

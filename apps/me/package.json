@@ -21,7 +21,7 @@
 		"astro": "^6.1.8"
 	},
 	"devDependencies": {
-		"@astrojs/check": "^0.9.8",
+		"@astrojs/check": "^0.9.9",
 		"@refarm.dev/config": "*",
 		"@refarm.dev/tsconfig": "*",
 		"typescript": "^6.0.3"

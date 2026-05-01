@@ -16,7 +16,7 @@
 		"clean": "rm -rf dist .astro"
 	},
 	"dependencies": {
-		"@astrojs/check": "^0.9.8",
+		"@astrojs/check": "^0.9.9",
 		"@refarm.dev/ds": "*",
 		"@refarm.dev/homestead": "*",
 		"@refarm.dev/scarecrow": "*",
