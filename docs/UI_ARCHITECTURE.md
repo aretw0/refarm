@@ -96,7 +96,9 @@ promote it deliberately:
 
 Do not promote app code wholesale. Split it by responsibility: semantic runtime
 mechanics go to Homestead; repeated visual language goes to DS; host behavior
-stays in the app.
+stays in the app. The first promotions from this lane are DS visual primitives
+for Studio workbenches/loading/data tables and Homestead's
+`defineHomesteadReactiveElement(...)` lifecycle helper.
 
 ## Current pressure points
 
