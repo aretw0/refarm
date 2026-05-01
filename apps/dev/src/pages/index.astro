@@ -52,7 +52,11 @@ import Layout from "../layouts/Layout.astro";
     STUDIO_STREAM_DEMO_STORAGE_KEY,
     STUDIO_STREAM_SURFACE_PLUGIN_ID,
   } from "../lib/stream-demo";
-  import { mountReactiveStudioSurfaceInspector } from "../lib/surface-inspector";
+  import {
+    mountReactiveStudioSurfaceInspectorElement,
+    STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+    type StudioSurfaceInspectorElement,
+  } from "../lib/surface-inspector";
   import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 
   async function boot() {
@@ -149,7 +153,11 @@ import Layout from "../layouts/Layout.astro";
             window.location.reload();
           },
         });
-        mountReactiveStudioSurfaceInspector(statusbar, {
+        const inspector = document.createElement(
+          STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+        ) as StudioSurfaceInspectorElement;
+        statusbar.appendChild(inspector);
+        mountReactiveStudioSurfaceInspectorElement(inspector, {
           telemetry: tractor,
           telemetryEvents: tractor.telemetry.dump(),
         });

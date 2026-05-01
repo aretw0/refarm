@@ -2,9 +2,13 @@
 import { describe, expect, it } from "vitest";
 import type { HomesteadSurfaceTelemetryEvent } from "@refarm.dev/homestead/sdk/surface-inspector";
 import {
+	defineStudioSurfaceInspectorElement,
 	mountedSurfaceLabel,
 	mountReactiveStudioSurfaceInspector,
+	mountReactiveStudioSurfaceInspectorElement,
 	mountStudioSurfaceInspector,
+	STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+	type StudioSurfaceInspectorElement,
 } from "./surface-inspector";
 
 describe("Studio surface inspector", () => {
@@ -172,6 +176,31 @@ describe("Studio surface inspector", () => {
 		telemetry.emit({ event: "ui:surface_mounted" });
 
 		expect(controller.element.textContent).toContain("0 mounted surfaces");
+	});
+
+	it("mounts reactive inspectors through a custom element boundary", () => {
+		defineStudioSurfaceInspectorElement();
+		const root = document.createElement("div");
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "custom-inspector-plugin",
+				slotId: "statusbar",
+				mountSource: "extension-surface",
+				surfaceId: "custom-inspector-panel",
+			}),
+		);
+		const element = document.createElement(
+			STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+		) as StudioSurfaceInspectorElement;
+		document.body.appendChild(element);
+
+		const controller = mountReactiveStudioSurfaceInspectorElement(element, {
+			root,
+		});
+
+		expect(controller.element.textContent).toContain("1 mounted surface");
+		expect(element.textContent).toContain("custom-inspector-panel");
+		document.body.removeChild(element);
 	});
 });
 

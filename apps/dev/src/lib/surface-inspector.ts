@@ -70,13 +70,24 @@ export interface StudioSurfaceInspectorController {
 	dispose(): void;
 }
 
+export interface StudioSurfaceInspectorMountOptions {
+	root?: ParentNode;
+	telemetry?: HomesteadSurfaceTelemetrySource;
+	telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[];
+}
+
+export const STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME =
+	"refarm-surface-inspector";
+
+export interface StudioSurfaceInspectorElement extends HTMLElement {
+	connectStudioSurfaceInspector(
+		options?: StudioSurfaceInspectorMountOptions,
+	): StudioSurfaceInspectorController;
+}
+
 export function mountReactiveStudioSurfaceInspector(
 	container: HTMLElement,
-	options: {
-		root?: ParentNode;
-		telemetry?: HomesteadSurfaceTelemetrySource;
-		telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[];
-	} = {},
+	options: StudioSurfaceInspectorMountOptions = {},
 ): StudioSurfaceInspectorController {
 	const root = options.root ?? document;
 	const telemetryEvents = [...(options.telemetryEvents ?? [])];
@@ -112,6 +123,45 @@ export function mountReactiveStudioSurfaceInspector(
 			if (typeof disposeTelemetry === "function") disposeTelemetry();
 		},
 	};
+}
+
+export function defineStudioSurfaceInspectorElement(
+	registry: CustomElementRegistry | undefined = globalThis.customElements,
+): void {
+	if (!registry || registry.get(STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME)) return;
+
+	class RefarmSurfaceInspectorElement
+		extends HTMLElement
+		implements StudioSurfaceInspectorElement
+	{
+		#controller?: StudioSurfaceInspectorController;
+
+		connectStudioSurfaceInspector(
+			options: StudioSurfaceInspectorMountOptions = {},
+		): StudioSurfaceInspectorController {
+			this.#controller?.dispose();
+			this.#controller = mountReactiveStudioSurfaceInspector(this, options);
+			return this.#controller;
+		}
+
+		disconnectedCallback(): void {
+			this.#controller?.dispose();
+			this.#controller = undefined;
+		}
+	}
+
+	registry.define(
+		STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+		RefarmSurfaceInspectorElement,
+	);
+}
+
+export function mountReactiveStudioSurfaceInspectorElement(
+	element: StudioSurfaceInspectorElement,
+	options: StudioSurfaceInspectorMountOptions = {},
+): StudioSurfaceInspectorController {
+	defineStudioSurfaceInspectorElement();
+	return element.connectStudioSurfaceInspector(options);
 }
 
 function renderRejectedSurfaceList(
