@@ -247,6 +247,14 @@
 			"status": "decided",
 			"phase": 29,
 			"context": "Discussão de analogia com pi-mono e objetivo de permitir que Refarm agêntico substitua gradualmente o uso direto do Pi com pragmatismo."
+		},
+		{
+			"id": "DEC-032",
+			"decision": "Manter o produto CLI/host `refarm` como distro em `apps/`, enquanto `packages/` guarda os blocos reutilizáveis.",
+			"rationale": "A CLI escolhe UX, defaults, perfis e política operacional, portanto é uma montagem opinativa de produto. Os pacotes devem fornecer primitivas reutilizáveis de runtime, renderers, trust, plugins, telemetry e DS para que a CLI dogfoode os blocos sem transformar o comando em bloco philosophy-neutral.",
+			"status": "decided",
+			"phase": 30,
+			"context": "Alinhamento pós-compactação: o usuário se sente melhor com a CLI nos apps e os packages como blocos."
 		}
 	]
 }

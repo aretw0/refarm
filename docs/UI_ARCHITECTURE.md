@@ -22,7 +22,10 @@ Plugin surfaces
 ```
 
 This keeps Refarm close to Astro's strengths while preserving the sovereign
-runtime properties that Astro cannot provide by itself after hydration.
+runtime properties that Astro cannot provide by itself after hydration. The
+product-facing host/CLI direction is documented in
+[Refarm Host Model](./REFARM_HOST_MODEL.md): the CLI product can live in `apps/`,
+while reusable renderer/runtime blocks stay in `packages/`.
 
 ## Ownership rules
 

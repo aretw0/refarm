@@ -23,6 +23,10 @@ a traditional centralized web app without adopting any of it.
 **Dogfood rule**: Every Refarm distro is built entirely from Refarm blocks. This validates
 the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md).
 
+**Host rule**: the product-facing `refarm` CLI/host should be a distro under
+`apps/`, while reusable runtime, renderer, plugin, trust, and design primitives
+remain blocks under `packages/`. See [Refarm Host Model](./REFARM_HOST_MODEL.md).
+
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │                      DISTROS (apps/)                    │
