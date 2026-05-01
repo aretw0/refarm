@@ -8,6 +8,12 @@
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    "./status": {
+      "types": "./dist/status.d.ts",
+      "import": "./dist/status.js"
+    }
+  },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
@@ -16,6 +22,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@refarm.dev/homestead": "*",
+    "@refarm.dev/trust": "*",
+    "@refarm.dev/runtime": "*",
     "@refarm.dev/fence": "*",
     "@refarm.dev/health": "*",
     "@refarm.dev/registry": "*",
