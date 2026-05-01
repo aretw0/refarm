@@ -2,6 +2,7 @@ import { Command } from "commander";
 import { initCommand } from "./commands/init.js";
 import { sowCommand } from "./commands/sow.js";
 import { guideCommand } from "./commands/guide.js";
+import { healthCommand } from "./commands/health.js";
 
 export const program = new Command();
 
@@ -13,3 +14,4 @@ program
 program.addCommand(initCommand);
 program.addCommand(sowCommand);
 program.addCommand(guideCommand);
+program.addCommand(healthCommand);
