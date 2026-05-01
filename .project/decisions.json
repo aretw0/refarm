@@ -239,6 +239,14 @@
 			"status": "decided",
 			"phase": 11,
 			"context": "Implementado com scripts runtime-descriptor:revocation-baseline + runtime-descriptor:revocation-history e integração no workflow test.yml."
+		},
+		{
+			"id": "DEC-031",
+			"decision": "Refarm deve convergir para um host unificado (`refarm`) com renderers TUI, Web e headless, em vez de tratar `apps/*` como produtos desconectados.",
+			"rationale": "A experiência desejada é análoga ao Pi enquanto processo extensível: um host carrega plugins, aplica trust gates, roteia ações/telemetria/streams e expõe a interface apropriada. Web pode rodar via servidor/browser auxiliar, mas o domínio lógico deve permanecer um runtime único governado por contratos de plataforma.",
+			"status": "decided",
+			"phase": 29,
+			"context": "Discussão de analogia com pi-mono e objetivo de permitir que Refarm agêntico substitua gradualmente o uso direto do Pi com pragmatismo."
 		}
 	]
 }
