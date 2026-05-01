@@ -7,7 +7,7 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 
 <Layout title="Surfaces — Refarm Studio">
   <section class="refarm-surface refarm-workbench surfaces-workbench" aria-labelledby="surface-workbench-title">
-    <div class="refarm-eyebrow surfaces-workbench__eyebrow">Activation ledger</div>
+    <div class="refarm-eyebrow refarm-eyebrow-chip surfaces-workbench__eyebrow">Activation ledger</div>
     <div class="refarm-workbench-grid surfaces-workbench__grid">
       <div>
         <h1 id="surface-workbench-title" class="refarm-workbench-title surfaces-workbench__title">Surface trust graph</h1>
@@ -15,14 +15,14 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
           Inspect the Homestead activation path from manifest declaration to slot mount, including explicit render
           capability, slot allow-listing, kind allow-listing, and registry trust state.
         </p>
-        <div class="refarm-cluster surfaces-workbench__actions">
+        <div class="refarm-cluster refarm-workbench-actions">
           <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={dashboardHref}>Open live shell</a>
           <a class="refarm-btn refarm-btn-pill" href={streamsHref}>Stream workbench</a>
         </div>
       </div>
-      <aside class="refarm-surface-card surfaces-workbench__card" aria-label="Surface activation gates">
+      <aside class="refarm-surface-card refarm-card-roomy refarm-workbench-card" aria-label="Surface activation gates">
         <strong>Activation gates</strong>
-        <ol>
+        <ol class="refarm-muted-list">
           <li><code class="refarm-code">slot</code> must exist in the current shell.</li>
           <li><code class="refarm-code">kind</code> must be supported by Homestead.</li>
           <li><code class="refarm-code">ui:panel:render</code> must be explicit.</li>
@@ -32,8 +32,8 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
     </div>
   </section>
 
-  <section class="surfaces-ledger" aria-labelledby="surface-ledger-title">
-    <div class="refarm-surface-card surfaces-ledger__panel surfaces-ledger__panel--primary">
+  <section class="refarm-split-grid surfaces-ledger" aria-labelledby="surface-ledger-title">
+    <div class="refarm-surface-card refarm-card-roomy surfaces-ledger__panel surfaces-ledger__panel--primary">
       <div class="refarm-panel-header">
         <div>
           <p class="refarm-eyebrow">Live diagnostics</p>
@@ -49,9 +49,9 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       <refarm-surface-ledger class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></refarm-surface-ledger>
     </div>
 
-    <div class="refarm-surface-card surfaces-ledger__panel">
+    <div class="refarm-surface-card refarm-card-roomy surfaces-ledger__panel">
       <p class="refarm-eyebrow">Expected proof</p>
-      <ul class="surfaces-proof-list">
+      <ul class="refarm-proof-list">
         <li><span class="refarm-badge">mount</span> <code class="refarm-code">studio-surface-diagnostics</code> in <code class="refarm-code">streams</code></li>
         <li><span class="refarm-badge">render</span> <code class="refarm-code">external-validated-surface</code> with <code class="refarm-code">registry: validated</code></li>
         <li><span class="refarm-badge">fail</span> <code class="refarm-code">failing-surface-diagnostics</code> with <code class="refarm-code">render: failed</code></li>
@@ -69,42 +69,14 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 
     .surfaces-workbench__eyebrow {
       margin-bottom: 1rem;
-      padding: 0.25rem 0.6rem;
-      border: 1px solid rgba(35, 134, 54, 0.28);
-      border-radius: 999px;
     }
 
     .surfaces-workbench__title {
       max-width: 10ch;
     }
 
-    .surfaces-workbench__actions {
-      margin-top: 1.5rem;
-    }
-
-    .surfaces-workbench__card {
-      align-content: start;
-      padding: 1.25rem;
-    }
-
-    .surfaces-workbench__card ol,
-    .surfaces-proof-list {
-      display: grid;
-      gap: 0.65rem;
-      margin: 0;
-      padding-left: 1.1rem;
-      color: var(--refarm-text-secondary);
-    }
-
     .surfaces-ledger {
-      display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
-      gap: 1rem;
-      align-items: start;
-    }
-
-    .surfaces-ledger__panel {
-      --refarm-card-padding: 1.25rem;
+      --refarm-split-grid-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
     }
 
     .surfaces-ledger__panel--primary {
@@ -121,44 +93,8 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
       margin-top: 1rem;
     }
 
-    .surfaces-proof-list {
-      list-style: none;
-      padding-left: 0;
-    }
-
-    .surfaces-proof-list li {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.45rem;
-      align-items: center;
-    }
-
     :global(.surface-ledger-table) {
-      width: 100%;
       margin-top: 1rem;
-      border-collapse: collapse;
-      font-size: 0.86rem;
-    }
-
-    :global(.surface-ledger-table th),
-    :global(.surface-ledger-table td) {
-      padding: 0.65rem 0.5rem;
-      border-bottom: 1px solid rgba(139, 148, 158, 0.18);
-      text-align: left;
-      vertical-align: top;
-    }
-
-    :global(.surface-ledger-table th) {
-      color: var(--refarm-text-secondary);
-      font-size: 0.72rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    @media (max-width: 860px) {
-      .surfaces-ledger {
-        grid-template-columns: 1fr;
-      }
     }
   </style>
 </Layout>

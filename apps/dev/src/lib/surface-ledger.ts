@@ -58,7 +58,7 @@ export function mountStudioSurfaceLedger(
 	ledger.appendChild(summary);
 
 	const table = document.createElement("table");
-	table.className = "surface-ledger-table";
+	table.className = "refarm-data-table surface-ledger-table";
 	table.appendChild(renderHeader());
 	const body = document.createElement("tbody");
 
@@ -147,7 +147,10 @@ export function defineStudioSurfaceLedgerElement(
 		}
 	}
 
-	registry.define(STUDIO_SURFACE_LEDGER_ELEMENT_NAME, RefarmSurfaceLedgerElement);
+	registry.define(
+		STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+		RefarmSurfaceLedgerElement,
+	);
 }
 
 export function mountReactiveStudioSurfaceLedgerElement(
