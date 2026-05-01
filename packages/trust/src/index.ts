@@ -7,3 +7,5 @@ export interface TrustSummary {
 export function createNullTrustSummary(profile = "dev"): TrustSummary {
   return { profile, warnings: 0, critical: 0 };
 }
+
+export { createTrustSummaryFromTractor } from "./tractor-adapter.js";
