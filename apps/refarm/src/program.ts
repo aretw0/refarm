@@ -6,6 +6,7 @@ import { healthCommand } from "./commands/health.js";
 import { migrateCommand } from "./commands/migrate.js";
 import { deployCommand } from "./commands/deploy.js";
 import { pluginCommand } from "./commands/plugin.js";
+import { statusCommand } from "./commands/status.js";
 
 export const program = new Command();
 
@@ -21,3 +22,4 @@ program.addCommand(healthCommand);
 program.addCommand(migrateCommand);
 program.addCommand(deployCommand);
 program.addCommand(pluginCommand);
+program.addCommand(statusCommand);
