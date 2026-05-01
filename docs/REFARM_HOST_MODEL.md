@@ -124,6 +124,8 @@ consistent.
 
 ## Near-term path
 
+See [Refarm CLI Distro](./REFARM_CLI_DISTRO.md) for the product-facing command path.
+
 1. Keep promoting repeated visual language to `@refarm.dev/ds`.
 2. Keep promoting semantic runtime mechanics to `@refarm.dev/homestead` and
    Tractor-related packages.

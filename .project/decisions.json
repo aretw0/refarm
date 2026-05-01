@@ -255,6 +255,14 @@
 			"status": "decided",
 			"phase": 30,
 			"context": "Alinhamento pós-compactação: o usuário se sente melhor com a CLI nos apps e os packages como blocos."
+		},
+		{
+			"id": "DEC-033",
+			"decision": "Planejar a CLI `refarm` como uma distro docs-first em `apps/refarm` antes de scaffoldar código executável.",
+			"rationale": "O host/renderers ainda está sendo estabilizado. Documentar comandos mínimos, modos e composição de pacotes reduz risco de criar uma CLI prematura ou mover UX de produto para packages.",
+			"status": "decided",
+			"phase": 34,
+			"context": "Próximo slice após provas Web/headless de renderer: preparar o produto CLI mantendo atomicidade e sem acoplamento prematuro. O nome esperado do produto/comando é `refarm`."
 		}
 	]
 }
