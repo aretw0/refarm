@@ -1,5 +1,4 @@
 import {
-	createHomesteadHostRendererDescriptor,
 	homesteadHostRendererCan,
 	missingHomesteadHostRendererCapabilities,
 	type HomesteadHostRendererCapability,
@@ -11,15 +10,9 @@ import {
 	listRejectedHomesteadSurfaces,
 	type HomesteadSurfaceTelemetryEvent,
 } from "@refarm.dev/homestead/sdk/surface-inspector";
+import { STUDIO_HEADLESS_RENDERER } from "./studio-renderers";
 
-export const STUDIO_HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
-	"refarm-dev-headless",
-	"headless",
-	{
-		label: "Refarm Studio Headless",
-		metadata: { app: "apps/dev" },
-	},
-);
+export { STUDIO_HEADLESS_RENDERER };
 
 export interface StudioHeadlessSnapshotOptions {
 	renderer?: HomesteadHostRendererDescriptor;

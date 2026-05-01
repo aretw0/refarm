@@ -1,7 +1,4 @@
-import {
-	createHomesteadHostRendererDescriptor,
-	type HomesteadHostRendererDescriptor,
-} from "@refarm.dev/homestead/sdk/host-renderer";
+import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
 import { createStudioPluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	bootStudioRuntime,
@@ -24,18 +21,12 @@ import {
 	type StudioSurfaceInspectorController,
 	type StudioSurfaceInspectorElement,
 } from "./surface-inspector";
+import { STUDIO_WEB_RENDERER } from "./studio-renderers";
 
 export const STUDIO_DASHBOARD_LOADING_ID = "loading-overlay";
 export const STUDIO_DASHBOARD_STATUSBAR_ID = "refarm-slot-statusbar";
 export const STUDIO_DASHBOARD_MODE_STORAGE_KEY = "refarm:mode";
-export const STUDIO_DASHBOARD_RENDERER = createHomesteadHostRendererDescriptor(
-	"refarm-dev-web",
-	"web",
-	{
-		label: "Refarm Studio Web",
-		metadata: { app: "apps/dev" },
-	},
-);
+export const STUDIO_DASHBOARD_RENDERER = STUDIO_WEB_RENDERER;
 
 type StudioDashboardRuntime = Awaited<ReturnType<typeof bootStudioRuntime>>;
 type StudioDashboardTractor = StudioDashboardRuntime["tractor"];
