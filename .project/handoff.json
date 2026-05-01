@@ -1,38 +1,39 @@
 {
-  "context": "Checkpoint 2026-05-01T03:00Z after post-compaction alignment: user prefers the product-facing `refarm` CLI/host to live in `apps/` as a distro, while `packages/` remain reusable blocks. Created and committed the host model doc. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
-  "timestamp": "2026-05-01T03:00:00.000Z",
-  "current_phase": 31,
+  "context": "Checkpoint 2026-05-01T03:08Z after continuing best lane for Refarm host potential: created a shared Homestead host-renderer contract and made apps/dev advertise the Studio Web renderer through it. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
+  "timestamp": "2026-05-01T03:08:00.000Z",
+  "current_phase": 32,
   "current_tasks": [
-    "Latest commits: 961167bc `docs(architecture): define refarm host model`; faf0dcaf `chore(project): checkpoint unified host direction`; 9f986da8 `refactor(app-me): reuse ds loading primitives`; 5988fa73 `chore(project): record unified host direction`.",
-    "`docs/REFARM_HOST_MODEL.md` now defines the distro-owned host / block-owned primitives model. The CLI product can live under `apps/` (future `apps/refarm` or `apps/cli`), while packages provide runtime, plugin, renderer, trust, telemetry, Homestead, Tractor and DS primitives.",
-    "`docs/ARCHITECTURE.md` now links the host rule in the Blocks and Distros section. `docs/UI_ARCHITECTURE.md` links the host model from the Astro-first UI decision.",
-    "`.project/decisions.json` now includes DEC-032: keep the CLI/host product in `apps/`, keep reusable blocks in `packages/`. `.pi/todos/d777f597.md` was appended with this alignment.",
-    "Validation after docs slice: `npm run project:validate --silent` and `git diff --check` passed. No app/package build was run because this was docs/board-only.",
-    "Current git state after docs commit: `develop...origin/develop [ahead 30]` before this handoff update. Disk remains about 14GB free, 98% used."
+    "Latest commits: b61b5f64 `refactor(app-dev): advertise studio web renderer`; 5cc860cd `feat(homestead): define host renderer contract`; 4cec8a53 `chore(project): checkpoint refarm host model`; 961167bc `docs(architecture): define refarm host model`.",
+    "5cc860cd added `packages/homestead/src/sdk/host-renderer.ts` with renderer kinds (`web`, `tui`, `headless`), renderer capabilities, default capability sets, descriptor/snapshot/state interfaces, and helpers: `createHomesteadHostRendererDescriptor`, `homesteadHostRendererCan`, `missingHomesteadHostRendererCapabilities`, `normalizeHomesteadHostRendererCapabilities`, `isHomesteadHostRendererKind`.",
+    "Homestead now exports the host-renderer contract from `@refarm.dev/homestead/sdk` and subpath `@refarm.dev/homestead/sdk/host-renderer`; `packages/homestead/package.json` has the export. `packages/homestead/README.md` and `docs/REFARM_HOST_MODEL.md` document this as the first shared renderer vocabulary slice.",
+    "`apps/dev/tsconfig.json` and `apps/me/tsconfig.json` include path mappings for `@refarm.dev/homestead/sdk/host-renderer` to avoid source-mode import failures like earlier locale/custom-element issues.",
+    "b61b5f64 made `apps/dev/src/lib/studio-dashboard-runtime.ts` consume the new contract: it exports `STUDIO_DASHBOARD_RENDERER = createHomesteadHostRendererDescriptor('refarm-dev-web','web', ...)` and includes `renderer` in the returned `StudioDashboardWorkbench`. The test asserts the renderer descriptor.",
+    "Validations passed: `npm --prefix packages/homestead test -- host-renderer.test.ts`; `npm --prefix packages/homestead run type-check`; `npm --prefix packages/homestead run build`; `npm --prefix apps/dev test -- studio-dashboard-runtime.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/me run type-check`; `npm run project:validate --silent`; `git diff --check`.",
+    "Current state before this handoff commit: `develop...origin/develop [ahead 33]`. Disk remains around 14GB free, 98% used."
   ],
   "blockers": [
     "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
     "Disk remains constrained at about 14GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
     "Project requirements append tooling still fails because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale`; avoid broad normalization unless explicitly planned.",
-    "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion; an earlier edit attempted to reformat large tables and was restored.",
+    "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion.",
     "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
   ],
   "next_actions": [
-    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -8`. Expect ahead 31 if this handoff commit is present, or ahead 30 before it.",
-    "Best next implementation slice: define the minimal renderer contract vocabulary in docs or types: surfaces, slots, host context/actions, streams, telemetry, diagnostics, trust status. Keep it package-neutral first.",
-    "Alternative next frontend proof: use `apps/me` as second consumer for one more safe DS/Homestead primitive only if it naturally fits; avoid forcing app-dev abstractions wholesale.",
-    "Alternative platform slice: sketch future `apps/refarm`/`apps/cli` responsibilities without scaffolding code yet: commands, modes (`web`, `tui`, `headless`), profiles, and which packages it composes.",
+    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -8`. Expect ahead 34 if this handoff commit is present, or ahead 33 before it.",
+    "Best next slice: create a headless consumer proof for the host-renderer contract, likely a small app/dev or docs/test helper that builds a headless descriptor and validates missing capabilities. Keep it tiny; do not scaffold a full CLI yet.",
+    "Alternative next slice: define the future `apps/refarm`/`apps/cli` command responsibility doc: modes (`web`, `tui`, `headless`), profiles, defaults, and packages composed. Do not put product CLI in `packages/`.",
+    "Alternative implementation slice: add a minimal `apps/refarm` skeleton only if explicitly desired; otherwise stay in docs/contracts until renderer consumers are clearer.",
     "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
   ],
   "open_questions": [
     "Should the future CLI distro be named `apps/refarm`, `apps/cli`, or another app name?",
     "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
     "What is the minimum agent loop required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?",
-    "Should the next slice be renderer contract documentation, a small typed interface, a CLI distro skeleton, or more second-consumer UI proof?"
+    "Should the next proof be a headless descriptor consumer, a CLI distro responsibility doc, or a minimal apps/refarm skeleton?"
   ],
   "key_decisions_pending": [
     "DEC-031 remains accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
-    "DEC-032 is now accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
+    "DEC-032 remains accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
     "Continue enforcing Astro-first UI, Homestead semantic runtime contracts, DS visual primitives, and apps as product/workbench distros."
   ],
   "files_in_flux": [
