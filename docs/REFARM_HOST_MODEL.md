@@ -69,8 +69,10 @@ storage setup.
 | TUI      | Terminal-first workbench/agent loop | keyboard UX, panes, status bars, terminal rendering              | separate plugin/runtime policy                  |
 | Headless | Automation/agent/CI mode            | machine-readable commands, logs, exit codes                      | human UI composition                            |
 
-All renderers should consume the same core vocabulary:
+All renderers should consume the same core vocabulary. Homestead exposes the first shared vocabulary slice through `@refarm.dev/homestead/sdk/host-renderer`:
 
+- renderer kind: `web`, `tui`, or `headless`;
+- renderer capabilities: surfaces, surface actions, host context, streams, telemetry, diagnostics, interactivity, and rich HTML;
 - plugin descriptors and installed handles;
 - trust/activation status;
 - surfaces and slots;
@@ -125,6 +127,6 @@ consistent.
 2. Keep promoting semantic runtime mechanics to `@refarm.dev/homestead` and
    Tractor-related packages.
 3. Use `apps/me` as a second consumer before extracting more from `apps/dev`.
-4. Define a minimal renderer contract before scaffolding a TUI package.
+4. Expand the minimal renderer contract from `@refarm.dev/homestead/sdk/host-renderer` only when Web/TUI/headless consumers need concrete fields.
 5. When ready, create a CLI distro under `apps/` that composes the blocks instead
    of becoming a block itself.

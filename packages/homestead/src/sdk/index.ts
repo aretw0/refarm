@@ -1,5 +1,6 @@
 export * from "./Shell.js";
 export * from "./custom-element.js";
+export * from "./host-renderer.js";
 export * from "./plugin-handle.js";
 export * from "./runtime.js";
 export * from "./surface-inspector.js";

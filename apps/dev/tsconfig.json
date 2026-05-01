@@ -14,6 +14,9 @@
 			"@refarm.dev/homestead/sdk/custom-element": [
 				"../../packages/homestead/src/sdk/custom-element.ts"
 			],
+			"@refarm.dev/homestead/sdk/host-renderer": [
+				"../../packages/homestead/src/sdk/host-renderer.ts"
+			],
 			"@refarm.dev/homestead/sdk/plugin-handle": [
 				"../../packages/homestead/src/sdk/plugin-handle.ts"
 			],
