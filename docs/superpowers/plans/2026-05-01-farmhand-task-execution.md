@@ -44,7 +44,7 @@ apps/refarm/
 
 ---
 
-## Milestones locais (5 etapas)
+## Milestones locais (6 etapas)
 
 > Objetivo: permitir avanço incremental com checkpoints claros, sem “marchar cego”.
 
@@ -55,6 +55,7 @@ apps/refarm/
 - [x] Milestone 3 — Superfície CLI + governança de resolução TS
 - [x] Milestone 4 — Integridade arquitetural e smoke final
 - [x] Milestone 5 — Operação confiável (fila, recovery, observabilidade)
+- [ ] Milestone 6 — Daily-driver loop (bridge Pi-layer + sessão persistente)
 
 ### Milestone 1 — Contrato + execução CRDT base
 
@@ -160,6 +161,25 @@ apps/refarm/
 - `npm --prefix apps/farmhand test`
 - `npm --prefix apps/refarm run type-check`
 - `npm --prefix apps/refarm test`
+
+---
+
+### Milestone 6 — Daily-driver loop (bridge Pi-layer + sessão persistente)
+
+**Escopo:** fase de compound pós-task-execution
+
+- [x] Slice 6.1 (atômico): smoke automatizado real CLI ↔ Farmhand (sem mocks)
+  - script `scripts/ci/smoke-task-execution-loop.mjs`
+  - comando raiz `npm run task:execution:smoke`
+  - gate em `.github/workflows/test.yml` condicionado por `run_task_smoke`
+- [ ] Slice 6.2 (próximo): contrato mínimo de sessão persistente (retomada de execução, links task/logs, checkpoint local)
+- [ ] Slice 6.3 (próximo): ponte Pi-layer plugin (manifesto mínimo + execução via effort queue)
+
+**Gate de saída (Milestone 6):**
+
+- `npm run task:execution:smoke`
+- `npm --prefix apps/farmhand test && npm --prefix apps/farmhand run type-check`
+- `npm --prefix apps/refarm test && npm --prefix apps/refarm run type-check`
 
 ---
 

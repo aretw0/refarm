@@ -32,6 +32,7 @@ jobs:
       tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
       run_build: ${{ steps.detect.outputs.run_build }}
       run_e2e: ${{ steps.detect.outputs.run_e2e }}
+      run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
       run_deep: ${{ steps.detect.outputs.run_deep }}
 
@@ -78,6 +79,7 @@ jobs:
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
             echo "run_build=true" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
             echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
             exit 0
@@ -117,6 +119,11 @@ jobs:
             run_build=true
           fi
 
+          run_task_smoke=false
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/effort-contract-v1/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+            run_task_smoke=true
+          fi
+
           run_audit=false
           if [ "$code_changes" = "true" ]; then
             run_audit=true
@@ -139,10 +146,11 @@ jobs:
           echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
           echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
           echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+          echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
           echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
           echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
 
-          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e audit=$run_audit deep=$run_deep filter=$turbo_filter"
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
 
   quality:
     runs-on: ubuntu-latest
@@ -177,6 +185,10 @@ jobs:
       - name: TSConfig preflight
         if: needs.changes.outputs.code_changes == 'true'
         run: npm run tsconfig:guard
+
+      - name: Farmhand task execution smoke (CLI ↔ sidecar)
+        if: needs.changes.outputs.run_task_smoke == 'true'
+        run: npm run task:execution:smoke
 
       - name: Quality checks skipped
         if: needs.changes.outputs.code_changes != 'true'
