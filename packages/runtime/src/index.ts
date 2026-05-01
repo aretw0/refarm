@@ -7,3 +7,5 @@ export interface RuntimeSummary {
 export function createNullRuntimeSummary(): RuntimeSummary {
   return { ready: false, databaseName: "", namespace: "" };
 }
+
+export { createRuntimeSummaryFromTractor } from "./tractor-adapter.js";
