@@ -48,7 +48,7 @@ vi.mock("node:fs", async (importOriginal) => {
   };
 });
 
-import { initCommand } from "./init.js";
+import { initCommand } from "../../src/commands/init.js";
 
 describe("initCommand — mocked initialization flow", () => {
   beforeEach(() => {
