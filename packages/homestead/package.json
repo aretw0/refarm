@@ -8,6 +8,10 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
+    "./sdk/custom-element": {
+      "types": "./dist/sdk/custom-element.d.ts",
+      "import": "./dist/sdk/custom-element.js"
+    },
     "./sdk/plugin-handle": {
       "types": "./dist/sdk/plugin-handle.d.ts",
       "import": "./dist/sdk/plugin-handle.js"

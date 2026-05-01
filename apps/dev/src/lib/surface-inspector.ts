@@ -1,4 +1,9 @@
 import {
+	connectHomesteadReactiveElement,
+	defineHomesteadReactiveElement,
+	type HomesteadReactiveElement,
+} from "@refarm.dev/homestead/sdk/custom-element";
+import {
 	isHomesteadSurfaceChangeEvent,
 	listRejectedHomesteadSurfaces,
 	listMountedHomesteadSurfaces,
@@ -76,14 +81,13 @@ export interface StudioSurfaceInspectorMountOptions {
 	telemetryEvents?: readonly HomesteadSurfaceTelemetryEvent[];
 }
 
-export const STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME =
-	"refarm-surface-inspector";
+export const STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME = "refarm-surface-inspector";
 
-export interface StudioSurfaceInspectorElement extends HTMLElement {
-	connectStudioSurfaceInspector(
-		options?: StudioSurfaceInspectorMountOptions,
-	): StudioSurfaceInspectorController;
-}
+export interface StudioSurfaceInspectorElement
+	extends HomesteadReactiveElement<
+		StudioSurfaceInspectorMountOptions | undefined,
+		StudioSurfaceInspectorController
+	> {}
 
 export function mountReactiveStudioSurfaceInspector(
 	container: HTMLElement,
@@ -128,32 +132,15 @@ export function mountReactiveStudioSurfaceInspector(
 export function defineStudioSurfaceInspectorElement(
 	registry: CustomElementRegistry | undefined = globalThis.customElements,
 ): void {
-	if (!registry || registry.get(STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME)) return;
-
-	class RefarmSurfaceInspectorElement
-		extends HTMLElement
-		implements StudioSurfaceInspectorElement
-	{
-		#controller?: StudioSurfaceInspectorController;
-
-		connectStudioSurfaceInspector(
-			options: StudioSurfaceInspectorMountOptions = {},
-		): StudioSurfaceInspectorController {
-			this.#controller?.dispose();
-			this.#controller = mountReactiveStudioSurfaceInspector(this, options);
-			return this.#controller;
-		}
-
-		disconnectedCallback(): void {
-			this.#controller?.dispose();
-			this.#controller = undefined;
-		}
-	}
-
-	registry.define(
-		STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
-		RefarmSurfaceInspectorElement,
-	);
+	defineHomesteadReactiveElement<
+		StudioSurfaceInspectorMountOptions | undefined,
+		StudioSurfaceInspectorController
+	>({
+		name: STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME,
+		registry,
+		connect: (element, options) =>
+			mountReactiveStudioSurfaceInspector(element, options ?? {}),
+	});
 }
 
 export function mountReactiveStudioSurfaceInspectorElement(
@@ -161,7 +148,7 @@ export function mountReactiveStudioSurfaceInspectorElement(
 	options: StudioSurfaceInspectorMountOptions = {},
 ): StudioSurfaceInspectorController {
 	defineStudioSurfaceInspectorElement();
-	return element.connectStudioSurfaceInspector(options);
+	return connectHomesteadReactiveElement(element, options);
 }
 
 function renderRejectedSurfaceList(
@@ -192,7 +179,9 @@ function renderRejectedSurfaceListItem(
 ): HTMLLIElement {
 	const item = document.createElement("li");
 	item.className = "refarm-card-body";
-	const name = [surface.pluginId, surface.surfaceId].filter(Boolean).join(" · ");
+	const name = [surface.pluginId, surface.surfaceId]
+		.filter(Boolean)
+		.join(" · ");
 	const missing = surface.missingCapabilities?.length
 		? ` (${surface.missingCapabilities.join(", ")})`
 		: "";

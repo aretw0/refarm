@@ -1,4 +1,9 @@
 import {
+	connectHomesteadReactiveElement,
+	defineHomesteadReactiveElement,
+	type HomesteadReactiveElement,
+} from "@refarm.dev/homestead/sdk/custom-element";
+import {
 	isHomesteadSurfaceActionEvent,
 	isHomesteadSurfaceChangeEvent,
 	listHomesteadSurfaceActions,
@@ -26,11 +31,11 @@ export interface StudioSurfaceLedgerMountOptions {
 
 export const STUDIO_SURFACE_LEDGER_ELEMENT_NAME = "refarm-surface-ledger";
 
-export interface StudioSurfaceLedgerElement extends HTMLElement {
-	connectStudioSurfaceLedger(
-		options?: StudioSurfaceLedgerMountOptions,
-	): StudioSurfaceLedgerController;
-}
+export interface StudioSurfaceLedgerElement
+	extends HomesteadReactiveElement<
+		StudioSurfaceLedgerMountOptions | undefined,
+		StudioSurfaceLedgerController
+	> {}
 
 export function mountStudioSurfaceLedger(
 	container: HTMLElement,
@@ -125,32 +130,15 @@ export function mountReactiveStudioSurfaceLedger(
 export function defineStudioSurfaceLedgerElement(
 	registry: CustomElementRegistry | undefined = globalThis.customElements,
 ): void {
-	if (!registry || registry.get(STUDIO_SURFACE_LEDGER_ELEMENT_NAME)) return;
-
-	class RefarmSurfaceLedgerElement
-		extends HTMLElement
-		implements StudioSurfaceLedgerElement
-	{
-		#controller?: StudioSurfaceLedgerController;
-
-		connectStudioSurfaceLedger(
-			options: StudioSurfaceLedgerMountOptions = {},
-		): StudioSurfaceLedgerController {
-			this.#controller?.dispose();
-			this.#controller = mountReactiveStudioSurfaceLedger(this, options);
-			return this.#controller;
-		}
-
-		disconnectedCallback(): void {
-			this.#controller?.dispose();
-			this.#controller = undefined;
-		}
-	}
-
-	registry.define(
-		STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
-		RefarmSurfaceLedgerElement,
-	);
+	defineHomesteadReactiveElement<
+		StudioSurfaceLedgerMountOptions | undefined,
+		StudioSurfaceLedgerController
+	>({
+		name: STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+		registry,
+		connect: (element, options) =>
+			mountReactiveStudioSurfaceLedger(element, options ?? {}),
+	});
 }
 
 export function mountReactiveStudioSurfaceLedgerElement(
@@ -158,7 +146,7 @@ export function mountReactiveStudioSurfaceLedgerElement(
 	options: StudioSurfaceLedgerMountOptions = {},
 ): StudioSurfaceLedgerController {
 	defineStudioSurfaceLedgerElement();
-	return element.connectStudioSurfaceLedger(options);
+	return connectHomesteadReactiveElement(element, options);
 }
 
 function renderMetric(label: string, value: number): HTMLElement {
