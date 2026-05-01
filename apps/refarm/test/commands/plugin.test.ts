@@ -32,7 +32,7 @@ vi.mock("node:child_process", async (importOriginal) => {
   };
 });
 
-import { pluginCommand } from "./plugin.js";
+import { pluginCommand } from "../../src/commands/plugin.js";
 
 describe("pluginCommand", () => {
   beforeEach(() => {
