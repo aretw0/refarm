@@ -454,6 +454,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
 
       - name: Setup
         id: setup
@@ -481,12 +483,32 @@ jobs:
           name: workspace-build
           path: .
 
+      # Guard against SCM gaps: only use affected filter when base commit is resolvable locally.
+      - name: Resolve E2E turbo filter
+        id: e2e_filter
+        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILTER="${{ needs.changes.outputs.turbo_filter }}"
+          BASE_SHA="${{ needs.changes.outputs.base_sha }}"
+
+          if [ -n "$FILTER" ] && [ -n "$BASE_SHA" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "mode=affected" >> "$GITHUB_OUTPUT"
+            echo "filter=$FILTER" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using affected E2E filter: $FILTER"
+          else
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "filter=" >> "$GITHUB_OUTPUT"
+            echo "::warning::Base commit unavailable for E2E filter (base=$BASE_SHA). Falling back to full test:e2e."
+          fi
+
       - name: Run E2E Tests (affected)
-        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd') && needs.changes.outputs.turbo_filter != ''"
-        run: npx turbo run test:e2e --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        if: steps.e2e_filter.outputs.mode == 'affected'
+        run: npx turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
 
       - name: Run E2E Tests (full fallback)
-        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd') && needs.changes.outputs.turbo_filter == ''"
+        if: steps.e2e_filter.outputs.mode == 'full'
         run: npx turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
