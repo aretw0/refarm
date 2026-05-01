@@ -1,38 +1,40 @@
 {
-  "context": "Checkpoint 2026-05-01T03:18Z after continuing host-renderer lane: added headless snapshot proof, centralized apps/dev renderer catalog, and made apps/me a second app consumer of the renderer contract. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
-  "timestamp": "2026-05-01T03:18:00.000Z",
-  "current_phase": 33,
+  "context": "Checkpoint 2026-05-01T03:34Z before likely compaction. Continued atomic CLI/host lane after user confirmed the CLI command should be named `refarm`. Created durable focus text and docs-first CLI/status contracts. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
+  "timestamp": "2026-05-01T03:34:00.000Z",
+  "current_phase": 34,
   "current_tasks": [
-    "Latest commits: 8420833a `refactor(app-me): advertise citizen web renderer`; ee6ab311 `refactor(app-dev): centralize studio renderer catalog`; 81c8f36f `feat(app-dev): add headless renderer snapshot`; d82eb6c8 `chore(project): checkpoint host renderer contract`; b61b5f64 `refactor(app-dev): advertise studio web renderer`; 5cc860cd `feat(homestead): define host renderer contract`.",
-    "81c8f36f added `apps/dev/src/lib/studio-headless-runtime.ts` and tests. It exports `STUDIO_HEADLESS_RENDERER` and `createStudioHeadlessSnapshot(...)`, deriving headless diagnostics/surface rejections/actions from semantic Homestead telemetry without DOM. This proves automation/headless can consume the same renderer vocabulary.",
-    "ee6ab311 added `apps/dev/src/lib/studio-renderers.ts` and tests, centralizing product-owned app/dev renderers: `STUDIO_WEB_RENDERER`, `STUDIO_HEADLESS_RENDERER`, `STUDIO_RENDERERS`, `findStudioRenderer(...)`, `resolveStudioRenderer(...)`. `studio-dashboard-runtime.ts` now aliases `STUDIO_DASHBOARD_RENDERER` from the catalog; `studio-headless-runtime.ts` imports headless descriptor from it.",
-    "8420833a added `apps/me/src/lib/me-renderers.ts` and tests so `apps/me` advertises `REFARM_ME_WEB_RENDERER` through the same Homestead host-renderer contract. `docs/REFARM_HOST_MODEL.md` now records apps/me validating Web renderer descriptors outside the workbench.",
-    "Validations passed after these slices: `npm --prefix apps/dev test -- studio-headless-runtime.test.ts`; `npm --prefix apps/dev test -- studio-renderers.test.ts studio-headless-runtime.test.ts studio-dashboard-runtime.test.ts`; `npm --prefix apps/dev run type-check`; `npm --prefix apps/me test -- me-renderers.test.ts`; `npm --prefix apps/me run type-check`; `npm run project:validate --silent`; `git diff --check`.",
-    "Current state before this handoff commit: `develop...origin/develop [ahead 37]`. Disk remains around 14GB free, 98% used."
+    "Latest commits before this handoff: 55622c40 `docs(cli): define refarm status output`; 3ec91804 `docs(cli): outline refarm distro focus`; 9e7bb585 `chore(project): checkpoint renderer consumer proofs`; 8420833a `refactor(app-me): advertise citizen web renderer`; ee6ab311 `refactor(app-dev): centralize studio renderer catalog`; 81c8f36f `feat(app-dev): add headless renderer snapshot`.",
+    "User confirmed: the CLI should be called `refarm`. Docs now assume future distro path `apps/refarm` unless a later product constraint forces rename. The product command/distro stays in `apps/`; packages remain reusable blocks.",
+    "3ec91804 added `docs/REFARM_CLI_DISTRO.md` and `docs/REFARM_WORK_FOCUS.md`. CLI distro doc defines the first boring command shape: `refarm web`, `refarm headless`, `refarm status`, `refarm doctor`; it keeps CLI UX/defaults/profiles/release packaging in `apps/refarm` and reusable runtime/render/trust/telemetry mechanics in packages. Work focus doc gives short/medium/long restart focus.",
+    "55622c40 added `docs/REFARM_STATUS_OUTPUT.md`, defining the initial canonical JSON shape for `refarm status --json`: schemaVersion, host, renderer, runtime, plugins, trust, streams, diagnostics. It also defines stable initial diagnostic string codes and says status must not depend on Astro, DOM, or TUI.",
+    "`.project/decisions.json` includes DEC-033: plan the `refarm` CLI as a docs-first distro in `apps/refarm` before scaffolding executable code. `docs/REFARM_HOST_MODEL.md` links the CLI distro doc.",
+    "Validation for docs slices: `npm run project:validate --silent` and `git diff --check` passed. No app/package build was necessary because changes were docs/board-only.",
+    "Current state before this handoff commit: `develop...origin/develop [ahead 40]`. Disk has dropped from ~14GB to ~13GB free, still 98% used."
   ],
   "blockers": [
     "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
-    "Disk remains constrained at about 14GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
+    "Disk remains constrained at about 13GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
     "Project requirements append tooling still fails because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale`; avoid broad normalization unless explicitly planned.",
     "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion.",
     "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
   ],
   "next_actions": [
-    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -10`. Expect ahead 38 if this handoff commit is present, or ahead 37 before it.",
-    "Best next lane: define a small product-level `apps/refarm`/CLI responsibility doc or skeleton plan (not code scaffold yet unless explicitly requested): commands/modes (`web`, `headless`, future `tui`), defaults, profiles, packages composed, and how it consumes app-owned renderer catalogs.",
-    "Alternative implementation lane: add a tiny shared Homestead helper for renderer catalogs only if multiple apps start duplicating find/resolve logic. Avoid premature extraction; current duplication is minimal.",
-    "Alternative UI/platform lane: create a future TUI renderer descriptor proof only as docs or tests; do not create a TUI package before the contract has real consumer pressure.",
+    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect ahead 41 if this handoff commit is present, or ahead 40 before it.",
+    "Best next atomic slice: implement a tiny source-level status snapshot helper (probably in `apps/dev` first or a future `apps/refarm` skeleton only if explicitly desired) that returns the `docs/REFARM_STATUS_OUTPUT.md` JSON shape using existing renderer/headless snapshot proofs. Keep it DOM-free and tested.",
+    "Alternative next slice: scaffold the smallest `apps/refarm` package with a non-executable or minimal command stub that can print static `refarm status --json` from composed blocks. Only do this if user wants code scaffold; otherwise keep proving in app/dev first.",
+    "Alternative next slice: add a shared Homestead status type/schema only if multiple consumers need it; avoid premature package extraction.",
     "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
   ],
   "open_questions": [
-    "Should the future CLI distro be named `apps/refarm`, `apps/cli`, or another app name?",
+    "Should the first status snapshot helper live in `apps/dev` as another proof, or should we now scaffold `apps/refarm`?",
+    "Should `refarm status --json` get TypeScript types in Homestead, app-level types in `apps/refarm`, or stay docs-only until implementation pressure?",
     "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
-    "What is the minimum agent loop required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?",
-    "Should the next proof be CLI responsibility doc, minimal apps/refarm skeleton, or a TUI descriptor plan?"
+    "What minimum agent loop is required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?"
   ],
   "key_decisions_pending": [
-    "DEC-031 remains accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
-    "DEC-032 remains accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
+    "DEC-031 accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
+    "DEC-032 accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
+    "DEC-033 accepted: plan CLI `refarm` docs-first in `apps/refarm` before scaffolding code.",
     "Continue enforcing Astro-first UI, Homestead semantic runtime contracts, DS visual primitives, and apps as product/workbench distros."
   ],
   "files_in_flux": [
