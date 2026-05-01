@@ -254,26 +254,32 @@ npm run test:unit
 
 ## CI Caching Strategy
 
-### Current Baseline (March 6, 2026)
+### Current Baseline (May 1, 2026)
 
 - **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
 - **Rust Target Provisioning:** The `./.github/actions/setup` action accepts a `rust-target` input (default: `wasm32-wasip1`) to ensure WASM compilation works without duplicating `rustup` logic across workflows.
 - **Turbo env passthrough:** `turbo.json` forwards `RUSTUP_HOME`, `CARGO_HOME`, and `RUSTUP_TOOLCHAIN` to avoid Rust manifest drift in parallel Turbo tasks.
-- **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it instead of rebuilding.
-- **Playwright browser cache:** `e2e` caches `~/.cache/ms-playwright` using key `${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}`.
+- **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it and runs preview-first mode.
+- **Turbo cache key (stable):** `${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}` (reduced SHA-only misses).
+- **Playwright browser cache key (stable):** `${{ runner.os }}-playwright-browsers-${{ hashFiles('package-lock.json', 'validations/sqlite-benchmark/browser/playwright.config.ts', 'validations/wasm-plugin/host/playwright.config.ts') }}`.
+- **E2E affected-first execution:** `Run E2E Tests (affected)` uses `--filter=${{ needs.changes.outputs.turbo_filter }}` when base commit is locally resolvable; otherwise falls back to full E2E safely.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
+- **Vitest reporting (CI):** default Vitest GitHub summary blocks are suppressed and replaced with an aggregated detailed report (`.artifacts/vitest/summary.md` + uploaded artifact `vitest-detailed-report`).
 
 ### Invalidation Rules
 
 - **npm cache invalidates when:** Node version or lockfile changes.
-- **Playwright cache invalidates when:** `package-lock.json` hash changes or runner OS changes.
+- **Playwright cache invalidates when:** lockfile, Playwright config, or runner OS changes.
+- **Turbo cache invalidates when:** lockfile, `turbo.json`, or runner OS changes.
 - **Build artifact invalidates when:** a new workflow run executes (artifact is per-run, retention 7 days).
 
 ### Why This Avoids Waste
 
 - Prevents duplicate `npm run build` in both `build` and `e2e` jobs.
-- Avoids repeated Playwright browser downloads when lockfile/OS are unchanged.
+- Avoids repeated Playwright browser downloads when lockfile/config/OS are unchanged.
+- Avoids hard failure mode when turbo filter base SHA is unavailable in shallow SCM state (auto full fallback).
 - Avoids running E2E setup and report upload while suite is not yet implemented.
+- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary.
 
 ### Residual Cost (Expected)
 

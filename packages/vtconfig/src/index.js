@@ -17,6 +17,26 @@ export const wasmBrowserBaseConfig = {
   },
 };
 
+function getCiVitestReporterOptions() {
+  if (process.env.GITHUB_ACTIONS !== 'true') {
+    return {};
+  }
+
+  const lifecycle = (process.env.npm_lifecycle_event || 'run')
+    .replace(/[^a-zA-Z0-9_-]/g, '-');
+
+  return {
+    reporters: [
+      ['github-actions', { jobSummary: { enabled: false } }],
+      'default',
+      'json',
+    ],
+    outputFile: {
+      json: `.artifacts/vitest/report-${lifecycle}.json`,
+    },
+  };
+}
+
 export function withWasmBrowserConfig(overrides = {}) {
   return mergeConfig(wasmBrowserBaseConfig, overrides);
 }
@@ -91,6 +111,7 @@ export const baseConfig = {
     exclude: ['node_modules/', '**/dist/**', '.idea', '.git', '.cache', 'validations/'],
     testTimeout: 15000,
     hookTimeout: 15000,
+    ...getCiVitestReporterOptions(),
   },
   resolve: {
     alias: getAliases(process.cwd()) // Fallback for direct use

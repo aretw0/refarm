@@ -229,6 +229,19 @@ jobs:
         if: needs.changes.outputs.code_changes != 'true'
         run: echo "::notice::Skipping Full Turbo verification (no code-impacting changes detected)."
 
+      - name: Append detailed Vitest report
+        if: always() && needs.changes.outputs.code_changes == 'true'
+        run: node scripts/ci/summarize-vitest-reports.mjs
+
+      - name: Upload Vitest detailed report artifact
+        if: always() && needs.changes.outputs.code_changes == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: vitest-detailed-report
+          path: .artifacts/vitest
+          retention-days: 14
+          if-no-files-found: warn
+
       # Specialized gates for Tractor (Performance & Coverage)
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
