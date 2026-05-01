@@ -205,12 +205,21 @@ else
     for ws in $CHANGED_WORKSPACES; do
       [ -f "$ws/package.json" ] || continue
 
-      if timeout 45 env CI=1 npm --prefix "$ws" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      # Astro apps (apps/*) run heavier lint pipelines locally (astro check + TS),
+      # so they need a slightly higher budget to avoid noisy false timeouts.
+      LINT_TIMEOUT=45
+      case "$ws" in
+        apps/*)
+          LINT_TIMEOUT=90
+          ;;
+      esac
+
+      if timeout "$LINT_TIMEOUT" env CI=1 npm --prefix "$ws" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
         echo "   ✅ Lint passed ($ws)"
       else
         LINT_STATUS=$?
         if [ "$LINT_STATUS" -eq 124 ]; then
-          echo "   ⏱️  Lint timed out ($ws)"
+          echo "   ⏱️  Lint timed out after \${LINT_TIMEOUT}s ($ws)"
           WARNINGS=1
         elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
           echo "   ❌ Lint failed ($ws)"
