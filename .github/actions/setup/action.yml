@@ -25,10 +25,10 @@ runs:
         cache: "npm"
 
     - name: Cache Turbo
-      uses: ./.github/actions/cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
-        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        key: ${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}
         restore-keys: |
           ${{ runner.os }}-turbo-
 
@@ -47,9 +47,10 @@ runs:
     - name: Cache Playwright browsers
       if: ${{ inputs.playwright-setup == 'true' }}
       id: cache-playwright
-      uses: ./.github/actions/cache-playwright
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        key: ${{ runner.os }}-playwright-browsers-${{ github.sha }}
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers-${{ hashFiles('package-lock.json', 'validations/sqlite-benchmark/browser/playwright.config.ts', 'validations/wasm-plugin/host/playwright.config.ts') }}
         restore-keys: |
           ${{ runner.os }}-playwright-browsers-
 
@@ -74,7 +75,7 @@ runs:
     - name: Cache cargo-component
       if: ${{ inputs.rust-target != '' }}
       id: cache-cargo-component
-      uses: ./.github/actions/cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cargo/bin/cargo-component
         key: ${{ runner.os }}-cargo-component-0.21.1

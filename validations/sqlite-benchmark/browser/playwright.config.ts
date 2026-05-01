@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const usePrebuiltDist = process.env.REFARM_E2E_USE_PREBUILT === "1";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   timeout: 45_000,
@@ -16,7 +18,9 @@ export default defineConfig({
     trace: "on-first-retry",
   },
   webServer: {
-    command: "npm run build && npm run preview:test",
+    command: usePrebuiltDist
+      ? "npm run preview:test:ci"
+      : "npm run build && npm run preview:test",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

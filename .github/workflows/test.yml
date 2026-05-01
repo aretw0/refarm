@@ -448,6 +448,8 @@ jobs:
     timeout-minutes: 30
     needs: [changes, build]
     if: needs.changes.outputs.run_e2e == 'true'
+    env:
+      REFARM_E2E_USE_PREBUILT: "1"
 
     steps:
       - name: Checkout
@@ -479,8 +481,12 @@ jobs:
           name: workspace-build
           path: .
 
-      - name: Run E2E Tests (Full Turbo)
-        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+      - name: Run E2E Tests (affected)
+        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd') && needs.changes.outputs.turbo_filter != ''"
+        run: npx turbo run test:e2e --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+
+      - name: Run E2E Tests (full fallback)
+        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd') && needs.changes.outputs.turbo_filter == ''"
         run: npx turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
