@@ -121,6 +121,7 @@
 		"astro": "6.1.8",
 		"dompurify": "3.4.2",
 		"postcss": "8.5.10",
+		"uuid": "14.0.0",
 		"yaml-language-server": {
 			"yaml": "2.8.3"
 		}
