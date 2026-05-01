@@ -1,54 +1,39 @@
 {
-  "context": "Checkpoint 2026-05-01T02:54Z after assimilating unified Refarm host direction and validating second consumer for DS loading primitives. Branch develop remains intentionally local-ahead of origin/develop; user prefers batching local validations and pushing/watching CI only once per meaningful package. Worktree should be clean after this handoff commit. Disk remains constrained but stable at ~14GB free on /workspaces/refarm, 98% used.",
-  "timestamp": "2026-05-01T02:54:00.000Z",
-  "current_phase": 30,
+  "context": "Checkpoint 2026-05-01T03:00Z after post-compaction alignment: user prefers the product-facing `refarm` CLI/host to live in `apps/` as a distro, while `packages/` remain reusable blocks. Created and committed the host model doc. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
+  "timestamp": "2026-05-01T03:00:00.000Z",
+  "current_phase": 31,
   "current_tasks": [
-    "Latest remote-pushed/CI-green baseline remains 4e02e548 `refactor(homestead): scope surface context providers` unless pushed later. Local branch should be ahead of origin/develop by 29 after this handoff commit, or ahead 28 before it.",
-    "Recent commits since the primitive-promotion checkpoint: 5988fa73 `chore(project): record unified host direction`; 9f986da8 `refactor(app-me): reuse ds loading primitives`. Earlier critical local commits remain: 9688782f `feat(ds): promote studio visual primitives`; 273712f4 `feat(homestead): share reactive element lifecycle`; 99144678 `docs(ui): record primitive promotions`; 40d60a77 `chore(project): checkpoint primitive promotions`.",
-    "5988fa73 assimilated the user's Pi analogy into the project board: `.project/decisions.json` now includes DEC-031 stating that Refarm should converge to a unified `refarm` host with TUI/Web/headless renderers rather than disconnected `apps/*`; `.pi/todos/d777f597.md` tracks planning for the unified host and renderer contract. Attempting to append a requirement through the project tool failed because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale` fields; do not normalize that casually.",
-    "9f986da8 made `apps/me` a second consumer of DS loading primitives: `apps/me/src/pages/index.astro` now uses `.refarm-loading-state` and `.refarm-spinner`; app-local loading CSS was removed. `apps/me/tsconfig.json` gained `@refarm.dev/locales/*` mapping so type-check can follow Homestead source imports.",
-    "Conceptual alignment from user: Pi is a single process that can show TUI or Web depending on extension/use. Refarm should aim for a canonical host/CLI process that initializes runtime/plugins/trust/telemetry/streams/actions and can expose Web, TUI, or headless renderers. Web may involve a browser/server helper process physically, but logically it should be one host/runtime. Apps remain product/workbench distributions, not the only usage path.",
-    "Key analogy captured: Pi is agent-first (`pi-agent-core`, `pi-coding-agent`, `pi-tui`, `pi-web-ui`); Refarm is sovereign-graph/plugin-first. The future coding agent should be an actor on the Refarm host, using platform contracts instead of owning all UI/runtime itself.",
-    "Validation passed for app-me second consumer: `npm --prefix apps/me run type-check`; `npm --prefix apps/me run build`; `npm run project:validate --silent`; `git diff --check`. Prior validations still relevant: DS build, Homestead custom-element test/type-check/build, apps/dev tests/type-check/build all passed after primitive promotions.",
-    "Known Vite browser externalization warnings remain non-blocking for `node:fs/promises` and `node:path` via registry/tractor/heartwood/jco during app builds.",
-    "No cleanup was run. Disk snapshot around 14GB free, 98% used."
+    "Latest commits: 961167bc `docs(architecture): define refarm host model`; faf0dcaf `chore(project): checkpoint unified host direction`; 9f986da8 `refactor(app-me): reuse ds loading primitives`; 5988fa73 `chore(project): record unified host direction`.",
+    "`docs/REFARM_HOST_MODEL.md` now defines the distro-owned host / block-owned primitives model. The CLI product can live under `apps/` (future `apps/refarm` or `apps/cli`), while packages provide runtime, plugin, renderer, trust, telemetry, Homestead, Tractor and DS primitives.",
+    "`docs/ARCHITECTURE.md` now links the host rule in the Blocks and Distros section. `docs/UI_ARCHITECTURE.md` links the host model from the Astro-first UI decision.",
+    "`.project/decisions.json` now includes DEC-032: keep the CLI/host product in `apps/`, keep reusable blocks in `packages/`. `.pi/todos/d777f597.md` was appended with this alignment.",
+    "Validation after docs slice: `npm run project:validate --silent` and `git diff --check` passed. No app/package build was run because this was docs/board-only.",
+    "Current git state after docs commit: `develop...origin/develop [ahead 30]` before this handoff update. Disk remains about 14GB free, 98% used."
   ],
   "blockers": [
-    "Do not push/watch GitHub Actions after every small slice. User preference remains: validate locally, accumulate meaningful package, then push/monitor CI once.",
-    "Disk is stable at ~14GB free but host remains 98% used. Use `npm run clean:light --silent` only if generated artifacts grow meaningfully or free space drops near 2-3GB.",
-    "CI/E2E speed work is backlogged in `.pi/todos/e1279bab.md`; do not switch lanes unless requested or after product/extensibility/UI architecture batch is ready.",
-    "Builds can rewrite `validations/sqlite-benchmark/browser/public/sqlite3-worker1.mjs` by inlining the LANG expression. Inspect and restore if it appears unless intentional.",
-    "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary.",
-    "Project requirements append tooling currently fails due existing schema-invalid `REQ-AGENT-*` entries with `source: user-insight` and `rationale`. Decisions append/edit is okay if kept surgical; avoid normalizing old requirement entries unless explicitly planned.",
-    "Avoid editing `packages/homestead/test/Shell.test.ts` with tools that autoformat the whole file; previous attempt produced a huge diff and was reverted."
+    "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
+    "Disk remains constrained at about 14GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
+    "Project requirements append tooling still fails because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale`; avoid broad normalization unless explicitly planned.",
+    "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion; an earlier edit attempted to reformat large tables and was restored.",
+    "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
   ],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -15`. Expect develop ahead 29 if this handoff is committed after 9f986da8, or ahead 28 before handoff commit.",
-    "Commit this handoff checkpoint as `chore(project): checkpoint unified host direction` if not already committed.",
-    "Best next architecture slice: create a concise ADR/doc, likely `docs/REFARM_HOST_MODEL.md`, defining the unified `refarm` host model: runtime responsibilities, renderer responsibilities, and what remains in apps/packages. Link it from `docs/UI_ARCHITECTURE.md` and/or `docs/ARCHITECTURE.md`. Keep it conceptual; do not scaffold CLI yet unless requested.",
-    "Best next frontend/platform slice: define a minimal renderer contract vocabulary shared by Web/TUI/headless: slots, surfaces, actions, streams, status, telemetry, trust gates. This can live as documentation first; implementation can follow after second consumers are clearer.",
-    "Best next validation slice: use `apps/me` to consume one more safe DS/Homestead primitive only if it naturally fits; avoid forcing app/dev abstractions wholesale into apps/me.",
-    "Alternative next Homestead slice: sketch a small `@refarm.dev/homestead/sdk/host` interface for host-managed runtime/actions/renderers, but only after host model doc; do not move app-specific plugins/demos/copy.",
-    "Alternative trust slice: harden `packages/homestead/src/sdk/Shell.ts` trusted HTML rendering with a named sanitizer/trust policy before richer external surfaces; avoid broad formatting churn.",
-    "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once.",
-    "If disk drops near 2-3GB free, run `npm run clean:light --silent` and re-check `df -h /workspaces/refarm`."
+    "First command next turn: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -8`. Expect ahead 31 if this handoff commit is present, or ahead 30 before it.",
+    "Best next implementation slice: define the minimal renderer contract vocabulary in docs or types: surfaces, slots, host context/actions, streams, telemetry, diagnostics, trust status. Keep it package-neutral first.",
+    "Alternative next frontend proof: use `apps/me` as second consumer for one more safe DS/Homestead primitive only if it naturally fits; avoid forcing app-dev abstractions wholesale.",
+    "Alternative platform slice: sketch future `apps/refarm`/`apps/cli` responsibilities without scaffolding code yet: commands, modes (`web`, `tui`, `headless`), profiles, and which packages it composes.",
+    "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
   ],
   "open_questions": [
-    "Should the unified host be `packages/cli`, `packages/refarm-host`, or both (library + bin)?",
-    "Should TUI be `packages/tui` (generic renderer primitives) plus host integration, or `packages/homestead-tui` because it understands Homestead semantics?",
-    "How much of Pi's extension surface should be mirrored vs adapted to Refarm's plugin/manifest/surface/action model?",
-    "When does the Refarm agent become good enough that the user can pragmatically stop using Pi for normal work? What minimum loop is required: sessions, file tools, shell, model routing, TUI/Web, plugin trust?",
-    "Should DS data table/list/loading primitives get visual regression/storybook stories now, or wait until more consumers exist?",
-    "Should `packages/homestead/src/sdk/Shell.ts` trusted HTML rendering get a sanitizer/trust policy before richer external external surfaces?",
-    "When pushing accumulated commits, should local checkpoint/backlog commits stay in history or be squashed/reordered?"
+    "Should the future CLI distro be named `apps/refarm`, `apps/cli`, or another app name?",
+    "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
+    "What is the minimum agent loop required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?",
+    "Should the next slice be renderer contract documentation, a small typed interface, a CLI distro skeleton, or more second-consumer UI proof?"
   ],
   "key_decisions_pending": [
-    "Next lane choice after compaction: host model ADR, renderer contract doc, second-consumer adoption, Homestead host interface, sanitizer/trust hardening, or push/CI batch.",
-    "Accepted DEC-031: Refarm should converge toward a unified `refarm` host with TUI/Web/headless renderers over shared runtime contracts; apps are distributions/workbenches, not the architecture's center.",
-    "Accepted promotion policy: apps/dev incubates; Homestead owns semantic runtime/plugin/surface mechanics; DS owns repeated visual primitives; apps keep host behavior/copy/fixtures.",
-    "Accepted UI policy remains Astro-first composition, Homestead runtime contracts, small client controllers/custom elements, no accidental React.",
-    "Boundary decision remains active: Studio is shared Homestead primitive; `apps/dev` is reference workbench. Continue enforcing this in code placement.",
-    "Whether to spend CI/E2E optimization backlog work vs continue product/extensibility/UI architecture work."
+    "DEC-031 remains accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
+    "DEC-032 is now accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
+    "Continue enforcing Astro-first UI, Homestead semantic runtime contracts, DS visual primitives, and apps as product/workbench distros."
   ],
   "files_in_flux": [
     ".project/handoff.json"
