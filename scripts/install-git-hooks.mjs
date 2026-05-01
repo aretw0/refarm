@@ -24,11 +24,31 @@ const hookContent = `#!/bin/sh
 # Pre-push hook: valida qualidade antes de push
 # Installed by: npm run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
+# Strategy: selective workspace checks + commit cache to avoid re-running
 
 # Helper function to filter Vite CJS deprecation warnings
 # (informational only, not a functional issue)
 filter_vite_warning() {
   grep -v "The CJS build of Vite's Node API is deprecated" | grep -v "vite.dev/guide/troubleshooting"
+}
+
+has_npm_script() {
+  script_name="$1"
+  workspace_dir="$2"
+  node -e 'const fs=require("fs");const path=require("path");const pkgPath=path.join(process.argv[2],"package.json");const pkg=JSON.parse(fs.readFileSync(pkgPath,"utf8"));process.exit(pkg.scripts&&pkg.scripts[process.argv[1]]?0:1);' "$script_name" "$workspace_dir" >/dev/null 2>&1
+}
+
+pick_test_script() {
+  workspace_dir="$1"
+  if has_npm_script "test:unit" "$workspace_dir"; then
+    echo "test:unit"
+    return 0
+  fi
+  if has_npm_script "test" "$workspace_dir"; then
+    echo "test"
+    return 0
+  fi
+  return 1
 }
 
 echo "🔍 Running pre-push validation..."
@@ -52,8 +72,12 @@ NEEDS_LINT=0
 NEEDS_TYPECHECK=0
 NEEDS_UNIT_TESTS=0
 FORCE_GLOBAL_LINT=0
+FORCE_GLOBAL_TYPECHECK=0
 FORCE_GLOBAL_UNIT_TESTS=0
-CHANGED_PACKAGES=""
+NEEDS_QUALITY_GATE=0
+NEEDS_SECURITY_AUDIT=0
+CHANGED_WORKSPACES=""
+PUSH_SHAS=""
 
 while read local_ref local_sha remote_ref remote_sha
 do
@@ -65,17 +89,28 @@ do
     continue
   fi
   DELETE_ONLY_PUSH=0
+  PUSH_SHAS="$PUSH_SHAS $local_sha"
 
   # Gather changed files for this ref update
   if [ "$remote_sha" = "$ZERO_SHA" ]; then
-    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "$local_sha" 2>/dev/null || true)
+    if git rev-parse --verify origin/main >/dev/null 2>&1; then
+      BASE_SHA=$(git merge-base "$local_sha" origin/main 2>/dev/null || true)
+    else
+      BASE_SHA=""
+    fi
+
+    if [ -n "$BASE_SHA" ]; then
+      CHANGED_FILES=$(git diff --name-only "$BASE_SHA" "$local_sha" 2>/dev/null || true)
+    else
+      CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r "$local_sha" 2>/dev/null || true)
+    fi
   else
     CHANGED_FILES=$(git diff --name-only "$remote_sha" "$local_sha" 2>/dev/null || true)
   fi
 
   [ -z "$CHANGED_FILES" ] && continue
 
-  printf '%s\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
+  printf '%s\\n' "$CHANGED_FILES" >> "$CHANGED_FILES_ALL"
 
   # Lint/type-check/unit-tests are triggered by source or build/lint config changes.
   # Dependency-only manifest bumps (package-lock/package.json) stay CI-driven.
@@ -90,22 +125,54 @@ do
 
   if echo "$CHANGED_FILES" | grep -Eq '(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
     FORCE_GLOBAL_LINT=1
+    FORCE_GLOBAL_TYPECHECK=1
     FORCE_GLOBAL_UNIT_TESTS=1
+  fi
+
+  if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*(/src/|/test/|\\.test\\.|\\.spec\\.|\\.wit$)|(^|/)specs/'; then
+    NEEDS_QUALITY_GATE=1
+  fi
+
+  if echo "$CHANGED_FILES" | grep -Eq '(^|/)package\\.json$|(^|/)package-lock\\.json$'; then
+    NEEDS_SECURITY_AUDIT=1
   fi
 done < "$REFS_FILE"
 
 rm -f "$REFS_FILE"
 sort -u "$CHANGED_FILES_ALL" -o "$CHANGED_FILES_ALL" 2>/dev/null || true
-CHANGED_PACKAGES=$(sed -n 's#^packages/\\([^/]*\\)/.*#\\1#p' "$CHANGED_FILES_ALL" | sort -u | tr '\n' ' ' | xargs)
+CHANGED_WORKSPACES=$(awk -F/ '
+  ($1 ~ /^(apps|packages|templates)$/ && $2 != "") {print $1"/"$2; next}
+  ($1 == "validations" && $2 != "" && ($3 == "host" || $3 == "browser" || $3 == "hello-world")) {print $1"/"$2"/"$3; next}
+  ($1 == "validations" && $2 != "") {print $1"/"$2; next}
+' "$CHANGED_FILES_ALL" | sort -u | while read ws; do
+  [ -z "$ws" ] && continue
+  [ -f "$ws/package.json" ] && echo "$ws"
+done | sort -u | tr '\\n' ' ' | xargs)
+
+CACHE_FILE=".git/.refarm-prepush-validated-shas"
+touch "$CACHE_FILE"
+UNTESTED_SHAS=""
+for sha in $PUSH_SHAS; do
+  [ -z "$sha" ] && continue
+  if ! grep -q "^$sha$" "$CACHE_FILE" 2>/dev/null; then
+    UNTESTED_SHAS="$UNTESTED_SHAS $sha"
+  fi
+done
 
 if [ $HAS_REFS -eq 1 ] && [ $DELETE_ONLY_PUSH -eq 1 ]; then
   echo "🧹 Delete-only push detected. Skipping local validation."
   exit 0
 fi
 
-echo "🧭 Change profile: lint=$NEEDS_LINT type-check=$NEEDS_TYPECHECK unit-tests=$NEEDS_UNIT_TESTS"
-if [ -n "$CHANGED_PACKAGES" ]; then
-  echo "📦 Changed packages: $CHANGED_PACKAGES"
+if [ -n "$PUSH_SHAS" ] && [ -z "$(echo "$UNTESTED_SHAS" | xargs)" ]; then
+  echo "⚡ All commits in this push were already locally validated."
+  echo "🚀 Push allowed"
+  exit 0
+fi
+
+echo "🧭 Change profile: lint=$NEEDS_LINT type-check=$NEEDS_TYPECHECK unit-tests=$NEEDS_UNIT_TESTS qgate=$NEEDS_QUALITY_GATE audit=$NEEDS_SECURITY_AUDIT"
+if [ -n "$CHANGED_WORKSPACES" ]; then
+  echo "📦 Changed workspaces: $CHANGED_WORKSPACES"
 fi
 echo ""
 
@@ -133,25 +200,24 @@ if [ $NEEDS_LINT -eq 0 ]; then
 else
   LINT_FAILED=0
 
-  if [ -n "$CHANGED_PACKAGES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
-    echo "   🔎 Scoped lint for changed packages"
-    for pkg in $CHANGED_PACKAGES; do
-      PKG_DIR="packages/$pkg"
-      [ -f "$PKG_DIR/package.json" ] || continue
+  if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
+    echo "   🔎 Scoped lint for changed workspaces"
+    for ws in $CHANGED_WORKSPACES; do
+      [ -f "$ws/package.json" ] || continue
 
-      if timeout 45 env CI=1 npm --prefix "$PKG_DIR" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-        echo "   ✅ Lint passed ($PKG_DIR)"
+      if timeout 45 env CI=1 npm --prefix "$ws" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+        echo "   ✅ Lint passed ($ws)"
       else
         LINT_STATUS=$?
         if [ "$LINT_STATUS" -eq 124 ]; then
-          echo "   ⏱️  Lint timed out ($PKG_DIR)"
+          echo "   ⏱️  Lint timed out ($ws)"
           WARNINGS=1
         elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-          echo "   ❌ Lint failed ($PKG_DIR)"
+          echo "   ❌ Lint failed ($ws)"
           tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
           LINT_FAILED=1
         else
-          echo "   ⚠️  Lint failed ($PKG_DIR)"
+          echo "   ⚠️  Lint failed ($ws)"
           WARNINGS=1
         fi
       fi
@@ -181,13 +247,13 @@ else
 fi
 echo ""
 
-# 2. Type-check preflight (fast local guard)
-echo "🔤 Checking types (fast preflight)..."
+# 2. Type-check preflight (fast local guard + scoped workspace checks)
+echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
 else
   if timeout 120 env CI=1 npm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-    echo "   ✅ Type-check preflight passed"
+    echo "   ✅ TSConfig guard passed"
   else
     TYPECHECK_STATUS=$?
     TYPECHECK_OUTPUT=$(cat /tmp/prepush-typecheck.out /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true)
@@ -214,6 +280,68 @@ else
       fi
     fi
   fi
+
+  if [ $BLOCKING_FAILED -eq 0 ]; then
+    TYPECHECK_FAILED=0
+
+    if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
+      echo "   🔎 Scoped type-check for changed workspaces"
+      for ws in $CHANGED_WORKSPACES; do
+        [ -f "$ws/package.json" ] || continue
+        if ! has_npm_script "type-check" "$ws"; then
+          continue
+        fi
+
+        if timeout 90 env CI=1 npm --prefix "$ws" run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+          echo "   ✅ Type-check passed ($ws)"
+        else
+          TC_STATUS=$?
+          if [ "$TC_STATUS" -eq 124 ]; then
+            if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+              echo "   ❌ Type-check timed out ($ws)"
+              TYPECHECK_FAILED=1
+            else
+              echo "   ⚠️  Type-check timed out ($ws)"
+              WARNINGS=1
+            fi
+          elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+            echo "   ❌ Type-check failed ($ws)"
+            tail -n 40 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+            TYPECHECK_FAILED=1
+          else
+            echo "   ⚠️  Type-check failed ($ws)"
+            WARNINGS=1
+          fi
+        fi
+      done
+    else
+      if timeout 120 env CI=1 npm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        echo "   ✅ Global type-check passed"
+      else
+        TC_STATUS=$?
+        if [ "$TC_STATUS" -eq 124 ]; then
+          if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+            echo "   ❌ Global type-check timed out"
+            TYPECHECK_FAILED=1
+          else
+            echo "   ⚠️  Global type-check timed out"
+            WARNINGS=1
+          fi
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Global type-check failed"
+          tail -n 40 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+          TYPECHECK_FAILED=1
+        else
+          echo "   ⚠️  Global type-check failed"
+          WARNINGS=1
+        fi
+      fi
+    fi
+
+    if [ $TYPECHECK_FAILED -eq 1 ]; then
+      BLOCKING_FAILED=1
+    fi
+  fi
 fi
 echo ""
 
@@ -224,20 +352,24 @@ if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
 else
   UNIT_WARN=0
 
-  if [ -n "$CHANGED_PACKAGES" ] && [ $FORCE_GLOBAL_UNIT_TESTS -eq 0 ]; then
-    echo "   🔎 Scoped unit tests for changed packages"
-    for pkg in $CHANGED_PACKAGES; do
-      PKG_DIR="packages/$pkg"
-      [ -f "$PKG_DIR/package.json" ] || continue
+  if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_UNIT_TESTS -eq 0 ]; then
+    echo "   🔎 Scoped tests for changed workspaces"
+    for ws in $CHANGED_WORKSPACES; do
+      [ -f "$ws/package.json" ] || continue
 
-      if timeout 90 env CI=1 npm --prefix "$PKG_DIR" run test:unit --if-present --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-        echo "   ✅ Unit tests passed ($PKG_DIR)"
+      TEST_SCRIPT=$(pick_test_script "$ws" || true)
+      if [ -z "$TEST_SCRIPT" ]; then
+        continue
+      fi
+
+      if timeout 90 env CI=1 npm --prefix "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+        echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
       else
         UNIT_STATUS=$?
         if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Unit tests timed out ($PKG_DIR)"
+          echo "   ⚠️  Tests timed out ($ws:$TEST_SCRIPT)"
         else
-          echo "   ⚠️  Unit tests failed ($PKG_DIR)"
+          echo "   ⚠️  Tests failed ($ws:$TEST_SCRIPT)"
         fi
         UNIT_WARN=1
       fi
@@ -264,34 +396,42 @@ echo ""
 
 # 4. Quality Gate (SDD->BDD->TDD->DDD)
 echo "🔍 Checking Refarm Quality Gate..."
-if timeout 120 node packages/toolbox/src/quality-gate.mjs; then
-  :
+if [ $NEEDS_QUALITY_GATE -eq 0 ]; then
+  echo "   ⏭️  Quality Gate skipped (no source/spec/test deltas in push range)"
 else
-  QG_STATUS=$?
-  if [ "$QG_STATUS" -eq 124 ]; then
-    echo "⏱️  Quality Gate timed out after 120s"
+  if timeout 120 node packages/toolbox/src/quality-gate.mjs; then
+    :
+  else
+    QG_STATUS=$?
+    if [ "$QG_STATUS" -eq 124 ]; then
+      echo "⏱️  Quality Gate timed out after 120s"
+    fi
+    if [ "$IS_PROTECTED_BRANCH" -eq 1 ]; then
+      echo "❌ Quality Gate failed (blocking in strict mode)."
+      exit 1
+    fi
+    echo "⚠️ Quality Gate failed (warning in permissive mode)."
+    WARNINGS=1
   fi
-  if [ "$IS_PROTECTED_BRANCH" -eq 1 ]; then
-    echo "❌ Quality Gate failed (blocking in strict mode)."
-    exit 1
-  fi
-  echo "⚠️ Quality Gate failed (warning in permissive mode)."
-  WARNINGS=1
 fi
 echo ""
 
 # 5. Security audit (high/critical only)
 echo "🔒 Checking security (advisory local check)..."
-if timeout 120 npm audit --audit-level=high --silent 2>/dev/null; then
-  echo "   ✅ No high/critical vulnerabilities"
+if [ $NEEDS_SECURITY_AUDIT -eq 0 ]; then
+  echo "   ⏭️  Security audit skipped (no manifest/lockfile changes in push range)"
 else
-  AUDIT_STATUS=$?
-  if [ "$AUDIT_STATUS" -eq 124 ]; then
-    echo "   ⏱️  Security check timed out (non-blocking local warning)"
+  if timeout 120 npm audit --audit-level=high --silent 2>/dev/null; then
+    echo "   ✅ No high/critical vulnerabilities"
   else
-    echo "   ⚠️  Security check returned issues (non-blocking local warning)"
+    AUDIT_STATUS=$?
+    if [ "$AUDIT_STATUS" -eq 124 ]; then
+      echo "   ⏱️  Security check timed out (non-blocking local warning)"
+    else
+      echo "   ⚠️  Security check returned issues (non-blocking local warning)"
+    fi
+    WARNINGS=1
   fi
-  WARNINGS=1
 fi
 echo ""
 
@@ -307,6 +447,14 @@ if [ $WARNINGS -eq 1 ]; then
   echo "   CI remains the final gate for tests/security/build"
 else
   echo "✅ Local checks passed"
+fi
+
+if [ -n "$(echo "$PUSH_SHAS" | xargs)" ]; then
+  for sha in $PUSH_SHAS; do
+    [ -z "$sha" ] && continue
+    echo "$sha" >> "$CACHE_FILE"
+  done
+  sort -u "$CACHE_FILE" -o "$CACHE_FILE" 2>/dev/null || true
 fi
 
 echo "🚀 Push allowed"
@@ -410,6 +558,8 @@ try {
 	console.log(
 		"The pre-push hook runs automatically before every push with context-aware behavior:",
 	);
+	console.log("  - selective checks for changed workspaces");
+	console.log("  - commit cache skips commits already validated locally");
 	console.log("");
 	console.log("📌 STRICT mode (on main/develop):");
 	console.log("  - Blocks push on lint + type-check failures");
