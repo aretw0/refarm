@@ -43,14 +43,16 @@ state using the same contracts as the apps?
 
 ## Implementation status (2026-05-02)
 
-`apps/refarm` now ships the first three host-boundary commands:
+`apps/refarm` now ships the host-boundary command set:
 
 - `refarm status` (human/json/markdown + artifact input validation)
 - `refarm headless` (headless snapshot-first output surface)
+- `refarm web` (web renderer preflight contract surface)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
 
-`refarm web` remains pending and should be added without splitting runtime
-policy away from the shared status/renderer contracts.
+`refarm web` currently reports renderer posture and contract health; full browser
+launcher integration remains pending and should not split runtime policy away
+from the shared status/renderer contracts.
 
 ## Renderer modes
 

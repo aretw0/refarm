@@ -6,6 +6,7 @@ describe("refarm program", () => {
 		const names = program.commands.map((command) => command.name());
 		expect(names).toContain("status");
 		expect(names).toContain("headless");
+		expect(names).toContain("web");
 		expect(names).toContain("doctor");
 	});
 });

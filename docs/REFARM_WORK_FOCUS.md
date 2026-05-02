@@ -41,7 +41,7 @@ Turn the documented `refarm` distro into the smallest useful product command.
 2. Implement boring initial commands:
    - ✅ `refarm status` for runtime/renderer/plugin/trust/disk summary;
    - ✅ `refarm headless` for machine-readable diagnostics;
-   - ⏳ `refarm web` for launching the local Homestead/Web experience;
+   - 🟡 `refarm web` renderer preflight command is live; launcher integration still pending;
    - ✅ `refarm doctor` for preflight checks.
 3. Keep the CLI thin:
    - command UX, defaults, profiles, and release packaging stay in `apps/refarm`;
