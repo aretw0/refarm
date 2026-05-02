@@ -1,0 +1,28 @@
+graph TD
+    subgraph Distros ["Distros  (apps/)  — opinionated assemblies"]
+        direction LR
+        Homestead["apps/dev + apps/me\nHomestead · Astro / Browser"]
+        Farmhand["apps/farmhand\nFarmhand · Node.js daemon"]
+        RefarmCLI["apps/refarm\nrefarm CLI · runtime entry"]
+    end
+
+    subgraph Core ["Tractor  (dual-runtime — see runtime diagram)"]
+        direction LR
+        TractorTS["tractor-ts\nJCO · Browser / Node"]
+        TractorRS["tractor\nRust · wasmtime · IoT"]
+    end
+
+    HttpAdapt["HttpTransportAdapter\nport 42001"]
+
+    Homestead -->|"uses"| TractorTS
+    Farmhand  -->|"uses"| TractorTS
+    RefarmCLI -->|"calls HTTP"| HttpAdapt
+    HttpAdapt -->|"served by"| Farmhand
+
+    classDef app  fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+    classDef core fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef http fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+
+    class Homestead,Farmhand,RefarmCLI app;
+    class TractorTS,TractorRS core;
+    class HttpAdapt http;

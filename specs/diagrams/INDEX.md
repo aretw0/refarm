@@ -11,15 +11,36 @@ This file is the Map of Content for architecture-grade diagrams in Refarm.
 
 ## Diagram Map
 
-| Domain | Diagram | Purpose |
+### Full diagrams
+
+| Domain | Diagram | Purpose | Focused guide |
+|---|---|---|---|
+| Architecture | [Architecture Layers](./architecture-layers.svg) | Boundaries between apps, packages, contracts, and infra | — |
+| Runtime | [Plugin Lifecycle](./plugin-lifecycle.svg) | Install/verify/load/execute/teardown lifecycle | — |
+| Data | [Data Flow](./data-flow.svg) | Ingestion to JSON-LD validation and persistence | — |
+| Sync | [Sync CRDT Sequence](./sync-crdt.svg) | Peer operation flow and merge semantics | — |
+| Identity | [Identity Nostr Sequence](./identity-nostr.svg) | Identity, signing, relay verification | — |
+| Persistence | [Storage SQLite / OPFS](./storage-sqlite.svg) | Adapter, migrations, and browser storage runtime | — |
+| Delivery | [CI Pipeline](./ci-pipeline.svg) | Quality/build/e2e/audit orchestration | [CI_GUIDE.md](./CI_GUIDE.md) |
+
+### Sub-diagrams (focused views via mdt)
+
+Layer diagram sub-views → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
+
+| View | Diagram | What it shows |
 |---|---|---|
-| Architecture | [Architecture Layers](./architecture-layers.svg) | Boundaries between apps, packages, contracts, and infra |
-| Runtime | [Plugin Lifecycle](./plugin-lifecycle.svg) | Install/verify/load/execute/teardown lifecycle |
-| Data | [Data Flow](./data-flow.svg) | Ingestion to JSON-LD validation and persistence |
-| Sync | [Sync CRDT Sequence](./sync-crdt.svg) | Peer operation flow and merge semantics |
-| Identity | [Identity Nostr Sequence](./identity-nostr.svg) | Identity, signing, relay verification |
-| Persistence | [Storage SQLite / OPFS](./storage-sqlite.svg) | Adapter, migrations, and browser storage runtime |
-| Delivery | [CI Pipeline](./ci-pipeline.svg) | Quality/build/e2e/audit orchestration |
+| Distros | [layer-diagram--distros.svg](../../docs/diagrams/layer-diagram--distros.svg) | 4 apps and their Tractor connection |
+| Runtime | [layer-diagram--runtime.svg](../../docs/diagrams/layer-diagram--runtime.svg) | Dual-runtime core + WIT + plugin sandbox |
+| Data | [layer-diagram--data.svg](../../docs/diagrams/layer-diagram--data.svg) | Capability contracts → storage/sync/identity adapters |
+| Streams | [layer-diagram--streams.svg](../../docs/diagrams/layer-diagram--streams.svg) | Effort + Stream contracts → transport adapters |
+
+CI pipeline sub-views → **[CI_GUIDE.md](./CI_GUIDE.md)**
+
+| View | Diagram | What it shows |
+|---|---|---|
+| Change detection | [ci-pipeline--changes.svg](./ci-pipeline--changes.svg) | Smart filtering and job flags |
+| Quality gates | [ci-pipeline--quality.svg](./ci-pipeline--quality.svg) | Quality job + tractor specialized gates |
+| Phase gates | [ci-pipeline--phase-gates.svg](./ci-pipeline--phase-gates.svg) | SDD/BDD/TDD/DDD label-driven gates |
 
 ## Visual Showcase
 

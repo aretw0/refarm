@@ -1,0 +1,34 @@
+flowchart TD
+  subgraph Quality["quality job  (always runs on code_changes)"]
+    Q0["project:validate\n(.project cross-block consistency)"]
+    Q1["npm audit --audit-level=high"]
+    Q2["tsconfig:guard preflight"]
+
+    subgraph Smoke["task smoke  (when run_task_smoke=true)"]
+      S1["task:execution:smoke\nFarmhand CLI ↔ sidecar round-trip"]
+      S2["task:execution:smoke:pi-agent\neffort + pi-agent respond round-trip"]
+      S1 --> S2
+    end
+
+    subgraph TractorGates["tractor gates  (when tractor_gates=true)"]
+      TG1["health probe smoke\n(@refarm.dev/tractor-rs)"]
+      TG2["runtime-module:ci\nbrowser descriptor gate (tractor-ts)"]
+      TG3["runtime-descriptor:release-smoke\nrelease-path determinism"]
+      TG4["revocation diagnostics\nreport + baseline + history"]
+      TG5["Benchmark Gate\nbench:check vs main baseline\n→ comment PR if new high-water mark"]
+      TG6["Coverage Gate\ncoverage:check vs saved baseline\n→ comment PR if new high score"]
+      TG1 --> TG2 --> TG3 --> TG4 --> TG5 --> TG6
+    end
+
+    Turbo["turbo run\nbuild lint type-check\ntest:coverage test:unit test:integration\n(affected filter)"]
+
+    Q0 --> Q1 --> Q2 --> Smoke --> TractorGates --> Turbo
+  end
+
+  classDef quality fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef tractor fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef smoke   fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+
+  class Q0,Q1,Q2,Turbo quality;
+  class TG1,TG2,TG3,TG4,TG5,TG6 tractor;
+  class S1,S2 smoke;

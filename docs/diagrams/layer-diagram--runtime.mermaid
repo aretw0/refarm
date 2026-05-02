@@ -1,0 +1,48 @@
+graph TD
+    subgraph Core ["Dual-Runtime Core  — identical WIT contracts"]
+        direction LR
+        subgraph TractorTS ["tractor-ts  (TypeScript)"]
+            TS_Registry["PluginRegistry"]
+            TS_PluginHost["PluginHost\n(JCO transpile)"]
+            TS_CRDT["CRDT Store\n(Loro)"]
+            TS_Sync["SyncEngine"]
+        end
+        subgraph TractorRS ["tractor  (Rust / wasmtime)"]
+            RS_Registry["PluginRegistry"]
+            RS_PluginHost["PluginHost\n(wasmtime)"]
+            RS_CRDT["CRDT Store\n(Loro)"]
+            RS_Sync["SyncEngine"]
+        end
+    end
+
+    subgraph WIT ["WIT Contract  (refarm:plugin@0.1.0)"]
+        direction LR
+        WIT_Pkg["refarm-plugin-wit\n(canonical source)"]
+        WIT_Int["integration\n(setup · ingest · push · respond · on-event)"]
+        WIT_LLM["llm-bridge"]
+        WIT_FS["agent-fs / agent-shell"]
+        WIT_Pkg --> WIT_Int
+    end
+
+    subgraph Plugins ["Plugin Sandbox  (.wasm)"]
+        direction LR
+        PiAgent["pi-agent\n(sovereign AI)"]
+        ThirdParty["third-party plugins"]
+    end
+
+    TractorTS ---|"same WIT"| WIT_Pkg
+    TractorRS ---|"same WIT"| WIT_Pkg
+
+    WIT_Int -->|"implemented by"| PiAgent
+    WIT_Int -->|"implemented by"| ThirdParty
+    WIT_LLM -.->|"imported by"| PiAgent
+    WIT_FS  -.->|"imported by"| PiAgent
+
+    classDef core   fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef wit    fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+    classDef plugin fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+
+    class TS_Registry,TS_PluginHost,TS_CRDT,TS_Sync core;
+    class RS_Registry,RS_PluginHost,RS_CRDT,RS_Sync core;
+    class WIT_Pkg,WIT_Int,WIT_LLM,WIT_FS wit;
+    class PiAgent,ThirdParty plugin;

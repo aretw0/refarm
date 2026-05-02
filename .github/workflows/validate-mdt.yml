@@ -6,6 +6,12 @@ on:
       - "packages/pi-agent/.templates/**"
       - "packages/pi-agent/README.md"
       - "packages/pi-agent/mdt.toml"
+      - "docs/diagrams/.templates/**"
+      - "docs/diagrams/LAYERS.md"
+      - "docs/diagrams/mdt.toml"
+      - "specs/diagrams/.templates/**"
+      - "specs/diagrams/CI_GUIDE.md"
+      - "specs/diagrams/mdt.toml"
       - ".github/workflows/validate-mdt.yml"
   push:
     branches:
@@ -13,6 +19,10 @@ on:
     paths:
       - "packages/pi-agent/.templates/**"
       - "packages/pi-agent/README.md"
+      - "docs/diagrams/.templates/**"
+      - "docs/diagrams/LAYERS.md"
+      - "specs/diagrams/.templates/**"
+      - "specs/diagrams/CI_GUIDE.md"
   workflow_dispatch:
   schedule:
     - cron: "0 14 * * 3" # Every Wednesday at 14:00 UTC
@@ -44,32 +54,51 @@ jobs:
         if: steps.cache-mdt.outputs.cache-hit != 'true'
         run: cargo install mdt_cli --locked
 
-      - name: Check MDT sync
-        id: validation
+      - name: Check MDT sync — pi-agent
+        id: validation-pi-agent
         run: cd packages/pi-agent && mdt check
+        continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Check MDT sync — docs/diagrams
+        id: validation-docs-diagrams
+        run: cd docs/diagrams && mdt check
+        continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Check MDT sync — specs/diagrams
+        id: validation-specs-diagrams
+        run: cd specs/diagrams && mdt check
         continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
 
       - name: Create or update issue on failure
         if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
         uses: ./.github/actions/manage-issue
         with:
-          title: "MDT documentation drift detected in pi-agent"
+          title: "MDT documentation drift detected"
           labels: "documentation,mdt,validation"
           body: |
             # MDT Documentation Drift Detected
 
-            The `mdt check` in `packages/pi-agent` found that template blocks are out of sync with target files.
+            One or more `mdt check` runs found template blocks out of sync with target files.
 
             **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             **Branch:** ${{ github.ref_name }}
 
             ## Fix
 
-            Run `mdt update` in `packages/pi-agent/` to resync, then commit:
+            Run `mdt update` in the affected directory and commit the result:
 
             ```bash
+            # pi-agent
             cd packages/pi-agent && mdt update
-            git add README.md && git commit -m "docs: sync mdt template blocks"
+            git add README.md ROADMAP.md && git commit -m "docs: sync mdt template blocks (pi-agent)"
+
+            # docs/diagrams
+            cd docs/diagrams && mdt update
+            git add LAYERS.md && git commit -m "docs: sync mdt template blocks (docs/diagrams)"
+
+            # specs/diagrams
+            cd specs/diagrams && mdt update
+            git add CI_GUIDE.md && git commit -m "docs: sync mdt template blocks (specs/diagrams)"
             ```
-          state: ${{ steps.validation.outcome == 'success' && 'closed' || 'open' }}
+          state: ${{ (steps.validation-pi-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success') && 'closed' || 'open' }}
           token: ${{ secrets.GITHUB_TOKEN }}
