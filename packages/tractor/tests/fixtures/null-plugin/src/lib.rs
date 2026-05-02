@@ -43,6 +43,10 @@ impl Guest for NullPlugin {
     }
 
     fn on_event(_event: String, _payload: Option<String>) {}
+
+    fn respond(_payload: String) -> Result<String, PluginError> {
+        Ok("{\"content\":\"null-plugin\",\"model\":\"null\",\"provider\":\"null\",\"usage\":{\"tokens_in\":0,\"tokens_out\":0,\"estimated_usd\":0.0}}".to_string())
+    }
 }
 
 export!(NullPlugin);

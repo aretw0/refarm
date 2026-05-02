@@ -23,12 +23,12 @@ use crate::trust::{SecurityMode, TrustManager};
 
 // ── WIT Bindings: regular integration plugins ─────────────────────────────────
 //
-// Reads `wit/host/refarm-plugin-host.wit`.
+// Reads `../refarm-plugin-wit/wit/refarm-plugin-host.wit`.
 // Generates RefarmPluginHost + host traits for tractor-bridge, agent-fs, agent-shell.
 
 wasmtime::component::bindgen!({
     world: "refarm-plugin-host",
-    path: "wit/host",
+    path: "../refarm-plugin-wit/wit",
     async: true,
 });
 
@@ -47,13 +47,21 @@ pub(crate) struct TractorStore {
 }
 
 impl WasiView for TractorStore {
-    fn ctx(&mut self) -> &mut WasiCtx { &mut self.wasi }
-    fn table(&mut self) -> &mut ResourceTable { &mut self.table }
+    fn ctx(&mut self) -> &mut WasiCtx {
+        &mut self.wasi
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
 }
 
 impl wasmtime_wasi_http::WasiHttpView for TractorStore {
-    fn ctx(&mut self) -> &mut wasmtime_wasi_http::WasiHttpCtx { &mut self.http }
-    fn table(&mut self) -> &mut ResourceTable { &mut self.table }
+    fn ctx(&mut self) -> &mut wasmtime_wasi_http::WasiHttpCtx {
+        &mut self.http
+    }
+    fn table(&mut self) -> &mut ResourceTable {
+        &mut self.table
+    }
 }
 
 // ── AgentToolsHandle ──────────────────────────────────────────────────────────
@@ -78,13 +86,19 @@ impl AgentToolsHandle {
         component: atb::AgentToolsHost,
         store: Store<TractorStore>,
     ) -> Self {
-        Self { id, component, store }
+        Self {
+            id,
+            component,
+            store,
+        }
     }
 }
 
 impl std::fmt::Debug for AgentToolsHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("AgentToolsHandle").field("id", &self.id).finish()
+        f.debug_struct("AgentToolsHandle")
+            .field("id", &self.id)
+            .finish()
     }
 }
 
@@ -149,5 +163,3 @@ where
 fn is_forwardable_llm_env_key(key: &str) -> bool {
     crate::host::sensitive_aliases::is_forwardable_llm_env_key(key)
 }
-
-
