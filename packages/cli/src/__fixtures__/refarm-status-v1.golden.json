@@ -40,6 +40,7 @@
   },
   "diagnostics": [
     "renderer:non-interactive",
-    "renderer:no-rich-html"
+    "renderer:no-rich-html",
+    "runtime:not-ready"
   ]
 }

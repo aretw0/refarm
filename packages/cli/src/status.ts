@@ -49,8 +49,8 @@ export function buildRefarmStatusJson(
   options: RefarmStatusOptions,
 ): RefarmStatusJson {
   const { host, renderer, runtime, trust, streams, plugins } = options;
-  return {
-    schemaVersion: REFARM_STATUS_SCHEMA_VERSION,
+	return {
+		schemaVersion: REFARM_STATUS_SCHEMA_VERSION,
     host,
     renderer: {
       id: renderer.id,
@@ -65,12 +65,22 @@ export function buildRefarmStatusJson(
       surfaceActions: plugins?.surfaces?.actions?.length ?? 0,
     },
     trust,
-    streams: {
-      active: streams?.active ?? 0,
-      terminal: streams?.terminal ?? 0,
-    },
-    diagnostics: buildStatusDiagnostics(renderer),
-  };
+		streams: {
+			active: streams?.active ?? 0,
+			terminal: streams?.terminal ?? 0,
+		},
+		diagnostics: buildStatusDiagnostics({
+			renderer,
+			runtime,
+			trust,
+			plugins: {
+				rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
+			},
+			streams: {
+				active: streams?.active ?? 0,
+			},
+		}),
+	};
 }
 
 export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
@@ -319,15 +329,35 @@ function parseJsonString(input: string): unknown {
   }
 }
 
-function buildStatusDiagnostics(
-  renderer: HomesteadHostRendererDescriptor,
-): string[] {
-  const diagnostics: string[] = [];
-  if (!homesteadHostRendererCan(renderer, "interactive")) {
-    diagnostics.push("renderer:non-interactive");
-  }
-  if (!homesteadHostRendererCan(renderer, "rich-html")) {
-    diagnostics.push("renderer:no-rich-html");
-  }
-  return diagnostics;
+function buildStatusDiagnostics(input: {
+	renderer: HomesteadHostRendererDescriptor;
+	runtime: RuntimeSummary;
+	trust: TrustSummary;
+	plugins: { rejectedSurfaces: number };
+	streams: { active: number };
+}): string[] {
+	const { renderer, runtime, trust, plugins, streams } = input;
+	const diagnostics: string[] = [];
+	if (!homesteadHostRendererCan(renderer, "interactive")) {
+		diagnostics.push("renderer:non-interactive");
+	}
+	if (!homesteadHostRendererCan(renderer, "rich-html")) {
+		diagnostics.push("renderer:no-rich-html");
+	}
+	if (!runtime.ready) {
+		diagnostics.push("runtime:not-ready");
+	}
+	if (trust.warnings > 0) {
+		diagnostics.push("trust:warnings-present");
+	}
+	if (trust.critical > 0) {
+		diagnostics.push("trust:critical-present");
+	}
+	if (plugins.rejectedSurfaces > 0) {
+		diagnostics.push("plugins:rejected-surfaces-present");
+	}
+	if (streams.active > 0) {
+		diagnostics.push("streams:active-present");
+	}
+	return diagnostics;
 }

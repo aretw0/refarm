@@ -91,6 +91,15 @@ Use stable string codes first:
 - `plugins:rejected-surfaces-present`
 - `streams:active-present`
 
+Current builder behavior in `@refarm.dev/cli/status` emits these diagnostics
+from contract state (not UI state):
+
+- renderer capability posture (`renderer:*`)
+- runtime readiness (`runtime:not-ready`)
+- trust pressure counters (`trust:*`)
+- plugin surface rejection counts (`plugins:*`)
+- stream activity (`streams:*`)
+
 Richer diagnostic objects can be added later as `diagnosticDetails` without
 breaking consumers of the string list.
 
