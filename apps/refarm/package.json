@@ -11,7 +11,8 @@
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/doctor.test.ts test/commands/headless.test.ts test/commands/web.test.ts test/commands/tui.test.ts test/program.test.ts"
   },
   "dependencies": {
     "@refarm.dev/cli": "*",

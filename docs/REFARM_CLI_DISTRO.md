@@ -63,6 +63,18 @@ integration remains deferred.
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.
 
+### Host smoke command
+
+For fast regression checks of the unified command spine:
+
+```bash
+npm run refarm:host:smoke
+```
+
+This runs the focused `apps/refarm` command tests (`status`, `doctor`,
+`headless`, `web`, `tui`, and program wiring) without invoking the heavier
+workspace-wide suites.
+
 ## Renderer modes
 
 | Mode       | Initial role              | Uses                                                           | Output                        |
