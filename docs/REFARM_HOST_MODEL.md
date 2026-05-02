@@ -4,6 +4,9 @@ Refarm should converge on a single host experience without collapsing its
 package boundaries. The product-facing `refarm` CLI can live in `apps/`, while
 `packages/` continue to provide the reusable blocks that any distro can compose.
 
+This model is formally accepted in
+[`ADR-056`](../specs/ADRs/ADR-056-unified-refarm-host-boundary.md).
+
 ## Decision
 
 Use a **distro-owned host, block-owned primitives** model:

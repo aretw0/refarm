@@ -51,20 +51,21 @@ Architecture Decision Records for Refarm.
 | [051](ADR-051-external-signed-revocation-offline-policy.md)    | External-Signed Revocation Offline Policy Profiles                                | Accepted   | 2026-04-24 |
 | [052](ADR-052-crdt-native-agent-rendezvous.md)                 | CRDT-native agent rendezvous with A2A-compatible edges                            | Proposed   | 2026-04-24 |
 | [055](ADR-055-stream-contract-v1-transport-layer.md)           | stream-contract-v1 as Separate Transport Package Family                           | Accepted   | 2026-05-02 |
+| [056](ADR-056-unified-refarm-host-boundary.md)                 | Unified `refarm` Host Boundary (Distro-Owned Host, Block-Owned Primitives)        | Accepted   | 2026-05-02 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
 These ADRs define architecture direction but are NOT executable contracts yet. Sprint 2+ implementation required.
 
-| ADR                                                       | Title                                                           | Status      | Target          | Blockers                                                            |
-| --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | --------------- | ------------------------------------------------------------------- |
-| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | ✏️ Proposed | v0.2.0-0.3.0    | 30+ invariant tests + kernel implementation                         |
-| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | ✏️ Proposed | v0.3.0+         | 40+ integration tests + kernel implementation                       |
-| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+         | Manifest schema + PolicyManager + PerformanceMonitor implementation |
-| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0    | ConflictDetector + GraphMonitor + UI implementation                 |
-| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+         | LockManager + UI patterns + merge strategies implementation         |
-| [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | v0.1.x          | Initial host-proxied text and tool-call streaming implemented       |
-| [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Accepted    | v0.1.x          | Generic stream dual-write; governed compaction guardrails pending   |
+| ADR                                                       | Title                                                           | Status      | Target       | Blockers                                                            |
+| --------------------------------------------------------- | --------------------------------------------------------------- | ----------- | ------------ | ------------------------------------------------------------------- |
+| [020](ADR-020-sovereign-graph-versioning.md)              | Sovereign Graph Versioning (commit/branch/checkout/revert)      | ✏️ Proposed | v0.2.0-0.3.0 | 30+ invariant tests + kernel implementation                         |
+| [021](ADR-021-self-healing-and-plugin-citizenship.md)     | Self-Healing & Plugin Citizenship Monitoring                    | ✏️ Proposed | v0.3.0+      | 40+ integration tests + kernel implementation                       |
+| [022](ADR-022-policy-declarations-in-plugin-manifests.md) | Policy Declarations in Plugin Manifests (+ Performance Budgets) | ✏️ Proposed | v0.3.0+      | Manifest schema + PolicyManager + PerformanceMonitor implementation |
+| [023](ADR-023-plugin-conflict-detection.md)               | Plugin Conflict Detection and Resolution                        | ✏️ Proposed | v0.2.0-0.3.0 | ConflictDetector + GraphMonitor + UI implementation                 |
+| [024](ADR-024-pessimistic-editing-modes.md)               | Pessimistic Editing Modes (Locks via Private Branches)          | ✏️ Proposed | v0.3.0+      | LockManager + UI patterns + merge strategies implementation         |
+| [053](ADR-053-host-proxied-llm-streaming.md)              | Host-Proxied LLM Streaming Boundary                             | Accepted    | v0.1.x       | Initial host-proxied text and tool-call streaming implemented       |
+| [054](ADR-054-generic-stream-observations.md)             | Generic Stream Observations and AgentResponse Projection        | Accepted    | v0.1.x       | Generic stream dual-write; governed compaction guardrails pending   |
 
 ---
 
