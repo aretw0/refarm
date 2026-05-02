@@ -38,8 +38,25 @@ has_npm_script() {
   node -e 'const fs=require("fs");const path=require("path");const pkgPath=path.join(process.argv[2],"package.json");const pkg=JSON.parse(fs.readFileSync(pkgPath,"utf8"));process.exit(pkg.scripts&&pkg.scripts[process.argv[1]]?0:1);' "$script_name" "$workspace_dir" >/dev/null 2>&1
 }
 
+pick_lint_script() {
+  workspace_dir="$1"
+  if has_npm_script "lint:prepush" "$workspace_dir"; then
+    echo "lint:prepush"
+    return 0
+  fi
+  if has_npm_script "lint" "$workspace_dir"; then
+    echo "lint"
+    return 0
+  fi
+  return 1
+}
+
 pick_test_script() {
   workspace_dir="$1"
+  if has_npm_script "test:prepush" "$workspace_dir"; then
+    echo "test:prepush"
+    return 0
+  fi
   if has_npm_script "test:unit" "$workspace_dir"; then
     echo "test:unit"
     return 0
@@ -49,6 +66,33 @@ pick_test_script() {
     return 0
   fi
   return 1
+}
+
+workspace_lint_timeout() {
+  ws="$1"
+  case "$ws" in
+    packages/tractor)
+      echo 120
+      ;;
+    apps/*)
+      echo 90
+      ;;
+    *)
+      echo 45
+      ;;
+  esac
+}
+
+workspace_test_timeout() {
+  ws="$1"
+  case "$ws" in
+    packages/tractor)
+      echo 180
+      ;;
+    *)
+      echo 90
+      ;;
+  esac
 }
 
 echo "🔍 Running pre-push validation..."
@@ -205,28 +249,26 @@ else
     for ws in $CHANGED_WORKSPACES; do
       [ -f "$ws/package.json" ] || continue
 
-      # Astro apps (apps/*) run heavier lint pipelines locally (astro check + TS),
-      # so they need a slightly higher budget to avoid noisy false timeouts.
-      LINT_TIMEOUT=45
-      case "$ws" in
-        apps/*)
-          LINT_TIMEOUT=90
-          ;;
-      esac
+      LINT_SCRIPT=$(pick_lint_script "$ws" || true)
+      if [ -z "$LINT_SCRIPT" ]; then
+        continue
+      fi
 
-      if timeout "$LINT_TIMEOUT" env CI=1 npm --prefix "$ws" run lint --if-present --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-        echo "   ✅ Lint passed ($ws)"
+      LINT_TIMEOUT=$(workspace_lint_timeout "$ws")
+
+      if timeout "$LINT_TIMEOUT" env CI=1 npm --prefix "$ws" run "$LINT_SCRIPT" --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+        echo "   ✅ Lint passed ($ws:$LINT_SCRIPT)"
       else
         LINT_STATUS=$?
         if [ "$LINT_STATUS" -eq 124 ]; then
-          echo "   ⏱️  Lint timed out after \${LINT_TIMEOUT}s ($ws)"
+          echo "   ⏱️  Lint timed out after \${LINT_TIMEOUT}s ($ws:$LINT_SCRIPT)"
           WARNINGS=1
         elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-          echo "   ❌ Lint failed ($ws)"
+          echo "   ❌ Lint failed ($ws:$LINT_SCRIPT)"
           tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
           LINT_FAILED=1
         else
-          echo "   ⚠️  Lint failed ($ws)"
+          echo "   ⚠️  Lint failed ($ws:$LINT_SCRIPT)"
           WARNINGS=1
         fi
       fi
@@ -371,12 +413,14 @@ else
         continue
       fi
 
-      if timeout 90 env CI=1 npm --prefix "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      TEST_TIMEOUT=$(workspace_test_timeout "$ws")
+
+      if timeout "$TEST_TIMEOUT" env CI=1 npm --prefix "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
       else
         UNIT_STATUS=$?
         if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Tests timed out ($ws:$TEST_SCRIPT)"
+          echo "   ⚠️  Tests timed out after \${TEST_TIMEOUT}s ($ws:$TEST_SCRIPT)"
         else
           echo "   ⚠️  Tests failed ($ws:$TEST_SCRIPT)"
         fi
