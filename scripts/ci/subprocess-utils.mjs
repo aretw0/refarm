@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { rm } from "node:fs/promises";
+import { access, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
@@ -24,6 +24,102 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"apps/refarm",
 ];
 
+const TASK_SMOKE_WORKSPACE_ROOTS = ["packages", "apps"];
+
+async function workspacePackagePath(workspaceDir) {
+	const packagePath = path.join(workspaceDir, "package.json");
+	await access(packagePath);
+	return packagePath;
+}
+
+async function loadWorkspacePackageMap() {
+	const map = new Map();
+
+	for (const rootDir of TASK_SMOKE_WORKSPACE_ROOTS) {
+		let entries = [];
+		try {
+			entries = await readdir(rootDir, { withFileTypes: true });
+		} catch {
+			continue;
+		}
+
+		for (const entry of entries) {
+			if (!entry.isDirectory()) continue;
+			const workspaceDir = path.join(rootDir, entry.name);
+			const packagePath = path.join(workspaceDir, "package.json");
+			try {
+				const pkg = JSON.parse(await readFile(packagePath, "utf8"));
+				if (!pkg?.name) continue;
+				let hasTsBuildConfig = false;
+				try {
+					await access(path.join(workspaceDir, "tsconfig.build.json"));
+					hasTsBuildConfig = true;
+				} catch {
+					hasTsBuildConfig = false;
+				}
+				map.set(pkg.name, {
+					name: pkg.name,
+					dir: workspaceDir,
+					hasBuildScript: Boolean(pkg?.scripts?.build),
+					isTypeScriptBuild: Boolean(pkg?.scripts?.build) && hasTsBuildConfig,
+				});
+			} catch {
+				// ignore non-package directories
+			}
+		}
+	}
+
+	return map;
+}
+
+export async function assertTaskSmokeBuildOrderIntegrity(
+	loggerPrefix = "[task-smoke]",
+) {
+	const orderIndex = new Map();
+	for (const [index, workspaceDir] of TASK_SMOKE_TS_BUILD_ORDER.entries()) {
+		if (orderIndex.has(workspaceDir)) {
+			throw new Error(
+				`${loggerPrefix} duplicate workspace in build order: ${workspaceDir}`,
+			);
+		}
+		orderIndex.set(workspaceDir, index);
+		await workspacePackagePath(workspaceDir);
+	}
+
+	const workspaceByName = await loadWorkspacePackageMap();
+
+	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
+		const pkg = JSON.parse(
+			await readFile(path.join(workspaceDir, "package.json"), "utf8"),
+		);
+		const deps = {
+			...(pkg.dependencies ?? {}),
+			...(pkg.peerDependencies ?? {}),
+			...(pkg.optionalDependencies ?? {}),
+		};
+
+		for (const dependencyName of Object.keys(deps)) {
+			const dependencyWorkspace = workspaceByName.get(dependencyName);
+			if (!dependencyWorkspace || !dependencyWorkspace.isTypeScriptBuild) continue;
+			if (dependencyWorkspace.dir === workspaceDir) continue;
+
+			const dependencyIndex = orderIndex.get(dependencyWorkspace.dir);
+			const currentIndex = orderIndex.get(workspaceDir);
+			if (dependencyIndex === undefined) {
+				throw new Error(
+					`${loggerPrefix} build order missing "${dependencyWorkspace.dir}" required by "${workspaceDir}" via "${dependencyName}"`,
+				);
+			}
+
+			if (dependencyIndex > currentIndex) {
+				throw new Error(
+					`${loggerPrefix} build order is invalid: "${dependencyWorkspace.dir}" must run before "${workspaceDir}" (dependency "${dependencyName}")`,
+				);
+			}
+		}
+	}
+}
+
 async function resetTsBuildArtifacts(workspaceDir) {
 	const distDir = path.join(workspaceDir, "dist");
 	const tsBuildInfo = path.join(workspaceDir, "tsconfig.build.tsbuildinfo");
@@ -35,6 +131,7 @@ export async function prepareTaskSmokeTypeBuilds(
 	env,
 	loggerPrefix = "[task-smoke]",
 ) {
+	await assertTaskSmokeBuildOrderIntegrity(loggerPrefix);
 	console.log(
 		`${loggerPrefix} preparing deterministic TS dependency builds...`,
 	);
