@@ -133,6 +133,25 @@ async function main() {
 		assertIncludes(webPreflightOutput, "available via --launch");
 		assertIncludes(webPreflightOutput, "(dev|preview)");
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm --version resolves from env`);
+		const versionRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"--version",
+			],
+			{
+				env: { ...process.env, REFARM_VERSION: "9.9.9-test" },
+				captureOutput: true,
+			},
+		);
+		const versionOutput = stripAnsi(
+			`${versionRun.stdout}\n${versionRun.stderr}`,
+		);
+		assertIncludes(versionOutput, "9.9.9-test");
+
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --input preflight hint`);
 		const tuiPreflightRun = await runSubprocess(
 			process.execPath,

@@ -70,8 +70,9 @@ host experiences carry consistent identity without affecting `--json`/
 `--markdown` contracts. Version is resolved without importing `package.json`
 as a module (`REFARM_VERSION` env first, then `npm_package_version`, then
 package metadata read fallback) through shared `runtime-metadata` helpers so
-other host commands can reuse the same resolution path. Set
-`REFARM_BRAND_BANNER=0` to suppress terminal banner output.
+other host commands can reuse the same resolution path (`refarm --version`,
+launch banner, doctor metadata). Set `REFARM_BRAND_BANNER=0` to suppress
+terminal banner output.
 
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.
@@ -89,7 +90,7 @@ npm run refarm:host:smoke:ci
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
-  output (`refarm web --input`, `refarm tui --input`,
+  output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, and `refarm tui --launch --dry-run`) and verifies
   invalid launcher values and invalid launch-guard combinations
