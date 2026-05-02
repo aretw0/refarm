@@ -5,6 +5,8 @@ The Refarm Toolbox is a collection of shared developer utilities, build tools, a
 ## Features
 
 - **`git-commit-auto`**: Refarm's atomic git commit automator.
+- **Important-commit guardrail**: high-impact groups (security/CI/release/Rust-WIT surfaces) require explicit commit-message confirmation before execution.
+- **Strict mode (`GIT_COMMIT_AUTO_STRICT=1` or `--strict-important`)**: blocks generic commit messages and forces specific phrasing for important/low-confidence groups.
 - **`task:finish` atomic-first flow**: the finish workflow now offers atomic commit grouping before falling back to a single branch-based commit.
 - **Shared Build Scripts**: Standardized bundling and transpilation logic.
 - **WASM Component Tools**: Utilities for working with the WASM Component Model and JCO.

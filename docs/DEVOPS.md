@@ -10,9 +10,30 @@
 - [Security & Vulnerability Management](#security--vulnerability-management)
 - [Environment Validation](#environment-validation)
 - [CI Caching Strategy](#ci-caching-strategy)
+- [Commit Automation Guardrails](#commit-automation-guardrails)
 - [Docker & Container Notes](#docker--container-notes)
 
 ---
+
+## Commit Automation Guardrails
+
+`npm run git-commit-auto` now treats high-impact groups as **important commits**
+(security, CI/release surfaces, Rust/WIT contract paths).
+
+For these groups, the tool still handles the operational path (`git add` + `git commit`),
+but requires explicit commit-message confirmation before execution. This keeps edge-case
+semantics human-curated while preserving automation for repetitive mechanics.
+
+Strict mode (recommended for stabilization/release windows):
+
+```bash
+GIT_COMMIT_AUTO_STRICT=1 npm run git-commit-auto
+# or
+npm run git-commit-auto -- --strict-important
+```
+
+Strict mode rejects generic messages (e.g. `chore: update implementation`) and
+requires specific commit wording for important/low-confidence groups.
 
 ## Dev Container Setup
 
