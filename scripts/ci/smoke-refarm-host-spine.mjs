@@ -30,6 +30,16 @@ async function main() {
 
 	console.log(`${LOGGER_PREFIX} running focused host command smoke suite...`);
 	await runSubprocess("npm", ["run", "refarm:host:smoke"], { env });
+
+	if (!envFlag("REFARM_HOST_SMOKE_SKIP_CLI_FLOWS")) {
+		console.log(`${LOGGER_PREFIX} running CLI flow smoke checks...`);
+		await runSubprocess("npm", ["run", "refarm:host:smoke:cli"], { env });
+	} else {
+		console.log(
+			`${LOGGER_PREFIX} skipping CLI flow smoke checks (REFARM_HOST_SMOKE_SKIP_CLI_FLOWS=1)`,
+		);
+	}
+
 	console.log(`${LOGGER_PREFIX} passed`);
 }
 

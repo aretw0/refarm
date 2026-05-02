@@ -151,6 +151,28 @@ export async function prepareTaskSmokeTypeBuilds(
 	}
 }
 
+export function stripAnsi(input) {
+	return input.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
+}
+
+export function parseJsonOutput(output) {
+	const cleaned = stripAnsi(output).trim();
+	if (!cleaned) {
+		throw new Error("Command produced empty JSON output");
+	}
+
+	try {
+		return JSON.parse(cleaned);
+	} catch {
+		const start = cleaned.indexOf("{");
+		const end = cleaned.lastIndexOf("}");
+		if (start >= 0 && end > start) {
+			return JSON.parse(cleaned.slice(start, end + 1));
+		}
+		throw new Error(`Unable to parse JSON output:\n${cleaned}`);
+	}
+}
+
 export function runSubprocess(command, commandArgs, options = {}) {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, commandArgs, {

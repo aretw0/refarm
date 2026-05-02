@@ -36,6 +36,7 @@
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"refarm:host:smoke": "npm --prefix apps/refarm run test:host-smoke",
+		"refarm:host:smoke:cli": "node scripts/ci/smoke-refarm-host-cli-flows.mjs",
 		"refarm:host:smoke:ci": "node scripts/ci/smoke-refarm-host-spine.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",

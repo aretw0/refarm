@@ -16,36 +16,16 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import {
+	parseJsonOutput,
 	prepareTaskSmokeTypeBuilds,
 	runSubprocess,
+	stripAnsi,
 } from "./subprocess-utils.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"]);
 
 function sleep(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function stripAnsi(input) {
-	return input.replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "");
-}
-
-function parseJsonOutput(output) {
-	const cleaned = stripAnsi(output).trim();
-	if (!cleaned) {
-		throw new Error("Command produced empty JSON output");
-	}
-
-	try {
-		return JSON.parse(cleaned);
-	} catch {
-		const start = cleaned.indexOf("{");
-		const end = cleaned.lastIndexOf("}");
-		if (start >= 0 && end > start) {
-			return JSON.parse(cleaned.slice(start, end + 1));
-		}
-		throw new Error(`Unable to parse JSON output:\n${cleaned}`);
-	}
 }
 
 function extractEffortId(output) {

@@ -69,13 +69,17 @@ For fast regression checks of the unified command spine:
 
 ```bash
 npm run refarm:host:smoke
+npm run refarm:host:smoke:cli
 npm run refarm:host:smoke:ci
 ```
 
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
   `doctor`, `headless`, `web`, `tui`, and program wiring).
-- `refarm:host:smoke:ci` runs the same smoke through a CI wrapper script under
-  `scripts/ci/` and includes `apps/refarm` type-check by default.
+- `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
+  output (`refarm web --launch --dry-run --open` and `refarm tui --json`) using
+  fixture-backed status input.
+- `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
+  wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
 
 ## Renderer modes
 
