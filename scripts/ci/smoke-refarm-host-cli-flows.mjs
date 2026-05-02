@@ -106,6 +106,42 @@ async function main() {
 			env: process.env,
 		});
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm web --input preflight hint`);
+		const webPreflightRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"web",
+				"--input",
+				webStatusPath,
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		const webPreflightOutput = stripAnsi(
+			`${webPreflightRun.stdout}\n${webPreflightRun.stderr}`,
+		);
+		assertIncludes(webPreflightOutput, "available via --launch");
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tui --input preflight hint`);
+		const tuiPreflightRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"tui",
+				"--input",
+				tuiStatusPath,
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		const tuiPreflightOutput = stripAnsi(
+			`${tuiPreflightRun.stdout}\n${tuiPreflightRun.stderr}`,
+		);
+		assertIncludes(tuiPreflightOutput, "available via --launch");
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web --launch --dry-run --open --input`,
 		);
@@ -246,6 +282,23 @@ async function main() {
 				"--dry-run",
 			],
 			"--dry-run requires --launch",
+		);
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: --json with --markdown is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"web",
+				"--input",
+				webStatusPath,
+				"--json",
+				"--markdown",
+			],
+			"Choose only one output format",
 		);
 
 		console.log(`${LOGGER_PREFIX} passed`);
