@@ -168,7 +168,7 @@ jobs:
 
       - name: Setup
         id: setup
-        if: needs.changes.outputs.code_changes == 'true'
+        if: needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true'
         uses: ./.github/actions/setup
 
       # Turbo Cache is now handled in ./.github/actions/setup
