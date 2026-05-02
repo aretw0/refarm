@@ -63,6 +63,14 @@ function assertIncludes(output, expected) {
 	}
 }
 
+function assertNotIncludes(output, expected) {
+	if (output.includes(expected)) {
+		throw new Error(
+			`Expected command output to exclude ${JSON.stringify(expected)}. Output:\n${output}`,
+		);
+	}
+}
+
 async function assertCommandFailsWith(args, expectedSubstring) {
 	try {
 		await runSubprocess(process.execPath, args, {
@@ -166,6 +174,32 @@ async function main() {
 		assertIncludes(webOutput, "REFARM");
 		assertIncludes(webOutput, "[dry-run] would launch web runtime");
 		assertIncludes(webOutput, "[dry-run] would open browser URL");
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: refarm web launch banner can be disabled`,
+		);
+		const webNoBannerRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"web",
+				"--input",
+				webStatusPath,
+				"--launch",
+				"--dry-run",
+			],
+			{
+				env: { ...process.env, REFARM_BRAND_BANNER: "0" },
+				captureOutput: true,
+			},
+		);
+		const webNoBannerOutput = stripAnsi(
+			`${webNoBannerRun.stdout}\n${webNoBannerRun.stderr}`,
+		);
+		assertNotIncludes(webNoBannerOutput, "REFARM");
+		assertIncludes(webNoBannerOutput, "[dry-run] would launch web runtime");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --json --input`);
 		const tuiJsonRun = await runSubprocess(
