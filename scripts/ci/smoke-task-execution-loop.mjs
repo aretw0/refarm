@@ -3,7 +3,10 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import {
+	prepareTaskSmokeTypeBuilds,
+	runSubprocess,
+} from "./subprocess-utils.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"]);
 
@@ -103,15 +106,18 @@ async function waitForTerminalStatus({ env, effortId, timeoutMs = 40_000 }) {
 	);
 }
 
-async function waitForRetryTerminalStatus({ env, effortId, previousStamp, timeoutMs = 40_000 }) {
+async function waitForRetryTerminalStatus({
+	env,
+	effortId,
+	previousStamp,
+	timeoutMs = 40_000,
+}) {
 	const deadline = Date.now() + timeoutMs;
 	let last = null;
 	while (Date.now() < deadline) {
 		last = await queryStatus({ env, effortId });
 		const nextStamp =
-			last?.result?.lastUpdatedAt ??
-			last?.result?.completedAt ??
-			null;
+			last?.result?.lastUpdatedAt ?? last?.result?.completedAt ?? null;
 		if (
 			nextStamp &&
 			nextStamp !== previousStamp &&
@@ -143,13 +149,7 @@ async function main() {
 	let farmhandLogs = "";
 
 	try {
-		console.log("[task-smoke] building farmhand + refarm CLI...");
-		await runSubprocess("npm", ["--prefix", "apps/farmhand", "run", "build"], {
-			env,
-		});
-		await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
-			env,
-		});
+		await prepareTaskSmokeTypeBuilds(env, "[task-smoke]");
 
 		console.log(
 			"[task-smoke] starting smoke daemon (FileTransport + HttpSidecar)...",
@@ -203,7 +203,9 @@ async function main() {
 			firstTerminal?.result?.completedAt ??
 			null;
 		if (!firstUpdatedStamp) {
-			throw new Error("First terminal result missing lastUpdatedAt/completedAt");
+			throw new Error(
+				"First terminal result missing lastUpdatedAt/completedAt",
+			);
 		}
 
 		const listOutput = await runSubprocess(
@@ -241,7 +243,9 @@ async function main() {
 		if (!Array.isArray(logsPayload.logs) || logsPayload.logs.length === 0) {
 			throw new Error("Expected at least one log entry for smoke effort");
 		}
-		if (!logsPayload.logs.some((entry) => entry?.event === "processing_finished")) {
+		if (
+			!logsPayload.logs.some((entry) => entry?.event === "processing_finished")
+		) {
 			throw new Error("Expected processing_finished event in pre-retry logs");
 		}
 

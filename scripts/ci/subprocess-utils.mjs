@@ -1,4 +1,40 @@
 import { spawn } from "node:child_process";
+import { rm } from "node:fs/promises";
+import path from "node:path";
+
+const TASK_SMOKE_TS_BUILD_ORDER = [
+	"packages/effort-contract-v1",
+	"packages/identity-contract-v1",
+	"packages/storage-contract-v1",
+	"packages/sync-contract-v1",
+	"packages/registry",
+	"packages/sync-loro",
+	"packages/tractor-ts",
+	"apps/farmhand",
+	"apps/refarm",
+];
+
+async function resetTsBuildArtifacts(workspaceDir) {
+	const distDir = path.join(workspaceDir, "dist");
+	const tsBuildInfo = path.join(workspaceDir, "tsconfig.build.tsbuildinfo");
+	await rm(distDir, { recursive: true, force: true });
+	await rm(tsBuildInfo, { force: true });
+}
+
+export async function prepareTaskSmokeTypeBuilds(
+	env,
+	loggerPrefix = "[task-smoke]",
+) {
+	console.log(
+		`${loggerPrefix} preparing deterministic TS dependency builds...`,
+	);
+	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
+		await resetTsBuildArtifacts(workspaceDir);
+		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
+			env,
+		});
+	}
+}
 
 export function runSubprocess(command, commandArgs, options = {}) {
 	return new Promise((resolve, reject) => {

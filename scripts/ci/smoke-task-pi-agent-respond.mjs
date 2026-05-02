@@ -7,7 +7,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import {
+	prepareTaskSmokeTypeBuilds,
+	runSubprocess,
+} from "./subprocess-utils.mjs";
 
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"]);
 
@@ -170,17 +173,7 @@ async function main() {
 			process.env.REFARM_TASK_SMOKE_PI_AGENT_SKIP_WASM_BUILD === "1";
 
 		if (!skipAppBuilds) {
-			console.log(
-				"[task-smoke:pi-agent] building tractor-ts + farmhand + refarm CLI...",
-			);
-			await runSubprocess("npm", [
-				"--prefix",
-				"packages/tractor-ts",
-				"run",
-				"build",
-			]);
-			await runSubprocess("npm", ["--prefix", "apps/farmhand", "run", "build"]);
-			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"]);
+			await prepareTaskSmokeTypeBuilds(process.env, "[task-smoke:pi-agent]");
 		} else {
 			console.log(
 				"[task-smoke:pi-agent] skipping app builds (REFARM_TASK_SMOKE_PI_AGENT_SKIP_APP_BUILDS=1)",
@@ -201,7 +194,9 @@ async function main() {
 				"[task-smoke:pi-agent] skipping wasm build (REFARM_TASK_SMOKE_PI_AGENT_SKIP_WASM_BUILD=1)",
 			);
 		} else {
-			console.log("[task-smoke:pi-agent] reusing existing pi-agent wasm artifact");
+			console.log(
+				"[task-smoke:pi-agent] reusing existing pi-agent wasm artifact",
+			);
 		}
 		await installPiAgentPlugin(tempHome, wasmPath);
 
