@@ -6,6 +6,14 @@ import {
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
+	launchAvailabilityMessage,
+	launchDryRunMessage,
+	launchStartMessage,
+	openDryRunMessage,
+	openFailureMessage,
+	openStartMessage,
+} from "./launch-feedback.js";
+import {
 	launchProcess,
 	splitLaunchCommand,
 } from "./launch-process.js";
@@ -186,9 +194,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			} else {
 				resolvedDeps.printStatusSummary(json);
 				if (!options.launch) {
-					console.log(
-						"Web launcher integration is available via --launch (dev|preview).",
-					);
+					console.log(launchAvailabilityMessage("Web", "dev|preview"));
 				}
 			}
 
@@ -198,22 +204,20 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				assertLaunchAllowed(json, "web runtime");
 				const spec = resolveWebLaunchSpec(launchMode);
 				if (options.dryRun) {
-					console.log(`[dry-run] would launch web runtime: ${spec.display}`);
+					console.log(launchDryRunMessage("web runtime", spec.display));
 					if (options.open) {
-						console.log(`[dry-run] would open browser URL: ${openUrl}`);
+						console.log(openDryRunMessage(openUrl));
 					}
 					return;
 				}
-				console.log(`Launching web runtime: ${spec.display}`);
+				console.log(launchStartMessage("web runtime", spec.display));
 				const launchPromise = resolvedDeps.launch(spec);
 				if (options.open) {
-					console.log(`Opening browser URL: ${openUrl}`);
+					console.log(openStartMessage(openUrl));
 					try {
 						await resolvedDeps.open(openUrl);
 					} catch (error) {
-						const message =
-							error instanceof Error ? error.message : String(error);
-						console.error(`Failed to open browser URL: ${message}`);
+						console.error(openFailureMessage(error));
 					}
 				}
 				const code = await launchPromise;

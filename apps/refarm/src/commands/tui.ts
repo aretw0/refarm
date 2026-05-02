@@ -8,6 +8,11 @@ import {
 	launchProcess,
 	splitLaunchCommand,
 } from "./launch-process.js";
+import {
+	launchAvailabilityMessage,
+	launchDryRunMessage,
+	launchStartMessage,
+} from "./launch-feedback.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
@@ -112,9 +117,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 			} else {
 				resolvedDeps.printStatusSummary(json);
 				if (!options.launch) {
-					console.log(
-						"TUI launcher integration is available via --launch (watch|prompt).",
-					);
+					console.log(launchAvailabilityMessage("TUI", "watch|prompt"));
 				}
 			}
 
@@ -124,11 +127,11 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				assertLaunchAllowed(json, "TUI runtime");
 				const spec = resolveTuiLaunchSpec(launchMode);
 				if (options.dryRun) {
-					console.log(`[dry-run] would launch tui runtime: ${spec.display}`);
+					console.log(launchDryRunMessage("tui runtime", spec.display));
 					return;
 				}
 
-				console.log(`Launching TUI runtime: ${spec.display}`);
+				console.log(launchStartMessage("TUI runtime", spec.display));
 				const code = await resolvedDeps.launch(spec);
 				if (code !== 0) {
 					process.exitCode = code;
