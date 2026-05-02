@@ -1,5 +1,7 @@
 // Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
 // Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   assertEntryRuntimeCompatibility,
   detectEntryFormat,
@@ -21,6 +23,11 @@ import { getCachedPlugin } from "./opfs-plugin-cache";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
+const DEFAULT_DIST_BASE = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../.jco-dist",
+);
+
 /**
  * Sandboxed plugin host.
  * Orchestrates trust, lifecycle, and WASI integration.
@@ -36,7 +43,7 @@ export class PluginHost {
     private registry: SovereignRegistry,
     private logger: TractorLogger = console,
     private securityMode: SecurityMode = "strict",
-    private distBase: string = __dirname + "/../.jco-dist",
+    private distBase: string = DEFAULT_DIST_BASE,
     private storeNode?: (nodeJson: string) => Promise<void>,
   ) {
     this.trustManager = new TrustManager(emit);
