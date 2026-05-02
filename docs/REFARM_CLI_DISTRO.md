@@ -69,11 +69,13 @@ For fast regression checks of the unified command spine:
 
 ```bash
 npm run refarm:host:smoke
+npm run refarm:host:smoke:ci
 ```
 
-This runs the focused `apps/refarm` command tests (`status`, `doctor`,
-`headless`, `web`, `tui`, and program wiring) without invoking the heavier
-workspace-wide suites.
+- `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
+  `doctor`, `headless`, `web`, `tui`, and program wiring).
+- `refarm:host:smoke:ci` runs the same smoke through a CI wrapper script under
+  `scripts/ci/` and includes `apps/refarm` type-check by default.
 
 ## Renderer modes
 
