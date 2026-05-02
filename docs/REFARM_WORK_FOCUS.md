@@ -47,7 +47,8 @@ Turn the documented `refarm` distro into the smallest useful product command.
    - command UX, defaults, profiles, and release packaging stay in `apps/refarm`;
    - reusable mechanics move only when duplicated or clearly stable.
 4. Keep Web as the default human interface while headless matures for automation.
-5. Delay TUI package extraction until Web/headless contracts create real pressure.
+5. Delay full TUI package extraction until Web/headless contracts create real pressure.
+   A `refarm tui` preflight command can exist early, but should not fork runtime policy.
 
 ## Long-term focus
 

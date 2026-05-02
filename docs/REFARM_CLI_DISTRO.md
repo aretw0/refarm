@@ -48,10 +48,14 @@ state using the same contracts as the apps?
 - `refarm status` (human/json/markdown + artifact input validation)
 - `refarm headless` (headless snapshot-first output surface)
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
+- `refarm tui` (tui renderer preflight contract surface)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
+`refarm tui` currently validates TUI renderer posture; full TUI launcher/runtime
+integration remains deferred.
+
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.
 

@@ -11,6 +11,7 @@ import { pluginCommand } from "./commands/plugin.js";
 import { sowCommand } from "./commands/sow.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
+import { tuiCommand } from "./commands/tui.js";
 import { webCommand } from "./commands/web.js";
 
 export const program = new Command();
@@ -22,6 +23,7 @@ program.addCommand(sowCommand);
 program.addCommand(guideCommand);
 program.addCommand(healthCommand);
 program.addCommand(webCommand);
+program.addCommand(tuiCommand);
 program.addCommand(headlessCommand);
 program.addCommand(migrateCommand);
 program.addCommand(deployCommand);
