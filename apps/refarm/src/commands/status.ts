@@ -3,8 +3,6 @@ import path from "node:path";
 import {
 	assertRefarmStatusJson,
 	buildRefarmStatusJson,
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
 	formatRefarmStatusSummary,
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
@@ -15,8 +13,11 @@ import { Tractor } from "@refarm.dev/tractor";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
-import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import {
+	emitRefarmStatusOutput,
+	resolveStatusOutputMode,
+} from "./status-output.js";
 
 interface StorageAdapter {
 	ensureSchema(): Promise<void>;
@@ -113,23 +114,20 @@ export const statusCommand = new Command("status")
 			renderer?: string;
 			input?: string;
 		}) => {
-			assertAtMostOneFlagEnabled(
-				[
-					{ enabled: options.json, flag: "--json" },
-					{ enabled: options.markdown, flag: "--markdown" },
-				],
-				"Choose only one output format: --json or --markdown.",
+			const outputMode = resolveStatusOutputMode(
+				{ json: options.json, markdown: options.markdown },
+				{
+					defaultMode: "summary",
+					errorMessage: "Choose only one output format: --json or --markdown.",
+				},
 			);
 
 			const { json, shutdown } = await resolveStatusPayload(options);
-
-			if (options.json) {
-				console.log(formatRefarmStatusJson(json));
-			} else if (options.markdown) {
-				console.log(formatRefarmStatusMarkdown(json));
-			} else {
-				printStatusSummary(json);
-			}
+			emitRefarmStatusOutput({
+				status: json,
+				mode: outputMode,
+				printSummary: printStatusSummary,
+			});
 
 			await shutdown?.();
 		},

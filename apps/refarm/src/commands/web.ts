@@ -1,9 +1,5 @@
 import { spawn } from "node:child_process";
-import {
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
-	type RefarmStatusJson,
-} from "@refarm.dev/cli/status";
+import { type RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { printRefarmLaunchBanner } from "./brand.js";
 import {
@@ -25,6 +21,10 @@ import {
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
+import {
+	emitRefarmStatusOutput,
+	resolveStatusOutputMode,
+} from "./status-output.js";
 
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
@@ -182,21 +182,25 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				options.launcher ?? "dev",
 				WEB_LAUNCHER_MODES,
 			);
+			const outputMode = resolveStatusOutputMode(
+				{ json: options.json, markdown: options.markdown },
+				{
+					defaultMode: "summary",
+					errorMessage: "Choose only one output format: --json or --markdown.",
+				},
+			);
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "web",
 				input: options.input,
 			});
-
-			if (options.json) {
-				console.log(formatRefarmStatusJson(json));
-			} else if (options.markdown) {
-				console.log(formatRefarmStatusMarkdown(json));
-			} else {
-				resolvedDeps.printStatusSummary(json);
-				if (!options.launch) {
-					console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
-				}
+			emitRefarmStatusOutput({
+				status: json,
+				mode: outputMode,
+				printSummary: resolvedDeps.printStatusSummary,
+			});
+			if (outputMode === "summary" && !options.launch) {
+				console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
 			}
 
 			await shutdown?.();

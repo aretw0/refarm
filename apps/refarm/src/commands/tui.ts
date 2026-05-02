@@ -1,6 +1,4 @@
 import {
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
@@ -21,6 +19,10 @@ import {
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
+import {
+	emitRefarmStatusOutput,
+	resolveStatusOutputMode,
+} from "./status-output.js";
 
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
@@ -105,21 +107,25 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				options.launcher ?? "watch",
 				TUI_LAUNCHER_MODES,
 			);
+			const outputMode = resolveStatusOutputMode(
+				{ json: options.json, markdown: options.markdown },
+				{
+					defaultMode: "summary",
+					errorMessage: "Choose only one output format: --json or --markdown.",
+				},
+			);
 
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "tui",
 				input: options.input,
 			});
-
-			if (options.json) {
-				console.log(formatRefarmStatusJson(json));
-			} else if (options.markdown) {
-				console.log(formatRefarmStatusMarkdown(json));
-			} else {
-				resolvedDeps.printStatusSummary(json);
-				if (!options.launch) {
-					console.log(launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES));
-				}
+			emitRefarmStatusOutput({
+				status: json,
+				mode: outputMode,
+				printSummary: resolvedDeps.printStatusSummary,
+			});
+			if (outputMode === "summary" && !options.launch) {
+				console.log(launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES));
 			}
 
 			await shutdown?.();

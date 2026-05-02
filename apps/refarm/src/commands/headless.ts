@@ -1,10 +1,9 @@
-import {
-	formatRefarmStatusJson,
-	formatRefarmStatusMarkdown,
-} from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
+import {
+	emitRefarmStatusOutput,
+	resolveStatusOutputMode,
+} from "./status-output.js";
 
 interface HeadlessOptions {
 	input?: string;
@@ -23,12 +22,12 @@ export const headlessCommand = new Command("headless")
 	.option("--markdown", "Output markdown report")
 	.option("--summary", "Output human-readable status summary")
 	.action(async (options: HeadlessOptions) => {
-		assertAtMostOneFlagEnabled(
-			[
-				{ enabled: options.markdown, flag: "--markdown" },
-				{ enabled: options.summary, flag: "--summary" },
-			],
-			"Choose only one output format: --markdown or --summary.",
+		const outputMode = resolveStatusOutputMode(
+			{ markdown: options.markdown, summary: options.summary },
+			{
+				defaultMode: "json",
+				errorMessage: "Choose only one output format: --markdown or --summary.",
+			},
 		);
 
 		const { json, shutdown } = await resolveStatusPayload({
@@ -36,13 +35,11 @@ export const headlessCommand = new Command("headless")
 			input: options.input,
 		});
 
-		if (options.markdown) {
-			console.log(formatRefarmStatusMarkdown(json));
-		} else if (options.summary) {
-			printStatusSummary(json);
-		} else {
-			console.log(formatRefarmStatusJson(json));
-		}
+		emitRefarmStatusOutput({
+			status: json,
+			mode: outputMode,
+			printSummary: printStatusSummary,
+		});
 
 		await shutdown?.();
 	});
