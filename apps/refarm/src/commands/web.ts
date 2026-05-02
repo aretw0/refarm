@@ -5,6 +5,10 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	launchProcess,
+	splitLaunchCommand,
+} from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
@@ -50,29 +54,18 @@ interface WebOptions {
 	launcher?: RefarmWebLauncherMode;
 }
 
-function splitNpmCommand(command: string): { command: string; args: string[] } {
-	const parts = command.trim().split(/\s+/).filter(Boolean);
-	if (parts.length === 0) {
-		throw new Error("Invalid launcher command.");
-	}
-	return {
-		command: parts[0],
-		args: parts.slice(1),
-	};
-}
-
 export function resolveWebLaunchSpec(
 	mode: RefarmWebLauncherMode,
 ): WebLaunchSpec {
 	if (mode === "preview") {
-		const parsed = splitNpmCommand("npm --prefix apps/dev run preview");
+		const parsed = splitLaunchCommand("npm --prefix apps/dev run preview");
 		return {
 			...parsed,
 			display: "npm --prefix apps/dev run preview",
 		};
 	}
 
-	const parsed = splitNpmCommand("npm --prefix apps/dev run dev");
+	const parsed = splitLaunchCommand("npm --prefix apps/dev run dev");
 	return {
 		...parsed,
 		display: "npm --prefix apps/dev run dev",
@@ -80,21 +73,7 @@ export function resolveWebLaunchSpec(
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
-			stdio: "inherit",
-			env: process.env,
-		});
-
-		child.once("error", (error) => {
-			reject(error);
-		});
-
-		child.once("close", (code) => {
-			resolve(code ?? 0);
-		});
-	});
+	return launchProcess(spec);
 }
 
 export function resolveBrowserOpenSpec(

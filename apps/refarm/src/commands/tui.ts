@@ -1,10 +1,13 @@
-import { spawn } from "node:child_process";
 import {
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	launchProcess,
+	splitLaunchCommand,
+} from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
@@ -41,30 +44,18 @@ interface TuiDeps {
 	launch(spec: TuiLaunchSpec): Promise<number>;
 }
 
-function splitCommand(command: string): { command: string; args: string[] } {
-	const parts = command.trim().split(/\s+/).filter(Boolean);
-	if (parts.length === 0) {
-		throw new Error("Invalid launcher command.");
-	}
-
-	return {
-		command: parts[0],
-		args: parts.slice(1),
-	};
-}
-
 export function resolveTuiLaunchSpec(
 	mode: RefarmTuiLauncherMode,
 ): TuiLaunchSpec {
 	if (mode === "prompt") {
-		const parsed = splitCommand("cargo run -p tractor -- prompt");
+		const parsed = splitLaunchCommand("cargo run -p tractor -- prompt");
 		return {
 			...parsed,
 			display: "cargo run -p tractor -- prompt",
 		};
 	}
 
-	const parsed = splitCommand("cargo run -p tractor -- watch");
+	const parsed = splitLaunchCommand("cargo run -p tractor -- watch");
 	return {
 		...parsed,
 		display: "cargo run -p tractor -- watch",
@@ -72,21 +63,7 @@ export function resolveTuiLaunchSpec(
 }
 
 export function launchTuiProcess(spec: TuiLaunchSpec): Promise<number> {
-	return new Promise((resolve, reject) => {
-		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
-			stdio: "inherit",
-			env: process.env,
-		});
-
-		child.once("error", (error) => {
-			reject(error);
-		});
-
-		child.once("close", (code) => {
-			resolve(code ?? 0);
-		});
-	});
+	return launchProcess(spec);
 }
 
 export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
