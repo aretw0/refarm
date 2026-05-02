@@ -142,15 +142,14 @@ export const statusCommand = new Command("status")
 
 function readStatusPayloadFromInput(inputPath: string): RefarmStatusJson {
   const sourceLabel = inputPath === "-" ? "stdin" : inputPath;
-  const resolvedPath = inputPath === "-"
-    ? undefined
-    : path.resolve(process.cwd(), inputPath);
-
   let raw: string;
   try {
-    raw = inputPath === "-"
-      ? fs.readFileSync(0, "utf-8")
-      : fs.readFileSync(resolvedPath, "utf-8");
+    if (inputPath === "-") {
+      raw = fs.readFileSync(0, "utf-8");
+    } else {
+      const resolvedPath = path.resolve(process.cwd(), inputPath);
+      raw = fs.readFileSync(resolvedPath, "utf-8");
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(`Failed to read status input \"${sourceLabel}\": ${message}`);
