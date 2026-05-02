@@ -1,49 +1,100 @@
 flowchart TB
-  subgraph A[Applications]
-    K[apps/kernel]
-    S[apps/studio]
+  subgraph Apps["Distros  (apps/)"]
+    Dev["apps/dev\nDev Portal · Astro"]
+    Me["apps/me\nHomestead · Identity · Astro"]
+    Farmhand["apps/farmhand\nTask Daemon · Node.js"]
+    RefarmCLI["apps/refarm\nRuntime · CLI entry"]
   end
 
-  subgraph P[Independent Packages]
-    ST[packages/storage-sqlite]
-    SY[packages/sync-crdt]
-    ID[packages/identity-nostr]
+  subgraph Core["Dual-Runtime Core  (tractor)"]
+    TractorTS["tractor-ts\nJCO transpile · Browser / Node"]
+    TractorRS["tractor\nRust · wasmtime · IoT"]
   end
 
-  subgraph C[Contracts and Schemas]
-    W[wit/refarm-sdk.wit]
-    J[schemas/sovereign-graph.jsonld]
+  subgraph WIT["WIT Contract  (refarm-plugin-wit)"]
+    WITPkg["refarm:plugin@0.1.0\nsetup · ingest · push · respond · on-event"]
+    LLMBridge["llm-bridge"]
+    AgentFS["agent-fs · agent-shell"]
   end
 
-  subgraph R[Runtime and Infrastructure]
-    O[OPFS]
-    Q[SQLite engine]
-    N[Nostr relays]
-    H[HTTP capability-gated fetch]
+  subgraph Contracts["Capability Contracts  (packages/)"]
+    StorageV1["storage-contract-v1"]
+    SyncV1["sync-contract-v1"]
+    IdentityV1["identity-contract-v1"]
+    EffortV1["effort-contract-v1\nEffort · Task · TaskResult"]
+    StreamV1["stream-contract-v1\nStreamChunk · StreamTransportAdapter"]
   end
 
-  S --> K
-  K --> ST
-  K --> SY
-  K --> ID
+  subgraph Plugins["Plugin Sandbox  (.wasm)"]
+    PiAgent["pi-agent\n(sovereign AI)"]
+    ThirdParty["third-party plugins"]
+  end
 
-  K -. implements host for .-> W
-  ST -. persists JSON-LD nodes .-> J
+  subgraph Transports["Transport Adapters"]
+    FileT["FileTransportAdapter\n~/.refarm/tasks/ NDJSON"]
+    HttpT["HttpTransportAdapter\nport 42001"]
+    FileStream["FileStreamTransport\n~/.refarm/streams/ NDJSON"]
+    SSEStream["SseStreamTransport\nGET /stream/:ref"]
+    WSStream["WsStreamTransport\nWS /ws/stream"]
+  end
 
-  ST --> O
-  ST --> Q
-  ID --> N
-  K --> H
+  subgraph Storage["Storage & Identity"]
+    SQLite["storage-sqlite\nOPFS · SQLite + Loro CRDT"]
+    StoreMem["storage-memory\ntest/in-process"]
+    SyncLoro["sync-loro\nLoro CRDT engine"]
+    NostrId["identity-nostr\nNostr relays"]
+  end
 
-  SY --> K
-  ID --> K
+  %% Apps → Core
+  Dev -->|tractor-ts| TractorTS
+  Me -->|tractor-ts| TractorTS
+  Farmhand -->|tractor-ts| TractorTS
+  RefarmCLI -->|HTTP 42001| HttpT
+
+  %% Core → WIT
+  TractorTS ---|same WIT| WITPkg
+  TractorRS ---|same WIT| WITPkg
+
+  %% WIT → Plugins
+  WITPkg -->|"implemented by"| PiAgent
+  WITPkg -->|"implemented by"| ThirdParty
+  LLMBridge -.->|"imported by"| PiAgent
+  AgentFS -.->|"imported by"| PiAgent
+
+  %% Core → Capability Contracts
+  TractorTS -->|"persists via"| StorageV1
+  TractorRS -->|"persists via"| StorageV1
+  TractorTS -->|"syncs via"| SyncV1
+  TractorRS -->|"syncs via"| SyncV1
+  TractorTS -->|"identity via"| IdentityV1
+
+  %% Effort / Stream contracts → Transports
+  Farmhand -->|"dispatches via"| EffortV1
+  Farmhand -->|"streams via"| StreamV1
+  EffortV1 --> FileT
+  EffortV1 --> HttpT
+  StreamV1 --> FileStream
+  StreamV1 --> SSEStream
+  StreamV1 --> WSStream
+
+  %% Contracts → Adapters
+  StorageV1 --> SQLite
+  StorageV1 --> StoreMem
+  SyncV1 --> SyncLoro
+  IdentityV1 --> NostrId
 
   classDef app fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
-  classDef pkg fill:#dcfce7,stroke:#166534,stroke-width:1px;
-  classDef contract fill:#fef3c7,stroke:#92400e,stroke-width:1px;
-  classDef infra fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+  classDef core fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef wit fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+  classDef plugin fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+  classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+  classDef storage fill:#f0fdf4,stroke:#15803d,stroke-width:1px;
 
-  class K,S app;
-  class ST,SY,ID pkg;
-  class W,J contract;
-  class O,Q,N,H infra;
+  class Dev,Me,Farmhand,RefarmCLI app;
+  class TractorTS,TractorRS core;
+  class WITPkg,LLMBridge,AgentFS wit;
+  class StorageV1,SyncV1,IdentityV1,EffortV1,StreamV1 contract;
+  class PiAgent,ThirdParty plugin;
+  class FileT,HttpT,FileStream,SSEStream,WSStream transport;
+  class SQLite,StoreMem,SyncLoro,NostrId storage;

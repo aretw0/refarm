@@ -1,33 +1,95 @@
 flowchart TD
-  TR[push / pull_request] --> Q[quality job]
+  Trigger["push·develop / PR→main·develop\n(or weekly schedule)"] --> Changes
 
-  subgraph Quality
-    Q1[npm audit --audit-level=high]
-    Q2[npm run lint]
-    Q3[npm run type-check]
-    Q4[npm run test:unit -- --coverage]
-    Q5[npm run test:integration]
-    Q6[upload coverage]
+  subgraph Changes["changes job — smart filter"]
+    C1["detect changed areas\n(ci / code / tractor_gates / e2e / task_smoke / audit)"]
+    C2["compute turbo_filter\n...[base_sha]"]
+    C1 --> C2
   end
 
-  Q --> Q1 --> Q2 --> Q3 --> Q4 --> Q5 --> Q6
+  Changes --> Quality
 
-  Q --> B[build job]
-  B --> B1[npm run build]
+  subgraph Quality["quality job"]
+    Q0["project:validate\n(.project cross-block consistency)"]
+    Q1["npm audit --audit-level=high"]
+    Q2["tsconfig:guard preflight"]
+    Q3["task:execution:smoke\n(Farmhand CLI ↔ sidecar)"]
+    Q4["task:execution:smoke:pi-agent\n(effort round-trip)"]
+    Q0 --> Q1 --> Q2
 
-  B --> E[e2e job]
-  E --> E1[playwright install]
-  E --> E2[npm run build]
-  E --> E3[npm run test:e2e]
-  E --> E4[upload playwright report]
+    subgraph TractorGates["tractor gates  (when tractor_gates=true)"]
+      TG1["health probe smoke\n(@refarm.dev/tractor-rs)"]
+      TG2["runtime-module:ci\n(tractor-ts descriptor gate)"]
+      TG3["runtime-descriptor:release-smoke"]
+      TG4["revocation diagnostics report"]
+      TG5["revocation baseline lookup"]
+      TG6["revocation history smoke"]
+      TG7["Benchmark Quality Gate\n(bench:check vs main baseline)"]
+      TG8["Coverage Quality Gate\n(coverage:check vs saved baseline)"]
+      TG1 --> TG2 --> TG3 --> TG4 --> TG5 --> TG6 --> TG7 --> TG8
+    end
 
-  TR --> A[audit-moderate job]
-  A --> A1[generate audit report artifact]
+    Q2 --> Q3 --> Q4 --> TractorGates
+    TractorGates --> QVerify["turbo run build lint\ntype-check test:coverage\ntest:unit test:integration\n(affected filter)"]
+  end
+
+  Quality --> Build
+  Quality --> AuditModerate
+
+  subgraph Build["build job  (when run_build=true)"]
+    B1["turbo run build\n(affected filter)"]
+  end
+
+  Build --> E2E
+
+  subgraph E2E["e2e job  (when run_e2e=true)"]
+    E1["playwright install"]
+    E2["turbo run test:e2e\n(affected filter)"]
+    E3["upload playwright report"]
+    E1 --> E2 --> E3
+  end
+
+  subgraph AuditModerate["audit-moderate  (non-blocking)"]
+    A1["npm audit --json"]
+    A2["upload audit-moderate report"]
+    A1 --> A2
+  end
+
+  subgraph DeepRegression["deep-regression  (weekly schedule / ci:deep label)"]
+    DR["turbo run build lint type-check\ncoverage unit integration e2e\n(full stack)"]
+  end
+
+  Changes --> DeepRegression
+
+  E2E --> Summary
+  AuditModerate --> Summary
+  DeepRegression --> Summary
+
+  subgraph Summary["summary job"]
+    S1["carry-forward: reuse prior gate\nstatus for skipped jobs"]
+    S2["fail-closed if any gate regression"]
+    S1 --> S2
+  end
+
+  Summary --> Metrics["ci-metrics\n(job timing report artifact)"]
+
+  subgraph QualityGates["quality-gates.yml  (PR labels)"]
+    SDD["phase:sdd → verify specs/\nno TODO/TBD"]
+    BDD["phase:bdd → integration tests\nmust FAIL (red phase)"]
+    TDD["phase:tdd → unit tests +\ncoverage ≥80%"]
+    DDD["phase:ddd → turbo full verify\n+ changeset required"]
+  end
+
+  Trigger -.->|"PR with phase label"| QualityGates
 
   classDef gate fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
-  classDef q fill:#dcfce7,stroke:#166534,stroke-width:1px;
-  classDef e fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef quality fill:#dcfce7,stroke:#166534,stroke-width:1px;
+  classDef tractor fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef infra fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+  classDef phase fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
 
-  class TR,Q,B,E,A gate;
-  class Q1,Q2,Q3,Q4,Q5,Q6,B1 q;
-  class E1,E2,E3,E4,A1 e;
+  class Trigger,Changes,Summary,Metrics gate;
+  class Quality,QVerify quality;
+  class TractorGates,TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8 tractor;
+  class Build,E2E,AuditModerate,DeepRegression infra;
+  class QualityGates,SDD,BDD,TDD,DDD phase;
