@@ -4,6 +4,10 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	resolveRefarmRuntimeMetadata,
+	type RefarmRuntimeMetadata,
+} from "./runtime-metadata.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmDoctorReport {
@@ -13,6 +17,7 @@ export interface RefarmDoctorReport {
 	failures: string[];
 	warnings: string[];
 	informational: string[];
+	host: RefarmRuntimeMetadata;
 	status: RefarmStatusJson;
 }
 
@@ -25,7 +30,7 @@ export interface RefarmDoctorOptions {
 
 export function buildRefarmDoctorReport(
 	status: RefarmStatusJson,
-	options: { failOnWarnings?: boolean } = {},
+	options: { failOnWarnings?: boolean; metadata?: RefarmRuntimeMetadata } = {},
 ): RefarmDoctorReport {
 	const { failures, warnings, informational } =
 		classifyRefarmStatusDiagnostics(status);
@@ -41,6 +46,13 @@ export function buildRefarmDoctorReport(
 		failures,
 		warnings,
 		informational,
+		host:
+			options.metadata ??
+			resolveRefarmRuntimeMetadata({
+				app: status.host.app,
+				command: status.host.command,
+				profile: status.host.profile,
+			}),
 		status,
 	};
 }
@@ -48,6 +60,9 @@ export function buildRefarmDoctorReport(
 function printReport(report: RefarmDoctorReport): void {
 	const state = report.ok ? "PASS" : "FAIL";
 	console.log(`Doctor: ${state}`);
+	console.log(
+		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile})`,
+	);
 	console.log(
 		`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`,
 	);
@@ -80,6 +95,7 @@ function formatDoctorReportJson(report: RefarmDoctorReport): string {
 			failures: report.failures,
 			warnings: report.warnings,
 			informational: report.informational,
+			host: report.host,
 			status: JSON.parse(formatRefarmStatusJson(report.status)),
 		},
 		null,

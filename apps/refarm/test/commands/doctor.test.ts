@@ -57,12 +57,21 @@ describe("buildRefarmDoctorReport", () => {
 				"trust:warnings-present",
 				"renderer:non-interactive",
 			]),
+			{
+				metadata: {
+					app: "apps/refarm",
+					command: "refarm",
+					profile: "dev",
+					version: "1.2.3",
+				},
+			},
 		);
 
 		expect(report.ok).toBe(false);
 		expect(report.failures).toEqual(["runtime:not-ready"]);
 		expect(report.warnings).toEqual(["trust:warnings-present"]);
 		expect(report.informational).toEqual(["renderer:non-interactive"]);
+		expect(report.host.version).toBe("1.2.3");
 	});
 
 	it("fails on warnings when failOnWarnings is enabled", () => {
@@ -93,6 +102,7 @@ describe("doctorCommand", () => {
 
 		expect(process.exitCode).toBeUndefined();
 		expect(logSpy).toHaveBeenCalledWith("Doctor: PASS");
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Host:"));
 		expect(mockShutdown).toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
@@ -133,6 +143,7 @@ describe("doctorCommand", () => {
 		const output = logSpy.mock.calls[0]?.[0];
 		expect(typeof output).toBe("string");
 		expect(String(output)).toContain('"ok": true');
+		expect(String(output)).toContain('"host"');
 		expect(String(output)).toContain('"status"');
 		logSpy.mockRestore();
 	});
