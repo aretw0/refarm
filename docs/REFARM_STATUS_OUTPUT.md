@@ -13,6 +13,7 @@ refarm status --json                  # stable machine-readable JSON
 refarm status --markdown              # artifact-friendly report
 refarm status --renderer web --json   # same contract in Web renderer mode
 refarm status --renderer tui --json   # same contract in TUI renderer mode
+refarm status --input status.json --json  # validate/render an existing status artifact
 ```
 
 The JSON shape is the canonical contract. Human and Markdown output are views of

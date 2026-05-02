@@ -8,6 +8,7 @@ import {
   buildRefarmStatusJson,
   formatRefarmStatusJson,
   formatRefarmStatusMarkdown,
+  parseRefarmStatusJson,
   type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { createRuntimeSummaryFromTractor } from "@refarm.dev/runtime";
@@ -74,47 +75,59 @@ function printStatusSummary(json: RefarmStatusJson): void {
 export const statusCommand = new Command("status")
   .description("Report host status")
   .option(
+    "--input <path>",
+    "Read status payload from JSON file instead of booting runtime",
+  )
+  .option(
     "--renderer <kind>",
     "Renderer mode: web | tui | headless",
     "headless",
   )
   .option("--markdown", "Output markdown report")
   .option("--json", "Output machine-readable JSON")
-  .action(async (options: { json?: boolean; markdown?: boolean; renderer?: string }) => {
+  .action(async (options: { json?: boolean; markdown?: boolean; renderer?: string; input?: string }) => {
     if (options.json && options.markdown) {
       throw new Error("Choose only one output format: --json or --markdown.");
     }
 
-    const requestedRenderer = options.renderer ?? "headless";
-    if (!isHomesteadHostRendererKind(requestedRenderer)) {
-      throw new Error(
-        `Invalid renderer kind \"${requestedRenderer}\". Use one of: web, tui, headless.`,
-      );
+    let json: RefarmStatusJson;
+    let shutdown: (() => Promise<void>) | undefined;
+
+    if (options.input) {
+      json = readStatusPayloadFromInput(options.input);
+    } else {
+      const requestedRenderer = options.renderer ?? "headless";
+      if (!isHomesteadHostRendererKind(requestedRenderer)) {
+        throw new Error(
+          `Invalid renderer kind \"${requestedRenderer}\". Use one of: web, tui, headless.`,
+        );
+      }
+      const renderer = resolveRefarmRenderer(requestedRenderer);
+
+      const tractor = await Tractor.boot({
+        namespace: readNamespaceFromConfig() ?? "refarm-main",
+        storage: createMemoryStorage(),
+        identity: createEphemeralIdentity(),
+        logLevel: "silent",
+      });
+      shutdown = tractor.shutdown?.bind(tractor);
+
+      const runtime = createRuntimeSummaryFromTractor(tractor);
+      const trust = createTrustSummaryFromTractor(tractor);
+
+      json = buildRefarmStatusJson({
+        host: {
+          app: "apps/refarm",
+          command: "refarm",
+          profile: "dev",
+          mode: renderer.kind,
+        },
+        renderer,
+        runtime,
+        trust,
+      });
+      assertRefarmStatusJson(json);
     }
-    const renderer = resolveRefarmRenderer(requestedRenderer);
-
-    const tractor = await Tractor.boot({
-      namespace: readNamespaceFromConfig() ?? "refarm-main",
-      storage: createMemoryStorage(),
-      identity: createEphemeralIdentity(),
-      logLevel: "silent",
-    });
-
-    const runtime = createRuntimeSummaryFromTractor(tractor);
-    const trust = createTrustSummaryFromTractor(tractor);
-
-    const json = buildRefarmStatusJson({
-      host: {
-        app: "apps/refarm",
-        command: "refarm",
-        profile: "dev",
-        mode: renderer.kind,
-      },
-      renderer,
-      runtime,
-      trust,
-    });
-    assertRefarmStatusJson(json);
 
     if (options.json) {
       console.log(formatRefarmStatusJson(json));
@@ -124,5 +137,23 @@ export const statusCommand = new Command("status")
       printStatusSummary(json);
     }
 
-    await tractor.shutdown?.();
+    await shutdown?.();
   });
+
+function readStatusPayloadFromInput(inputPath: string): RefarmStatusJson {
+  const resolvedPath = path.resolve(process.cwd(), inputPath);
+  let raw: string;
+  try {
+    raw = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to read status input \"${inputPath}\": ${message}`);
+  }
+
+  try {
+    return parseRefarmStatusJson(raw);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to parse status input \"${inputPath}\": ${message}`);
+  }
+}

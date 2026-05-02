@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import fs from "node:fs";
 
 const {
   mockAssertRefarmStatusJson,
@@ -6,6 +7,7 @@ const {
   mockBuildRefarmStatusJson,
   mockFormatRefarmStatusJson,
   mockFormatRefarmStatusMarkdown,
+  mockParseRefarmStatusJson,
   mockShutdown,
 } = vi.hoisted(() => ({
   mockAssertRefarmStatusJson: vi.fn(),
@@ -13,6 +15,7 @@ const {
   mockBuildRefarmStatusJson: vi.fn(),
   mockFormatRefarmStatusJson: vi.fn(),
   mockFormatRefarmStatusMarkdown: vi.fn(),
+  mockParseRefarmStatusJson: vi.fn(),
   mockShutdown: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -27,6 +30,7 @@ vi.mock("@refarm.dev/cli/status", () => ({
   buildRefarmStatusJson: mockBuildRefarmStatusJson,
   formatRefarmStatusJson: mockFormatRefarmStatusJson,
   formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
+  parseRefarmStatusJson: mockParseRefarmStatusJson,
 }));
 
 import { statusCommand } from "../../src/commands/status.js";
@@ -53,6 +57,16 @@ describe("statusCommand", () => {
       () => JSON.stringify({ schemaVersion: 1 }, null, 2),
     );
     mockFormatRefarmStatusMarkdown.mockImplementation(() => "# Refarm Status\n");
+    mockParseRefarmStatusJson.mockReturnValue({
+      schemaVersion: 1,
+      host: { app: "apps/refarm", command: "refarm", profile: "dev", mode: "headless" },
+      renderer: { id: "refarm-headless", kind: "headless", capabilities: ["diagnostics"] },
+      runtime: { ready: true, databaseName: "refarm-main", namespace: "refarm-main" },
+      plugins: { installed: 0, active: 0, rejectedSurfaces: 0, surfaceActions: 0 },
+      trust: { profile: "strict", warnings: 0, critical: 0 },
+      streams: { active: 0, terminal: 0 },
+      diagnostics: [],
+    });
   });
 
   it("boots Tractor with logLevel silent", async () => {
@@ -117,5 +131,45 @@ describe("statusCommand", () => {
       statusCommand.parseAsync(["--json", "--markdown"], { from: "user" }),
     ).rejects.toThrow(/Choose only one output format/);
     expect(mockBoot).not.toHaveBeenCalled();
+  });
+
+  it("reads status payload from --input without booting Tractor", async () => {
+    const readSpy = vi
+      .spyOn(fs, "readFileSync")
+      .mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+        const file = String(filePath);
+        if (file.endsWith("status.json")) return "{\"schemaVersion\":1}";
+        throw new Error(`unexpected read: ${file}`);
+      });
+
+    await statusCommand.parseAsync(["--json", "--input", "status.json"], {
+      from: "user",
+    });
+
+    expect(mockBoot).not.toHaveBeenCalled();
+    expect(mockBuildRefarmStatusJson).not.toHaveBeenCalled();
+    expect(mockParseRefarmStatusJson).toHaveBeenCalledWith("{\"schemaVersion\":1}");
+    readSpy.mockRestore();
+  });
+
+  it("wraps parse errors with input path context", async () => {
+    const readSpy = vi
+      .spyOn(fs, "readFileSync")
+      .mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+        const file = String(filePath);
+        if (file.endsWith("bad.json")) return "{}";
+        throw new Error(`unexpected read: ${file}`);
+      });
+    mockParseRefarmStatusJson.mockImplementation(() => {
+      throw new Error("Unsupported Refarm status schemaVersion=2.");
+    });
+
+    await expect(
+      statusCommand.parseAsync(["--json", "--input", "bad.json"], {
+        from: "user",
+      }),
+    ).rejects.toThrow(/Failed to parse status input "bad.json"/);
+
+    readSpy.mockRestore();
   });
 });
