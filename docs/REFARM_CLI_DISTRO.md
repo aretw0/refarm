@@ -61,7 +61,7 @@ example `runtime:not-ready` or `trust:critical-present`).
 entrypoints (`watch` or `prompt`) after runtime preflight
 (`--launch`, optional `--dry-run`). Launch is fail-closed when status
 diagnostics include failure codes (for example `runtime:not-ready` or
-`trust:critical-present`).
+`trust:critical-present`) and rejects invalid `--launcher` values.
 
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.

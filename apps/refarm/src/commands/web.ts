@@ -47,6 +47,16 @@ interface WebOptions {
 	launcher?: RefarmWebLauncherMode;
 }
 
+function resolveWebLaunchMode(input: unknown): RefarmWebLauncherMode {
+	if (input === "dev" || input === "preview") {
+		return input;
+	}
+
+	throw new Error(
+		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: dev, preview.`,
+	);
+}
+
 function splitNpmCommand(command: string): { command: string; args: string[] } {
 	const parts = command.trim().split(/\s+/).filter(Boolean);
 	if (parts.length === 0) {
@@ -194,7 +204,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				throw new Error("--open requires --launch.");
 			}
 
-			const launchMode = options.launcher === "preview" ? "preview" : "dev";
+			const launchMode = resolveWebLaunchMode(options.launcher ?? "dev");
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "web",

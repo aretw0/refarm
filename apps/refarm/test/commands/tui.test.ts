@@ -145,6 +145,21 @@ describe("tuiCommand", () => {
 		);
 	});
 
+	it("rejects invalid launcher mode", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--launch", "--launcher", "invalid"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Invalid --launcher value/);
+		expect(launch).not.toHaveBeenCalled();
+	});
+
 	it("fails launch when runtime is not ready", async () => {
 		resolveStatusPayload.mockResolvedValue({
 			json: makeStatus({

@@ -29,6 +29,16 @@ interface TuiOptions {
 	launcher?: RefarmTuiLauncherMode;
 }
 
+function resolveTuiLaunchMode(input: unknown): RefarmTuiLauncherMode {
+	if (input === "watch" || input === "prompt") {
+		return input;
+	}
+
+	throw new Error(
+		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: watch, prompt.`,
+	);
+}
+
 interface TuiDeps {
 	resolveStatusPayload(options: {
 		renderer: string;
@@ -118,7 +128,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				throw new Error("--dry-run requires --launch.");
 			}
 
-			const launchMode = options.launcher === "prompt" ? "prompt" : "watch";
+			const launchMode = resolveTuiLaunchMode(options.launcher ?? "watch");
 
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "tui",

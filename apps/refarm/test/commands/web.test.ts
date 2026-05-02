@@ -159,6 +159,22 @@ describe("webCommand", () => {
 		);
 	});
 
+	it("rejects invalid launcher mode", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await expect(
+			command.parseAsync(["--launch", "--launcher", "invalid"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Invalid --launcher value/);
+		expect(launch).not.toHaveBeenCalled();
+	});
+
 	it("fails when runtime is not ready for launch", async () => {
 		resolveStatusPayload.mockResolvedValue({
 			json: makeStatus({
