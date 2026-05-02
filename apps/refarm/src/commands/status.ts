@@ -4,6 +4,7 @@ import path from "node:path";
 import { Tractor } from "@refarm.dev/tractor";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import {
+  assertRefarmStatusJson,
   buildRefarmStatusJson,
   formatRefarmStatusMarkdown,
   type RefarmStatusJson,
@@ -112,6 +113,7 @@ export const statusCommand = new Command("status")
       runtime,
       trust,
     });
+    assertRefarmStatusJson(json);
 
     if (options.json) {
       console.log(JSON.stringify(json, null, 2));

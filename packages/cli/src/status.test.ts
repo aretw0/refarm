@@ -4,7 +4,13 @@ import {
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import { createNullTrustSummary } from "@refarm.dev/trust";
 import { createNullRuntimeSummary } from "@refarm.dev/runtime";
-import { buildRefarmStatusJson, formatRefarmStatusMarkdown } from "./status.js";
+import {
+  assertRefarmStatusJson,
+  buildRefarmStatusJson,
+  formatRefarmStatusMarkdown,
+  isRefarmStatusJson,
+  REFARM_STATUS_SCHEMA_VERSION,
+} from "./status.js";
 
 const HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
   "refarm-headless",
@@ -20,7 +26,9 @@ const BASE_OPTIONS = {
 
 describe("buildRefarmStatusJson", () => {
   it("emits schemaVersion 1 always", () => {
-    expect(buildRefarmStatusJson(BASE_OPTIONS).schemaVersion).toBe(1);
+    expect(buildRefarmStatusJson(BASE_OPTIONS).schemaVersion).toBe(
+      REFARM_STATUS_SCHEMA_VERSION,
+    );
   });
 
   it("maps host fields directly", () => {
@@ -95,6 +103,32 @@ describe("buildRefarmStatusJson", () => {
     const result = buildRefarmStatusJson(BASE_OPTIONS);
     expect(result.trust).toEqual({ profile: "dev", warnings: 0, critical: 0 });
     expect(result.runtime).toEqual({ ready: false, databaseName: "", namespace: "" });
+  });
+});
+
+describe("status contract validation", () => {
+  it("accepts payloads built by buildRefarmStatusJson", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    expect(isRefarmStatusJson(json)).toBe(true);
+    expect(() => assertRefarmStatusJson(json)).not.toThrow();
+  });
+
+  it("rejects payloads with incompatible schemaVersion", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const invalid = { ...json, schemaVersion: 2 };
+    expect(isRefarmStatusJson(invalid)).toBe(false);
+    expect(() => assertRefarmStatusJson(invalid)).toThrow(
+      /Invalid Refarm status payload/,
+    );
+  });
+
+  it("rejects payloads with malformed renderer capabilities", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const invalid = {
+      ...json,
+      renderer: { ...json.renderer, capabilities: ["surfaces", 1] },
+    };
+    expect(isRefarmStatusJson(invalid)).toBe(false);
   });
 });
 

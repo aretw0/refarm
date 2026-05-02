@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  mockAssertRefarmStatusJson,
   mockBoot,
   mockBuildRefarmStatusJson,
   mockFormatRefarmStatusMarkdown,
   mockShutdown,
 } = vi.hoisted(() => ({
+  mockAssertRefarmStatusJson: vi.fn(),
   mockBoot: vi.fn(),
   mockBuildRefarmStatusJson: vi.fn(),
   mockFormatRefarmStatusMarkdown: vi.fn(),
@@ -19,6 +21,7 @@ vi.mock("@refarm.dev/tractor", () => ({
 }));
 
 vi.mock("@refarm.dev/cli/status", () => ({
+  assertRefarmStatusJson: mockAssertRefarmStatusJson,
   buildRefarmStatusJson: mockBuildRefarmStatusJson,
   formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
 }));
@@ -67,6 +70,7 @@ describe("statusCommand", () => {
     expect(output).toBeDefined();
     const parsed = JSON.parse(output![0] as string);
     expect(parsed.schemaVersion).toBe(1);
+    expect(mockAssertRefarmStatusJson).toHaveBeenCalledWith(parsed);
     spy.mockRestore();
   });
 

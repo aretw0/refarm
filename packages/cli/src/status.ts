@@ -7,8 +7,10 @@ import {
 import type { TrustSummary } from "@refarm.dev/trust";
 import type { RuntimeSummary } from "@refarm.dev/runtime";
 
+export const REFARM_STATUS_SCHEMA_VERSION = 1 as const;
+
 export interface RefarmStatusJson {
-  schemaVersion: 1;
+  schemaVersion: typeof REFARM_STATUS_SCHEMA_VERSION;
   host: { app: string; command: string; profile: string; mode: string };
   renderer: { id: string; kind: string; capabilities: readonly string[] };
   runtime: RuntimeSummary;
@@ -41,7 +43,7 @@ export function buildRefarmStatusJson(
 ): RefarmStatusJson {
   const { host, renderer, runtime, trust, streams, plugins } = options;
   return {
-    schemaVersion: 1,
+    schemaVersion: REFARM_STATUS_SCHEMA_VERSION,
     host,
     renderer: {
       id: renderer.id,
@@ -62,6 +64,71 @@ export function buildRefarmStatusJson(
     },
     diagnostics: buildStatusDiagnostics(renderer),
   };
+}
+
+export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
+  if (!isRecord(value)) return false;
+  if (value.schemaVersion !== REFARM_STATUS_SCHEMA_VERSION) return false;
+
+  const host = value.host;
+  if (!isRecord(host)) return false;
+  if (
+    typeof host.app !== "string" ||
+    typeof host.command !== "string" ||
+    typeof host.profile !== "string" ||
+    typeof host.mode !== "string"
+  ) return false;
+
+  const renderer = value.renderer;
+  if (!isRecord(renderer)) return false;
+  if (
+    typeof renderer.id !== "string" ||
+    typeof renderer.kind !== "string" ||
+    !isStringArray(renderer.capabilities)
+  ) return false;
+
+  const runtime = value.runtime;
+  if (!isRecord(runtime)) return false;
+  if (
+    typeof runtime.ready !== "boolean" ||
+    typeof runtime.namespace !== "string" ||
+    typeof runtime.databaseName !== "string"
+  ) return false;
+
+  const plugins = value.plugins;
+  if (!isRecord(plugins)) return false;
+  if (
+    !isFiniteNumber(plugins.installed) ||
+    !isFiniteNumber(plugins.active) ||
+    !isFiniteNumber(plugins.rejectedSurfaces) ||
+    !isFiniteNumber(plugins.surfaceActions)
+  ) return false;
+
+  const trust = value.trust;
+  if (!isRecord(trust)) return false;
+  if (
+    typeof trust.profile !== "string" ||
+    !isFiniteNumber(trust.warnings) ||
+    !isFiniteNumber(trust.critical)
+  ) return false;
+
+  const streams = value.streams;
+  if (!isRecord(streams)) return false;
+  if (!isFiniteNumber(streams.active) || !isFiniteNumber(streams.terminal)) {
+    return false;
+  }
+
+  return isStringArray(value.diagnostics);
+}
+
+export function assertRefarmStatusJson(
+  value: unknown,
+): asserts value is RefarmStatusJson {
+  if (!isRefarmStatusJson(value)) {
+    throw new Error(
+      `Invalid Refarm status payload. Expected schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+    );
+  }
 }
 
 export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
@@ -124,6 +191,18 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
     "## Diagnostics",
     diagnostics,
   ].join("\n");
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 function buildStatusDiagnostics(

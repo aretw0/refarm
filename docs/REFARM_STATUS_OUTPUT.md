@@ -102,3 +102,9 @@ The first implementation should compose existing proofs:
 - Tractor/registry/trust summaries when available.
 
 Do not make `refarm status` depend on Astro, browser DOM, or a TUI package.
+
+Code-level contract helpers live in `@refarm.dev/cli/status`:
+
+- `REFARM_STATUS_SCHEMA_VERSION`
+- `isRefarmStatusJson(payload)`
+- `assertRefarmStatusJson(payload)`
