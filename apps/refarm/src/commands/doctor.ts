@@ -1,9 +1,12 @@
 import {
 	classifyRefarmStatusDiagnostics,
-	formatRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	emitRefarmDoctorOutput,
+	resolveDoctorOutputMode,
+} from "./doctor-output.js";
 import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
@@ -57,52 +60,6 @@ export function buildRefarmDoctorReport(
 	};
 }
 
-function printReport(report: RefarmDoctorReport): void {
-	const state = report.ok ? "PASS" : "FAIL";
-	console.log(`Doctor: ${state}`);
-	console.log(
-		`Host: ${report.host.command} v${report.host.version} (${report.host.app}, profile=${report.host.profile})`,
-	);
-	console.log(
-		`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`,
-	);
-	console.log(
-		`Runtime: ${report.status.runtime.ready ? "ready" : "not ready"}`,
-	);
-
-	if (report.failures.length > 0) {
-		console.log("Failures:");
-		for (const code of report.failures) console.log(`  - ${code}`);
-	}
-
-	if (report.warnings.length > 0) {
-		console.log("Warnings:");
-		for (const code of report.warnings) console.log(`  - ${code}`);
-	}
-
-	if (report.informational.length > 0) {
-		console.log("Info:");
-		for (const code of report.informational) console.log(`  - ${code}`);
-	}
-}
-
-function formatDoctorReportJson(report: RefarmDoctorReport): string {
-	return JSON.stringify(
-		{
-			ok: report.ok,
-			failureCount: report.failureCount,
-			warningCount: report.warningCount,
-			failures: report.failures,
-			warnings: report.warnings,
-			informational: report.informational,
-			host: report.host,
-			status: JSON.parse(formatRefarmStatusJson(report.status)),
-		},
-		null,
-		2,
-	);
-}
-
 export const doctorCommand = new Command("doctor")
 	.description("Run host readiness checks from the refarm status contract")
 	.option(
@@ -121,12 +78,8 @@ export const doctorCommand = new Command("doctor")
 		const report = buildRefarmDoctorReport(status, {
 			failOnWarnings: options.failOnWarnings,
 		});
-
-		if (options.json) {
-			console.log(formatDoctorReportJson(report));
-		} else {
-			printReport(report);
-		}
+		const outputMode = resolveDoctorOutputMode(options);
+		emitRefarmDoctorOutput({ report, mode: outputMode });
 
 		if (!report.ok) {
 			process.exitCode = 1;
