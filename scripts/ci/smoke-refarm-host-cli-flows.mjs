@@ -163,6 +163,7 @@ async function main() {
 			{ env: process.env, captureOutput: true },
 		);
 		const webOutput = stripAnsi(`${webRun.stdout}\n${webRun.stderr}`);
+		assertIncludes(webOutput, "REFARM");
 		assertIncludes(webOutput, "[dry-run] would launch web runtime");
 		assertIncludes(webOutput, "[dry-run] would open browser URL");
 
@@ -216,6 +217,7 @@ async function main() {
 		const tuiLaunchOutput = stripAnsi(
 			`${tuiLaunchRun.stdout}\n${tuiLaunchRun.stderr}`,
 		);
+		assertIncludes(tuiLaunchOutput, "REFARM");
 		assertIncludes(tuiLaunchOutput, "[dry-run] would launch tui runtime");
 
 		console.log(
