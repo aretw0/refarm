@@ -11,7 +11,7 @@
  *   node scripts/check-diagrams.mjs --ci     // Regenerate and verify no changes needed
  */
 
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -56,10 +56,13 @@ function generateSvg(mermaidFile) {
   const svgFile = mermaidFile.replace(".mermaid", ".svg");
 
   try {
-    execSync(
-      `npx -y @mermaid-js/mermaid-cli -i "${mermaidFile}" -o "${svgFile}" -c "${mermaidConfigFile}"`,
-      { stdio: "pipe" }
-    );
+    const puppeteerConfig = path.join(projectRoot, "scripts", "puppeteer-no-sandbox.json");
+    execFileSync("mmdc", [
+      "-i", mermaidFile,
+      "-o", svgFile,
+      "-c", mermaidConfigFile,
+      "-p", puppeteerConfig,
+    ], { stdio: "pipe" });
     return svgFile;
   } catch (error) {
     console.error(`❌ Failed to generate SVG for ${mermaidFile}`);

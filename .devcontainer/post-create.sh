@@ -100,6 +100,9 @@ PW_PID=$!
 retry 2 npm install -g @anthropic-ai/claude-code &
 CLAUDE_PID=$!
 
+retry 2 npm install -g @mermaid-js/mermaid-cli &
+MMDC_PID=$!
+
 (
   retry 2 npm install -g @mariozechner/pi-coding-agent || { warn "Pi install failed. Run: npm install -g @mariozechner/pi-coding-agent"; exit 0; }
   retry 2 npm install -g @aretw0/pi-stack || { warn "pi-stack install failed. Run: npm install -g @aretw0/pi-stack"; exit 0; }
@@ -110,9 +113,10 @@ CLAUDE_PID=$!
 ) &
 PI_PID=$!
 
-wait $PW_PID  || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
+wait $PW_PID   || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
 wait $CLAUDE_PID || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
-wait $PI_PID  || true
+wait $MMDC_PID || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
+wait $PI_PID   || true
 
 # 5) Finalize
 log "Installing git hooks..."
@@ -134,5 +138,6 @@ npx playwright --version || true
 gh --version 2>/dev/null | head -1 || true
 pi --version 2>/dev/null || true
 claude --version 2>/dev/null || true
+mmdc --version 2>/dev/null || true
 
 log "Post-create setup complete."
