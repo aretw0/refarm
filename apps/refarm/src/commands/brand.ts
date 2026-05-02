@@ -1,4 +1,4 @@
-import { resolveRefarmVersion } from "./version.js";
+import { resolveRefarmVersion } from "./runtime-metadata.js";
 
 export type RefarmLaunchExperience = "web" | "tui";
 

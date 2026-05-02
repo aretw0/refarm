@@ -15,6 +15,7 @@ import { Tractor } from "@refarm.dev/tractor";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { resolveRefarmRuntimeMetadata } from "./runtime-metadata.js";
 
 interface StorageAdapter {
 	ensureSchema(): Promise<void>;
@@ -153,12 +154,13 @@ export async function resolveStatusPayload(
 
 	const runtime = createRuntimeSummaryFromTractor(tractor);
 	const trust = createTrustSummaryFromTractor(tractor);
+	const metadata = resolveRefarmRuntimeMetadata();
 
 	const json = buildRefarmStatusJson({
 		host: {
-			app: "apps/refarm",
-			command: "refarm",
-			profile: "dev",
+			app: metadata.app,
+			command: metadata.command,
+			profile: metadata.profile,
 			mode: renderer.kind,
 		},
 		renderer,

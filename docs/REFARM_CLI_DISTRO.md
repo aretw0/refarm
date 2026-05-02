@@ -68,8 +68,9 @@ wordmark/banner (including version) before launch or dry-run output so both
 host experiences carry consistent identity without affecting `--json`/
 `--markdown` contracts. Version is resolved without importing `package.json`
 as a module (`REFARM_VERSION` env first, then `npm_package_version`, then
-package metadata read fallback). Set `REFARM_BRAND_BANNER=0` to suppress
-terminal banner output.
+package metadata read fallback) through shared `runtime-metadata` helpers so
+other host commands can reuse the same resolution path. Set
+`REFARM_BRAND_BANNER=0` to suppress terminal banner output.
 
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.
