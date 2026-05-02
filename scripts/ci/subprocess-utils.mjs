@@ -9,17 +9,17 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/sync-contract-v1",
 	"packages/storage-sqlite",
 	"packages/registry",
+	"packages/tractor-ts",
 	"packages/silo",
 	"packages/windmill",
 	"packages/sower",
 	"packages/health",
 	"packages/runtime",
 	"packages/trust",
+	"packages/sync-loro",
 	"packages/ds",
 	"packages/homestead",
 	"packages/cli",
-	"packages/sync-loro",
-	"packages/tractor-ts",
 	"apps/farmhand",
 	"apps/refarm",
 ];
@@ -40,6 +40,8 @@ export async function prepareTaskSmokeTypeBuilds(
 	);
 	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
 		await resetTsBuildArtifacts(workspaceDir);
+	}
+	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
 		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
 			env,
 		});
