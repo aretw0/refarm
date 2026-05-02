@@ -19,6 +19,9 @@ export interface SidecarAdapter {
 
 export class HttpSidecar {
 	private readonly server: http.Server;
+	private readonly routeHandlers: Array<
+		(req: http.IncomingMessage, res: http.ServerResponse) => boolean
+	> = [];
 
 	constructor(
 		private readonly port: number,
@@ -41,6 +44,16 @@ export class HttpSidecar {
 		});
 	}
 
+	addRouteHandler(
+		handler: (req: http.IncomingMessage, res: http.ServerResponse) => boolean,
+	): void {
+		this.routeHandlers.push(handler);
+	}
+
+	get httpServer(): http.Server {
+		return this.server;
+	}
+
 	private async handle(
 		req: http.IncomingMessage,
 		res: http.ServerResponse,
@@ -48,6 +61,10 @@ export class HttpSidecar {
 		const url = req.url ?? "/";
 
 		try {
+			for (const handler of this.routeHandlers) {
+				if (handler(req, res)) return;
+			}
+
 			if (req.method === "POST" && url === "/efforts") {
 				const effort = await readJson<Effort>(req);
 				const effortId = await this.adapter.submit(effort);

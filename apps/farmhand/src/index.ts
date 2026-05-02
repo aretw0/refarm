@@ -12,12 +12,17 @@
 
 import os from "node:os";
 import path from "node:path";
+import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
+import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
-import { executeTask } from "./task-executor.js";
+import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
 import { loadInstalledPlugins } from "./installed-plugins.js";
+import { toStreamChunk } from "./stream-chunk-mapper.js";
+import { StreamRegistry } from "./stream-registry.js";
+import { executeTask } from "./task-executor.js";
 import { WebSocketSyncTransport } from "./transport.js";
 import {
 	FileTransportAdapter,
@@ -162,7 +167,10 @@ async function main() {
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
-	const loadSummary = await loadInstalledPlugins(tractor as any, farmhandBaseDir);
+	const loadSummary = await loadInstalledPlugins(
+		tractor as any,
+		farmhandBaseDir,
+	);
 	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
 		console.log(
 			`[farmhand] Installed plugin scan complete: loaded=${loadSummary.loaded} skipped=${loadSummary.skipped}`,
@@ -213,6 +221,26 @@ async function main() {
 	const httpSidecar = new HttpSidecar(42001, fileTransport);
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
+
+	const streamsDir = path.join(farmhandBaseDir, "streams");
+	const fileStreamTransport = new FileStreamTransport(streamsDir);
+	const sseStreamTransport = new SseStreamTransport(fileStreamTransport);
+	const wsStreamTransport = new WsStreamTransport(
+		httpSidecar.httpServer,
+		fileStreamTransport,
+	);
+	httpSidecar.addRouteHandler(sseStreamTransport.getRouteHandler());
+
+	const streamRegistry = new StreamRegistry();
+	streamRegistry.register(fileStreamTransport);
+	streamRegistry.register(sseStreamTransport);
+	streamRegistry.register(wsStreamTransport);
+	tractor.onNode("StreamChunk", async (node) => {
+		streamRegistry.dispatch(toStreamChunk(node as Record<string, unknown>));
+	});
+	console.log(
+		"[farmhand] Stream transports registered (File, SSE, WebSocket).",
+	);
 
 	// Write initial presence node (goes into LoroDoc, projected to read model)
 	await tractor.storeNode({

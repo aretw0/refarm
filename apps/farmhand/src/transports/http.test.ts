@@ -117,6 +117,23 @@ describe("HttpSidecar", () => {
 		expect(status).toBe(404);
 	});
 
+	it("delegates to custom route handlers before built-in routes", async () => {
+		sidecar.addRouteHandler((req, res) => {
+			if (req.method === "GET" && req.url === "/custom") {
+				res.writeHead(200, {
+					"content-type": "application/json",
+				});
+				res.end(JSON.stringify({ ok: true }));
+				return true;
+			}
+			return false;
+		});
+
+		const { status, body } = await request(PORT, "GET", "/custom");
+		expect(status).toBe(200);
+		expect((body as any).ok).toBe(true);
+	});
+
 	it("GET /efforts returns effort list", async () => {
 		adapter.list.mockResolvedValueOnce([
 			{

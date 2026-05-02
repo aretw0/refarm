@@ -13,11 +13,15 @@
   },
   "dependencies": {
     "@refarm.dev/effort-contract-v1": "*",
+    "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/sse-stream-transport": "*",
     "@refarm.dev/storage-contract-v1": "*",
+    "@refarm.dev/stream-contract-v1": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
+    "@refarm.dev/ws-stream-transport": "*",
     "ws": "^8.20.0"
   },
   "devDependencies": {
