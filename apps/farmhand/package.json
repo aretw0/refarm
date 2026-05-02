@@ -14,6 +14,7 @@
   "dependencies": {
     "@refarm.dev/effort-contract-v1": "*",
     "@refarm.dev/identity-contract-v1": "*",
+    "@refarm.dev/plugin-manifest": "*",
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",

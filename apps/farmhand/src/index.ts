@@ -17,6 +17,7 @@ import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { executeTask } from "./task-executor.js";
+import { loadInstalledPlugins } from "./installed-plugins.js";
 import { WebSocketSyncTransport } from "./transport.js";
 import {
 	FileTransportAdapter,
@@ -161,6 +162,12 @@ async function main() {
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
+	const loadSummary = await loadInstalledPlugins(tractor as any, farmhandBaseDir);
+	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
+		console.log(
+			`[farmhand] Installed plugin scan complete: loaded=${loadSummary.loaded} skipped=${loadSummary.skipped}`,
+		);
+	}
 
 	const taskExecutorFn: TaskExecutorFn = async (task, effortId) => {
 		let status: "ok" | "error" = "ok";

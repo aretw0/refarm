@@ -35,7 +35,11 @@ export async function executeTask(
 	}
 
 	try {
-		const result = await instance.call(fn, args);
+		const normalizedArgs =
+			fn === "respond" && typeof args !== "string"
+				? JSON.stringify(args ?? {})
+				: args;
+		const result = await instance.call(fn, normalizedArgs);
 		await tractor.storeNode({
 			...baseResultNode,
 			"task:status": "ok",

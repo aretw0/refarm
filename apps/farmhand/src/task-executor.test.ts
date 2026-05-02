@@ -71,4 +71,22 @@ describe("executeTask", () => {
 			}),
 		);
 	});
+
+	it("stringifies object args for respond", async () => {
+		const instance = makeInstance({ content: "ok" });
+		const tractor = makeTractor(instance);
+
+		await executeTask(tractor as any, {
+			taskId: "t4",
+			effortId: "e4",
+			pluginId: "pi-agent",
+			fn: "respond",
+			args: { prompt: "hello" },
+		});
+
+		expect(instance.call).toHaveBeenCalledWith(
+			"respond",
+			JSON.stringify({ prompt: "hello" }),
+		);
+	});
 });
