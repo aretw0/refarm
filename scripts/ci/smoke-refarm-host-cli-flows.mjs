@@ -123,6 +123,7 @@ async function main() {
 			`${webPreflightRun.stdout}\n${webPreflightRun.stderr}`,
 		);
 		assertIncludes(webPreflightOutput, "available via --launch");
+		assertIncludes(webPreflightOutput, "(dev|preview)");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --input preflight hint`);
 		const tuiPreflightRun = await runSubprocess(
@@ -141,6 +142,7 @@ async function main() {
 			`${tuiPreflightRun.stdout}\n${tuiPreflightRun.stderr}`,
 		);
 		assertIncludes(tuiPreflightOutput, "available via --launch");
+		assertIncludes(tuiPreflightOutput, "(watch|prompt)");
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web --launch --dry-run --open --input`,
