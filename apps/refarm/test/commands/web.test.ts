@@ -163,6 +163,7 @@ describe("webCommand", () => {
 		resolveStatusPayload.mockResolvedValue({
 			json: makeStatus({
 				runtime: { ready: false, namespace: "", databaseName: "" },
+				diagnostics: ["runtime:not-ready"],
 			}),
 			shutdown: vi.fn().mockResolvedValue(undefined),
 		});
@@ -176,6 +177,27 @@ describe("webCommand", () => {
 		await expect(
 			command.parseAsync(["--launch"], { from: "user" }),
 		).rejects.toThrow(/runtime:not-ready/);
+		expect(launch).not.toHaveBeenCalled();
+	});
+
+	it("fails launch when status has critical trust diagnostics", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				trust: { profile: "strict", warnings: 0, critical: 1 },
+				diagnostics: ["trust:critical-present"],
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await expect(
+			command.parseAsync(["--launch"], { from: "user" }),
+		).rejects.toThrow(/trust:critical-present/);
 		expect(launch).not.toHaveBeenCalled();
 	});
 

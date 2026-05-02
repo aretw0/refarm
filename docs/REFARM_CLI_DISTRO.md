@@ -55,6 +55,8 @@ state using the same contracts as the apps?
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
 It can also request browser opening (`--open`, optional `--open-url`) while
 keeping launcher failures explicit and non-fatal to preflight reporting.
+Launch is fail-closed when status diagnostics include failure codes (for
+example `runtime:not-ready` or `trust:critical-present`).
 `refarm tui` currently validates TUI renderer posture; full TUI launcher/runtime
 integration remains deferred.
 

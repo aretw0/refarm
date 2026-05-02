@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import {
+	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
 	type RefarmStatusJson,
@@ -216,9 +217,10 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			await shutdown?.();
 
 			if (options.launch) {
-				if (!json.runtime.ready) {
+				const diagnostics = classifyRefarmStatusDiagnostics(json);
+				if (diagnostics.failures.length > 0) {
 					throw new Error(
-						"Cannot launch web runtime: status reports runtime:not-ready.",
+						`Cannot launch web runtime due status failures: ${diagnostics.failures.join(", ")}.`,
 					);
 				}
 				const spec = resolveWebLaunchSpec(launchMode);
