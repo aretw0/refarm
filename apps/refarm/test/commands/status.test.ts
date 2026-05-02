@@ -172,4 +172,22 @@ describe("statusCommand", () => {
 
     readSpy.mockRestore();
   });
+
+  it("reads status payload from stdin when --input - is used", async () => {
+    const readSpy = vi
+      .spyOn(fs, "readFileSync")
+      .mockImplementation((filePath: fs.PathOrFileDescriptor) => {
+        if (filePath === 0) return "{\"schemaVersion\":1}";
+        throw new Error(`unexpected read: ${String(filePath)}`);
+      });
+
+    await statusCommand.parseAsync(["--json", "--input", "-"], {
+      from: "user",
+    });
+
+    expect(mockBoot).not.toHaveBeenCalled();
+    expect(mockParseRefarmStatusJson).toHaveBeenCalledWith("{\"schemaVersion\":1}");
+    expect(readSpy).toHaveBeenCalledWith(0, "utf-8");
+    readSpy.mockRestore();
+  });
 });

@@ -76,7 +76,7 @@ export const statusCommand = new Command("status")
   .description("Report host status")
   .option(
     "--input <path>",
-    "Read status payload from JSON file instead of booting runtime",
+    "Read status payload from JSON file (or '-' for stdin) instead of booting runtime",
   )
   .option(
     "--renderer <kind>",
@@ -141,19 +141,25 @@ export const statusCommand = new Command("status")
   });
 
 function readStatusPayloadFromInput(inputPath: string): RefarmStatusJson {
-  const resolvedPath = path.resolve(process.cwd(), inputPath);
+  const sourceLabel = inputPath === "-" ? "stdin" : inputPath;
+  const resolvedPath = inputPath === "-"
+    ? undefined
+    : path.resolve(process.cwd(), inputPath);
+
   let raw: string;
   try {
-    raw = fs.readFileSync(resolvedPath, "utf-8");
+    raw = inputPath === "-"
+      ? fs.readFileSync(0, "utf-8")
+      : fs.readFileSync(resolvedPath, "utf-8");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to read status input \"${inputPath}\": ${message}`);
+    throw new Error(`Failed to read status input \"${sourceLabel}\": ${message}`);
   }
 
   try {
     return parseRefarmStatusJson(raw);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to parse status input \"${inputPath}\": ${message}`);
+    throw new Error(`Failed to parse status input \"${sourceLabel}\": ${message}`);
   }
 }
