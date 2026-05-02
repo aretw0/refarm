@@ -16,7 +16,7 @@ import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import {
 	emitRefarmStatusOutput,
-	resolveStatusOutputMode,
+	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
 
 interface StorageAdapter {
@@ -114,13 +114,11 @@ export const statusCommand = new Command("status")
 			renderer?: string;
 			input?: string;
 		}) => {
-			const outputMode = resolveStatusOutputMode(
-				{ json: options.json, markdown: options.markdown },
-				{
-					defaultMode: "summary",
-					errorMessage: "Choose only one output format: --json or --markdown.",
-				},
-			);
+			const outputMode = resolveJsonMarkdownStatusOutputMode({
+				json: options.json,
+				markdown: options.markdown,
+				defaultMode: "summary",
+			});
 
 			const { json, shutdown } = await resolveStatusPayload(options);
 			emitRefarmStatusOutput({

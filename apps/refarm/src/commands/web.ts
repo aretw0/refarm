@@ -23,7 +23,7 @@ import {
 } from "./status.js";
 import {
 	emitRefarmStatusOutput,
-	resolveStatusOutputMode,
+	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
 
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
@@ -182,13 +182,11 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				options.launcher ?? "dev",
 				WEB_LAUNCHER_MODES,
 			);
-			const outputMode = resolveStatusOutputMode(
-				{ json: options.json, markdown: options.markdown },
-				{
-					defaultMode: "summary",
-					errorMessage: "Choose only one output format: --json or --markdown.",
-				},
-			);
+			const outputMode = resolveJsonMarkdownStatusOutputMode({
+				json: options.json,
+				markdown: options.markdown,
+				defaultMode: "summary",
+			});
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "web",

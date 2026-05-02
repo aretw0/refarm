@@ -21,7 +21,7 @@ import {
 } from "./status.js";
 import {
 	emitRefarmStatusOutput,
-	resolveStatusOutputMode,
+	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
 
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
@@ -107,13 +107,11 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				options.launcher ?? "watch",
 				TUI_LAUNCHER_MODES,
 			);
-			const outputMode = resolveStatusOutputMode(
-				{ json: options.json, markdown: options.markdown },
-				{
-					defaultMode: "summary",
-					errorMessage: "Choose only one output format: --json or --markdown.",
-				},
-			);
+			const outputMode = resolveJsonMarkdownStatusOutputMode({
+				json: options.json,
+				markdown: options.markdown,
+				defaultMode: "summary",
+			});
 
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "tui",

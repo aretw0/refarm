@@ -7,6 +7,9 @@ import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 
 export type RefarmStatusOutputMode = "json" | "markdown" | "summary";
 
+export const STATUS_JSON_MARKDOWN_ERROR_MESSAGE =
+	"Choose only one output format: --json or --markdown.";
+
 export interface RefarmStatusOutputFlags {
 	json?: boolean;
 	markdown?: boolean;
@@ -41,6 +44,20 @@ export function resolveStatusOutputMode(
 		return "summary";
 	}
 	return options.defaultMode;
+}
+
+export function resolveJsonMarkdownStatusOutputMode(options: {
+	json?: boolean;
+	markdown?: boolean;
+	defaultMode: RefarmStatusOutputMode;
+}): RefarmStatusOutputMode {
+	return resolveStatusOutputMode(
+		{ json: options.json, markdown: options.markdown },
+		{
+			defaultMode: options.defaultMode,
+			errorMessage: STATUS_JSON_MARKDOWN_ERROR_MESSAGE,
+		},
+	);
 }
 
 export function emitRefarmStatusOutput(options: {

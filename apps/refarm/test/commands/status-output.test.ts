@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	emitRefarmStatusOutput,
+	resolveJsonMarkdownStatusOutputMode,
 	resolveStatusOutputMode,
+	STATUS_JSON_MARKDOWN_ERROR_MESSAGE,
 } from "../../src/commands/status-output.js";
 
 function makeStatus() {
@@ -71,6 +73,23 @@ describe("resolveStatusOutputMode", () => {
 				{ defaultMode: "summary", errorMessage: "Choose one." },
 			),
 		).toThrow(/Choose one/);
+	});
+
+	it("resolves json/markdown mode with shared default error message", () => {
+		expect(
+			resolveJsonMarkdownStatusOutputMode({
+				json: true,
+				defaultMode: "summary",
+			}),
+		).toBe("json");
+
+		expect(() =>
+			resolveJsonMarkdownStatusOutputMode({
+				json: true,
+				markdown: true,
+				defaultMode: "summary",
+			}),
+		).toThrow(STATUS_JSON_MARKDOWN_ERROR_MESSAGE);
 	});
 });
 
