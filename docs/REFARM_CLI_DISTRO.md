@@ -49,7 +49,8 @@ state using the same contracts as the apps?
 - `refarm headless` (headless snapshot-first output surface)
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
 - `refarm tui` (tui renderer preflight + terminal launcher entrypoint via `--launch`)
-- `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
+- `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
+  including host metadata in human/JSON report output)
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
