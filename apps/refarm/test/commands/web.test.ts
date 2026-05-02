@@ -161,6 +161,35 @@ describe("webCommand", () => {
 		).rejects.toThrow(/cannot be combined/);
 	});
 
+	it("rejects --dry-run without --launch", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--dry-run"], { from: "user" }),
+		).rejects.toThrow(/requires --launch/);
+	});
+
+	it("prints dry-run command without launching process", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--dry-run"], { from: "user" });
+
+		expect(launch).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("[dry-run] would launch web runtime"),
+		);
+		logSpy.mockRestore();
+	});
+
 	it("propagates launcher non-zero exit code", async () => {
 		launch.mockResolvedValue(3);
 		const command = createWebCommand({

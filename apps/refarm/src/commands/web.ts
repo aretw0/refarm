@@ -33,6 +33,7 @@ interface WebOptions {
 	json?: boolean;
 	markdown?: boolean;
 	launch?: boolean;
+	dryRun?: boolean;
 	launcher?: RefarmWebLauncherMode;
 }
 
@@ -102,6 +103,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.option("--json", "Output machine-readable JSON")
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch the local web runtime after renderer preflight")
+		.option("--dry-run", "Print launcher command without executing it")
 		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
 		.action(async (options: WebOptions) => {
 			if (options.json && options.markdown) {
@@ -111,6 +113,9 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				throw new Error(
 					"--launch cannot be combined with --json or --markdown.",
 				);
+			}
+			if (options.dryRun && !options.launch) {
+				throw new Error("--dry-run requires --launch.");
 			}
 
 			const launchMode = options.launcher === "preview" ? "preview" : "dev";
@@ -141,6 +146,10 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 					);
 				}
 				const spec = resolveWebLaunchSpec(launchMode);
+				if (options.dryRun) {
+					console.log(`[dry-run] would launch web runtime: ${spec.display}`);
+					return;
+				}
 				console.log(`Launching web runtime: ${spec.display}`);
 				const code = await resolvedDeps.launch(spec);
 				if (code !== 0) {

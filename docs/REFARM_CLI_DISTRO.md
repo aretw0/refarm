@@ -51,8 +51,9 @@ state using the same contracts as the apps?
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
-(`dev` or `preview`) after runtime preflight. Keep launcher orchestration thin and
-avoid splitting runtime policy away from shared status/renderer contracts.
+(`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
+Keep launcher orchestration thin and avoid splitting runtime policy away from
+shared status/renderer contracts.
 
 ## Renderer modes
 
