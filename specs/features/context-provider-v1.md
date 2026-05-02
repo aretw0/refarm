@@ -1,6 +1,6 @@
 # Feature: context-provider-v1 + `refarm ask`
 
-**Status**: Draft  
+**Status**: In Progress  
 **Version**: v0.1.0  
 **Owner**: Arthur Silva
 
@@ -161,13 +161,13 @@ refarm ask "<query>" [--files <file1,file2,...>]
 
 **Unit tests (TDD):**
 
-- [ ] `buildSystemPrompt` sorts by priority and wraps with preamble
-- [ ] `ContextRegistry` collects all providers in parallel
-- [ ] `ContextRegistry` isolates a throwing provider — others still contribute
-- [ ] `GitStatusContextProvider` returns empty array when not in a git repo
-- [ ] `FilesContextProvider` truncates files at 4 KB with label
-- [ ] `ask` command assembles correct payload and submits to Farmhand HTTP adapter
-- [ ] `ask` command prints chunks to stdout and usage footer on `is_final`
+- [x] `buildSystemPrompt` sorts by priority and wraps with preamble
+- [x] `ContextRegistry` collects all providers in parallel
+- [x] `ContextRegistry` isolates a throwing provider — others still contribute
+- [x] `GitStatusContextProvider` returns empty array when not in a git repo
+- [x] `FilesContextProvider` truncates files at 4 KB with label
+- [x] `ask` command assembles correct payload and submits to Farmhand HTTP adapter
+- [x] `ask` command prints chunks to stdout and usage footer on `is_final`
 
 **Smoke gate:**
 
@@ -182,24 +182,24 @@ refarm ask "<query>" [--files <file1,file2,...>]
 - [x] Design `ContextProvider` / `ContextRegistry` / `buildSystemPrompt` contract
 - [x] Design `refarm ask` command flow
 - [x] Write design doc
-- [ ] No new ADR needed — follows ADR-018 capability contract model
+- [x] No new ADR needed — follows ADR-018 capability contract model
 
 **TDD:**
 
-- [ ] `buildSystemPrompt` unit tests in `packages/context-provider-v1/`
-- [ ] `ContextRegistry` isolation tests
-- [ ] Provider unit tests (cwd, date, git-status, files)
-- [ ] `ask` command unit tests in `apps/refarm/`
+- [x] `buildSystemPrompt` unit tests in `packages/context-provider-v1/`
+- [x] `ContextRegistry` isolation tests
+- [x] Provider unit tests (cwd, date, git-status, files)
+- [x] `ask` command unit tests in `apps/refarm/`
 - [ ] Smoke gate scenario
 
 **DDD:**
 
-- [ ] Scaffold `packages/context-provider-v1/` with all types and bundled providers
-- [ ] Implement `ContextRegistry` with `Promise.allSettled` parallel collection
-- [ ] Implement `buildSystemPrompt` with priority sorting and XML-style context wrapping
-- [ ] Add `ask.ts` command to `apps/refarm/src/commands/`
-- [ ] Wire `refarm ask` in `apps/refarm/src/program.ts`
-- [ ] Add `@refarm.dev/context-provider-v1` and `@refarm.dev/file-stream-transport`
+- [x] Scaffold `packages/context-provider-v1/` with all types and bundled providers
+- [x] Implement `ContextRegistry` with `Promise.allSettled` parallel collection
+- [x] Implement `buildSystemPrompt` with priority sorting and XML-style context wrapping
+- [x] Add `ask.ts` command to `apps/refarm/src/commands/`
+- [x] Wire `refarm ask` in `apps/refarm/src/program.ts`
+- [x] Add `@refarm.dev/context-provider-v1` and `@refarm.dev/file-stream-transport`
   as dependencies in `apps/refarm/package.json`
 - [ ] Smoke gate: verify end-to-end with stub LLM
 

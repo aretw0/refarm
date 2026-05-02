@@ -1,6 +1,6 @@
 # Feature: stream-contract-v1 — TypeScript Streaming Transport Layer
 
-**Status**: Draft  
+**Status**: In Progress  
 **Version**: v0.1.0  
 **Owner**: Arthur Silva
 
@@ -160,21 +160,21 @@ export class StreamRegistry {
 
 **Conformance tests (any adapter):**
 
-- [ ] Delivers a chunk to a subscriber
-- [ ] Replays past chunks on late subscribe
-- [ ] Delivers `is_final=true` chunk and signals completion
-- [ ] Delivers to multiple subscribers for the same `stream_ref`
-- [ ] Maintains sequence order under rapid writes
+- [x] Delivers a chunk to a subscriber
+- [x] Replays past chunks on late subscribe
+- [x] Delivers `is_final=true` chunk and signals completion
+- [x] Delivers to multiple subscribers for the same `stream_ref`
+- [x] Maintains sequence order under rapid writes
 
 **Unit tests (TDD):**
 
-- [ ] `StreamRegistry.dispatch` calls all adapters even if one throws
-- [ ] `FileStreamTransport` write → read roundtrip in temp dir
-- [ ] `FileStreamTransport` late-subscribe replay returns past chunks in order
-- [ ] `SseStreamTransport` emits `text/event-stream` framing
-- [ ] `SseStreamTransport` sends `data: [DONE]` on `is_final=true`
-- [ ] `WsStreamTransport` accepts subscribe handshake and delivers chunks
-- [ ] `WsStreamTransport` closes with code 1000 on `is_final=true`
+- [x] `StreamRegistry.dispatch` calls all adapters even if one throws
+- [x] `FileStreamTransport` write → read roundtrip in temp dir
+- [x] `FileStreamTransport` late-subscribe replay returns past chunks in order
+- [x] `SseStreamTransport` emits `text/event-stream` framing
+- [x] `SseStreamTransport` sends `data: [DONE]` on `is_final=true`
+- [x] `WsStreamTransport` accepts subscribe handshake and delivers chunks
+- [x] `WsStreamTransport` closes with code 1000 on `is_final=true`
 
 **Smoke gate:**
 
@@ -196,25 +196,25 @@ export class StreamRegistry {
 
 **TDD:**
 
-- [ ] Conformance tests in `packages/stream-contract-v1/src/conformance.ts`
-- [ ] `StreamRegistry` isolated-failure test
-- [ ] `FileStreamTransport` unit tests
-- [ ] `SseStreamTransport` unit tests
-- [ ] `WsStreamTransport` unit tests
+- [x] Conformance tests in `packages/stream-contract-v1/src/conformance.ts`
+- [x] `StreamRegistry` isolated-failure test
+- [x] `FileStreamTransport` unit tests
+- [x] `SseStreamTransport` unit tests
+- [x] `WsStreamTransport` unit tests
 - [ ] Smoke gate scenario
 
 **DDD:**
 
-- [ ] Scaffold `packages/stream-contract-v1/` with `StreamChunk`, `StreamProducer`,
+- [x] Scaffold `packages/stream-contract-v1/` with `StreamChunk`, `StreamProducer`,
   `StreamConsumer`, `StreamTransportAdapter`, `InMemoryStreamTransport`
-- [ ] Implement `runConformanceTests` in `packages/stream-contract-v1/src/conformance.ts`
-- [ ] Scaffold `packages/file-stream-transport/` — NDJSON write + fs.watch + replay
-- [ ] Scaffold `packages/sse-stream-transport/` — GET /stream/:ref on port 42001
-- [ ] Scaffold `packages/ws-stream-transport/` — WebSocket upgrade on port 42001
-- [ ] Implement `StreamRegistry` in `apps/farmhand/src/stream-registry.ts`
-- [ ] Add `toStreamChunk` mapper for Tractor node shape in Farmhand
-- [ ] Wire `tractor.onNode("StreamChunk")` → `streamRegistry.dispatch` in Farmhand `index.ts`
-- [ ] Register all three transports in Farmhand `main()`
+- [x] Implement `runConformanceTests` in `packages/stream-contract-v1/src/conformance.ts`
+- [x] Scaffold `packages/file-stream-transport/` — NDJSON write + fs.watch + replay
+- [x] Scaffold `packages/sse-stream-transport/` — GET /stream/:ref on port 42001
+- [x] Scaffold `packages/ws-stream-transport/` — WebSocket upgrade on port 42001
+- [x] Implement `StreamRegistry` in `apps/farmhand/src/stream-registry.ts`
+- [x] Add `toStreamChunk` mapper for Tractor node shape in Farmhand
+- [x] Wire `tractor.onNode("StreamChunk")` → `streamRegistry.dispatch` in Farmhand `index.ts`
+- [x] Register all three transports in Farmhand `main()`
 - [ ] Smoke gate: verify end-to-end with pi-agent respond
 
 ---
