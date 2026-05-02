@@ -15,6 +15,7 @@ import { Tractor } from "@refarm.dev/tractor";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
+import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 
 interface StorageAdapter {
@@ -112,9 +113,13 @@ export const statusCommand = new Command("status")
 			renderer?: string;
 			input?: string;
 		}) => {
-			if (options.json && options.markdown) {
-				throw new Error("Choose only one output format: --json or --markdown.");
-			}
+			assertAtMostOneFlagEnabled(
+				[
+					{ enabled: options.json, flag: "--json" },
+					{ enabled: options.markdown, flag: "--markdown" },
+				],
+				"Choose only one output format: --json or --markdown.",
+			);
 
 			const { json, shutdown } = await resolveStatusPayload(options);
 

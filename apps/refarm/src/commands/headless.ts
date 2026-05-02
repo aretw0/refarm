@@ -3,6 +3,7 @@ import {
 	formatRefarmStatusMarkdown,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { assertAtMostOneFlagEnabled } from "./option-guards.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
 
 interface HeadlessOptions {
@@ -22,11 +23,13 @@ export const headlessCommand = new Command("headless")
 	.option("--markdown", "Output markdown report")
 	.option("--summary", "Output human-readable status summary")
 	.action(async (options: HeadlessOptions) => {
-		if (options.markdown && options.summary) {
-			throw new Error(
-				"Choose only one output format: --markdown or --summary.",
-			);
-		}
+		assertAtMostOneFlagEnabled(
+			[
+				{ enabled: options.markdown, flag: "--markdown" },
+				{ enabled: options.summary, flag: "--summary" },
+			],
+			"Choose only one output format: --markdown or --summary.",
+		);
 
 		const { json, shutdown } = await resolveStatusPayload({
 			renderer: "headless",

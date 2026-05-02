@@ -1,3 +1,5 @@
+import { assertAtMostOneFlagEnabled } from "./option-guards.js";
+
 export interface LaunchGuardOption {
 	enabled?: boolean;
 	flag: string;
@@ -12,9 +14,13 @@ export interface LaunchGuardInput {
 }
 
 export function assertLaunchGuardOptions(input: LaunchGuardInput): void {
-	if (input.json && input.markdown) {
-		throw new Error("Choose only one output format: --json or --markdown.");
-	}
+	assertAtMostOneFlagEnabled(
+		[
+			{ enabled: input.json, flag: "--json" },
+			{ enabled: input.markdown, flag: "--markdown" },
+		],
+		"Choose only one output format: --json or --markdown.",
+	);
 
 	if (input.launch && (input.json || input.markdown)) {
 		throw new Error("--launch cannot be combined with --json or --markdown.");
