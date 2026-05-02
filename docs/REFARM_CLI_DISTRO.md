@@ -80,8 +80,9 @@ npm run refarm:host:smoke:ci
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm web --launch --dry-run --open`, `refarm tui --json`, and
-  `refarm tui --launch --dry-run`) and verifies invalid launcher values are
-  rejected fail-closed, using fixture-backed status input.
+  `refarm tui --launch --dry-run`) and verifies invalid launcher values and
+  invalid launch-guard combinations (`--open`/`--dry-run` without `--launch`)
+  are rejected fail-closed, using fixture-backed status input.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
   wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
 

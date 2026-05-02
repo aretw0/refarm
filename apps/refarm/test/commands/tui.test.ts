@@ -157,6 +157,7 @@ describe("tuiCommand", () => {
 				from: "user",
 			}),
 		).rejects.toThrow(/Invalid --launcher value/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
 		expect(launch).not.toHaveBeenCalled();
 	});
 
@@ -223,6 +224,7 @@ describe("tuiCommand", () => {
 		await expect(
 			command.parseAsync(["--launch", "--json"], { from: "user" }),
 		).rejects.toThrow(/cannot be combined/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
 	it("rejects --dry-run without --launch", async () => {
@@ -235,6 +237,7 @@ describe("tuiCommand", () => {
 		await expect(
 			command.parseAsync(["--dry-run"], { from: "user" }),
 		).rejects.toThrow(/requires --launch/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
 	});
 
 	it("prints dry-run command without launching process", async () => {

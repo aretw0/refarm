@@ -216,6 +216,38 @@ async function main() {
 			"Invalid --launcher value",
 		);
 
+		console.log(
+			`${LOGGER_PREFIX} smoke: --open without --launch is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"web",
+				"--input",
+				webStatusPath,
+				"--open",
+			],
+			"--open requires --launch",
+		);
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: --dry-run without --launch is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"tui",
+				"--input",
+				tuiStatusPath,
+				"--dry-run",
+			],
+			"--dry-run requires --launch",
+		);
+
 		console.log(`${LOGGER_PREFIX} passed`);
 	} finally {
 		if (!keepArtifacts) {
