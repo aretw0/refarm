@@ -9,6 +9,7 @@ import {
 	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
+	formatRefarmStatusSummary,
 	getRefarmStatusSchemaVersionIssue,
 	isRefarmStatusJson,
 	parseRefarmStatusJson,
@@ -298,6 +299,28 @@ describe("formatRefarmStatusMarkdown", () => {
 			}),
 		);
 		expect(report).toContain("## Diagnostics\n- none");
+	});
+});
+
+describe("formatRefarmStatusSummary", () => {
+	it("renders a deterministic human summary", () => {
+		const summary = formatRefarmStatusSummary(buildRefarmStatusJson(BASE_OPTIONS));
+		expect(summary).toContain("Host:      apps/refarm (headless)");
+		expect(summary).toContain("Renderer:  refarm-headless (headless)");
+		expect(summary).toContain("Diagnostics:");
+		expect(summary).toContain("  - runtime:not-ready");
+	});
+
+	it("omits diagnostics section when no diagnostics are present", () => {
+		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				renderer: webRenderer,
+				runtime: { ready: true, databaseName: "refarm-main", namespace: "refarm-main" },
+			}),
+		);
+		expect(summary).not.toContain("Diagnostics:");
 	});
 });
 

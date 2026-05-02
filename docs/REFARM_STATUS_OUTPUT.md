@@ -119,6 +119,7 @@ Code-level contract helpers live in `@refarm.dev/cli/status`:
 - `REFARM_STATUS_SCHEMA_VERSION`
 - `isRefarmStatusJson(payload)`
 - `assertRefarmStatusJson(payload)`
+- `formatRefarmStatusSummary(payload)` for deterministic human-readable host summaries
 - `formatRefarmStatusJson(payload)` for deterministic JSON key ordering
 - `getRefarmStatusSchemaVersionIssue(payload)` for version negotiation diagnostics
 - `parseRefarmStatusJson(input)` for strict parsing with actionable schema errors

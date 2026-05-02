@@ -5,6 +5,7 @@ import {
 	buildRefarmStatusJson,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
+	formatRefarmStatusSummary,
 	parseRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
@@ -87,24 +88,7 @@ function readNamespaceFromConfig(): string | undefined {
 }
 
 export function printStatusSummary(json: RefarmStatusJson): void {
-	console.log(`Host:      ${json.host.app} (${json.host.mode})`);
-	console.log(`Renderer:  ${json.renderer.id} (${json.renderer.kind})`);
-	console.log(
-		`Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
-	);
-	console.log(
-		`Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
-	);
-	console.log(
-		`Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
-	);
-	console.log(
-		`Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
-	);
-	if (json.diagnostics.length > 0) {
-		console.log("Diagnostics:");
-		for (const d of json.diagnostics) console.log(`  - ${d}`);
-	}
+	console.log(formatRefarmStatusSummary(json));
 }
 
 export const statusCommand = new Command("status")

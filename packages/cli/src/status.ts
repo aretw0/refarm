@@ -325,6 +325,26 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
   ].join("\n");
 }
 
+export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
+  const lines = [
+    `Host:      ${json.host.app} (${json.host.mode})`,
+    `Renderer:  ${json.renderer.id} (${json.renderer.kind})`,
+    `Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
+    `Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
+    `Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
+    `Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
+  ];
+
+  if (json.diagnostics.length > 0) {
+    lines.push("Diagnostics:");
+    for (const diagnostic of json.diagnostics) {
+      lines.push(`  - ${diagnostic}`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
 export function formatRefarmStatusJson(json: RefarmStatusJson): string {
   return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
 }
