@@ -34,6 +34,7 @@
 		"runtime-descriptor:release-assets:dry": "node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha local --tags @refarm.dev/plugin-manifest@0.1.0 --dry-run",
 		"runtime-descriptor:release-smoke": "node scripts/ci/smoke-runtime-descriptor-release-path.mjs --sha local",
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
+		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",
 		"runtime-descriptor:revocation-report:test": "node --test scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",
