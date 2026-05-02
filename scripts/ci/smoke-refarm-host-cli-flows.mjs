@@ -172,6 +172,7 @@ async function main() {
 		);
 		const webOutput = stripAnsi(`${webRun.stdout}\n${webRun.stderr}`);
 		assertIncludes(webOutput, "REFARM");
+		assertIncludes(webOutput, "version:");
 		assertIncludes(webOutput, "[dry-run] would launch web runtime");
 		assertIncludes(webOutput, "[dry-run] would open browser URL");
 
@@ -199,6 +200,7 @@ async function main() {
 			`${webNoBannerRun.stdout}\n${webNoBannerRun.stderr}`,
 		);
 		assertNotIncludes(webNoBannerOutput, "REFARM");
+		assertNotIncludes(webNoBannerOutput, "version:");
 		assertIncludes(webNoBannerOutput, "[dry-run] would launch web runtime");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --json --input`);
@@ -252,6 +254,7 @@ async function main() {
 			`${tuiLaunchRun.stdout}\n${tuiLaunchRun.stderr}`,
 		);
 		assertIncludes(tuiLaunchOutput, "REFARM");
+		assertIncludes(tuiLaunchOutput, "version:");
 		assertIncludes(tuiLaunchOutput, "[dry-run] would launch tui runtime");
 
 		console.log(
