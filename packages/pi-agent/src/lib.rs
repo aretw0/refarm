@@ -96,6 +96,111 @@ use refarm::plugin::tractor_bridge;
 
 struct PiAgent;
 
+fn parse_respond_payload(payload: &str) -> Result<(String, Option<String>), PluginError> {
+    let trimmed = payload.trim();
+    if trimmed.is_empty() {
+        return Err(PluginError::InvalidSchema(
+            "respond payload must not be empty".to_string(),
+        ));
+    }
+
+    let parsed = serde_json::from_str::<serde_json::Value>(trimmed).map_err(|e| {
+        PluginError::InvalidSchema(format!("respond payload must be valid JSON: {e}"))
+    })?;
+    let prompt = parsed
+        .get("prompt")
+        .and_then(|value| value.as_str())
+        .map(|value| value.trim())
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            PluginError::InvalidSchema(
+                "respond payload requires non-empty string field `prompt`".to_string(),
+            )
+        })?
+        .to_string();
+    let system = parsed
+        .get("system")
+        .and_then(|value| value.as_str())
+        .map(|value| value.to_string());
+    Ok((prompt, system))
+}
+
+fn build_respond_json(
+    content: String,
+    model: String,
+    provider: String,
+    tokens_in: u32,
+    tokens_out: u32,
+    tokens_reasoning: u32,
+    estimated_usd: f64,
+    usage_raw: String,
+) -> String {
+    let usage_details = serde_json::from_str::<serde_json::Value>(&usage_raw)
+        .unwrap_or(serde_json::json!({}));
+    serde_json::json!({
+        "content": content,
+        "model": model,
+        "provider": provider,
+        "usage": {
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+            "tokens_reasoning": tokens_reasoning,
+            "estimated_usd": estimated_usd,
+            "raw": usage_details,
+        }
+    })
+    .to_string()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn execute_respond(prompt: &str, system_override: Option<&str>) -> Result<String, PluginError> {
+    let outcome = runtime::execute_prompt(prompt, system_override).ok_or_else(|| {
+        PluginError::Internal("failed to persist prompt context before respond".to_string())
+    })?;
+    let estimated_usd = estimate_usd(
+        &outcome.model,
+        outcome.tokens_in,
+        outcome.tokens_out,
+        outcome.tokens_cached,
+    );
+    Ok(build_respond_json(
+        outcome.content,
+        outcome.model,
+        outcome.provider,
+        outcome.tokens_in,
+        outcome.tokens_out,
+        outcome.tokens_reasoning,
+        estimated_usd,
+        outcome.usage_raw,
+    ))
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn execute_respond(prompt: &str, _system_override: Option<&str>) -> Result<String, PluginError> {
+    let (
+        content,
+        _tool_calls,
+        tokens_in,
+        tokens_out,
+        tokens_cached,
+        tokens_reasoning,
+        model,
+        usage_raw,
+    ) = runtime::react_with_prompt_ref(prompt, None);
+    let provider = provider_name_from_env().to_string();
+    let estimated_usd = estimate_usd(&model, tokens_in, tokens_out, tokens_cached);
+    Ok(build_respond_json(
+        content,
+        model,
+        provider,
+        tokens_in,
+        tokens_out,
+        tokens_reasoning,
+        estimated_usd,
+        usage_raw,
+    ))
+}
+
 impl IntegrationGuest for PiAgent {
     fn setup() -> Result<(), PluginError> {
         tractor_bridge::emit_telemetry("pi-agent:ready", None);
@@ -138,6 +243,11 @@ impl IntegrationGuest for PiAgent {
         runtime::handle_prompt(prompt);
         #[cfg(not(target_arch = "wasm32"))]
         let _ = prompt;
+    }
+
+    fn respond(payload: String) -> Result<String, PluginError> {
+        let (prompt, system_override) = parse_respond_payload(&payload)?;
+        execute_respond(&prompt, system_override.as_deref())
     }
 }
 

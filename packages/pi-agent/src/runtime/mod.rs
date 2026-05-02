@@ -11,8 +11,12 @@ mod types;
 mod wasm_flow;
 
 pub(crate) use react_loop::react;
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) use react_loop::react_with_prompt_ref;
 #[allow(unused_imports)]
 pub(crate) use types::ReactResult;
 
+#[cfg(target_arch = "wasm32")]
+pub(crate) use prompt_handler::execute_prompt;
 #[cfg(target_arch = "wasm32")]
 pub(crate) use prompt_handler::handle_prompt;
