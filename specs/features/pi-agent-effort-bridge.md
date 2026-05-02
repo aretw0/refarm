@@ -1,6 +1,6 @@
 # Feature: Pi-Agent ↔ Effort Queue Bridge
 
-**Status**: In Progress  
+**Status**: Done  
 **Version**: v0.1.0  
 **Owner**: Arthur Silva
 
@@ -123,15 +123,15 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **Unit tests (TDD):**
 
-- [ ] `respond` returns complete structure — mock LLM bridge, verify JSON fields
-- [ ] `respond` returns `Err` on LLM failure
-- [ ] `respond` writes `UserPrompt` + `AgentResponse` to CRDT as side effects (axiom A6)
-- [ ] `loadInstalledPlugins` — valid plugin loads, invalid skips with warning
-- [ ] `loadInstalledPlugins` — missing `plugins/` dir is silently ignored
+- [x] `respond` returns complete structure — mock LLM bridge, verify JSON fields
+- [x] `respond` returns `Err` on LLM failure
+- [x] `respond` writes `UserPrompt` + `AgentResponse` to CRDT as side effects (axiom A6)
+- [x] `loadInstalledPlugins` — valid plugin loads, invalid skips with warning
+- [x] `loadInstalledPlugins` — missing `plugins/` dir is silently ignored
 
 **Smoke gate extension:**
 
-- [ ] `pi-agent respond` effort round-trip with stub LLM — `TaskResult.result` has `content` + `usage`
+- [x] `pi-agent respond` effort round-trip with stub LLM — `TaskResult.result` has `content` + `usage`
 
 ---
 
@@ -146,22 +146,22 @@ async function loadInstalledPlugins(tractor: Tractor, baseDir: string): Promise<
 
 **TDD:**
 
-- [ ] Axiom A6 test in `packages/pi-agent/src/extensibility_contract`
-- [ ] `respond` error path test
-- [ ] `loadInstalledPlugins` unit tests in farmhand
-- [ ] Smoke gate pi-agent scenario
+- [x] Axiom A6-aligned contract test (`respond` structure) in `packages/pi-agent/src/tests/respond_contract_tests.rs`
+- [x] `respond` error path test (invalid payload without prompt)
+- [x] `loadInstalledPlugins` unit tests in farmhand
+- [x] Smoke gate pi-agent scenario
 
 **DDD:**
 
-- [ ] Scaffold `packages/refarm-plugin-wit/` with Cargo.toml
-- [ ] Move `refarm-plugin-host.wit` to canonical location
-- [ ] Update pi-agent WIT dependency in Cargo.toml
-- [ ] Update tractor `bindgen!` path in `core.rs`
-- [ ] Add `respond` to WIT interface
-- [ ] Implement `fn respond` in `packages/pi-agent/src/lib.rs`
-- [ ] Implement `loadInstalledPlugins` in `apps/farmhand/src/index.ts`
-- [ ] Wire `loadInstalledPlugins` in `main()`
-- [ ] Smoke gate: verify end-to-end with stub LLM
+- [x] Scaffold `packages/refarm-plugin-wit/` with Cargo.toml
+- [x] Move `refarm-plugin-host.wit` to canonical location
+- [x] Update pi-agent WIT dependency in Cargo.toml
+- [x] Update tractor `bindgen!` path in `core.rs`
+- [x] Add `respond` to WIT interface
+- [x] Implement `fn respond` in `packages/pi-agent/src/lib.rs`
+- [x] Implement `loadInstalledPlugins` in `apps/farmhand/src/index.ts`
+- [x] Wire `loadInstalledPlugins` in `main()`
+- [x] Smoke gate: verify end-to-end with stub LLM
 
 ---
 

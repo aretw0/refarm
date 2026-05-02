@@ -55,8 +55,8 @@ apps/refarm/
 - [x] Milestone 3 — Superfície CLI + governança de resolução TS
 - [x] Milestone 4 — Integridade arquitetural e smoke final
 - [x] Milestone 5 — Operação confiável (fila, recovery, observabilidade)
-- [ ] Milestone 6 — Daily-driver loop (bridge Pi-layer + sessão persistente)
-      _(Slices 6.1 e 6.2 concluídos; 6.3 pendente)_
+- [x] Milestone 6 — Daily-driver loop (bridge Pi-layer + sessão persistente)
+      _(Slices 6.1, 6.2 e 6.3 concluídos)_
 
 ### Milestone 1 — Contrato + execução CRDT base
 
@@ -177,11 +177,22 @@ apps/refarm/
   - `apps/refarm/src/commands/task-session.ts` (checkpoint local em `~/.refarm/sessions/task-session.v1.json`)
   - `refarm task resume` para retomada/inspeção do checkpoint
   - atualização automática do checkpoint em `run/status/list/logs/retry/cancel`
-- [ ] Slice 6.3 (próximo): ponte Pi-layer plugin (manifesto mínimo + execução via effort queue)
+- [x] Slice 6.3 (concluído): ponte Pi-layer plugin (manifesto mínimo + execução via effort queue)
+  - Considerações capturadas (fonte de verdade):
+    - `docs/superpowers/specs/2026-05-01-pi-agent-effort-bridge-design.md`
+    - `specs/features/pi-agent-effort-bridge.md`
+  - Princípios acordados para implementação:
+    - Canonical WIT único em `packages/refarm-plugin-wit` (evitar drift silencioso)
+    - `integration.respond(payload: string) -> result<string, plugin-error>` como superfície taskable
+    - Auto-boot de plugins instalados no Farmhand (`~/.refarm/plugins/*/plugin.json`) com falha isolada por plugin
+    - Executor permanece genérico; normalização de `args` para `respond` é ajuste mínimo de compatibilidade
+    - Non-goals mantidos: streaming no effort transport, demand-load completo, conversa multi-turn entre efforts
+  - Gate smoke dedicado adicionado: `npm run task:execution:smoke:pi-agent`
 
 **Gate de saída (Milestone 6):**
 
 - `npm run task:execution:smoke`
+- `npm run task:execution:smoke:pi-agent`
 - `npm --prefix apps/farmhand test && npm --prefix apps/farmhand run type-check`
 - `npm --prefix apps/refarm test && npm --prefix apps/refarm run type-check`
 
