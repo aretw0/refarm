@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
 import { deployCommand } from "./commands/deploy.js";
 import { doctorCommand } from "./commands/doctor.js";
@@ -16,7 +17,10 @@ import { webCommand } from "./commands/web.js";
 
 export const program = new Command();
 
-program.name("refarm").description("The Sovereign Farm CLI").version("0.1.0");
+program
+	.name("refarm")
+	.description("The Sovereign Farm CLI")
+	.version(resolveRefarmVersion());
 
 program.addCommand(initCommand);
 program.addCommand(sowCommand);
