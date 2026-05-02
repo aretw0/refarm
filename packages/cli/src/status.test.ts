@@ -4,7 +4,7 @@ import {
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import { createNullTrustSummary } from "@refarm.dev/trust";
 import { createNullRuntimeSummary } from "@refarm.dev/runtime";
-import { buildRefarmStatusJson } from "./status.js";
+import { buildRefarmStatusJson, formatRefarmStatusMarkdown } from "./status.js";
 
 const HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
   "refarm-headless",
@@ -95,5 +95,25 @@ describe("buildRefarmStatusJson", () => {
     const result = buildRefarmStatusJson(BASE_OPTIONS);
     expect(result.trust).toEqual({ profile: "dev", warnings: 0, critical: 0 });
     expect(result.runtime).toEqual({ ready: false, databaseName: "", namespace: "" });
+  });
+});
+
+describe("formatRefarmStatusMarkdown", () => {
+  it("renders a markdown report with diagnostics list", () => {
+    const report = formatRefarmStatusMarkdown(buildRefarmStatusJson(BASE_OPTIONS));
+    expect(report.startsWith("---\nschemaVersion: 1\nhost:\n")).toBe(true);
+    expect(report).toContain("renderer:\n  id: \"refarm-headless\"\n  kind: \"headless\"");
+    expect(report).toContain("# Refarm Status");
+    expect(report).toContain("- Schema: v1");
+    expect(report).toContain("## Diagnostics");
+    expect(report).toContain("- renderer:non-interactive");
+  });
+
+  it("prints '- none' when diagnostics are empty", () => {
+    const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
+    const report = formatRefarmStatusMarkdown(
+      buildRefarmStatusJson({ ...BASE_OPTIONS, renderer: webRenderer }),
+    );
+    expect(report).toContain("## Diagnostics\n- none");
   });
 });

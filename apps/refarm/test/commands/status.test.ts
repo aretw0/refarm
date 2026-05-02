@@ -1,8 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { mockBoot, mockBuildRefarmStatusJson, mockShutdown } = vi.hoisted(() => ({
+const {
+  mockBoot,
+  mockBuildRefarmStatusJson,
+  mockFormatRefarmStatusMarkdown,
+  mockShutdown,
+} = vi.hoisted(() => ({
   mockBoot: vi.fn(),
   mockBuildRefarmStatusJson: vi.fn(),
+  mockFormatRefarmStatusMarkdown: vi.fn(),
   mockShutdown: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -14,6 +20,7 @@ vi.mock("@refarm.dev/tractor", () => ({
 
 vi.mock("@refarm.dev/cli/status", () => ({
   buildRefarmStatusJson: mockBuildRefarmStatusJson,
+  formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
 }));
 
 import { statusCommand } from "../../src/commands/status.js";
@@ -36,6 +43,7 @@ describe("statusCommand", () => {
       defaultSecurityMode: "strict",
       shutdown: mockShutdown,
     });
+    mockFormatRefarmStatusMarkdown.mockImplementation(() => "# Refarm Status\n");
   });
 
   it("boots Tractor with logLevel silent", async () => {
@@ -80,6 +88,21 @@ describe("statusCommand", () => {
         from: "user",
       }),
     ).rejects.toThrow(/Invalid renderer kind/);
+    expect(mockBoot).not.toHaveBeenCalled();
+  });
+
+  it("outputs markdown when --markdown is requested", async () => {
+    const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await statusCommand.parseAsync(["--markdown"], { from: "user" });
+    expect(mockFormatRefarmStatusMarkdown).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalledWith("# Refarm Status\n");
+    spy.mockRestore();
+  });
+
+  it("rejects combining --json and --markdown", async () => {
+    await expect(
+      statusCommand.parseAsync(["--json", "--markdown"], { from: "user" }),
+    ).rejects.toThrow(/Choose only one output format/);
     expect(mockBoot).not.toHaveBeenCalled();
   });
 });

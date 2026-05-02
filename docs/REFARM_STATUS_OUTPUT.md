@@ -1,21 +1,26 @@
 # Refarm Status Output
 
-`refarm status` should be the first stable headless contract for the future
-`apps/refarm` CLI distro. It should summarize the host without requiring a Web
-DOM or TUI renderer.
+`refarm status` is the first stable headless contract for the `apps/refarm`
+CLI distro. It summarizes the host without requiring a Web DOM or TUI renderer.
 
 ## Output modes
 
-The command should eventually support:
+The command supports:
 
 ```text
-refarm status              # human-readable summary
-refarm status --json       # stable machine-readable JSON
-refarm status --markdown   # artifact-friendly report
+refarm status                         # human-readable summary
+refarm status --json                  # stable machine-readable JSON
+refarm status --markdown              # artifact-friendly report
+refarm status --renderer web --json   # same contract in Web renderer mode
+refarm status --renderer tui --json   # same contract in TUI renderer mode
 ```
 
 The JSON shape is the canonical contract. Human and Markdown output are views of
 that contract.
+
+`--markdown` includes YAML frontmatter with the same status envelope (host,
+renderer, runtime, trust, plugin, stream counters) so static-site/reporting
+pipelines can parse metadata without scraping body text.
 
 ## Canonical JSON shape
 

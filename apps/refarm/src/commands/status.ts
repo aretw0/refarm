@@ -3,7 +3,11 @@ import fs from "node:fs";
 import path from "node:path";
 import { Tractor } from "@refarm.dev/tractor";
 import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
-import { buildRefarmStatusJson, type RefarmStatusJson } from "@refarm.dev/cli/status";
+import {
+  buildRefarmStatusJson,
+  formatRefarmStatusMarkdown,
+  type RefarmStatusJson,
+} from "@refarm.dev/cli/status";
 import { createRuntimeSummaryFromTractor } from "@refarm.dev/runtime";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { resolveRefarmRenderer } from "../renderers.js";
@@ -72,8 +76,13 @@ export const statusCommand = new Command("status")
     "Renderer mode: web | tui | headless",
     "headless",
   )
+  .option("--markdown", "Output markdown report")
   .option("--json", "Output machine-readable JSON")
-  .action(async (options: { json?: boolean; renderer?: string }) => {
+  .action(async (options: { json?: boolean; markdown?: boolean; renderer?: string }) => {
+    if (options.json && options.markdown) {
+      throw new Error("Choose only one output format: --json or --markdown.");
+    }
+
     const requestedRenderer = options.renderer ?? "headless";
     if (!isHomesteadHostRendererKind(requestedRenderer)) {
       throw new Error(
@@ -106,6 +115,8 @@ export const statusCommand = new Command("status")
 
     if (options.json) {
       console.log(JSON.stringify(json, null, 2));
+    } else if (options.markdown) {
+      console.log(formatRefarmStatusMarkdown(json));
     } else {
       printStatusSummary(json);
     }
