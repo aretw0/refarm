@@ -2,10 +2,11 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { Tractor } from "@refarm.dev/tractor";
+import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-renderer";
 import { buildRefarmStatusJson, type RefarmStatusJson } from "@refarm.dev/cli/status";
 import { createRuntimeSummaryFromTractor } from "@refarm.dev/runtime";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
-import { REFARM_HEADLESS_RENDERER } from "../renderers.js";
+import { resolveRefarmRenderer } from "../renderers.js";
 
 interface StorageAdapter {
   ensureSchema(): Promise<void>;
@@ -66,8 +67,21 @@ function printStatusSummary(json: RefarmStatusJson): void {
 
 export const statusCommand = new Command("status")
   .description("Report host status")
+  .option(
+    "--renderer <kind>",
+    "Renderer mode: web | tui | headless",
+    "headless",
+  )
   .option("--json", "Output machine-readable JSON")
-  .action(async (options: { json?: boolean }) => {
+  .action(async (options: { json?: boolean; renderer?: string }) => {
+    const requestedRenderer = options.renderer ?? "headless";
+    if (!isHomesteadHostRendererKind(requestedRenderer)) {
+      throw new Error(
+        `Invalid renderer kind \"${requestedRenderer}\". Use one of: web, tui, headless.`,
+      );
+    }
+    const renderer = resolveRefarmRenderer(requestedRenderer);
+
     const tractor = await Tractor.boot({
       namespace: readNamespaceFromConfig() ?? "refarm-main",
       storage: createMemoryStorage(),
@@ -79,8 +93,13 @@ export const statusCommand = new Command("status")
     const trust = createTrustSummaryFromTractor(tractor);
 
     const json = buildRefarmStatusJson({
-      host: { app: "apps/refarm", command: "refarm", profile: "dev", mode: "headless" },
-      renderer: REFARM_HEADLESS_RENDERER,
+      host: {
+        app: "apps/refarm",
+        command: "refarm",
+        profile: "dev",
+        mode: renderer.kind,
+      },
+      renderer,
       runtime,
       trust,
     });
