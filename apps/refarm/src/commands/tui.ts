@@ -5,6 +5,7 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
 	printStatusSummary,
@@ -110,17 +111,12 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--dry-run", "Print launcher command without executing it")
 		.option("--launcher <mode>", "Launcher mode: watch | prompt", "watch")
 		.action(async (options: TuiOptions) => {
-			if (options.json && options.markdown) {
-				throw new Error("Choose only one output format: --json or --markdown.");
-			}
-			if (options.launch && (options.json || options.markdown)) {
-				throw new Error(
-					"--launch cannot be combined with --json or --markdown.",
-				);
-			}
-			if (options.dryRun && !options.launch) {
-				throw new Error("--dry-run requires --launch.");
-			}
+			assertLaunchGuardOptions({
+				json: options.json,
+				markdown: options.markdown,
+				launch: options.launch,
+				dryRun: options.dryRun,
+			});
 
 			const launchMode = resolveLaunchMode(
 				options.launcher ?? "watch",

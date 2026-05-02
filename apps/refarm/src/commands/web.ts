@@ -5,6 +5,7 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
 	printStatusSummary,
@@ -181,20 +182,13 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		)
 		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
 		.action(async (options: WebOptions) => {
-			if (options.json && options.markdown) {
-				throw new Error("Choose only one output format: --json or --markdown.");
-			}
-			if (options.launch && (options.json || options.markdown)) {
-				throw new Error(
-					"--launch cannot be combined with --json or --markdown.",
-				);
-			}
-			if (options.dryRun && !options.launch) {
-				throw new Error("--dry-run requires --launch.");
-			}
-			if (options.open && !options.launch) {
-				throw new Error("--open requires --launch.");
-			}
+			assertLaunchGuardOptions({
+				json: options.json,
+				markdown: options.markdown,
+				launch: options.launch,
+				dryRun: options.dryRun,
+				requiresLaunch: [{ enabled: options.open, flag: "--open" }],
+			});
 
 			const launchMode = resolveLaunchMode(
 				options.launcher ?? "dev",

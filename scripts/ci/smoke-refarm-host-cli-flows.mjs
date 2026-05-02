@@ -63,6 +63,23 @@ function assertIncludes(output, expected) {
 	}
 }
 
+async function assertCommandFailsWith(args, expectedSubstring) {
+	try {
+		await runSubprocess(process.execPath, args, {
+			env: process.env,
+			captureOutput: true,
+		});
+		throw new Error(
+			`Expected command to fail with ${JSON.stringify(expectedSubstring)}, but it exited successfully.`,
+		);
+	} catch (error) {
+		const output = stripAnsi(
+			error instanceof Error ? error.message : String(error),
+		);
+		assertIncludes(output, expectedSubstring);
+	}
+}
+
 async function main() {
 	const keepArtifacts =
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "1" ||
@@ -162,6 +179,42 @@ async function main() {
 			`${tuiLaunchRun.stdout}\n${tuiLaunchRun.stderr}`,
 		);
 		assertIncludes(tuiLaunchOutput, "[dry-run] would launch tui runtime");
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: invalid web launcher is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"web",
+				"--input",
+				webStatusPath,
+				"--launch",
+				"--launcher",
+				"invalid",
+			],
+			"Invalid --launcher value",
+		);
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: invalid tui launcher is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"tui",
+				"--input",
+				tuiStatusPath,
+				"--launch",
+				"--launcher",
+				"invalid",
+			],
+			"Invalid --launcher value",
+		);
 
 		console.log(`${LOGGER_PREFIX} passed`);
 	} finally {
