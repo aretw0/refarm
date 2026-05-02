@@ -2,7 +2,15 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	cp,
+	mkdir,
+	mkdtemp,
+	readdir,
+	readFile,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -121,6 +129,67 @@ function normalizeRespondResult(raw) {
 	}
 }
 
+function parseStreamChunkLines(content) {
+	const chunks = [];
+	for (const line of content.split("\n").map((entry) => entry.trim())) {
+		if (!line) continue;
+		try {
+			const parsed = JSON.parse(line);
+			if (
+				parsed &&
+				typeof parsed === "object" &&
+				typeof parsed.stream_ref === "string" &&
+				typeof parsed.sequence === "number"
+			) {
+				chunks.push(parsed);
+			}
+		} catch {
+			// ignore malformed/incomplete lines while writer is appending
+		}
+	}
+	return chunks;
+}
+
+async function waitForFinalStreamChunks({
+	streamsDir,
+	timeoutMs = 20_000,
+	loggerPrefix = "[task-smoke:pi-agent]",
+}) {
+	const deadline = Date.now() + timeoutMs;
+	while (Date.now() < deadline) {
+		if (existsSync(streamsDir)) {
+			const entries = await readdir(streamsDir, { withFileTypes: true });
+			for (const entry of entries) {
+				if (!entry.isFile() || !entry.name.endsWith(".ndjson")) continue;
+				const filePath = path.join(streamsDir, entry.name);
+				const content = await readFile(filePath, "utf8");
+				const chunks = parseStreamChunkLines(content);
+				if (chunks.length === 0) continue;
+
+				let previousSequence = -1;
+				for (const chunk of chunks) {
+					if (chunk.sequence < previousSequence) {
+						throw new Error(
+							`${loggerPrefix} stream sequence regressed in ${filePath}: ${chunk.sequence} < ${previousSequence}`,
+						);
+					}
+					previousSequence = chunk.sequence;
+				}
+
+				if (!chunks.some((chunk) => chunk.is_final === true)) continue;
+
+				return { filePath, chunks };
+			}
+		}
+
+		await sleep(250);
+	}
+
+	throw new Error(
+		`${loggerPrefix} timed out waiting stream chunks under ${streamsDir}`,
+	);
+}
+
 async function installPiAgentPlugin(tempHome, wasmSourcePath) {
 	const pluginDir = path.join(tempHome, ".refarm", "plugins", "pi-agent");
 	await mkdir(pluginDir, { recursive: true });
@@ -206,6 +275,7 @@ async function main() {
 			USERPROFILE: tempHome,
 			LLM_PROVIDER: "ollama",
 			LLM_MODEL: "smoke-pi-agent-model",
+			LLM_STREAM_RESPONSES: "1",
 			LLM_HISTORY_TURNS: "0",
 			REFARM_MOCK_LLM_BODY: JSON.stringify({
 				id: "smoke-pi-agent",
@@ -312,6 +382,43 @@ async function main() {
 				`respond payload missing expected fields: ${JSON.stringify(respondResult)}`,
 			);
 		}
+
+		const streamsDir = path.join(tempHome, ".refarm", "streams");
+		const streamSummary = await waitForFinalStreamChunks({
+			streamsDir,
+			loggerPrefix: "[task-smoke:pi-agent]",
+		});
+		console.log(
+			`[task-smoke:pi-agent] stream smoke passed: file=${streamSummary.filePath} chunks=${streamSummary.chunks.length}`,
+		);
+
+		const askRun = await runSubprocess(
+			"timeout",
+			[
+				"45s",
+				process.execPath,
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"ask",
+				"quanto é 2+2 no smoke?",
+			],
+			{ env, captureOutput: true },
+		);
+		const askOutput = stripAnsi(`${askRun.stdout}\n${askRun.stderr}`);
+		if (
+			!askOutput.includes("smoke-pi-agent: resposta determinística do mock LLM")
+		) {
+			throw new Error(
+				`Expected ask output to include streamed response content. Output:\n${askOutput}`,
+			);
+		}
+		if (!askOutput.includes("model:") || !askOutput.includes("tokens:")) {
+			throw new Error(
+				`Expected ask output usage footer (model/tokens). Output:\n${askOutput}`,
+			);
+		}
+		console.log("[task-smoke:pi-agent] ask smoke passed");
 
 		console.log(
 			`[task-smoke:pi-agent] passed: effort=${effortId} provider=${respondResult.provider} model=${respondResult.model}`,

@@ -134,6 +134,88 @@ export class WasiImports {
 				},
 			});
 		const mockLlmBytes = new TextEncoder().encode(mockLlmBody);
+		const mockLlmContent = (() => {
+			try {
+				const parsed = JSON.parse(mockLlmBody) as {
+					choices?: Array<{ message?: { content?: string } }>;
+				};
+				const content = parsed.choices?.[0]?.message?.content;
+				if (typeof content === "string" && content.trim().length > 0) {
+					return content;
+				}
+			} catch {
+				// fall through to deterministic default
+			}
+			return "mock llm response";
+		})();
+
+		const persistMockStreamFinalChunk = (
+			provider: string,
+			streamMetadata: unknown,
+		): { storedChunks: number; lastSequence?: number } => {
+			if (!this.storeNode) {
+				return { storedChunks: 0, lastSequence: undefined };
+			}
+
+			const metadata =
+				streamMetadata && typeof streamMetadata === "object"
+					? (streamMetadata as {
+							promptRef?: unknown;
+							model?: unknown;
+							providerFamily?: unknown;
+							lastSequence?: unknown;
+						})
+					: null;
+
+			const promptRef =
+				typeof metadata?.promptRef === "string"
+					? metadata.promptRef.trim()
+					: "";
+			if (!promptRef) {
+				return { storedChunks: 0, lastSequence: undefined };
+			}
+
+			const sequence =
+				typeof metadata?.lastSequence === "number" &&
+				Number.isFinite(metadata.lastSequence)
+					? metadata.lastSequence + 1
+					: 0;
+			const model =
+				typeof metadata?.model === "string" && metadata.model.trim().length > 0
+					? metadata.model
+					: "mock-model";
+			const providerFamily =
+				typeof metadata?.providerFamily === "string" &&
+				metadata.providerFamily.trim().length > 0
+					? metadata.providerFamily
+					: provider;
+
+			const streamRef = `urn:tractor:stream:agent-response:${promptRef}`;
+			const payload = JSON.stringify({
+				"@type": "StreamChunk",
+				"@id": `urn:tractor:stream-chunk:${crypto.randomUUID()}`,
+				stream_ref: streamRef,
+				sequence,
+				payload_kind: "final_text",
+				content: mockLlmContent,
+				is_final: true,
+				timestamp_ns: Date.now(),
+				metadata: {
+					projection: "AgentResponse",
+					prompt_ref: promptRef,
+					provider_family: providerFamily,
+					model,
+				},
+			});
+
+			try {
+				Promise.resolve(this.storeNode(payload)).catch(() => {});
+			} catch {
+				return { storedChunks: 0, lastSequence: undefined };
+			}
+
+			return { storedChunks: 1, lastSequence: sequence };
+		};
 
 		const completeHttp = (
 			_provider: string,
@@ -181,10 +263,14 @@ export class WasiImports {
 						headers,
 						body,
 					);
+					const streamResult = persistMockStreamFinalChunk(
+						provider,
+						_streamMetadata,
+					);
 					return {
 						finalBody,
-						storedChunks: 0,
-						lastSequence: undefined,
+						storedChunks: streamResult.storedChunks,
+						lastSequence: streamResult.lastSequence,
 					};
 				},
 			},

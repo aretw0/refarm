@@ -178,7 +178,7 @@ export class StreamRegistry {
 
 **Smoke gate:**
 
-- [ ] pi-agent `respond` emits `StreamChunk` CRDT nodes → FileStreamTransport writes
+- [x] pi-agent `respond` emits `StreamChunk` CRDT nodes → FileStreamTransport writes
   NDJSON → file contains all chunks in sequence order
 
 ---
@@ -201,7 +201,7 @@ export class StreamRegistry {
 - [x] `FileStreamTransport` unit tests
 - [x] `SseStreamTransport` unit tests
 - [x] `WsStreamTransport` unit tests
-- [ ] Smoke gate scenario
+- [x] Smoke gate scenario
 
 **DDD:**
 
@@ -215,7 +215,7 @@ export class StreamRegistry {
 - [x] Add `toStreamChunk` mapper for Tractor node shape in Farmhand
 - [x] Wire `tractor.onNode("StreamChunk")` → `streamRegistry.dispatch` in Farmhand `index.ts`
 - [x] Register all three transports in Farmhand `main()`
-- [ ] Smoke gate: verify end-to-end with pi-agent respond
+- [x] Smoke gate: verify end-to-end with pi-agent respond
 
 ---
 

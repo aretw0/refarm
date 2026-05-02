@@ -1,5 +1,5 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 
@@ -15,19 +15,21 @@ function makeChunk(
 function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 	return {
 		submitEffort: vi.fn().mockResolvedValue("eff-1"),
-		followStream: vi.fn().mockImplementation(
-			async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
-				onChunk(makeChunk("hello ", 0, false));
-				onChunk(
-					makeChunk("world", 1, true, {
-						model: "claude-sonnet-4-6",
-						tokens_in: 50,
-						tokens_out: 100,
-						estimated_usd: 0.0005,
-					}),
-				);
-			},
-		),
+		followStream: vi
+			.fn()
+			.mockImplementation(
+				async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+					onChunk(makeChunk("hello ", 0, false));
+					onChunk(
+						makeChunk("world", 1, true, {
+							model: "claude-sonnet-4-6",
+							tokens_in: 50,
+							tokens_out: 100,
+							estimated_usd: 0.0005,
+						}),
+					);
+				},
+			),
 		...overrides,
 	};
 }
@@ -54,14 +56,18 @@ describe("refarm ask", () => {
 				source: "refarm-ask",
 				tasks: [
 					expect.objectContaining({
-						pluginId: "pi-agent",
+						pluginId: "@refarm/pi-agent",
 						fn: "respond",
 						args: expect.objectContaining({ prompt: "what is CRDT?" }),
 					}),
 				],
 			}),
 		);
-		expect(deps.followStream).toHaveBeenCalledWith("eff-1", expect.any(Function));
+		expect(deps.followStream).toHaveBeenCalledWith(
+			"eff-1",
+			expect.any(Function),
+			expect.objectContaining({ submittedAtMs: expect.any(Number) }),
+		);
 		expect(outSpy).toHaveBeenCalled();
 
 		logSpy.mockRestore();
