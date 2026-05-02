@@ -255,6 +255,27 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm status --json --input`);
+		const statusJsonRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"status",
+				"--input",
+				webStatusPath,
+				"--json",
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		const statusJson = parseCommandJsonOutput("status --json", statusJsonRun);
+		if (statusJson?.renderer?.kind !== "web") {
+			throw new Error(
+				`Expected status renderer kind=web from input artifact, got: ${JSON.stringify(statusJson?.renderer)}`,
+			);
+		}
+
 		console.log(`${LOGGER_PREFIX} smoke: refarm headless --input JSON output`);
 		const headlessJsonRun = await runSubprocess(
 			process.execPath,
