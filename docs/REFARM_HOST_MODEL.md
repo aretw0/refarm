@@ -134,7 +134,7 @@ contract:
 - `refarm doctor` (readiness verdict from status diagnostics);
 - `refarm headless` (headless renderer contract surface);
 - `refarm web` (web preflight + launcher modes, with optional browser open);
-- `refarm tui` (tui preflight surface, launcher deferred).
+- `refarm tui` (tui preflight surface + launcher entrypoint with fail-closed diagnostics).
 
 This keeps renderer behavior attached to one runtime/status vocabulary while
 allowing launcher integration to evolve per modality.

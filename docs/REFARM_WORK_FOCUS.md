@@ -48,7 +48,8 @@ Turn the documented `refarm` distro into the smallest useful product command.
    - reusable mechanics move only when duplicated or clearly stable.
 4. Keep Web as the default human interface while headless matures for automation.
 5. Delay full TUI package extraction until Web/headless contracts create real pressure.
-   A `refarm tui` preflight command can exist early, but should not fork runtime policy.
+   `refarm tui` can expose launch entrypoints (`--launch`, optional `--dry-run`),
+   but must not fork runtime policy from shared status diagnostics.
 6. Keep a cheap guardrail for the unified host spine via `npm run refarm:host:smoke`,
    CLI flow smoke `npm run refarm:host:smoke:cli`, and CI wrapper
    `npm run refarm:host:smoke:ci`.

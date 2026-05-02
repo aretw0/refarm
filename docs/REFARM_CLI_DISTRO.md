@@ -48,7 +48,7 @@ state using the same contracts as the apps?
 - `refarm status` (human/json/markdown + artifact input validation)
 - `refarm headless` (headless snapshot-first output surface)
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
-- `refarm tui` (tui renderer preflight contract surface)
+- `refarm tui` (tui renderer preflight + terminal launcher entrypoint via `--launch`)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
@@ -57,8 +57,11 @@ It can also request browser opening (`--open`, optional `--open-url`) while
 keeping launcher failures explicit and non-fatal to preflight reporting.
 Launch is fail-closed when status diagnostics include failure codes (for
 example `runtime:not-ready` or `trust:critical-present`).
-`refarm tui` currently validates TUI renderer posture; full TUI launcher/runtime
-integration remains deferred.
+`refarm tui` reuses the same status contract and can launch terminal runtime
+entrypoints (`watch` or `prompt`) after runtime preflight
+(`--launch`, optional `--dry-run`). Launch is fail-closed when status
+diagnostics include failure codes (for example `runtime:not-ready` or
+`trust:critical-present`).
 
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.
@@ -76,8 +79,8 @@ npm run refarm:host:smoke:ci
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
-  output (`refarm web --launch --dry-run --open` and `refarm tui --json`) using
-  fixture-backed status input.
+  output (`refarm web --launch --dry-run --open`, `refarm tui --json`, and
+  `refarm tui --launch --dry-run`) using fixture-backed status input.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
   wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
 

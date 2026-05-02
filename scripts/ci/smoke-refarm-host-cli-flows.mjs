@@ -112,7 +112,7 @@ async function main() {
 		assertIncludes(webOutput, "[dry-run] would open browser URL");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --json --input`);
-		const tuiRun = await runSubprocess(
+		const tuiJsonRun = await runSubprocess(
 			process.execPath,
 			[
 				"--experimental-loader",
@@ -127,10 +127,10 @@ async function main() {
 		);
 		let tuiJson;
 		try {
-			tuiJson = parseJsonOutput(tuiRun.stdout);
+			tuiJson = parseJsonOutput(tuiJsonRun.stdout);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			const stderr = stripAnsi(tuiRun.stderr ?? "").trim();
+			const stderr = stripAnsi(tuiJsonRun.stderr ?? "").trim();
 			throw new Error(
 				`Failed to parse tui --json output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
 			);
@@ -140,6 +140,28 @@ async function main() {
 				`Expected tui renderer kind from JSON output, got: ${JSON.stringify(tuiJson?.renderer)}`,
 			);
 		}
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: refarm tui --launch --dry-run --input`,
+		);
+		const tuiLaunchRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"tui",
+				"--input",
+				tuiStatusPath,
+				"--launch",
+				"--dry-run",
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		const tuiLaunchOutput = stripAnsi(
+			`${tuiLaunchRun.stdout}\n${tuiLaunchRun.stderr}`,
+		);
+		assertIncludes(tuiLaunchOutput, "[dry-run] would launch tui runtime");
 
 		console.log(`${LOGGER_PREFIX} passed`);
 	} finally {
