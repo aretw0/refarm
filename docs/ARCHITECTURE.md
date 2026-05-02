@@ -81,33 +81,46 @@ Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system t
 
 ```
 refarm/
-├── apps/
-│   └── homestead/          # 🎨 Refarm Homestead — In-browser Admin/IDE (Astro)
-│       └── src/
-│           ├── pages/      # Dashboard, plugins, graph, dev
-│           └── layouts/
+├── apps/                             # 🌾 Distros — opinionated assemblies
+│   ├── dev/                          # refarm.dev — Developer portal (Astro)
+│   ├── me/                           # refarm.me  — Homestead · Identity (Astro)
+│   ├── farmhand/                     # Task execution daemon (Node.js)
+│   └── refarm/                       # Core runtime · CLI entry point
 │
-├── packages/               # 📦 Independent Primitives (cultivated by Tractor)
-│   ├── tractor/            # 🚜 Refarm Tractor — The machinery/host orchestrator
-│   ├── storage-sqlite/     # Offline-first SQLite/OPFS adapter
-│   ├── storage-pglite/     # Postgres WASM adapter for embeddings/AI
-│   ├── identity-nostr/     # Nostr keypair + NIP-89/94 discovery
-│   ├── sync-crdt/          # SyncEngine + Conflict-free replication
-│   ├── plugin-manifest/    # Schema & validation for the WASM sandbox
-│   └── storage-memory/     # Volatile in-memory primitive for testing
+├── packages/                         # 📦 Independent Blocks (44 packages)
+│   │
+│   ├── tractor/                      # 🚜 Tractor — Rust host (wasmtime + Loro)
+│   ├── tractor-ts/                   # 🚜 Tractor TS — Browser/Node host (JCO)
+│   │
+│   ├── [contracts]                   # Capability contracts (v1 interfaces)
+│   │   ├── storage-contract-v1/
+│   │   ├── sync-contract-v1/
+│   │   ├── identity-contract-v1/
+│   │   ├── effort-contract-v1/       # Task dispatch contract
+│   │   └── stream-contract-v1/       # Streaming transport contract
+│   │
+│   ├── [adapters]                    # Contract implementations
+│   │   ├── storage-sqlite/           # SQLite/OPFS + Loro CRDT state
+│   │   ├── storage-memory/           # In-memory (tests / ephemeral)
+│   │   ├── sync-loro/                # Loro CRDT engine (ADR-045)
+│   │   ├── identity-nostr/           # Nostr keypair + relay adapter
+│   │   ├── file-stream-transport/    # NDJSON file stream
+│   │   ├── sse-stream-transport/     # Server-Sent Events stream
+│   │   └── ws-stream-transport/      # WebSocket stream
+│   │
+│   ├── plugin-manifest/              # Plugin manifest schema & validation
+│   ├── refarm-plugin-wit/            # WIT interface — plugin ↔ Tractor
+│   ├── barn/                         # Plugin lifecycle · OPFS cache · SHA-256
+│   ├── pi-agent/                     # Sovereign AI plugin (WASM)
+│   └── ...                           # heartwood, silo, fence, health, ds, …
 │
-├── wit/
-│   └── refarm-sdk.wit      # WIT interface — plugin ↔ tractor communication
-│
-├── schemas/
-│   └── sovereign-graph.jsonld  # JSON-LD schema — the "Solo Fértil" data layer
-│
-├── docs/
-│   └── ARCHITECTURE.md     # This file
-│
-├── turbo.json              # Turborepo task pipeline
-├── package.json            # Workspace root
-└── .gitignore              # Monorepo-aware ignores
+├── specs/                            # ADRs + feature specs + diagrams
+├── docs/                             # Architecture, workflow, governance docs
+├── roadmaps/                         # Version roadmaps
+├── validations/                      # WASM plugin validation suites
+├── turbo.json                        # Turborepo task pipeline
+├── package.json                      # Workspace root
+└── .gitignore
 ```
 
 ---
@@ -123,10 +136,9 @@ refarm/
 
 Each package under `packages/` is a **standalone library** (see [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md) — Blocks are philosophy-neutral):
 
-- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code. (→ [ADR-031](../specs/ADRs/ADR-031-pluggable-relational-storage.md): pluggable relational storage)
-- **`@refarm.dev/storage-pglite`** — Postgres in the browser via WASM/WebGPU path.
+- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite with Loro CRDT state co-located. Zero Refarm-specific code. (→ [ADR-031](../specs/ADRs/ADR-031-pluggable-relational-storage.md): pluggable relational storage)
 - **`@refarm.me/identity-nostr`** — Manages Nostr keys. A Transport-specific Identity adapter. (→ [ADR-034](../specs/ADRs/ADR-034-identity-adoption-conversion.md): identity adoption)
-- **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
+- **`@refarm.dev/sync-loro`** — Loro CRDT engine: binary deltas, state vectors, snapshot import/export, CQRS projector. Wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
 - **`@refarm.dev/plugin-courier`** — The dynamic "Courier/Router". It abstracts the network layer, automatically figuring out if peers are on the same local network (mDNS/WebRTC) or if it needs to bounce signals off Public/Private Relays. Anyone running Refarm can operate their own Relay. It provides location-agnostic peer discovery and transport routing.
 
 **Crucial Distinction on Independence:**
