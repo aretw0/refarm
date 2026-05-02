@@ -137,6 +137,7 @@ describe("webCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Launching web runtime"),
 		);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("REFARM"));
 		logSpy.mockRestore();
 	});
 

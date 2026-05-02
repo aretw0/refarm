@@ -124,6 +124,7 @@ describe("tuiCommand", () => {
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Launching TUI runtime"),
 		);
+		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("REFARM"));
 		logSpy.mockRestore();
 	});
 

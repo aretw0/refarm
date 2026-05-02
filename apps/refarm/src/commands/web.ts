@@ -5,6 +5,7 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { printRefarmLaunchBanner } from "./brand.js";
 import {
 	launchAvailabilityMessage,
 	launchDryRunMessage,
@@ -202,6 +203,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 
 			if (options.launch) {
 				assertLaunchAllowed(json, "web runtime");
+				printRefarmLaunchBanner("web");
 				const spec = resolveWebLaunchSpec(launchMode);
 				if (options.dryRun) {
 					console.log(launchDryRunMessage("web runtime", spec.display));

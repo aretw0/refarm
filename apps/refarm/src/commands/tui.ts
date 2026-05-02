@@ -4,6 +4,7 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { printRefarmLaunchBanner } from "./brand.js";
 import {
 	launchProcess,
 	splitLaunchCommand,
@@ -125,6 +126,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 
 			if (options.launch) {
 				assertLaunchAllowed(json, "TUI runtime");
+				printRefarmLaunchBanner("tui");
 				const spec = resolveTuiLaunchSpec(launchMode);
 				if (options.dryRun) {
 					console.log(launchDryRunMessage("tui runtime", spec.display));
