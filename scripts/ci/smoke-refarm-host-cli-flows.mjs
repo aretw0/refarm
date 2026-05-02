@@ -71,6 +71,18 @@ function assertNotIncludes(output, expected) {
 	}
 }
 
+function parseCommandJsonOutput(label, runResult) {
+	try {
+		return parseJsonOutput(runResult.stdout);
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		const stderr = stripAnsi(runResult.stderr ?? "").trim();
+		throw new Error(
+			`Failed to parse ${label} JSON output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
+		);
+	}
+}
+
 async function assertCommandFailsWith(args, expectedSubstring) {
 	try {
 		await runSubprocess(process.execPath, args, {
@@ -236,16 +248,7 @@ async function main() {
 			],
 			{ env: process.env, captureOutput: true },
 		);
-		let tuiJson;
-		try {
-			tuiJson = parseJsonOutput(tuiJsonRun.stdout);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			const stderr = stripAnsi(tuiJsonRun.stderr ?? "").trim();
-			throw new Error(
-				`Failed to parse tui --json output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
-			);
-		}
+		const tuiJson = parseCommandJsonOutput("tui --json", tuiJsonRun);
 		if (tuiJson?.renderer?.kind !== "tui") {
 			throw new Error(
 				`Expected tui renderer kind from JSON output, got: ${JSON.stringify(tuiJson?.renderer)}`,
@@ -265,16 +268,10 @@ async function main() {
 			],
 			{ env: process.env, captureOutput: true },
 		);
-		let headlessJson;
-		try {
-			headlessJson = parseJsonOutput(headlessJsonRun.stdout);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			const stderr = stripAnsi(headlessJsonRun.stderr ?? "").trim();
-			throw new Error(
-				`Failed to parse headless JSON output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
-			);
-		}
+		const headlessJson = parseCommandJsonOutput(
+			"headless",
+			headlessJsonRun,
+		);
 		if (headlessJson?.renderer?.kind !== "tui") {
 			throw new Error(
 				`Expected headless passthrough renderer kind=tui from input artifact, got: ${JSON.stringify(headlessJson?.renderer)}`,
@@ -295,16 +292,7 @@ async function main() {
 			],
 			{ env: process.env, captureOutput: true },
 		);
-		let doctorJson;
-		try {
-			doctorJson = parseJsonOutput(doctorJsonRun.stdout);
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			const stderr = stripAnsi(doctorJsonRun.stderr ?? "").trim();
-			throw new Error(
-				`Failed to parse doctor --json output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
-			);
-		}
+		const doctorJson = parseCommandJsonOutput("doctor --json", doctorJsonRun);
 		if (typeof doctorJson?.host?.version !== "string") {
 			throw new Error(
 				`Expected doctor JSON host.version string, got: ${JSON.stringify(doctorJson?.host)}`,
