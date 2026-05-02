@@ -1,9 +1,34 @@
 import { describe, expect, it } from "vitest";
 import {
 	__resetRefarmRuntimeMetadataCacheForTests,
+	resolveRefarmHostIdentity,
 	resolveRefarmRuntimeMetadata,
 	resolveRefarmVersion,
 } from "../../src/commands/runtime-metadata.js";
+
+describe("resolveRefarmHostIdentity", () => {
+	it("returns default host identity", () => {
+		expect(resolveRefarmHostIdentity()).toEqual({
+			app: "apps/refarm",
+			command: "refarm",
+			profile: "dev",
+		});
+	});
+
+	it("allows overriding host identity fields", () => {
+		expect(
+			resolveRefarmHostIdentity({
+				app: "apps/custom",
+				command: "custom",
+				profile: "prod",
+			}),
+		).toEqual({
+			app: "apps/custom",
+			command: "custom",
+			profile: "prod",
+		});
+	});
+});
 
 describe("resolveRefarmRuntimeMetadata", () => {
 	it("returns default host metadata", () => {

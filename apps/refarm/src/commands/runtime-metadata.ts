@@ -14,6 +14,12 @@ interface ResolveVersionOptions {
 	readPackageJson?: (path: URL | string) => string;
 }
 
+export interface RefarmHostIdentity {
+	app: string;
+	command: string;
+	profile: string;
+}
+
 export interface RefarmRuntimeMetadata {
 	app: string;
 	command: string;
@@ -26,6 +32,16 @@ export interface ResolveRefarmRuntimeMetadataOptions
 	app?: string;
 	command?: string;
 	profile?: string;
+}
+
+export function resolveRefarmHostIdentity(
+	options?: Pick<ResolveRefarmRuntimeMetadataOptions, "app" | "command" | "profile">,
+): RefarmHostIdentity {
+	return {
+		app: options?.app ?? "apps/refarm",
+		command: options?.command ?? "refarm",
+		profile: options?.profile ?? "dev",
+	};
 }
 
 function resolveVersion(options?: ResolveVersionOptions): string {
@@ -67,10 +83,9 @@ function resolveVersion(options?: ResolveVersionOptions): string {
 export function resolveRefarmRuntimeMetadata(
 	options?: ResolveRefarmRuntimeMetadataOptions,
 ): RefarmRuntimeMetadata {
+	const host = resolveRefarmHostIdentity(options);
 	return {
-		app: options?.app ?? "apps/refarm",
-		command: options?.command ?? "refarm",
-		profile: options?.profile ?? "dev",
+		...host,
 		version: resolveVersion(options),
 	};
 }
