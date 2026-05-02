@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { access, readFile, readdir, rm } from "node:fs/promises";
+import { access, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 
 const TASK_SMOKE_TS_BUILD_ORDER = [
@@ -7,6 +7,11 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/identity-contract-v1",
 	"packages/storage-contract-v1",
 	"packages/sync-contract-v1",
+	"packages/stream-contract-v1",
+	"packages/context-provider-v1",
+	"packages/file-stream-transport",
+	"packages/sse-stream-transport",
+	"packages/ws-stream-transport",
 	"packages/storage-sqlite",
 	"packages/registry",
 	"packages/tractor-ts",
@@ -100,7 +105,8 @@ export async function assertTaskSmokeBuildOrderIntegrity(
 
 		for (const dependencyName of Object.keys(deps)) {
 			const dependencyWorkspace = workspaceByName.get(dependencyName);
-			if (!dependencyWorkspace || !dependencyWorkspace.isTypeScriptBuild) continue;
+			if (!dependencyWorkspace || !dependencyWorkspace.isTypeScriptBuild)
+				continue;
 			if (dependencyWorkspace.dir === workspaceDir) continue;
 
 			const dependencyIndex = orderIndex.get(dependencyWorkspace.dir);
