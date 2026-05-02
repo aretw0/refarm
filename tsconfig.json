@@ -11,8 +11,14 @@
       "@refarm.dev/barn": ["./packages/barn/src/index"],
       "@refarm.dev/cli": ["./packages/cli/src/index"],
       "@refarm.dev/config": ["./packages/config/src/index"],
+      "@refarm.dev/context-provider-v1": [
+        "./packages/context-provider-v1/src/index"
+      ],
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
+      "@refarm.dev/file-stream-transport": [
+        "./packages/file-stream-transport/src/index"
+      ],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
       "@refarm.dev/homestead/sdk/plugin-handle": [
         "./packages/homestead/src/sdk/plugin-handle"
@@ -52,12 +58,21 @@
       "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/src/index"],
       "@refarm.dev/sync-crdt": ["./packages/sync-crdt/src/index"],
       "@refarm.dev/sync-loro": ["./packages/sync-loro/src/index"],
+      "@refarm.dev/sse-stream-transport": [
+        "./packages/sse-stream-transport/src/index"
+      ],
+      "@refarm.dev/stream-contract-v1": [
+        "./packages/stream-contract-v1/src/index"
+      ],
       "@refarm.dev/terminal-plugin": ["./packages/terminal-plugin/src/index"],
       "@refarm.dev/tractor": ["./packages/tractor-ts/src/index"],
       "@refarm.dev/tractor/test/test-utils": [
         "./packages/tractor-ts/test/test-utils"
       ],
-      "@refarm.dev/trust": ["./packages/trust/src/index"]
+      "@refarm.dev/trust": ["./packages/trust/src/index"],
+      "@refarm.dev/ws-stream-transport": [
+        "./packages/ws-stream-transport/src/index"
+      ]
     }
   },
   "exclude": ["node_modules", "dist", "build", "pkg", "**/*.test.ts"]

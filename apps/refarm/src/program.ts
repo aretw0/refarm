@@ -1,20 +1,18 @@
 import { Command } from "commander";
-import { initCommand } from "./commands/init.js";
-import { sowCommand } from "./commands/sow.js";
+import { askCommand } from "./commands/ask.js";
+import { deployCommand } from "./commands/deploy.js";
 import { guideCommand } from "./commands/guide.js";
 import { healthCommand } from "./commands/health.js";
+import { initCommand } from "./commands/init.js";
 import { migrateCommand } from "./commands/migrate.js";
-import { deployCommand } from "./commands/deploy.js";
 import { pluginCommand } from "./commands/plugin.js";
+import { sowCommand } from "./commands/sow.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 
 export const program = new Command();
 
-program
-  .name("refarm")
-  .description("The Sovereign Farm CLI")
-  .version("0.1.0");
+program.name("refarm").description("The Sovereign Farm CLI").version("0.1.0");
 
 program.addCommand(initCommand);
 program.addCommand(sowCommand);
@@ -25,3 +23,4 @@ program.addCommand(deployCommand);
 program.addCommand(pluginCommand);
 program.addCommand(statusCommand);
 program.addCommand(taskCommand);
+program.addCommand(askCommand);
