@@ -1,7 +1,5 @@
 // Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
 // Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import {
   assertEntryRuntimeCompatibility,
   detectEntryFormat,
@@ -23,10 +21,15 @@ import { getCachedPlugin } from "./opfs-plugin-cache";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
-const DEFAULT_DIST_BASE = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  "../.jco-dist",
-);
+const DEFAULT_DIST_BASE = (() => {
+  const pathname = decodeURIComponent(
+    new URL("../.jco-dist", import.meta.url).pathname,
+  );
+
+  // Windows file URLs may include an extra leading slash before drive letters.
+  // Example: /C:/repo/.../.jco-dist -> C:/repo/.../.jco-dist
+  return pathname.replace(/^\/([A-Za-z]:\/)/, "$1");
+})();
 
 /**
  * Sandboxed plugin host.
