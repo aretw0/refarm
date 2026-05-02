@@ -10,7 +10,9 @@ import {
   buildRefarmStatusJson,
   formatRefarmStatusJson,
   formatRefarmStatusMarkdown,
+  getRefarmStatusSchemaVersionIssue,
   isRefarmStatusJson,
+  parseRefarmStatusJson,
   REFARM_STATUS_SCHEMA_VERSION,
 } from "./status.js";
 
@@ -125,7 +127,7 @@ describe("status contract validation", () => {
     const invalid = { ...json, schemaVersion: 2 };
     expect(isRefarmStatusJson(invalid)).toBe(false);
     expect(() => assertRefarmStatusJson(invalid)).toThrow(
-      /Invalid Refarm status payload/,
+      /Unsupported Refarm status schemaVersion=2/,
     );
   });
 
@@ -136,6 +138,50 @@ describe("status contract validation", () => {
       renderer: { ...json.renderer, capabilities: ["surfaces", 1] },
     };
     expect(isRefarmStatusJson(invalid)).toBe(false);
+  });
+
+  it("provides explicit upgrade guidance for newer schema versions", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const issue = getRefarmStatusSchemaVersionIssue({
+      ...json,
+      schemaVersion: REFARM_STATUS_SCHEMA_VERSION + 1,
+    });
+    expect(issue?.reason).toBe("newer");
+    expect(issue?.message).toMatch(/Upgrade @refarm.dev\/cli/);
+  });
+
+  it("provides regeneration guidance for older schema versions", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const issue = getRefarmStatusSchemaVersionIssue({
+      ...json,
+      schemaVersion: REFARM_STATUS_SCHEMA_VERSION - 1,
+    });
+    expect(issue?.reason).toBe("older");
+    expect(issue?.message).toMatch(/Regenerate with a newer status producer/);
+  });
+
+  it("parses valid status json strings", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const parsed = parseRefarmStatusJson(formatRefarmStatusJson(json));
+    expect(parsed).toEqual(json);
+  });
+
+  it("fails with actionable error on newer parsed schema", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    const newerPayload = JSON.stringify({
+      ...json,
+      schemaVersion: REFARM_STATUS_SCHEMA_VERSION + 1,
+    });
+
+    expect(() => parseRefarmStatusJson(newerPayload)).toThrow(
+      /Upgrade @refarm.dev\/cli/,
+    );
+  });
+
+  it("fails for non-json strings", () => {
+    expect(() => parseRefarmStatusJson("not-json")).toThrow(
+      /Invalid JSON for Refarm status payload/,
+    );
   });
 });
 

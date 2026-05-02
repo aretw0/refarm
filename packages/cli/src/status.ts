@@ -38,6 +38,13 @@ export interface RefarmStatusOptions {
   };
 }
 
+export interface RefarmStatusSchemaVersionIssue {
+  reason: "missing" | "invalid-type" | "newer" | "older";
+  found: unknown;
+  supported: typeof REFARM_STATUS_SCHEMA_VERSION;
+  message: string;
+}
+
 export function buildRefarmStatusJson(
   options: RefarmStatusOptions,
 ): RefarmStatusJson {
@@ -124,11 +131,68 @@ export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
 export function assertRefarmStatusJson(
   value: unknown,
 ): asserts value is RefarmStatusJson {
+  const schemaIssue = getRefarmStatusSchemaVersionIssue(value);
+  if (schemaIssue) {
+    throw new Error(schemaIssue.message);
+  }
+
   if (!isRefarmStatusJson(value)) {
     throw new Error(
-      `Invalid Refarm status payload. Expected schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+      `Invalid Refarm status payload for schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
     );
   }
+}
+
+export function getRefarmStatusSchemaVersionIssue(
+  value: unknown,
+): RefarmStatusSchemaVersionIssue | null {
+  const found = isRecord(value) ? value.schemaVersion : undefined;
+
+  if (typeof found === "undefined") {
+    return {
+      reason: "missing",
+      found,
+      supported: REFARM_STATUS_SCHEMA_VERSION,
+      message: `Missing Refarm status schemaVersion. Expected schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+    };
+  }
+
+  if (typeof found !== "number" || !Number.isFinite(found)) {
+    return {
+      reason: "invalid-type",
+      found,
+      supported: REFARM_STATUS_SCHEMA_VERSION,
+      message: `Invalid Refarm status schemaVersion type (${typeof found}). Expected numeric schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+    };
+  }
+
+  if (found > REFARM_STATUS_SCHEMA_VERSION) {
+    return {
+      reason: "newer",
+      found,
+      supported: REFARM_STATUS_SCHEMA_VERSION,
+      message: `Unsupported Refarm status schemaVersion=${found}. Local CLI supports up to ${REFARM_STATUS_SCHEMA_VERSION}. Upgrade @refarm.dev/cli.`,
+    };
+  }
+
+  if (found < REFARM_STATUS_SCHEMA_VERSION) {
+    return {
+      reason: "older",
+      found,
+      supported: REFARM_STATUS_SCHEMA_VERSION,
+      message: `Unsupported legacy Refarm status schemaVersion=${found}. Local CLI expects ${REFARM_STATUS_SCHEMA_VERSION}. Regenerate with a newer status producer.`,
+    };
+  }
+
+  return null;
+}
+
+export function parseRefarmStatusJson(
+  input: string | unknown,
+): RefarmStatusJson {
+  const value = typeof input === "string" ? parseJsonString(input) : input;
+  assertRefarmStatusJson(value);
+  return value;
 }
 
 export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
@@ -245,6 +309,14 @@ function isStringArray(value: unknown): value is string[] {
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
+}
+
+function parseJsonString(input: string): unknown {
+  try {
+    return JSON.parse(input) as unknown;
+  } catch {
+    throw new Error("Invalid JSON for Refarm status payload.");
+  }
 }
 
 function buildStatusDiagnostics(
