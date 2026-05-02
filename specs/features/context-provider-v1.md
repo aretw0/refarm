@@ -1,6 +1,6 @@
 # Feature: context-provider-v1 + `refarm ask`
 
-**Status**: In Progress  
+**Status**: Completed  
 **Version**: v0.1.0  
 **Owner**: Arthur Silva
 

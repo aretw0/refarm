@@ -1,6 +1,6 @@
 # Feature: stream-contract-v1 — TypeScript Streaming Transport Layer
 
-**Status**: In Progress  
+**Status**: Completed  
 **Version**: v0.1.0  
 **Owner**: Arthur Silva
 
@@ -192,7 +192,7 @@ export class StreamRegistry {
 - [x] Design three transport adapters (File, SSE, WebSocket)
 - [x] Design conformance test harness
 - [x] Write design doc
-- [ ] Write ADR-055 (stream-contract-v1 transport layer as separate package family)
+- [x] Write ADR-055 (stream-contract-v1 transport layer as separate package family)
 
 **TDD:**
 
