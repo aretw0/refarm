@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { groupChanges, extractSignals, deriveCommitMessage } from "../src/git-atomic-analysis.mjs";
+import {
+  groupChanges,
+  extractSignals,
+  deriveCommitMessage,
+  assessCommitImportance,
+} from "../src/git-atomic-analysis.mjs";
 
 // Mock getDiffFn: returns a fake diff object based on path
 const mockGetDiff = (path) => {
@@ -197,5 +202,31 @@ describe("Git Atomic Analysis v7.0 — Mixed Context & Scoping", () => {
     
     expect(groups.infra_github).toBeDefined();
     expect(groups.infra_configs).toBeDefined();
+  });
+});
+
+describe("Git Atomic Analysis — important commit classification", () => {
+  it("marks security groups as important", () => {
+    const assessment = assessCommitImportance("security", [
+      { path: "package.json", signals: new Set(["security"]) },
+    ]);
+    expect(assessment.important).toBe(true);
+    expect(assessment.reasons.join(" ")).toContain("security");
+  });
+
+  it("marks WIT/contract paths as important", () => {
+    const assessment = assessCommitImportance("scope:tractor", [
+      { path: "packages/tractor/wit/host/refarm-plugin-host.wit", signals: new Set(["wit-bindings"]) },
+    ]);
+    expect(assessment.important).toBe(true);
+    expect(assessment.reasons.join(" ")).toContain("WIT");
+  });
+
+  it("keeps regular scope refactors as non-important", () => {
+    const assessment = assessCommitImportance("scope:homestead", [
+      { path: "packages/homestead/src/theme.ts", signals: new Set(["scope:homestead"]) },
+    ]);
+    expect(assessment.important).toBe(false);
+    expect(assessment.reasons).toEqual([]);
   });
 });
