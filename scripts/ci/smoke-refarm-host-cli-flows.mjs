@@ -252,6 +252,35 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm headless --input JSON output`);
+		const headlessJsonRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"headless",
+				"--input",
+				tuiStatusPath,
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		let headlessJson;
+		try {
+			headlessJson = parseJsonOutput(headlessJsonRun.stdout);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			const stderr = stripAnsi(headlessJsonRun.stderr ?? "").trim();
+			throw new Error(
+				`Failed to parse headless JSON output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
+			);
+		}
+		if (headlessJson?.renderer?.kind !== "tui") {
+			throw new Error(
+				`Expected headless passthrough renderer kind=tui from input artifact, got: ${JSON.stringify(headlessJson?.renderer)}`,
+			);
+		}
+
 		console.log(`${LOGGER_PREFIX} smoke: refarm doctor --json --input`);
 		const doctorJsonRun = await runSubprocess(
 			process.execPath,
@@ -392,6 +421,23 @@ async function main() {
 				webStatusPath,
 				"--json",
 				"--markdown",
+			],
+			"Choose only one output format",
+		);
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: headless markdown+summary is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"headless",
+				"--input",
+				tuiStatusPath,
+				"--markdown",
+				"--summary",
 			],
 			"Choose only one output format",
 		);
