@@ -194,7 +194,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			} else {
 				resolvedDeps.printStatusSummary(json);
 				if (!options.launch) {
-					console.log(launchAvailabilityMessage("Web", "dev|preview"));
+					console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
 				}
 			}
 

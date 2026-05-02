@@ -1,8 +1,11 @@
 export function launchAvailabilityMessage(
 	rendererLabel: string,
-	launcherModes: string,
+	launcherModes: string | readonly string[],
 ): string {
-	return `${rendererLabel} launcher integration is available via --launch (${launcherModes}).`;
+	const modeLabel = Array.isArray(launcherModes)
+		? launcherModes.join("|")
+		: launcherModes;
+	return `${rendererLabel} launcher integration is available via --launch (${modeLabel}).`;
 }
 
 export function launchDryRunMessage(

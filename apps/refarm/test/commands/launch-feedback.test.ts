@@ -13,6 +13,9 @@ describe("launch-feedback", () => {
 		expect(launchAvailabilityMessage("Web", "dev|preview")).toBe(
 			"Web launcher integration is available via --launch (dev|preview).",
 		);
+		expect(launchAvailabilityMessage("TUI", ["watch", "prompt"])).toBe(
+			"TUI launcher integration is available via --launch (watch|prompt).",
+		);
 	});
 
 	it("renders launch dry-run and start messages", () => {

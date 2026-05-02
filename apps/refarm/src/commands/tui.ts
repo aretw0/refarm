@@ -117,7 +117,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 			} else {
 				resolvedDeps.printStatusSummary(json);
 				if (!options.launch) {
-					console.log(launchAvailabilityMessage("TUI", "watch|prompt"));
+					console.log(launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES));
 				}
 			}
 
