@@ -41,6 +41,17 @@ Do not start with a full agent loop. Start with the host boundary: can the
 product command select a renderer, initialize the runtime, and report trustworthy
 state using the same contracts as the apps?
 
+## Implementation status (2026-05-02)
+
+`apps/refarm` now ships the first three host-boundary commands:
+
+- `refarm status` (human/json/markdown + artifact input validation)
+- `refarm headless` (headless snapshot-first output surface)
+- `refarm doctor` (contract-based readiness gate with non-zero exit on failures)
+
+`refarm web` remains pending and should be added without splitting runtime
+policy away from the shared status/renderer contracts.
+
 ## Renderer modes
 
 | Mode       | Initial role              | Uses                                                           | Output                        |
