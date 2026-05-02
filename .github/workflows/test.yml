@@ -797,6 +797,11 @@ jobs:
 
             const jobsCache = new Map();
             const results = new Map();
+            const nonReusableStatuses = new Set([
+              'cancelled',
+              'stale',
+              'neutral',
+            ]);
 
             async function getJobs(run) {
               const cacheKey = String(run.id);
@@ -813,6 +818,9 @@ jobs:
 
               if (gate.type === 'job') {
                 if (job.conclusion && job.conclusion !== 'skipped') {
+                  if (nonReusableStatuses.has(job.conclusion)) {
+                    return null;
+                  }
                   return { status: job.conclusion, sourceUrl: run.html_url || '' };
                 }
                 return null;
@@ -822,6 +830,9 @@ jobs:
                 (item) => (gate.stepNames || []).includes(item.name),
               );
               if (step && step.conclusion && step.conclusion !== 'skipped') {
+                if (nonReusableStatuses.has(step.conclusion)) {
+                  return null;
+                }
                 return { status: step.conclusion, sourceUrl: run.html_url || '' };
               }
               return null;
@@ -843,9 +854,7 @@ jobs:
             const failureStatuses = new Set([
               'failure',
               'timed_out',
-              'cancelled',
               'startup_failure',
-              'stale',
               'action_required',
             ]);
 
@@ -881,7 +890,7 @@ jobs:
           echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
 
           if [ "${{ steps.carry_forward.outputs.has_failure }}" = "true" ]; then
-            echo "::error::One or more skipped gates reused a failing status from the latest executed run."
+            echo "::error::One or more skipped gates reused a prior failing status."
             exit 1
           fi
 
