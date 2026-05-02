@@ -304,6 +304,25 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm doctor --input summary output`);
+		const doctorSummaryRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"doctor",
+				"--input",
+				webStatusPath,
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		const doctorSummaryOutput = stripAnsi(
+			`${doctorSummaryRun.stdout}\n${doctorSummaryRun.stderr}`,
+		);
+		assertIncludes(doctorSummaryOutput, "Doctor: PASS");
+		assertIncludes(doctorSummaryOutput, "Host: refarm");
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm tui --launch --dry-run --input`,
 		);

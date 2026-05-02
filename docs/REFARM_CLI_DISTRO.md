@@ -92,7 +92,7 @@ npm run refarm:host:smoke:ci
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
   `refarm headless --input`, `refarm web --launch --dry-run --open`,
-  `refarm tui --json`, `refarm doctor --json`, and
+  `refarm tui --json`, `refarm doctor --json`, `refarm doctor` (summary), and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values and
   invalid output/launch guard combinations (`--open`/`--dry-run` without
   `--launch`, `--json` + `--markdown`, `headless --markdown --summary`) are
