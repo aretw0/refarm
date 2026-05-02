@@ -65,7 +65,7 @@ mv packages/tractor-native packages/tractor
 **4 applications:**
 - `apps/homestead` — `import { Tractor } from '@refarm.dev/tractor'` stays the same (path changes)
 - `apps/farmhand` — `import { Tractor }` → may be deprecated if replaced by native daemon
-- `apps/studio` — `import { Tractor }`
+- `apps/me` — `import { Tractor }`
 - `apps/refarm-me` — `import { Tractor }`
 
 **8 packages:**

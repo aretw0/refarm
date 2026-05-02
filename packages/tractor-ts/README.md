@@ -133,7 +133,7 @@ const plugin = await tractor.loadPlugin(manifest);
 ### Phase 1: Unit Tests (Red)
 
 ```bash
-npm run test:unit -- apps/kernel
+npm run test:unit -- packages/tractor-ts
 
 # All tests should FAIL initially (red phase)
 ```
@@ -141,7 +141,7 @@ npm run test:unit -- apps/kernel
 ### Phase 2: Integration Tests (Red)
 
 ```bash
-npm run test:integration -- apps/kernel
+npm run test:integration -- packages/tractor-ts
 
 # Multi-module scenarios should FAIL
 ```
@@ -150,7 +150,7 @@ npm run test:integration -- apps/kernel
 
 ```bash
 # Make tests pass
-npm run test:watch -- apps/kernel
+npm run test:watch -- packages/tractor-ts
 
 # Watch mode auto-reruns on file changes
 ```
