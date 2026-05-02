@@ -1,18 +1,20 @@
 import { spawn } from "node:child_process";
 import {
-	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
 	printStatusSummary,
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
 
-export type RefarmWebLauncherMode = "dev" | "preview";
+const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
+
+export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
 export interface WebLaunchSpec {
 	command: string;
@@ -45,16 +47,6 @@ interface WebOptions {
 	open?: boolean;
 	openUrl?: string;
 	launcher?: RefarmWebLauncherMode;
-}
-
-function resolveWebLaunchMode(input: unknown): RefarmWebLauncherMode {
-	if (input === "dev" || input === "preview") {
-		return input;
-	}
-
-	throw new Error(
-		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: dev, preview.`,
-	);
 }
 
 function splitNpmCommand(command: string): { command: string; args: string[] } {
@@ -204,7 +196,10 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				throw new Error("--open requires --launch.");
 			}
 
-			const launchMode = resolveWebLaunchMode(options.launcher ?? "dev");
+			const launchMode = resolveLaunchMode(
+				options.launcher ?? "dev",
+				WEB_LAUNCHER_MODES,
+			);
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "web",
@@ -227,12 +222,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 			await shutdown?.();
 
 			if (options.launch) {
-				const diagnostics = classifyRefarmStatusDiagnostics(json);
-				if (diagnostics.failures.length > 0) {
-					throw new Error(
-						`Cannot launch web runtime due status failures: ${diagnostics.failures.join(", ")}.`,
-					);
-				}
+				assertLaunchAllowed(json, "web runtime");
 				const spec = resolveWebLaunchSpec(launchMode);
 				if (options.dryRun) {
 					console.log(`[dry-run] would launch web runtime: ${spec.display}`);

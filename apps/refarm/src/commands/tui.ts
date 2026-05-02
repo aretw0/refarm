@@ -1,18 +1,20 @@
+import { spawn } from "node:child_process";
 import {
-	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
-import { spawn } from "node:child_process";
 import { Command } from "commander";
+import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
 import {
 	printStatusSummary,
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
 
-export type RefarmTuiLauncherMode = "watch" | "prompt";
+const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
+
+export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
 
 export interface TuiLaunchSpec {
 	command: string;
@@ -27,16 +29,6 @@ interface TuiOptions {
 	launch?: boolean;
 	dryRun?: boolean;
 	launcher?: RefarmTuiLauncherMode;
-}
-
-function resolveTuiLaunchMode(input: unknown): RefarmTuiLauncherMode {
-	if (input === "watch" || input === "prompt") {
-		return input;
-	}
-
-	throw new Error(
-		`Invalid --launcher value ${JSON.stringify(input)}. Use one of: watch, prompt.`,
-	);
 }
 
 interface TuiDeps {
@@ -60,7 +52,9 @@ function splitCommand(command: string): { command: string; args: string[] } {
 	};
 }
 
-export function resolveTuiLaunchSpec(mode: RefarmTuiLauncherMode): TuiLaunchSpec {
+export function resolveTuiLaunchSpec(
+	mode: RefarmTuiLauncherMode,
+): TuiLaunchSpec {
 	if (mode === "prompt") {
 		const parsed = splitCommand("cargo run -p tractor -- prompt");
 		return {
@@ -128,7 +122,10 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				throw new Error("--dry-run requires --launch.");
 			}
 
-			const launchMode = resolveTuiLaunchMode(options.launcher ?? "watch");
+			const launchMode = resolveLaunchMode(
+				options.launcher ?? "watch",
+				TUI_LAUNCHER_MODES,
+			);
 
 			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
 				renderer: "tui",
@@ -151,13 +148,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 			await shutdown?.();
 
 			if (options.launch) {
-				const diagnostics = classifyRefarmStatusDiagnostics(json);
-				if (diagnostics.failures.length > 0) {
-					throw new Error(
-						`Cannot launch TUI runtime due status failures: ${diagnostics.failures.join(", ")}.`,
-					);
-				}
-
+				assertLaunchAllowed(json, "TUI runtime");
 				const spec = resolveTuiLaunchSpec(launchMode);
 				if (options.dryRun) {
 					console.log(`[dry-run] would launch tui runtime: ${spec.display}`);
