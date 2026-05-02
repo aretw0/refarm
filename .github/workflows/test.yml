@@ -120,7 +120,7 @@ jobs:
           fi
 
           run_task_smoke=false
-          if has_match '^(apps/farmhand/|apps/refarm/|packages/effort-contract-v1/|packages/pi-agent/|packages/refarm-plugin-wit/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/effort-contract-v1/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/tractor-ts/|packages/registry/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
             run_task_smoke=true
           fi
 
