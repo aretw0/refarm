@@ -1,20 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	createWebCommand,
+	resolveWebLaunchSpec,
+} from "../../src/commands/web.js";
 
-const { mockResolveStatusPayload, mockShutdown, mockPrintStatusSummary } =
-	vi.hoisted(() => ({
-		mockResolveStatusPayload: vi.fn(),
-		mockShutdown: vi.fn().mockResolvedValue(undefined),
-		mockPrintStatusSummary: vi.fn(),
-	}));
-
-vi.mock("../../src/commands/status.js", () => ({
-	resolveStatusPayload: mockResolveStatusPayload,
-	printStatusSummary: mockPrintStatusSummary,
-}));
-
-import { webCommand } from "../../src/commands/web.js";
-
-function makeStatus() {
+function makeStatus(overrides?: Partial<any>) {
 	return {
 		schemaVersion: 1 as const,
 		host: {
@@ -46,62 +36,143 @@ function makeStatus() {
 		},
 		streams: { active: 0, terminal: 0 },
 		diagnostics: [],
+		...overrides,
 	};
 }
 
-describe("webCommand", () => {
-	beforeEach(() => {
-		vi.clearAllMocks();
-		mockResolveStatusPayload.mockResolvedValue({
-			json: makeStatus(),
-			shutdown: mockShutdown,
+describe("resolveWebLaunchSpec", () => {
+	it("maps dev and preview launchers to deterministic commands", () => {
+		expect(resolveWebLaunchSpec("dev")).toEqual({
+			command: "npm",
+			args: ["--prefix", "apps/dev", "run", "dev"],
+			display: "npm --prefix apps/dev run dev",
+		});
+		expect(resolveWebLaunchSpec("preview")).toEqual({
+			command: "npm",
+			args: ["--prefix", "apps/dev", "run", "preview"],
+			display: "npm --prefix apps/dev run preview",
 		});
 	});
+});
 
-	it("uses web renderer posture by default", async () => {
+describe("webCommand", () => {
+	const resolveStatusPayload = vi.fn();
+	const printStatusSummary = vi.fn();
+	const launch = vi.fn();
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		process.exitCode = undefined;
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus(),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		launch.mockResolvedValue(0);
+	});
+
+	it("prints summary preflight by default", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await webCommand.parseAsync([], { from: "user" });
+		await command.parseAsync([], { from: "user" });
 
-		expect(mockResolveStatusPayload).toHaveBeenCalledWith(
+		expect(resolveStatusPayload).toHaveBeenCalledWith(
 			expect.objectContaining({ renderer: "web" }),
 		);
-		expect(mockPrintStatusSummary).toHaveBeenCalled();
+		expect(printStatusSummary).toHaveBeenCalled();
 		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Web launcher integration is pending"),
+			expect.stringContaining("available via --launch"),
 		);
-		expect(mockShutdown).toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
 
-	it("outputs JSON with --json", async () => {
+	it("launches dev mode when --launch is requested", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await webCommand.parseAsync(["--json"], { from: "user" });
+		await command.parseAsync(["--launch"], { from: "user" });
 
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("schemaVersion"),
-		);
-		logSpy.mockRestore();
-	});
-
-	it("outputs markdown with --markdown", async () => {
-		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-
-		await webCommand.parseAsync(["--markdown"], { from: "user" });
-
-		expect(logSpy).toHaveBeenCalledWith(
-			expect.stringContaining("# Refarm Status"),
-		);
-		logSpy.mockRestore();
-	});
-
-	it("rejects --json and --markdown together", async () => {
-		await expect(
-			webCommand.parseAsync(["--json", "--markdown"], {
-				from: "user",
+		expect(launch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				display: "npm --prefix apps/dev run dev",
 			}),
-		).rejects.toThrow(/Choose only one output format/);
-		expect(mockResolveStatusPayload).not.toHaveBeenCalled();
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Launching web runtime"),
+		);
+		logSpy.mockRestore();
+	});
+
+	it("launches preview mode with --launcher preview", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await command.parseAsync(["--launch", "--launcher", "preview"], {
+			from: "user",
+		});
+
+		expect(launch).toHaveBeenCalledWith(
+			expect.objectContaining({
+				display: "npm --prefix apps/dev run preview",
+			}),
+		);
+	});
+
+	it("fails when runtime is not ready for launch", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				runtime: { ready: false, namespace: "", databaseName: "" },
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--launch"], { from: "user" }),
+		).rejects.toThrow(/runtime:not-ready/);
+		expect(launch).not.toHaveBeenCalled();
+	});
+
+	it("rejects --launch with --json", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--launch", "--json"], { from: "user" }),
+		).rejects.toThrow(/cannot be combined/);
+	});
+
+	it("propagates launcher non-zero exit code", async () => {
+		launch.mockResolvedValue(3);
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch"], { from: "user" });
+
+		expect(process.exitCode).toBe(3);
+		logSpy.mockRestore();
 	});
 });
