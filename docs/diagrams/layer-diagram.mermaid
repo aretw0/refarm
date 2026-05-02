@@ -1,52 +1,101 @@
 graph TD
-    subgraph Homestead ["Refarm Homestead (Astro SSG)"]
-        HS_SQLite["storage-sqlite"]
-        HS_Nostr["identity-nostr"]
+    %% ── Distros (apps/) ──────────────────────────────────────────────────
+    subgraph Distros ["Distros  (apps/)  — opinionated assemblies"]
+        direction LR
+        Homestead["Homestead\n(Astro / Browser)"]
+        Farmhand["Farmhand\n(Node.js daemon)"]
+        RefarmCLI["refarm CLI\n(apps/refarm)"]
     end
 
-    subgraph Tractor ["Refarm Tractor (The Microkernel)"]
-        PluginHost["PluginHost (WASI Runtime)"]
-        PluginRunner["PluginRunner\n(WorkerRunner / MainThreadRunner)"]
-        TelemetryBus["EventEmitter\n(telemetry pub/sub)"]
-        Normaliser["Normaliser (→ JSON-LD)"]
-        SyncEngine["SyncEngine (CRDT)"]
-        Heartwood["Heartwood (WASM Security)"]
-        PluginHost -->|"resolves"| PluginRunner
+    %% ── Dual-Runtime Core ────────────────────────────────────────────────
+    subgraph Core ["Dual-Runtime Core  — identical WIT contracts"]
+        direction LR
+        subgraph TractorTS ["tractor-ts  (TypeScript)"]
+            TS_Registry["PluginRegistry"]
+            TS_PluginHost["PluginHost\n(JCO transpile)"]
+            TS_CRDT["CRDT Store\n(Loro)"]
+            TS_Sync["SyncEngine"]
+        end
+        subgraph TractorRS ["tractor  (Rust / wasmtime)"]
+            RS_Registry["PluginRegistry"]
+            RS_PluginHost["PluginHost\n(wasmtime)"]
+            RS_CRDT["CRDT Store\n(Loro)"]
+            RS_Sync["SyncEngine"]
+        end
     end
 
-    subgraph Interfaces ["Interfaces & Ports"]
-        StoragePort["Storage Port"]
-        SyncPort["Sync Port"]
-        IdentityPort["Identity Port"]
+    %% ── WIT Contract Layer ───────────────────────────────────────────────
+    subgraph WIT ["WIT Contract  (refarm:plugin@0.1.0)"]
+        direction LR
+        WIT_Pkg["refarm-plugin-wit\n(canonical source)"]
+        WIT_Int["integration interface\n(setup · ingest · push · respond · on-event)"]
+        WIT_LLM["llm-bridge"]
+        WIT_FS["agent-fs / agent-shell"]
+        WIT_IO["structured-io / code-ops"]
+        WIT_Pkg --> WIT_Int
     end
 
-    subgraph WASM ["Plugin Sandbox"]
-        Plugin["Plugin (WASM)"]
+    %% ── Plugin Sandbox ───────────────────────────────────────────────────
+    subgraph Plugins ["Plugin Sandbox  (.wasm — runs on either runtime)"]
+        direction LR
+        PiAgent["pi-agent\n(sovereign AI)"]
+        ThirdParty["third-party plugins"]
     end
 
-    subgraph TEMWorker ["TEM Plugin (WebWorker)"]
-        ActionEnc["ActionEncoder\n1-hot vocab"]
-        ObsEnc["StructAwareEncoder\n64-dim slots"]
-        TEMCore["TEMInference\nHebbian + Attractor"]
+    %% ── Capability Contracts (packages/) ─────────────────────────────────
+    subgraph Contracts ["Capability Contracts  (packages/)"]
+        direction LR
+        EffortV1["effort-contract-v1\n(Effort · Task · TaskResult)"]
+        StreamV1["stream-contract-v1\n(StreamChunk · StreamTransportAdapter)"]
+        StorageV1["storage-contract-v1"]
+        SyncV1["sync-contract-v1"]
+        IdentityV1["identity-contract-v1"]
     end
 
-    Homestead -->|"Instantiates Adapters"| HS_SQLite
-    Homestead -->|"Instantiates Adapters"| HS_Nostr
+    %% ── Transport Adapters ───────────────────────────────────────────────
+    subgraph Transports ["Transport Adapters"]
+        direction LR
+        FileAdapt["FileTransportAdapter\n(~/.refarm/tasks/ NDJSON)"]
+        HttpAdapt["HttpTransportAdapter\n(port 42001)"]
+        FileStream["FileStreamTransport\n(~/.refarm/streams/ NDJSON)"]
+        SSEStream["SseStreamTransport\n(GET /stream/:ref)"]
+        WSStream["WsStreamTransport\n(WS /ws/stream)"]
+    end
 
-    HS_SQLite -.->|"Inject"| StoragePort
-    HS_Nostr -.->|"Inject"| IdentityPort
+    %% ── Storage & Identity ───────────────────────────────────────────────
+    subgraph Storage ["Storage & Identity"]
+        direction LR
+        SQLite["storage-sqlite\n(OPFS / SQLite)"]
+        StoreMem["storage-memory\n(tests)"]
+        NostrId["identity-nostr"]
+    end
 
-    Tractor -->|"Uses"| StoragePort
-    Tractor -->|"Uses"| SyncPort
-    Tractor -->|"Uses"| Heartwood
-    Heartwood -->|"Protects"| IdentityPort
+    %% ── Connections ──────────────────────────────────────────────────────
+    Homestead -->|"uses tractor-ts"| TractorTS
+    Farmhand -->|"uses tractor-ts"| TractorTS
+    RefarmCLI -->|"calls Farmhand HTTP"| HttpAdapt
 
-    PluginRunner -->|"WorkerRunner"| TEMWorker
-    PluginRunner ---|"WASI Boundary"| Plugin
-    Plugin -->|"storeNode"| StoragePort
-    Plugin -->|"emit event"| TelemetryBus
-    TelemetryBus -->|"observe"| TEMCore
-    TEMCore -->|"storeNode\nTemMemory · NoveltyScore"| StoragePort
+    TractorTS ---|"same WIT"| WIT_Pkg
+    TractorRS ---|"same WIT"| WIT_Pkg
 
-    Normaliser -->|"Normalise"| StoragePort
-    SyncEngine -->|"Sync"| SyncPort
+    WIT_Int -->|"implemented by"| PiAgent
+    WIT_Int -->|"implemented by"| ThirdParty
+    WIT_LLM -.->|"imported by"| PiAgent
+    WIT_FS -.->|"imported by"| PiAgent
+
+    Farmhand -->|"dispatches via"| EffortV1
+    Farmhand -->|"bridges CRDT to"| StreamV1
+    EffortV1 -->|"bundled adapters"| FileAdapt
+    EffortV1 -->|"bundled adapters"| HttpAdapt
+    StreamV1 -->|"bundled adapters"| FileStream
+    StreamV1 -->|"bundled adapters"| SSEStream
+    StreamV1 -->|"bundled adapters"| WSStream
+
+    TractorTS -->|"persists via"| StorageV1
+    TractorRS -->|"persists via"| StorageV1
+    StorageV1 -->|"adapters"| SQLite
+    StorageV1 -->|"adapters"| StoreMem
+    TractorTS -->|"syncs via"| SyncV1
+    TractorRS -->|"syncs via"| SyncV1
+    TractorTS -->|"identity via"| IdentityV1
+    IdentityV1 -->|"adapter"| NostrId
