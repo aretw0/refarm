@@ -1,0 +1,43 @@
+{
+  "name": "@refarm.dev/ws-stream-transport",
+  "version": "0.1.0",
+  "description": "WebSocket StreamTransportAdapter for Farmhand HTTP sidecar",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["stream", "transport", "websocket"],
+  "author": "Refarm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/ws-stream-transport"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@refarm.dev/file-stream-transport": "*",
+    "@refarm.dev/stream-contract-v1": "*",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/vtconfig": "*",
+    "@types/ws": "^8.18.1"
+  }
+}
