@@ -4,7 +4,7 @@
 > you can share or embed without the cognitive load of the full picture.
 >
 > **Full diagram**: [`layer-diagram.svg`](./layer-diagram.svg) —
-> **Index**: [`INDEX.md`](../../../specs/diagrams/INDEX.md)
+> **Index**: [`INDEX.md`](../../specs/diagrams/INDEX.md)
 
 ---
 

@@ -25,7 +25,11 @@ This file is the Map of Content for architecture-grade diagrams in Refarm.
 
 ### Sub-diagrams (focused views via mdt)
 
-Layer diagram sub-views → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
+Workflow phase sub-views → **[docs/diagrams/WORKFLOW_GUIDE.md](../../docs/diagrams/WORKFLOW_GUIDE.md)**
+
+Architecture layer sub-views (docs) → **[docs/diagrams/LAYERS.md](../../docs/diagrams/LAYERS.md)**
+
+Architecture layer sub-views (spec-focused) → **[ARCH_GUIDE.md](./ARCH_GUIDE.md)**
 
 | View | Diagram | What it shows |
 |---|---|---|

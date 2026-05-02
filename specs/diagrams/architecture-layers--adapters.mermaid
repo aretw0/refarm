@@ -1,0 +1,44 @@
+graph TD
+    subgraph Contracts["Capability Contracts"]
+        direction LR
+        StorageV1["storage-contract-v1"]
+        SyncV1["sync-contract-v1"]
+        IdentityV1["identity-contract-v1"]
+        EffortV1["effort-contract-v1"]
+        StreamV1["stream-contract-v1"]
+    end
+
+    subgraph Transports["Transport Adapters"]
+        direction LR
+        FileT["FileTransportAdapter\n~/.refarm/tasks/ NDJSON"]
+        HttpT["HttpTransportAdapter\nport 42001"]
+        FileStream["FileStreamTransport\n~/.refarm/streams/ NDJSON"]
+        SSEStream["SseStreamTransport\nGET /stream/:ref"]
+        WSStream["WsStreamTransport\nWS /ws/stream"]
+    end
+
+    subgraph Storage["Storage & Identity"]
+        direction LR
+        SQLite["storage-sqlite\nOPFS · SQLite + Loro CRDT"]
+        StoreMem["storage-memory\ntest / in-process"]
+        SyncLoro["sync-loro\nLoro CRDT engine"]
+        NostrId["identity-nostr\nNostr relays"]
+    end
+
+    EffortV1 --> FileT
+    EffortV1 --> HttpT
+    StreamV1 --> FileStream
+    StreamV1 --> SSEStream
+    StreamV1 --> WSStream
+    StorageV1 --> SQLite
+    StorageV1 --> StoreMem
+    SyncV1 --> SyncLoro
+    IdentityV1 --> NostrId
+
+    classDef contract  fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+    classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+    classDef storage   fill:#f0fdf4,stroke:#15803d,stroke-width:1px;
+
+    class StorageV1,SyncV1,IdentityV1,EffortV1,StreamV1 contract;
+    class FileT,HttpT,FileStream,SSEStream,WSStream transport;
+    class SQLite,StoreMem,SyncLoro,NostrId storage;
