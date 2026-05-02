@@ -20,13 +20,18 @@ describe("brand banner", () => {
 	});
 
 	it("builds deterministic launch banner per experience", () => {
-		expect(buildRefarmLaunchBanner("web")).toContain(
+		expect(buildRefarmLaunchBanner("web", { version: "1.2.3" })).toContain(
 			"launch target: web runtime",
 		);
-		expect(buildRefarmLaunchBanner("tui")).toContain(
+		expect(buildRefarmLaunchBanner("tui", { version: "1.2.3" })).toContain(
 			"launch target: tui runtime",
 		);
-		expect(buildRefarmLaunchBanner("web")).toContain("REFARM");
+		expect(buildRefarmLaunchBanner("web", { version: "1.2.3" })).toContain(
+			"REFARM",
+		);
+		expect(buildRefarmLaunchBanner("web", { version: "1.2.3" })).toContain(
+			"version: 1.2.3",
+		);
 	});
 
 	it("prints banner only when enabled", () => {

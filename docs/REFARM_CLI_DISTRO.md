@@ -64,9 +64,12 @@ diagnostics include failure codes (for example `runtime:not-ready` or
 `trust:critical-present`) and rejects invalid `--launcher` values.
 
 `refarm web --launch` and `refarm tui --launch` now emit a shared Refarm
-wordmark/banner before launch or dry-run output so both host experiences carry
-consistent identity without affecting `--json`/`--markdown` contracts. Set
-`REFARM_BRAND_BANNER=0` to suppress terminal banner output.
+wordmark/banner (including version) before launch or dry-run output so both
+host experiences carry consistent identity without affecting `--json`/
+`--markdown` contracts. Version is resolved without importing `package.json`
+as a module (`REFARM_VERSION` env first, then `npm_package_version`, then
+package metadata read fallback). Set `REFARM_BRAND_BANNER=0` to suppress
+terminal banner output.
 
 Keep launcher orchestration thin and avoid splitting runtime policy away from
 shared status/renderer contracts.

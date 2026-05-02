@@ -12,7 +12,7 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/doctor.test.ts test/commands/headless.test.ts test/commands/launch-policy.test.ts test/commands/launch-guards.test.ts test/commands/launch-process.test.ts test/commands/launch-feedback.test.ts test/commands/brand.test.ts test/commands/web.test.ts test/commands/tui.test.ts test/program.test.ts"
+    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/doctor.test.ts test/commands/headless.test.ts test/commands/launch-policy.test.ts test/commands/launch-guards.test.ts test/commands/launch-process.test.ts test/commands/launch-feedback.test.ts test/commands/brand.test.ts test/commands/version.test.ts test/commands/web.test.ts test/commands/tui.test.ts test/program.test.ts"
   },
   "dependencies": {
     "@refarm.dev/cli": "*",

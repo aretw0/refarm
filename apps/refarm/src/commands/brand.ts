@@ -1,3 +1,5 @@
+import { resolveRefarmVersion } from "./version.js";
+
 export type RefarmLaunchExperience = "web" | "tui";
 
 const BANNER_LINES = [
@@ -33,9 +35,12 @@ export function isRefarmBrandBannerEnabled(
 
 export function buildRefarmLaunchBanner(
 	experience: RefarmLaunchExperience,
+	options?: { version?: string },
 ): string {
+	const version = options?.version ?? resolveRefarmVersion();
 	return [
 		...BANNER_LINES,
+		`version: ${version}`,
 		`launch target: ${EXPERIENCE_LABEL[experience]}`,
 	].join("\n");
 }
@@ -45,6 +50,7 @@ export function printRefarmLaunchBanner(
 	options?: {
 		env?: NodeJS.ProcessEnv;
 		log?: (message: string) => void;
+		version?: string;
 	},
 ): boolean {
 	const env = options?.env ?? process.env;
@@ -52,6 +58,6 @@ export function printRefarmLaunchBanner(
 		return false;
 	}
 	const log = options?.log ?? console.log;
-	log(buildRefarmLaunchBanner(experience));
+	log(buildRefarmLaunchBanner(experience, { version: options?.version }));
 	return true;
 }
