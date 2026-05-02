@@ -125,6 +125,20 @@ The long-term target is that a user can run Refarm through the mode that fits th
 moment, while the underlying plugins, surfaces, telemetry, and audit model remain
 consistent.
 
+## Current implementation snapshot (2026-05-02)
+
+`apps/refarm` now provides a concrete host command spine over the shared status
+contract:
+
+- `refarm status` (human/json/markdown + input artifact validation);
+- `refarm doctor` (readiness verdict from status diagnostics);
+- `refarm headless` (headless renderer contract surface);
+- `refarm web` (web preflight + launcher modes, with optional browser open);
+- `refarm tui` (tui preflight surface, launcher deferred).
+
+This keeps renderer behavior attached to one runtime/status vocabulary while
+allowing launcher integration to evolve per modality.
+
 ## Near-term path
 
 See [Refarm CLI Distro](./REFARM_CLI_DISTRO.md) for the product-facing command path.
