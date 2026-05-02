@@ -53,6 +53,8 @@ state using the same contracts as the apps?
 
 `refarm web` now reuses the same status contract and can launch `apps/dev`
 (`dev` or `preview`) after runtime preflight (`--launch`, optional `--dry-run`).
+It can also request browser opening (`--open`, optional `--open-url`) while
+keeping launcher failures explicit and non-fatal to preflight reporting.
 `refarm tui` currently validates TUI renderer posture; full TUI launcher/runtime
 integration remains deferred.
 

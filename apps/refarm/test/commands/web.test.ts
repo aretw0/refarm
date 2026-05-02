@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createWebCommand,
+	resolveBrowserOpenSpec,
 	resolveWebLaunchSpec,
 } from "../../src/commands/web.js";
 
@@ -55,10 +56,34 @@ describe("resolveWebLaunchSpec", () => {
 	});
 });
 
+describe("resolveBrowserOpenSpec", () => {
+	it("maps browser opener command by platform", () => {
+		expect(resolveBrowserOpenSpec("http://localhost:4321", "darwin")).toEqual(
+			expect.objectContaining({
+				command: "open",
+				args: ["http://localhost:4321"],
+			}),
+		);
+		expect(resolveBrowserOpenSpec("http://localhost:4321", "win32")).toEqual(
+			expect.objectContaining({
+				command: "cmd",
+				args: ["/c", "start", "", "http://localhost:4321"],
+			}),
+		);
+		expect(resolveBrowserOpenSpec("http://localhost:4321", "linux")).toEqual(
+			expect.objectContaining({
+				command: "xdg-open",
+				args: ["http://localhost:4321"],
+			}),
+		);
+	});
+});
+
 describe("webCommand", () => {
 	const resolveStatusPayload = vi.fn();
 	const printStatusSummary = vi.fn();
 	const launch = vi.fn();
+	const open = vi.fn();
 
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -68,6 +93,7 @@ describe("webCommand", () => {
 			shutdown: vi.fn().mockResolvedValue(undefined),
 		});
 		launch.mockResolvedValue(0);
+		open.mockResolvedValue(undefined);
 	});
 
 	it("prints summary preflight by default", async () => {
@@ -75,6 +101,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -96,6 +123,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -117,6 +145,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 
 		await command.parseAsync(["--launch", "--launcher", "preview"], {
@@ -141,6 +170,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 
 		await expect(
@@ -154,6 +184,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 
 		await expect(
@@ -166,10 +197,24 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 
 		await expect(
 			command.parseAsync(["--dry-run"], { from: "user" }),
+		).rejects.toThrow(/requires --launch/);
+	});
+
+	it("rejects --open without --launch", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await expect(
+			command.parseAsync(["--open"], { from: "user" }),
 		).rejects.toThrow(/requires --launch/);
 	});
 
@@ -178,6 +223,7 @@ describe("webCommand", () => {
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -190,12 +236,82 @@ describe("webCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints dry-run browser open command", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--dry-run", "--open"], {
+			from: "user",
+		});
+
+		expect(launch).not.toHaveBeenCalled();
+		expect(open).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("[dry-run] would open browser URL"),
+		);
+		logSpy.mockRestore();
+	});
+
+	it("opens browser URL when --open is used", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await command.parseAsync(["--launch", "--open"], { from: "user" });
+
+		expect(open).toHaveBeenCalledWith("http://127.0.0.1:4321");
+	});
+
+	it("supports custom browser URL", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await command.parseAsync(
+			["--launch", "--open", "--open-url", "http://localhost:9999"],
+			{ from: "user" },
+		);
+
+		expect(open).toHaveBeenCalledWith("http://localhost:9999");
+	});
+
+	it("continues when browser opener fails", async () => {
+		open.mockRejectedValue(new Error("no browser available"));
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await command.parseAsync(["--launch", "--open"], { from: "user" });
+
+		expect(launch).toHaveBeenCalled();
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Failed to open browser URL"),
+		);
+		errorSpy.mockRestore();
+	});
+
 	it("propagates launcher non-zero exit code", async () => {
 		launch.mockResolvedValue(3);
 		const command = createWebCommand({
 			resolveStatusPayload,
 			printStatusSummary,
 			launch,
+			open,
 		});
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
