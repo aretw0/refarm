@@ -233,6 +233,41 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm doctor --json --input`);
+		const doctorJsonRun = await runSubprocess(
+			process.execPath,
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"doctor",
+				"--input",
+				webStatusPath,
+				"--json",
+			],
+			{ env: process.env, captureOutput: true },
+		);
+		let doctorJson;
+		try {
+			doctorJson = parseJsonOutput(doctorJsonRun.stdout);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			const stderr = stripAnsi(doctorJsonRun.stderr ?? "").trim();
+			throw new Error(
+				`Failed to parse doctor --json output: ${message}${stderr ? `\n--- stderr ---\n${stderr}` : ""}`,
+			);
+		}
+		if (typeof doctorJson?.host?.version !== "string") {
+			throw new Error(
+				`Expected doctor JSON host.version string, got: ${JSON.stringify(doctorJson?.host)}`,
+			);
+		}
+		if (doctorJson?.status?.host?.app !== "apps/refarm") {
+			throw new Error(
+				`Expected doctor JSON status.host.app=apps/refarm, got: ${JSON.stringify(doctorJson?.status?.host)}`,
+			);
+		}
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm tui --launch --dry-run --input`,
 		);
