@@ -16,6 +16,7 @@ import {
 } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import {
 	printStatusSummary,
 	type ResolveStatusPayloadResult,
@@ -188,20 +189,26 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				defaultMode: "summary",
 			});
 			const openUrl = options.openUrl ?? "http://127.0.0.1:4321";
-			const { json, shutdown } = await resolvedDeps.resolveStatusPayload({
-				renderer: "web",
-				input: options.input,
+			const json = await withResolvedStatusPayload({
+				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
+				resolveOptions: {
+					renderer: "web",
+					input: options.input,
+				},
+				run: (json) => {
+					emitRefarmStatusOutput({
+						status: json,
+						mode: outputMode,
+						printSummary: resolvedDeps.printStatusSummary,
+					});
+					if (outputMode === "summary" && !options.launch) {
+						console.log(
+							launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES),
+						);
+					}
+					return json;
+				},
 			});
-			emitRefarmStatusOutput({
-				status: json,
-				mode: outputMode,
-				printSummary: resolvedDeps.printStatusSummary,
-			});
-			if (outputMode === "summary" && !options.launch) {
-				console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
-			}
-
-			await shutdown?.();
 
 			if (options.launch) {
 				assertLaunchAllowed(json, "web runtime");

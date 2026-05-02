@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
 import {
 	emitRefarmStatusOutput,
@@ -30,16 +31,18 @@ export const headlessCommand = new Command("headless")
 			},
 		);
 
-		const { json, shutdown } = await resolveStatusPayload({
-			renderer: "headless",
-			input: options.input,
+		await withResolvedStatusPayload({
+			resolveStatusPayload,
+			resolveOptions: {
+				renderer: "headless",
+				input: options.input,
+			},
+			run: (json) => {
+				emitRefarmStatusOutput({
+					status: json,
+					mode: outputMode,
+					printSummary: printStatusSummary,
+				});
+			},
 		});
-
-		emitRefarmStatusOutput({
-			status: json,
-			mode: outputMode,
-			printSummary: printStatusSummary,
-		});
-
-		await shutdown?.();
 	});

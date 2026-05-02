@@ -11,6 +11,7 @@ import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
 export interface RefarmDoctorReport {
@@ -74,16 +75,20 @@ export const doctorCommand = new Command("doctor")
 	.option("--json", "Output machine-readable doctor report")
 	.option("--fail-on-warnings", "Treat warning diagnostics as failures")
 	.action(async (options: RefarmDoctorOptions) => {
-		const { json: status, shutdown } = await resolveStatusPayload(options);
-		const report = buildRefarmDoctorReport(status, {
-			failOnWarnings: options.failOnWarnings,
+		const report = await withResolvedStatusPayload({
+			resolveStatusPayload,
+			resolveOptions: options,
+			run: (status) => {
+				const report = buildRefarmDoctorReport(status, {
+					failOnWarnings: options.failOnWarnings,
+				});
+				const outputMode = resolveDoctorOutputMode(options);
+				emitRefarmDoctorOutput({ report, mode: outputMode });
+				return report;
+			},
 		});
-		const outputMode = resolveDoctorOutputMode(options);
-		emitRefarmDoctorOutput({ report, mode: outputMode });
 
 		if (!report.ok) {
 			process.exitCode = 1;
 		}
-
-		await shutdown?.();
 	});
