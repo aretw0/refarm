@@ -122,6 +122,7 @@ Code-level contract helpers live in `@refarm.dev/cli/status`:
 - `formatRefarmStatusJson(payload)` for deterministic JSON key ordering
 - `getRefarmStatusSchemaVersionIssue(payload)` for version negotiation diagnostics
 - `parseRefarmStatusJson(input)` for strict parsing with actionable schema errors
+- `classifyRefarmStatusDiagnostics(payload, overrides?)` for consistent failure/warning/info splits
 
 A golden snapshot fixture for schema v1 is maintained at
 `packages/cli/src/__fixtures__/refarm-status-v1.golden.json`.

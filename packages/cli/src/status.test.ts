@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
 	assertRefarmStatusJson,
 	buildRefarmStatusJson,
+	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	formatRefarmStatusMarkdown,
 	getRefarmStatusSchemaVersionIssue,
@@ -223,6 +224,45 @@ describe("status contract validation", () => {
 		expect(() => parseRefarmStatusJson("not-json")).toThrow(
 			/Invalid JSON for Refarm status payload/,
 		);
+	});
+});
+
+describe("classifyRefarmStatusDiagnostics", () => {
+	it("splits diagnostics into failure, warning and informational groups", () => {
+		const summary = classifyRefarmStatusDiagnostics(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				trust: { profile: "strict", warnings: 1, critical: 1 },
+				streams: { active: 1, terminal: 0 },
+				plugins: {
+					surfaces: {
+						rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-a" }],
+						actions: [],
+					},
+				},
+			}),
+		);
+
+		expect(summary.failures).toContain("runtime:not-ready");
+		expect(summary.failures).toContain("trust:critical-present");
+		expect(summary.warnings).toContain("trust:warnings-present");
+		expect(summary.warnings).toContain("plugins:rejected-surfaces-present");
+		expect(summary.warnings).toContain("streams:active-present");
+		expect(summary.informational).toContain("renderer:non-interactive");
+		expect(summary.hasFailure).toBe(true);
+	});
+
+	it("supports caller-provided severity overrides", () => {
+		const summary = classifyRefarmStatusDiagnostics(
+			buildRefarmStatusJson(BASE_OPTIONS),
+			{
+				failureCodes: ["renderer:no-rich-html"],
+				warningCodes: ["runtime:not-ready"],
+			},
+		);
+
+		expect(summary.failures).toEqual(["renderer:no-rich-html"]);
+		expect(summary.warnings).toContain("runtime:not-ready");
 	});
 });
 

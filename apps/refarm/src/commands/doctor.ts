@@ -1,20 +1,10 @@
 import {
+	classifyRefarmStatusDiagnostics,
 	formatRefarmStatusJson,
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import { resolveStatusPayload } from "./status.js";
-
-const FAILURE_DIAGNOSTICS = new Set([
-	"runtime:not-ready",
-	"trust:critical-present",
-]);
-
-const WARNING_DIAGNOSTICS = new Set([
-	"trust:warnings-present",
-	"plugins:rejected-surfaces-present",
-	"streams:active-present",
-]);
 
 export interface RefarmDoctorReport {
 	ok: boolean;
@@ -37,21 +27,8 @@ export function buildRefarmDoctorReport(
 	status: RefarmStatusJson,
 	options: { failOnWarnings?: boolean } = {},
 ): RefarmDoctorReport {
-	const failures: string[] = [];
-	const warnings: string[] = [];
-	const informational: string[] = [];
-
-	for (const diagnostic of status.diagnostics) {
-		if (FAILURE_DIAGNOSTICS.has(diagnostic)) {
-			failures.push(diagnostic);
-			continue;
-		}
-		if (WARNING_DIAGNOSTICS.has(diagnostic)) {
-			warnings.push(diagnostic);
-			continue;
-		}
-		informational.push(diagnostic);
-	}
+	const { failures, warnings, informational } =
+		classifyRefarmStatusDiagnostics(status);
 
 	const failOnWarnings = options.failOnWarnings === true;
 	const ok =

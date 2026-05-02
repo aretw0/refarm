@@ -45,6 +45,24 @@ export interface RefarmStatusSchemaVersionIssue {
   message: string;
 }
 
+export const REFARM_STATUS_FAILURE_DIAGNOSTICS = [
+  "runtime:not-ready",
+  "trust:critical-present",
+] as const;
+
+export const REFARM_STATUS_WARNING_DIAGNOSTICS = [
+  "trust:warnings-present",
+  "plugins:rejected-surfaces-present",
+  "streams:active-present",
+] as const;
+
+export interface RefarmStatusDiagnosticSummary {
+  failures: string[];
+  warnings: string[];
+  informational: string[];
+  hasFailure: boolean;
+}
+
 export function buildRefarmStatusJson(
   options: RefarmStatusOptions,
 ): RefarmStatusJson {
@@ -203,6 +221,46 @@ export function parseRefarmStatusJson(
   const value = typeof input === "string" ? parseJsonString(input) : input;
   assertRefarmStatusJson(value);
   return value;
+}
+
+export function classifyRefarmStatusDiagnostics(
+  json: RefarmStatusJson,
+  options: {
+    failureCodes?: readonly string[];
+    warningCodes?: readonly string[];
+  } = {},
+): RefarmStatusDiagnosticSummary {
+  const failureCodes = new Set(
+    options.failureCodes ?? REFARM_STATUS_FAILURE_DIAGNOSTICS,
+  );
+  const warningCodes = new Set(
+    options.warningCodes ?? REFARM_STATUS_WARNING_DIAGNOSTICS,
+  );
+
+  const failures: string[] = [];
+  const warnings: string[] = [];
+  const informational: string[] = [];
+
+  for (const diagnostic of json.diagnostics) {
+    if (failureCodes.has(diagnostic)) {
+      failures.push(diagnostic);
+      continue;
+    }
+
+    if (warningCodes.has(diagnostic)) {
+      warnings.push(diagnostic);
+      continue;
+    }
+
+    informational.push(diagnostic);
+  }
+
+  return {
+    failures,
+    warnings,
+    informational,
+    hasFailure: failures.length > 0,
+  };
 }
 
 export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
