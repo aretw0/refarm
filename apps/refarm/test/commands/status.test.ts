@@ -4,12 +4,14 @@ const {
   mockAssertRefarmStatusJson,
   mockBoot,
   mockBuildRefarmStatusJson,
+  mockFormatRefarmStatusJson,
   mockFormatRefarmStatusMarkdown,
   mockShutdown,
 } = vi.hoisted(() => ({
   mockAssertRefarmStatusJson: vi.fn(),
   mockBoot: vi.fn(),
   mockBuildRefarmStatusJson: vi.fn(),
+  mockFormatRefarmStatusJson: vi.fn(),
   mockFormatRefarmStatusMarkdown: vi.fn(),
   mockShutdown: vi.fn().mockResolvedValue(undefined),
 }));
@@ -23,6 +25,7 @@ vi.mock("@refarm.dev/tractor", () => ({
 vi.mock("@refarm.dev/cli/status", () => ({
   assertRefarmStatusJson: mockAssertRefarmStatusJson,
   buildRefarmStatusJson: mockBuildRefarmStatusJson,
+  formatRefarmStatusJson: mockFormatRefarmStatusJson,
   formatRefarmStatusMarkdown: mockFormatRefarmStatusMarkdown,
 }));
 
@@ -46,6 +49,9 @@ describe("statusCommand", () => {
       defaultSecurityMode: "strict",
       shutdown: mockShutdown,
     });
+    mockFormatRefarmStatusJson.mockImplementation(
+      () => JSON.stringify({ schemaVersion: 1 }, null, 2),
+    );
     mockFormatRefarmStatusMarkdown.mockImplementation(() => "# Refarm Status\n");
   });
 
@@ -70,7 +76,10 @@ describe("statusCommand", () => {
     expect(output).toBeDefined();
     const parsed = JSON.parse(output![0] as string);
     expect(parsed.schemaVersion).toBe(1);
-    expect(mockAssertRefarmStatusJson).toHaveBeenCalledWith(parsed);
+    expect(mockAssertRefarmStatusJson).toHaveBeenCalled();
+    expect(mockFormatRefarmStatusJson).toHaveBeenCalledWith(
+      expect.objectContaining({ schemaVersion: 1 }),
+    );
     spy.mockRestore();
   });
 

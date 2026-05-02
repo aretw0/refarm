@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   createHomesteadHostRendererDescriptor,
@@ -7,10 +8,16 @@ import { createNullRuntimeSummary } from "@refarm.dev/runtime";
 import {
   assertRefarmStatusJson,
   buildRefarmStatusJson,
+  formatRefarmStatusJson,
   formatRefarmStatusMarkdown,
   isRefarmStatusJson,
   REFARM_STATUS_SCHEMA_VERSION,
 } from "./status.js";
+
+const STATUS_JSON_GOLDEN = readFileSync(
+  new URL("./__fixtures__/refarm-status-v1.golden.json", import.meta.url),
+  "utf-8",
+).trimEnd();
 
 const HEADLESS_RENDERER = createHomesteadHostRendererDescriptor(
   "refarm-headless",
@@ -149,5 +156,41 @@ describe("formatRefarmStatusMarkdown", () => {
       buildRefarmStatusJson({ ...BASE_OPTIONS, renderer: webRenderer }),
     );
     expect(report).toContain("## Diagnostics\n- none");
+  });
+});
+
+describe("formatRefarmStatusJson", () => {
+  it("matches the schema v1 golden snapshot", () => {
+    const json = buildRefarmStatusJson(BASE_OPTIONS);
+    expect(formatRefarmStatusJson(json)).toBe(STATUS_JSON_GOLDEN);
+  });
+
+  it("normalizes key ordering for equivalent payloads", () => {
+    const base = buildRefarmStatusJson(BASE_OPTIONS);
+    const scrambled: typeof base = {
+      diagnostics: [...base.diagnostics],
+      streams: { ...base.streams },
+      trust: { ...base.trust },
+      plugins: { ...base.plugins },
+      runtime: {
+        namespace: base.runtime.namespace,
+        databaseName: base.runtime.databaseName,
+        ready: base.runtime.ready,
+      },
+      renderer: {
+        capabilities: [...base.renderer.capabilities],
+        kind: base.renderer.kind,
+        id: base.renderer.id,
+      },
+      host: {
+        mode: base.host.mode,
+        profile: base.host.profile,
+        command: base.host.command,
+        app: base.host.app,
+      },
+      schemaVersion: base.schemaVersion,
+    };
+
+    expect(formatRefarmStatusJson(scrambled)).toBe(formatRefarmStatusJson(base));
   });
 });

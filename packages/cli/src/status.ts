@@ -193,6 +193,48 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
   ].join("\n");
 }
 
+export function formatRefarmStatusJson(json: RefarmStatusJson): string {
+  return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
+}
+
+function toCanonicalRefarmStatusJson(json: RefarmStatusJson): RefarmStatusJson {
+  return {
+    schemaVersion: json.schemaVersion,
+    host: {
+      app: json.host.app,
+      command: json.host.command,
+      profile: json.host.profile,
+      mode: json.host.mode,
+    },
+    renderer: {
+      id: json.renderer.id,
+      kind: json.renderer.kind,
+      capabilities: [...json.renderer.capabilities],
+    },
+    runtime: {
+      ready: json.runtime.ready,
+      databaseName: json.runtime.databaseName,
+      namespace: json.runtime.namespace,
+    },
+    plugins: {
+      installed: json.plugins.installed,
+      active: json.plugins.active,
+      rejectedSurfaces: json.plugins.rejectedSurfaces,
+      surfaceActions: json.plugins.surfaceActions,
+    },
+    trust: {
+      profile: json.trust.profile,
+      warnings: json.trust.warnings,
+      critical: json.trust.critical,
+    },
+    streams: {
+      active: json.streams.active,
+      terminal: json.streams.terminal,
+    },
+    diagnostics: [...json.diagnostics],
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

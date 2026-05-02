@@ -6,6 +6,7 @@ import { isHomesteadHostRendererKind } from "@refarm.dev/homestead/sdk/host-rend
 import {
   assertRefarmStatusJson,
   buildRefarmStatusJson,
+  formatRefarmStatusJson,
   formatRefarmStatusMarkdown,
   type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
@@ -116,7 +117,7 @@ export const statusCommand = new Command("status")
     assertRefarmStatusJson(json);
 
     if (options.json) {
-      console.log(JSON.stringify(json, null, 2));
+      console.log(formatRefarmStatusJson(json));
     } else if (options.markdown) {
       console.log(formatRefarmStatusMarkdown(json));
     } else {
