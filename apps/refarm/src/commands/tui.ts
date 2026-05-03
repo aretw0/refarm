@@ -14,14 +14,13 @@ import {
 } from "./launch-feedback.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
-import { withResolvedStatusPayload } from "./status-payload.js";
+import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
 import {
-	emitRefarmStatusOutput,
 	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
 
@@ -114,24 +113,20 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				defaultMode: "summary",
 			});
 
-			const json = await withResolvedStatusPayload({
+			const json = await runStatusPreflight({
 				resolveStatusPayload: resolvedDeps.resolveStatusPayload,
 				resolveOptions: {
 					renderer: "tui",
 					input: options.input,
 				},
-				run: (json) => {
-					emitRefarmStatusOutput({
-						status: json,
-						mode: outputMode,
-						printSummary: resolvedDeps.printStatusSummary,
-					});
+				outputMode,
+				printSummary: resolvedDeps.printStatusSummary,
+				afterEmit: () => {
 					if (outputMode === "summary" && !options.launch) {
 						console.log(
 							launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES),
 						);
 					}
-					return json;
 				},
 			});
 

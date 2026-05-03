@@ -14,9 +14,8 @@ import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
-import { withResolvedStatusPayload } from "./status-payload.js";
+import { runStatusPreflight } from "./status-preflight.js";
 import {
-	emitRefarmStatusOutput,
 	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
 
@@ -121,16 +120,11 @@ export const statusCommand = new Command("status")
 				defaultMode: "summary",
 			});
 
-			await withResolvedStatusPayload({
+			await runStatusPreflight({
 				resolveStatusPayload,
 				resolveOptions: options,
-				run: (json) => {
-					emitRefarmStatusOutput({
-						status: json,
-						mode: outputMode,
-						printSummary: printStatusSummary,
-					});
-				},
+				outputMode,
+				printSummary: printStatusSummary,
 			});
 		},
 	);

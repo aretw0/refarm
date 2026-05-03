@@ -1,10 +1,7 @@
 import { Command } from "commander";
-import { withResolvedStatusPayload } from "./status-payload.js";
+import { runStatusPreflight } from "./status-preflight.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
-import {
-	emitRefarmStatusOutput,
-	resolveStatusOutputMode,
-} from "./status-output.js";
+import { resolveStatusOutputMode } from "./status-output.js";
 
 interface HeadlessOptions {
 	input?: string;
@@ -31,18 +28,13 @@ export const headlessCommand = new Command("headless")
 			},
 		);
 
-		await withResolvedStatusPayload({
+		await runStatusPreflight({
 			resolveStatusPayload,
 			resolveOptions: {
 				renderer: "headless",
 				input: options.input,
 			},
-			run: (json) => {
-				emitRefarmStatusOutput({
-					status: json,
-					mode: outputMode,
-					printSummary: printStatusSummary,
-				});
-			},
+			outputMode,
+			printSummary: printStatusSummary,
 		});
 	});
