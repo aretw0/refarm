@@ -221,6 +221,10 @@ export function createStorageV1Provider(): StorageProvider {
 
 export { createTaskV1StorageAdapter } from "./task-v1.adapter";
 export { createSessionV1StorageAdapter } from "./session-v1.adapter";
+export {
+	NodeSqliteStorageProvider,
+	createNodeSqliteStorageProvider,
+} from "./node-sqlite.provider";
 
 // ─── Schema Migrations ───────────────────────────────────────────────────────
 

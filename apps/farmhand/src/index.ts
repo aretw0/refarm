@@ -16,7 +16,7 @@ import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
 import {
-	createStorageV1Provider,
+	createNodeSqliteStorageProvider,
 	createTaskV1StorageAdapter,
 } from "@refarm.dev/storage-sqlite";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
@@ -182,12 +182,14 @@ async function main() {
 		);
 	}
 
+	const taskDbPath = path.join(farmhandBaseDir, "task-memory.db");
 	const taskMemoryBridge = createTaskMemoryBridge({
 		adapter: createTaskV1StorageAdapter({
-			provider: createStorageV1Provider(),
+			provider: createNodeSqliteStorageProvider(taskDbPath),
 		}),
 		actorUrn: `urn:refarm:farmhand:${FARMHAND_ID}`,
 	});
+	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
 
 	const taskExecutorFn: TaskExecutorFn = async (task, effortId) => {
 		let status: "ok" | "error" = "ok";
