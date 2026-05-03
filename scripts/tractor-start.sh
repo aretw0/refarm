@@ -36,6 +36,27 @@ for arg in "$@"; do
 done
 set -- "${FORWARDED_ARGS[@]+"${FORWARDED_ARGS[@]}"}"
 
+# ── port pre-check ────────────────────────────────────────────────────────────
+
+_port_pid() {
+  ss -tlnp 2>/dev/null \
+    | awk -v p=":${1}" '
+        $0 ~ p {
+          match($0, /pid=([0-9]+)/, m)
+          if (m[1]) print m[1]
+        }
+      ' | head -1
+}
+
+_existing="$(_port_pid 42000)"
+if [ -n "$_existing" ]; then
+  echo "❌  Port 42000 is already bound by PID $_existing."
+  echo "   If farmhand is running: npm run farmhand:stop"
+  echo "   If another tractor is running: npm run agent:stop"
+  echo "   See: docs/PROCESS_PLAYBOOK.md"
+  exit 1
+fi
+
 # ── preflight checks ──────────────────────────────────────────────────────────
 
 if [ ! -f "$TRACTOR" ]; then
