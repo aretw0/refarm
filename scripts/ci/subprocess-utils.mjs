@@ -6,6 +6,8 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/effort-contract-v1",
 	"packages/identity-contract-v1",
 	"packages/storage-contract-v1",
+	"packages/task-contract-v1",
+	"packages/session-contract-v1",
 	"packages/sync-contract-v1",
 	"packages/stream-contract-v1",
 	"packages/context-provider-v1",
