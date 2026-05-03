@@ -1,21 +1,19 @@
 import { spawn } from "node:child_process";
 import { type RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { printRefarmLaunchBanner } from "./brand.js";
 import {
 	launchAvailabilityMessage,
-	launchDryRunMessage,
-	launchStartMessage,
 	openDryRunMessage,
 	openFailureMessage,
 	openStartMessage,
 } from "./launch-feedback.js";
+import { executeRendererLaunchFlow } from "./launch-flow.js";
 import {
+	createLaunchProcessSpec,
 	launchProcess,
-	splitLaunchCommand,
 } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
-import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
+import { resolveLaunchMode } from "./launch-policy.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
@@ -67,18 +65,10 @@ export function resolveWebLaunchSpec(
 	mode: RefarmWebLauncherMode,
 ): WebLaunchSpec {
 	if (mode === "preview") {
-		const parsed = splitLaunchCommand("npm --prefix apps/dev run preview");
-		return {
-			...parsed,
-			display: "npm --prefix apps/dev run preview",
-		};
+		return createLaunchProcessSpec("npm --prefix apps/dev run preview");
 	}
 
-	const parsed = splitLaunchCommand("npm --prefix apps/dev run dev");
-	return {
-		...parsed,
-		display: "npm --prefix apps/dev run dev",
-	};
+	return createLaunchProcessSpec("npm --prefix apps/dev run dev");
 }
 
 export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
@@ -205,32 +195,32 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				},
 			});
 
-			if (options.launch) {
-				assertLaunchAllowed(json, "web runtime");
-				printRefarmLaunchBanner("web");
-				const spec = resolveWebLaunchSpec(launchMode);
-				if (options.dryRun) {
-					console.log(launchDryRunMessage("web runtime", spec.display));
+			await executeRendererLaunchFlow({
+				launch: options.launch,
+				dryRun: options.dryRun,
+				status: json,
+				launchGuardTarget: "web runtime",
+				bannerExperience: "web",
+				dryRunRuntimeLabel: "web runtime",
+				startRuntimeLabel: "web runtime",
+				resolveLaunchSpec: () => resolveWebLaunchSpec(launchMode),
+				launchProcess: resolvedDeps.launch,
+				onDryRun: () => {
 					if (options.open) {
 						console.log(openDryRunMessage(openUrl));
 					}
-					return;
-				}
-				console.log(launchStartMessage("web runtime", spec.display));
-				const launchPromise = resolvedDeps.launch(spec);
-				if (options.open) {
-					console.log(openStartMessage(openUrl));
-					try {
-						await resolvedDeps.open(openUrl);
-					} catch (error) {
-						console.error(openFailureMessage(error));
+				},
+				onLaunchStarted: async () => {
+					if (options.open) {
+						console.log(openStartMessage(openUrl));
+						try {
+							await resolvedDeps.open(openUrl);
+						} catch (error) {
+							console.error(openFailureMessage(error));
+						}
 					}
-				}
-				const code = await launchPromise;
-				if (code !== 0) {
-					process.exitCode = code;
-				}
-			}
+				},
+			});
 		});
 }
 

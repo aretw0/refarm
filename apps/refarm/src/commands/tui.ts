@@ -2,18 +2,16 @@ import {
 	type RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { printRefarmLaunchBanner } from "./brand.js";
 import {
+	createLaunchProcessSpec,
 	launchProcess,
-	splitLaunchCommand,
 } from "./launch-process.js";
 import {
 	launchAvailabilityMessage,
-	launchDryRunMessage,
-	launchStartMessage,
 } from "./launch-feedback.js";
+import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
-import { assertLaunchAllowed, resolveLaunchMode } from "./launch-policy.js";
+import { resolveLaunchMode } from "./launch-policy.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
@@ -56,18 +54,10 @@ export function resolveTuiLaunchSpec(
 	mode: RefarmTuiLauncherMode,
 ): TuiLaunchSpec {
 	if (mode === "prompt") {
-		const parsed = splitLaunchCommand("cargo run -p tractor -- prompt");
-		return {
-			...parsed,
-			display: "cargo run -p tractor -- prompt",
-		};
+		return createLaunchProcessSpec("cargo run -p tractor -- prompt");
 	}
 
-	const parsed = splitLaunchCommand("cargo run -p tractor -- watch");
-	return {
-		...parsed,
-		display: "cargo run -p tractor -- watch",
-	};
+	return createLaunchProcessSpec("cargo run -p tractor -- watch");
 }
 
 export function launchTuiProcess(spec: TuiLaunchSpec): Promise<number> {
@@ -130,21 +120,17 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				},
 			});
 
-			if (options.launch) {
-				assertLaunchAllowed(json, "TUI runtime");
-				printRefarmLaunchBanner("tui");
-				const spec = resolveTuiLaunchSpec(launchMode);
-				if (options.dryRun) {
-					console.log(launchDryRunMessage("tui runtime", spec.display));
-					return;
-				}
-
-				console.log(launchStartMessage("TUI runtime", spec.display));
-				const code = await resolvedDeps.launch(spec);
-				if (code !== 0) {
-					process.exitCode = code;
-				}
-			}
+			await executeRendererLaunchFlow({
+				launch: options.launch,
+				dryRun: options.dryRun,
+				status: json,
+				launchGuardTarget: "TUI runtime",
+				bannerExperience: "tui",
+				dryRunRuntimeLabel: "tui runtime",
+				startRuntimeLabel: "TUI runtime",
+				resolveLaunchSpec: () => resolveTuiLaunchSpec(launchMode),
+				launchProcess: resolvedDeps.launch,
+			});
 		});
 }
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { splitLaunchCommand } from "../../src/commands/launch-process.js";
+import {
+	createLaunchProcessSpec,
+	splitLaunchCommand,
+} from "../../src/commands/launch-process.js";
 
 describe("splitLaunchCommand", () => {
 	it("splits launcher command into command + args", () => {
@@ -18,5 +21,13 @@ describe("splitLaunchCommand", () => {
 
 	it("rejects empty launcher command", () => {
 		expect(() => splitLaunchCommand("   ")).toThrow(/Invalid launcher command/);
+	});
+
+	it("builds full launch process spec from command display", () => {
+		expect(createLaunchProcessSpec("npm --prefix apps/dev run dev")).toEqual({
+			command: "npm",
+			args: ["--prefix", "apps/dev", "run", "dev"],
+			display: "npm --prefix apps/dev run dev",
+		});
 	});
 });

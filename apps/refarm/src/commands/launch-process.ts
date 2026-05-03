@@ -6,6 +6,16 @@ export interface LaunchProcessSpec {
 	display: string;
 }
 
+export function createLaunchProcessSpec(
+	commandDisplay: string,
+): LaunchProcessSpec {
+	const parsed = splitLaunchCommand(commandDisplay);
+	return {
+		...parsed,
+		display: commandDisplay,
+	};
+}
+
 export function splitLaunchCommand(command: string): {
 	command: string;
 	args: string[];
