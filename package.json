@@ -48,6 +48,8 @@
 		"runtime-descriptor:revocation-baseline": "node scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs",
 		"runtime-descriptor:revocation-history": "node scripts/ci/analyze-runtime-descriptor-revocation-history.mjs",
 		"runtime-descriptor:revocation-history:sample": "node scripts/ci/analyze-runtime-descriptor-revocation-history.mjs --reports scripts/ci/fixtures/runtime-descriptor-revocation-report.previous.json,scripts/ci/fixtures/runtime-descriptor-revocation-report.current.json --out-dir .artifacts/runtime-descriptor-revocation-history",
+		"session:migrate:pi-agent": "node scripts/migrate-pi-agent-sessions.mjs",
+		"session:migrate:pi-agent:test": "node --test scripts/ci/test-migrate-pi-agent-sessions-lib.mjs",
 		"clean:derivatives": "git clean -fX packages/*/src apps/*/src validations/*/src",
 		"clean": "turbo clean && find . -name 'node_modules' -type d -prune -exec rm -rf '{}' +",
 		"clean:rust": "bash scripts/rust-clean.sh",

@@ -214,7 +214,8 @@ export function runTaskV1Conformance(
 - [x] Scaffold `packages/task-contract-v1/` with types, conformance runner, in-memory adapter
 - [ ] Integrate `TaskContractAdapter` into pi-agent (create/update/appendEvent on prompt)
 - [ ] Expose Task list in Homestead via standard adapter
-- [ ] Implement `TaskContractAdapter` in `storage-sqlite` backed by Loro CRDT nodes
+- [x] Implement `TaskContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
+- [ ] Upgrade `storage-sqlite` Task adapter to direct Loro CRDT-backed nodes
 - [ ] Smoke gate: pi-agent creates Task → node in CRDT graph → Homestead reads it
 
 ---

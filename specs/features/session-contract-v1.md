@@ -208,15 +208,16 @@ export function runSessionV1Conformance(
 
 - [x] Conformance runner in `packages/session-contract-v1/src/conformance.ts`
 - [x] In-memory adapter that passes all 5 conformance checks
-- [ ] Namespace migration script unit test (rewrites URNs, preserves data)
+- [x] Namespace migration script unit test (rewrites URNs, preserves data)
 
 **DDD:**
 
 - [x] Scaffold `packages/session-contract-v1/` with types, conformance runner,
       in-memory adapter
-- [ ] Write namespace migration script (`scripts/migrate-pi-agent-sessions.ts`)
+- [x] Write namespace migration script (`scripts/migrate-pi-agent-sessions.mjs`)
 - [ ] Migrate pi-agent's CRDT reads/writes to use `session-contract-v1` adapter
-- [ ] Implement `SessionContractAdapter` in `storage-sqlite` backed by Loro CRDT
+- [x] Implement `SessionContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
+- [ ] Upgrade `storage-sqlite` Session adapter to direct Loro CRDT-backed nodes
 - [ ] Expose conversation history in Homestead via standard adapter
 - [ ] Smoke gate: pi-agent creates Session → node in CRDT graph → Homestead reads it
 

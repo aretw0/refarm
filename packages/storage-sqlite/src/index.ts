@@ -219,6 +219,9 @@ export function createStorageV1Provider(): StorageProvider {
   return new StorageSqliteV1Provider();
 }
 
+export { createTaskV1StorageAdapter } from "./task-v1.adapter";
+export { createSessionV1StorageAdapter } from "./session-v1.adapter";
+
 // ─── Schema Migrations ───────────────────────────────────────────────────────
 
 /**
