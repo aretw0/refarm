@@ -1,0 +1,54 @@
+{
+  "name": "@refarm.dev/task-contract-v1",
+  "version": "0.1.0",
+  "description": "Versioned task capability contract (task:v1) and conformance suite — durable work items in the CRDT memory layer",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "plugin",
+    "capability",
+    "task",
+    "contract",
+    "conformance",
+    "crdt",
+    "memory"
+  ],
+  "author": "Refarm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/task-contract-v1"
+  },
+  "bugs": {
+    "url": "https://github.com/aretw0/refarm/issues"
+  },
+  "homepage": "https://refarm.dev.br",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*"
+  }
+}
