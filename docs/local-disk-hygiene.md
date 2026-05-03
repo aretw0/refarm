@@ -92,8 +92,30 @@ Do not run `npm run clean:light` after every small Rust slice. It saves disk but
 also removes incremental caches; use it at session/checkpoint boundaries or when
 `npm run disk:check` shows pressure.
 
+## CARGO_TARGET_DIR volume redirect (devcontainer)
+
+The devcontainer sets `CARGO_TARGET_DIR=/home/vscode/.cargo-target` and mounts that
+path as the named Docker volume `refarm-cargo-target`. All cargo builds — including
+`cargo component build` for pi-agent and `cargo build --release` for tractor — write
+to that volume instead of each package's own `target/` subdirectory.
+
+Consequences:
+
+- **Binary paths**: `tractor` binary lives at `$CARGO_TARGET_DIR/release/tractor`;
+  `pi_agent.wasm` at `$CARGO_TARGET_DIR/wasm32-wasip1/release/pi_agent.wasm`.
+  Scripts read `CARGO_TARGET_DIR` and fall back to the workspace paths when the var
+  is unset (local dev without the devcontainer).
+- **Host disk**: workspace `target/` dirs are stale once the redirect is active. Run
+  `npm run clean:heavy` once to remove them and reclaim host C:\ space (~2–3 GB).
+- **Volume disk**: `npm run disk:check` now reports the volume size separately.
+  `npm run clean:rust:full` also purges the volume when `CARGO_TARGET_DIR` is set.
+- **Speed**: Docker volume I/O is faster than bind-mount WSL2 I/O, so incremental
+  rebuilds are noticeably quicker.
+
 ## Docker Desktop / WSL note
 
-Deleting artifacts inside the devcontainer may not immediately reduce free space
-reported by the host OS. On Windows-backed Docker Desktop/WSL2, shut down WSL and
-compact/prune Docker's virtual disk when host space remains low after cleanup.
+Deleting workspace artifacts inside the devcontainer (bind mount on C:\) reclaims
+space on the host immediately. Volume artifacts (`CARGO_TARGET_DIR`) live inside
+Docker's virtual disk — they do not appear on C:\ but still consume the VHD.
+When the VHD is bloated, shut down WSL and compact it:
+`wsl --shutdown` then prune unused Docker volumes with `docker volume prune`.

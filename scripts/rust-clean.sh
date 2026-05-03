@@ -16,6 +16,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MODE="${1:-}"
 
+# When CARGO_TARGET_DIR is set (devcontainer volume redirect), that directory
+# accumulates all build artifacts instead of each package's own target/ tree.
+VOLUME_TARGET="${CARGO_TARGET_DIR:-}"
+
 # Rust packages/workspaces in this repo that can own target/ directories.
 # Keep this explicit so cleanup remains predictable and source-safe.
 RUST_PACKAGES=(
@@ -49,6 +53,11 @@ if [ "$MODE" = "--check" ]; then
 			TOTAL=$((TOTAL + SIZE))
 		fi
 	done
+	if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
+		SIZE="$(size_mb "$VOLUME_TARGET")"
+		printf "  %6sM  %s  (CARGO_TARGET_DIR volume)\n" "$SIZE" "$VOLUME_TARGET"
+		TOTAL=$((TOTAL + SIZE))
+	fi
 	echo "  ─────────────────"
 	printf "  %6sM  total\n" "$TOTAL"
 	print_disk_free
@@ -66,6 +75,12 @@ if [ "$MODE" = "--full" ]; then
 			rm -rf "$TARGET"
 		fi
 	done
+	if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
+		SIZE="$(size_mb "$VOLUME_TARGET")"
+		echo "  Removing $VOLUME_TARGET (${SIZE}M)  [CARGO_TARGET_DIR volume]"
+		rm -rf "$VOLUME_TARGET"
+		mkdir -p "$VOLUME_TARGET"
+	fi
 	echo "Done. Run package-scoped cargo commands to rebuild only what you need."
 	print_disk_free
 	exit 0
