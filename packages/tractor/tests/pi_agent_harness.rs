@@ -14,8 +14,8 @@
 ///   env vars set via std::env::set_var propagate to the WASM plugin because
 ///   PluginHost uses WasiCtxBuilder::inherit_env(). Env vars are process-global,
 ///   so tests acquire ENV_LOCK before mutating them to prevent cross-test leakage.
-use std::path::Path;
-use std::sync::Mutex;
+use std::path::{Path, PathBuf};
+use std::sync::{Mutex, OnceLock};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use tractor::host::{PluginHost, PluginInstanceHandle};
@@ -25,10 +25,20 @@ use tractor::{NativeStorage, NativeSync, TelemetryBus};
 /// Serializes env var mutations across all harness tests.
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-const PI_AGENT_WASM: &str = concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../pi-agent/target/wasm32-wasip1/release/pi_agent.wasm",
-);
+static WASM_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Resolve pi_agent.wasm location at runtime so CARGO_TARGET_DIR redirects work.
+/// When CARGO_TARGET_DIR is set (e.g. devcontainer volume), all cargo outputs land
+/// there instead of each package's own target/ subdirectory.
+fn wasm_path() -> &'static Path {
+    WASM_PATH.get_or_init(|| {
+        match std::env::var("CARGO_TARGET_DIR") {
+            Ok(dir) => PathBuf::from(dir).join("wasm32-wasip1/release/pi_agent.wasm"),
+            Err(_) => PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"),
+        }
+    })
+}
 
 /// Spawn a one-shot mock server that returns `body` for any HTTP POST.
 /// Returns the bound port. The server accepts one connection then stops.

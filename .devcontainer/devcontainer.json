@@ -25,6 +25,7 @@
     "CARGO_TERM_COLOR": "always",
     "TURBO_CACHE_DIR": "/home/vscode/.turbo",
     "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/home/vscode/.cargo-target",
     "LANG": "C.UTF-8",
     "LC_ALL": "C.UTF-8",
     "LANGUAGE": "en_US:en",

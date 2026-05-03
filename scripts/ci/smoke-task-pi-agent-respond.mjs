@@ -229,10 +229,9 @@ async function main() {
 			);
 		}
 
-		const wasmPath = path.join(
-			process.cwd(),
-			"packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm",
-		);
+		const wasmPath = process.env.CARGO_TARGET_DIR
+			? path.join(process.env.CARGO_TARGET_DIR, "wasm32-wasip1/release/pi_agent.wasm")
+			: path.join(process.cwd(), "packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm");
 		if (!skipWasmBuild && !existsSync(wasmPath)) {
 			console.log("[task-smoke:pi-agent] building pi-agent wasm component...");
 			await runSubprocess("cargo", ["component", "build", "--release"], {

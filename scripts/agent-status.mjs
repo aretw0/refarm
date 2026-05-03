@@ -15,8 +15,13 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const PID_FILE   = join(ROOT, '.refarm', 'tractor.pid');
 const ENV_FILE   = join(ROOT, '.refarm', '.env');
 const CONFIG_FILE = join(ROOT, '.refarm', 'config.json');
-const TRACTOR    = join(ROOT, 'packages/tractor/target/release/tractor');
-const PI_AGENT   = join(ROOT, 'packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm');
+const _cargoTarget = process.env.CARGO_TARGET_DIR;
+const TRACTOR    = _cargoTarget
+  ? join(_cargoTarget, 'release/tractor')
+  : join(ROOT, 'packages/tractor/target/release/tractor');
+const PI_AGENT   = _cargoTarget
+  ? join(_cargoTarget, 'wasm32-wasip1/release/pi_agent.wasm')
+  : join(ROOT, 'packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm');
 
 const c = {
   reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',

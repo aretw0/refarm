@@ -15,8 +15,11 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.refarm/.env"
-TRACTOR="$ROOT/packages/tractor/target/release/tractor"
-PI_AGENT="$ROOT/packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm"
+_CARGO_TARGET="${CARGO_TARGET_DIR:-}"
+TRACTOR="${_CARGO_TARGET:+$_CARGO_TARGET/release/tractor}"
+TRACTOR="${TRACTOR:-$ROOT/packages/tractor/target/release/tractor}"
+PI_AGENT="${_CARGO_TARGET:+$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm}"
+PI_AGENT="${PI_AGENT:-$ROOT/packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm}"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
 

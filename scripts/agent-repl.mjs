@@ -17,7 +17,9 @@ import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const TRACTOR = join(ROOT, 'packages/tractor/target/release/tractor');
+const TRACTOR = process.env.CARGO_TARGET_DIR
+  ? join(process.env.CARGO_TARGET_DIR, 'release/tractor')
+  : join(ROOT, 'packages/tractor/target/release/tractor');
 const HISTORY_FILE = join(ROOT, '.refarm', '.repl_history');
 const ENV_FILE = join(ROOT, '.refarm', '.env');
 
