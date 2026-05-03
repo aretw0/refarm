@@ -4,6 +4,7 @@ mod fs_tools;
 mod session_tools;
 mod shell_tools;
 mod structured_tools;
+mod task_tools;
 
 /// Tool dispatch (wasm32): routes tool names to specialized handlers.
 pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
@@ -23,6 +24,10 @@ pub(crate) fn dispatch_tool(name: &str, input: &serde_json::Value) -> String {
         "current_session" => session_tools::current_session(),
         "navigate" => session_tools::navigate(input),
         "fork" => session_tools::fork(input),
+
+        // Task introspection
+        "list_tasks" => task_tools::list_tasks(input),
+        "task_status" => task_tools::task_status(input),
 
         // LSP code ops
         "find_references" => code_ops_tools::find_references(input),
