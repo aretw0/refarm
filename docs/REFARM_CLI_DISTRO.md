@@ -94,10 +94,11 @@ npm run refarm:host:smoke:ci
   `refarm status --json --input`, `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and
-  `refarm tui --launch --dry-run`) and verifies invalid launcher values and
-  invalid output/launch guard combinations (`--open`/`--dry-run` without
-  `--launch`, `--json` + `--markdown`, `headless --markdown --summary`) are
-  rejected fail-closed, using fixture-backed status input.
+  `refarm tui --launch --dry-run`) and verifies invalid launcher values,
+  fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid
+  output/launch guard combinations (`--open`/`--dry-run` without `--launch`,
+  `--json` + `--markdown`, `headless --markdown --summary`) are rejected
+  fail-closed, using fixture-backed status input.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
   wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
 

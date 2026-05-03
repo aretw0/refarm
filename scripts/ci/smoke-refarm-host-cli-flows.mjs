@@ -9,8 +9,15 @@ import {
 } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-cli-smoke]";
+const REFARM_DIST_ENTRY = "apps/refarm/dist/index.js";
+const REFARM_NODE_ARGS_PREFIX = [
+	"--experimental-loader",
+	"./scripts/ci/esm-extension-loader.mjs",
+	REFARM_DIST_ENTRY,
+];
 
-function makeStatusPayload(mode) {
+function makeStatusPayload(mode, options = {}) {
+	const diagnostics = options.diagnostics ?? [];
 	const kind = mode;
 	const rendererId = `refarm-${mode}`;
 	const capabilities =
@@ -32,7 +39,7 @@ function makeStatusPayload(mode) {
 			capabilities,
 		},
 		runtime: {
-			ready: true,
+			ready: !diagnostics.includes("runtime:not-ready"),
 			namespace: "refarm-main",
 			databaseName: "refarm-main",
 		},
@@ -44,15 +51,30 @@ function makeStatusPayload(mode) {
 		},
 		trust: {
 			profile: "dev",
-			warnings: 0,
-			critical: 0,
+			warnings: diagnostics.includes("trust:warnings-present") ? 1 : 0,
+			critical: diagnostics.includes("trust:critical-present") ? 1 : 0,
 		},
 		streams: {
 			active: 0,
 			terminal: 0,
 		},
-		diagnostics: [],
+		diagnostics,
 	};
+}
+
+function buildRefarmCommandArgs(args) {
+	return [...REFARM_NODE_ARGS_PREFIX, ...args];
+}
+
+async function runRefarmCommand(args, options = {}) {
+	return runSubprocess(process.execPath, buildRefarmCommandArgs(args), {
+		env: {
+			...process.env,
+			NODE_NO_WARNINGS: "1",
+			...(options.env ?? {}),
+		},
+		captureOutput: options.captureOutput ?? true,
+	});
 }
 
 function assertIncludes(output, expected) {
@@ -85,10 +107,7 @@ function parseCommandJsonOutput(label, runResult) {
 
 async function assertCommandFailsWith(args, expectedSubstring) {
 	try {
-		await runSubprocess(process.execPath, args, {
-			env: process.env,
-			captureOutput: true,
-		});
+		await runRefarmCommand(args);
 		throw new Error(
 			`Expected command to fail with ${JSON.stringify(expectedSubstring)}, but it exited successfully.`,
 		);
@@ -108,6 +127,7 @@ async function main() {
 	const tempDir = await mkdtemp(path.join(tmpdir(), "refarm-host-cli-smoke-"));
 	const webStatusPath = path.join(tempDir, "status-web.json");
 	const tuiStatusPath = path.join(tempDir, "status-tui.json");
+	const warningStatusPath = path.join(tempDir, "status-warning.json");
 
 	try {
 		await writeFile(
@@ -120,6 +140,11 @@ async function main() {
 			`${JSON.stringify(makeStatusPayload("tui"), null, 2)}\n`,
 			"utf8",
 		);
+		await writeFile(
+			warningStatusPath,
+			`${JSON.stringify(makeStatusPayload("headless", { diagnostics: ["trust:warnings-present"] }), null, 2)}\n`,
+			"utf8",
+		);
 
 		console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
 		await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
@@ -127,18 +152,11 @@ async function main() {
 		});
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm web --input preflight hint`);
-		const webPreflightRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const webPreflightRun = await runRefarmCommand([
+			"web",
+			"--input",
+			webStatusPath,
+		]);
 		const webPreflightOutput = stripAnsi(
 			`${webPreflightRun.stdout}\n${webPreflightRun.stderr}`,
 		);
@@ -146,37 +164,20 @@ async function main() {
 		assertIncludes(webPreflightOutput, "(dev|preview)");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm --version resolves from env`);
-		const versionRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"--version",
-			],
-			{
-				env: { ...process.env, REFARM_VERSION: "9.9.9-test" },
-				captureOutput: true,
-			},
-		);
+		const versionRun = await runRefarmCommand(["--version"], {
+			env: { ...process.env, REFARM_VERSION: "9.9.9-test" },
+		});
 		const versionOutput = stripAnsi(
 			`${versionRun.stdout}\n${versionRun.stderr}`,
 		);
 		assertIncludes(versionOutput, "9.9.9-test");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --input preflight hint`);
-		const tuiPreflightRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"tui",
-				"--input",
-				tuiStatusPath,
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const tuiPreflightRun = await runRefarmCommand([
+			"tui",
+			"--input",
+			tuiStatusPath,
+		]);
 		const tuiPreflightOutput = stripAnsi(
 			`${tuiPreflightRun.stdout}\n${tuiPreflightRun.stderr}`,
 		);
@@ -186,21 +187,14 @@ async function main() {
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web --launch --dry-run --open --input`,
 		);
-		const webRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-				"--launch",
-				"--dry-run",
-				"--open",
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const webRun = await runRefarmCommand([
+			"web",
+			"--input",
+			webStatusPath,
+			"--launch",
+			"--dry-run",
+			"--open",
+		]);
 		const webOutput = stripAnsi(`${webRun.stdout}\n${webRun.stderr}`);
 		assertIncludes(webOutput, "REFARM");
 		assertIncludes(webOutput, "version:");
@@ -210,22 +204,9 @@ async function main() {
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web launch banner can be disabled`,
 		);
-		const webNoBannerRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-				"--launch",
-				"--dry-run",
-			],
-			{
-				env: { ...process.env, REFARM_BRAND_BANNER: "0" },
-				captureOutput: true,
-			},
+		const webNoBannerRun = await runRefarmCommand(
+			["web", "--input", webStatusPath, "--launch", "--dry-run"],
+			{ env: { ...process.env, REFARM_BRAND_BANNER: "0" } },
 		);
 		const webNoBannerOutput = stripAnsi(
 			`${webNoBannerRun.stdout}\n${webNoBannerRun.stderr}`,
@@ -235,19 +216,12 @@ async function main() {
 		assertIncludes(webNoBannerOutput, "[dry-run] would launch web runtime");
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tui --json --input`);
-		const tuiJsonRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"tui",
-				"--input",
-				tuiStatusPath,
-				"--json",
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const tuiJsonRun = await runRefarmCommand([
+			"tui",
+			"--input",
+			tuiStatusPath,
+			"--json",
+		]);
 		const tuiJson = parseCommandJsonOutput("tui --json", tuiJsonRun);
 		if (tuiJson?.renderer?.kind !== "tui") {
 			throw new Error(
@@ -256,19 +230,12 @@ async function main() {
 		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm status --json --input`);
-		const statusJsonRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"status",
-				"--input",
-				webStatusPath,
-				"--json",
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const statusJsonRun = await runRefarmCommand([
+			"status",
+			"--input",
+			webStatusPath,
+			"--json",
+		]);
 		const statusJson = parseCommandJsonOutput("status --json", statusJsonRun);
 		if (statusJson?.renderer?.kind !== "web") {
 			throw new Error(
@@ -277,22 +244,12 @@ async function main() {
 		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm headless --input JSON output`);
-		const headlessJsonRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"headless",
-				"--input",
-				tuiStatusPath,
-			],
-			{ env: process.env, captureOutput: true },
-		);
-		const headlessJson = parseCommandJsonOutput(
+		const headlessJsonRun = await runRefarmCommand([
 			"headless",
-			headlessJsonRun,
-		);
+			"--input",
+			tuiStatusPath,
+		]);
+		const headlessJson = parseCommandJsonOutput("headless", headlessJsonRun);
 		if (headlessJson?.renderer?.kind !== "tui") {
 			throw new Error(
 				`Expected headless passthrough renderer kind=tui from input artifact, got: ${JSON.stringify(headlessJson?.renderer)}`,
@@ -300,19 +257,12 @@ async function main() {
 		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm doctor --json --input`);
-		const doctorJsonRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"doctor",
-				"--input",
-				webStatusPath,
-				"--json",
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const doctorJsonRun = await runRefarmCommand([
+			"doctor",
+			"--input",
+			webStatusPath,
+			"--json",
+		]);
 		const doctorJson = parseCommandJsonOutput("doctor --json", doctorJsonRun);
 		if (typeof doctorJson?.host?.version !== "string") {
 			throw new Error(
@@ -326,18 +276,11 @@ async function main() {
 		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm doctor --input summary output`);
-		const doctorSummaryRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"doctor",
-				"--input",
-				webStatusPath,
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const doctorSummaryRun = await runRefarmCommand([
+			"doctor",
+			"--input",
+			webStatusPath,
+		]);
 		const doctorSummaryOutput = stripAnsi(
 			`${doctorSummaryRun.stdout}\n${doctorSummaryRun.stderr}`,
 		);
@@ -345,22 +288,23 @@ async function main() {
 		assertIncludes(doctorSummaryOutput, "Host: refarm");
 
 		console.log(
+			`${LOGGER_PREFIX} smoke: refarm doctor --fail-on-warnings is fail-closed`,
+		);
+		await assertCommandFailsWith(
+			["doctor", "--input", warningStatusPath, "--fail-on-warnings"],
+			"Doctor: FAIL",
+		);
+
+		console.log(
 			`${LOGGER_PREFIX} smoke: refarm tui --launch --dry-run --input`,
 		);
-		const tuiLaunchRun = await runSubprocess(
-			process.execPath,
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"tui",
-				"--input",
-				tuiStatusPath,
-				"--launch",
-				"--dry-run",
-			],
-			{ env: process.env, captureOutput: true },
-		);
+		const tuiLaunchRun = await runRefarmCommand([
+			"tui",
+			"--input",
+			tuiStatusPath,
+			"--launch",
+			"--dry-run",
+		]);
 		const tuiLaunchOutput = stripAnsi(
 			`${tuiLaunchRun.stdout}\n${tuiLaunchRun.stderr}`,
 		);
@@ -372,17 +316,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: invalid web launcher is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-				"--launch",
-				"--launcher",
-				"invalid",
-			],
+			["web", "--input", webStatusPath, "--launch", "--launcher", "invalid"],
 			"Invalid --launcher value",
 		);
 
@@ -390,17 +324,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: invalid tui launcher is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"tui",
-				"--input",
-				tuiStatusPath,
-				"--launch",
-				"--launcher",
-				"invalid",
-			],
+			["tui", "--input", tuiStatusPath, "--launch", "--launcher", "invalid"],
 			"Invalid --launcher value",
 		);
 
@@ -408,15 +332,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: --open without --launch is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-				"--open",
-			],
+			["web", "--input", webStatusPath, "--open"],
 			"--open requires --launch",
 		);
 
@@ -424,15 +340,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: --dry-run without --launch is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"tui",
-				"--input",
-				tuiStatusPath,
-				"--dry-run",
-			],
+			["tui", "--input", tuiStatusPath, "--dry-run"],
 			"--dry-run requires --launch",
 		);
 
@@ -440,16 +348,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: --json with --markdown is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"web",
-				"--input",
-				webStatusPath,
-				"--json",
-				"--markdown",
-			],
+			["web", "--input", webStatusPath, "--json", "--markdown"],
 			"Choose only one output format",
 		);
 
@@ -457,16 +356,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: status --json with --markdown is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"status",
-				"--input",
-				webStatusPath,
-				"--json",
-				"--markdown",
-			],
+			["status", "--input", webStatusPath, "--json", "--markdown"],
 			"Choose only one output format",
 		);
 
@@ -474,16 +364,7 @@ async function main() {
 			`${LOGGER_PREFIX} smoke: headless markdown+summary is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
-			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
-				"apps/refarm/dist/index.js",
-				"headless",
-				"--input",
-				tuiStatusPath,
-				"--markdown",
-				"--summary",
-			],
+			["headless", "--input", tuiStatusPath, "--markdown", "--summary"],
 			"Choose only one output format",
 		);
 
