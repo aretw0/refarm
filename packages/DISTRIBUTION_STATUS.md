@@ -51,6 +51,8 @@ These are the actual tools and systems. We keep them private for 3–6 months to
 | `apps/me` (Homestead) | Gate 3 in progress | July+ 2026 | Needs 6+ months daily use to validate UX |
 | **`plugin-manifest`** | **DEFERRED** | **v0.2.0 (July+ 2026)** | **See below** |
 | `barn` (Plugin lifecycle) | SDD/BDD phase | May 2026 | Must be rock-solid for installPlugin() |
+| `task-contract-v1` | Contract package implemented (TDD baseline) | v0.2.0 | In-memory adapter + conformance shipped; pending pi-agent/farmhand/storage-sqlite integration |
+| `session-contract-v1` | Contract package implemented (TDD baseline) | v0.2.0 | In-memory adapter + conformance shipped; pending pi-agent namespace migration + storage-sqlite adapter |
 | `silo` (Secrets) | Early design | June 2026 | Personal threat model; tailor to daily use |
 | `creek` (Telemetry) | Planned | v0.2.0 | Personal observability; genericize later |
 | `plugin-tem` (AI) | In progress | v0.2.0+ | Tightly personal; publish as example, not reference |

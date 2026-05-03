@@ -52,6 +52,7 @@ Architecture Decision Records for Refarm.
 | [052](ADR-052-crdt-native-agent-rendezvous.md)                 | CRDT-native agent rendezvous with A2A-compatible edges                            | Proposed   | 2026-04-24 |
 | [055](ADR-055-stream-contract-v1-transport-layer.md)           | stream-contract-v1 as Separate Transport Package Family                           | Accepted   | 2026-05-02 |
 | [056](ADR-056-unified-refarm-host-boundary.md)                 | Unified `refarm` Host Boundary (Distro-Owned Host, Block-Owned Primitives)        | Accepted   | 2026-05-02 |
+| [057](ADR-057-task-session-contracts.md)                        | `task-contract-v1` + `session-contract-v1` as Memory Layer Contracts               | Accepted   | 2026-05-03 |
 
 ## Under Design (Requires Implementation + Tests Before Acceptance)
 
