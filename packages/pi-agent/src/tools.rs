@@ -1,7 +1,7 @@
 pub(crate) fn tools_anthropic() -> serde_json::Value {
     serde_json::json!([
-        {"name":"read_file","description":"Read the contents of a file at an absolute path.",
-         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"}},"required":["path"]}},
+        {"name":"read_file","description":"Read the contents of a file at an absolute path. Large files are pageable: use limit to cap lines returned and offset to start at a later line.",
+         "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path"},"limit":{"type":"integer","description":"Max lines to return (default 300; 0 = all)"},"offset":{"type":"integer","description":"0-based line to start reading from (default 0)"}},"required":["path"]}},
         {"name":"write_file","description":"Write UTF-8 content to a file atomically.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}},
         {"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
@@ -9,7 +9,7 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
         {"name":"list_dir","description":"List files and directories at a path.",
          "input_schema":{"type":"object","properties":{"path":{"type":"string","description":"Absolute path to directory"}},"required":["path"]}},
         {"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
-         "input_schema":{"type":"object","properties":{"pattern":{"type":"string","description":"Regular expression to search for"},"path":{"type":"string","description":"Absolute path to search in"},"glob":{"type":"string","description":"Optional filename glob filter, e.g. *.rs"}},"required":["pattern","path"]}},
+         "input_schema":{"type":"object","properties":{"pattern":{"type":"string","description":"Regular expression to search for"},"path":{"type":"string","description":"Absolute path to search in"},"glob":{"type":"string","description":"Optional filename glob filter, e.g. *.rs"},"max_results":{"type":"integer","description":"Cap on matching lines returned (default 100; 0 = all)"}},"required":["pattern","path"]}},
         {"name":"bash","description":"Run a command via structured argv (argv[0] is the binary, no shell expansion).",
          "input_schema":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}},
         {"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) and return its content with automatic pagination for large files. Use page_size to control how many items/keys to return. Returns a metadata header followed by content.",
@@ -37,8 +37,8 @@ pub(crate) fn tools_anthropic() -> serde_json::Value {
 
 pub(crate) fn tools_openai() -> serde_json::Value {
     serde_json::json!([
-        {"type":"function","function":{"name":"read_file","description":"Read file at absolute path.",
-         "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
+        {"type":"function","function":{"name":"read_file","description":"Read file at absolute path. Pageable: use limit and offset for large files.",
+         "parameters":{"type":"object","properties":{"path":{"type":"string"},"limit":{"type":"integer"},"offset":{"type":"integer"}},"required":["path"]}}},
         {"type":"function","function":{"name":"write_file","description":"Write UTF-8 content to file atomically.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"},"content":{"type":"string"}},"required":["path","content"]}}},
         {"type":"function","function":{"name":"edit_file","description":"Apply one or more targeted string replacements to a file. Each edit replaces old_str with new_str; fails if old_str is not found or appears more than once.",
@@ -46,7 +46,7 @@ pub(crate) fn tools_openai() -> serde_json::Value {
         {"type":"function","function":{"name":"list_dir","description":"List files and directories at a path.",
          "parameters":{"type":"object","properties":{"path":{"type":"string"}},"required":["path"]}}},
         {"type":"function","function":{"name":"search_files","description":"Search for a pattern in files (grep). Returns matching lines with file:line prefix.",
-         "parameters":{"type":"object","properties":{"pattern":{"type":"string"},"path":{"type":"string"},"glob":{"type":"string"}},"required":["pattern","path"]}}},
+         "parameters":{"type":"object","properties":{"pattern":{"type":"string"},"path":{"type":"string"},"glob":{"type":"string"},"max_results":{"type":"integer"}},"required":["pattern","path"]}}},
         {"type":"function","function":{"name":"bash","description":"Run command via structured argv (no shell expansion).",
          "parameters":{"type":"object","properties":{"argv":{"type":"array","items":{"type":"string"}},"cwd":{"type":"string"},"timeout_ms":{"type":"integer"}},"required":["argv"]}}},
         {"type":"function","function":{"name":"read_structured","description":"Parse a structured file (JSON, TOML, YAML) with automatic pagination.",

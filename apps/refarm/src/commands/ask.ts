@@ -8,6 +8,7 @@ import {
 	DateContextProvider,
 	FilesContextProvider,
 	GitStatusContextProvider,
+	SessionDigestContextProvider,
 } from "@refarm.dev/context-provider-v1";
 import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
@@ -158,6 +159,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 				: [];
 
 			const providers = [
+				new SessionDigestContextProvider(),
 				new CwdContextProvider(),
 				new DateContextProvider(),
 				new GitStatusContextProvider(),

@@ -2,9 +2,34 @@ use crate::refarm::plugin::agent_fs;
 
 pub(crate) fn read_file(input: &serde_json::Value) -> String {
     let path = input["path"].as_str().unwrap_or("");
-    match agent_fs::read(path) {
-        Ok(bytes) => crate::compress_tool_output(&String::from_utf8_lossy(&bytes)),
-        Err(e) => format!("[error reading {path}] {e}"),
+    let limit = input["limit"].as_u64().map(|v| v as usize);
+    let offset = input["offset"].as_u64().unwrap_or(0) as usize;
+
+    let bytes = match agent_fs::read(path) {
+        Ok(b) => b,
+        Err(e) => return format!("[error reading {path}] {e}"),
+    };
+    let text = String::from_utf8_lossy(&bytes);
+    let all_lines: Vec<&str> = text.lines().collect();
+    let total = all_lines.len();
+
+    let start = offset.min(total);
+    let slice = &all_lines[start..];
+    let (shown, truncated) = match limit {
+        Some(n) if slice.len() > n => (&slice[..n], true),
+        _ => (slice, false),
+    };
+
+    let body = crate::compress_tool_output(&shown.join("\n"));
+    if truncated {
+        let next_offset = start + shown.len();
+        format!(
+            "[truncated: {total} lines → showing {start}..{next_offset}; use read_file with offset={next_offset} to continue]\n{body}"
+        )
+    } else if offset > 0 {
+        format!("[showing lines {start}..{} of {total}]\n{body}", start + shown.len())
+    } else {
+        body
     }
 }
 

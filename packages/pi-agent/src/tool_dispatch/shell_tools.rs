@@ -47,6 +47,7 @@ pub(crate) fn list_dir(input: &serde_json::Value) -> String {
 pub(crate) fn search_files(input: &serde_json::Value) -> String {
     let pattern = input["pattern"].as_str().unwrap_or("");
     let path = input["path"].as_str().unwrap_or(".");
+    let max_results = input["max_results"].as_u64().map(|v| v as usize);
     let mut argv = vec![
         "grep".into(),
         "-rn".into(),
@@ -67,7 +68,25 @@ pub(crate) fn search_files(input: &serde_json::Value) -> String {
             if r.exit_code > 1 {
                 return format!("[grep error]\n{}", String::from_utf8_lossy(&r.stderr));
             }
-            crate::compress_tool_output(&out)
+            let compressed = crate::compress_tool_output(&out);
+            match max_results {
+                Some(limit) => {
+                    let lines: Vec<&str> = compressed.lines().collect();
+                    if lines.len() > limit {
+                        let hidden = lines.len() - limit;
+                        format!(
+                            "[truncated: {} matches → first {} shown, {} hidden]\n{}",
+                            lines.len(),
+                            limit,
+                            hidden,
+                            lines[..limit].join("\n")
+                        )
+                    } else {
+                        compressed
+                    }
+                }
+                None => compressed,
+            }
         }
         Err(e) => format!("[spawn error] {e}"),
     }
