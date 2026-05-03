@@ -187,7 +187,7 @@ export function runSessionV1Conformance(
 
 **Migration test:**
 
-- [ ] Namespace migration script rewrites `urn:pi-agent:session-*` →
+- [x] Namespace migration script rewrites `urn:pi-agent:session-*` →
       `urn:refarm:session:v1:*` without data loss
 
 ---

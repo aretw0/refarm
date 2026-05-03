@@ -104,6 +104,13 @@ pub(crate) fn history_from_tree(
 /// Build a Session node JSON payload.
 /// `leaf_entry_id`: current tip of the conversation tree (None for empty session).
 /// `parent_session_id`: set when this session is a fork of another (None for root).
+fn default_session_participant() -> String {
+    match std::env::var("LLM_AGENT_ID") {
+        Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
+        _ => "urn:refarm:agent:pi-agent".to_string(),
+    }
+}
+
 pub(crate) fn session_node(
     id: &str,
     name: Option<&str>,
@@ -114,6 +121,8 @@ pub(crate) fn session_node(
     serde_json::json!({
         "@type":             "Session",
         "@id":               id,
+        "participants":      [default_session_participant()],
+        "context_id":        serde_json::Value::Null,
         "name":              name,
         "leaf_entry_id":     leaf_entry_id,
         "parent_session_id": parent_session_id,

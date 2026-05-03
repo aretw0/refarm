@@ -3,21 +3,76 @@ use crate::refarm::plugin::tractor_bridge;
 
 use super::{history_from_nodes, session_entry_node, session_node, sum_provider_spend_usd};
 
+const LEGACY_SESSION_PREFIX: &str = "urn:pi-agent:session-";
+const LEGACY_ENTRY_PREFIX: &str = "urn:pi-agent:entry-";
+const SESSION_PREFIX_V1: &str = "urn:refarm:session:v1:";
+const ENTRY_PREFIX_V1: &str = "urn:refarm:session-entry:v1:";
+
+fn new_session_id() -> String {
+    format!("{SESSION_PREFIX_V1}{}", crate::new_id())
+}
+
+fn new_entry_id_for_session(session_id: &str) -> String {
+    // Transitional compatibility: if caller explicitly points to a legacy session,
+    // keep entry IDs in the same namespace to avoid mixed chains.
+    if session_id.starts_with(LEGACY_SESSION_PREFIX) {
+        return format!("{LEGACY_ENTRY_PREFIX}{}", crate::new_id());
+    }
+    format!("{ENTRY_PREFIX_V1}{}", crate::new_id())
+}
+
+fn new_fork_session_id(parent_session_id: &str) -> String {
+    if parent_session_id.starts_with(LEGACY_SESSION_PREFIX) {
+        return format!("{LEGACY_SESSION_PREFIX}{}", crate::new_id());
+    }
+    new_session_id()
+}
+
+fn latest_session_id_with_v1_preference(limit: u32) -> Option<String> {
+    let sessions: Vec<serde_json::Value> = tractor_bridge::query_nodes("Session", limit)
+        .ok()?
+        .iter()
+        .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
+        .collect();
+
+    let newest_v1 = sessions
+        .iter()
+        .filter_map(|v| {
+            let id = v["@id"].as_str()?;
+            if !id.starts_with(SESSION_PREFIX_V1) {
+                return None;
+            }
+            Some((v["created_at_ns"].as_u64().unwrap_or(0), id.to_owned()))
+        })
+        .max_by_key(|(ts, _)| *ts)
+        .map(|(_, id)| id);
+
+    if newest_v1.is_some() {
+        return newest_v1;
+    }
+
+    sessions
+        .iter()
+        .filter_map(|v| {
+            Some((
+                v["created_at_ns"].as_u64().unwrap_or(0),
+                v["@id"].as_str()?.to_owned(),
+            ))
+        })
+        .max_by_key(|(ts, _)| *ts)
+        .map(|(_, id)| id)
+}
+
 /// Create and persist a new Session. Returns the session `@id`.
 fn store_new_session(name: Option<&str>) -> Option<String> {
-    let session_id = crate::new_pi_urn("session");
+    let session_id = new_session_id();
     let node = session_node(&session_id, name, None, None, now_ns());
     tractor_bridge::store_node(&node.to_string()).ok()?;
     Some(session_id)
 }
 
 fn latest_session_id(limit: u32) -> Option<String> {
-    tractor_bridge::query_nodes("Session", limit)
-        .ok()?
-        .iter()
-        .filter_map(|raw| serde_json::from_str::<serde_json::Value>(raw).ok())
-        .max_by_key(|v| v["created_at_ns"].as_u64().unwrap_or(0))
-        .and_then(|v| v["@id"].as_str().map(|s| s.to_owned()))
+    latest_session_id_with_v1_preference(limit)
 }
 
 fn latest_session_leaf_id(limit: u32) -> Option<String> {
@@ -48,7 +103,7 @@ pub(crate) fn append_to_session(session_id: &str, kind: &str, content: &str) -> 
                 .map(|s| s.to_owned())
         });
 
-    let entry_id = crate::new_pi_urn("entry");
+    let entry_id = new_entry_id_for_session(session_id);
     let entry = session_entry_node(
         &entry_id,
         session_id,
@@ -74,7 +129,7 @@ pub(crate) fn append_to_session(session_id: &str, kind: &str, content: &str) -> 
 /// pointing to the original and `leaf_entry_id` set to `entry_id`. The original
 /// session is not modified. Returns the new session `@id`.
 pub(crate) fn fork_session(session_id: &str, entry_id: &str, name: Option<&str>) -> Option<String> {
-    let new_id_ = crate::new_pi_urn("session");
+    let new_id_ = new_fork_session_id(session_id);
     let node = session_node(&new_id_, name, Some(entry_id), Some(session_id), now_ns());
     tractor_bridge::store_node(&node.to_string()).ok()?;
     Some(new_id_)
@@ -121,7 +176,7 @@ pub(crate) fn get_or_create_session() -> String {
         return latest_id;
     }
 
-    store_new_session(None).unwrap_or_else(|| crate::new_pi_urn("session"))
+    store_new_session(None).unwrap_or_else(new_session_id)
 }
 
 /// Try to build history by walking the active Session's entry tree.
