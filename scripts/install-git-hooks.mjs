@@ -167,7 +167,7 @@ do
     NEEDS_UNIT_TESTS=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '(^|/)(turbo\\.json|eslint\\.config\\.js)$|(^|/)tsconfig(\\.[^/]*)?\\.json$'; then
+  if echo "$CHANGED_FILES" | grep -Eq '^(turbo\\.json|eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
     FORCE_GLOBAL_LINT=1
     FORCE_GLOBAL_TYPECHECK=1
     FORCE_GLOBAL_UNIT_TESTS=1
