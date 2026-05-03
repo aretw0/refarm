@@ -27,10 +27,10 @@ This document is a tribute to the "Greats" we've learned from.
 
 O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a culminação moderna de décadas de pesquisa em ciência da computação.
 
-- **[Douglas Engelbart (Augmenting Human Intellect)](https://dougengelbart.org)**: Pela visão de 1962 de computadores não como "calculadoras", mas como ferramentas para *aumentar o intelecto humano*. Seu trabalho no **NLS** é o ancestral espiritual do nosso microkernel colaborativo.
+- **[Douglas Engelbart (Augmenting Human Intellect)](https://dougengelbart.org)**: Pela visão de 1962 de computadores não como "calculadoras", mas como ferramentas para _aumentar o intelecto humano_. Seu trabalho no **NLS** é o ancestral espiritual do nosso microkernel colaborativo.
 - **[Ted Nelson (Project Xanadu)](https://xanadu.com)**: Pelos conceitos de **Transclusão** e links bidirecionais. A visão de Nelson de um repositório interconectado profundo e resiliente é o que buscamos com o Sovereign Graph.
 - **[The Semantic Web / RDF](https://w3.org/RDF/)**: Pela formalização da tripla "Sujeito-Predicado-Objeto". O modelo de dados do Refarm é um descendente direto do objetivo da Web Semântica de tornar os dados legíveis por máquinas e portáteis.
-- **[Smalltalk / Object-Oriented Programming](https://wildfire.com/smalltalk)**: Pela filosofia de "Everything is an Object" e *late-binding*. A forma como tratamos nós como entidades vivas com seus próprios esquemas (Ontology-first) deve muito à visão da Smalltalk de computação como um sistema de células comunicantes.
+- **[Smalltalk / Object-Oriented Programming](https://wildfire.com/smalltalk)**: Pela filosofia de "Everything is an Object" e _late-binding_. A forma como tratamos nós como entidades vivas com seus próprios esquemas (Ontology-first) deve muito à visão da Smalltalk de computação como um sistema de células comunicantes.
 
 ### 🧠 Knowledge & Networked Thought
 
@@ -52,6 +52,10 @@ Inspirações que moldaram a visão do **Pi Agent** e da arquitetura de ferramen
 - **[zwasm / ClojureWasm](https://github.com/babashka/babashka)**: Pela pesquisa em compilar ClojureScript para WASM via WasmGC, abrindo a possibilidade de um guest com semântica funcional pura e reflexão de macros em tempo de execução. Nossa estratégia de bridge JSON-over-streams (enquanto WasmGC madurece) é diretamente informada pelo estado atual desta fronteira.
 
 - **[Capability-based Security (WASI)](https://github.com/WebAssembly/WASI)**: Pelo modelo de capability-based security que elimina ambient authority. Toda permissão do Pi Agent — `read-fs`, `write-fs`, `spawn-shell` — é declarada no manifest e concedida explicitamente pelo TrustManager. Nenhum plugin tem acesso a recursos não declarados. O WASI é o sandbox que torna o Pi Agent seguro por construção.
+
+### 🧪 Backlog de influências (em estudo)
+
+- **[claude-mem (aretw0)](https://github.com/aretw0/claude-mem)**: Referência candidata para memória operacional de agente e recuperação de contexto entre sessões. Estudo pendente no backlog para avaliar encaixe com `session-contract-v1` e `task-contract-v1` sem acoplamento indevido.
 
 ### 🚜 Personal Lineage
 

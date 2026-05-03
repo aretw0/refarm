@@ -250,6 +250,17 @@
       "priority": "medium",
       "package": "runtime-platform",
       "source": "human"
+    },
+    {
+      "id": "ISS-022",
+      "title": "Avaliar claude-mem como influência para memória de agente e recuperação de contexto",
+      "body": "Adicionar `aretw0/claude-mem` ao backlog de influências para estudo dirigido. Escopo da avaliação: modelo de persistência/memória, estratégias de recuperação contextual, pontos de integração com `session-contract-v1` e `task-contract-v1`, riscos de acoplamento e oportunidades de adaptação ao host unificado.",
+      "location": "docs/INSPIRATIONS.md:1",
+      "status": "open",
+      "category": "capability",
+      "priority": "medium",
+      "package": "research",
+      "source": "human"
     }
   ]
 }
