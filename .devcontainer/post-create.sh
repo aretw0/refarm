@@ -43,7 +43,8 @@ for dir in \
   /home/vscode/.turbo \
   /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
-  /home/vscode/.cache/puppeteer
+  /home/vscode/.cache/puppeteer \
+  /home/vscode/.cargo-target
   do
   mkdir -p "$dir"
   sudo chown -R vscode:vscode "$dir"

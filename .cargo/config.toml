@@ -3,6 +3,10 @@
 # 16 jobs default on this 16-core container exhausts RAM during heavy
 # Rust builds (each unit peaks ~400MB). 4 keeps peak under ~2GB.
 jobs = 4
+# Redirect build artifacts out of the bind-mounted workspace and into the
+# container volume. This keeps host C:\ storage free and gives faster I/O
+# (Docker volume vs WSL2 bind mount). Agents call cargo explicitly when needed.
+target-dir = "/home/vscode/.cargo-target"
 
 [profile.dev]
 # Reduce per-crate memory during dev/test builds.
