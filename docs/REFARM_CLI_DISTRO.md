@@ -87,6 +87,8 @@ npm run refarm:host:smoke:cli
 npm run refarm:host:smoke:quick
 npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
+npm run refarm:host:smoke:auto:plan
+npm run refarm:host:smoke:auto
 ```
 
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
@@ -107,12 +109,18 @@ npm run refarm:host:smoke:ci
   `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
+- `refarm:host:smoke:auto:plan` inspects changed files and prints the
+  recommended lane (`skip | quick | dev | ci`) without executing it.
+- `refarm:host:smoke:auto` runs the same diff-based selector and executes the
+  recommended lane automatically.
 
 ### Recommended local cadence (to avoid re-running everything)
 
-- **Inner loop (most slices):** `npm run refarm:host:smoke:quick`
-- **Pre-push on command/CLI changes:** `npm run refarm:host:smoke:dev`
-- **CI parity checkpoint (once per batch):** `npm run refarm:host:smoke:ci`
+- **Default ergonomic path:** `npm run refarm:host:smoke:auto`
+- **Preview decision only:** `npm run refarm:host:smoke:auto:plan`
+- **Manual override inner loop:** `npm run refarm:host:smoke:quick`
+- **Manual override pre-push:** `npm run refarm:host:smoke:dev`
+- **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`
 
 This avoids duplicate local execution of the same test + CLI flows while
 keeping one full parity pass before/at push.
