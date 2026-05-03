@@ -19,7 +19,9 @@
     "@refarm.dev/sse-stream-transport": "*",
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/stream-contract-v1": "*",
+    "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/sync-loro": "*",
+    "@refarm.dev/task-contract-v1": "*",
     "@refarm.dev/tractor": "*",
     "@refarm.dev/ws-stream-transport": "*",
     "ws": "^8.20.0"

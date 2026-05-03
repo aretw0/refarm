@@ -15,6 +15,10 @@ import path from "node:path";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
+import {
+	createStorageV1Provider,
+	createTaskV1StorageAdapter,
+} from "@refarm.dev/storage-sqlite";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
@@ -23,6 +27,7 @@ import { loadInstalledPlugins } from "./installed-plugins.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
+import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
 import {
 	FileTransportAdapter,
@@ -177,10 +182,28 @@ async function main() {
 		);
 	}
 
+	const taskMemoryBridge = createTaskMemoryBridge({
+		adapter: createTaskV1StorageAdapter({
+			provider: createStorageV1Provider(),
+		}),
+		actorUrn: `urn:refarm:farmhand:${FARMHAND_ID}`,
+	});
+
 	const taskExecutorFn: TaskExecutorFn = async (task, effortId) => {
 		let status: "ok" | "error" = "ok";
 		let result: unknown;
 		let error: string | undefined;
+
+		try {
+			await taskMemoryBridge.ensureTask(task, effortId);
+		} catch (memoryError) {
+			console.warn(
+				"[farmhand] task memory ensure failed:",
+				memoryError instanceof Error
+					? memoryError.message
+					: String(memoryError),
+			);
+		}
 
 		const captureTractor = {
 			plugins: tractor.plugins,
@@ -207,6 +230,17 @@ async function main() {
 			fn: task.fn,
 			args: task.args,
 		});
+
+		try {
+			await taskMemoryBridge.recordOutcome(task, effortId, { status, error });
+		} catch (memoryError) {
+			console.warn(
+				"[farmhand] task memory outcome failed:",
+				memoryError instanceof Error
+					? memoryError.message
+					: String(memoryError),
+			);
+		}
 
 		return { status, result, error };
 	};

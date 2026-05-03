@@ -212,6 +212,7 @@ export function runTaskV1Conformance(
 **DDD:**
 
 - [x] Scaffold `packages/task-contract-v1/` with types, conformance runner, in-memory adapter
+- [x] Integrate `TaskContractAdapter` into farmhand execution loop (bridge effort tasks ↔ Task/TaskEvent status updates)
 - [ ] Integrate `TaskContractAdapter` into pi-agent (create/update/appendEvent on prompt)
 - [ ] Expose Task list in Homestead via standard adapter
 - [x] Implement `TaskContractAdapter` baseline in `storage-sqlite` (storage:v1-backed records)
