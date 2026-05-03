@@ -84,6 +84,8 @@ For fast regression checks of the unified command spine:
 ```bash
 npm run refarm:host:smoke
 npm run refarm:host:smoke:cli
+npm run refarm:host:smoke:quick
+npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 ```
 
@@ -101,6 +103,19 @@ npm run refarm:host:smoke:ci
   fail-closed, using fixture-backed status input.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
   wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
+- `refarm:host:smoke:quick` is the cheapest local lane (`--quick`): runs only
+  `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
+- `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
+  pragmatic pre-push lane once `apps/refarm` type-check already passed.
+
+### Recommended local cadence (to avoid re-running everything)
+
+- **Inner loop (most slices):** `npm run refarm:host:smoke:quick`
+- **Pre-push on command/CLI changes:** `npm run refarm:host:smoke:dev`
+- **CI parity checkpoint (once per batch):** `npm run refarm:host:smoke:ci`
+
+This avoids duplicate local execution of the same test + CLI flows while
+keeping one full parity pass before/at push.
 
 ## Renderer modes
 
