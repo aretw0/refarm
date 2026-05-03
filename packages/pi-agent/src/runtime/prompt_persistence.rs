@@ -50,6 +50,135 @@ fn store_node(node: &serde_json::Value) -> bool {
     tractor_bridge::store_node(&node.to_string()).is_ok()
 }
 
+fn task_memory_enabled_from_env() -> bool {
+    match std::env::var("LLM_TASK_MEMORY") {
+        Ok(value) => {
+            let normalized = value.trim().to_ascii_lowercase();
+            matches!(normalized.as_str(), "1" | "true" | "yes" | "on")
+        }
+        Err(_) => true,
+    }
+}
+
+fn task_actor_urn() -> String {
+    match std::env::var("LLM_AGENT_ID") {
+        Ok(agent_id) if !agent_id.is_empty() => format!("urn:refarm:agent:{agent_id}"),
+        _ => "urn:refarm:agent:pi-agent".to_string(),
+    }
+}
+
+fn task_title_from_prompt(prompt: &str) -> String {
+    let first_line = prompt.lines().next().unwrap_or("").trim();
+    if first_line.is_empty() {
+        return "Agent prompt".to_string();
+    }
+    let mut title: String = first_line.chars().take(120).collect();
+    if first_line.chars().count() > 120 {
+        title.push('…');
+    }
+    title
+}
+
+fn task_status_from_content(content: &str) -> &'static str {
+    if content.starts_with("[budget]") {
+        "blocked"
+    } else if content.starts_with("[pi-agent erro]") || content.starts_with("[pi-agent stub]") {
+        "failed"
+    } else {
+        "done"
+    }
+}
+
+pub(crate) fn open_prompt_task(
+    session_id: &str,
+    prompt_ref: &str,
+    prompt: &str,
+) -> Option<String> {
+    if !task_memory_enabled_from_env() {
+        return None;
+    }
+
+    let actor = task_actor_urn();
+    let now_ns = crate::now_ns();
+    let task_id = format!("urn:refarm:task:v1:{}", crate::new_id());
+    let task_node = serde_json::json!({
+        "@type": "Task",
+        "@id": task_id,
+        "title": task_title_from_prompt(prompt),
+        "status": "active",
+        "created_by": actor,
+        "assigned_to": actor,
+        "context_id": session_id,
+        "parent_task_id": serde_json::Value::Null,
+        "created_at_ns": now_ns,
+        "updated_at_ns": now_ns,
+    });
+
+    if !store_node(&task_node) {
+        return None;
+    }
+
+    let created_event = serde_json::json!({
+        "@type": "TaskEvent",
+        "@id": format!("urn:refarm:task-event:v1:{}", crate::new_id()),
+        "task_id": task_node["@id"],
+        "event": "created",
+        "actor": task_actor_urn(),
+        "payload": {
+            "prompt_ref": prompt_ref,
+            "source": "pi-agent.respond",
+        },
+        "timestamp_ns": crate::now_ns(),
+    });
+    let _ = store_node(&created_event);
+
+    task_node["@id"].as_str().map(|id| id.to_owned())
+}
+
+pub(crate) fn close_prompt_task(
+    task_id: Option<&str>,
+    prompt_ref: &str,
+    content: &str,
+    model: &str,
+    tokens_in: u32,
+    tokens_out: u32,
+) {
+    if !task_memory_enabled_from_env() {
+        return;
+    }
+    let Some(task_id) = task_id else {
+        return;
+    };
+
+    let status = task_status_from_content(content);
+    if let Ok(raw) = tractor_bridge::get_node(&task_id.to_string()) {
+        if let Ok(mut task_node) = serde_json::from_str::<serde_json::Value>(&raw) {
+            task_node["status"] = serde_json::Value::String(status.to_string());
+            task_node["assigned_to"] = serde_json::Value::String(task_actor_urn());
+            task_node["updated_at_ns"] =
+                serde_json::Value::Number(serde_json::Number::from(crate::now_ns()));
+            let _ = store_node(&task_node);
+        }
+    }
+
+    let status_event = serde_json::json!({
+        "@type": "TaskEvent",
+        "@id": format!("urn:refarm:task-event:v1:{}", crate::new_id()),
+        "task_id": task_id,
+        "event": "status_changed",
+        "actor": task_actor_urn(),
+        "payload": {
+            "status": status,
+            "prompt_ref": prompt_ref,
+            "model": model,
+            "tokens_in": tokens_in,
+            "tokens_out": tokens_out,
+        },
+        "timestamp_ns": crate::now_ns(),
+    });
+    let _ = store_node(&status_event);
+}
+
 pub(crate) fn store_prompt_and_open_session(prompt: &str) -> Option<PromptContext> {
     let prompt_ref = crate::new_pi_urn("prompt");
     let prompt_node = crate::user_prompt_node(&prompt_ref, prompt);

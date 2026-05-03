@@ -18,6 +18,8 @@ pub(crate) fn execute_prompt(
     let Some(ctx) = prompt_persistence::store_prompt_and_open_session(prompt) else {
         return None;
     };
+    let task_memory_id =
+        prompt_persistence::open_prompt_task(&ctx.session_id, &ctx.prompt_ref, prompt);
 
     let previous_system = std::env::var("LLM_SYSTEM").ok();
     if let Some(system) = system_override {
@@ -74,6 +76,15 @@ pub(crate) fn execute_prompt(
             usage_raw: usage_raw.clone(),
             duration_ms,
         },
+    );
+
+    prompt_persistence::close_prompt_task(
+        task_memory_id.as_deref(),
+        &ctx.prompt_ref,
+        &content,
+        &model,
+        tokens_in,
+        tokens_out,
     );
 
     Some(PromptExecutionOutcome {
