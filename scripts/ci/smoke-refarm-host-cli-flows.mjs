@@ -454,6 +454,23 @@ async function main() {
 		);
 
 		console.log(
+			`${LOGGER_PREFIX} smoke: status --json with --markdown is rejected fail-closed`,
+		);
+		await assertCommandFailsWith(
+			[
+				"--experimental-loader",
+				"./scripts/ci/esm-extension-loader.mjs",
+				"apps/refarm/dist/index.js",
+				"status",
+				"--input",
+				webStatusPath,
+				"--json",
+				"--markdown",
+			],
+			"Choose only one output format",
+		);
+
+		console.log(
 			`${LOGGER_PREFIX} smoke: headless markdown+summary is rejected fail-closed`,
 		);
 		await assertCommandFailsWith(
