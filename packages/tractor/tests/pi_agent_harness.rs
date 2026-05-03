@@ -61,10 +61,6 @@ fn make_sync() -> NativeSync {
     NativeSync::new(storage, ":memory:").unwrap()
 }
 
-fn wasm_path() -> &'static Path {
-    Path::new(PI_AGENT_WASM)
-}
-
 async fn call_on_event_with_timeout(
     handle: &mut PluginInstanceHandle,
     payload: &str,
@@ -222,7 +218,7 @@ fn clean_llm_env() {
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
                 "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_STREAM_RESPONSES","LLM_SYSTEM",
-                "LLM_AGENT_ID","LLM_SESSION_ID",
+                "LLM_AGENT_ID","LLM_SESSION_ID","LLM_TASK_MEMORY",
                 "REFACTOR_LSP_CMD","REFACTOR_LSP_RUST_ANALYZER_CMD",
                 "ANTHROPIC_API_KEY","OPENAI_API_KEY"] {
         std::env::remove_var(var);
@@ -345,6 +341,108 @@ async fn harness_agent_response_stored_in_crdt() {
     assert_eq!(v["content"], "Olá do harness!");
     assert_eq!(v["is_final"], true);
     assert!(v["timestamp_ns"].as_u64().unwrap_or(0) > 0, "timestamp_ns must be set");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_prompt_task_lifecycle_recorded_in_crdt() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+
+    clean_llm_env();
+    let port = mock_llm_server(openai_response("task lifecycle ok", 14, 7)).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "check task recording", "task lifecycle harness").await;
+
+    // ── Task node ─────────────────────────────────────────────────────────────
+    let task_nodes = sync.query_nodes("Task").expect("query Task");
+    assert_eq!(task_nodes.len(), 1, "exactly one Task node must be stored per prompt");
+
+    let task: serde_json::Value = serde_json::from_str(&task_nodes[0].payload).unwrap();
+    assert_eq!(task["@type"], "Task", "@type must be Task");
+    assert!(
+        task["@id"].as_str().unwrap_or("").starts_with("urn:refarm:task:v1:"),
+        "@id must follow task URN scheme, got: {}",
+        task["@id"]
+    );
+    assert_eq!(task["status"], "done", "task must be closed as done after a normal LLM response");
+    assert_eq!(task["title"], "check task recording", "title must be first line of prompt");
+    assert!(
+        task["context_id"].as_str().unwrap_or("").starts_with("urn:refarm:session"),
+        "context_id must reference the session URN, got: {}",
+        task["context_id"]
+    );
+    assert_eq!(task["assigned_to"], "urn:refarm:agent:pi-agent",
+        "assigned_to must default to pi-agent actor URN when LLM_AGENT_ID is unset");
+
+    // ── TaskEvent nodes ───────────────────────────────────────────────────────
+    let event_nodes = sync.query_nodes("TaskEvent").expect("query TaskEvent");
+    assert_eq!(event_nodes.len(), 2, "exactly two TaskEvents expected: created + status_changed");
+
+    let events: Vec<serde_json::Value> = event_nodes
+        .iter()
+        .map(|n| serde_json::from_str::<serde_json::Value>(&n.payload).unwrap())
+        .collect();
+
+    let task_id = task["@id"].as_str().unwrap();
+
+    let created = events.iter().find(|e| e["event"] == "created")
+        .expect("TaskEvent with event=created not found");
+    assert_eq!(created["@type"], "TaskEvent");
+    assert_eq!(created["task_id"], task_id, "created event must reference the Task");
+    assert_eq!(created["payload"]["source"], "pi-agent.respond");
+
+    let closed = events.iter().find(|e| e["event"] == "status_changed")
+        .expect("TaskEvent with event=status_changed not found");
+    assert_eq!(closed["task_id"], task_id, "status_changed event must reference the Task");
+    assert_eq!(closed["payload"]["status"], "done");
+    assert_eq!(closed["payload"]["tokens_in"].as_u64().unwrap_or(0), 14,
+        "tokens_in must match mock LLM response");
+    assert_eq!(closed["payload"]["tokens_out"].as_u64().unwrap_or(0), 7,
+        "tokens_out must match mock LLM response");
+    assert!(!closed["payload"]["model"].as_str().unwrap_or("").is_empty(),
+        "model must be recorded in the closing event");
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+async fn harness_task_memory_disabled_stores_no_task_nodes() {
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found — run: cargo component build --release");
+
+    clean_llm_env();
+    let port = mock_llm_server(openai_response("reply when task memory is off", 8, 4)).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+    std::env::set_var("LLM_TASK_MEMORY", "0");
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "prompt with task memory off", "task memory disabled harness").await;
+
+    // AgentResponse must still be stored — only the Task/TaskEvent layer is skipped.
+    let responses = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!responses.is_empty(), "AgentResponse must still be stored regardless of LLM_TASK_MEMORY");
+
+    let tasks = sync.query_nodes("Task").expect("query Task");
+    assert!(tasks.is_empty(), "no Task nodes must be stored when LLM_TASK_MEMORY=0");
+
+    let events = sync.query_nodes("TaskEvent").expect("query TaskEvent");
+    assert!(events.is_empty(), "no TaskEvent nodes must be stored when LLM_TASK_MEMORY=0");
 
     clean_llm_env();
 }
