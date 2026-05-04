@@ -3,39 +3,62 @@
  * Installs pi-agent into ~/.refarm/plugins/@refarm/pi-agent/ so farmhand
  * can auto-load it on boot.
  *
- * What it does:
- *   1. Resolves the built pi_agent.wasm (CARGO_TARGET_DIR-aware).
- *   2. Creates the plugin directory under ~/.refarm/plugins/@refarm/pi-agent/.
- *   3. Copies the WASM binary there.
- *   4. Writes plugin.json with the absolute file:// entry and sha256 integrity.
+ * WASM path resolution order (first found wins):
+ *   1. $CARGO_TARGET_DIR env var (set by devcontainer or ~/.bashrc)
+ *   2. target-dir in .cargo/config.toml (same value, but read directly)
+ *   3. packages/pi-agent/target/ (workspace fallback, no Docker volume)
  *
  * Usage:
- *   node scripts/pi-agent-install.mjs
  *   npm run agent:install
+ *   node scripts/pi-agent-install.mjs
  */
 
 import { createHash } from "node:crypto";
-import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { existsSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-// Resolve WASM binary path (CARGO_TARGET_DIR-aware, mirrors tractor-start.sh).
-const cargoTarget = process.env.CARGO_TARGET_DIR;
-const wasmSrc = cargoTarget
-  ? path.join(cargoTarget, "wasm32-wasip1/release/pi_agent.wasm")
-  : path.join(ROOT, "packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm");
+/** Read target-dir from .cargo/config.toml without a TOML parser. */
+function cargoTargetDirFromConfig() {
+  const configPath = path.join(ROOT, ".cargo/config.toml");
+  if (!existsSync(configPath)) return null;
+  const content = readFileSync(configPath, "utf-8");
+  const match = content.match(/^\s*target-dir\s*=\s*"([^"]+)"/m);
+  return match ? match[1] : null;
+}
 
-if (!existsSync(wasmSrc)) {
-  console.error(`[pi-agent-install] WASM binary not found: ${wasmSrc}`);
-  console.error(
-    "  Build first: cd packages/pi-agent && cargo component build --release",
-  );
+function resolveCargoTarget() {
+  if (process.env.CARGO_TARGET_DIR) return process.env.CARGO_TARGET_DIR;
+  const fromConfig = cargoTargetDirFromConfig();
+  if (fromConfig) {
+    console.log(`[pi-agent-install] CARGO_TARGET_DIR not in env; read from .cargo/config.toml: ${fromConfig}`);
+    return fromConfig;
+  }
+  return null;
+}
+
+const cargoTarget = resolveCargoTarget();
+const WASM_REL = "wasm32-wasip1/release/pi_agent.wasm";
+
+const candidates = [
+  cargoTarget && path.join(cargoTarget, WASM_REL),
+  path.join(ROOT, "packages/pi-agent/target", WASM_REL),
+].filter(Boolean);
+
+const wasmSrc = candidates.find(existsSync);
+
+if (!wasmSrc) {
+  console.error("[pi-agent-install] WASM binary not found. Searched:");
+  for (const c of candidates) console.error(`  ${c}`);
+  console.error("\nBuild first:");
+  console.error("  cd packages/pi-agent && cargo component build --release");
   process.exit(1);
 }
+
+console.log(`[pi-agent-install] Found WASM at: ${wasmSrc}`);
 
 // Install destination.
 const pluginDir = path.join(os.homedir(), ".refarm/plugins/@refarm/pi-agent");
