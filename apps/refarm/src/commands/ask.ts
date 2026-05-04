@@ -304,6 +304,37 @@ function usageLine(metadata: Record<string, unknown>): string {
 	return `model: ${model}  tokens: ${tokensIn} in / ${tokensOut} out  ${usd}`;
 }
 
+function printAskError(message: string): void {
+	const isFarmhandDown =
+		message.includes("ECONNREFUSED") ||
+		message.includes("fetch failed") ||
+		message.includes("Farmhand HTTP");
+
+	const isProviderError =
+		message.includes("llm-bridge request failed") ||
+		message.includes("Couldn't connect to server") ||
+		message.includes("curl: (7)");
+
+	if (isFarmhandDown) {
+		console.error(chalk.red("\n✗  Farmhand is not running."));
+		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		console.error(chalk.dim("   Status:    npm run farm:status"));
+	} else if (isProviderError) {
+		const providerMatch = message.match(/for provider "([^"]+)"/);
+		const provider = providerMatch?.[1] ?? "the configured provider";
+		console.error(chalk.red(`\n✗  LLM provider unavailable: ${provider}`));
+		if (provider === "ollama") {
+			console.error(chalk.dim("   Start Ollama:  ollama serve"));
+			console.error(chalk.dim("   Or switch provider:  refarm keys"));
+		} else {
+			console.error(chalk.dim("   Check your API key:  refarm keys --status"));
+			console.error(chalk.dim("   Reconfigure:         refarm keys"));
+		}
+	} else {
+		console.error(chalk.red(`\n✗  ${message}`));
+	}
+}
+
 export function createAskCommand(deps?: AskDeps): Command {
 	const resolved = deps ?? defaultDeps();
 
@@ -347,43 +378,50 @@ export function createAskCommand(deps?: AskDeps): Command {
 			};
 
 			console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
-			const submittedAtMs = Date.now();
-			const effortId = await resolved.submitEffort(effort);
 
 			try {
-				await resolved.followStream(
-					effortId,
-					(chunk) => {
-						process.stdout.write(chunk.content);
-						if (chunk.is_final) {
-							process.stdout.write("\n");
-							const metadata = chunk.metadata as
-								| Record<string, unknown>
-								| undefined;
-							if (metadata) {
-								console.log(chalk.gray(`\n${"─".repeat(41)}`));
-								console.log(chalk.gray(usageLine(metadata)));
+				const submittedAtMs = Date.now();
+				const effortId = await resolved.submitEffort(effort);
+
+				try {
+					await resolved.followStream(
+						effortId,
+						(chunk) => {
+							process.stdout.write(chunk.content);
+							if (chunk.is_final) {
+								process.stdout.write("\n");
+								const metadata = chunk.metadata as
+									| Record<string, unknown>
+									| undefined;
+								if (metadata) {
+									console.log(chalk.gray(`\n${"─".repeat(41)}`));
+									console.log(chalk.gray(usageLine(metadata)));
+								}
 							}
+						},
+						{ submittedAtMs },
+					);
+				} catch (streamError) {
+					const fallback = await resolved.readEffortResult?.(effortId);
+					if (fallback?.status === "ok" && typeof fallback.content === "string") {
+						process.stdout.write(`${fallback.content}\n`);
+						if (fallback.metadata) {
+							console.log(chalk.gray(`\n${"─".repeat(41)}`));
+							console.log(chalk.gray(usageLine(fallback.metadata)));
 						}
-					},
-					{ submittedAtMs },
-				);
-			} catch (streamError) {
-				const fallback = await resolved.readEffortResult?.(effortId);
-				if (fallback?.status === "ok" && typeof fallback.content === "string") {
-					process.stdout.write(`${fallback.content}\n`);
-					if (fallback.metadata) {
-						console.log(chalk.gray(`\n${"─".repeat(41)}`));
-						console.log(chalk.gray(usageLine(fallback.metadata)));
+						return;
 					}
-					return;
-				}
 
-				if (fallback?.status === "error") {
-					throw new Error(fallback.error ?? "Effort failed without details");
-				}
+					if (fallback?.status === "error") {
+						throw new Error(fallback.error ?? "Effort failed without details");
+					}
 
-				throw streamError;
+					throw streamError;
+				}
+			} catch (err) {
+				const message = err instanceof Error ? err.message : String(err);
+				printAskError(message);
+				process.exit(1);
 			}
 		});
 }
