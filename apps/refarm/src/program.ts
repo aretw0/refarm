@@ -1,6 +1,7 @@
 import { Command } from "commander";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
+import { keysCommand } from "./commands/keys.js";
 import { deployCommand } from "./commands/deploy.js";
 import { doctorCommand } from "./commands/doctor.js";
 import { guideCommand } from "./commands/guide.js";
@@ -36,3 +37,4 @@ program.addCommand(pluginCommand);
 program.addCommand(statusCommand);
 program.addCommand(taskCommand);
 program.addCommand(askCommand);
+program.addCommand(keysCommand);
