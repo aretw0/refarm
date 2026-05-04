@@ -109,4 +109,33 @@ describe("refarm ask", () => {
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	});
+
+	it("falls back to effort result file payload when stream times out", async () => {
+		const deps = makeDeps({
+			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
+			readEffortResult: vi.fn().mockResolvedValue({
+				status: "ok",
+				content: "fallback response",
+				metadata: { model: "mock-model", tokens_in: 1, tokens_out: 2 },
+			}),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["fallback please"], { from: "user" });
+
+		expect(deps.followStream).toHaveBeenCalledOnce();
+		expect(deps.readEffortResult).toHaveBeenCalledWith("eff-1");
+		expect(outSpy).toHaveBeenCalledWith("fallback response\n");
+
+		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(allLogs).toContain("model:");
+		expect(allLogs).toContain("mock-model");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
 });
