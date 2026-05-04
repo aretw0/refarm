@@ -18,6 +18,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
+FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
 ENV_FILE="$ROOT/.refarm/.env"
 PID_FILE="$ROOT/.refarm/farmhand.pid"
 LOG_FILE="$ROOT/.refarm/farmhand.log"
@@ -36,12 +37,10 @@ done
 check_port_pid() {
   local port="$1"
   ss -tlnp 2>/dev/null \
-    | awk -v p=":${port}" '
-        $0 ~ p {
-          match($0, /pid=([0-9]+)/, m)
-          if (m[1]) print m[1]
-        }
-      ' | head -1
+    | { grep ":${port}" || true; } \
+    | { grep -o 'pid=[0-9]*' || true; } \
+    | cut -d= -f2 \
+    | head -1
 }
 
 WS_PID="$(check_port_pid $WS_PORT)"
@@ -91,6 +90,11 @@ if [ ! -f "$FARMHAND_ENTRY" ]; then
   exit 1
 fi
 
+if [ ! -f "$FARMHAND_LOADER_REGISTER" ]; then
+  echo "❌  farmhand loader register not found: $FARMHAND_LOADER_REGISTER"
+  exit 1
+fi
+
 if ! command -v node >/dev/null 2>&1; then
   echo "❌  node not found in PATH"
   exit 1
@@ -104,8 +108,15 @@ echo "   Starting farmhand"
 echo "   ws-crdt  : ws://127.0.0.1:$WS_PORT"
 echo "   http     : http://127.0.0.1:$HTTP_PORT"
 
+FARMHAND_NODE_ARGS=(
+  --experimental-strip-types
+  --experimental-transform-types
+  --import "$FARMHAND_LOADER_REGISTER"
+  "$FARMHAND_ENTRY"
+)
+
 if [ "$BACKGROUND" = "1" ]; then
-  nohup node --experimental-strip-types "$FARMHAND_ENTRY" > "$LOG_FILE" 2>&1 &
+  nohup node "${FARMHAND_NODE_ARGS[@]}" > "$LOG_FILE" 2>&1 &
   echo $! > "$PID_FILE"
   echo "   pid      : $(cat "$PID_FILE")"
   echo "   log      : $LOG_FILE"
@@ -113,5 +124,5 @@ if [ "$BACKGROUND" = "1" ]; then
   echo "   Status  : npm run farm:status"
   echo "   Stop    : npm run farmhand:stop"
 else
-  exec node --experimental-strip-types "$FARMHAND_ENTRY"
+  exec node "${FARMHAND_NODE_ARGS[@]}"
 fi

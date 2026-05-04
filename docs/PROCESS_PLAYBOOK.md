@@ -8,9 +8,9 @@ services by hand.
 
 The factory runs **one backend at a time** on port 42000. Two backends exist:
 
-| Backend  | Language | Ports         | Role                                           |
-|----------|----------|---------------|------------------------------------------------|
-| tractor  | Rust     | :42000 (WS)   | WASM plugin host, pi-agent, native CRDT sync   |
+| Backend  | Language | Ports                                         | Role                                            |
+| -------- | -------- | --------------------------------------------- | ----------------------------------------------- |
+| tractor  | Rust     | :42000 (WS)                                   | WASM plugin host, pi-agent, native CRDT sync    |
 | farmhand | Node.js  | :42000 (WS CRDT sync) + :42001 (HTTP sidecar) | Task orchestration, file queue, effort dispatch |
 
 **They share port 42000 and must not run at the same time.**
@@ -36,12 +36,14 @@ npm run disk:check         # disk usage: target dirs, node_modules, volumes
 ## Tractor (agent backend)
 
 ### Start
+
 ```bash
 npm run agent:daemon       # background — writes .refarm/tractor.pid + tractor.log
 npm run agent:start        # foreground — no PID file, Ctrl+C to stop
 ```
 
 Prerequisites: tractor binary must exist.
+
 ```bash
 # Build (once, or after Rust changes):
 cd packages/tractor && cargo build --release
@@ -49,6 +51,7 @@ cd packages/tractor && cargo build --release
 ```
 
 ### Stop
+
 ```bash
 npm run agent:stop         # SIGTERM via .refarm/tractor.pid
 # Or kill directly:
@@ -56,11 +59,13 @@ kill $(cat .refarm/tractor.pid)
 ```
 
 ### Logs
+
 ```bash
 tail -f .refarm/tractor.log     # background mode only
 ```
 
 ### Check
+
 ```bash
 npm run farm:status
 # tractor section shows: pid, WS probe result, binary age
@@ -71,24 +76,28 @@ npm run farm:status
 ## Farmhand (task orchestration daemon)
 
 ### Start
+
 ```bash
 npm run farmhand:daemon    # background — writes .refarm/farmhand.pid + farmhand.log
 npm run farmhand:start     # foreground — no PID file, Ctrl+C to stop
 ```
 
-No build step required — runs via `node --experimental-strip-types`.
+No build step required — runs from source via Node type-stripping with the Farmhand resolver loader (`scripts/farmhand-node-loader.mjs`).
 
 ### Stop
+
 ```bash
 npm run farmhand:stop      # SIGTERM via .refarm/farmhand.pid
 ```
 
 ### Logs
+
 ```bash
 tail -f .refarm/farmhand.log    # background mode only
 ```
 
 ### Check
+
 ```bash
 npm run farm:status
 # farmhand section shows: pid, HTTP sidecar probe, task queue depth
@@ -122,6 +131,7 @@ npm run task:execution:smoke:pi-agent
 ```
 
 If farmhand is already running, stop it first:
+
 ```bash
 npm run farmhand:stop && npm run task:execution:smoke
 ```
@@ -186,11 +196,11 @@ npm run farm:status        # check ARTIFACTS section
 
 ## Port assignments
 
-| Port  | Protocol | Role                         | Conflict if…                        |
-|-------|----------|------------------------------|--------------------------------------|
-| 42000 | WebSocket | CRDT sync (tractor OR farmhand) | Both backends running simultaneously |
-| 42001 | HTTP     | farmhand HTTP sidecar        | farmhand + CI smoke stub both running |
-| :0    | HTTP     | mock LLM (harness tests)     | OS-assigned — no conflict possible   |
+| Port  | Protocol  | Role                            | Conflict if…                          |
+| ----- | --------- | ------------------------------- | ------------------------------------- |
+| 42000 | WebSocket | CRDT sync (tractor OR farmhand) | Both backends running simultaneously  |
+| 42001 | HTTP      | farmhand HTTP sidecar           | farmhand + CI smoke stub both running |
+| :0    | HTTP      | mock LLM (harness tests)        | OS-assigned — no conflict possible    |
 
 ---
 

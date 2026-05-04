@@ -40,12 +40,10 @@ set -- "${FORWARDED_ARGS[@]+"${FORWARDED_ARGS[@]}"}"
 
 _port_pid() {
   ss -tlnp 2>/dev/null \
-    | awk -v p=":${1}" '
-        $0 ~ p {
-          match($0, /pid=([0-9]+)/, m)
-          if (m[1]) print m[1]
-        }
-      ' | head -1
+    | { grep ":${1}" || true; } \
+    | { grep -o 'pid=[0-9]*' || true; } \
+    | cut -d= -f2 \
+    | head -1
 }
 
 _existing="$(_port_pid 42000)"

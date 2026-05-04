@@ -28,6 +28,39 @@ function readManifestFromDir(pluginDir: string): PluginManifest {
 	return parsed;
 }
 
+/**
+ * Discover installed plugin directories under ~/.refarm/plugins.
+ *
+ * Supports both layouts:
+ *   - plugins/my-plugin/plugin.json
+ *   - plugins/@scope/my-plugin/plugin.json
+ */
+function findPluginDirs(pluginsDir: string): string[] {
+	const queue: string[] = [pluginsDir];
+	const found: string[] = [];
+
+	while (queue.length > 0) {
+		const currentDir = queue.shift();
+		if (!currentDir) break;
+
+		const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+		for (const entry of entries) {
+			if (!entry.isDirectory()) continue;
+
+			const candidateDir = path.join(currentDir, entry.name);
+			const manifestPath = path.join(candidateDir, "plugin.json");
+			if (fs.existsSync(manifestPath)) {
+				found.push(candidateDir);
+				continue;
+			}
+
+			queue.push(candidateDir);
+		}
+	}
+
+	return found;
+}
+
 export async function loadInstalledPlugins(
 	tractor: PluginLoaderTarget,
 	baseDir: string,
@@ -38,22 +71,11 @@ export async function loadInstalledPlugins(
 		return { loaded: 0, skipped: 0 };
 	}
 
-	const entries = fs.readdirSync(pluginsDir, { withFileTypes: true });
+	const pluginDirs = findPluginDirs(pluginsDir);
 	let loaded = 0;
 	let skipped = 0;
 
-	for (const entry of entries) {
-		if (!entry.isDirectory()) continue;
-		const pluginDir = path.join(pluginsDir, entry.name);
-		const manifestPath = path.join(pluginDir, "plugin.json");
-		if (!fs.existsSync(manifestPath)) {
-			logger.warn(
-				`[farmhand] Skipping installed plugin ${entry.name}: missing plugin.json`,
-			);
-			skipped += 1;
-			continue;
-		}
-
+	for (const pluginDir of pluginDirs) {
 		try {
 			const manifest = readManifestFromDir(pluginDir);
 			await tractor.registry.register(manifest);
@@ -66,8 +88,9 @@ export async function loadInstalledPlugins(
 		} catch (error: unknown) {
 			skipped += 1;
 			const message = error instanceof Error ? error.message : String(error);
+			const pluginLabel = path.relative(pluginsDir, pluginDir) || pluginDir;
 			logger.warn(
-				`[farmhand] Failed to load installed plugin ${entry.name}: ${message}`,
+				`[farmhand] Failed to load installed plugin ${pluginLabel}: ${message}`,
 			);
 		}
 	}
