@@ -25,6 +25,7 @@
 
 pub mod daemon;
 pub mod host;
+pub mod sidecar;
 pub mod storage;
 pub mod sync;
 pub(crate) mod streaming;

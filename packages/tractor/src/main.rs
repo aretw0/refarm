@@ -98,6 +98,14 @@ struct DaemonArgs {
     /// Existing process environments can still opt in without this flag.
     #[arg(long, default_value_t = false)]
     llm_stream_responses: bool,
+
+    /// HTTP sidecar port (ADR-060 effort protocol). Set to 0 to disable.
+    #[arg(long, default_value_t = 42001)]
+    http_port: u16,
+
+    /// Base directory for streams and task-results (default: ~/.refarm)
+    #[arg(long)]
+    refarm_dir: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -410,6 +418,28 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         }
     }
 
+    // ── HTTP sidecar (ADR-060) ────────────────────────────────────────────────
+    if args.http_port > 0 {
+        let base_dir = args
+            .refarm_dir
+            .clone()
+            .unwrap_or_else(|| dirs_refarm_base());
+        match tractor::sidecar::SidecarState::new(tractor.agent_channels.clone(), &base_dir) {
+            Ok(state) => {
+                let http_port = args.http_port;
+                tokio::spawn(async move {
+                    if let Err(e) = tractor::sidecar::start(state, http_port).await {
+                        tracing::error!("HTTP sidecar error: {e}");
+                    }
+                });
+                tracing::info!(port = args.http_port, "HTTP sidecar started (ADR-060)");
+            }
+            Err(e) => {
+                tracing::warn!("HTTP sidecar disabled (failed to init dirs): {e}");
+            }
+        }
+    }
+
     daemon::WsServer::new(
         std::sync::Arc::new(tractor.sync.clone()),
         config.port,
@@ -421,6 +451,12 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
 
     tractor.shutdown().await?;
     Ok(())
+}
+
+fn dirs_refarm_base() -> std::path::PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
+        .join(".refarm")
 }
 
 async fn run_prompt(args: PromptArgs) -> Result<()> {
