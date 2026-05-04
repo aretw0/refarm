@@ -14,9 +14,17 @@
  */
 
 import { createHash } from "node:crypto";
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -67,6 +75,45 @@ mkdirSync(pluginDir, { recursive: true });
 const wasmDest = path.join(pluginDir, "pi_agent.wasm");
 copyFileSync(wasmSrc, wasmDest);
 console.log(`[pi-agent-install] Copied WASM → ${wasmDest}`);
+
+function ensureRefarmCliShim() {
+  const distEntry = path.join(ROOT, "apps/refarm/dist/index.js");
+  const loaderEntry = path.join(ROOT, "scripts/farmhand-node-register-loader.mjs");
+
+  console.log("[pi-agent-install] Building refarm CLI distro...");
+  const build = spawnSync("npm", ["--prefix", "apps/refarm", "run", "build"], {
+    cwd: ROOT,
+    stdio: "inherit",
+  });
+
+  if (build.status !== 0 || !existsSync(distEntry)) {
+    console.error("[pi-agent-install] Failed to build apps/refarm dist entry.");
+    process.exit(build.status ?? 1);
+  }
+
+  const binDir = path.join(os.homedir(), ".local", "bin");
+  mkdirSync(binDir, { recursive: true });
+
+  const shimPath = path.join(binDir, "refarm");
+  const shimBody = `#!/usr/bin/env bash
+set -euo pipefail
+exec node --import ${JSON.stringify(loaderEntry)} ${JSON.stringify(distEntry)} "$@"
+`;
+
+  writeFileSync(shimPath, shimBody);
+  chmodSync(shimPath, 0o755);
+
+  console.log(`[pi-agent-install] Installed refarm shim → ${shimPath}`);
+
+  const pathEntries = (process.env.PATH ?? "").split(path.delimiter);
+  if (!pathEntries.includes(binDir)) {
+    console.warn(
+      `[pi-agent-install] WARN: ${binDir} is not in PATH. Add it to run 'refarm' directly.`,
+    );
+  }
+}
+
+ensureRefarmCliShim();
 
 // Compute SHA-256 integrity of the installed binary.
 const wasmBytes = readFileSync(wasmDest);
