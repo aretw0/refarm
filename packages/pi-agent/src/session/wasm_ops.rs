@@ -165,9 +165,17 @@ pub(crate) fn get_or_create_session_id_readonly() -> String {
 ///   1. `LLM_SESSION_ID` env var — explicit override (e.g. tractor passes it per-call)
 ///   2. Most recently created Session node in the CRDT — resume across restarts
 ///   3. Create a fresh Session — first run in this namespace
+///
+/// When `LLM_SESSION_ID` names a session not yet in the CRDT (first call on a
+/// CLI-generated ID), the Session node is created here so `append_to_session`
+/// can maintain the `leaf_entry_id` chain.
 pub(crate) fn get_or_create_session() -> String {
     if let Ok(id) = std::env::var("LLM_SESSION_ID") {
         if !id.is_empty() {
+            if tractor_bridge::get_node(&id).is_err() {
+                let node = session_node(&id, None, None, None, now_ns());
+                let _ = tractor_bridge::store_node(&node.to_string());
+            }
             return id;
         }
     }

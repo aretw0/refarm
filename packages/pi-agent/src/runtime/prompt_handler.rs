@@ -168,6 +168,26 @@ pub(crate) fn execute_prompt(
     })
 }
 
-pub(crate) fn handle_prompt(prompt: String) {
-    let _ = execute_prompt(&prompt, None);
+/// Handle a `user:prompt` event from tractor sidecar or any on_event caller.
+///
+/// Accepts two formats:
+///   Structured JSON: `{"prompt":"...", "system":"...", "session_id":"...", "history_turns":10}`
+///   Raw string: the plain prompt text (legacy / simple callers)
+///
+/// Session env vars are applied via EnvGuard so they are restored after the call
+/// regardless of success or failure.
+pub(crate) fn handle_prompt(payload: String) {
+    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&payload) {
+        if let Some(prompt) = v.get("prompt").and_then(|p| p.as_str()) {
+            let system = v.get("system").and_then(|s| s.as_str());
+            let session_id = v.get("session_id").and_then(|s| s.as_str()).map(|s| s.to_owned());
+            let history_turns = v.get("history_turns").and_then(|n| n.as_u64()).map(|n| n as usize);
+            let turns_str = history_turns.map(|n| n.to_string());
+            let _session = crate::EnvGuard::maybe_set("LLM_SESSION_ID", session_id.as_deref());
+            let _turns = crate::EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+            let _ = execute_prompt(prompt, system);
+            return;
+        }
+    }
+    let _ = execute_prompt(&payload, None);
 }

@@ -96,7 +96,40 @@ use refarm::plugin::tractor_bridge;
 
 struct PiAgent;
 
-fn parse_respond_payload(payload: &str) -> Result<(String, Option<String>), PluginError> {
+struct RespondPayload {
+    prompt: String,
+    system: Option<String>,
+    session_id: Option<String>,
+    history_turns: Option<usize>,
+}
+
+/// RAII guard: sets an env var for the duration of a call, restores on drop.
+/// Ensures env vars are always restored even if the callee panics.
+pub(crate) struct EnvGuard {
+    key: &'static str,
+    prev: Option<String>,
+}
+
+impl EnvGuard {
+    fn maybe_set(key: &'static str, value: Option<&str>) -> Option<Self> {
+        value.map(|v| {
+            let prev = std::env::var(key).ok();
+            std::env::set_var(key, v);
+            Self { key, prev }
+        })
+    }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        match self.prev.take() {
+            Some(v) => std::env::set_var(self.key, v),
+            None => std::env::remove_var(self.key),
+        }
+    }
+}
+
+fn parse_respond_payload(payload: &str) -> Result<RespondPayload, PluginError> {
     let trimmed = payload.trim();
     if trimmed.is_empty() {
         return Err(PluginError::InvalidSchema(
@@ -122,7 +155,16 @@ fn parse_respond_payload(payload: &str) -> Result<(String, Option<String>), Plug
         .get("system")
         .and_then(|value| value.as_str())
         .map(|value| value.to_string());
-    Ok((prompt, system))
+    let session_id = parsed
+        .get("session_id")
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+    let history_turns = parsed
+        .get("history_turns")
+        .and_then(|v| v.as_u64())
+        .map(|n| n as usize);
+    Ok(RespondPayload { prompt, system, session_id, history_turns })
 }
 
 fn build_respond_json(
@@ -153,10 +195,15 @@ fn build_respond_json(
 }
 
 #[cfg(target_arch = "wasm32")]
-fn execute_respond(prompt: &str, system_override: Option<&str>) -> Result<String, PluginError> {
-    let outcome = runtime::execute_prompt(prompt, system_override).ok_or_else(|| {
-        PluginError::Internal("failed to persist prompt context before respond".to_string())
-    })?;
+fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
+    let turns_str = req.history_turns.map(|n| n.to_string());
+    let _session = EnvGuard::maybe_set("LLM_SESSION_ID", req.session_id.as_deref());
+    let _turns = EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+
+    let outcome = runtime::execute_prompt(&req.prompt, req.system.as_deref())
+        .ok_or_else(|| {
+            PluginError::Internal("failed to persist prompt context before respond".to_string())
+        })?;
     let estimated_usd = estimate_usd(
         &outcome.model,
         outcome.tokens_in,
@@ -176,7 +223,12 @@ fn execute_respond(prompt: &str, system_override: Option<&str>) -> Result<String
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-fn execute_respond(prompt: &str, _system_override: Option<&str>) -> Result<String, PluginError> {
+fn execute_respond(req: &RespondPayload) -> Result<String, PluginError> {
+    let turns_str = req.history_turns.map(|n| n.to_string());
+    let _system = EnvGuard::maybe_set("LLM_SYSTEM", req.system.as_deref());
+    let _session = EnvGuard::maybe_set("LLM_SESSION_ID", req.session_id.as_deref());
+    let _turns = EnvGuard::maybe_set("LLM_HISTORY_TURNS", turns_str.as_deref());
+
     let (
         content,
         _tool_calls,
@@ -186,7 +238,7 @@ fn execute_respond(prompt: &str, _system_override: Option<&str>) -> Result<Strin
         tokens_reasoning,
         model,
         usage_raw,
-    ) = runtime::react_with_prompt_ref(prompt, None);
+    ) = runtime::react_with_prompt_ref(&req.prompt, None);
     let provider = provider_name_from_env().to_string();
     let estimated_usd = estimate_usd(&model, tokens_in, tokens_out, tokens_cached);
     Ok(build_respond_json(
@@ -246,8 +298,8 @@ impl IntegrationGuest for PiAgent {
     }
 
     fn respond(payload: String) -> Result<String, PluginError> {
-        let (prompt, system_override) = parse_respond_payload(&payload)?;
-        execute_respond(&prompt, system_override.as_deref())
+        let req = parse_respond_payload(&payload)?;
+        execute_respond(&req)
     }
 }
 
