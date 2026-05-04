@@ -146,18 +146,34 @@ fn write_stream_chunk(
     Ok(())
 }
 
-fn extract_prompt_and_system(task: &EffortTask) -> (String, Option<String>) {
+struct TaskArgs {
+    prompt: String,
+    system: Option<String>,
+    session_id: Option<String>,
+    history_turns: Option<u64>,
+}
+
+fn extract_task_args(task: &EffortTask) -> TaskArgs {
     let args = &task.args;
-    let prompt = args
-        .get("prompt")
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-    let system = args
-        .get("system")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string());
-    (prompt, system)
+    TaskArgs {
+        prompt: args
+            .get("prompt")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string(),
+        system: args
+            .get("system")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string()),
+        session_id: args
+            .get("session_id")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+        history_turns: args
+            .get("history_turns")
+            .and_then(|v| v.as_u64()),
+    }
 }
 
 // ── effort dispatch ──────────────────────────────────────────────────────────
@@ -209,17 +225,24 @@ fn dispatch_effort(state: SidecarState, effort: Effort) {
             return;
         }
 
-        let (prompt, system) = extract_prompt_and_system(&task);
+        let args = extract_task_args(&task);
         let prompt_ref = prompt_ref_from_effort(&effort_id);
         let stream_ref = stream_ref_for_prompt(&prompt_ref);
 
-        // Build the user:prompt payload that pi-agent's on_event expects.
+        // Build the structured payload for pi-agent's handle_prompt.
+        // Includes all session context so pi-agent maintains conversation history.
         let mut payload_obj = serde_json::json!({
-            "prompt": prompt,
+            "prompt": args.prompt,
             "prompt_ref": prompt_ref,
         });
-        if let Some(sys) = system {
+        if let Some(sys) = args.system {
             payload_obj["system"] = Value::String(sys);
+        }
+        if let Some(sid) = args.session_id {
+            payload_obj["session_id"] = Value::String(sid);
+        }
+        if let Some(turns) = args.history_turns {
+            payload_obj["history_turns"] = Value::Number(turns.into());
         }
         let payload = payload_obj.to_string();
 
