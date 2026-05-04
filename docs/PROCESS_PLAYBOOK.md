@@ -24,6 +24,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 ```bash
 npm run farm:status        # unified status: both services, ports, artifacts, LLM
+npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
 npm run farmhand:daemon    # start farmhand in background
@@ -150,6 +151,20 @@ npm run farm:status
 # Stop:
 npm run farmhand:stop
 ```
+
+### Scenario 3b — Canonical local ask flow (daily driver)
+
+```bash
+npm run agent:install      # refresh plugin + ensure 'refarm' command shim
+npm run farmhand:daemon
+refarm ask "o que é CRDT?"
+```
+
+Notes:
+- `agent:install` now installs `~/.local/bin/refarm` wrapper that launches
+  `apps/refarm/dist` with the local resolver loader, so `refarm ask ...` works
+  without manual node flags.
+- If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
 
 ### Scenario 4 — Port conflict at startup
 
