@@ -20,6 +20,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 FARMHAND_ENTRY="$ROOT/apps/farmhand/src/index.ts"
 FARMHAND_LOADER_REGISTER="$ROOT/scripts/farmhand-node-register-loader.mjs"
 ENV_FILE="$ROOT/.refarm/.env"
+CONFIG_FILE="$ROOT/.refarm/config.json"
 PID_FILE="$ROOT/.refarm/farmhand.pid"
 LOG_FILE="$ROOT/.refarm/farmhand.log"
 WS_PORT=42000
@@ -72,7 +73,21 @@ if [ -f "$PID_FILE" ]; then
   rm -f "$PID_FILE"
 fi
 
-# ── load .refarm/.env ─────────────────────────────────────────────────────────
+# ── load .refarm/.env (or explain when it is optional) ──────────────────────
+
+detect_provider() {
+  if [ -n "${LLM_PROVIDER:-}" ]; then
+    printf "%s" "$LLM_PROVIDER"
+    return 0
+  fi
+
+  if [ -f "$CONFIG_FILE" ] && command -v node >/dev/null 2>&1; then
+    node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG_FILE','utf8'));process.stdout.write(c.provider||c.default_provider||'')}catch{}" 2>/dev/null || true
+    return 0
+  fi
+
+  printf "ollama"
+}
 
 if [ -f "$ENV_FILE" ]; then
   set -a
@@ -80,7 +95,16 @@ if [ -f "$ENV_FILE" ]; then
   source "$ENV_FILE"
   set +a
 else
-  echo "⚠   No .refarm/.env found. See: npm run agent:keys"
+  DETECTED_PROVIDER="$(detect_provider)"
+  case "$DETECTED_PROVIDER" in
+    ollama|local|mock)
+      echo "ℹ   No .refarm/.env found (provider=$DETECTED_PROVIDER, API key optional)."
+      ;;
+    *)
+      echo "⚠   No .refarm/.env found (provider=$DETECTED_PROVIDER)."
+      echo "   Configure keys if needed: npm run agent:keys"
+      ;;
+  esac
 fi
 
 # ── preflight ─────────────────────────────────────────────────────────────────
