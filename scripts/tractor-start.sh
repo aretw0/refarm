@@ -15,13 +15,32 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ENV_FILE="$ROOT/.refarm/.env"
-_CARGO_TARGET="${CARGO_TARGET_DIR:-}"
-TRACTOR="${_CARGO_TARGET:+$_CARGO_TARGET/release/tractor}"
-TRACTOR="${TRACTOR:-$ROOT/packages/tractor/target/release/tractor}"
-PI_AGENT="${_CARGO_TARGET:+$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm}"
-PI_AGENT="${PI_AGENT:-$ROOT/packages/pi-agent/target/wasm32-wasip1/release/pi_agent.wasm}"
 PID_FILE="$ROOT/.refarm/tractor.pid"
 LOG_FILE="$ROOT/.refarm/tractor.log"
+
+# ── resolve CARGO_TARGET_DIR: env → .cargo/config.toml → workspace fallback ──
+
+resolve_cargo_target() {
+  if [ -n "${CARGO_TARGET_DIR:-}" ]; then
+    printf "%s" "$CARGO_TARGET_DIR"
+    return
+  fi
+  local config="$ROOT/.cargo/config.toml"
+  if [ -f "$config" ]; then
+    local from_config
+    from_config="$(grep -m1 '^\s*target-dir\s*=' "$config" | sed 's/.*=\s*"\(.*\)"/\1/')"
+    if [ -n "$from_config" ]; then
+      printf "%s" "$from_config"
+      return
+    fi
+  fi
+  printf "%s" "$ROOT/packages/tractor/target"
+}
+
+_CARGO_TARGET="$(resolve_cargo_target)"
+TRACTOR="$_CARGO_TARGET/release/tractor"
+PI_AGENT="$_CARGO_TARGET/wasm32-wasip1/release/pi_agent.wasm"
+REFARM_STREAMS_DIR="${REFARM_STREAMS_DIR:-$HOME/.refarm/streams}"
 
 # ── parse --background flag (strip before forwarding to tractor) ──────────────
 
@@ -128,9 +147,11 @@ esac
 echo "   Starting tractor daemon"
 echo "   provider : $LLM_PROVIDER"
 echo "   plugin   : $PI_AGENT"
+echo "   streams  : $REFARM_STREAMS_DIR"
 [ $# -gt 0 ] && echo "   extra    : $*"
 
-mkdir -p "$(dirname "$PID_FILE")"
+mkdir -p "$(dirname "$PID_FILE")" "$REFARM_STREAMS_DIR"
+export REFARM_STREAMS_DIR
 
 if [ "$BACKGROUND" = "1" ]; then
   # Kill any existing daemon from a previous run
