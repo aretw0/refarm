@@ -1,5 +1,7 @@
 graph TD
-    Farmhand["Farmhand\n(apps/farmhand · Node.js daemon)"]
+    RefarmCLI["refarm CLI\n(apps/refarm)"]
+    TractorRS["tractor (Rust)\nHTTP sidecar :42001"]
+    PiAgent["pi-agent WASM\n(sovereign AI)"]
 
     subgraph Contracts ["Dispatch Contracts  (packages/)"]
         direction LR
@@ -8,25 +10,23 @@ graph TD
     end
 
     subgraph EffortAdapters ["Effort Transports"]
-        direction LR
-        FileAdapt["FileTransportAdapter\n~/.refarm/tasks/ NDJSON"]
-        HttpAdapt["HttpTransportAdapter\nport 42001"]
+        HttpAdapt["HttpTransportAdapter\n:42001"]
     end
 
     subgraph StreamAdapters ["Stream Transports"]
         direction LR
-        FileStream["FileStreamTransport\n~/.refarm/streams/ NDJSON"]
+        FileStream["~/.refarm/streams/ NDJSON\n(written by pi-agent via REFARM_STREAMS_DIR)"]
         SSEStream["SseStreamTransport\nGET /stream/:ref"]
         WSStream["WsStreamTransport\nWS /ws/stream"]
     end
 
-    Farmhand -->|"dispatches via"| EffortV1
-    Farmhand -->|"bridges CRDT to"| StreamV1
+    RefarmCLI -->|"submits effort"| HttpAdapt
+    HttpAdapt -->|"dispatches via"| EffortV1
+    EffortV1 -->|"routes to"| TractorRS
+    TractorRS -->|"on_event channel"| PiAgent
+    PiAgent -->|"writes final chunk"| FileStream
+    RefarmCLI -->|"polls stream file"| FileStream
 
-    EffortV1 -->|"bundled adapter"| FileAdapt
-    EffortV1 -->|"bundled adapter"| HttpAdapt
-
-    StreamV1 -->|"bundled adapter"| FileStream
     StreamV1 -->|"bundled adapter"| SSEStream
     StreamV1 -->|"bundled adapter"| WSStream
 
@@ -34,6 +34,6 @@ graph TD
     classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
     classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
 
-    class Farmhand app;
+    class RefarmCLI,TractorRS,PiAgent app;
     class EffortV1,StreamV1 contract;
-    class FileAdapt,HttpAdapt,FileStream,SSEStream,WSStream transport;
+    class HttpAdapt,FileStream,SSEStream,WSStream transport;

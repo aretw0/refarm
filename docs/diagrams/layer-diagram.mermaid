@@ -3,24 +3,22 @@ graph TD
     subgraph Distros ["Distros  (apps/)  — opinionated assemblies"]
         direction LR
         Homestead["Homestead\n(Astro / Browser)"]
-        Farmhand["Farmhand\n(Node.js daemon)"]
         RefarmCLI["refarm CLI\n(apps/refarm)"]
     end
 
-    %% ── Dual-Runtime Core ────────────────────────────────────────────────
-    subgraph Core ["Dual-Runtime Core  — identical WIT contracts"]
+    %% ── Runtime Core ─────────────────────────────────────────────────────
+    subgraph Core ["Runtime Core  — identical WIT contracts"]
         direction LR
-        subgraph TractorTS ["tractor-ts  (TypeScript)"]
-            TS_Registry["PluginRegistry"]
+        subgraph TractorTS ["tractor-ts  (TypeScript / browser)"]
             TS_PluginHost["PluginHost\n(JCO transpile)"]
             TS_CRDT["CRDT Store\n(Loro)"]
             TS_Sync["SyncEngine"]
         end
-        subgraph TractorRS ["tractor  (Rust / wasmtime)"]
-            RS_Registry["PluginRegistry"]
-            RS_PluginHost["PluginHost\n(wasmtime)"]
+        subgraph TractorRS ["tractor  (Rust / server · edge · Pi)"]
+            RS_PluginHost["PluginHost\n(wasmtime + WASI probe)"]
             RS_CRDT["CRDT Store\n(Loro)"]
             RS_Sync["SyncEngine"]
+            RS_Sidecar["HTTP Sidecar\n(:42001  ADR-060)"]
         end
     end
 
@@ -28,7 +26,7 @@ graph TD
     subgraph WIT ["WIT Contract  (refarm:plugin@0.1.0)"]
         direction LR
         WIT_Pkg["refarm-plugin-wit\n(canonical source)"]
-        WIT_Int["integration interface\n(setup · ingest · push · respond · on-event)"]
+        WIT_Int["integration interface\n(setup · ingest · push · respond · on_event)"]
         WIT_LLM["llm-bridge"]
         WIT_FS["agent-fs / agent-shell"]
         WIT_IO["structured-io / code-ops"]
@@ -36,7 +34,7 @@ graph TD
     end
 
     %% ── Plugin Sandbox ───────────────────────────────────────────────────
-    subgraph Plugins ["Plugin Sandbox  (.wasm — runs on either runtime)"]
+    subgraph Plugins ["Plugin Sandbox  (.wasm — P1 module or P2+ component)"]
         direction LR
         PiAgent["pi-agent\n(sovereign AI)"]
         ThirdParty["third-party plugins"]
@@ -55,8 +53,7 @@ graph TD
     %% ── Transport Adapters ───────────────────────────────────────────────
     subgraph Transports ["Transport Adapters"]
         direction LR
-        FileAdapt["FileTransportAdapter\n(~/.refarm/tasks/ NDJSON)"]
-        HttpAdapt["HttpTransportAdapter\n(port 42001)"]
+        HttpAdapt["HttpTransportAdapter\n(:42001)"]
         FileStream["FileStreamTransport\n(~/.refarm/streams/ NDJSON)"]
         SSEStream["SseStreamTransport\n(GET /stream/:ref)"]
         WSStream["WsStreamTransport\n(WS /ws/stream)"]
@@ -72,8 +69,7 @@ graph TD
 
     %% ── Connections ──────────────────────────────────────────────────────
     Homestead -->|"uses tractor-ts"| TractorTS
-    Farmhand -->|"uses tractor-ts"| TractorTS
-    RefarmCLI -->|"calls Farmhand HTTP"| HttpAdapt
+    RefarmCLI -->|"HTTP :42001"| RS_Sidecar
 
     TractorTS ---|"same WIT"| WIT_Pkg
     TractorRS ---|"same WIT"| WIT_Pkg
@@ -81,13 +77,11 @@ graph TD
     WIT_Int -->|"implemented by"| PiAgent
     WIT_Int -->|"implemented by"| ThirdParty
     WIT_LLM -.->|"imported by"| PiAgent
-    WIT_FS -.->|"imported by"| PiAgent
+    WIT_FS  -.->|"imported by"| PiAgent
 
-    Farmhand -->|"dispatches via"| EffortV1
-    Farmhand -->|"bridges CRDT to"| StreamV1
-    EffortV1 -->|"bundled adapters"| FileAdapt
+    RS_Sidecar -->|"dispatches via"| EffortV1
+    RS_Sidecar -->|"writes stream"| FileStream
     EffortV1 -->|"bundled adapters"| HttpAdapt
-    StreamV1 -->|"bundled adapters"| FileStream
     StreamV1 -->|"bundled adapters"| SSEStream
     StreamV1 -->|"bundled adapters"| WSStream
 

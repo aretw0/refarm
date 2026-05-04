@@ -341,7 +341,9 @@ export class WasiImports {
 			curlArgs.push("--data-binary", "@-");
 
 			const reqBody =
-				body instanceof Uint8Array ? Buffer.from(body) : Buffer.from(body as any);
+				body instanceof Uint8Array
+					? Buffer.from(body)
+					: Buffer.from(body as any);
 			const resp = spawnSync("curl", curlArgs, {
 				input: reqBody,
 				maxBuffer: 2 * 1024 * 1024 + 64 * 1024,
@@ -352,7 +354,9 @@ export class WasiImports {
 			}
 
 			if (resp.status !== 0) {
-				const stderr = (resp.stderr ?? Buffer.alloc(0)).toString("utf-8").trim();
+				const stderr = (resp.stderr ?? Buffer.alloc(0))
+					.toString("utf-8")
+					.trim();
 				throw new Error(
 					`llm-bridge request failed for provider "${providerName || "<empty>"}": ${stderr || `curl exited with status ${resp.status}`}`,
 				);

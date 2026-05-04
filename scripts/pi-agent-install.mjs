@@ -68,7 +68,7 @@ if (!wasmSrc) {
 
 console.log(`[pi-agent-install] Found WASM at: ${wasmSrc}`);
 
-// Install destination.
+// Install destination — scoped path mirrors npm convention; canonical id is in plugin.json.
 const pluginDir = path.join(os.homedir(), ".refarm/plugins/@refarm/pi-agent");
 mkdirSync(pluginDir, { recursive: true });
 

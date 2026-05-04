@@ -57,7 +57,8 @@ function generateSvg(mermaidFile) {
 
   try {
     const puppeteerConfig = path.join(projectRoot, "scripts", "puppeteer-no-sandbox.json");
-    execFileSync("mmdc", [
+    const mmdc = path.join(projectRoot, "node_modules", ".bin", "mmdc");
+    execFileSync(mmdc, [
       "-i", mermaidFile,
       "-o", svgFile,
       "-c", mermaidConfigFile,
