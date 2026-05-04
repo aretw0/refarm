@@ -24,7 +24,7 @@ async fn start_test_sidecar() -> (SidecarState, u16, PathBuf) {
     std::fs::create_dir_all(&tmp).unwrap();
 
     let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
-    let state = SidecarState::new(channels, &tmp).unwrap();
+    let state = SidecarState::new(channels, &tmp, ":memory:".to_string()).unwrap();
 
     // bind on :0 — OS assigns a free port
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();

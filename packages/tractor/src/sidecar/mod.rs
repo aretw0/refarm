@@ -88,12 +88,14 @@ pub struct SidecarState {
     pub agent_channels: AgentChannels,
     pub streams_dir: PathBuf,
     pub results_dir: PathBuf,
+    pub namespace: String,
 }
 
 impl SidecarState {
     pub fn new(
         agent_channels: AgentChannels,
         base_dir: &Path,
+        namespace: String,
     ) -> std::io::Result<Self> {
         let streams_dir = base_dir.join("streams");
         let results_dir = base_dir.join("task-results");
@@ -104,6 +106,7 @@ impl SidecarState {
             agent_channels,
             streams_dir,
             results_dir,
+            namespace,
         })
     }
 }
@@ -437,6 +440,39 @@ async fn post_effort_cancel(
     }
 }
 
+// ── session handlers ──────────────────────────────────────────────────────────
+
+async fn get_sessions(State(state): State<SidecarState>) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let rows = match storage.query_nodes("Session") {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("query: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let sessions: Vec<Value> = rows
+        .into_iter()
+        .filter_map(|row| serde_json::from_str(&row.payload).ok())
+        .collect();
+
+    Json(serde_json::json!({ "sessions": sessions })).into_response()
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
@@ -447,6 +483,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/efforts/:id/logs", get(get_effort_logs))
         .route("/efforts/:id/retry", post(post_effort_retry))
         .route("/efforts/:id/cancel", post(post_effort_cancel))
+        .route("/sessions", get(get_sessions))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;
