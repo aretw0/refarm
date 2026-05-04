@@ -276,6 +276,33 @@ async function readEffortResultFile(
 	}
 }
 
+function detectConfiguredProvider(): string | null {
+	if (process.env.LLM_PROVIDER) return process.env.LLM_PROVIDER;
+
+	const envFile = path.join(os.homedir(), ".refarm", ".env");
+	if (fs.existsSync(envFile)) {
+		const content = fs.readFileSync(envFile, "utf-8");
+		const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
+		if (match) return match[1];
+		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
+		return "ollama";
+	}
+
+	const configFile = path.join(os.homedir(), ".refarm", "config.json");
+	if (fs.existsSync(configFile)) {
+		try {
+			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
+				provider?: string;
+			};
+			if (config.provider) return config.provider;
+		} catch {
+			// ignore malformed config
+		}
+	}
+
+	return null;
+}
+
 function defaultDeps(): AskDeps {
 	const streamsDir = path.join(os.homedir(), ".refarm", "streams");
 	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
@@ -343,6 +370,13 @@ export function createAskCommand(deps?: AskDeps): Command {
 		.argument("<query>", "Question or instruction for pi-agent")
 		.option("--files <files>", "Comma-separated file paths to include")
 		.action(async (query: string, opts: { files?: string }) => {
+			if (!deps && detectConfiguredProvider() === null) {
+				console.error(chalk.red("\n✗  No LLM provider configured."));
+				console.error(chalk.dim("   Set up a provider:  refarm keys"));
+				console.error(chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"));
+				process.exit(1);
+			}
+
 			const files = opts.files
 				? opts.files
 						.split(",")
