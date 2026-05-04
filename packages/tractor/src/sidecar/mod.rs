@@ -431,3 +431,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
     axum::serve(listener, router).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests;
+

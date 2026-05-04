@@ -8,6 +8,7 @@
 		"lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
 		"lint:prepush": "RUSTUP_TOOLCHAIN=stable cargo clippy --lib -- -D warnings",
 		"test:unit": "npm run test",
+		"test:sidecar": "RUSTUP_TOOLCHAIN=stable cargo test --lib sidecar_ --quiet",
 		"test:prepush": "RUSTUP_TOOLCHAIN=stable cargo test --lib --quiet",
 		"test:smoke:ws": "RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration ws_server_accepts_connection -- --exact --nocapture",
 		"test:smoke:health": "RUSTUP_TOOLCHAIN=stable cargo test --bin tractor runtime_boot_probe_succeeds_in_memory_namespace -- --nocapture && RUSTUP_TOOLCHAIN=stable cargo test --bin tractor ws_probe_succeeds_when_daemon_is_listening -- --nocapture",

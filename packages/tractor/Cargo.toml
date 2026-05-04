@@ -75,6 +75,7 @@ hex  = "0.4"
 
 # ─── Dev dependencies ─────────────────────────────────────────────────────────
 [dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # ─── Build profiles ───────────────────────────────────────────────────────────
 [profile.dev]
