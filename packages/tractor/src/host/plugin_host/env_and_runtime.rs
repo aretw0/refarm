@@ -468,6 +468,20 @@ impl PluginHost {
         let wasm_hash = hex::encode(Sha256::digest(&bytes));
         tracing::debug!(plugin_id = %plugin_id, wasm_hash = %wasm_hash, "Plugin hash computed");
 
+        // ── WASI variant probe (ADR-061) ──────────────────────────────────────
+        let variant = crate::host::wasi_variant::probe_bytes(&bytes)
+            .ok_or_else(|| anyhow::anyhow!("{} is not a valid WASM module or component", path.display()))?;
+        tracing::info!(plugin_id = %plugin_id, variant = %variant, "WASI variant detected");
+
+        if variant == crate::host::wasi_variant::WasiVariant::Module {
+            anyhow::bail!(
+                "Plugin '{}' is a WASI P1 plain module. \
+                 P1 module loader is not yet implemented (ADR-061 Phase 2). \
+                 Recompile with cargo-component to produce a WASM component.",
+                plugin_id
+            );
+        }
+
         if self.trust.security_mode() == &SecurityMode::Strict
             && !self.trust.has_valid_grant(&plugin_id, Some(&wasm_hash))
         {
