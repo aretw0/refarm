@@ -86,6 +86,7 @@
 		"farmhand:start": "bash scripts/farmhand-start.sh",
 		"farmhand:daemon": "bash scripts/farmhand-start.sh --background",
 		"farmhand:stop": "node scripts/farmhand-stop.mjs",
+		"agent:install": "node scripts/pi-agent-install.mjs",
 		"agent:keys": "node scripts/setup-llm-keys.mjs",
 		"agent:keys:status": "node scripts/setup-llm-keys.mjs --status",
 		"agent:start": "bash scripts/tractor-start.sh",

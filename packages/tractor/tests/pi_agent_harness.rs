@@ -1397,3 +1397,146 @@ async fn harness_swarm_agent_b_reads_agent_a_crdt_nodes() {
 
     clean_llm_env();
 }
+
+// ── Pre-tool budget enforcement (ADR-058) ─────────────────────────────────────
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+/// Verifies that read_file gets limit=300 injected automatically and returns
+/// a truncation header when the file has more lines than the default budget.
+async fn harness_pre_tool_budget_read_file_gets_default_limit() {
+    use std::io::Write as _;
+
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+    clean_llm_env();
+
+    // Create a temp file with 400 lines.
+    let mut tmp = tempfile::NamedTempFile::new().expect("tempfile");
+    for i in 1..=400u32 {
+        writeln!(tmp, "line {i}").unwrap();
+    }
+    let tmp_path = tmp.path().to_str().unwrap().to_owned();
+
+    // LLM asks to read the file with no limit specified.
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-budget-read",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_read",
+                    "type": "function",
+                    "function": {
+                        "name": "read_file",
+                        "arguments": serde_json::json!({"path": tmp_path}).to_string()
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 15, "completion_tokens": 8, "total_tokens": 23}
+    });
+    let final_resp = openai_response("read budget enforced", 30, 7);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "read the big file", "budget read harness").await;
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty(), "AgentResponse must be stored");
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    let tool_calls = v["tool_calls"].as_array().expect("tool_calls array");
+    assert!(!tool_calls.is_empty(), "tool call must be logged");
+
+    let result = tool_calls[0]["result"].as_str().unwrap_or("");
+    assert!(
+        result.contains("[truncated:"),
+        "read_file without explicit limit must be truncated at 300 lines by default, got: {result}",
+    );
+    assert!(
+        result.contains("offset=300"),
+        "truncation header must include the continuation offset, got: {result}",
+    );
+
+    clean_llm_env();
+}
+
+#[tokio::test]
+#[ignore = "requires: cargo component build --release in packages/pi-agent"]
+/// Verifies that the model can override the default limit by passing a smaller limit.
+async fn harness_pre_tool_budget_model_can_override_limit() {
+    use std::io::Write as _;
+
+    let _env = ENV_LOCK.lock().unwrap();
+    let path = wasm_path();
+    assert!(path.exists(), "pi_agent.wasm not found");
+    clean_llm_env();
+
+    // Create a temp file with 50 lines (under the 300 default).
+    let mut tmp = tempfile::NamedTempFile::new().expect("tempfile");
+    for i in 1..=50u32 {
+        writeln!(tmp, "line {i}").unwrap();
+    }
+    let tmp_path = tmp.path().to_str().unwrap().to_owned();
+
+    // Model explicitly passes limit=10 — should override the default 300.
+    let tool_call_resp = serde_json::json!({
+        "id": "harness-budget-override",
+        "object": "chat.completion",
+        "choices": [{
+            "index": 0,
+            "message": {
+                "role": "assistant",
+                "content": serde_json::Value::Null,
+                "tool_calls": [{
+                    "id": "call_read_override",
+                    "type": "function",
+                    "function": {
+                        "name": "read_file",
+                        "arguments": serde_json::json!({"path": tmp_path, "limit": 10}).to_string()
+                    }
+                }]
+            },
+            "finish_reason": "tool_calls"
+        }],
+        "usage": {"prompt_tokens": 15, "completion_tokens": 8, "total_tokens": 23}
+    });
+    let final_resp = openai_response("read with explicit limit", 30, 7);
+
+    let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
+    std::env::set_var("LLM_PROVIDER", "ollama");
+    std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
+
+    let sync = make_sync();
+    let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
+    let mut handle = host.load(path, &sync).await.expect("load pi-agent");
+
+    call_on_event_with_timeout(&mut handle, "read 10 lines only", "budget override harness").await;
+
+    let nodes = sync.query_nodes("AgentResponse").expect("query AgentResponse");
+    assert!(!nodes.is_empty(), "AgentResponse must be stored");
+
+    let v: serde_json::Value = serde_json::from_str(&nodes[0].payload).unwrap();
+    let tool_calls = v["tool_calls"].as_array().expect("tool_calls array");
+    assert!(!tool_calls.is_empty(), "tool call must be logged");
+
+    let result = tool_calls[0]["result"].as_str().unwrap_or("");
+    assert!(
+        result.contains("[truncated:") || result.lines().count() <= 10,
+        "model-specified limit=10 must cap the result at 10 lines, got: {result}",
+    );
+
+    clean_llm_env();
+}
