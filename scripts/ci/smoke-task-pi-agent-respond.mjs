@@ -13,6 +13,7 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import net from "node:net";
 import { pathToFileURL } from "node:url";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import {
@@ -35,6 +36,39 @@ function extractEffortId(output) {
 		throw new Error(`Could not parse effort id from output:\n${cleaned}`);
 	}
 	return match[1];
+}
+
+function isPortInUse(port, host = "127.0.0.1") {
+	return new Promise((resolve) => {
+		const socket = net.createConnection({ host, port });
+		const done = (value) => {
+			socket.removeAllListeners();
+			socket.destroy();
+			resolve(value);
+		};
+
+		socket.once("connect", () => done(true));
+		socket.once("error", () => done(false));
+	});
+}
+
+async function assertFarmhandPortsAvailable() {
+	const [wsPortBusy, httpPortBusy] = await Promise.all([
+		isPortInUse(42000),
+		isPortInUse(42001),
+	]);
+
+	if (!wsPortBusy && !httpPortBusy) return;
+
+	const busyPorts = [];
+	if (wsPortBusy) busyPorts.push("42000 (ws-crdt)");
+	if (httpPortBusy) busyPorts.push("42001 (http)");
+
+	throw new Error(
+		`Farmhand smoke requires exclusive ports, but found in use: ${busyPorts.join(
+			", ",
+		)}. Stop existing daemons first (e.g. npm run farmhand:stop; npm run agent:stop).`,
+	);
 }
 
 async function stopProcess(child) {
@@ -216,6 +250,8 @@ async function main() {
 	let farmhandLogs = "";
 
 	try {
+		await assertFarmhandPortsAvailable();
+
 		const skipAppBuilds =
 			process.env.REFARM_TASK_SMOKE_PI_AGENT_SKIP_APP_BUILDS === "1";
 		const skipWasmBuild =
