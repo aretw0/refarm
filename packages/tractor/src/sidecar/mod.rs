@@ -473,6 +473,114 @@ async fn get_sessions(State(state): State<SidecarState>) -> impl IntoResponse {
     Json(serde_json::json!({ "sessions": sessions })).into_response()
 }
 
+// ── session history handler ───────────────────────────────────────────────────
+
+async fn get_session_history(
+    State(state): State<SidecarState>,
+    AxumPath(session_id): AxumPath<String>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    // Resolve session — exact match first, then prefix search among all sessions.
+    let session_raw = match storage.get_node(&session_id) {
+        Ok(Some(raw)) => raw,
+        Ok(None) => {
+            // Try prefix match over all Session nodes.
+            let rows = storage.query_nodes("Session").unwrap_or_default();
+            let matched: Vec<_> = rows
+                .iter()
+                .filter(|r| r.id.contains(&session_id))
+                .collect();
+            match matched.len() {
+                0 => return err(StatusCode::NOT_FOUND, "session not found").into_response(),
+                1 => matched[0].payload.clone(),
+                _ => {
+                    return (
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({
+                            "error": format!("ambiguous prefix — {} sessions match", matched.len()),
+                            "matches": matched.iter().map(|r| &r.id).collect::<Vec<_>>(),
+                        })),
+                    )
+                        .into_response();
+                }
+            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("get_node: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let session: Value = match serde_json::from_str(&session_raw) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("parse session: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    // Walk the SessionEntry chain: leaf_entry_id → parent_entry_id.
+    let mut entries: Vec<Value> = Vec::new();
+    let mut current_id = session
+        .get("leaf_entry_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_owned());
+
+    const MAX_CHAIN: usize = 500;
+    let mut steps = 0;
+    while let Some(id) = current_id.take() {
+        if steps >= MAX_CHAIN {
+            break;
+        }
+        steps += 1;
+        let raw = match storage.get_node(&id) {
+            Ok(Some(r)) => r,
+            _ => break,
+        };
+        let entry: Value = match serde_json::from_str(&raw) {
+            Ok(v) => v,
+            Err(_) => break,
+        };
+        current_id = entry
+            .get("parent_entry_id")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_owned());
+        entries.push(serde_json::json!({
+            "id":           entry.get("@id").and_then(|v| v.as_str()).unwrap_or(""),
+            "kind":         entry.get("kind").and_then(|v| v.as_str()).unwrap_or(""),
+            "content":      entry.get("content").and_then(|v| v.as_str()).unwrap_or(""),
+            "timestamp_ns": entry.get("timestamp_ns").and_then(|v| v.as_u64()).unwrap_or(0),
+        }));
+    }
+
+    // Reverse so entries are oldest-first.
+    entries.reverse();
+
+    Json(serde_json::json!({
+        "session": session,
+        "entries": entries,
+        "total": entries.len(),
+    }))
+    .into_response()
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
@@ -484,6 +592,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/efforts/:id/retry", post(post_effort_retry))
         .route("/efforts/:id/cancel", post(post_effort_cancel))
         .route("/sessions", get(get_sessions))
+        .route("/sessions/:id/history", get(get_session_history))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;

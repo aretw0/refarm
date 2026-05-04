@@ -16,6 +16,19 @@ interface SessionNode {
 	parent_session_id?: string | null;
 }
 
+interface HistoryEntry {
+	id: string;
+	kind: string;
+	content: string;
+	timestamp_ns: number;
+}
+
+interface SessionHistory {
+	session: SessionNode;
+	entries: HistoryEntry[];
+	total: number;
+}
+
 function readActiveSessionId(): string | null {
 	try {
 		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
@@ -64,6 +77,14 @@ export function createSessionsCommand(): Command {
 				.argument("<id>", "Session ID or unique prefix")
 				.action(async (prefix: string) => {
 					await useSession(prefix);
+				}),
+		)
+		.addCommand(
+			new Command("show")
+				.description("Show conversation history for a session")
+				.argument("<id>", "Session ID or unique prefix")
+				.action(async (prefix: string) => {
+					await showSession(prefix);
 				}),
 		)
 		.addCommand(
@@ -178,6 +199,69 @@ async function useSession(prefix: string): Promise<void> {
 
 	writeActiveSessionId(matches[0]["@id"]);
 	console.log(chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`));
+}
+
+async function showSession(prefix: string): Promise<void> {
+	// Pass prefix directly — sidecar does exact-then-substring resolution.
+	const encodedId = encodeURIComponent(prefix);
+	let history: SessionHistory;
+	try {
+		const response = await fetch(`${SIDECAR_URL}/sessions/${encodedId}/history`);
+		const body = await response.json() as SessionHistory & { error?: string; matches?: string[] };
+		if (response.status === 404) {
+			console.error(chalk.red(`✗  No session matching "${prefix}"`));
+			process.exit(1);
+		}
+		if (response.status === 409) {
+			console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`));
+			for (const m of body.matches ?? []) console.error(chalk.dim(`   ${m}`));
+			process.exit(1);
+		}
+		if (!response.ok) {
+			console.error(chalk.red(`✗  ${body.error ?? `HTTP ${response.status}`}`));
+			process.exit(1);
+		}
+		history = body;
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+			console.error(chalk.red("✗  tractor is not running."));
+			console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		} else {
+			console.error(chalk.red(`✗  ${msg}`));
+		}
+		process.exit(1);
+	}
+
+	const session = history.session;
+	const short = formatSessionId(session["@id"]);
+	const name = session.name ? chalk.white(session.name) : chalk.dim("unnamed");
+	console.log(chalk.bold(`\n  Session ${chalk.cyan(short)}  ${name}`));
+	if (session.created_at_ns) {
+		console.log(chalk.dim(`  Started ${formatAge(session.created_at_ns)}\n`));
+	} else {
+		console.log();
+	}
+
+	if (history.total === 0) {
+		console.log(chalk.dim("  No conversation history yet.\n"));
+		return;
+	}
+
+	for (const entry of history.entries) {
+		const isUser = entry.kind === "user";
+		const label = isUser
+			? chalk.blue.bold("  You")
+			: chalk.green.bold("  Pi ");
+		console.log(label);
+		const lines = entry.content.split("\n");
+		for (const line of lines) {
+			console.log(isUser ? chalk.blue(`  ${line}`) : `  ${line}`);
+		}
+		console.log();
+	}
+
+	console.log(chalk.dim(`  ${history.total} message${history.total === 1 ? "" : "s"} · ${session["@id"]}\n`));
 }
 
 export const sessionsCommand = createSessionsCommand();
