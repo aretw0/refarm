@@ -1,10 +1,12 @@
 // PluginHost — wasmtime Component loader + Linker + lifecycle orchestration.
 //
-// Phase 4: wasmtime Component Model, WIT bindings via `bindgen!` macro.
-//
 // Two bindgen worlds:
 //   - `refarm-plugin-host`  → regular integration plugins (tractor-bridge, agent-fs/shell)
 //   - `agent-tools-host`    → the agent-tools.wasm composition component (host-spawn)
+//
+// Two loader paths (ADR-061):
+//   - ComponentLoader  → wasmtime::component::Component, WIT bindgen!, P2+
+//   - ModuleLoader     → wasmtime::Module, WASI preview1 ABI, P1 plain modules
 
 use std::path::Path;
 use std::sync::Arc;
@@ -12,7 +14,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use sha2::{Digest, Sha256};
 use wasmtime::component::{Component, Linker};
-use wasmtime::{Config, Engine, Store};
+use wasmtime::{Config, Engine, Module, Store};
 use wasmtime_wasi::{ResourceTable, WasiCtx, WasiCtxBuilder, WasiView};
 
 use crate::host::instance::PluginInstanceHandle;
@@ -64,6 +66,16 @@ impl wasmtime_wasi_http::WasiHttpView for TractorStore {
     }
 }
 
+// ── P1 module store ───────────────────────────────────────────────────────────
+//
+// Plain WASM modules (WASI preview1 ABI) use a simpler store — just WasiP1Ctx.
+// WasiP1Ctx bundles both the WASI context and the resource table internally,
+// so no separate ResourceTable field is needed.
+
+pub(crate) struct P1Store {
+    pub wasi: wasmtime_wasi::preview1::WasiP1Ctx,
+}
+
 // ── AgentToolsHandle ──────────────────────────────────────────────────────────
 //
 // A loaded agent-tools.wasm instance. Holds the typed caller (AgentToolsHost)
@@ -113,6 +125,12 @@ pub struct PluginHost {
     linker: Arc<Linker<TractorStore>>,
     /// Linker for agent-tools.wasm (WASI + host-spawn; no tractor-bridge).
     agent_tools_linker: Arc<Linker<TractorStore>>,
+    /// Sync engine for P1 plain modules — no async support, no component model.
+    /// P1 modules use blocking WASI calls; they run on their own OS thread via
+    /// `register_for_events`, so blocking the async executor is never a concern.
+    module_engine: Arc<Engine>,
+    /// Linker for P1 plain modules (wasmtime::Module + WASI preview1 ABI, ADR-061).
+    module_linker: Arc<wasmtime::Linker<P1Store>>,
 }
 
 /// Forward only LLM_* vars into plugin WASI env.

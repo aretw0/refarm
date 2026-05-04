@@ -440,12 +440,22 @@ impl PluginHost {
             |s| &mut s.bindings,
         )?;
 
+        // ── P1 plain module linker (ADR-061) ──────────────────────────────
+        // P1 modules use blocking WASI calls — they cannot share the async engine.
+        // A dedicated sync engine (async_support=false, component_model=false) is
+        // used so that Linker::instantiate and TypedFunc::call both run synchronously.
+        let module_engine = Arc::new(Engine::new(&Config::new())?);
+        let mut module_linker: wasmtime::Linker<P1Store> = wasmtime::Linker::new(&module_engine);
+        wasmtime_wasi::preview1::add_to_linker_sync(&mut module_linker, |s: &mut P1Store| &mut s.wasi)?;
+
         Ok(Self {
             trust,
             telemetry,
             engine,
             linker: Arc::new(linker),
             agent_tools_linker: Arc::new(agent_tools_linker),
+            module_engine,
+            module_linker: Arc::new(module_linker),
         })
     }
 
@@ -474,12 +484,7 @@ impl PluginHost {
         tracing::info!(plugin_id = %plugin_id, variant = %variant, "WASI variant detected");
 
         if variant == crate::host::wasi_variant::WasiVariant::Module {
-            anyhow::bail!(
-                "Plugin '{}' is a WASI P1 plain module. \
-                 P1 module loader is not yet implemented (ADR-061 Phase 2). \
-                 Recompile with cargo-component to produce a WASM component.",
-                plugin_id
-            );
+            return self.load_module(path, &bytes, &plugin_id, &wasm_hash, sync).await;
         }
 
         if self.trust.security_mode() == &SecurityMode::Strict
@@ -522,7 +527,7 @@ impl PluginHost {
             );
         }
 
-        let mut handle = PluginInstanceHandle::new(
+        let mut handle = PluginInstanceHandle::new_component(
             plugin_id.clone(),
             plugin,
             store,
@@ -544,6 +549,78 @@ impl PluginHost {
         );
 
         tracing::info!(plugin_id = %plugin_id, "Plugin loaded and setup() called");
+        Ok(handle)
+    }
+
+    /// Load a WASI P1 plain module (ADR-061 ModuleLoader path).
+    ///
+    /// P1 modules export plain WASM functions with no WIT bindings:
+    ///   - `memory`           — required: the module's linear memory
+    ///   - `alloc(i32) -> i32` — required: allocate bytes, return pointer
+    ///   - `setup()`          — optional: called once after load
+    ///   - `on_event(ptr: i32, len: i32)` — required: receive JSON event payload
+    ///   - `ingest() -> i32`  — optional: trigger data ingestion, return count
+    ///   - `teardown()`       — optional: clean up before unload
+    async fn load_module(
+        &self,
+        path: &Path,
+        bytes: &[u8],
+        plugin_id: &str,
+        wasm_hash: &str,
+        sync: &NativeSync,
+    ) -> Result<PluginInstanceHandle> {
+        tracing::info!(plugin_id, "Loading P1 plain module (WASI preview1 ABI)");
+
+        if self.trust.security_mode() == &SecurityMode::Strict
+            && !self.trust.has_valid_grant(plugin_id, Some(wasm_hash))
+        {
+            anyhow::bail!(
+                "SecurityMode::Strict: no valid trust grant for P1 module '{}' (hash: {})",
+                plugin_id,
+                wasm_hash
+            );
+        }
+
+        let base = std::env::current_dir().unwrap_or_default();
+        let env_vars = plugin_env_vars_from(&base);
+        let config_json = refarm_config_json_from(&base);
+
+        let wasi_p1 = {
+            let mut builder = WasiCtxBuilder::new();
+            builder.inherit_stderr();
+            for (k, v) in &env_vars {
+                builder.env(k, v);
+            }
+            builder.build_p1()
+        };
+
+        let module = Module::from_binary(&self.module_engine, bytes)?;
+        let mut store = Store::new(&self.module_engine, P1Store { wasi: wasi_p1 });
+        let instance = self.module_linker.instantiate(&mut store, &module)?;
+
+        let mut handle = PluginInstanceHandle::new_module(
+            plugin_id.to_string(),
+            instance,
+            store,
+            self.telemetry.clone(),
+        );
+        handle.call_setup().await?;
+
+        if let Err(e) = store_refarm_config_node(sync, plugin_id, &base, &env_vars, config_json.as_ref()) {
+            tracing::warn!(plugin_id, error = %e, "failed to store RefarmConfig node");
+        }
+
+        self.telemetry.emit_named(
+            "plugin:loaded",
+            Some(plugin_id.to_string()),
+            Some(serde_json::json!({
+                "path": path.to_string_lossy(),
+                "wasm_hash": wasm_hash,
+                "variant": "p1-module",
+            })),
+        );
+
+        tracing::info!(plugin_id, "P1 module loaded and setup() called");
         Ok(handle)
     }
 
