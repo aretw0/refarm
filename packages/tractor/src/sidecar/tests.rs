@@ -304,3 +304,156 @@ async fn sidecar_effort_status_is_failed_when_no_plugin() {
         "effort must be failed when @refarm/pi-agent channel is not registered"
     );
 }
+
+// ── session history tests ─────────────────────────────────────────────────────
+//
+// These tests use a real SQLite file (not :memory:) so that nodes written in
+// test setup are visible when the handler opens its own NativeStorage connection.
+
+fn storage_path() -> String {
+    std::env::temp_dir()
+        .join(format!("tractor-sessions-{}.db", uuid::Uuid::new_v4()))
+        .to_str()
+        .unwrap()
+        .to_owned()
+}
+
+async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
+    let tmp = std::env::temp_dir().join(format!("tractor-hist-{}", uuid::Uuid::new_v4()));
+    std::fs::create_dir_all(&tmp).unwrap();
+
+    let channels: AgentChannels = Arc::new(RwLock::new(HashMap::new()));
+    let state = SidecarState::new(channels, &tmp, namespace.to_string()).unwrap();
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+
+    let router = axum::Router::new()
+        .route("/sessions/:id/history", axum::routing::get(get_session_history))
+        .with_state(state.clone());
+
+    tokio::spawn(async move {
+        axum::serve(listener, router).await.unwrap();
+    });
+
+    (state, port)
+}
+
+fn write_session(ns: &str, id: &str, leaf_entry_id: Option<&str>) {
+    let storage = crate::storage::NativeStorage::open(ns).unwrap();
+    let payload = serde_json::json!({
+        "@type": "Session",
+        "@id": id,
+        "leaf_entry_id": leaf_entry_id,
+        "created_at_ns": 1_000_000_u64,
+    })
+    .to_string();
+    storage.store_node(id, "Session", None, &payload, None).unwrap();
+}
+
+fn write_entry(ns: &str, id: &str, kind: &str, content: &str, parent: Option<&str>, ts: u64) {
+    let storage = crate::storage::NativeStorage::open(ns).unwrap();
+    let payload = serde_json::json!({
+        "@type": "SessionEntry",
+        "@id": id,
+        "kind": kind,
+        "content": content,
+        "parent_entry_id": parent.unwrap_or(""),
+        "timestamp_ns": ts,
+    })
+    .to_string();
+    storage.store_node(id, "SessionEntry", None, &payload, None).unwrap();
+}
+
+#[tokio::test]
+async fn sidecar_session_history_unknown_id_returns_404() {
+    let ns = storage_path();
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let resp = reqwest::get(format!("{}/sessions/no-such-session/history", base(port)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 404);
+}
+
+#[tokio::test]
+async fn sidecar_session_history_no_entries_returns_empty() {
+    let ns = storage_path();
+    let session_id = "urn:refarm:session:v1:empty";
+    write_session(&ns, session_id, None);
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    // colons are valid in URL path segments (RFC 3986)
+    let body: serde_json::Value =
+        reqwest::get(format!("{}/sessions/{}/history", base(port), session_id))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+    assert_eq!(body["total"].as_u64().unwrap(), 0);
+    assert!(body["entries"].as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn sidecar_session_history_returns_entries_oldest_first() {
+    let ns = storage_path();
+    let sid = "urn:refarm:session:v1:hist01";
+    let e1 = "urn:refarm:entry:v1:e001";
+    let e2 = "urn:refarm:entry:v1:e002";
+
+    // e1 (user, oldest) → e2 (assistant, newest), leaf = e2
+    write_entry(&ns, e1, "user", "hello world", None, 1_000);
+    write_entry(&ns, e2, "assistant", "hi there", Some(e1), 2_000);
+    write_session(&ns, sid, Some(e2));
+
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let body: serde_json::Value =
+        reqwest::get(format!("{}/sessions/{}/history", base(port), sid))
+            .await
+            .unwrap()
+            .json()
+            .await
+            .unwrap();
+
+    assert_eq!(body["total"].as_u64().unwrap(), 2, "two entries");
+    let entries = body["entries"].as_array().unwrap();
+    assert_eq!(entries[0]["kind"].as_str().unwrap(), "user", "oldest first");
+    assert_eq!(entries[0]["content"].as_str().unwrap(), "hello world");
+    assert_eq!(entries[1]["kind"].as_str().unwrap(), "assistant");
+    assert_eq!(entries[1]["content"].as_str().unwrap(), "hi there");
+}
+
+#[tokio::test]
+async fn sidecar_session_history_prefix_resolves_unique_session() {
+    let ns = storage_path();
+    let sid = "urn:refarm:session:v1:uniq99";
+    write_session(&ns, sid, None);
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    // pass only the short suffix as prefix
+    let resp = reqwest::get(format!("{}/sessions/uniq99/history", base(port)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200, "prefix should resolve to unique session");
+}
+
+#[tokio::test]
+async fn sidecar_session_history_ambiguous_prefix_returns_409() {
+    let ns = storage_path();
+    write_session(&ns, "urn:refarm:session:v1:ambig-alpha", None);
+    write_session(&ns, "urn:refarm:session:v1:ambig-beta", None);
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let resp = reqwest::get(format!("{}/sessions/ambig/history", base(port)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 409, "ambiguous prefix must return 409");
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert!(body["matches"].as_array().unwrap().len() >= 2);
+}

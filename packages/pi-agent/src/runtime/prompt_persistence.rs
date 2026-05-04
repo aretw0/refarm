@@ -67,27 +67,7 @@ fn task_actor_urn() -> String {
     }
 }
 
-fn task_title_from_prompt(prompt: &str) -> String {
-    let first_line = prompt.lines().next().unwrap_or("").trim();
-    if first_line.is_empty() {
-        return "Agent prompt".to_string();
-    }
-    let mut title: String = first_line.chars().take(120).collect();
-    if first_line.chars().count() > 120 {
-        title.push('…');
-    }
-    title
-}
-
-fn task_status_from_content(content: &str) -> &'static str {
-    if content.starts_with("[budget]") {
-        "blocked"
-    } else if content.starts_with("[pi-agent erro]") || content.starts_with("[pi-agent stub]") {
-        "failed"
-    } else {
-        "done"
-    }
-}
+use super::task_labels::{status_from_content, title_from_prompt};
 
 pub(crate) fn open_prompt_task(
     session_id: &str,
@@ -104,7 +84,7 @@ pub(crate) fn open_prompt_task(
     let task_node = serde_json::json!({
         "@type": "Task",
         "@id": task_id,
-        "title": task_title_from_prompt(prompt),
+        "title": title_from_prompt(prompt),
         "status": "active",
         "created_by": actor,
         "assigned_to": actor,
@@ -150,7 +130,7 @@ pub(crate) fn close_prompt_task(
         return;
     };
 
-    let status = task_status_from_content(content);
+    let status = status_from_content(content);
     if let Ok(raw) = tractor_bridge::get_node(&task_id.to_string()) {
         if let Ok(mut task_node) = serde_json::from_str::<serde_json::Value>(&raw) {
             task_node["status"] = serde_json::Value::String(status.to_string());
@@ -303,3 +283,4 @@ pub(crate) fn store_usage_record(prompt_ref: &str, usage_input: UsageRecordInput
     });
     let _ = store_node(&usage);
 }
+
