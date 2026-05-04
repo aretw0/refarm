@@ -276,6 +276,27 @@ async function readEffortResultFile(
 	}
 }
 
+const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
+const DEFAULT_HISTORY_TURNS = 10;
+
+function readSessionId(): string | null {
+	try {
+		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
+		return content.length > 0 ? content : null;
+	} catch {
+		return null;
+	}
+}
+
+function writeSessionId(id: string): void {
+	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
+	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
+}
+
+function newSessionId(): string {
+	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
 function detectConfiguredProvider(): string | null {
 	if (process.env.LLM_PROVIDER) return process.env.LLM_PROVIDER;
 
@@ -369,95 +390,123 @@ export function createAskCommand(deps?: AskDeps): Command {
 		.description("Ask pi-agent with automatic project context")
 		.argument("<query>", "Question or instruction for pi-agent")
 		.option("--files <files>", "Comma-separated file paths to include")
-		.action(async (query: string, opts: { files?: string }) => {
-			if (!deps && detectConfiguredProvider() === null) {
-				console.error(chalk.red("\n✗  No LLM provider configured."));
-				console.error(chalk.dim("   Set up a provider:  refarm keys"));
-				console.error(chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"));
-				process.exit(1);
-			}
+		.option("--new", "Start a fresh session, discarding conversation history")
+		.action(
+			async (query: string, opts: { files?: string; new?: boolean }) => {
+				if (!deps && detectConfiguredProvider() === null) {
+					console.error(chalk.red("\n✗  No LLM provider configured."));
+					console.error(chalk.dim("   Set up a provider:  refarm keys"));
+					console.error(
+						chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"),
+					);
+					process.exit(1);
+				}
 
-			const files = opts.files
-				? opts.files
-						.split(",")
-						.map((file) => file.trim())
-						.filter(Boolean)
-				: [];
+				if (opts.new) {
+					try {
+						fs.unlinkSync(SESSION_LOCK_PATH);
+					} catch {
+						// already absent — fine
+					}
+				}
 
-			const providers = [
-				new SessionDigestContextProvider(),
-				new CwdContextProvider(),
-				new DateContextProvider(),
-				new GitStatusContextProvider(),
-				...(files.length > 0 ? [new FilesContextProvider(files)] : []),
-			];
+				const sessionId = readSessionId() ?? newSessionId();
 
-			const registry = new ContextRegistry(providers);
-			const entries = await registry.collect({ cwd: process.cwd(), query });
-			const system = buildSystemPrompt(entries);
+				const files = opts.files
+					? opts.files
+							.split(",")
+							.map((file) => file.trim())
+							.filter(Boolean)
+					: [];
 
-			const effort: Effort = {
-				id: crypto.randomUUID(),
-				direction: "ask",
-				tasks: [
-					{
-						id: crypto.randomUUID(),
-						pluginId: "@refarm/pi-agent",
-						fn: "respond",
-						args: { prompt: query, system },
-					},
-				],
-				source: "refarm-ask",
-				submittedAt: new Date().toISOString(),
-			};
+				const providers = [
+					new SessionDigestContextProvider(),
+					new CwdContextProvider(),
+					new DateContextProvider(),
+					new GitStatusContextProvider(),
+					...(files.length > 0 ? [new FilesContextProvider(files)] : []),
+				];
 
-			console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
+				const registry = new ContextRegistry(providers);
+				const entries = await registry.collect({ cwd: process.cwd(), query });
+				const system = buildSystemPrompt(entries);
 
-			try {
-				const submittedAtMs = Date.now();
-				const effortId = await resolved.submitEffort(effort);
+				const effort: Effort = {
+					id: crypto.randomUUID(),
+					direction: "ask",
+					tasks: [
+						{
+							id: crypto.randomUUID(),
+							pluginId: "@refarm/pi-agent",
+							fn: "respond",
+							args: {
+								prompt: query,
+								system,
+								session_id: sessionId,
+								history_turns: DEFAULT_HISTORY_TURNS,
+							},
+						},
+					],
+					source: "refarm-ask",
+					submittedAt: new Date().toISOString(),
+				};
+
+				console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
 
 				try {
-					await resolved.followStream(
-						effortId,
-						(chunk) => {
-							process.stdout.write(chunk.content);
-							if (chunk.is_final) {
-								process.stdout.write("\n");
-								const metadata = chunk.metadata as
-									| Record<string, unknown>
-									| undefined;
-								if (metadata) {
-									console.log(chalk.gray(`\n${"─".repeat(41)}`));
-									console.log(chalk.gray(usageLine(metadata)));
+					const submittedAtMs = Date.now();
+					const effortId = await resolved.submitEffort(effort);
+
+					try {
+						await resolved.followStream(
+							effortId,
+							(chunk) => {
+								process.stdout.write(chunk.content);
+								if (chunk.is_final) {
+									process.stdout.write("\n");
+									const metadata = chunk.metadata as
+										| Record<string, unknown>
+										| undefined;
+									if (metadata) {
+										console.log(chalk.gray(`\n${"─".repeat(41)}`));
+										console.log(chalk.gray(usageLine(metadata)));
+									}
 								}
+							},
+							{ submittedAtMs },
+						);
+					} catch (streamError) {
+						const fallback = await resolved.readEffortResult?.(effortId);
+						if (
+							fallback?.status === "ok" &&
+							typeof fallback.content === "string"
+						) {
+							process.stdout.write(`${fallback.content}\n`);
+							if (fallback.metadata) {
+								console.log(chalk.gray(`\n${"─".repeat(41)}`));
+								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-						},
-						{ submittedAtMs },
-					);
-				} catch (streamError) {
-					const fallback = await resolved.readEffortResult?.(effortId);
-					if (fallback?.status === "ok" && typeof fallback.content === "string") {
-						process.stdout.write(`${fallback.content}\n`);
-						if (fallback.metadata) {
-							console.log(chalk.gray(`\n${"─".repeat(41)}`));
-							console.log(chalk.gray(usageLine(fallback.metadata)));
+							writeSessionId(sessionId);
+							return;
 						}
-						return;
+
+						if (fallback?.status === "error") {
+							throw new Error(
+								fallback.error ?? "Effort failed without details",
+							);
+						}
+
+						throw streamError;
 					}
 
-					if (fallback?.status === "error") {
-						throw new Error(fallback.error ?? "Effort failed without details");
-					}
-
-					throw streamError;
+					writeSessionId(sessionId);
+				} catch (err) {
+					const message = err instanceof Error ? err.message : String(err);
+					printAskError(message);
+					process.exit(1);
 				}
-			} catch (err) {
-				const message = err instanceof Error ? err.message : String(err);
-				printAskError(message);
-				process.exit(1);
-			}
-		});
+			},
+		);
 }
 
 export const askCommand = createAskCommand();
