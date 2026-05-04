@@ -1,4 +1,5 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+import { spawnSync } from "node:child_process";
 import type { TelemetryEvent } from "./telemetry";
 import type { ExecutionProfile } from "./trust-manager";
 import type { TractorLogger } from "./types";
@@ -115,26 +116,116 @@ export class WasiImports {
 			},
 		};
 
+		const mockLlmBodyRaw = process.env.REFARM_MOCK_LLM_BODY;
 		const mockLlmBody =
-			process.env.REFARM_MOCK_LLM_BODY ??
-			JSON.stringify({
-				id: "tractor-mock-llm",
-				object: "chat.completion",
-				choices: [
-					{
-						index: 0,
-						message: { role: "assistant", content: "mock llm response" },
-						finish_reason: "stop",
-					},
-				],
-				usage: {
-					prompt_tokens: 21,
-					completion_tokens: 13,
-					total_tokens: 34,
-				},
-			});
-		const mockLlmBytes = new TextEncoder().encode(mockLlmBody);
+			typeof mockLlmBodyRaw === "string" && mockLlmBodyRaw.trim().length > 0
+				? mockLlmBodyRaw
+				: null;
+		const mockLlmBytes = mockLlmBody
+			? new TextEncoder().encode(mockLlmBody)
+			: null;
+
+		const normalizeProviderName = (provider: string): string =>
+			provider.trim().toLowerCase();
+
+		const isOpenAiProviderFamily = (provider: string): boolean => {
+			const normalized = normalizeProviderName(provider);
+			return normalized === "openai" || normalized.startsWith("openai-");
+		};
+
+		const sanitizeAuthToken = (token: string): string | null => {
+			const trimmed = token.trim();
+			if (
+				trimmed.length === 0 ||
+				trimmed !== token ||
+				trimmed.length > 4096 ||
+				/\s/.test(trimmed)
+			) {
+				return null;
+			}
+			return trimmed;
+		};
+
+		const bearerKeyForProvider = (provider: string): string | null => {
+			const normalized = normalizeProviderName(provider);
+			const primaryEnv = isOpenAiProviderFamily(normalized)
+				? "OPENAI_API_KEY"
+				: `${normalized.toUpperCase().replace(/-/g, "_")}_API_KEY`;
+
+			const raw =
+				process.env[primaryEnv] ??
+				(primaryEnv !== "OPENAI_API_KEY"
+					? process.env.OPENAI_API_KEY
+					: undefined);
+			if (!raw) return null;
+
+			const token = sanitizeAuthToken(raw);
+			if (!token) {
+				throw new Error(`[blocked: invalid ${primaryEnv}]`);
+			}
+			return `Bearer ${token}`;
+		};
+
+		const authHeaderForProvider = (
+			provider: string,
+		): [string, string] | null => {
+			const normalized = normalizeProviderName(provider);
+			if (["", "ollama", "local", "mock"].includes(normalized)) {
+				return null;
+			}
+
+			if (normalized === "anthropic") {
+				const key = process.env.ANTHROPIC_API_KEY;
+				if (!key) {
+					throw new Error(
+						`No credentials configured for provider "${normalized}". Set ANTHROPIC_API_KEY (or run npm run agent:keys).`,
+					);
+				}
+				const token = sanitizeAuthToken(key);
+				if (!token) {
+					throw new Error("[blocked: invalid ANTHROPIC_API_KEY]");
+				}
+				return ["x-api-key", token];
+			}
+
+			const bearer = bearerKeyForProvider(normalized);
+			if (!bearer) {
+				const providerEnv = `${normalized.toUpperCase().replace(/-/g, "_")}_API_KEY`;
+				const envHint =
+					providerEnv === "OPENAI_API_KEY"
+						? providerEnv
+						: `${providerEnv} (or OPENAI_API_KEY)`;
+				throw new Error(
+					`No credentials configured for provider "${normalized}". Set ${envHint}, run npm run agent:keys, or use LLM_PROVIDER=ollama.`,
+				);
+			}
+
+			return ["authorization", bearer];
+		};
+
+		const joinBaseUrlAndPath = (baseUrl: string, reqPath: string): string => {
+			const left = baseUrl.trim().replace(/\/+$/, "");
+			const right = reqPath.trim();
+			if (!left || !/^https?:\/\//i.test(left)) {
+				throw new Error(`Invalid LLM base-url: "${baseUrl}"`);
+			}
+			if (!right) {
+				throw new Error("Invalid LLM path: path is empty");
+			}
+			return right.startsWith("/") ? `${left}${right}` : `${left}/${right}`;
+		};
+
+		const sanitizedPluginHeaders = (
+			headers: Array<[string, string]>,
+		): Array<[string, string]> => {
+			return headers
+				.map(([name, value]) => [name.trim(), value.trim()] as [string, string])
+				.filter(([name, value]) => name.length > 0 && value.length > 0)
+				.filter(([name]) => /^[-!#$%&'*+.^_`|~0-9A-Za-z]+$/.test(name));
+		};
+
 		const mockLlmContent = (() => {
+			if (!mockLlmBody) return "";
 			try {
 				const parsed = JSON.parse(mockLlmBody) as {
 					choices?: Array<{ message?: { content?: string } }>;
@@ -218,13 +309,61 @@ export class WasiImports {
 		};
 
 		const completeHttp = (
-			_provider: string,
-			_baseUrl: string,
-			_reqPath: string,
-			_headers: Array<[string, string]>,
-			_body: Uint8Array,
+			provider: string,
+			baseUrl: string,
+			reqPath: string,
+			headers: Array<[string, string]>,
+			body: Uint8Array,
 		) => {
-			return mockLlmBytes;
+			if (mockLlmBytes) {
+				return mockLlmBytes;
+			}
+
+			const providerName = normalizeProviderName(provider);
+			const llmUrl = joinBaseUrlAndPath(baseUrl, reqPath);
+
+			const requestHeaders = sanitizedPluginHeaders(headers);
+			const authHeader = authHeaderForProvider(providerName);
+			if (authHeader) requestHeaders.push(authHeader);
+
+			const curlArgs = [
+				"-sS",
+				"--max-time",
+				String(Number(process.env.REFARM_LLM_HTTP_TIMEOUT_SEC ?? "60") || 60),
+				"-X",
+				"POST",
+				llmUrl,
+			];
+
+			for (const [name, value] of requestHeaders) {
+				curlArgs.push("-H", `${name}: ${value}`);
+			}
+			curlArgs.push("--data-binary", "@-");
+
+			const reqBody =
+				body instanceof Uint8Array ? Buffer.from(body) : Buffer.from(body as any);
+			const resp = spawnSync("curl", curlArgs, {
+				input: reqBody,
+				maxBuffer: 2 * 1024 * 1024 + 64 * 1024,
+			});
+
+			if (resp.error) {
+				throw new Error(`llm-bridge http error: ${resp.error.message}`);
+			}
+
+			if (resp.status !== 0) {
+				const stderr = (resp.stderr ?? Buffer.alloc(0)).toString("utf-8").trim();
+				throw new Error(
+					`llm-bridge request failed for provider "${providerName || "<empty>"}": ${stderr || `curl exited with status ${resp.status}`}`,
+				);
+			}
+
+			const out = resp.stdout ?? Buffer.alloc(0);
+			if (out.length > 2 * 1024 * 1024) {
+				throw new Error("llm-bridge response body too large");
+			}
+
+			return new Uint8Array(out);
 		};
 
 		const imports: any = {
@@ -263,10 +402,9 @@ export class WasiImports {
 						headers,
 						body,
 					);
-					const streamResult = persistMockStreamFinalChunk(
-						provider,
-						_streamMetadata,
-					);
+					const streamResult = mockLlmBytes
+						? persistMockStreamFinalChunk(provider, _streamMetadata)
+						: { storedChunks: 0, lastSequence: undefined };
 					return {
 						finalBody,
 						storedChunks: streamResult.storedChunks,
