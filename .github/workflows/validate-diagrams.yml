@@ -4,14 +4,13 @@ on:
   pull_request:
     paths:
       - "docs/**/*.mermaid"
-      - ".github/workflows/validate-diagrams.yml"
-      - ".github/workflows/reusable-validate-docs.yml"
-      - "scripts/check-diagrams.mjs"
+      - "specs/diagrams/**/*.mermaid"
   push:
     branches:
       - main
     paths:
       - "docs/**/*.mermaid"
+      - "specs/diagrams/**/*.mermaid"
   # Manually triggered or scheduled validation
   workflow_dispatch:
   schedule:
