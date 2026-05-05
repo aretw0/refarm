@@ -16,6 +16,7 @@ export interface SidecarAdapter {
 	summary(): Promise<EffortSummary>;
 	process(effort: Effort): Promise<void>;
 	visibility?(): Promise<unknown>;
+	visibilityWindow?(minutes: number): Promise<unknown>;
 }
 
 export class HttpSidecar {
@@ -59,14 +60,15 @@ export class HttpSidecar {
 		req: http.IncomingMessage,
 		res: http.ServerResponse,
 	): Promise<void> {
-		const url = req.url ?? "/";
+		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
+		const pathname = requestUrl.pathname;
 
 		try {
 			for (const handler of this.routeHandlers) {
 				if (handler(req, res)) return;
 			}
 
-			if (req.method === "POST" && url === "/efforts") {
+			if (req.method === "POST" && pathname === "/efforts") {
 				const effort = await readJson<Effort>(req);
 				const effortId = await this.adapter.submit(effort);
 				void this.adapter.process(effort);
@@ -74,17 +76,17 @@ export class HttpSidecar {
 				return;
 			}
 
-			if (req.method === "GET" && url === "/efforts") {
+			if (req.method === "GET" && pathname === "/efforts") {
 				json(res, 200, await this.adapter.list());
 				return;
 			}
 
-			if (req.method === "GET" && url === "/efforts/summary") {
+			if (req.method === "GET" && pathname === "/efforts/summary") {
 				json(res, 200, await this.adapter.summary());
 				return;
 			}
 
-			if (req.method === "GET" && url === "/visibility") {
+			if (req.method === "GET" && pathname === "/visibility") {
 				if (!this.adapter.visibility) {
 					json(res, 404, { error: "not found" });
 					return;
@@ -93,7 +95,20 @@ export class HttpSidecar {
 				return;
 			}
 
-			const logsMatch = url.match(/^\/efforts\/([^/]+)\/logs$/);
+			if (req.method === "GET" && pathname === "/visibility/window") {
+				if (!this.adapter.visibilityWindow) {
+					json(res, 404, { error: "not found" });
+					return;
+				}
+				const minutes = normalizePositiveInt(
+					requestUrl.searchParams.get("minutes"),
+					60,
+				);
+				json(res, 200, await this.adapter.visibilityWindow(minutes));
+				return;
+			}
+
+			const logsMatch = pathname.match(/^\/efforts\/([^/]+)\/logs$/);
 			if (req.method === "GET" && logsMatch) {
 				const logs = await this.adapter.logs(logsMatch[1]);
 				if (!logs) {
@@ -104,7 +119,7 @@ export class HttpSidecar {
 				return;
 			}
 
-			const retryMatch = url.match(/^\/efforts\/([^/]+)\/retry$/);
+			const retryMatch = pathname.match(/^\/efforts\/([^/]+)\/retry$/);
 			if (req.method === "POST" && retryMatch) {
 				const accepted = await this.adapter.retry(retryMatch[1]);
 				if (!accepted) {
@@ -115,7 +130,7 @@ export class HttpSidecar {
 				return;
 			}
 
-			const cancelMatch = url.match(/^\/efforts\/([^/]+)\/cancel$/);
+			const cancelMatch = pathname.match(/^\/efforts\/([^/]+)\/cancel$/);
 			if (req.method === "POST" && cancelMatch) {
 				const accepted = await this.adapter.cancel(cancelMatch[1]);
 				if (!accepted) {
@@ -126,7 +141,7 @@ export class HttpSidecar {
 				return;
 			}
 
-			const getMatch = url.match(/^\/efforts\/([^/]+)$/);
+			const getMatch = pathname.match(/^\/efforts\/([^/]+)$/);
 			if (req.method === "GET" && getMatch) {
 				const result = await this.adapter.query(getMatch[1]);
 				if (!result) {
@@ -170,4 +185,13 @@ function json(res: http.ServerResponse, status: number, body: unknown): void {
 		"content-length": Buffer.byteLength(payload),
 	});
 	res.end(payload);
+}
+
+function normalizePositiveInt(
+	raw: string | null | undefined,
+	fallback: number,
+): number {
+	const parsed = Number(raw);
+	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+	return Math.floor(parsed);
 }

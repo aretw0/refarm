@@ -31,6 +31,19 @@ function makeAdapter(result: EffortResult | null = null) {
 			failed: 0,
 			cancelled: 0,
 		}),
+		visibilityWindow: vi.fn().mockResolvedValue({
+			windowMinutes: 60,
+			since: new Date(Date.now() - 60 * 60_000).toISOString(),
+			terminal: 0,
+			failureRatePct: null,
+			generatedAt: new Date().toISOString(),
+			total: 0,
+			pending: 0,
+			inProgress: 0,
+			done: 0,
+			failed: 0,
+			cancelled: 0,
+		}),
 		process: vi.fn().mockResolvedValue(undefined),
 	};
 }
@@ -166,6 +179,17 @@ describe("HttpSidecar", () => {
 		expect(status).toBe(200);
 		expect(adapter.visibility).toHaveBeenCalled();
 		expect((body as any).queueDepth).toBe(0);
+	});
+
+	it("GET /visibility/window returns rolling window summary", async () => {
+		const { status, body } = await request(
+			PORT,
+			"GET",
+			"/visibility/window?minutes=15",
+		);
+		expect(status).toBe(200);
+		expect(adapter.visibilityWindow).toHaveBeenCalledWith(15);
+		expect((body as any).windowMinutes).toBe(60);
 	});
 
 	it("GET /efforts/:id/logs returns logs", async () => {

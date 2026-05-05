@@ -139,4 +139,40 @@ describe("FileTransportAdapter", () => {
 		expect(summary.done).toBeGreaterThanOrEqual(1);
 		expect(summary.pending).toBeGreaterThanOrEqual(1);
 	});
+
+	it("visibilityWindow() reports recent status and failure rate", async () => {
+		const resultsDir = path.join(TEST_BASE, "task-results");
+		const now = Date.now();
+		const recent = new Date(now - 5 * 60_000).toISOString();
+		const stale = new Date(now - 2 * 60 * 60_000).toISOString();
+
+		fs.writeFileSync(
+			path.join(resultsDir, "recent-failed.json"),
+			JSON.stringify({
+				effortId: "recent-failed",
+				status: "failed",
+				results: [],
+				completedAt: recent,
+			}),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(resultsDir, "stale-done.json"),
+			JSON.stringify({
+				effortId: "stale-done",
+				status: "done",
+				results: [],
+				completedAt: stale,
+			}),
+			"utf-8",
+		);
+
+		const window = await adapter.visibilityWindow(30);
+		expect(window.windowMinutes).toBe(30);
+		expect(window.total).toBe(1);
+		expect(window.failed).toBe(1);
+		expect(window.done).toBe(0);
+		expect(window.terminal).toBe(1);
+		expect(window.failureRatePct).toBe(100);
+	});
 });

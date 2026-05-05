@@ -25,6 +25,14 @@ export interface RuntimeVisibilitySnapshot extends EffortSummary {
 	generatedAt: string;
 }
 
+export interface RuntimeVisibilityWindow extends EffortSummary {
+	windowMinutes: number;
+	since: string;
+	terminal: number;
+	failureRatePct: number | null;
+	generatedAt: string;
+}
+
 function nowIso(): string {
 	return new Date().toISOString();
 }
@@ -224,6 +232,62 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			queueDepth: this.queue.length,
 			inFlight: this.inFlightEfforts.size,
 			cancelRequests: this.cancelRequests.size,
+			generatedAt: nowIso(),
+		};
+	}
+
+	async visibilityWindow(minutes: number): Promise<RuntimeVisibilityWindow> {
+		const windowMinutes =
+			Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 60;
+		const cutoffMs = Date.now() - windowMinutes * 60_000;
+		const windowSummary: EffortSummary = {
+			total: 0,
+			pending: 0,
+			inProgress: 0,
+			done: 0,
+			failed: 0,
+			cancelled: 0,
+		};
+
+		const results = await this.list();
+		for (const result of results) {
+			const stamp = result.completedAt ?? result.startedAt ?? result.submittedAt;
+			const stampMs = stamp ? Date.parse(stamp) : Number.NaN;
+			if (!Number.isFinite(stampMs) || stampMs < cutoffMs) continue;
+
+			windowSummary.total += 1;
+			switch (result.status) {
+				case "pending":
+					windowSummary.pending += 1;
+					break;
+				case "in-progress":
+					windowSummary.inProgress += 1;
+					break;
+				case "done":
+					windowSummary.done += 1;
+					break;
+				case "failed":
+					windowSummary.failed += 1;
+					break;
+				case "cancelled":
+					windowSummary.cancelled += 1;
+					break;
+			}
+		}
+
+		const terminal =
+			windowSummary.done + windowSummary.failed + windowSummary.cancelled;
+		const failureRatePct =
+			terminal > 0
+				? Number(((windowSummary.failed / terminal) * 100).toFixed(2))
+				: null;
+
+		return {
+			...windowSummary,
+			windowMinutes,
+			since: new Date(cutoffMs).toISOString(),
+			terminal,
+			failureRatePct,
 			generatedAt: nowIso(),
 		};
 	}
