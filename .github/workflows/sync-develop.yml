@@ -1,8 +1,15 @@
 name: Sync develop ← main
 
 # Triggered every time main receives a push (PR merged, version bump, hotfix).
-# Attempts a fast-forward of develop to main so the next sprint starts clean.
-# If fast-forward is impossible (diverged history), opens a maintenance issue.
+# Keeps develop aligned with the released main baseline so the next work lane
+# starts from the promoted tree.
+#
+# Supported cases:
+# - develop already equals main: no-op.
+# - develop is behind main: fast-forward develop to main.
+# - develop has the same tree as main but different history (typical squash release):
+#   reset develop to main with --force-with-lease.
+# - develop and main differ by content: stop and open a maintenance issue.
 
 on:
   push:
@@ -16,7 +23,7 @@ permissions:
 
 jobs:
   sync:
-    name: Fast-forward develop to main
+    name: Align develop to main
     runs-on: ubuntu-latest
     steps:
       - name: Checkout (full history)
@@ -30,51 +37,88 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Rebase develop onto main
+      - name: Align develop to main
         id: sync
+        shell: bash
         run: |
-          git checkout develop
-          if git rebase origin/main; then
-            git push -f origin develop
-            NEW_HEAD=$(git rev-parse --short HEAD)
-            echo "status=synced" >> "$GITHUB_OUTPUT"
-            echo "✅ develop rebased onto main ($NEW_HEAD)"
-          else
-            echo "status=conflicted" >> "$GITHUB_OUTPUT"
-            echo "⚠️  Rebase encountered conflicts — manual intervention needed."
-            git rebase --abort
+          set -euo pipefail
+
+          git fetch origin main develop --prune
+
+          main_ref="origin/main"
+          develop_ref="origin/develop"
+          main_sha="$(git rev-parse "$main_ref")"
+          develop_sha="$(git rev-parse "$develop_ref")"
+          main_tree="$(git rev-parse "$main_ref^{tree}")"
+          develop_tree="$(git rev-parse "$develop_ref^{tree}")"
+
+          echo "main_sha=$main_sha"
+          echo "develop_sha=$develop_sha"
+          echo "main_tree=$main_tree"
+          echo "develop_tree=$develop_tree"
+
+          if [ "$main_sha" = "$develop_sha" ]; then
+            echo "status=already-synced" >> "$GITHUB_OUTPUT"
+            echo "✅ develop already points at main ($main_sha)."
+            exit 0
           fi
 
-      - name: Open issue on rebase conflict
-        if: steps.sync.outputs.status == 'conflicted'
+          if git merge-base --is-ancestor "$develop_ref" "$main_ref"; then
+            git checkout -B develop "$develop_ref"
+            git merge --ff-only "$main_ref"
+            git push origin develop
+            echo "status=fast-forwarded" >> "$GITHUB_OUTPUT"
+            echo "✅ develop fast-forwarded to main ($main_sha)."
+            exit 0
+          fi
+
+          if [ "$main_tree" = "$develop_tree" ]; then
+            git checkout -B develop "$main_ref"
+            git push --force-with-lease origin develop
+            echo "status=tree-equivalent-reset" >> "$GITHUB_OUTPUT"
+            echo "✅ develop reset to main because both branches have the same tree ($main_tree)."
+            exit 0
+          fi
+
+          echo "status=content-diverged" >> "$GITHUB_OUTPUT"
+          echo "::error::develop and main diverged by content; manual intervention required."
+          exit 0
+
+      - name: Open issue on content divergence
+        if: steps.sync.outputs.status == 'content-diverged'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           cat >/tmp/sync-develop-conflict.md <<'EOF'
-          ## Sync automático encontrou conflitos
+          ## Sync automático encontrou divergência real de conteúdo
 
-          O rebase de `develop` sobre `origin/main` falhou após o commit `${{ github.sha }}`.
+          `develop` e `main` não puderam ser alinhados automaticamente após o push em `main` `${{ github.sha }}`.
 
-          Isso pode ocorrer se novas commits entram em `develop` durante o mesmo push em `main`,
-          ou se há conflitos genuínos de merge.
+          O workflow só alinha automaticamente quando:
 
-          ### Fix manual
+          - `develop` já aponta para `main`;
+          - `develop` é ancestral de `main` e pode receber fast-forward;
+          - `develop` e `main` têm a mesma árvore, mesmo com histórico diferente (caso típico de squash release).
+
+          Como as árvores diferem, é necessário revisar manualmente.
+
+          ### Fix manual sugerido
 
           ```bash
           git fetch origin
           git checkout develop
-          git rebase origin/main
-
-          # Resolver conflitos se houver, depois:
-          git rebase --continue
-          git push -f origin develop
+          git diff --stat origin/main..origin/develop
+          git log --oneline --left-right origin/main...origin/develop
           ```
+
+          Depois escolha conscientemente entre merge/rebase/reset, conforme a intenção da divergência.
 
           > Feche este issue após o sync manual.
           EOF
 
           gh issue create \
-            --title "⚠️ develop: rebase conflict com main — manual fix" \
+            --title "⚠️ develop divergiu de main — sync manual necessário" \
             --body-file /tmp/sync-develop-conflict.md \
-            --label "maintenance" \
             --repo "${{ github.repository }}"
+
+          exit 1
