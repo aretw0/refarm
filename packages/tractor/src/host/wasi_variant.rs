@@ -59,8 +59,9 @@ pub fn probe_file(path: &std::path::Path) -> anyhow::Result<WasiVariant> {
         .map_err(|e| anyhow::anyhow!("cannot open {}: {e}", path.display()))?;
     let mut header = [0u8; 8];
     let n = f.read(&mut header)?;
-    probe_bytes(&header[..n])
-        .ok_or_else(|| anyhow::anyhow!("{} is not a valid WASM module or component", path.display()))
+    probe_bytes(&header[..n]).ok_or_else(|| {
+        anyhow::anyhow!("{} is not a valid WASM module or component", path.display())
+    })
 }
 
 #[cfg(test)]
