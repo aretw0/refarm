@@ -18,14 +18,14 @@ export type TaskExecutorFn = (
 const DEFAULT_MAX_ATTEMPTS = 2;
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"] as const);
 
-export interface RuntimeVisibilitySnapshot extends EffortSummary {
+export interface RuntimeTelemetrySnapshot extends EffortSummary {
 	queueDepth: number;
 	inFlight: number;
 	cancelRequests: number;
 	generatedAt: string;
 }
 
-export interface RuntimeVisibilityWindow extends EffortSummary {
+export interface RuntimeTelemetryWindow extends EffortSummary {
 	windowMinutes: number;
 	since: string;
 	terminal: number;
@@ -225,7 +225,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		return summary;
 	}
 
-	async visibility(): Promise<RuntimeVisibilitySnapshot> {
+	async telemetry(): Promise<RuntimeTelemetrySnapshot> {
 		const summary = await this.summary();
 		return {
 			...summary,
@@ -236,7 +236,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		};
 	}
 
-	async visibilityWindow(minutes: number): Promise<RuntimeVisibilityWindow> {
+	async telemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow> {
 		const windowMinutes =
 			Number.isFinite(minutes) && minutes > 0 ? Math.floor(minutes) : 60;
 		const cutoffMs = Date.now() - windowMinutes * 60_000;

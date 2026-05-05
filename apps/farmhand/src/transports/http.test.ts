@@ -19,7 +19,7 @@ function makeAdapter(result: EffortResult | null = null) {
 			failed: 0,
 			cancelled: 0,
 		}),
-		visibility: vi.fn().mockResolvedValue({
+		telemetry: vi.fn().mockResolvedValue({
 			queueDepth: 0,
 			inFlight: 0,
 			cancelRequests: 0,
@@ -31,7 +31,7 @@ function makeAdapter(result: EffortResult | null = null) {
 			failed: 0,
 			cancelled: 0,
 		}),
-		visibilityWindow: vi.fn().mockResolvedValue({
+		telemetryWindow: vi.fn().mockResolvedValue({
 			windowMinutes: 60,
 			since: new Date(Date.now() - 60 * 60_000).toISOString(),
 			terminal: 0,
@@ -174,21 +174,21 @@ describe("HttpSidecar", () => {
 		expect((body as any[])[0]?.effortId).toBe("e1");
 	});
 
-	it("GET /visibility returns runtime visibility snapshot", async () => {
-		const { status, body } = await request(PORT, "GET", "/visibility");
+	it("GET /telemetry returns runtime telemetry snapshot", async () => {
+		const { status, body } = await request(PORT, "GET", "/telemetry");
 		expect(status).toBe(200);
-		expect(adapter.visibility).toHaveBeenCalled();
+		expect(adapter.telemetry).toHaveBeenCalled();
 		expect((body as any).queueDepth).toBe(0);
 	});
 
-	it("GET /visibility/window returns rolling window summary", async () => {
+	it("GET /telemetry/window returns rolling window summary", async () => {
 		const { status, body } = await request(
 			PORT,
 			"GET",
-			"/visibility/window?minutes=15",
+			"/telemetry/window?minutes=15",
 		);
 		expect(status).toBe(200);
-		expect(adapter.visibilityWindow).toHaveBeenCalledWith(15);
+		expect(adapter.telemetryWindow).toHaveBeenCalledWith(15);
 		expect((body as any).windowMinutes).toBe(60);
 	});
 

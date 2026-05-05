@@ -140,7 +140,7 @@ describe("FileTransportAdapter", () => {
 		expect(summary.pending).toBeGreaterThanOrEqual(1);
 	});
 
-	it("visibilityWindow() reports recent status and failure rate", async () => {
+	it("telemetryWindow() reports recent status and failure rate", async () => {
 		const resultsDir = path.join(TEST_BASE, "task-results");
 		const now = Date.now();
 		const recent = new Date(now - 5 * 60_000).toISOString();
@@ -167,7 +167,7 @@ describe("FileTransportAdapter", () => {
 			"utf-8",
 		);
 
-		const window = await adapter.visibilityWindow(30);
+		const window = await adapter.telemetryWindow(30);
 		expect(window.windowMinutes).toBe(30);
 		expect(window.total).toBe(1);
 		expect(window.failed).toBe(1);

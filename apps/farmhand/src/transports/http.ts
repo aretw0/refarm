@@ -15,8 +15,8 @@ export interface SidecarAdapter {
 	cancel(effortId: string): Promise<boolean>;
 	summary(): Promise<EffortSummary>;
 	process(effort: Effort): Promise<void>;
-	visibility?(): Promise<unknown>;
-	visibilityWindow?(minutes: number): Promise<unknown>;
+	telemetry?(): Promise<unknown>;
+	telemetryWindow?(minutes: number): Promise<unknown>;
 }
 
 export class HttpSidecar {
@@ -86,17 +86,17 @@ export class HttpSidecar {
 				return;
 			}
 
-			if (req.method === "GET" && pathname === "/visibility") {
-				if (!this.adapter.visibility) {
+			if (req.method === "GET" && pathname === "/telemetry") {
+				if (!this.adapter.telemetry) {
 					json(res, 404, { error: "not found" });
 					return;
 				}
-				json(res, 200, await this.adapter.visibility());
+				json(res, 200, await this.adapter.telemetry());
 				return;
 			}
 
-			if (req.method === "GET" && pathname === "/visibility/window") {
-				if (!this.adapter.visibilityWindow) {
+			if (req.method === "GET" && pathname === "/telemetry/window") {
+				if (!this.adapter.telemetryWindow) {
 					json(res, 404, { error: "not found" });
 					return;
 				}
@@ -104,7 +104,7 @@ export class HttpSidecar {
 					requestUrl.searchParams.get("minutes"),
 					60,
 				);
-				json(res, 200, await this.adapter.visibilityWindow(minutes));
+				json(res, 200, await this.adapter.telemetryWindow(minutes));
 				return;
 			}
 
