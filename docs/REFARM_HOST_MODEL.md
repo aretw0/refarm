@@ -147,6 +147,6 @@ See [Refarm CLI Distro](./REFARM_CLI_DISTRO.md) for the product-facing command p
 2. Keep promoting semantic runtime mechanics to `@refarm.dev/homestead` and
    Tractor-related packages.
 3. Use `apps/me` as a second consumer before extracting more from `apps/dev`.
-4. Expand the minimal renderer contract from `@refarm.dev/homestead/sdk/host-renderer` only when Web/TUI/headless consumers need concrete fields.
+4. Track renderer parity against the [refarm-renderer-contract-v1 spec](../specs/features/refarm-renderer-contract-v1.md), expanding `@refarm.dev/homestead/sdk/host-renderer` only when Web/TUI/headless consumers need concrete fields.
 5. When ready, create a CLI distro under `apps/` that composes the blocks instead
    of becoming a block itself.
