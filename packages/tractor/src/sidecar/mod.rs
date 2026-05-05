@@ -22,7 +22,7 @@ use std::{
 };
 
 use axum::{
-    extract::{Path as AxumPath, State},
+    extract::{Path as AxumPath, Query, State},
     http::StatusCode,
     response::IntoResponse,
     routing::{get, post},
@@ -581,6 +581,141 @@ async fn get_session_history(
     .into_response()
 }
 
+// ── task handlers ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct TaskQuery {
+    status: Option<String>,
+    session_id: Option<String>,
+    #[serde(default = "default_task_limit")]
+    limit: usize,
+}
+
+fn default_task_limit() -> usize {
+    20
+}
+
+async fn get_tasks(
+    State(state): State<SidecarState>,
+    Query(params): Query<TaskQuery>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let rows = match storage.query_nodes("Task") {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("query: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let mut tasks: Vec<Value> = rows
+        .into_iter()
+        .filter_map(|row| serde_json::from_str::<Value>(&row.payload).ok())
+        .filter(|t| {
+            params
+                .status
+                .as_deref()
+                .map_or(true, |s| t["status"].as_str() == Some(s))
+        })
+        .filter(|t| {
+            params
+                .session_id
+                .as_deref()
+                .map_or(true, |sid| t["context_id"].as_str() == Some(sid))
+        })
+        .collect();
+
+    tasks.sort_by(|a, b| {
+        b["created_at_ns"]
+            .as_u64()
+            .unwrap_or(0)
+            .cmp(&a["created_at_ns"].as_u64().unwrap_or(0))
+    });
+    tasks.truncate(params.limit.min(100));
+
+    Json(serde_json::json!({ "tasks": tasks, "total": tasks.len() })).into_response()
+}
+
+async fn get_task(
+    State(state): State<SidecarState>,
+    AxumPath(task_id): AxumPath<String>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let task_raw = match storage.get_node(&task_id) {
+        Ok(Some(raw)) => raw,
+        Ok(None) => {
+            let rows = storage.query_nodes("Task").unwrap_or_default();
+            let matched: Vec<_> = rows.iter().filter(|r| r.id.contains(&task_id)).collect();
+            match matched.len() {
+                0 => return err(StatusCode::NOT_FOUND, "task not found").into_response(),
+                1 => matched[0].payload.clone(),
+                _ => {
+                    return (
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({
+                            "error": format!("ambiguous prefix — {} tasks match", matched.len()),
+                            "matches": matched.iter().map(|r| &r.id).collect::<Vec<_>>(),
+                        })),
+                    )
+                        .into_response();
+                }
+            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("get_node: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let task: Value = match serde_json::from_str(&task_raw) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("parse: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let canonical_id = task["@id"].as_str().unwrap_or(&task_id);
+    let events: Vec<Value> = storage
+        .query_nodes("TaskEvent")
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|r| serde_json::from_str::<Value>(&r.payload).ok())
+        .filter(|e| e["task_id"].as_str() == Some(canonical_id))
+        .collect();
+
+    Json(serde_json::json!({ "task": task, "events": events })).into_response()
+}
+
 // ── public API ────────────────────────────────────────────────────────────────
 
 pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
@@ -593,6 +728,8 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/efforts/:id/cancel", post(post_effort_cancel))
         .route("/sessions", get(get_sessions))
         .route("/sessions/:id/history", get(get_session_history))
+        .route("/tasks", get(get_tasks))
+        .route("/tasks/:id", get(get_task))
         .with_state(state);
 
     let listener = TcpListener::bind(format!("127.0.0.1:{port}")).await?;

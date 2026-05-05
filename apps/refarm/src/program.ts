@@ -14,6 +14,7 @@ import { pluginCommand } from "./commands/plugin.js";
 import { sowCommand } from "./commands/sow.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
+import { tasksCommand } from "./commands/tasks.js";
 import { tuiCommand } from "./commands/tui.js";
 import { webCommand } from "./commands/web.js";
 
@@ -39,4 +40,5 @@ program.addCommand(statusCommand);
 program.addCommand(taskCommand);
 program.addCommand(askCommand);
 program.addCommand(sessionsCommand);
+program.addCommand(tasksCommand);
 program.addCommand(keysCommand);

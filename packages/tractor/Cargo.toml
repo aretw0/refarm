@@ -37,7 +37,7 @@ loro = "~1.10"
 tokio             = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util      = "0.3"
-axum              = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "macros"] }
+axum              = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "macros", "query"] }
 tower             = { version = "0.4", default-features = false }
 
 # Crypto — ed25519 native (same algo as @noble/ed25519 / heartwood.wasm)
