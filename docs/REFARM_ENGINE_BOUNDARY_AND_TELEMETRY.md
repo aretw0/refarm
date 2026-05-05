@@ -77,6 +77,9 @@ Current canonical endpoint/commands:
 
 This contract is intentionally lightweight and can be expanded while preserving shape.
 
+Telemetry response instructions and signal semantics are canonicalized in
+[`docs/REFARM_TELEMETRY_RUNBOOK.md`](./REFARM_TELEMETRY_RUNBOOK.md).
+
 ---
 
 ## 4) Operational policy (scientist mode)
@@ -104,6 +107,6 @@ If pressure remains high, scope a micro-slice and validate with targeted tests b
 - Add latency percentiles to telemetry payload.
 - Add substrate adapters for unified tree/timeline (`session`, `crdt`, `git`).
 - Export telemetry snapshots as JSON artifacts for CI trend diffing.
-- Add strict mode/policy gate so CI can fail when pressure exceeds profile thresholds.
+- Keep v1 diagnostic vocabulary stable; only add codes with explicit migration notes.
 
 This keeps Refarm from becoming blind as complexity grows.
