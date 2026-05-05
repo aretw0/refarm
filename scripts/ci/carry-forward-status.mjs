@@ -179,10 +179,13 @@ async function run() {
 	);
 	const workflowId = currentRun.workflow_id;
 	const headBranch = currentRun.head_branch;
-	const eventName = currentRun.event;
 
+	// Carry-forward should use the branch's freshest completed evidence, not
+	// only the current event type. A develop push after a PR merge/squash may
+	// skip gates that were last freshly proven by the PR run; filtering to
+	// event=push can resurrect stale failures from much older push runs.
 	const runs = await gh(
-		`/repos/${owner}/${repository}/actions/workflows/${workflowId}/runs?branch=${encodeURIComponent(headBranch)}&event=${encodeURIComponent(eventName)}&status=completed&per_page=40`,
+		`/repos/${owner}/${repository}/actions/workflows/${workflowId}/runs?branch=${encodeURIComponent(headBranch)}&status=completed&per_page=40`,
 	);
 
 	const candidates = (runs.workflow_runs || [])
