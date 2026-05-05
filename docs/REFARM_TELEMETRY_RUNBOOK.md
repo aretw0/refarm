@@ -74,6 +74,22 @@ Use strict-all only when actively hardening policy:
 npm run refarm:telemetry:gate:strict-all
 ```
 
+### Current workflow policy (`.github/workflows/test.yml`)
+
+- **Blocking**: push to `develop`, PR targeting `main`
+- **Non-blocking (warning + artifact)**: all other events/branches
+
+### When observing GitHub Actions runs
+
+Prefer local validation first. When remote observation is needed:
+
+```bash
+gh run list --workflow test.yml --limit 5
+gh run watch --exit-status
+```
+
+Use `gh run view <run-id> --log` for detailed inspection without reruns.
+
 ## Artifact capture for trend analysis
 
 Persist telemetry gate output per run:

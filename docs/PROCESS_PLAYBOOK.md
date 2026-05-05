@@ -27,6 +27,9 @@ npm run farm:status        # unified status: both services, ports, artifacts, LL
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
 npm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
 npm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
+# When checking remote CI results (after local validation):
+gh run list --workflow test.yml --limit 5
+gh run watch --exit-status
 npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
