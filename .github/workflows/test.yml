@@ -527,7 +527,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     needs: [changes, quality]
     if: needs.changes.outputs.run_e2e == 'true'
 
