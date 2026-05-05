@@ -15,6 +15,9 @@ function makeChunk(
 function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 	return {
 		submitEffort: vi.fn().mockResolvedValue("eff-1"),
+		resolveSessionIdPrefix: vi
+			.fn()
+			.mockImplementation(async (prefix: string) => prefix),
 		followStream: vi
 			.fn()
 			.mockImplementation(
@@ -165,6 +168,69 @@ describe("refarm ask", () => {
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
+	});
+
+	it("resolves --session prefix before submitting effort", async () => {
+		const deps = makeDeps({
+			resolveSessionIdPrefix: vi
+				.fn()
+				.mockResolvedValue("urn:refarm:session:v1:resolved123"),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--session", "resolved123"], {
+			from: "user",
+		});
+
+		expect(deps.resolveSessionIdPrefix).toHaveBeenCalledWith("resolved123");
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:resolved123",
+						}),
+					}),
+				],
+			}),
+		);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("fails when --session prefix is ambiguous", async () => {
+		const deps = makeDeps({
+			resolveSessionIdPrefix: vi
+				.fn()
+				.mockRejectedValue(new Error('Ambiguous session prefix "abc" (2 matches)')),
+		});
+		const command = createAskCommand(deps);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await expect(
+			command.parseAsync(["hello", "--session", "abc"], {
+				from: "user",
+			}),
+		).rejects.toThrow("exit:1");
+
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Ambiguous session prefix "abc"'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+
+		errSpy.mockRestore();
+		exitSpy.mockRestore();
 	});
 
 	it("rejects --new together with --session", async () => {

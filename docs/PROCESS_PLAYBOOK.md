@@ -184,7 +184,7 @@ refarm sessions new --name "auth-refactor"
 refarm ask "planeje os próximos passos"
 refarm sessions fork <id-prefix> --name "auth-refactor-alt"
 refarm sessions use <id-prefix>
-refarm ask --session <session-id> "continue deste branch"
+refarm ask --session <id-prefix> "continue deste branch"
 ```
 
 Use this when exploring multiple solution branches without losing continuity.

@@ -28,10 +28,17 @@ export interface AskDeps {
 		metadata?: Record<string, unknown>;
 		error?: string;
 	} | null>;
+	resolveSessionIdPrefix?(prefix: string): Promise<string>;
+}
+
+const SIDECAR_URL = "http://127.0.0.1:42001";
+
+interface SessionNode {
+	"@id": string;
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch("http://127.0.0.1:42001/efforts", {
+	const response = await fetch(`${SIDECAR_URL}/efforts`, {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -324,11 +331,44 @@ function detectConfiguredProvider(): string | null {
 	return null;
 }
 
+function isFullSessionId(value: string): boolean {
+	return value.startsWith("urn:refarm:session:v1:");
+}
+
+function resolveSessionPrefix(prefix: string, sessions: SessionNode[]): string {
+	const exact = sessions.find((session) => session["@id"] === prefix);
+	if (exact) return exact["@id"];
+
+	const matches = sessions.filter(
+		(session) =>
+			session["@id"].includes(prefix) || session["@id"].endsWith(prefix),
+	);
+	if (matches.length === 0) {
+		throw new Error(`No session matching "${prefix}"`);
+	}
+	if (matches.length > 1) {
+		throw new Error(`Ambiguous session prefix "${prefix}" (${matches.length} matches)`);
+	}
+	return matches[0]["@id"];
+}
+
+async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+	if (isFullSessionId(prefix)) return prefix;
+
+	const response = await fetch(`${SIDECAR_URL}/sessions`);
+	if (!response.ok) {
+		throw new Error(`sidecar HTTP ${response.status}`);
+	}
+	const body = (await response.json()) as { sessions?: SessionNode[] };
+	return resolveSessionPrefix(prefix, body.sessions ?? []);
+}
+
 function defaultDeps(): AskDeps {
 	const streamsDir = path.join(os.homedir(), ".refarm", "streams");
 	const resultsDir = path.join(os.homedir(), ".refarm", "task-results");
 	return {
 		submitEffort: submitViaHttp,
+		resolveSessionIdPrefix: resolveSessionIdPrefixFromSidecar,
 		followStream: (effortId, onChunk, options) =>
 			followStreamFile(
 				streamsDir,
@@ -391,7 +431,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 		.argument("<query>", "Question or instruction for pi-agent")
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
-		.option("--session <id>", "Use a specific session ID")
+		.option("--session <id>", "Use a specific session ID or unique prefix")
 		.action(
 			async (
 				query: string,
@@ -422,10 +462,31 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				const explicitSession = opts.session?.trim();
-				const sessionId =
-					explicitSession && explicitSession.length > 0
-						? explicitSession
-						: readSessionId() ?? newSessionId();
+				let sessionId = readSessionId() ?? newSessionId();
+				if (explicitSession && explicitSession.length > 0) {
+					if (resolved.resolveSessionIdPrefix) {
+						try {
+							sessionId = await resolved.resolveSessionIdPrefix(explicitSession);
+						} catch (error) {
+							const message =
+								error instanceof Error ? error.message : String(error);
+							if (
+								message.includes("No session matching") ||
+								message.includes("Ambiguous session prefix")
+							) {
+								console.error(chalk.red(`\n✗  ${message}`));
+								console.error(
+									chalk.dim("   Use: refarm sessions list  to inspect available IDs."),
+								);
+							} else {
+								printAskError(message);
+							}
+							process.exit(1);
+						}
+					} else {
+						sessionId = explicitSession;
+					}
+				}
 
 				const files = opts.files
 					? opts.files
