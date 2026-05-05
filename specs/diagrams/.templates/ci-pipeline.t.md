@@ -32,8 +32,9 @@
 
 ![CI phase gates](./ci-pipeline--phase-gates.svg)
 
-> Each PR carries a `phase:sdd/bdd/tdd/ddd` label that triggers the matching gate.
+> Each PR may carry a `phase:sdd/bdd/tdd/ddd` label that triggers the matching gate.
 > Gates enforce the **SDD→BDD→TDD→DDD** methodology at the CI level:
 > specs must be clean before tests go red, tests must be red before code is written,
 > and a changeset must exist before a DDD PR can merge.
+> A PR with no phase label passes this workflow with a notice; phase gates express development intent, not general repository health.
 <!-- {/ci-phase-gates} -->

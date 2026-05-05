@@ -29,6 +29,7 @@ flowchart LR
   PR -->|"label phase:bdd"| BDD
   PR -->|"label phase:tdd"| TDD
   PR -->|"label phase:ddd"| DDD
+  PR -->|"no phase label"| Notice["success with notice\nno phase gate requested"]
 
   SDD -->|"Gate 1 ✅"| BDD
   BDD -->|"Gate 2 ✅"| TDD
@@ -39,4 +40,4 @@ flowchart LR
   classDef done fill:#dcfce7,stroke:#166534,stroke-width:2px;
 
   class SDD,BDD,TDD,DDD gate;
-  class Done done;
+  class Done,Notice done;

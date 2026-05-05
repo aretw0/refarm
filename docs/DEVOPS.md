@@ -275,14 +275,27 @@ npm run test:unit
 
 ## CI Caching Strategy
 
-### Current Baseline (May 1, 2026)
+### Current Baseline (May 5, 2026)
+
+The CI lanes are intentionally split by responsibility:
+
+- **`Test & Quality`** owns monorepo health: project consistency, security, TS config preflight, Farmhand/refarm/pi-agent smokes, Tractor gates, Turbo verification, E2E, summary, and metrics.
+- **`Granular Matrix Tests`** owns package compatibility across local/published edges. It is not the general monorepo health gate.
+- **`Phase Gates`** (`quality-gates.yml`) owns label-driven development intent (`phase:sdd`, `phase:bdd`, `phase:tdd`, `phase:ddd`). No phase label is a success-with-notice, not a failure.
+- **Docs validators** (`Validate Diagrams`, `Validate MDT Docs`, and reusable docs validation) own documentation renderability/drift with content-addressed cache.
+
+Implementation baseline:
 
 - **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
-- **Rust Target Provisioning:** The `./.github/actions/setup` action accepts a `rust-target` input (default: `wasm32-wasip1`) to ensure WASM compilation works without duplicating `rustup` logic across workflows.
+- **Rust Target Provisioning:** `./.github/actions/setup` accepts a `rust-target` input (default: `wasm32-wasip1`) to keep WASM compilation setup centralized.
 - **Turbo env passthrough:** `turbo.json` forwards `RUSTUP_HOME`, `CARGO_HOME`, and `RUSTUP_TOOLCHAIN` to avoid Rust manifest drift in parallel Turbo tasks.
-- **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it and runs preview-first mode.
-- **Turbo cache key (stable):** `${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}` (reduced SHA-only misses).
-- **Playwright browser cache key (stable):** `${{ runner.os }}-playwright-browsers-${{ hashFiles('package-lock.json', 'validations/sqlite-benchmark/browser/playwright.config.ts', 'validations/wasm-plugin/host/playwright.config.ts') }}`.
+- **E2E owns its build dependencies:** the standalone `workspace-build` artifact flow is retired for normal PR validation. E2E runs through Turbo in its own runner and owns any build dependency it needs.
+- **Playwright system dependencies:** setup installs `playwright install-deps chromium firefox webkit` so browser cache hits do not mask missing OS libraries.
+- **Content-signature validation cache:** `scripts/ci/content-signature.mjs` hashes the validator name, version/extra context, pathspecs, tracked file names, and tracked file contents.
+- **Test & Quality result cache:** `quality` and `e2e` restore `.artifacts/validation-cache/test-quality` / `test-e2e`; cache markers are written only after successful fresh validation.
+- **Granular Matrix result cache:** `Matrix Discovery` restores `.artifacts/validation-cache/granular-matrix`; on cache hit it emits an explicit reuse notice and returns an empty matrix. `Matrix Cache Finalize` records a marker only after the dynamic matrix succeeds or is legitimately skipped.
+- **Docs validation cache:** `reusable-validate-docs.yml` computes/restores content-addressed documentation validation results for diagrams/MDT-style validations.
+- **Duplicate push suppression:** push runs on `develop` skip heavy validation when an open PR already validates the same head branch; PR runs remain canonical.
 - **E2E affected-first execution:** `Run E2E Tests (affected)` uses `--filter=${{ needs.changes.outputs.turbo_filter }}` when base commit is locally resolvable; otherwise falls back to full E2E safely.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
 - **Vitest reporting (CI):** default Vitest GitHub summary blocks are suppressed and replaced with an aggregated detailed report (`.artifacts/vitest/summary.md` + uploaded artifact `vitest-detailed-report`).
@@ -290,22 +303,35 @@ npm run test:unit
 ### Invalidation Rules
 
 - **npm cache invalidates when:** Node version or lockfile changes.
-- **Playwright cache invalidates when:** lockfile, Playwright config, or runner OS changes.
-- **Turbo cache invalidates when:** lockfile, `turbo.json`, or runner OS changes.
-- **Build artifact invalidates when:** a new workflow run executes (artifact is per-run, retention 7 days).
+- **Playwright cache invalidates when:** lockfile, Playwright config, runner OS, or setup dependency policy changes.
+- **Turbo cache invalidates when:** lockfile, `turbo.json`, runner OS, or relevant task inputs change.
+- **Content-signature validation cache invalidates when:** any tracked file selected by the gate pathspecs changes, the validation name changes, `REFARM_SIGNATURE_VERSION` changes, or `REFARM_SIGNATURE_EXTRA` changes.
+- **Docs validation cache invalidates when:** selected documentation inputs or the validation command change.
+- **Matrix result cache invalidates when:** package/app/validation inputs or matrix runner/setup scripts change.
 
-### Why This Avoids Waste
+### Why This Avoids Waste Without Hiding Risk
 
-- Prevents duplicate `npm run build` in both `build` and `e2e` jobs.
-- Avoids repeated Playwright browser downloads when lockfile/config/OS are unchanged.
+- Keeps CI **fail-closed**: no previous successful marker for the current signature means the gate runs fresh.
+- Makes reuse explicit: cache-hit steps emit notices such as “Reusing previous successful Test & Quality validation for unchanged inputs.”
+- Avoids duplicate heavy push validation when PR validation is canonical for the same `develop` head.
+- Avoids repeated Playwright browser downloads and missing-system-library failures.
+- Avoids rerunning `quality`, `e2e`, and package matrix work when their content signatures are unchanged.
+- Keeps `.project` validation running even when the broader `quality` gate is reused.
 - Avoids hard failure mode when turbo filter base SHA is unavailable in shallow SCM state (auto full fallback).
-- Avoids running E2E setup and report upload while suite is not yet implemented.
-- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary.
+- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary and `ci-metrics` artifacts.
+
+### Observed Cache-Proof Runs
+
+- Fresh `Test & Quality` run for `b4d736a2`: recorded successful `test-quality` and `test-e2e` markers after the validator changed.
+- Controlled rerun of `Test & Quality` (`25400683334`): `quality` cache hit in 7s and `e2e` cache hit in 8s; total workflow about 2m10s.
+- Fresh `Granular Matrix Tests` run (`25400683337`): dynamic compatibility matrix passed in 13m43s and recorded a marker through `Matrix Cache Finalize`.
+- Controlled rerun of `Granular Matrix Tests` (`25400683337`): `Matrix Discovery` cache hit in 9s, returned an empty matrix, and skipped dynamic matrix jobs.
 
 ### Residual Cost (Expected)
 
-- `npm ci` still runs once per job due job isolation on hosted runners.
-- Further reduction would require remote cache for task outputs (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
+- `npm ci` still runs once per job that needs setup due job isolation on hosted runners.
+- `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
+- Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
 ### Future: Turbo Remote Cache
 

@@ -4,18 +4,23 @@ flowchart TD
   subgraph Changes["changes job — smart filter"]
     C1["detect changed areas\n(ci / code / tractor_gates / e2e / task_smoke / audit)"]
     C2["compute turbo_filter\n...[base_sha]"]
-    C1 --> C2
+    C3["compute validation signatures\n(test-quality / test-e2e)"]
+    C1 --> C2 --> C3
   end
 
   Changes --> Quality
 
   subgraph Quality["quality job"]
+    QCache["restore test-quality\nresult cache"]
     Q0["project:validate\n(.project cross-block consistency)"]
+    QHit["cache hit → reuse previous\nsuccessful quality result"]
     Q1["npm audit --audit-level=high"]
     Q2["tsconfig:guard preflight"]
     Q3["task:execution:smoke\n(Farmhand CLI ↔ sidecar)"]
     Q4["task:execution:smoke:pi-agent\n(effort round-trip)"]
-    Q0 --> Q1 --> Q2
+    QCache --> Q0
+    Q0 -->|cache hit| QHit
+    Q0 -->|cache miss| Q1 --> Q2
 
     subgraph TractorGates["tractor gates  (when tractor_gates=true)"]
       TG1["health probe smoke\n(@refarm.dev/tractor-rs)"]
@@ -33,20 +38,17 @@ flowchart TD
     TractorGates --> QVerify["turbo run build lint\ntype-check test:coverage\ntest:unit test:integration\n(affected filter)"]
   end
 
-  Quality --> Build
   Quality --> AuditModerate
-
-  subgraph Build["build job  (when run_build=true)"]
-    B1["turbo run build\n(affected filter)"]
-  end
-
-  Build --> E2E
+  Quality --> E2E
 
   subgraph E2E["e2e job  (when run_e2e=true)"]
+    E0["restore test-e2e\nresult cache"]
+    EHit["cache hit → reuse previous\nsuccessful E2E result"]
     E1["playwright install"]
     E2["turbo run test:e2e\n(affected filter)"]
     E3["upload playwright report"]
-    E1 --> E2 --> E3
+    E0 -->|cache hit| EHit
+    E0 -->|cache miss| E1 --> E2 --> E3
   end
 
   subgraph AuditModerate["audit-moderate  (non-blocking)"]
@@ -60,6 +62,20 @@ flowchart TD
   end
 
   Changes --> DeepRegression
+
+  subgraph GranularMatrix["granular-tests.yml — package compatibility"]
+    M1["compute granular-matrix\ncontent signature"]
+    M2["restore matrix\nresult cache"]
+    MHit["cache hit → emit empty matrix\nand reuse prior success"]
+    M3["Build Matrix DAG"]
+    M4["forward/backward compatibility\nlocal ↔ published"]
+    M5["Matrix Cache Finalize\nrecord marker after success"]
+    M1 --> M2
+    M2 -->|cache hit| MHit
+    M2 -->|cache miss| M3 --> M4 --> M5
+  end
+
+  Trigger -.->|"PR package paths"| GranularMatrix
 
   E2E --> Summary
   AuditModerate --> Summary
@@ -89,7 +105,7 @@ flowchart TD
   classDef phase fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
 
   class Trigger,Changes,Summary,Metrics gate;
-  class Quality,QVerify quality;
+  class Quality,QCache,Q0,QHit,QVerify,E0,EHit quality;
   class TractorGates,TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8 tractor;
-  class Build,E2E,AuditModerate,DeepRegression infra;
+  class E2E,AuditModerate,DeepRegression,GranularMatrix infra;
   class QualityGates,SDD,BDD,TDD,DDD phase;

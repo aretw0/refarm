@@ -1,6 +1,8 @@
 flowchart TD
   subgraph Quality["quality job  (always runs on code_changes)"]
+    Cache["restore test-quality\nresult cache"]
     Q0["project:validate\n(.project cross-block consistency)"]
+    Hit["cache hit\nreuse prior success\nskip expensive stack"]
     Q1["npm audit --audit-level=high"]
     Q2["tsconfig:guard preflight"]
 
@@ -22,13 +24,15 @@ flowchart TD
 
     Turbo["turbo run\nbuild lint type-check\ntest:coverage test:unit test:integration\n(affected filter)"]
 
-    Q0 --> Q1 --> Q2 --> Smoke --> TractorGates --> Turbo
+    Cache --> Q0
+    Q0 -->|cache hit| Hit
+    Q0 -->|cache miss| Q1 --> Q2 --> Smoke --> TractorGates --> Turbo
   end
 
   classDef quality fill:#dcfce7,stroke:#166534,stroke-width:1px;
   classDef tractor fill:#fef3c7,stroke:#92400e,stroke-width:1px;
   classDef smoke   fill:#e0f2fe,stroke:#075985,stroke-width:1px;
 
-  class Q0,Q1,Q2,Turbo quality;
+  class Cache,Q0,Hit,Q1,Q2,Turbo quality;
   class TG1,TG2,TG3,TG4,TG5,TG6 tractor;
   class S1,S2 smoke;
