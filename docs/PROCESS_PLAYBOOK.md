@@ -25,6 +25,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 ```bash
 npm run farm:status        # unified status: both services, ports, artifacts, LLM
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
+npm run refarm:telemetry:gate -- --profile balanced  # strict fail-closed gate
 npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
@@ -178,6 +179,8 @@ Notes:
   watch queue/in-flight pressure and recent failure-rate signals.
 - Use `refarm telemetry --strict` to fail-closed when diagnostics are present
   (automation/CI-friendly exit code 2).
+- For automation wrappers that can bootstrap farmhand when needed, use
+  `npm run refarm:telemetry:gate -- --profile balanced`.
 
 ### Scenario 3c — Session-first workflow
 

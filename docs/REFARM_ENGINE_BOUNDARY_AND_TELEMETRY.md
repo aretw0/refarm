@@ -73,6 +73,7 @@ Current canonical endpoint/commands:
 - `GET /telemetry/window?minutes=<n>` (farmhand sidecar; rolling window)
 - `refarm telemetry --profile <conservative|balanced|throughput>` (host CLI)
 - `refarm telemetry --strict [--strict-on code1,code2]` (fail-closed gate)
+- `npm run refarm:telemetry:gate -- --profile <name>` (CI wrapper with farmhand bootstrap)
 
 This contract is intentionally lightweight and can be expanded while preserving shape.
 
