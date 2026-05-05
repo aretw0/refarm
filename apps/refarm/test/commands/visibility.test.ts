@@ -16,6 +16,7 @@ function makeDeps(overrides: Partial<VisibilityDeps> = {}): VisibilityDeps {
 			failed: 0,
 			cancelled: 0,
 		}),
+		fetchVisibilityWindow: vi.fn().mockResolvedValue(null),
 		...overrides,
 	};
 }
@@ -34,12 +35,13 @@ describe("refarm visibility", () => {
 		await command.parseAsync([], { from: "user" });
 
 		expect(deps.fetchVisibility).toHaveBeenCalledOnce();
+		expect(deps.fetchVisibilityWindow).toHaveBeenCalledWith(60);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Refarm Visibility Snapshot");
 		expect(output).toContain("no pressure signals");
 	});
 
-	it("emits diagnostics in --json mode", async () => {
+	it("emits core diagnostics in --json mode", async () => {
 		const deps = makeDeps({
 			fetchVisibility: vi.fn().mockResolvedValue({
 				queueDepth: 20,
@@ -67,5 +69,51 @@ describe("refarm visibility", () => {
 		expect(payload.diagnostics).toContain("pressure:queue-depth");
 		expect(payload.diagnostics).toContain("pressure:in-flight");
 		expect(payload.diagnostics).toContain("efforts:failed-present");
+	});
+
+	it("uses profile thresholds and window diagnostics", async () => {
+		const deps = makeDeps({
+			fetchVisibility: vi.fn().mockResolvedValue({
+				queueDepth: 6,
+				inFlight: 1,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 12,
+				pending: 1,
+				inProgress: 1,
+				done: 8,
+				failed: 2,
+				cancelled: 0,
+			}),
+			fetchVisibilityWindow: vi.fn().mockResolvedValue({
+				windowMinutes: 15,
+				since: new Date(Date.now() - 15 * 60_000).toISOString(),
+				terminal: 4,
+				failureRatePct: 25,
+				generatedAt: new Date().toISOString(),
+				total: 5,
+				pending: 0,
+				inProgress: 1,
+				done: 2,
+				failed: 1,
+				cancelled: 1,
+			}),
+		});
+		const command = createVisibilityCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--json", "--profile", "conservative", "--window-minutes", "15"],
+			{
+				from: "user",
+			},
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			diagnostics?: string[];
+		};
+		expect(payload.diagnostics).toContain("pressure:queue-depth");
+		expect(payload.diagnostics).toContain("efforts:failed-recent");
+		expect(payload.diagnostics).toContain("pressure:failure-rate");
 	});
 });
