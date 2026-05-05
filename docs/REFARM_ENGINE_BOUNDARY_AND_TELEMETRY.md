@@ -72,6 +72,7 @@ Current canonical endpoint/commands:
 - `GET /telemetry` (farmhand sidecar; current pressure snapshot)
 - `GET /telemetry/window?minutes=<n>` (farmhand sidecar; rolling window)
 - `refarm telemetry --profile <conservative|balanced|throughput>` (host CLI)
+- `refarm telemetry --strict [--strict-on code1,code2]` (fail-closed gate)
 
 This contract is intentionally lightweight and can be expanded while preserving shape.
 
@@ -88,6 +89,7 @@ Recommended quick triage loop:
 
 ```bash
 refarm telemetry
+refarm telemetry --json --strict
 npm run farm:status
 refarm doctor
 ```

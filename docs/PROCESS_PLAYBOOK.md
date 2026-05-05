@@ -176,6 +176,8 @@ Notes:
 - If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
 - Use `refarm telemetry --profile balanced` (or conservative/throughput) to
   watch queue/in-flight pressure and recent failure-rate signals.
+- Use `refarm telemetry --strict` to fail-closed when diagnostics are present
+  (automation/CI-friendly exit code 2).
 
 ### Scenario 3c — Session-first workflow
 
