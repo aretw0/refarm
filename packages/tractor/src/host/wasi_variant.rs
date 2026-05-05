@@ -10,7 +10,6 @@
 /// Byte 4 (0-indexed) is the "layer" discriminant:
 ///   0x01 → WASM module
 ///   0x0d → WASM component
-
 const WASM_MAGIC: [u8; 4] = [0x00, 0x61, 0x73, 0x6d];
 const MODULE_VERSION: [u8; 4] = [0x01, 0x00, 0x00, 0x00];
 const COMPONENT_LAYER: u8 = 0x0d;

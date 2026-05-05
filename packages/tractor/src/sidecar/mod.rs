@@ -342,7 +342,7 @@ fn epoch_to_parts(secs: u64) -> (u64, u64, u64, u64, u64, u64) {
     let y1 = (rem / 365).min(3);
     let rem = rem - y1 * 365;
     let year = y400 * 400 + y100 * 100 + y4 * 4 + y1 + 1970;
-    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+    let leap = (year.is_multiple_of(4) && !year.is_multiple_of(100)) || year.is_multiple_of(400);
     let month_days: &[u64] = if leap {
         &[31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     } else {
@@ -766,13 +766,13 @@ async fn get_tasks(
             params
                 .status
                 .as_deref()
-                .map_or(true, |s| t["status"].as_str() == Some(s))
+                .is_none_or(|s| t["status"].as_str() == Some(s))
         })
         .filter(|t| {
             params
                 .session_id
                 .as_deref()
-                .map_or(true, |sid| t["context_id"].as_str() == Some(sid))
+                .is_none_or(|sid| t["context_id"].as_str() == Some(sid))
         })
         .collect();
 

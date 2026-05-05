@@ -423,7 +423,7 @@ async fn run_daemon(args: DaemonArgs) -> Result<()> {
         let base_dir = args
             .refarm_dir
             .clone()
-            .unwrap_or_else(|| dirs_refarm_base());
+            .unwrap_or_else(dirs_refarm_base);
         match tractor::sidecar::SidecarState::new(tractor.agent_channels.clone(), &base_dir, args.namespace.clone()) {
             Ok(state) => {
                 let http_port = args.http_port;
