@@ -2,6 +2,8 @@
 
 Use this as a restart note when returning to the project after context resets.
 
+For canonical runtime boundary and observability posture, see [Refarm Engine Boundary & Visibility Guide](./REFARM_ENGINE_BOUNDARY_AND_VISIBILITY.md).
+
 ## Current north star
 
 Refarm is moving toward a unified `refarm` host experience: one product command

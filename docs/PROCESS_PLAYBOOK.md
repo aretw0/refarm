@@ -24,6 +24,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 ```bash
 npm run farm:status        # unified status: both services, ports, artifacts, LLM
+refarm visibility          # runtime pressure snapshot (queue/in-flight/failures)
 npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
