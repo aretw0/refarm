@@ -16,6 +16,7 @@ import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
 import { tuiCommand } from "./commands/tui.js";
+import { visibilityCommand } from "./commands/visibility.js";
 import { webCommand } from "./commands/web.js";
 
 export const program = new Command();
@@ -42,3 +43,4 @@ program.addCommand(askCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(tasksCommand);
 program.addCommand(keysCommand);
+program.addCommand(visibilityCommand);
