@@ -24,10 +24,11 @@ function makeHandle(componentInstance: any) {
 // call() routing
 // ---------------------------------------------------------------------------
 describe("PluginInstanceHandle.call()", () => {
-  it("returns null when componentInstance is null", async () => {
+  it("throws when componentInstance is null", async () => {
     const { instance } = makeHandle(null);
-    const result = await instance.call("setup");
-    expect(result).toBeNull();
+    await expect(instance.call("setup")).rejects.toThrow(
+      /not instantiated/i,
+    );
   });
 
   it("routes to componentInstance.integration[fn] when present", async () => {
@@ -65,17 +66,37 @@ describe("PluginInstanceHandle.call()", () => {
     expect(result).toBe("integration wins");
   });
 
-  it("returns null when componentInstance has no matching method", async () => {
+  it("throws when componentInstance has no matching method", async () => {
     const { instance } = makeHandle({ otherMethod: vi.fn() });
-    const result = await instance.call("setup");
-    expect(result).toBeNull();
+    await expect(instance.call("setup")).rejects.toThrow(
+      /does not expose callable/i,
+    );
   });
 
-  it("returns null when integration exists but fn is not a function", async () => {
+  it("throws when integration exists but fn is not a function", async () => {
     const { instance } = makeHandle({ integration: { setup: "not-a-function" } });
-    // Falls through to direct check — no direct setup either
-    const result = await instance.call("setup");
-    expect(result).toBeNull();
+    await expect(instance.call("setup")).rejects.toThrow(
+      /does not expose callable/i,
+    );
+  });
+
+  it("accepts kebab-case fn names by resolving camelCase integration methods", async () => {
+    const onEvent = vi.fn().mockResolvedValue(undefined);
+    const { instance } = makeHandle({ integration: { onEvent } });
+
+    await instance.call("on-event", ["system:test", "{}"]);
+
+    expect(onEvent).toHaveBeenCalledWith(["system:test", "{}"]);
+  });
+
+  it("resolves namespaced integration exports when integration alias is missing", async () => {
+    const respond = vi.fn().mockResolvedValue("ok");
+    const { instance } = makeHandle({
+      "refarm:plugin/integration@0.1.0": { respond },
+    });
+
+    await expect(instance.call("respond", "payload")).resolves.toBe("ok");
+    expect(respond).toHaveBeenCalledWith("payload");
   });
 });
 
@@ -99,12 +120,18 @@ describe("PluginInstanceHandle.call() — telemetry", () => {
     );
   });
 
-  it("still emits api:call when componentInstance is null (result = null)", async () => {
+  it("emits api:call with error when componentInstance is null", async () => {
     const { instance, emit } = makeHandle(null);
-    await instance.call("ping");
+    await expect(instance.call("ping")).rejects.toThrow(/not instantiated/i);
 
     expect(emit).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "api:call", payload: expect.objectContaining({ fn: "ping", result: null }) }),
+      expect.objectContaining({
+        event: "api:call",
+        payload: expect.objectContaining({
+          fn: "ping",
+          error: expect.stringContaining("not instantiated"),
+        }),
+      }),
     );
   });
 });

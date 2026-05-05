@@ -17,10 +17,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
  */
 
 describe("JCO Integration", () => {
-  const wasmPath = path.resolve(
-    __dirname,
-    "../../../validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm",
-  );
+  const wasmPath = process.env.CARGO_TARGET_DIR
+    ? path.resolve(
+        process.env.CARGO_TARGET_DIR,
+        "wasm32-wasip1/release/refarm_hello_world_plugin.wasm",
+      )
+    : path.resolve(
+        __dirname,
+        "../../../validations/wasm-plugin/hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm",
+      );
 
   let wasmBuffer: Buffer;
 

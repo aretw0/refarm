@@ -18,9 +18,16 @@ export function defineConfig(userConfig = {}) {
 
     // Manually define core aliases for robust resolution in monorepo
     const coreAliases = {
+        "@refarm.dev/homestead/sdk/custom-element": path.resolve(root, "packages/homestead/src/sdk/custom-element.ts"),
+        "@refarm.dev/homestead/sdk/host-renderer": path.resolve(root, "packages/homestead/src/sdk/host-renderer.ts"),
+        "@refarm.dev/homestead/sdk/plugin-handle": path.resolve(root, "packages/homestead/src/sdk/plugin-handle.ts"),
+        "@refarm.dev/homestead/sdk/runtime": path.resolve(root, "packages/homestead/src/sdk/runtime.ts"),
+        "@refarm.dev/homestead/sdk/shell": path.resolve(root, "packages/homestead/src/sdk/Shell.ts"),
+        "@refarm.dev/homestead/sdk/surface-inspector": path.resolve(root, "packages/homestead/src/sdk/surface-inspector.ts"),
+        "@refarm.dev/homestead/sdk/surface-renderer": path.resolve(root, "packages/homestead/src/sdk/surface-renderer.ts"),
         "@refarm.dev/homestead/sdk": path.resolve(root, "packages/homestead/src/sdk/index.ts"),
         "@refarm.dev/homestead/ui": path.resolve(root, "packages/homestead/src/ui/index.ts"),
-        "@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.ts"),
+        "@refarm.dev/tractor": path.resolve(root, "packages/tractor-ts/src/index.browser.ts"),
         "@refarm.dev/config": path.resolve(root, "packages/config/src/index.js"),
         "@refarm.dev/ds/styles/tokens.css": path.resolve(root, "packages/ds/src/tokens.css"),
         "@refarm.dev/ds/styles/styles.css": path.resolve(root, "packages/ds/src/styles.css"),

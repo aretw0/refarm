@@ -1,0 +1,19 @@
+{
+  "number": 4,
+  "name": "Runtime",
+  "intent": "Evoluir runtime Tractor/Pi-Agent com segurança e confiabilidade.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P4-Runtime registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P4-Runtime executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P4-Runtime refletidos nos blocos .project"
+  ]
+}

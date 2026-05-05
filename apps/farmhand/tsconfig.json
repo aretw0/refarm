@@ -3,6 +3,7 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "ignoreDeprecations": "6.0",
     "lib": ["ES2022"],
     "strict": true,
     "skipLibCheck": true,
@@ -13,7 +14,14 @@
     "sourceMap": true,
     "noEmit": true,
     "outDir": "dist",
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@refarm.dev/file-stream-transport": ["../../packages/file-stream-transport/dist/index.d.ts"],
+      "@refarm.dev/sse-stream-transport": ["../../packages/sse-stream-transport/dist/index.d.ts"],
+      "@refarm.dev/ws-stream-transport": ["../../packages/ws-stream-transport/dist/index.d.ts"],
+      "@refarm.dev/stream-contract-v1": ["../../packages/stream-contract-v1/dist/index.d.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

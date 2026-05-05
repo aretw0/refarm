@@ -1,0 +1,69 @@
+/// agent-tool-contract-v1.wit
+///
+/// WIT interface for the Pi Agent's 4 atomic tools.
+/// These are host capabilities the tractor provides to agent plugins.
+///
+/// Standard: WebAssembly Component Model (WASI Preview 2)
+
+package refarm:agent-tools@0.1.0;
+
+// ─── Filesystem Tools ─────────────────────────────────────────────────────────
+
+interface agent-fs {
+    /// Read file contents from an absolute path.
+    /// Capability required: "read-fs"
+    read: func(path: string) -> result<list<u8>, string>;
+
+    /// Write bytes to a path (atomic: tmp → fsync → rename).
+    /// Capability required: "write-fs"
+    write: func(path: string, content: list<u8>) -> result<_, string>;
+
+    /// Apply a unified diff to an existing file (atomic).
+    /// Returns error if the diff context does not match current file state.
+    /// Capability required: "write-fs"
+    edit: func(path: string, diff: string) -> result<_, string>;
+}
+
+// ─── Shell Tool ───────────────────────────────────────────────────────────────
+
+interface agent-shell {
+    record spawn-request {
+        /// Structured argv — host never interpolates through a shell.
+        argv: list<string>,
+        /// Environment variables to pass (allowlist; host adds nothing else).
+        env: list<tuple<string, string>>,
+        /// Working directory (absolute path).
+        cwd: option<string>,
+        /// Hard timeout in milliseconds; process is killed after this.
+        timeout-ms: u32,
+        /// Stdin bytes to feed into the process.
+        stdin: option<list<u8>>,
+    }
+
+    record spawn-result {
+        stdout: list<u8>,
+        stderr: list<u8>,
+        exit-code: s32,
+        /// True if the process was killed due to timeout.
+        timed-out: bool,
+    }
+
+    /// Spawn a subprocess with structured argv.
+    /// The tractor enforces that argv[0] is in the plugin's declared binary allowlist.
+    /// Capability required: "spawn-shell"
+    spawn: func(req: spawn-request) -> result<spawn-result, string>;
+}
+
+// ─── World ────────────────────────────────────────────────────────────────────
+
+/// World for agent plugins that use the 4 Pi tools.
+/// Compose with `refarm:plugin/refarm-plugin` from refarm-sdk.wit.
+world agent-tool-plugin {
+    import refarm:plugin/tractor-bridge;
+    import agent-fs;
+    import agent-shell;
+
+    import wasi:logging/logging;
+
+    export refarm:plugin/integration;
+}

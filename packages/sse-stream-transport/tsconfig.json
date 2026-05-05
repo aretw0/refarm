@@ -1,0 +1,17 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "emitDeclarationOnly": true,
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "outDir": "dist",
+    "baseUrl": "../..",
+    "paths": {
+      "@refarm.dev/file-stream-transport": ["./packages/file-stream-transport/dist/index.d.ts"],
+      "@refarm.dev/stream-contract-v1": ["./packages/stream-contract-v1/dist/index.d.ts"]
+    }
+  },
+  "include": ["src/**/*"]
+}

@@ -1,40 +1,41 @@
 {
-  "name": "@refarm.dev/plugin-manifest",
-  "version": "0.1.0",
-  "description": "Plugin manifest schema and validation helpers for Refarm micro-kernel",
-  "type": "module",
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
-  "exports": {
-    ".": "./src/index.js"
-  },
-  "scripts": {
-    "lint": "vitest run --passWithNoTests",
-    "type-check": "true",
-    "test": "vitest run",
-    "test:unit": "vitest run --passWithNoTests"
-  },
-  "keywords": [
-    "plugin",
-    "manifest",
-    "capability",
-    "validation"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/plugin-manifest"
-  },
-  "homepage": "https://refarm.dev.br",
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "*"
-  }
+	"name": "@refarm.dev/plugin-manifest",
+	"version": "0.1.0",
+	"description": "Plugin manifest schema and validation helpers for Refarm micro-kernel",
+	"type": "module",
+	"main": "./src/index.js",
+	"types": "./src/index.d.ts",
+	"exports": {
+		".": "./src/index.js"
+	},
+	"scripts": {
+		"lint": "vitest run --passWithNoTests",
+		"type-check": "true",
+		"test": "vitest run",
+		"test:unit": "vitest run --passWithNoTests",
+		"test:conformance": "vitest run src/validate.test.js"
+	},
+	"keywords": [
+		"plugin",
+		"manifest",
+		"capability",
+		"validation"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/plugin-manifest"
+	},
+	"homepage": "https://refarm.dev.br",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "*"
+	}
 }

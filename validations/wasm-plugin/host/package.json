@@ -5,10 +5,11 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:wasm": "mkdir -p public && cp ../hello-world/target/wasm32-wasip1/release/refarm_hello_world_plugin.wasm public/hello-world-plugin.wasm && npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
+    "build:wasm": "mkdir -p public && cp $(node ../../../scripts/ci/cargo-artifact-path.mjs wasm32-wasip1/release/refarm_hello_world_plugin.wasm) public/hello-world-plugin.wasm && npx jco transpile public/hello-world-plugin.wasm -o src/generated --name hello-world --map refarm:sdk/kernel-bridge=../kernel-bridge.js",
     "build": "npm run build:wasm && (vite build || echo 'Skipping production build: Generated JS missing')",
     "preview": "vite preview",
     "preview:test": "vite preview --host 127.0.0.1 --port 4175 --strictPort",
+    "preview:test:ci": "node -e \"process.exit(require('fs').existsSync('dist') ? 0 : 1)\" && npm run preview:test || (echo 'dist missing; building before preview...' && npm run build && npm run preview:test)",
     "preview:static": "npm run build && serve dist -l 4176",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed",
@@ -17,15 +18,15 @@
     "test:e2e:webkit": "playwright test --project=webkit"
   },
   "dependencies": {
-    "@bytecodealliance/jco": "^1.4.2",
-    "@bytecodealliance/preview2-shim": "^0.17.8"
+    "@bytecodealliance/jco": "^1.18.0",
+    "@bytecodealliance/preview2-shim": "^0.17.9"
   },
   "devDependencies": {
     "@refarm.dev/hello-world-plugin": "*",
     "@refarm.dev/vtconfig": "*",
-    "@playwright/test": "^1.58.2",
-    "serve": "^14.2.4",
-    "typescript": "^5.7.3",
-    "vite": "^8.0.1"
+    "@playwright/test": "^1.59.1",
+    "serve": "^14.2.6",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.9"
   }
 }

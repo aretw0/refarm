@@ -1,15 +1,16 @@
 {
-  "compilerOptions": {
-    "noEmit": true,
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "composite": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "dist",
-    "rootDir": "src"
-  }
+	"compilerOptions": {
+		"noEmit": true,
+		"module": "ESNext",
+		"target": "ESNext",
+		"moduleResolution": "bundler",
+		"esModuleInterop": true,
+		"skipLibCheck": true,
+		"composite": true,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "dist",
+		"rootDir": "src",
+		"types": ["node", "vitest"]
+	}
 }

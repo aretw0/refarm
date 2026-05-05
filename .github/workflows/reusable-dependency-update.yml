@@ -202,7 +202,9 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Create pull request
+        id: create_pr
         if: steps.manage_issue.outputs.proceed == 'true'
+        continue-on-error: true
         uses: ./.github/actions/create-pr
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -212,3 +214,10 @@ jobs:
           branch: ${{ inputs.pr-branch }}
           delete-branch: true
           labels: ${{ inputs.pr-labels }}
+
+      - name: Warn when PR creation is blocked by repository policy
+        if: steps.manage_issue.outputs.proceed == 'true' && steps.create_pr.outcome != 'success'
+        shell: bash
+        run: |
+          echo "::warning::Dependency updates were generated, but automatic PR creation failed."
+          echo "::warning::Check repository settings: Actions must be allowed to create pull requests."

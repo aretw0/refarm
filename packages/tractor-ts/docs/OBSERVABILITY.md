@@ -27,6 +27,41 @@ const dump = await tractor.commands.execute("system:diagnostics:export");
 console.log(dump.events); // The sanitized chronological list of the last 1000 events
 ```
 
+For runtime descriptor revocation incidents, Tractor also exposes higher-level diagnostics:
+
+```javascript
+const summary = await tractor.commands.execute(
+  "system:diagnostics:descriptor-revocation-summary",
+  { pluginId: "@acme/plugin-a", limit: 200 }
+);
+
+const diagnostics = await tractor.commands.execute(
+  "system:diagnostics:descriptor-revocation-alerts",
+  { unavailableCriticalAt: 2, configDriftWarnAt: 1 }
+);
+
+console.log(summary.summary);
+console.log(diagnostics.alerts);
+```
+
+For historical triage in CI/ops, generate the current snapshot, attempt baseline lookup from the previous successful run, and then compute delta:
+
+```bash
+npm run runtime-descriptor:revocation-report -- --input /path/to/telemetry-export.json
+npm run runtime-descriptor:revocation-baseline -- \
+  --current-report .artifacts/runtime-descriptor-revocation-report/summary.json \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt
+npm run runtime-descriptor:revocation-history -- \
+  --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
+  --out-dir .artifacts/runtime-descriptor-revocation-history
+```
+
+This generates:
+- `.artifacts/runtime-descriptor-revocation-baseline/baseline.json`
+- `.artifacts/runtime-descriptor-revocation-baseline/previous-summary.json` (when found)
+- `.artifacts/runtime-descriptor-revocation-history/history.json`
+- `.artifacts/runtime-descriptor-revocation-history/history.md`
+
 ### Sanitization Policy
 The export process automatically protects user data by applying sanitization hooks to the JSON payload:
 1. **Redaction:** Known sensitive keys (`secretKey`, `token`, `password`, `sas`, etc.) are replaced with `[REDACTED]`.

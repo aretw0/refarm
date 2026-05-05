@@ -1,0 +1,19 @@
+{
+  "number": 0,
+  "name": "Setup",
+  "intent": "Estabelecer baseline operacional e governança da fábrica.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P0-Setup registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P0-Setup executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P0-Setup refletidos nos blocos .project"
+  ]
+}

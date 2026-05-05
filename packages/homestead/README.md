@@ -9,7 +9,18 @@ Homestead acts as the "Face" of the sovereign citizen, providing a portal to the
 ## Key Components
 
 - **`StudioShell`**: The extensible UI container for all Refarm distros.
+- **`setupStudioShell(...)`**: Shared shell setup helper that instantiates `StudioShell`, runs `setup()`, and returns the shell without hiding host-specific plugin registration.
+- **`bootStudioRuntime(...)`**: Shared browser runtime boot helper for OPFS SQLite, Loro CRDT storage, optional browser sync, identity stubs, and Tractor boot.
+- **`createStudioPluginHandle(...)`**: Shared local plugin-handle factory for first-party hosts and Studio experiments.
+- **`createHomesteadSurfacePluginHandle(...)`**: Shared helper for local plugins that declare Homestead surfaces without repeating manifest boilerplate.
+- **`defineHomesteadReactiveElement(...)`**: Shared lifecycle helper for small live custom-element islands that need deterministic connect/dispose behavior without each app reimplementing controller bookkeeping.
+- **`createHomesteadHostRendererDescriptor(...)`**: Shared renderer descriptor helper for host distros that need to advertise Web/TUI/headless capabilities without reimplementing the host vocabulary.
+- **`registerStudioPluginManifest(...)`**: Shared registry helper for hosts that want to mark local fixtures or resolved plugins as `validated`/`active` before explicitly registering their plugin handles.
+- **`renderHomesteadSurface` plugin hook**: Optional plugin method Homestead calls for trusted manifest-declared surfaces, passing `{ pluginId, slotId, mountSource, surface, locale }` plus optional host-owned `{ host }` context/actions when the shell is configured with a surface context provider. Return `{ html }` for explicit trusted HTML or a string/`{ text }` for text content. Homestead records `data-refarm-surface-render-mode` and emits render/failure telemetry for Studio diagnostics. Use `createScopedHomesteadSurfaceContextProvider(...)` from `@refarm.dev/homestead/sdk/surface-renderer` to keep reusable context-matching behavior in the SDK while host-specific actions stay in the app.
+- **Surface actions**: Host context actions are descriptors until the rendered surface emits `data-refarm-surface-action-id`. `StudioShell` resolves the action generically, emits `ui:surface_action_requested`/`ui:surface_action_failed`, and calls the host-provided `surfaceAction` handler. Use `createScopedHomesteadSurfaceActionHandler(...)` to reuse SDK-owned matching while keeping concrete semantics such as navigation, mutations, or command dispatch in the host app.
 - **`HeraldPlugin`**: Identity and presence management.
 - **`FireflyPlugin`**: System-wide notification system.
+
+`StudioShell` and the Studio runtime helpers are shared Homestead primitives for all first-party apps. `apps/dev` is only the reference workbench for concrete experiments and diagnostics. `apps/dev`, `apps/me`, and future surfaces such as `social` should share the Homestead runtime helper for repeated Tractor/OPFS/Loro orchestration, while keeping app-specific plugins, fixtures, actions, and visual diagnostics in the app layer.
 
 See [ROADMAP.md](./ROADMAP.md) for the vision of a graph-driven UI.

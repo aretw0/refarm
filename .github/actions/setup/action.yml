@@ -19,36 +19,47 @@ runs:
   using: "composite"
   steps:
     - name: Setup Node.js ${{ inputs.node-version }}
-      uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
       with:
         node-version: ${{ inputs.node-version }}
         cache: "npm"
 
     - name: Cache Turbo
-      uses: ./.github/actions/cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
-        key: ${{ runner.os }}-turbo-${{ github.sha }}
+        key: ${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}
         restore-keys: |
           ${{ runner.os }}-turbo-
 
     - name: Install dependencies
       shell: bash
       run: |
-        if [ -f package-lock.json ]; then
-          echo "Found package-lock.json, attempting npm ci..."
-          npm ci || (echo "npm ci failed, falling back to npm install..." && npm install)
-        else
-          echo "No package-lock.json found, running npm install..."
-          npm install
+        set -euo pipefail
+        if [ ! -f package-lock.json ]; then
+          echo "::error::package-lock.json is required for deterministic CI."
+          exit 1
+        fi
+
+        echo "Installing dependencies with npm ci (deterministic mode)..."
+        npm ci
+
+    - name: Configure CI cargo target directory
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "${CARGO_TARGET_DIR:-}" ] && [ -n "${GITHUB_WORKSPACE:-}" ]; then
+          echo "CARGO_TARGET_DIR=${GITHUB_WORKSPACE}/target" >> "$GITHUB_ENV"
+          echo "Using CI cargo target directory: ${GITHUB_WORKSPACE}/target"
         fi
 
     - name: Cache Playwright browsers
       if: ${{ inputs.playwright-setup == 'true' }}
       id: cache-playwright
-      uses: ./.github/actions/cache-playwright
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
-        key: ${{ runner.os }}-playwright-browsers-${{ github.sha }}
+        path: ~/.cache/ms-playwright
+        key: ${{ runner.os }}-playwright-browsers-${{ hashFiles('package-lock.json', 'validations/sqlite-benchmark/browser/playwright.config.ts', 'validations/wasm-plugin/host/playwright.config.ts') }}
         restore-keys: |
           ${{ runner.os }}-playwright-browsers-
 
@@ -56,11 +67,17 @@ runs:
       if: ${{ inputs.playwright-setup == 'true' }}
       shell: bash
       run: |
-        if npx playwright install --list | grep -Eq '/(chromium|firefox|webkit)-'; then
-          echo "Playwright browsers already available, skipping installation..."
+        set -euo pipefail
+        PW_CMD="npm exec --workspace validations/sqlite-benchmark/browser -- playwright"
+
+        echo "Installing Playwright system dependencies..."
+        $PW_CMD install-deps chromium firefox webkit
+
+        if $PW_CMD install --list | grep -Eq '/(chromium|firefox|webkit)-'; then
+          echo "Playwright browsers already available, skipping browser installation..."
         else
           echo "Installing Playwright browsers..."
-          npx playwright install --with-deps
+          $PW_CMD install chromium firefox webkit
         fi
 
     - name: Setup Rust toolchain
@@ -72,7 +89,7 @@ runs:
     - name: Cache cargo-component
       if: ${{ inputs.rust-target != '' }}
       id: cache-cargo-component
-      uses: ./.github/actions/cache
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: ~/.cargo/bin/cargo-component
         key: ${{ runner.os }}-cargo-component-0.21.1

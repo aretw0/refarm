@@ -1,0 +1,10 @@
+# mdt configuration for docs/diagrams
+# Run `mdt update` from this directory to sync template blocks into target markdown files.
+# Run `mdt check` in CI to verify no drift.
+#
+# Templates: .templates/*.t.md
+# Targets:   any .md in this directory that has <!-- {=blockname} --> markers
+
+[padding]
+before = 0
+after = 0

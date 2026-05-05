@@ -1,0 +1,19 @@
+flowchart TD
+    Prev([← Gate 2 passed]) --> TDD
+
+    subgraph TDD[TDD - Test Driven Development]
+        T1[Write Unit Tests]
+        T2[Define Contracts]
+        T3[Tests FAIL 🔴]
+        T4[Check Coverage ≥80%]
+        T5[Peer Review]
+        T1 --> T2 --> T3 --> T4 --> T5
+    end
+
+    TDD --> Gate3{Gate 3:<br/>Tests RED?<br/>Coverage OK?}
+    Gate3 -->|No| TDD
+    Gate3 -->|Yes| Next([→ DDD Phase])
+
+    style TDD  fill:#fff3e0
+    style Prev fill:#f5f5f5
+    style Next fill:#f5f5f5

@@ -1,0 +1,21 @@
+{
+	"number": 11,
+	"name": "Revocation-History-Baseline",
+	"intent": "Operacionalizar baseline real de revogação entre runs de CI para análise longitudinal confiável.",
+	"status": "planned",
+	"success_criteria": [
+		{
+			"criterion": "Baseline via artifact de run anterior resolvido de forma determinística e auditável",
+			"verify_method": "inspect"
+		},
+		{
+			"criterion": "Workflow Test & Quality executa smoke histórico com reports-file e artefatos baseline/history",
+			"verify_method": "test"
+		}
+	],
+	"outputs": [
+		"Scripts de baseline/history integrados no CI",
+		"Documentação operacional atualizada",
+		"Tasks/verifications da fase 11 registradas"
+	]
+}

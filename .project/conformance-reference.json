@@ -1,0 +1,103 @@
+{
+  "name": "Refarm Colony Conformance Reference v1",
+  "scope": {
+    "type": "monorepo",
+    "framework": "turborepo",
+    "sources": [
+      "AGENTS.md",
+      "docs/WORKFLOW.md",
+      "CONTRIBUTING.md",
+      "docs/DEVOPS.md"
+    ]
+  },
+  "principles": [
+    {
+      "id": "P1",
+      "name": "Source Sovereignty",
+      "description": "Nunca editar artefatos gerados; corrigir sempre na fonte.",
+      "rules": [
+        {
+          "id": "P1.1",
+          "rule": "Não editar arquivos em dist/, build/ ou .turbo/.",
+          "check_method": "grep",
+          "check_pattern": "git diff --name-only | grep -E '^(.*\\/dist\\/|.*\\/build\\/|\\.turbo\\/)'",
+          "anti_patterns": [
+            "Hotfix em dist/*.d.ts",
+            "Patch manual em build output"
+          ],
+          "severity": "error"
+        },
+        {
+          "id": "P1.2",
+          "rule": "Mudanças devem ocorrer em src/ ou docs/.",
+          "check_method": "inspect",
+          "anti_patterns": [
+            "Alteração apenas em artefato sem fonte"
+          ],
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "P2",
+      "name": "Quality Gates",
+      "description": "Toda entrega deve trazer validação proporcional ao escopo.",
+      "rules": [
+        {
+          "id": "P2.1",
+          "rule": "Executar type-check para mudanças de código TypeScript.",
+          "check_method": "command",
+          "check_pattern": "npm run type-check",
+          "severity": "error"
+        },
+        {
+          "id": "P2.2",
+          "rule": "Executar build para domínios impactados.",
+          "check_method": "command",
+          "check_pattern": "npm run build",
+          "severity": "warning"
+        }
+      ]
+    },
+    {
+      "id": "P3",
+      "name": "Atomic Delivery",
+      "description": "Uma tarefa por branch/PR com escopo delimitado.",
+      "rules": [
+        {
+          "id": "P3.1",
+          "rule": "Task deve mapear arquivos/pacotes alvo.",
+          "check_method": "inspect",
+          "severity": "warning"
+        },
+        {
+          "id": "P3.2",
+          "rule": "Task concluída precisa de evidência de verificação.",
+          "check_method": "inspect",
+          "severity": "error"
+        }
+      ]
+    },
+    {
+      "id": "P4",
+      "name": "Environment Readiness",
+      "description": "Ambiente deve estar apto antes de execução paralela.",
+      "rules": [
+        {
+          "id": "P4.1",
+          "rule": "Toolchain Rust estável e targets wasm instalados para runtime.",
+          "check_method": "command",
+          "check_pattern": "rustc -V && cargo -V",
+          "severity": "error"
+        },
+        {
+          "id": "P4.2",
+          "rule": "Verificar resolução src/dist antes de lote de execução.",
+          "check_method": "command",
+          "check_pattern": "node scripts/reso.mjs status",
+          "severity": "warning"
+        }
+      ]
+    }
+  ]
+}

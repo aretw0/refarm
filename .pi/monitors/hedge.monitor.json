@@ -1,0 +1,38 @@
+{
+  "name": "hedge",
+  "description": "Detects when assistant deviates from what the user said",
+  "event": "turn_end",
+  "when": "always",
+  "scope": {
+    "target": "main"
+  },
+  "classify": {
+    "context": [
+      "user_text",
+      "tool_results",
+      "tool_calls",
+      "custom_messages",
+      "assistant_text"
+    ],
+    "agent": "hedge-classifier"
+  },
+  "patterns": {
+    "path": "hedge.patterns.json",
+    "learn": true
+  },
+  "instructions": {
+    "path": "hedge.instructions.json"
+  },
+  "actions": {
+    "on_flag": {
+      "steer": "Address what the user actually said: {{ description }}"
+    },
+    "on_new": {
+      "steer": "Address what the user actually said: {{ description }}",
+      "learn_pattern": true
+    },
+    "on_clean": null
+  },
+  "ceiling": 3,
+  "escalate": "ask"
+}

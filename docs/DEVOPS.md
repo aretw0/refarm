@@ -10,9 +10,30 @@
 - [Security & Vulnerability Management](#security--vulnerability-management)
 - [Environment Validation](#environment-validation)
 - [CI Caching Strategy](#ci-caching-strategy)
+- [Commit Automation Guardrails](#commit-automation-guardrails)
 - [Docker & Container Notes](#docker--container-notes)
 
 ---
+
+## Commit Automation Guardrails
+
+`npm run git-commit-auto` now treats high-impact groups as **important commits**
+(security, CI/release surfaces, Rust/WIT contract paths).
+
+For these groups, the tool still handles the operational path (`git add` + `git commit`),
+but requires explicit commit-message confirmation before execution. This keeps edge-case
+semantics human-curated while preserving automation for repetitive mechanics.
+
+Strict mode (recommended for stabilization/release windows):
+
+```bash
+GIT_COMMIT_AUTO_STRICT=1 npm run git-commit-auto
+# or
+npm run git-commit-auto -- --strict-important
+```
+
+Strict mode rejects generic messages (e.g. `chore: update implementation`) and
+requires specific commit wording for important/low-confidence groups.
 
 ## Dev Container Setup
 
@@ -24,7 +45,7 @@ Refarm uses **VS Code Dev Containers** to provide a consistent, reproducible dev
 
 - **Base:** Debian GNU/Linux 12 (bookworm)
 - **Node.js:** v22.16.0
-- **npm:** 10.9.2 (auto-updated to latest during post-create)
+- **npm:** 10.9.2 (pinned via `packageManager` in `package.json`)
 - **Rust:** 1.94.0
 - **Cargo:** 1.94.0
 
@@ -34,12 +55,17 @@ When opening the workspace in VS Code with the Remote Containers extension:
 
 1. **Container Build** — Docker builds the image from `.devcontainer/devcontainer.json`
 2. **Post-Create Hook** — Executes `.devcontainer/post-create.sh`:
-   - Fixes npm cache permissions (prevents EACCES errors)
-   - Updates npm to latest stable version
-   - Installs Rust WASM targets (`wasm32-unknown-unknown`, `wasm32-wasip1`)
+   - Fixes cache/toolchain permissions for mounted volumes
+   - Ensures Rust targets (`x86_64-unknown-linux-gnu`, `wasm32-unknown-unknown`, `wasm32-wasip1`)
+   - Ensures Rust components (`rust-src`, `clippy`, `rustfmt`) for local/CI parity
    - Installs cargo tools: `cargo-component`, `wasm-tools`
    - Runs `npm ci` to install workspace dependencies
-   - Runs `npm audit fix --force` to remediate known vulnerabilities
+   - Installs Playwright browsers (`npx playwright install --with-deps`)
+   - Runs `npm run hooks:install`
+   - Runs `npm run factory:preflight` for deterministic readiness checks
+3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
+   - Re-validates Rust toolchain health (`stable` + component baseline checks)
+   - Reinstalls git hooks when missing
 
 ### Devcontainer Image Baseline (Tracked)
 
@@ -92,7 +118,7 @@ npm run test:unit
 **Issue: `npm error EACCES` in post-create**
 
 - **Cause:** npm cache contains root-owned files
-- **Fix:** Already handled in `post-create.sh` (runs `sudo chown -R 1001:1001 /home/vscode/.npm`)
+- **Fix:** Already handled in `post-create.sh` (targets cache/toolchain directories and repairs ownership safely)
 - **Manual workaround:** `rm -rf ~/.npm && npm cache clean --force`
 
 **Issue: Package installation failures**
@@ -103,6 +129,30 @@ npm run test:unit
   ```bash
   rm -rf node_modules package-lock.json
   npm install
+  ```
+
+**Issue: `cargo clippy` / `cargo fmt` missing locally (but required by CI)**
+
+- **Symptom:** Commands fail with messages like:
+
+  ```text
+  error: 'cargo-clippy' is not installed for the toolchain
+  error: 'cargo-fmt' is not installed for the toolchain
+  ```
+
+- **Fix:** first ensure toolchain directories are writable, then install components:
+
+  ```bash
+  sudo chown -R "$USER":"$USER" /usr/local/rustup /usr/local/cargo
+  rustup component add rust-src clippy rustfmt
+  ```
+
+- **Validation:**
+
+  ```bash
+  cargo clippy --version
+  cargo fmt --version
+  npm run factory:preflight
   ```
 
 **Issue: Mermaid/Chromium fails with missing shared library**
@@ -225,30 +275,63 @@ npm run test:unit
 
 ## CI Caching Strategy
 
-### Current Baseline (March 6, 2026)
+### Current Baseline (May 5, 2026)
+
+The CI lanes are intentionally split by responsibility:
+
+- **`Test & Quality`** owns monorepo health: project consistency, security, TS config preflight, Farmhand/refarm/pi-agent smokes, Tractor gates, Turbo verification, E2E, summary, and metrics.
+- **`Granular Matrix Tests`** owns package compatibility across local/published edges. It is not the general monorepo health gate.
+- **`Phase Gates`** (`quality-gates.yml`) owns label-driven development intent (`phase:sdd`, `phase:bdd`, `phase:tdd`, `phase:ddd`). No phase label is a success-with-notice, not a failure.
+- **Docs validators** (`Validate Diagrams`, `Validate MDT Docs`, and reusable docs validation) own documentation renderability/drift with content-addressed cache.
+
+Implementation baseline:
 
 - **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
-- **Rust Target Provisioning:** The `./.github/actions/setup` action accepts a `rust-target` input (default: `wasm32-wasip1`) to ensure WASM compilation works without duplicating `rustup` logic across workflows.
-- **Build reuse across jobs:** `build` job uploads `workspace-build` artifact; `e2e` job downloads it instead of rebuilding.
-- **Playwright browser cache:** `e2e` caches `~/.cache/ms-playwright` using key `${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}`.
+- **Rust Target Provisioning:** `./.github/actions/setup` accepts a `rust-target` input (default: `wasm32-wasip1`) to keep WASM compilation setup centralized.
+- **Turbo env passthrough:** `turbo.json` forwards `RUSTUP_HOME`, `CARGO_HOME`, and `RUSTUP_TOOLCHAIN` to avoid Rust manifest drift in parallel Turbo tasks.
+- **E2E owns its build dependencies:** the standalone `workspace-build` artifact flow is retired for normal PR validation. E2E runs through Turbo in its own runner and owns any build dependency it needs.
+- **Playwright system dependencies:** setup installs `playwright install-deps chromium firefox webkit` so browser cache hits do not mask missing OS libraries.
+- **Content-signature validation cache:** `scripts/ci/content-signature.mjs` hashes the validator name, version/extra context, pathspecs, tracked file names, and tracked file contents.
+- **Test & Quality result cache:** `quality` and `e2e` restore `.artifacts/validation-cache/test-quality` / `test-e2e`; cache markers are written only after successful fresh validation.
+- **Granular Matrix result cache:** `Matrix Discovery` restores `.artifacts/validation-cache/granular-matrix`; on cache hit it emits an explicit reuse notice and returns an empty matrix. `Matrix Cache Finalize` records a marker only after the dynamic matrix succeeds or is legitimately skipped.
+- **Docs validation cache:** `reusable-validate-docs.yml` computes/restores content-addressed documentation validation results for diagrams/MDT-style validations.
+- **Duplicate push suppression:** push runs on `develop` skip heavy validation when an open PR already validates the same head branch; PR runs remain canonical.
+- **E2E affected-first execution:** `Run E2E Tests (affected)` uses `--filter=${{ needs.changes.outputs.turbo_filter }}` when base commit is locally resolvable; otherwise falls back to full E2E safely.
 - **E2E placeholder short-circuit:** `e2e` is skipped when root `test:e2e` script is still the placeholder (`No E2E tests configured yet`).
+- **Vitest reporting (CI):** default Vitest GitHub summary blocks are suppressed and replaced with an aggregated detailed report (`.artifacts/vitest/summary.md` + uploaded artifact `vitest-detailed-report`).
 
 ### Invalidation Rules
 
 - **npm cache invalidates when:** Node version or lockfile changes.
-- **Playwright cache invalidates when:** `package-lock.json` hash changes or runner OS changes.
-- **Build artifact invalidates when:** a new workflow run executes (artifact is per-run, retention 7 days).
+- **Playwright cache invalidates when:** lockfile, Playwright config, runner OS, or setup dependency policy changes.
+- **Turbo cache invalidates when:** lockfile, `turbo.json`, runner OS, or relevant task inputs change.
+- **Content-signature validation cache invalidates when:** any tracked file selected by the gate pathspecs changes, the validation name changes, `REFARM_SIGNATURE_VERSION` changes, or `REFARM_SIGNATURE_EXTRA` changes.
+- **Docs validation cache invalidates when:** selected documentation inputs or the validation command change.
+- **Matrix result cache invalidates when:** package/app/validation inputs or matrix runner/setup scripts change.
 
-### Why This Avoids Waste
+### Why This Avoids Waste Without Hiding Risk
 
-- Prevents duplicate `npm run build` in both `build` and `e2e` jobs.
-- Avoids repeated Playwright browser downloads when lockfile/OS are unchanged.
-- Avoids running E2E setup and report upload while suite is not yet implemented.
+- Keeps CI **fail-closed**: no previous successful marker for the current signature means the gate runs fresh.
+- Makes reuse explicit: cache-hit steps emit notices such as “Reusing previous successful Test & Quality validation for unchanged inputs.”
+- Avoids duplicate heavy push validation when PR validation is canonical for the same `develop` head.
+- Avoids repeated Playwright browser downloads and missing-system-library failures.
+- Avoids rerunning `quality`, `e2e`, and package matrix work when their content signatures are unchanged.
+- Keeps `.project` validation running even when the broader `quality` gate is reused.
+- Avoids hard failure mode when turbo filter base SHA is unavailable in shallow SCM state (auto full fallback).
+- Improves test observability with per-workspace breakdown + slowest test files/cases in CI summary and `ci-metrics` artifacts.
+
+### Observed Cache-Proof Runs
+
+- Fresh `Test & Quality` run for `b4d736a2`: recorded successful `test-quality` and `test-e2e` markers after the validator changed.
+- Controlled rerun of `Test & Quality` (`25400683334`): `quality` cache hit in 7s and `e2e` cache hit in 8s; total workflow about 2m10s.
+- Fresh `Granular Matrix Tests` run (`25400683337`): dynamic compatibility matrix passed in 13m43s and recorded a marker through `Matrix Cache Finalize`.
+- Controlled rerun of `Granular Matrix Tests` (`25400683337`): `Matrix Discovery` cache hit in 9s, returned an empty matrix, and skipped dynamic matrix jobs.
 
 ### Residual Cost (Expected)
 
-- `npm ci` still runs once per job due job isolation on hosted runners.
-- Further reduction would require remote cache for task outputs (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
+- `npm ci` still runs once per job that needs setup due job isolation on hosted runners.
+- `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
+- Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
 ### Future: Turbo Remote Cache
 
@@ -313,149 +396,61 @@ Turbo remote cache allows task output reuse across different CI runs and machine
 
 ### Current Status
 
-**Last Audit:** March 6, 2026 (Updated)
-**Total Issues Found:** 11 MODERATE vulnerabilities
+**Last Audit:** April 19, 2026
+**Total Issues Found:** 0 vulnerabilities
 **Breakdown:**
 
-- ✅ HIGH: 0 (all fixed)
-- ⚠️ MODERATE: 11 (mostly from Vitest + Lodash chains, non-runtime)
-- 🟢 CRITICAL: 0
+- ✅ HIGH: 0
+- ✅ MODERATE: 0
+- ✅ CRITICAL: 0
 
-### Vulnerability Inventory
+### Remediation Applied
 
-| Package | Severity | Issue | Status | Introduced By | Notes |
-|---------|----------|-------|--------|---------------|-------|
-| **esbuild** | MODERATE | Arbitrary code execution in dev server | ⚠️ TOOLING-ONLY | vitest + @vitest/coverage-v8 | Dev-only dependency; no runtime impact; fix requires Vitest@4.0+ (major upgrade) |
-| **vite** | MODERATE | Depends on vulnerable esbuild | ⚠️ TOOLING-ONLY | vitest → vite-node → vite | Transitive; blocked on esbuild fix |
-| **@vitest/mocker** | MODERATE | Depends on vulnerable vite | ⚠️ TOOLING-ONLY | vitest | Transitive; blocked on vite fix |
-| **Lodash** | MODERATE | Prototype Pollution in `_.unset()` & `_.omit()` | ⚠️ BLOCKED | @astrojs/language-server → yaml-language-server | Indirect; dev tooling only; awaiting upstream Astro team fix |
-| **inflight** | MODERATE | Memory leak (deprecated package) | ⚠️ DEPRECATION | glob (transitive) | No longer maintained; impacts glob v10.5.0; consider upgrades to glob v11+ |
-| **glob** | MODERATE | Uses deprecated inflight | ⚠️ DEPRECATION | node dependencies | Old glob version; npm warns on update |
+The audit noise that was breaking CI was removed with low-risk transitive dependency overrides in the root `package.json`:
 
-### Why These Remain (Rationale & Acceptance)
-
-#### esbuild + Vitest Chain
-
-**Chain:**
-
-```
-esbuild (vulnerable: arbitrary code in dev server)
-  ← vite
-    ← vitest + @vitest/coverage-v8 (NEWLY INSTALLED March 6, 2026)
+```json
+{
+  "overrides": {
+    "basic-ftp": "5.3.0",
+    "yaml-language-server": {
+      "yaml": "2.8.3"
+    }
+  }
+}
 ```
 
-**Decision:** Accept temporarily.
+#### Why this was safe
 
-**Reasoning:**
+1. `basic-ftp` is only pulled transitively by `get-uri` in dev tooling, and `5.3.0` is the upstream patched release for the advisory affecting `<=5.2.2`.
+2. `yaml-language-server` remained on the same package version already required by Astro tooling, but its nested `yaml` dependency was forced to `2.8.3`, which removes the vulnerable `2.7.1` copy without changing the workspace's public API surface.
+3. No app/package source code was changed — only dependency resolution.
 
-1. esbuild vulnerability is **development-only** — no impact on production code or built artifacts
-2. Vitest was installed as part of test infrastructure unification (replacing Jest)
-3. Fix requires upgrading Vitest to v4.0+, which is a breaking change and needs testing
-4. Current version (v2.1.9) is stable and used in production projects
+### Verification Commands
 
-**Timeline:**
-
-- Monitor for Vitest v4 LTS release
-- Plan upgrade alongside other major version bumps
-- Target: Q2 2026 (after v0.1.0 MVP ships)
-
-#### Lodash (Existing)
-
-```
-lodash (vulnerable)
-  ← yaml-language-server
-    ← volar-service-yaml
-      ← @astrojs/language-server
-        ← @astrojs/check
+```bash
+npm audit
+npm audit --audit-level=high
 ```
 
-#### Solutions Available
+Expected result:
 
-1. **Wait for Upstream** — Astro team will update dependencies
-   - Lowest risk, no action needed from us
-   - Monitor <https://github.com/withastro/language-tools/issues>
-
-2. **Pin Safe Version Override** (If needed)
-
-   ```json
-   {
-     "overrides": {
-       "lodash": "^4.17.21-4"
-     }
-   }
-   ```
-
-3. **Monitor Actively**
-
-   ```bash
-   npm audit --audit-level=moderate
-   ```
-
-### Risk Acceptance Policy (All Moderate Issues)
-
-**Core Principle:** Accept MODERATE tooling-dev dependencies if:
-
-1. ✅ Severity ≤ MODERATE (no HIGH/CRITICAL)
-2. ✅ Runtime isolation: dev-only or indirect (no direct code path to production)
-3. ✅ Alternatives exist but have trade-offs (major version bumps, breaking changes, unmaintained upstream)
-4. ✅ CI gate for HIGH/CRITICAL remains enforced
-
-**Tracking & Reviews:**
-
-- **Weekly:** `npm audit` check in security workflow (automated)
-- **Per PR:** CI gate blocks HIGH/CRITICAL (automated)
-- **Manual:** Full audit report generated monthly (`.github/workflows/security-audit.yml`)
-- **Escalation:** If any issue moves to HIGH/CRITICAL, open urgent issue
-
-**Monitoring Dashboard:**
-
-Current snapshot (March 6, 2026):
-
-```
-┌─────────────────────────────────────────┐
-│  Vulnerability Trend                    │
-├─────────────────────────────────────────┤
-│ HIGH/CRITICAL:     0  (target: always 0) │
-│ MODERATE:         11  (from 4 on 3/6)    │
-│ - Vitest (new):    6  (introduced 3/6)  │
-│ - Lodash (old):    1  (since before)     │
-│ - Deprecation:     4  (glob/inflight)    │
-├─────────────────────────────────────────┤
-│ Threshold: Accept if all conditions met  │
-│ Last review: 2026-03-06T16:45:00Z        │
-│ Next target: 2026-03-13 (weekly check)   │
-└─────────────────────────────────────────┘
+```text
+found 0 vulnerabilities
 ```
 
-**Acceptance Criteria (All must remain true):**
+### Ongoing Policy
 
-For **esbuild + Vitest chain**:
-
-- [ ] Severity stays at MODERATE (no escalation to HIGH)
-- [ ] No active exploits reported against Vitest versions we use
-- [ ] Vitest v4 LTS becomes available (planned mid-2026)
-- [ ] Commit esbuild fix to upgrade cycle roadmap
-
-For **Lodash (existing)**:
-
-- [ ] Severity stays at MODERATE
-- [ ] Dependency stays indirect (yaml-language-server → Astro)
-- [ ] No production code uses lodash directly
-- [ ] Monitor Astro/TypeScript tooling updates monthly
-
-If **any** acceptance criteria fails:
-
-- Immediately escalate in #security channel
-- Create blocking issue
-- Plan emergency upgrade or mitigation
+- Keep the CI gate in `.github/workflows/test.yml` blocking `high` and `critical` issues.
+- Keep the scheduled visibility workflow in `.github/workflows/security-audit.yml` generating artifacts for regression tracking.
+- If a future advisory reappears through a transitive dependency, prefer a targeted `overrides` fix before attempting broad major-version upgrades.
 
 ---
 
 ### Security Best Practices
 
-- ✅ **Automatic Audits** — `npm audit fix --force` runs in post-create
+- ✅ **Automated Visibility** — Security audit workflows run in CI and publish artifacts
 - ✅ **Lock Files** — Always commit `package-lock.json`
-- ✅ **Regular Updates** — npm is auto-updated in post-create hook
+- ✅ **Deterministic Tooling** — Use pinned `packageManager` + `rust-toolchain.toml`
 - 🔍 **Monitor PRs** — GitHub dependabot can alert us to new vulnerabilities
 
 For responsible disclosure and reporting policy, see `SECURITY.md`.
@@ -471,6 +466,11 @@ Current strategy uses two layers:
   - Manual run via `workflow_dispatch`
   - Weekly run via `schedule` (Monday, 09:00 UTC)
   - Generates full JSON audit artifact for tracking moderate issues
+
+Repository baseline for bot automation (required by dependency update workflow):
+
+- Actions workflow permissions: **Read and write permissions**
+- Allow GitHub Actions to create/approve pull requests: **enabled**
 
 To run the dedicated workflow manually:
 
@@ -542,27 +542,40 @@ Branch behavior summary:
 Run this command to confirm everything is set up correctly:
 
 ```bash
-echo "=== Environment Validation ===" && \
-node --version && \
-npm --version && \
-rustc --version && \
-cargo --version && \
-cargo-component --version && \
-wasm-tools --version && \
-echo "✅ All tools ready!"
+npm run factory:preflight
 ```
 
 **Expected Output:**
 
 ```
-=== Environment Validation ===
-v22.16.0
-v11.x.x (or higher)
-rustc 1.94.0 ...
-cargo 1.94.0 ...
-cargo-component 0.21.1
-wasm-tools 1.245.1
-✅ All tools ready!
+🧪 Refarm Factory Preflight
+...
+Summary
+- failures: 0
+- warnings: 0
+Factory is ready for swarm execution.
+```
+
+### Tractor Runtime Readiness Probe
+
+Use the Tractor CLI health probe to validate runtime boot and daemon WS readiness.
+
+```bash
+# 1) Optional: start daemon in another terminal
+# cargo run -p refarm-tractor --bin tractor -- --namespace default --port 42000
+
+# 2) Run readiness probe (boot + WS)
+cargo run -p refarm-tractor --bin tractor -- health --ws-port 42000
+```
+
+Behavior:
+- exit `0` when probe succeeds
+- exit non-zero when daemon is unavailable or probe fails
+
+Quick failure check (expected non-zero):
+
+```bash
+cargo run -p refarm-tractor --bin tractor -- health --ws-port 1 --skip-boot-probe
 ```
 
 ### Workspace Health Check
@@ -577,6 +590,86 @@ npm run build
 # Run tests (if defined)
 npm run test
 ```
+
+### Colony preflight checklist (quick vs complete)
+
+Quick preflight (sempre obrigatório):
+
+```bash
+node scripts/reso.mjs status
+npm run project:validate
+npm run factory:preflight
+```
+
+Complete preflight (runtime/security boundaries):
+
+```bash
+cd packages/tractor
+cargo check --quiet
+cargo test --lib agent_tools_bridge --quiet
+cargo test --lib plugin_host --quiet
+cargo test --lib wasi_bridge --quiet
+npm run test:smoke:ws
+```
+
+Go/No-Go:
+
+- **GO**: quick preflight verde; se houve mudança runtime boundary, complete preflight verde.
+- **NO-GO**: qualquer falha de toolchain/targets/reso status impede lote paralelo.
+
+### Type-check baseline snapshot (2026-04-24)
+
+Command used:
+
+```bash
+npm run type-check --silent
+```
+
+Result summary:
+- packages in scope: 41
+- failures: 0
+- warnings: only advisory Vite browser externalization notices during app build
+
+Attack order/backlog (if regression appears):
+1. Foundation: `config`, `toolbox`, `vtconfig`, `cli`
+2. Runtime: `tractor-rs`, `tractor-ts`, `plugin-manifest`
+3. Contracts/storage/sync: `*-contract-v1`, `storage-*`, `sync-*`
+
+### Build baseline matrix by domain (2026-04-24)
+
+| Domain | Canonical command | Status | Notes |
+|---|---|---|---|
+| Foundation | `npm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
+| Runtime | `npm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
+| Contracts/Storage/Sync | `npm run gate:smoke:contracts` | ✅ Green | Builds + conformance/unit para pacotes prioritários |
+| Colony Full | `npm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio + `project:validate` |
+
+Dependências operacionais entre domínios:
+
+- Foundation é base para tooling comum e deve ficar verde antes de ampliar paralelismo.
+- Runtime depende de preflight completo (toolchain Rust/WASM + smoke WS).
+- Contracts/Storage/Sync depende de baseline de contratos v1 e suites de conformance.
+
+Bloqueadores monitorados:
+
+- Nenhum bloqueador técnico aberto neste snapshot para os domínios acima.
+- `npm audit` moderado permanece **advisory** (0 high/critical).
+
+### Colony concurrency baseline
+
+Initial concurrency:
+- default: **3 workers**
+- max under stable CI: **4 workers**
+
+Scale up when:
+- 3 consecutive slices with smoke gate green
+- zero unresolved merge collision in serialized packages
+- CI quality lane remains green across 2 consecutive runs
+
+Scale down when:
+- any regression in protected branch checks
+- repeated collision on serialized areas (`packages/tractor*`, `.project/**`, workflows)
+- preflight complete starts failing intermittently
 
 ---
 
@@ -624,9 +717,10 @@ docker debug <container-id>
 If you update this guide or the dev container configuration:
 
 1. **Update `.devcontainer/post-create.sh`** for automation changes
-2. **Update `.devcontainer/devcontainer.json`** for container spec changes
-3. **Update This File** (`docs/DEVOPS.md`) with any new information
-4. **Commit** all changes together in a single PR
+2. **Update `.devcontainer/post-start.sh`** for runtime sanity/self-healing changes
+3. **Update `.devcontainer/devcontainer.json`** for container spec changes
+4. **Update This File** (`docs/DEVOPS.md`) with any new information
+5. **Commit** all changes together in a single PR
 
 ---
 
@@ -635,15 +729,18 @@ If you update this guide or the dev container configuration:
 | Task | Command |
 |------|---------|
 | Rebuild container | `Dev Containers: Rebuild Container` (VS Code) |
+| Factory readiness check | `npm run factory:preflight` |
+| Tractor runtime readiness probe | `cargo run -p refarm-tractor --bin tractor -- health --ws-port 42000` |
 | Run security audit | `npm audit` |
-| Fix vulnerabilities | `npm audit fix --force` |
+| Attempt non-breaking vulnerability fixes | `npm audit fix` |
 | Clean npm cache | `rm -rf ~/.npm && npm cache clean --force` |
 | Verify tools | See [Environment Validation](#environment-validation) |
+| Install Rust lint/format parity tools | `rustup component add rust-src clippy rustfmt` |
 | View container logs | `docker logs <container-id>` |
 | Debug container | `docker debug <container-id>` (optional) |
 
 ---
 
-**Last Updated:** March 6, 2026  
+**Last Updated:** April 22, 2026  
 **Maintained By:** Refarm Team  
 **Next Review:** Q2 2026 (security check)

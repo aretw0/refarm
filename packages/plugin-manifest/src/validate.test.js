@@ -3,140 +3,303 @@ import { createMockManifest } from "./fixtures";
 import { validatePluginManifest } from "./validate";
 
 describe("plugin-manifest validation", () => {
-  it("accepts valid manifest with required observability hooks", () => {
-    const result = validatePluginManifest(
-      createMockManifest({
-        id: "@acme/storage-opfs",
-        name: "ACME Storage",
-      }),
-    );
+	it("accepts valid manifest with required observability hooks", () => {
+		const result = validatePluginManifest(
+			createMockManifest({
+				id: "@acme/storage-opfs",
+				name: "ACME Storage",
+			}),
+		);
 
-    expect(result.valid).toBe(true);
-    expect(result.errors).toHaveLength(0);
-  });
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
 
-  it("rejects manifest missing required observability hooks", () => {
-    const manifest = createMockManifest();
-    manifest.observability.hooks = ["onLoad"]; // Missing others
+	it("rejects manifest missing required observability hooks", () => {
+		const manifest = createMockManifest();
+		manifest.observability.hooks = ["onLoad"]; // Missing others
 
-    const result = validatePluginManifest(manifest);
-    expect(result.valid).toBe(false);
-    expect(result.errors.some((error) => error.includes("onRequest"))).toBe(
-      true,
-    );
-  });
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors.some((error) => error.includes("onRequest"))).toBe(
+			true,
+		);
+	});
 });
 
 describe("composition validation", () => {
-  it("accepts a manifest with valid API definitions", () => {
-    const manifest = createMockManifest({
-      capabilities: {
-        provides: ["test"],
-        requires: [],
-        providesApi: ["StorageApi"],
-        requiresApi: ["AuthApi"],
-      },
-    });
-    const result = validatePluginManifest(manifest);
-    expect(result.valid).toBe(true);
-  });
+	it("accepts a manifest with valid API definitions", () => {
+		const manifest = createMockManifest({
+			capabilities: {
+				provides: ["test"],
+				requires: [],
+				providesApi: ["StorageApi"],
+				requiresApi: ["AuthApi"],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
 
-  it("rejects duplicates in APIs", () => {
-    const manifest = createMockManifest();
-    manifest.capabilities.providesApi = ["Api1", "Api1"];
+	it("rejects duplicates in APIs", () => {
+		const manifest = createMockManifest();
+		manifest.capabilities.providesApi = ["Api1", "Api1"];
 
-    const result = validatePluginManifest(manifest);
-    expect(result.errors).toContain(
-      "capabilities.providesApi must not contain duplicates",
-    );
-  });
+		const result = validatePluginManifest(manifest);
+		expect(result.errors).toContain(
+			"capabilities.providesApi must not contain duplicates",
+		);
+	});
 });
 
 describe("certification validation", () => {
-  it("accepts a manifest with valid certification", () => {
-    const manifest = createMockManifest({
-      certification: {
-        license: "MIT",
-        a11yLevel: 2,
-        languages: ["en", "pt"],
-      },
-    });
-    const result = validatePluginManifest(manifest);
-    expect(result.valid).toBe(true);
-  });
+	it("accepts a manifest with valid certification", () => {
+		const manifest = createMockManifest({
+			certification: {
+				license: "MIT",
+				a11yLevel: 2,
+				languages: ["en", "pt"],
+			},
+		});
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
 
-  it("rejects invalid accessibility levels", () => {
-    const manifest = createMockManifest();
+	it("rejects invalid accessibility levels", () => {
+		const manifest = createMockManifest();
 
-    // Level < 0
-    let result = validatePluginManifest({
-      ...manifest,
-      certification: { ...manifest.certification, a11yLevel: -1 },
-    });
-    expect(result.errors).toContain(
-      "certification.a11yLevel must be a number between 0 and 3",
-    );
+		// Level < 0
+		let result = validatePluginManifest({
+			...manifest,
+			certification: { ...manifest.certification, a11yLevel: -1 },
+		});
+		expect(result.errors).toContain(
+			"certification.a11yLevel must be a number between 0 and 3",
+		);
 
-    // Level > 3
-    result = validatePluginManifest({
-      ...manifest,
-      certification: { ...manifest.certification, a11yLevel: 4 },
-    });
-    expect(result.errors).toContain(
-      "certification.a11yLevel must be a number between 0 and 3",
-    );
-  });
+		// Level > 3
+		result = validatePluginManifest({
+			...manifest,
+			certification: { ...manifest.certification, a11yLevel: 4 },
+		});
+		expect(result.errors).toContain(
+			"certification.a11yLevel must be a number between 0 and 3",
+		);
+	});
 
-  it("rejects empty certification fields", () => {
-    const manifest = createMockManifest();
+	it("rejects empty certification fields", () => {
+		const manifest = createMockManifest();
 
-    // Empty license
-    let result = validatePluginManifest({
-      ...manifest,
-      certification: { ...manifest.certification, license: "" },
-    });
-    expect(result.errors).toContain("certification.license is required");
+		// Empty license
+		let result = validatePluginManifest({
+			...manifest,
+			certification: { ...manifest.certification, license: "" },
+		});
+		expect(result.errors).toContain("certification.license is required");
 
-    // Empty languages
-    result = validatePluginManifest({
-      ...manifest,
-      certification: { ...manifest.certification, languages: [] },
-    });
-    expect(result.errors).toContain(
-      "certification.languages must be a non-empty array",
-    );
-  });
+		// Empty languages
+		result = validatePluginManifest({
+			...manifest,
+			certification: { ...manifest.certification, languages: [] },
+		});
+		expect(result.errors).toContain(
+			"certification.languages must be a non-empty array",
+		);
+	});
 });
 
 describe("trust profile validation", () => {
-  it("accepts trusted-fast profile with a valid lease", () => {
-    const manifest = createMockManifest({
-      trust: {
-        profile: "trusted-fast",
-        leaseHours: 24,
-      },
-    });
+	it("accepts trusted-fast profile with a valid lease", () => {
+		const manifest = createMockManifest({
+			trust: {
+				profile: "trusted-fast",
+				leaseHours: 24,
+			},
+		});
 
-    const result = validatePluginManifest(manifest);
-    expect(result.valid).toBe(true);
-  });
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
 
-  it("rejects invalid trust profile and lease", () => {
-    const manifest = createMockManifest({
-      trust: {
-        profile: "trusted-fast",
-        leaseHours: 0,
-      },
-    });
+	it("rejects invalid trust profile and lease", () => {
+		const manifest = createMockManifest({
+			trust: {
+				profile: "trusted-fast",
+				leaseHours: 0,
+			},
+		});
 
-    manifest.trust.profile = "unsafe";
+		manifest.trust.profile = "unsafe";
 
-    const result = validatePluginManifest(manifest);
-    expect(result.errors).toContain(
-      "trust.profile must be one of: strict, trusted-fast",
-    );
-    expect(result.errors).toContain(
-      "trust.leaseHours must be a positive number when provided",
-    );
-  });
+		const result = validatePluginManifest(manifest);
+		expect(result.errors).toContain(
+			"trust.profile must be one of: strict, trusted-fast",
+		);
+		expect(result.errors).toContain(
+			"trust.leaseHours must be a positive number when provided",
+		);
+	});
+});
+
+describe("extension surface validation", () => {
+	it("accepts a manifest with declared multi-surface extensions", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+						slot: "session-view",
+						capabilities: ["ui:stream:read"],
+					},
+					{
+						layer: "asset",
+						kind: "theme-pack",
+						id: "stream-themes",
+						assets: ["./themes/default.json"],
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+		expect(result.errors).toHaveLength(0);
+	});
+
+	it("rejects malformed extension surfaces", () => {
+		const manifest = createMockManifest({
+			extensions: {
+				surfaces: [
+					{
+						layer: "unknown",
+						kind: "",
+						id: "",
+						slot: "",
+						capabilities: ["ui:stream:read", ""],
+						assets: ["./asset.json", ""],
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+					},
+					{
+						layer: "homestead",
+						kind: "panel",
+						id: "stream-renderer",
+					},
+				],
+			},
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].layer must be one of: tractor, homestead, pi, automation, desktop, asset",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].kind must be a non-empty string",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].id must be a non-empty string",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].slot must be a non-empty string when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].capabilities must be an array of non-empty strings when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces[0].assets must be an array of non-empty strings when provided",
+		);
+		expect(result.errors).toContain(
+			"extensions.surfaces must not contain duplicate layer/id pairs",
+		);
+	});
+});
+
+describe("contract baseline validation", () => {
+	it("rejects absolute entry paths", () => {
+		const manifest = createMockManifest({ entry: "/dist/plugin.js" });
+		const result = validatePluginManifest(manifest);
+
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"entry must not be an absolute filesystem path",
+		);
+	});
+
+	it("rejects invalid execution targets", () => {
+		const manifest = createMockManifest({
+			targets: ["browser", "edge"],
+		});
+		const result = validatePluginManifest(manifest);
+
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain("invalid execution target: edge");
+	});
+
+	it("requires integrity for wasm entries", () => {
+		const manifest = createMockManifest();
+		delete manifest.integrity;
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain("integrity is required for .wasm entries");
+	});
+
+	it("rejects malformed integrity values", () => {
+		const manifest = createMockManifest({
+			integrity: "sha256-not-a-valid-digest",
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(false);
+		expect(result.errors).toContain(
+			"integrity must use sha256- prefix with 64 hex chars or base64 digest",
+		);
+	});
+
+	it("allows .js entries without integrity", () => {
+		const manifest = createMockManifest({
+			entry: "./plugin.js",
+			integrity: undefined,
+		});
+
+		const result = validatePluginManifest(manifest);
+		expect(result.valid).toBe(true);
+	});
+
+	it("allows .mjs and .cjs entries without integrity", () => {
+		const mjsManifest = createMockManifest({
+			entry: "./plugin.mjs",
+			integrity: undefined,
+		});
+		const cjsManifest = createMockManifest({
+			entry: "./plugin.cjs",
+			integrity: undefined,
+		});
+
+		expect(validatePluginManifest(mjsManifest).valid).toBe(true);
+		expect(validatePluginManifest(cjsManifest).valid).toBe(true);
+	});
+
+	it("supports entry format detection with query/hash suffixes", () => {
+		const mjsWithQuery = createMockManifest({
+			entry: "https://cdn.example/plugin.mjs?build=42#module",
+			integrity: undefined,
+		});
+		const wasmWithQueryNoIntegrity = createMockManifest({
+			entry: "https://cdn.example/plugin.wasm?build=42",
+			integrity: undefined,
+		});
+
+		expect(validatePluginManifest(mjsWithQuery).valid).toBe(true);
+
+		const wasmResult = validatePluginManifest(wasmWithQueryNoIntegrity);
+		expect(wasmResult.valid).toBe(false);
+		expect(wasmResult.errors).toContain("integrity is required for .wasm entries");
+	});
 });

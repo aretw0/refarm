@@ -1,80 +1,148 @@
 #!/usr/bin/env bash
-# .devcontainer/post-create.sh - Optimized setup for Refarm using Turborepo
+# .devcontainer/post-create.sh - deterministic bootstrap for Refarm devcontainers
 set -euo pipefail
 
-echo "[refarm-devcontainer] Starting optimized post-create setup..."
+log() {
+  echo "[refarm-devcontainer] $*"
+}
 
-# 1. Fix permissions for mounted volumes
-# Ensure vscode user owns the npm, turbo, and playwright cache directories.
-echo "[refarm-devcontainer] Fixing permissions for mounted caches..."
-sudo chown -R vscode:vscode /home/vscode
-mkdir -p /home/vscode/.npm /home/vscode/.npm-global/bin /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
-sudo chown -R vscode:vscode /home/vscode/.npm /home/vscode/.npm-global /home/vscode/.turbo /home/vscode/.cache/ms-playwright /home/vscode/.cache/puppeteer
-# Rust/Cargo volumes mount as root/rustlang; ensure vscode can write to bin and rustup if needed
-sudo chown -R vscode:rustlang /usr/local/cargo /usr/local/rustup
-chmod -R g+w /usr/local/cargo /usr/local/rustup
+warn() {
+  echo "[refarm-devcontainer][warn] $*"
+}
 
-# 2. NPM Dependencies
-# npm ci is still run here to ensure node_modules are installed for the current project.
-# The Turborepo cache for node_modules is not as effective as npm's own cache.
+retry() {
+  local attempts="$1"
+  shift
+
+  local current=1
+  until "$@"; do
+    if [ "$current" -ge "$attempts" ]; then
+      return 1
+    fi
+    current=$((current + 1))
+    sleep 2
+  done
+}
+
+log "Starting post-create setup..."
+
+# 0) Git symlink support — must run before any checkout/npm ci
+# core.symlinks=false (Windows NTFS default) materializes symlinks as regular files.
+# In a Linux devcontainer the filesystem supports symlinks natively, so enable it
+# and re-checkout any tracked symlinks so they resolve correctly.
+log "Ensuring git core.symlinks=true for Linux devcontainer..."
+git config core.symlinks true
+git ls-files -s | awk '/^120000/ {print $4}' | xargs -r git checkout -- 2>/dev/null || true
+
+# 1) Cache and tool directories
+log "Preparing cache directories and permissions..."
+for dir in \
+  /home/vscode/.npm \
+  /home/vscode/.npm-global \
+  /home/vscode/.npm-global/bin \
+  /home/vscode/.turbo \
+  /home/vscode/.cache \
+  /home/vscode/.cache/ms-playwright \
+  /home/vscode/.cache/puppeteer \
+  /home/vscode/.cargo-target
+  do
+  mkdir -p "$dir"
+  sudo chown -R vscode:vscode "$dir"
+done
+
+# Cargo/Rustup volumes may mount with non-vscode ownership; ensure toolchain is writable
+sudo chown -R vscode:vscode /usr/local/cargo /usr/local/rustup 2>/dev/null || true
+
+# SSH keepalive: prevents GitHub from closing the connection during slow pre-push hooks
+log "Configuring SSH keepalive for GitHub..."
+mkdir -p /home/vscode/.ssh
+chmod 700 /home/vscode/.ssh
+if ! grep -q "# refarm-keepalive" /home/vscode/.ssh/config 2>/dev/null; then
+  cat >> /home/vscode/.ssh/config << 'EOF'
+# refarm-keepalive
+Host github.com
+  ServerAliveInterval 30
+  ServerAliveCountMax 10
+EOF
+  chmod 600 /home/vscode/.ssh/config
+fi
+
+# Git transport fallback for Docker Desktop terminals:
+# if SSH agent forwarding isn't available, rewrite git@github.com:* to https://github.com/*
+# and rely on GH auth token/credential helper.
+log "Configuring GitHub transport fallback (ssh -> https) for git operations..."
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+if gh auth status -h github.com >/dev/null 2>&1; then
+  gh auth setup-git >/dev/null 2>&1 || true
+fi
+
+# 2) Node dependencies
 if [ -f package-lock.json ]; then
-  echo "[refarm-devcontainer] Running npm ci..."
+  log "Running npm ci..."
   npm ci
 else
-  echo "[refarm-devcontainer] No package-lock.json discovered, running npm install..."
+  log "No package-lock.json found, running npm install..."
   npm install
 fi
 
-# 3. Rust tooling.
-echo "[refarm-devcontainer] Setting up Rust toolchain and specialized WASM tooling..."
-rustup default stable
-rustup target add x86_64-unknown-linux-gnu
-rustup target add wasm32-unknown-unknown
-rustup target add wasm32-wasip1 || true
-rustup target add wasm32-wasip2 || true
-# TODO: wasm32-wasip3 is currently not available on stable, but we can add it when it is. For now, we can rely on the fact that the rustup component for rust-src will allow us to build against the latest nightly toolchain if needed.
-# rustup target add wasm32-wasip3 || true
-rustup component add rust-src
+# 3) Rust baseline parity for local/CI checks
+log "Ensuring Rust baseline targets and components..."
+retry 2 rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1 \
+  || warn "Could not ensure Rust targets. Run: rustup target add x86_64-unknown-linux-gnu wasm32-unknown-unknown wasm32-wasip1"
+retry 2 rustup component add rust-src clippy rustfmt \
+  || warn "Could not ensure Rust components. Run: rustup component add rust-src clippy rustfmt"
 
-# BIN_DIR must match CARGO_HOME (set by devcontainer rust feature to /usr/local/cargo).
-BIN_DIR="${CARGO_HOME:-/usr/local/cargo}/bin"
+# 4) Playwright browsers + AI agent tools (parallel — independent network downloads)
+log "Installing Playwright browsers and AI agent tools in parallel..."
 
-# wasm-tools (v1.245.1) — has prebuilt binaries, installs in seconds.
-if ! command -v wasm-tools >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing wasm-tools v1.245.1 via binary..."
-  TEMP_DIR=$(mktemp -d)
-  URL="https://github.com/bytecodealliance/wasm-tools/releases/download/v1.245.1/wasm-tools-1.245.1-x86_64-linux.tar.gz"
-  curl -fsSL "$URL" | tar -xz -C "$TEMP_DIR"
-  # Archive structure: wasm-tools-1.245.1-x86_64-linux/wasm-tools
-  find "$TEMP_DIR" -maxdepth 2 -name "wasm-tools" -type f -exec mv {} "$BIN_DIR/" \;
-  rm -rf "$TEMP_DIR"
-else
-  echo "[refarm-devcontainer] wasm-tools already present"
+retry 2 npx playwright install --with-deps &
+PW_PID=$!
+
+retry 2 npm install -g @anthropic-ai/claude-code &
+CLAUDE_PID=$!
+
+retry 2 npm install -g @mermaid-js/mermaid-cli &
+MMDC_PID=$!
+
+retry 2 cargo install mdt_cli --locked --version 0.7.0 &
+MDT_PID=$!
+
+(
+  retry 2 npm install -g @mariozechner/pi-coding-agent || { warn "Pi install failed. Run: npm install -g @mariozechner/pi-coding-agent"; exit 0; }
+  retry 2 npm install -g @aretw0/pi-stack || { warn "pi-stack install failed. Run: npm install -g @aretw0/pi-stack"; exit 0; }
+  if command -v pi >/dev/null 2>&1; then
+    # Run install.mjs directly to avoid IS_MAIN=false when invoked via bin symlink
+    node "$(npm root -g)/@aretw0/pi-stack/install.mjs" || warn "pi-stack setup failed. Run: node \$(npm root -g)/@aretw0/pi-stack/install.mjs"
+  fi
+) &
+PI_PID=$!
+
+wait $PW_PID     || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
+wait $CLAUDE_PID || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
+wait $MMDC_PID   || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
+wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --locked --version 0.7.0"
+wait $PI_PID     || true
+
+# 5) Finalize
+log "Installing git hooks..."
+npm run hooks:install || warn "Could not install git hooks automatically"
+
+if [ -f scripts/factory-preflight.mjs ]; then
+  log "Running factory preflight..."
+  node scripts/factory-preflight.mjs || warn "Factory preflight reported issues. Review output above."
 fi
 
-# cargo-component (v0.21.1) — no prebuilt binaries published upstream; compiled from source.
-# The cargo registry volume cache (/usr/local/cargo/registry) keeps deps across rebuilds.
-if ! command -v cargo-component >/dev/null 2>&1; then
-  echo "[refarm-devcontainer] Installing cargo-component v0.21.1 via cargo install (first build only)..."
-  cargo install --locked cargo-component@0.21.1
-else
-  echo "[refarm-devcontainer] cargo-component already present"
-fi
+log "Tool versions:"
+node --version || true
+npm --version || true
+rustc --version || true
+cargo --version || true
+cargo-component --version || true
+wasm-tools --version || true
+npx playwright --version || true
+gh --version 2>/dev/null | head -1 || true
+pi --version 2>/dev/null || true
+claude --version 2>/dev/null || true
+mmdc --version 2>/dev/null || true
 
-# 4. Install Playwright browsers
-echo "[refarm-devcontainer] Installing Playwright browsers..."
-npx playwright install --with-deps
-
-# 5. Finalize Environment
-echo "[refarm-devcontainer] Finalizing setup..."
-npm run hooks:install
-
-echo "[refarm-devcontainer] Tool versions:"
-node --version
-rustc --version
-cargo --version
-cargo-component --version
-wasm-tools --version
-npx playwright --version
-
-echo "[refarm-devcontainer] Setup complete."
+log "Post-create setup complete."

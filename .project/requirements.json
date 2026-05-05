@@ -1,0 +1,741 @@
+{
+	"requirements": [
+		{
+			"id": "REQ-ENV-001",
+			"description": "Garantir toolchain Rust estável e funcional para builds dos pacotes runtime/WASM.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"rustc e cargo executam sem erro de manifest",
+				"Targets wasm32-wasip1 e wasm32-unknown-unknown instalados",
+				"Build de pacote Rust prioritário executa localmente"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-ENV-01",
+				"T-ENV-02",
+				"T-PIPE-04"
+			]
+		},
+		{
+			"id": "REQ-ENV-002",
+			"description": "Definir preflight de ambiente antes de iniciar lote de colônia.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Checklist de comandos mínimo publicado",
+				"Critério go/no-go para soltar workers definido",
+				"Bloqueios viram issue + task"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-ENV-03",
+				"T-OPS-05"
+			]
+		},
+		{
+			"id": "REQ-RESO-001",
+			"description": "Padronizar uso de reso.mjs para alternância src/dist conforme contexto.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Modo src para desenvolvimento documentado",
+				"Modo dist para validação final documentado",
+				"Comando status incluído nos gates"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-ENV-04",
+				"T-DOC-02"
+			]
+		},
+		{
+			"id": "REQ-PIPE-001",
+			"description": "Type-check baseline do monorepo deve ser reproduzível e rastreável por domínio.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Falhas mapeadas por pacote",
+				"Plano de correção priorizado",
+				"Execução canônica documentada"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PIPE-01",
+				"T-PIPE-02"
+			]
+		},
+		{
+			"id": "REQ-PIPE-002",
+			"description": "Build baseline dos domínios críticos deve estar estável ou com bloqueios explicitamente rastreados.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Runtime, contracts e storage/sync com status claro",
+				"Nenhum workaround em artefato gerado",
+				"Bloqueios convertidos em tasks"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PIPE-03",
+				"T-PIPE-04",
+				"T-PIPE-05"
+			]
+		},
+		{
+			"id": "REQ-PIPE-003",
+			"description": "Definir gate de validação em dois níveis: smoke (rápido) e full (integração).",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Comandos smoke definidos",
+				"Comandos full definidos",
+				"Reviewer aplica gate full em lote"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PIPE-06",
+				"T-DOC-03"
+			]
+		},
+		{
+			"id": "REQ-WORK-001",
+			"description": "Backlog deve ser composto por tarefas atômicas com escopo, ownership e aceite objetivos.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Cada task tem objetivo único",
+				"Cada task define arquivos/pacotes alvo",
+				"Cada task define acceptance_criteria",
+				"Backlog explicita macro-domínios e owners para paralelização"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PLAN-01",
+				"T-PLAN-02",
+				"T-PLAN-03"
+			]
+		},
+		{
+			"id": "REQ-WORK-002",
+			"description": "Modelo operacional precisa evitar colisão entre workers em pacotes críticos.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Pacotes serializados listados",
+				"Regra 1 task = 1 branch = 1 PR aplicada",
+				"Handoff entre workers documentado"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PLAN-03",
+				"T-PLAN-04",
+				"T-PLAN-05"
+			]
+		},
+		{
+			"id": "REQ-WORK-003",
+			"description": "Cada task concluída precisa ter evidência verificável.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Task concluída aponta Verification ID",
+				"Evidence inclui comando e resultado",
+				"Critérios possuem status passed/failed/skipped"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-OPS-01",
+				"T-OPS-02"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-001",
+			"description": "Estabilizar runtime Tractor (boot, ws, lifecycle plugin) com plano rastreável.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Fluxo de boot mapeado",
+				"Smoke de daemon/ws disponível",
+				"Gaps viram tasks priorizadas"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-RUNTIME-01",
+				"T-RUNTIME-02",
+				"T-RUNTIME-03"
+			]
+		},
+		{
+			"id": "REQ-CONTRACT-001",
+			"description": "Garantir conformance mensurável para contratos storage/sync/identity/plugin.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Suites inventariadas",
+				"Lacunas viram tasks",
+				"Resultados registrados"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-CONTRACT-01",
+				"T-CONTRACT-02",
+				"T-CONTRACT-03",
+				"T-CONTRACT-04"
+			]
+		},
+		{
+			"id": "REQ-PLUGIN-001",
+			"description": "Pipeline de instalação de plugins deve validar integridade (SHA-256) e cache.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Fluxo install/cache/verify mapeado",
+				"Falha de hash bloqueia instalação",
+				"Testes cobrem cache hit/miss"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-PLUGIN-01",
+				"T-PLUGIN-02",
+				"T-PLUGIN-03"
+			]
+		},
+		{
+			"id": "REQ-DOC-001",
+			"description": "Documentação operacional deve permitir onboarding rápido de workers.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "must",
+			"acceptance_criteria": [
+				"Playbook de colônia publicado",
+				"Templates de prompt/reporte publicados",
+				"Fluxo de escalonamento documentado"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-DOC-01",
+				"T-DOC-03",
+				"T-DOC-04"
+			]
+		},
+		{
+			"id": "REQ-GOV-001",
+			"description": "Governança de merge deve preservar atomicidade e rastreabilidade de decisões.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Checklist de reviewer padronizado",
+				"Decisões registradas e revisitáveis",
+				"Risco operacional monitorado em issues"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-OPS-03",
+				"T-OPS-04",
+				"T-DEC-01"
+			]
+		},
+		{
+			"id": "REQ-MIG-001",
+			"description": "Operação atual no pi deve permanecer compatível com a migração incremental para o agente Refarm.",
+			"type": "constraint",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Diferença entre ajustes imediatos (pi) e de migração (Refarm) documentada",
+				"Backlog de transição explícito no .project",
+				"Handoff inclui próximos passos para fase de migração"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-04",
+				"T-NEXT-06",
+				"T-NEXT-10"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-002",
+			"description": "Política de revogação external-signed deve diferenciar comportamento offline por ambiente.",
+			"type": "integration",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Perfis local/staging/prod definidos",
+				"Comportamento fail-open/stale-allowed/fail-closed explicitado",
+				"Resolução com precedência determinística (policy/profile/env/fallback) implementada e testada",
+				"Decisão formalizada em ADR/DEC com status accepted/decided."
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-02",
+				"T-NEXT-05",
+				"T-NEXT-06",
+				"T-NEXT-11",
+				"T-NEXT-12",
+				"T-NEXT-13",
+				"T-NEXT-14",
+				"T-NEXT-15",
+				"T-NEXT-16",
+				"T-NEXT-17",
+				"T-NEXT-18",
+				"T-NEXT-21",
+				"T-NEXT-22",
+				"T-NEXT-23",
+				"T-NEXT-24",
+				"T-NEXT-25",
+				"T-NEXT-26",
+				"T-NEXT-27",
+				"T-NEXT-28",
+				"T-NEXT-29",
+				"T-NEXT-30",
+				"T-NEXT-31",
+				"T-NEXT-32",
+				"T-NEXT-33",
+				"T-NEXT-34",
+				"T-NEXT-35",
+				"T-NEXT-36",
+				"T-NEXT-37",
+				"T-NEXT-38",
+				"T-NEXT-39",
+				"T-NEXT-41",
+				"T-NEXT-42",
+				"T-NEXT-43",
+				"T-NEXT-44",
+				"T-NEXT-45",
+				"T-NEXT-46",
+				"T-NEXT-47",
+				"T-NEXT-48",
+				"T-NEXT-49",
+				"T-NEXT-50",
+				"T-NEXT-51",
+				"T-NEXT-52",
+				"T-NEXT-53",
+				"T-NEXT-54",
+				"T-NEXT-55",
+				"T-NEXT-56",
+				"T-NEXT-57",
+				"T-NEXT-58",
+				"T-NEXT-59",
+				"T-NEXT-61",
+				"T-NEXT-62",
+				"T-NEXT-63",
+				"T-NEXT-64",
+				"T-NEXT-65",
+				"T-NEXT-66",
+				"T-NEXT-67",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-70",
+				"T-NEXT-71",
+				"T-NEXT-72",
+				"T-NEXT-73",
+				"T-NEXT-74",
+				"T-NEXT-76",
+				"T-NEXT-77",
+				"T-NEXT-78",
+				"T-NEXT-79",
+				"T-NEXT-80",
+				"T-NEXT-81",
+				"T-NEXT-82",
+				"T-NEXT-83",
+				"T-NEXT-84",
+				"T-NEXT-85",
+				"T-NEXT-86",
+				"T-NEXT-87",
+				"T-NEXT-88",
+				"T-NEXT-89",
+				"T-NEXT-91",
+				"T-NEXT-92",
+				"T-NEXT-93",
+				"T-NEXT-94",
+				"T-NEXT-95",
+				"T-NEXT-96",
+				"T-NEXT-97",
+				"T-NEXT-98",
+				"T-NEXT-99",
+				"T-NEXT-100",
+				"T-NEXT-101",
+				"T-NEXT-102",
+				"T-NEXT-103",
+				"T-NEXT-104",
+				"T-NEXT-105",
+				"T-NEXT-106",
+				"T-NEXT-107",
+				"T-NEXT-108",
+				"T-NEXT-109",
+				"T-NEXT-110",
+				"T-NEXT-111",
+				"T-NEXT-112",
+				"T-NEXT-113",
+				"T-NEXT-114",
+				"T-NEXT-115",
+				"T-NEXT-116",
+				"T-NEXT-117",
+				"T-NEXT-118",
+				"T-NEXT-119"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-003",
+			"description": "Resolução de política offline de revogação deve ser determinística, auditável e coberta por testes no path de release smoke.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Resolvedor único para policy/profile com precedência explícita",
+				"Testes unitários cobrindo normalização e precedência",
+				"Release smoke inclui suíte de policy resolver"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-21",
+				"T-NEXT-26",
+				"T-NEXT-31",
+				"T-NEXT-39"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-004",
+			"description": "Fallback stale de revogação deve gerar sinais de observabilidade auditáveis no install/runtime browser.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"acceptance_criteria": [
+				"Evento explícito para uso de stale cache no runtime browser",
+				"Warning explícito no install quando stale fallback ocorre",
+				"Cobertura de testes para fallback stale com descriptor revogado e não revogado"
+			],
+			"source": "analysis",
+			"traces_to": [
+				"T-NEXT-43",
+				"T-NEXT-44",
+				"T-NEXT-47",
+				"T-NEXT-48",
+				"T-NEXT-50",
+				"T-NEXT-51",
+				"T-NEXT-59",
+				"T-NEXT-64",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-71",
+				"T-NEXT-74"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-005",
+			"description": "Inputs inválidos de policy/profile para revogação devem ser detectados, ignorados de forma determinística e observáveis em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Resolvedor retorna metadados de inputs inválidos",
+				"Install registra warning para configuração inválida ignorada",
+				"Browser runtime emite evento telemetry para configuração inválida"
+			],
+			"traces_to": [
+				"T-NEXT-61",
+				"T-NEXT-63",
+				"T-NEXT-64",
+				"T-NEXT-65",
+				"T-NEXT-66",
+				"T-NEXT-67",
+				"T-NEXT-68",
+				"T-NEXT-69",
+				"T-NEXT-74",
+				"T-NEXT-80",
+				"T-NEXT-89"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-006",
+			"description": "Fallback canônico por ambiente genérico deve mapear deterministicamente para profile de revogação em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ambiente genérico (development/staging/production) mapeado para profile de revogação",
+				"Install e browser runtime aplicam o mesmo mapeamento canônico",
+				"Cobertura de testes para cenários development e production"
+			],
+			"traces_to": [
+				"T-NEXT-76",
+				"T-NEXT-77",
+				"T-NEXT-78",
+				"T-NEXT-79",
+				"T-NEXT-83",
+				"T-NEXT-84",
+				"T-NEXT-85",
+				"T-NEXT-86",
+				"T-NEXT-89",
+				"T-NEXT-92",
+				"T-NEXT-103",
+				"T-NEXT-114"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-007",
+			"description": "Conflitos entre profile dedicado e ambiente genérico devem ser observáveis e não ambíguos em install/runtime.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Quando dedicated profile e generic environment divergirem, dedicated profile prevalece deterministicamente",
+				"Install registra warning explícito de conflito de configuração",
+				"Browser runtime emite telemetry `system:descriptor_revocation_config_conflict`",
+				"CI executa smoke release-path em mudanças tractor para detectar regressões de resolver"
+			],
+			"traces_to": [
+				"T-NEXT-91",
+				"T-NEXT-92",
+				"T-NEXT-96",
+				"T-NEXT-97",
+				"T-NEXT-98",
+				"T-NEXT-99",
+				"T-NEXT-102",
+				"T-NEXT-104",
+				"T-NEXT-114",
+				"T-NEXT-118",
+				"T-NEXT-131",
+				"T-NEXT-132",
+				"T-NEXT-133",
+				"T-NEXT-134"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-008",
+			"description": "Operação de revogação external-signed deve ter diagnóstico agregado canônico para incident response e auditoria rápida.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Comando de diagnóstico agregado disponível no host (`system:diagnostics:descriptor-revocation-summary`)",
+				"Resumo inclui contagens por evento, policy, policySource e profile",
+				"Runbook operacional referencia o comando para triagem pós-correção"
+			],
+			"traces_to": [
+				"T-NEXT-121",
+				"T-NEXT-122",
+				"T-NEXT-123",
+				"T-NEXT-124",
+				"T-NEXT-125",
+				"T-NEXT-126",
+				"T-NEXT-127",
+				"T-NEXT-129",
+				"T-NEXT-133",
+				"T-NEXT-147",
+				"T-NEXT-155",
+				"T-NEXT-165",
+				"T-NEXT-166"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-009",
+			"description": "Revocation incident response deve oferecer diagnóstico severity-aware e artefatos agregados (JSON/Markdown) para triagem e auditoria rápidas.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Comando runtime `system:diagnostics:descriptor-revocation-alerts` disponível com severidade determinística",
+				"Resumo filtrável continua disponível via `system:diagnostics:descriptor-revocation-summary`",
+				"Automação CI/ops gera `summary.json` e `summary.md` a partir de telemetry export e suporta fail-on-severity"
+			],
+			"traces_to": [
+				"T-NEXT-136",
+				"T-NEXT-146",
+				"T-NEXT-148",
+				"T-NEXT-156",
+				"T-NEXT-160",
+				"T-NEXT-169",
+				"T-NEXT-170",
+				"T-NEXT-174",
+				"T-NEXT-175",
+				"T-NEXT-206",
+				"T-NEXT-209",
+				"T-NEXT-210"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-010",
+			"description": "Resposta a incidentes de revogação deve suportar análise longitudinal (histórico + delta) com políticas automatizadas de falha por tendência.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ferramenta de histórico gera timeline e delta current-vs-previous em JSON/Markdown",
+				"Pipeline CI consegue executar smoke do histórico com fixtures canônicas",
+				"Tooling suporta policies fail-on-* para bloquear regressões operacionais por tendência"
+			],
+			"traces_to": [
+				"T-NEXT-189",
+				"T-NEXT-191",
+				"T-NEXT-194",
+				"T-NEXT-201",
+				"T-NEXT-203",
+				"T-NEXT-207",
+				"T-NEXT-208",
+				"T-NEXT-213",
+				"T-NEXT-215",
+				"T-NEXT-231",
+				"T-NEXT-235",
+				"T-NEXT-236",
+				"T-NEXT-237",
+				"T-NEXT-238",
+				"T-NEXT-239"
+			]
+		},
+		{
+			"id": "REQ-RUNTIME-011",
+			"description": "A análise histórica de revogação em CI deve preferir baseline real obtido do artifact do último run bem-sucedido do mesmo workflow/branch, com degradação graciosa quando indisponível.",
+			"type": "non-functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "analysis",
+			"acceptance_criteria": [
+				"Ferramenta baseline resolve run anterior + artifact runtime-descriptor-revocation-report e extrai summary.json canônico",
+				"Ausência de baseline não quebra o pipeline por padrão; metadata de razão é registrada",
+				"Workflow Test & Quality usa reports-file gerado para alimentar history smoke sem fixtures obrigatórias"
+			],
+			"traces_to": [
+				"T-NEXT-216",
+				"T-NEXT-218",
+				"T-NEXT-226",
+				"T-NEXT-229",
+				"T-NEXT-232",
+				"T-NEXT-233",
+				"T-NEXT-234",
+				"T-NEXT-245",
+				"T-NEXT-263"
+			]
+		},
+		{
+			"id": "REQ-AGENT-001",
+			"description": "O pi-agent deve ter acesso a ferramentas de leitura e escrita de arquivos estruturados (JSON, TOML, YAML, código) via interface centralizada e schema-aware — evitando que o agente faça parsing/escrita manual que pode estourar contexto ou introduzir erros de formato.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Análogo a não deixar agentes escrever SQL na mão: a interface centralizada garante invariantes de formato e reduz tokens gastos em serialização. Inspirado no projeto loam (aretw0/loam) que centraliza parsers/writers de arquivos estruturados para humanos e agentes. A ideia pode se expandir para APIs além do filesystem.",
+			"acceptance_criteria": [
+				"pi-agent tem tool `read_structured(path, schema?)` que retorna payload tipado sem expor bytes brutos",
+				"pi-agent tem tool `write_structured(path, schema, data)` que valida antes de persistir",
+				"Leitura de arquivo grande não estoura o budget de contexto — paginação ou summarização automática",
+				"Interface é um contrato WIT separado (`structured-io`) reutilizável por outros plugins"
+			],
+			"traces_to": [
+				"T-NEXT-266"
+			]
+		},
+		{
+			"id": "REQ-AGENT-002",
+			"description": "Operações de edição de código pelo pi-agent devem ser semânticas quando possível (renomear símbolo, mover função, extrair variável) em vez de substituição de texto — eliminando erros de inconsistência que surgem quando o agente tenta acertar todas as ocorrências na mão.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Um desenvolvedor com IDE usa 'rename symbol' e confia que o LSP vai propagar para o projeto inteiro. O agente precisa da mesma garantia. Tentar substituir todas as ocorrências via write_file é uma fonte sistemática de erros — especialmente em renomeações ou mudanças de assinatura que cruzam módulos.",
+			"acceptance_criteria": [
+				"pi-agent tem tool `rename_symbol(file, line, col, new_name)` via LSP",
+				"pi-agent tem tool `find_references(file, line, col)` para validar escopo de uma mudança antes de aplicá-la",
+				"Operações semânticas são atômicas e reversíveis (backup antes de aplicar)",
+				"Interface exposta como contrato WIT `code-ops` separado para não acoplar ao LSP específico"
+			],
+			"traces_to": [
+				"T-NEXT-267",
+				"T-NEXT-268"
+			]
+		},
+		{
+			"id": "REQ-AGENT-003",
+			"description": "O sistema de sessões do pi-agent deve ser modelado como um nó CRDT `Session` com ponteiro `leaf_entry_id` — a primitiva mínima que sustenta histórico, navegação e fork sem nenhuma feature adicional.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Inspirado no modelo do pi-mono (badlogic): sessão é um JSONL append-only com `leafId` como ponteiro móvel. Traduzido para CRDT Loro: Session é um nó com `leaf_entry_id` editável. Navegar é mover esse ponteiro. Forkar é criar nova Session apontando para um ancestral. Nenhuma dessas operações precisa de código especial além do schema — elas emergem das primitivas.",
+			"acceptance_criteria": [
+				"Nó `Session` definido no schema CRDT com campos: id, leaf_entry_id, name, parent_session_id (nullable), created_at_ns",
+				"Session pode ser criada via store_node com @type=Session",
+				"leaf_entry_id é atualizável via store_node (operação de navigate)",
+				"Schema documentado em packages/tractor ou packages/pi-agent/SCHEMA.md"
+			],
+			"traces_to": [
+				"T-NEXT-269"
+			]
+		},
+		{
+			"id": "REQ-AGENT-004",
+			"description": "Cada mensagem (usuário ou agente) deve ser um nó CRDT `SessionEntry` com `parent_entry_id` — formando uma árvore imutável que preserva branches automaticamente quando o usuário navega de volta e continua.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Em pi-mono, navegar para um ponto anterior e enviar mensagem cria um branch no mesmo arquivo JSONL (parentId = leafId atual, que foi movido). No CRDT: mesmo mecanismo — SessionEntry.parent_entry_id = Session.leaf_entry_id no momento de inserção. O branch é criado automaticamente pela estrutura de árvore; não é uma feature separada.",
+			"acceptance_criteria": [
+				"Nó `SessionEntry` definido com campos: id, session_id, parent_entry_id (nullable para raiz), kind (user|agent|tool_call|tool_result), content, timestamp_ns",
+				"Inserção de SessionEntry usa leaf_entry_id atual da Session como parent_entry_id automaticamente",
+				"Histórico de contexto (LLM_HISTORY_TURNS) percorre a cadeia parent_entry_id em vez de sort por timestamp",
+				"Branches preservados — nó ancestral tem múltiplos filhos naturalmente no grafo"
+			],
+			"traces_to": [
+				"T-NEXT-270",
+				"T-NEXT-271"
+			]
+		},
+		{
+			"id": "REQ-AGENT-005",
+			"description": "O pi-agent deve expor a primitiva `navigate(session_id, entry_id)` que move o ponteiro `leaf_entry_id` de uma Session para qualquer entrada existente na árvore — sem desfazer histórico.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "should",
+			"source": "user-insight",
+			"rationale": "Navigate é uma store_node que atualiza apenas leaf_entry_id. O histórico existente não é tocado. O próximo prompt usará a cadeia parent_entry_id a partir do novo leaf como contexto. Isso é tudo que /tree + clique num nó faz no pi-mono.",
+			"acceptance_criteria": [
+				"Tool `navigate(session_id, entry_id)` disponível no pi-agent",
+				"Após navigate, próxima chamada ao agente usa context chain a partir de entry_id",
+				"entry_id inválido retorna erro descritivo (não silencia)",
+				"navigate é idempotente (chamar duas vezes com mesmo entry_id é safe)"
+			],
+			"traces_to": [
+				"T-NEXT-272"
+			]
+		},
+		{
+			"id": "REQ-AGENT-006",
+			"description": "O pi-agent deve expor a primitiva `fork(session_id, entry_id)` que cria uma nova Session a partir de um ponto ancestral — preservando a sessão original intacta.",
+			"type": "functional",
+			"status": "accepted",
+			"priority": "could",
+			"source": "user-insight",
+			"rationale": "Fork cria nova Session com parent_session_id = session_id original e leaf_entry_id = entry_id especificado. A sessão de origem não é alterada. O histórico do fork começa na cadeia parent_entry_id do ponto especificado — o contexto LLM é o mesmo que o usuário viu até aquele ponto. Diferente de navigate, fork é uma operação explícita e cria identidade separada (nome, id próprios).",
+			"acceptance_criteria": [
+				"Tool `fork(session_id, entry_id, name?)` cria nova Session com parent_session_id preenchido",
+				"Sessão original inalterada após fork",
+				"Nova Session inicia com leaf_entry_id = entry_id especificado",
+				"fork retorna o id da nova Session para o cliente"
+			],
+			"traces_to": [
+				"T-NEXT-273"
+			]
+		}
+	]
+}

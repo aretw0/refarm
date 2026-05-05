@@ -55,26 +55,29 @@ navigator.storage.estimate().then(({ usage, quota }) => {
 
 ---
 
-### Limitation 1.2: IndexedDB Can Corrupt
+### Limitation 1.2: SQLite/OPFS Can Corrupt (CRDT State)
 
 **Worst Case**:
 
 - Browser crash mid-write
-- CRDT state in IndexedDB becomes inconsistent
-- User opens app → sees corrupted data
+- Loro CRDT state in SQLite becomes inconsistent (truncated binary delta)
+- User opens app → state vector mismatch, sync refuses to merge
 
 **Early Warning**:
 
 - Checksum failures on read (ADR-021 Layer 1)
-- WAL replay detects gaps
+- Loro state vector fails to decode (binary integrity check)
 
 **Mitigation (v0.3.0)**:
 
-- Write-ahead log (WAL) for recovery (ADR-021)
+- Atomic SQLite commit wraps data row + Loro delta together (ADR-045 CQRS)
 - Checksum validation on every read
-- Auto-repair from last good commit
+- Auto-repair: rollback to last valid Loro snapshot, replay deltas forward
 
-**Status**: ⚠️ Design complete (ADR-021), implementation pending
+**Note**: CRDT state is now stored in SQLite (co-located with data), not in IndexedDB.
+IndexedDB is no longer part of the storage stack since ADR-045 (Loro adoption).
+
+**Status**: ⚠️ Design complete (ADR-021 + ADR-045), implementation pending
 
 ---
 
@@ -226,20 +229,20 @@ if (plugin.memoryUsage > plugin.quota) {
 
 ---
 
-## Category 4: Studio UI Freezes
+## Category 4: Homestead UI Freezes
 
 ### Limitation 4.1: Too Many Nodes Rendered at Once
 
 **Worst Case**:
 
 - User opens view with 10,000 nodes
-- React tries to render all at once
+- Astro/browser renders all at once
 - UI freezes for 10 seconds
 
 **Early Warning**:
 
 - Flame graph shows render time > 100ms
-- User reports "Studio is slow"
+- User reports "Homestead is slow"
 
 **Mitigation (v0.2.0)**:
 
@@ -247,7 +250,7 @@ if (plugin.memoryUsage > plugin.quota) {
 - Pagination (show 100 at a time)
 - Progressive rendering (render critical first)
 
-**Status**: ⚠️ React optimization needed
+**Status**: ⚠️ UI optimization needed
 
 ---
 
@@ -339,7 +342,7 @@ if (plugin.memoryUsage > plugin.quota) {
 
 - License selector in graph metadata
 - Support Creative Commons, proprietary, etc.
-- Display license badge in Studio UI
+- Display license badge in Homestead UI
 
 **Status**: ⚠️ Not designed yet (new requirement)
 
@@ -423,7 +426,7 @@ if (plugin.memoryUsage > plugin.quota) {
 | Mitigation | Status | When |
 |------------|--------|------|
 | Schema evolution (upcasting) | ✅ Design ready (ADR-010) | v0.2.0 |
-| CRDT conflict resolution | ✅ Working (Yjs) | v0.1.0 |
+| CRDT conflict resolution | ✅ Working (Loro — ADR-045) | v0.1.0 |
 | Conformance tests (contracts) | ✅ Working (12 tests) | v0.1.0 |
 | Capability contracts | ✅ Working (4 packages) | v0.1.0 |
 | **Graph versioning** | ⚠️ Design only (ADR-020) | v0.2.0-0.3.0 |

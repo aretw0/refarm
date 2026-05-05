@@ -1,0 +1,80 @@
+name: Sync develop ← main
+
+# Triggered every time main receives a push (PR merged, version bump, hotfix).
+# Attempts a fast-forward of develop to main so the next sprint starts clean.
+# If fast-forward is impossible (diverged history), opens a maintenance issue.
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  sync:
+    name: Fast-forward develop to main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git bot identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Rebase develop onto main
+        id: sync
+        run: |
+          git checkout develop
+          if git rebase origin/main; then
+            git push -f origin develop
+            NEW_HEAD=$(git rev-parse --short HEAD)
+            echo "status=synced" >> "$GITHUB_OUTPUT"
+            echo "✅ develop rebased onto main ($NEW_HEAD)"
+          else
+            echo "status=conflicted" >> "$GITHUB_OUTPUT"
+            echo "⚠️  Rebase encountered conflicts — manual intervention needed."
+            git rebase --abort
+          fi
+
+      - name: Open issue on rebase conflict
+        if: steps.sync.outputs.status == 'conflicted'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cat >/tmp/sync-develop-conflict.md <<'EOF'
+          ## Sync automático encontrou conflitos
+
+          O rebase de `develop` sobre `origin/main` falhou após o commit `${{ github.sha }}`.
+
+          Isso pode ocorrer se novas commits entram em `develop` durante o mesmo push em `main`,
+          ou se há conflitos genuínos de merge.
+
+          ### Fix manual
+
+          ```bash
+          git fetch origin
+          git checkout develop
+          git rebase origin/main
+
+          # Resolver conflitos se houver, depois:
+          git rebase --continue
+          git push -f origin develop
+          ```
+
+          > Feche este issue após o sync manual.
+          EOF
+
+          gh issue create \
+            --title "⚠️ develop: rebase conflict com main — manual fix" \
+            --body-file /tmp/sync-develop-conflict.md \
+            --label "maintenance" \
+            --repo "${{ github.repository }}"

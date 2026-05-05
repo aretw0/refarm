@@ -1,0 +1,13 @@
+package refarm:plugin@0.1.0;
+
+// pi-agent world — imports integration/host interfaces from refarm-plugin-wit
+// so the exported interface remains `refarm:plugin/integration@0.1.0`.
+world pi-agent {
+    import tractor-bridge;
+    import llm-bridge;
+    import agent-fs;
+    import agent-shell;
+    import structured-io;
+    import code-ops;
+    export integration;
+}

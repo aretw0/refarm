@@ -8,15 +8,17 @@ The Refarm Host is a static Astro application. It is designed to be hosted on an
 
 ### GitHub Pages (Official Recommendation)
 Refarm is pre-configured for GitHub Pages.
-1. Fork the [refarm-dev/refarm](https://github.com/refarm-dev/refarm) repository.
+1. Fork the [aretw0/refarm](https://github.com/aretw0/refarm) repository (or the current canonical owner).
 2. Go to **Settings > Pages**.
 3. Set **Source** to "GitHub Actions".
-4. The `.github/workflows/deploy-homestead.yml` will automatically build and deploy `@refarm.dev/homestead` on every push to `main`.
+4. The `.github/workflows/deploy-dev.yml` will automatically build and deploy the `apps/dev` distribution on every push to `main`.
 
 ### "Deploy to..." Button Blueprint
 If you are building a custom Refarm distribution, you can add this button to your README:
 
-[![Deploy to GitHub Pages](https://github.com/refarm-dev/refarm/raw/main/assets/deploy-to-ghp.svg)](https://github.com/new?template_name=refarm&template_owner=refarm-dev)
+[![Deploy to GitHub Pages](https://github.com/aretw0/refarm/raw/main/assets/deploy-to-ghp.svg)](https://github.com/new?template_name=refarm&template_owner=aretw0)
+
+If the canonical owner changes, update the badge URL and `template_owner` accordingly.
 
 ---
 

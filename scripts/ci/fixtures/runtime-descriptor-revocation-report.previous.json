@@ -1,0 +1,48 @@
+{
+	"generatedAt": "2026-04-24T08:00:00.000Z",
+	"inputPath": "fixtures/prev.json",
+	"summary": {
+		"totalEvents": 2,
+		"byEvent": {
+			"system:descriptor_revocation_config_invalid": 0,
+			"system:descriptor_revocation_config_conflict": 1,
+			"system:descriptor_revocation_stale_cache_used": 0,
+			"system:descriptor_revocation_unavailable": 1
+		},
+		"byPolicy": {
+			"fail-open": 1,
+			"stale-allowed": 1
+		},
+		"byPolicySource": {
+			"environment-profile": 1,
+			"fallback": 1
+		},
+		"byProfile": {
+			"staging": 2
+		},
+		"affectedPlugins": ["@acme/plugin-a"]
+	},
+	"alerts": [
+		{
+			"id": "revocation-unavailable",
+			"severity": "warn",
+			"title": "Revocation endpoint unavailable",
+			"message": "example",
+			"count": 1,
+			"event": "system:descriptor_revocation_unavailable"
+		},
+		{
+			"id": "revocation-config-drift",
+			"severity": "warn",
+			"title": "Revocation policy configuration drift",
+			"message": "example",
+			"count": 1
+		}
+	],
+	"thresholds": {
+		"unavailableWarnAt": 1,
+		"unavailableCriticalAt": 3,
+		"configDriftWarnAt": 1,
+		"staleCacheWarnAt": 1
+	}
+}

@@ -3,145 +3,22 @@ import Layout from "../layouts/Layout.astro";
 ---
 
 <Layout title="Dashboard — Refarm Studio">
-  <div id="loading-overlay" class="loading-state">
-    <div class="spinner"></div>
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner"></div>
     <p>Initializing Sovereign Environment...</p>
   </div>
-
-  <style>
-    .loading-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 40vh;
-      color: var(--refarm-text-secondary);
-      font-family: var(--refarm-font-mono);
-    }
-    .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid var(--refarm-bg-elevated);
-      border-top: 3px solid var(--refarm-accent-primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-  </style>
 </Layout>
 
 <script>
-  import { SowerPlugin } from "@refarm.dev/sower";
-  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
-  import { LoroCRDTStorage, BrowserSyncClient, randomPeerId } from "@refarm.dev/sync-loro";
-  import { Tractor } from "@refarm.dev/tractor";
-  import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
+  import {
+    bootStudioDashboardWorkbench,
+    renderStudioDashboardBootFailure,
+  } from "../lib/studio-dashboard-runtime";
 
-  async function boot() {
-    try {
-      const mode = localStorage.getItem('refarm:mode') || sessionStorage.getItem('refarm:mode') || 'visitor';
-      console.info(`[homestead] Booting in ${mode} mode`);
-
-      // 1. Initialize Adapters
-      // If visitor/guest, we might use a temporary DB name or In-Memory
-      const dbName = mode === 'citizen' ? 'refarm-main' : `refarm-temp-${Date.now()}`;
-      const sqliteStorage = await new OPFSSQLiteAdapter().open(dbName);
-      const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
-      const syncClient = new BrowserSyncClient(storage);
-      syncClient.connect();
-
-      const identity = {
-        id: "core",
-        getPublicKey: async () => "root",
-        sign: async (data: string) => data
-      };
-
-      // 2. Boot Tractor
-      const tractor = await Tractor.boot({
-        storage: storage as any,
-        sync: storage,
-        identity: identity as any,
-        namespace: "studio-main",
-        envMetadata: {
-          version: "0.1.0-solo-fertil", // Mocking build-time injection for now
-          commit: "dev"
-        }
-      });
-
-      // 3. Instantiate Core Plugins (Local handles for now)
-      const herald = new HeraldPlugin(tractor);
-      const sower = new SowerPlugin(tractor);
-      const firefly = new FireflyPlugin(tractor);
-
-      tractor.plugins.registerInternal({
-        id: "sower",
-        name: "O Semeador",
-        manifest: { id: "sower", name: "O Semeador", version: "0.1.0", entry: "", capabilities: { providersApi: ["onboarding"] } } as any,
-        call: async (fn, args: any) => {
-          if (fn === "get-help-nodes") return [JSON.stringify(await sower.getOnboardingNode())];
-          if (fn === "on-event") {
-            const [event, payload] = args as [string, string];
-            sower.onEvent(event, payload);
-          }
-          return null;
-        },
-        terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "sower" }),
-        state: "idle"
-      });
-
-      tractor.plugins.registerInternal({
-        id: "scarecrow",
-        name: "O Espantalho",
-        manifest: { id: "scarecrow", name: "O Espantalho", version: "0.1.0", entry: "", capabilities: {} } as any,
-        call: async () => null,
-        terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "scarecrow" }),
-        state: "idle"
-      });
-      
-      tractor.plugins.registerInternal({
-        id: "firefly",
-        name: "O Vagalume",
-        manifest: { id: "firefly", name: "O Vagalume", version: "0.1.0", entry: "", capabilities: {} } as any,
-        call: async (fn, args: any) => {
-          if (fn === "show-toast") firefly.showToast(args.message, args.actionable);
-          if (fn === "spotlight") firefly.spotlight(args.targetId, args.message);
-          return null;
-        },
-        terminate: () => {},
-        emitTelemetry: (ev, p) => tractor.emitTelemetry({ event: ev, payload: p, pluginId: "firefly" }),
-        state: "idle"
-      });
-      
-      // 4. Handover to Shell Orchestrator
-      const shell = new StudioShell(tractor);
-      await shell.setup();
-
-      // 5. Announce successful boot and monitor lifecycle
-      herald.announce();
-      herald.monitorLifecycle();
-
-      // 6. Hide loading
-      document.getElementById("loading-overlay")?.remove();
-      
-    } catch (err) {
-      console.error("[homestead] Boot failed", err);
-      const loading = document.getElementById("loading-overlay");
-      if (loading) {
-        loading.innerHTML = `
-          <div style="text-align:center; color: var(--refarm-accent-secondary);">
-            <p>Boot Failed: ${(err as Error).message}</p>
-            <button onclick="location.reload()" style="margin-top:1rem; padding: 0.5rem 1.5rem; border-radius: 20px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer;">Retry</button>
-          </div>
-        `;
-      }
-    }
-  }
-
-  boot();
+  bootStudioDashboardWorkbench({
+    baseUrl: import.meta.env.BASE_URL,
+  }).catch((error) => {
+    console.error("[homestead] Boot failed", error);
+    renderStudioDashboardBootFailure(error);
+  });
 </script>

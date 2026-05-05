@@ -20,10 +20,55 @@ const ROOT_DIR = join(__dirname, "../..");
 const config = loadConfig(ROOT_DIR);
 
 /**
+ * Get changed files compared to origin/main
+ */
+function getChangedFiles() {
+    try {
+        const output = execSync(
+            "git diff --name-only origin/main...HEAD",
+            { cwd: ROOT_DIR, encoding: "utf-8" }
+        );
+        return output
+            .split("\n")
+            .map(f => f.trim())
+            .filter(Boolean);
+    } catch (err) {
+        console.warn("⚠️  Failed to detect changed files:", err.message);
+        return [];
+    }
+}
+
+/**
+ * Detect dependency-only updates to avoid exploding compatibility matrix.
+ * These PRs are already covered by standard quality/security workflows.
+ */
+function isDependencyOnlyChange(files) {
+    if (!files.length) return false;
+
+    const allowed = [
+        /(^|\/)package\.json$/,
+        /(^|\/)package-lock\.json$/,
+        /^final-report\.md$/,
+        /^\.changeset\/.*\.md$/,
+        /^\.github\/workflows\/granular-tests\.yml$/,
+        /^scripts\/ci\/github-matrix-builder\.mjs$/,
+    ];
+
+    return files.every(file => allowed.some(pattern => pattern.test(file)));
+}
+
+/**
  * Identify packages that have changed compared to main branch
  */
 function getChangedPackages() {
     try {
+        const changedFiles = getChangedFiles();
+        if (isDependencyOnlyChange(changedFiles)) {
+            console.log("ℹ️  Dependency-only change detected. Skipping granular compatibility matrix.");
+            changedFiles.forEach(file => console.log(`  - ${file}`));
+            return [];
+        }
+
         // Use turbo's built-in dry-run to detect affected packages
         const output = execSync(
             "npx turbo run test --filter=...[origin/main] --dry-run=json",

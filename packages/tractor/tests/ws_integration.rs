@@ -1,6 +1,6 @@
 /// Phase 6 integration tests — WebSocket daemon.
 use std::sync::Arc;
-use tractor::{NativeStorage, NativeSync, TelemetryBus};
+use tractor::{AgentChannels, NativeStorage, NativeSync, TelemetryBus};
 use tractor::daemon::WsServer;
 use futures_util::{SinkExt, StreamExt};
 use tokio::net::TcpListener;
@@ -12,7 +12,8 @@ async fn start_server(sync: Arc<NativeSync>) -> u16 {
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     let telemetry = TelemetryBus::new(100);
-    let server = WsServer::new(sync, port, telemetry);
+    let agent_channels: AgentChannels = Arc::new(std::sync::RwLock::new(std::collections::HashMap::new()));
+    let server = WsServer::new(sync, port, telemetry, agent_channels);
     tokio::spawn(async move { server.run(listener).await.unwrap() });
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     port
@@ -29,6 +30,27 @@ async fn ws_server_accepts_connection() {
     let port = start_server(sync).await;
     let (_ws, _) = connect_async(format!("ws://127.0.0.1:{port}"))
         .await.expect("must connect");
+}
+
+#[tokio::test]
+async fn ws_server_readiness_contract_initial_binary_frame_arrives_quickly() {
+    let sync = make_sync("t-readiness");
+    let port = start_server(sync).await;
+
+    let (mut ws, _) = connect_async(format!("ws://127.0.0.1:{port}"))
+        .await
+        .expect("must connect");
+
+    let msg = tokio::time::timeout(
+        std::time::Duration::from_millis(500),
+        ws.next(),
+    )
+    .await
+    .expect("timeout waiting readiness initial frame")
+    .expect("stream closed")
+    .expect("websocket error");
+
+    assert!(matches!(msg, Message::Binary(_)), "readiness initial frame must be binary");
 }
 
 #[tokio::test]

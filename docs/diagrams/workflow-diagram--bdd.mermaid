@@ -1,0 +1,18 @@
+flowchart TD
+    Prev([← Gate 1 passed]) --> BDD
+
+    subgraph BDD[BDD - Behavior Driven Development]
+        B1[Write Integration Tests]
+        B2[Define Acceptance Criteria]
+        B3[Tests FAIL 🔴]
+        B4[Peer Review]
+        B1 --> B2 --> B3 --> B4
+    end
+
+    BDD --> Gate2{Gate 2:<br/>Tests RED?<br/>Behavior clear?}
+    Gate2 -->|No| BDD
+    Gate2 -->|Yes| Next([→ TDD Phase])
+
+    style BDD  fill:#fff3e0
+    style Prev fill:#f5f5f5
+    style Next fill:#f5f5f5

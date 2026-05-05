@@ -13,7 +13,10 @@
       "@refarm.dev/thresher": ["../thresher/dist/index.d.ts"],
       "@refarm.dev/health": ["../health/dist/index.d.ts"],
       "@refarm.dev/sower": ["../sower/dist/index.d.ts"],
-      "@refarm.dev/tractor": ["../tractor/dist/index.d.ts"]
+      "@refarm.dev/tractor": ["../tractor/dist/index.d.ts"],
+      "@refarm.dev/homestead/sdk/host-renderer": ["../homestead/dist/sdk/host-renderer.d.ts"],
+      "@refarm.dev/trust": ["../trust/dist/index.d.ts"],
+      "@refarm.dev/runtime": ["../runtime/dist/index.d.ts"]
     },
     "allowJs": true,
     "maxNodeModuleJsDepth": 2

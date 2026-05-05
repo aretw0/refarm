@@ -1,14 +1,13 @@
 graph TD
-    subgraph Device ["User's Device (Browser + OPFS)"]
-        SQLite["SQLite Database<br/>(JSON-LD nodes + metadata)"]
-        IndexedDB["IndexedDB<br/>(CRDT State)"]
-        Commits["Versioning Commits (Log)<br/>(Content-addressed)"]
-        
-        SQLite ---|"One node = one row"| SQLite
-        SQLite ---|"Checksum per row"| SQLite
-        
-        IndexedDB ---|"Yjs document encoded"| IndexedDB
-        IndexedDB ---|"Write-ahead log"| IndexedDB
-        
-        Commits ---|"Immutable / Parent chaining"| Commits
+    subgraph Device ["User's Device  (Browser + OPFS)"]
+        SQLite["SQLite Database\n(JSON-LD nodes + metadata)\n(primary data store)"]
+        LoroCRDT["Loro CRDT State\n(binary deltas in SQLite)\n(ADR-045 — replaces Yjs)"]
+        Commits["Sovereign Graph Commits\n(Loro snapshots + version log)\n(content-addressed)"]
+
+        SQLite ---|"one node = one row\nchecksum per row"| SQLite
+        LoroCRDT ---|"binary delta per mutation\nstate vector for sync"| LoroCRDT
+        Commits ---|"immutable · parent chaining\nreplay → reconstruct state"| Commits
+
+        SQLite -->|"CRDT state co-located"| LoroCRDT
+        LoroCRDT -->|"snapshot = commit"| Commits
     end

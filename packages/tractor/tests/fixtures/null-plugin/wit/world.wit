@@ -60,6 +60,7 @@ interface integration {
     get-help-nodes: func() -> result<list<json-ld-node>, plugin-error>;
     metadata:       func() -> plugin-metadata;
     on-event:       func(event: string, payload: option<string>);
+    respond:        func(payload: string) -> result<string, plugin-error>;
 }
 
 // ─── Plugin World ─────────────────────────────────────────────────────────────

@@ -257,6 +257,6 @@ const note = await storage.get("note-123");
 
 ## Support
 
-- Contract packages: <https://github.com/refarm-dev/refarm/tree/main/packages>
-- Plugin developer guide: <https://github.com/refarm-dev/refarm/blob/main/docs/PLUGIN_DEVELOPER_PLAYBOOK.md>
-- ADR-018: Capability contracts: <https://github.com/refarm-dev/refarm/blob/main/specs/ADRs/ADR-018-capability-contracts-and-observability-gates.md>
+- Contract packages: <https://github.com/aretw0/refarm/tree/main/packages>
+- Plugin developer guide: <https://github.com/aretw0/refarm/blob/main/docs/PLUGIN_DEVELOPER_PLAYBOOK.md>
+- ADR-018: Capability contracts: <https://github.com/aretw0/refarm/blob/main/specs/ADRs/ADR-018-capability-contracts-and-observability-gates.md>

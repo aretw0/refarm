@@ -124,6 +124,8 @@ const { title = "Refarm Studio" } = Astro.props;
         </div>
         <nav id="refarm-slot-nav" class="slot">
           <a href={import.meta.env.BASE_URL}>Dashboard</a>
+          <a href={`${import.meta.env.BASE_URL}streams`}>Streams</a>
+          <a href={`${import.meta.env.BASE_URL}surfaces`}>Surfaces</a>
           <a href={`${import.meta.env.BASE_URL}plugins`}>Marketplace</a>
           <a href={`${import.meta.env.BASE_URL}graph`}>Graph</a>
           <a href={`${import.meta.env.BASE_URL}shed`}>The Shed</a>
@@ -134,6 +136,7 @@ const { title = "Refarm Studio" } = Astro.props;
         <div id="refarm-slot-main" class="slot">
           <slot />
         </div>
+        <aside id="refarm-slot-streams" class="slot" hidden></aside>
       </main>
 
       <footer id="refarm-footer">
@@ -161,6 +164,11 @@ const { title = "Refarm Studio" } = Astro.props;
       #refarm-main {
         flex: 1;
         padding: 2rem;
+        display: grid;
+        gap: 1.5rem;
+      }
+      #refarm-slot-streams[hidden] {
+        display: none;
       }
       footer {
         padding: 0.5rem 1.5rem;

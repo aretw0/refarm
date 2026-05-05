@@ -44,14 +44,16 @@ export class BrowserSyncClient {
         // Push local state to farmhand on connect
         void this.storage.getUpdate().then((bytes) => {
           if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(bytes);
+            // TS6 DOM typings require ArrayBuffer-backed BufferSource.
+            this.ws.send(new Uint8Array(bytes));
           }
         });
 
         // Subscribe to local CRDT changes and forward to farmhand
         this.unsubscribe = this.storage.onUpdate((bytes) => {
           if (this.ws?.readyState === WebSocket.OPEN) {
-            this.ws.send(bytes);
+            // Normalize potential SharedArrayBuffer-backed views for WebSocket.send.
+            this.ws.send(new Uint8Array(bytes));
           }
         });
       };

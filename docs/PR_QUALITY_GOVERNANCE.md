@@ -454,6 +454,52 @@ Se receber muitas notificações de checks falhando:
 - [ ] Comentários resolvidos
 - [ ] Branch atualizada com base (main/develop)
 
+### Granularidade padrão de PR (governança de diffs)
+
+Para manter review rápido e rastreável:
+
+- Diff alvo por PR/task: **até 300 linhas** (flexível para testes/docs acoplados)
+- Arquivos alvo por PR/task: **até 8 arquivos** (exceto migrações coordenadas)
+- PR deve referenciar exatamente 1 task primária da `.project/tasks.json`
+- PR deve incluir seção explícita de evidências (`smoke/full`)
+
+Template de acceptance no PR:
+
+```markdown
+## Acceptance
+- [ ] Critério 1 atendido
+- [ ] Critério 2 atendido
+- [ ] Evidência anexada (comandos + saída)
+```
+
+### Reviewer checklist para lotes de colônia
+
+#### Smoke (obrigatório por PR)
+
+- [ ] `npm run gate:smoke:<domínio>` executado e anexado
+- [ ] Escopo do smoke corresponde aos arquivos alterados
+- [ ] Sem alteração manual em artefatos (`dist/`, `build/`, `.turbo/`)
+
+#### Full (obrigatório para consolidação de lote)
+
+- [ ] `npm run gate:full:colony` verde
+- [ ] `.project/verification.json` atualizado com evidência por task
+- [ ] Rastreabilidade confirmada: task → commit(s) → verification
+
+### Política de merge em lote
+
+Use merge em lote apenas quando:
+
+- todas as PRs do lote passaram smoke;
+- uma rodada full foi executada após rebase com `develop`;
+- rollback por lote está definido (ordem de revert + owner responsável).
+
+Regra de rollback:
+
+1. Reverter primeiro PRs de boundary crítico (`tractor*`, `.project`, workflows).
+2. Reexecutar smoke de domínio afetado.
+3. Reexecutar full gate antes de retomar merges.
+
 ---
 
 ## 7. Próximos Passos
@@ -474,7 +520,38 @@ Se receber muitas notificações de checks falhando:
 
 ---
 
-## Referências
+## 8. Gate operacional smoke + full
+
+### Smoke gate (obrigatório em todo PR)
+
+Checklist mínimo por PR:
+
+- [ ] Escopo de validação limitado aos pacotes/arquivos afetados
+- [ ] Comandos executados e resultado anexado na descrição do PR
+- [ ] Sem regressão nos testes/boundary diretamente impactados
+
+### Full gate (obrigatório para consolidação de lote)
+
+Aplicar quando houver:
+
+- merge de múltiplas tasks
+- mudança em boundary de segurança/runtime host-side
+- preparação para merge em branch protegida
+
+Checklist mínimo:
+
+- [ ] Pipeline `Test & Quality` verde
+- [ ] Evidência registrada em `.project/verification.json`
+- [ ] Reviewer confirma rastreabilidade task → commit → verificação
+
+### Padrão de revisão
+
+- PR atômico: **smoke + revisão de diff**
+- PR de integração/lote: **smoke + full + revisão de evidências**
+
+---
+
+## 9. Referências
 
 - [GitHub Branch Protection](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches)
 - [Changesets Documentation](https://github.com/changesets/changesets)

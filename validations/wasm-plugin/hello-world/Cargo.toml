@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Example WASM plugin for the Refarm ecosystem"
 license = "AGPL-3.0-only"
-repository = "https://github.com/refarm-dev/refarm"
+repository = "https://github.com/aretw0/refarm"
 homepage = "https://refarm.dev"
 
 [lib]

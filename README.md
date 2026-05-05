@@ -8,7 +8,7 @@
   [![Website](https://img.shields.io/badge/Website-refarm.dev-000000?style=flat-square&logo=google-chrome&logoColor=white)](https://refarm.dev)
   [![Patreon](https://img.shields.io/badge/Support_our_Hackerspace-Patreon-FF424D?style=flat-square&logo=patreon)](https://www.patreon.com/cw/refarm88)
   [![GitHub Sponsors](https://img.shields.io/badge/Sponsor-GitHub-EA4AAA?style=flat-square&logo=github)](https://github.com/sponsors/aretw0)
-  [![License](https://img.shields.io/github/license/refarm-dev/refarm.svg?color=red)](LICENSE)
+  [![License](https://img.shields.io/github/license/aretw0/refarm.svg?color=red)](LICENSE)
 </div>
 
 > **Personal Operating System for Sovereign Data**
@@ -44,13 +44,13 @@ Refarm is a unified architecture that manifests as distinct experiences dependin
 
 ## Status
 
-🚧 **Core Alignment & Architectural Stabilization**
+🌱 **Maturing toward cohesion — creator as first user**
 
-Refarm is transitioning from an experimental research project to a stable, modular engine. We are currently formalizing the emergence of its core primitives into a cohesive, auditable system.
+The core engine is built. The current focus is on becoming a real daily driver before any public release: consolidating the primitives into a cohesive system the creator uses for their own life and work. No v0.1.0 release until it earns that trust.
 
-- **Current phase**: Phase 6 - Sync & Execution Stabilization (Loro CRDT, WASM Component Plugins, Farmhand Daemon)
-- **Next milestone**: v0.1.0 "Sovereign Foundations" — First official public release of contract primitives
-- **Registry maturity**: Tracking ready-to-publish packages in [Package Registry](packages/README.md)
+- **Current phase**: Phase 6 — Sync & Execution Stabilization (Loro CRDT, WASM Plugins, dual-runtime Tractor)
+- **Pre-release gate**: creator daily-driver validation — Tractor + Homestead + stream contract working end-to-end
+- **Registry maturity**: Tracking ready-to-publish packages in [Package Registry](packages/README.md) (44 packages)
 - **Methodology**: [SDD → BDD → TDD → DDD](docs/WORKFLOW.md)
 
 ---
@@ -67,7 +67,7 @@ Categorized entry points for users, developers, and auditors.
 ### 🛠 Development & Ops
 - **[Sovereign Workflow](docs/WORKFLOW.md)** — The SDD→BDD→TDD→DDD process.
 - **[DevOps & Setup](docs/DEVOPS.md)** — Environment, CI, and Reusable Workflows.
-- **[Package Registry](packages/README.md)** — List of all 26+ packages and their publishing maturity.
+- **[Package Registry](packages/README.md)** — List of all 44 packages and their publishing maturity.
 
 ### 🛡 Governance & Security
 - **[PR Quality Governance](docs/PR_QUALITY_GOVERNANCE.md)** — Quality gates and changeset policy.

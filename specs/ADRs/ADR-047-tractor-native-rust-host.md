@@ -15,7 +15,7 @@
 the V8 engine as a hard dependency. This creates an adoption barrier for:
 
 - **Edge / IoT**: Raspberry Pi Zero, Android Termux, constrained ARM devices — V8 is too heavy
-- **Tauri desktop apps**: embedding a wasmtime runtime is ~10 MB; embedding Node.js is ~80 MB
+- **Electron desktop apps**: embedding a wasmtime runtime is ~10 MB; embedding Node.js is ~80 MB
 - **Server-side plugins**: JCO transpilation of `.wasm` components to `.js` adds build complexity
   and removes the determinism guarantee of running the original WASM binary
 
@@ -96,7 +96,7 @@ TractorNative (lib.rs)
 
 | Form | Target | Entry point |
 |---|---|---|
-| `[lib]` | Tauri, CLI, edge agents | `use tractor::TractorNative` |
+| `[lib]` | Electron, CLI, edge agents | `use tractor::TractorNative` |
 | `[[bin]]` | Standalone daemon | `tractor --namespace default --port 42000` |
 
 ---

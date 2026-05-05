@@ -1,0 +1,53 @@
+{
+  "id": "@refarm.example/multi-surface",
+  "name": "Refarm Multi-Surface Example",
+  "version": "0.1.0",
+  "entry": "./src/index.mjs",
+  "capabilities": {
+    "provides": ["example:multi-surface:v1"],
+    "requires": ["tractor:graph:v1"],
+    "providesApi": ["@refarm.example/multi-surface:ui"],
+    "requiresApi": []
+  },
+  "permissions": ["graph:read"],
+  "observability": {
+    "hooks": ["onLoad", "onInit", "onRequest", "onError", "onTeardown"]
+  },
+  "targets": ["browser", "server"],
+  "ui": {
+    "icon": "lucide:layout-dashboard",
+    "slots": ["statusbar"],
+    "color": "#238636"
+  },
+  "extensions": {
+    "surfaces": [
+      {
+        "layer": "homestead",
+        "kind": "panel",
+        "id": "stream-panel",
+        "slot": "main",
+        "capabilities": ["ui:panel:render", "ui:stream:read"]
+      },
+      {
+        "layer": "asset",
+        "kind": "theme-pack",
+        "id": "stream-theme-assets",
+        "assets": ["./assets/stream-theme.json"]
+      },
+      {
+        "layer": "automation",
+        "kind": "workflow-step",
+        "id": "summarize-terminal-stream",
+        "capabilities": ["automation:stream:summarize"]
+      }
+    ]
+  },
+  "certification": {
+    "license": "MIT",
+    "a11yLevel": 2,
+    "languages": ["en", "pt-BR"]
+  },
+  "trust": {
+    "profile": "strict"
+  }
+}

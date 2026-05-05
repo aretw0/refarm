@@ -35,7 +35,7 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 - [ ] Cada package publicável tem `README.md` com exemplos de uso
 - [ ] Cada package publicável tem `CHANGELOG.md` (gerado via Changesets)
 - [ ] `"publishConfig": { "access": "public" }` está no `package.json` de todos os packages publicáveis
-- [ ] Campo `"repository"` em cada `package.json` aponta para `github.com/refarm-dev/refarm` (pós-transfer)
+- [ ] Campo `"repository"` em cada `package.json` aponta para o owner atual (pós-transfer: `github.com/aretw0/refarm`)
 - [ ] Packages com `"private": true` estão corretos (apps/, tooling interno)
 - [ ] Rodar `node scripts/verify-packages.mjs` sem erros:
   ```bash
@@ -52,12 +52,13 @@ Ver [packages/DISTRIBUTION_STATUS.md](../packages/DISTRIBUTION_STATUS.md) para s
 
 ## 3. npm Scope
 
-> **Decisão**: GitHub org = `refarm-dev`, npm scope = `@refarm.dev`. Ver [ADR-019](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md).
+> **Decisão alvo**: GitHub org = `refarm-dev`, npm scope = `@refarm.dev`. Ver [ADR-019](../specs/ADRs/ADR-019-npm-scope-and-namespace-strategy.md).
+> **Operação atual**: release pode ocorrer no scope/profile ativo (ex.: `@aretw0`) até a migração.
 
-- [ ] Conta npm com acesso ao scope `@refarm.dev` está configurada
-- [ ] `NPM_TOKEN` do tipo "Automation" criado com permissão Read + Publish no scope `@refarm.dev`
+- [ ] Conta npm com acesso ao scope ativo está configurada
+- [ ] `NPM_TOKEN` do tipo "Automation" criado com permissão Read + Publish no scope ativo
 - [ ] Token adicionado como secret `NPM_TOKEN` no GitHub (no novo org, pós-transfer)
-- [ ] `.npmrc` na raiz confirma `@refarm.dev:registry=https://registry.npmjs.org/`
+- [ ] `.npmrc` na raiz confirma `<scope-ativo>:registry=https://registry.npmjs.org/`
 
 ---
 
@@ -68,6 +69,7 @@ A configurar **na nova organização** `refarm-dev` imediatamente após o transf
 - [ ] Branch protection em `main`: require PR reviews, require CI pass, no force push
 - [ ] Branch protection em `develop`: require CI pass
 - [ ] Actions secrets migrados: `NPM_TOKEN`, `CODECOV_TOKEN` (se usar), qualquer deploy key
+- [ ] Variables de release configuradas: `RELEASE_AUTOMATION=true` e opcional `RELEASE_OWNER=<owner>`
 - [ ] GitHub Pages configurado para `apps/dev` (se aplicável)
 - [ ] Repository visibility confirmada (public, para que CI/CD e publicação funcionem)
 - [ ] `.github/workflows/` revisados: nenhuma referência hardcoded ao repo antigo `refarm/refarm`

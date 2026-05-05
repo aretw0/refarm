@@ -1,0 +1,26 @@
+graph TD
+    TractorCore["Tractor Core\n(tractor-ts / tractor)"]
+    Farmhand["Farmhand\n(apps/farmhand · Node.js daemon)"]
+
+    subgraph Contracts["Capability Contracts  (packages/)"]
+        direction LR
+        StorageV1["storage-contract-v1"]
+        SyncV1["sync-contract-v1"]
+        IdentityV1["identity-contract-v1"]
+        EffortV1["effort-contract-v1\nEffort · Task · TaskResult"]
+        StreamV1["stream-contract-v1\nStreamChunk · StreamTransportAdapter"]
+    end
+
+    TractorCore -->|"persists via"| StorageV1
+    TractorCore -->|"syncs via"| SyncV1
+    TractorCore -->|"identity via"| IdentityV1
+    Farmhand -->|"dispatches via"| EffortV1
+    Farmhand -->|"streams via"| StreamV1
+
+    classDef core     fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef app      fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+    classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+
+    class TractorCore core;
+    class Farmhand app;
+    class StorageV1,SyncV1,IdentityV1,EffortV1,StreamV1 contract;

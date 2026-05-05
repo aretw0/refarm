@@ -1,0 +1,36 @@
+{
+  "name": "@refarm.dev/context-provider-v1",
+  "version": "0.1.0",
+  "description": "Versioned context capability contract (context:v1) for ai system prompt assembly",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["context", "capability", "contract", "prompt"],
+  "author": "Refarm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/context-provider-v1"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*"
+  }
+}

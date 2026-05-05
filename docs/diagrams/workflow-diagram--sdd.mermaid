@@ -1,0 +1,18 @@
+flowchart TD
+    Start([New Milestone]) --> SDD
+
+    subgraph SDD[SDD - Specification Driven Development]
+        S1[Write ADRs]
+        S2[Write Feature Specs]
+        S3[Create Diagrams]
+        S4[Peer Review]
+        S1 --> S2 --> S3 --> S4
+    end
+
+    SDD --> Gate1{Gate 1:<br/>Complete?<br/>No TODOs?}
+    Gate1 -->|No| SDD
+    Gate1 -->|Yes| Next([→ BDD Phase])
+
+    style SDD   fill:#e1f5ff
+    style Start fill:#f5f5f5
+    style Next  fill:#f5f5f5

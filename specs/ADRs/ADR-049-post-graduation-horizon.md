@@ -15,7 +15,7 @@ With the graduation of `tractor-native` to `tractor` (ADR-048, 2026-03-19), Refa
 | Runtime | Package | Target |
 |---------|---------|--------|
 | TypeScript | `packages/tractor-ts` (`@refarm.dev/tractor`) | Browser, Node.js, Deno |
-| Rust native | `packages/tractor` (`tractor` binary) | Native/bare-metal, IoT, CLI, Tauri |
+| Rust native | `packages/tractor` (`tractor` binary) | Native/bare-metal, IoT, CLI, Electron |
 
 Both runtimes share:
 - Identical WIT contracts (`wit/refarm-sdk.wit`)

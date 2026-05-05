@@ -2,7 +2,7 @@
   "extends": "./packages/tsconfig/dom.json",
   "compilerOptions": {
     "noEmit": true,
-    "ignoreDeprecations": "5.0",
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "types": ["node"],
     "paths": {
@@ -11,9 +11,33 @@
       "@refarm.dev/barn": ["./packages/barn/src/index"],
       "@refarm.dev/cli": ["./packages/cli/src/index"],
       "@refarm.dev/config": ["./packages/config/src/index"],
+      "@refarm.dev/context-provider-v1": [
+        "./packages/context-provider-v1/src/index"
+      ],
       "@refarm.dev/vtconfig": ["./packages/vtconfig"],
       "@refarm.dev/ds": ["./packages/ds/src/index"],
+      "@refarm.dev/file-stream-transport": [
+        "./packages/file-stream-transport/src/index"
+      ],
       "@refarm.dev/homestead/sdk": ["./packages/homestead/src/sdk/index"],
+      "@refarm.dev/homestead/sdk/plugin-handle": [
+        "./packages/homestead/src/sdk/plugin-handle"
+      ],
+      "@refarm.dev/homestead/sdk/runtime": [
+        "./packages/homestead/src/sdk/runtime"
+      ],
+      "@refarm.dev/homestead/sdk/shell": [
+        "./packages/homestead/src/sdk/Shell"
+      ],
+      "@refarm.dev/homestead/sdk/surface-inspector": [
+        "./packages/homestead/src/sdk/surface-inspector"
+      ],
+      "@refarm.dev/homestead/sdk/host-renderer": [
+        "./packages/homestead/src/sdk/host-renderer"
+      ],
+      "@refarm.dev/homestead/sdk/surface-renderer": [
+        "./packages/homestead/src/sdk/surface-renderer"
+      ],
       "@refarm.dev/homestead/ui": ["./packages/homestead/src/ui/index"],
       "@refarm.dev/identity-contract-v1": [
         "./packages/identity-contract-v1/src/index"
@@ -22,6 +46,7 @@
       "@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index"],
       "@refarm.dev/plugin-tem": ["./packages/plugin-tem/src/index"],
       "@refarm.dev/registry": ["./packages/registry/src/index"],
+      "@refarm.dev/runtime": ["./packages/runtime/src/index"],
       "@refarm.dev/scarecrow": ["./packages/scarecrow/src/index"],
       "@refarm.dev/silo": ["./packages/silo/src/index"],
       "@refarm.dev/sower": ["./packages/sower/src/index"],
@@ -33,10 +58,20 @@
       "@refarm.dev/sync-contract-v1": ["./packages/sync-contract-v1/src/index"],
       "@refarm.dev/sync-crdt": ["./packages/sync-crdt/src/index"],
       "@refarm.dev/sync-loro": ["./packages/sync-loro/src/index"],
+      "@refarm.dev/sse-stream-transport": [
+        "./packages/sse-stream-transport/src/index"
+      ],
+      "@refarm.dev/stream-contract-v1": [
+        "./packages/stream-contract-v1/src/index"
+      ],
       "@refarm.dev/terminal-plugin": ["./packages/terminal-plugin/src/index"],
       "@refarm.dev/tractor": ["./packages/tractor-ts/src/index"],
       "@refarm.dev/tractor/test/test-utils": [
         "./packages/tractor-ts/test/test-utils"
+      ],
+      "@refarm.dev/trust": ["./packages/trust/src/index"],
+      "@refarm.dev/ws-stream-transport": [
+        "./packages/ws-stream-transport/src/index"
       ]
     }
   },

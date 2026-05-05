@@ -1,0 +1,121 @@
+{
+	"name": "refarm",
+	"description": "Monorepo soberano para runtime Tractor, plugins WASM, sincronização offline-first e colaboração humano+agentes com PI.",
+	"vision": "Operar o Refarm como uma fábrica de software confiável, onde macro-goals viram tarefas atômicas rastreáveis, executadas em paralelo com qualidade previsível.",
+	"core_value": "Entregar evolução contínua com baixo risco por meio de backlog estruturado, validações padronizadas e execução paralela orientada a contratos.",
+	"target_users": [
+		"Maintainers do refarm-dev/refarm",
+		"Contribuidores humanos",
+		"Agentes de colônia (workers/soldiers/reviewers)",
+		"Auditores técnicos de qualidade e segurança"
+	],
+	"constraints": [
+		{
+			"type": "source-sovereignty",
+			"description": "Editar somente código-fonte e documentação; nunca editar artefatos gerados (dist/, build/, .turbo/)."
+		},
+		{
+			"type": "quality-gates",
+			"description": "Mudanças só avançam com validação mínima: type-check, testes aplicáveis e build por domínio."
+		},
+		{
+			"type": "atomic-change",
+			"description": "Uma tarefa por branch/PR, diffs pequenos e escopo explícito por pacote."
+		},
+		{
+			"type": "workflow",
+			"description": "Seguir SDD -> BDD -> TDD -> DDD para mudanças funcionais/arquiteturais."
+		},
+		{
+			"type": "environment",
+			"description": "Node >=22 e toolchain Rust estável com targets wasm obrigatórios para pacotes nativos/WASM."
+		}
+	],
+	"scope_boundaries": {
+		"in": [
+			"Preparar backlog de fábrica para execução por colônia",
+			"Definir requisitos e tarefas com dependências e critérios de aceite",
+			"Registrar decisões, racionales e conhecimento operacional",
+			"Padronizar verificação e handoff de tarefas"
+		],
+		"out": [
+			"Refatorações amplas sem task planejada",
+			"Publicação de release sem gates verdes",
+			"Mudanças em artefatos gerados",
+			"Mudanças de produto sem requisito registrado"
+		]
+	},
+	"goals": [
+		{
+			"id": "G-01",
+			"description": "Estabilizar baseline técnico para execução paralela confiável",
+			"success_criteria": [
+				"Preflight de ambiente definido e executável",
+				"Type-check e build com status claro por domínio",
+				"Bloqueios de setup documentados e endereçados"
+			]
+		},
+		{
+			"id": "G-02",
+			"description": "Criar backlog operacional pronto para colônia",
+			"success_criteria": [
+				">= 30 tarefas planejadas com critérios de aceite",
+				"Dependências explícitas entre tarefas",
+				"Atribuição por agente/domínio possível sem ambiguidade"
+			]
+		},
+		{
+			"id": "G-03",
+			"description": "Padronizar operação de workers e reviewer",
+			"success_criteria": [
+				"Template de task e template de reporte definidos",
+				"Gate smoke e gate full definidos",
+				"Fluxo de escalonamento para bloqueios documentado"
+			]
+		},
+		{
+			"id": "G-04",
+			"description": "Maximizar rastreabilidade de decisão para reduzir regressão",
+			"success_criteria": [
+				"Requirements -> Tasks -> Verification conectados",
+				"Decisions e Rationale alinhados com docs/ADRs",
+				"Issues priorizadas por impacto"
+			]
+		}
+	],
+	"progress_snapshot": {
+		"id": "SNAPSHOT-2026-04-24-B",
+		"window": "checkpoint-lote-next",
+		"tasks": {
+			"planned": 0,
+			"in_progress": 0,
+			"completed": 90
+		},
+		"verification": {
+			"passed": 114,
+			"partial": 17,
+			"failed": 0,
+			"skipped": 1
+		},
+		"risks": [
+			"DEC-026 permanece em revisit até enforcement técnico da política offline de revogação.",
+			"Novo ciclo técnico deve abrir tasks frescas para evitar backlog zerado artificial."
+		],
+		"next_steps": [
+			"Executar compactação e retomar com lote técnico novo (~10 slices) partindo do plano publicado.",
+			"Abrir tasks de implementação para policy offline revocation e migração progressiva pi→Refarm.",
+			"Monitorar CI pós-push com ritual curto e registrar evidência no handoff."
+		]
+	},
+	"status": "development",
+	"repository": "https://github.com/aretw0/refarm",
+	"stack": [
+		"TypeScript",
+		"Rust",
+		"Turborepo",
+		"Vitest",
+		"WASM Components",
+		"Loro CRDT",
+		"SQLite/OPFS"
+	]
+}

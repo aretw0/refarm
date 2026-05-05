@@ -19,7 +19,7 @@ import { loadConfig } from "@refarm.dev/config";
 const execAsync = promisify(exec);
 const config = loadConfig();
 const devScope = config.brand?.scopes?.dev || "@refarm.dev";
-const repoUrl = config.brand?.urls?.repository?.replace(".git", "") || "https://github.com/refarm-dev/refarm";
+const repoUrl = config.brand?.urls?.repository?.replace(".git", "") || "https://github.com/aretw0/refarm";
 
 const PACKAGES = [
   "storage-contract-v1",

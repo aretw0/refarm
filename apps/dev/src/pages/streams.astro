@@ -1,0 +1,38 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const demoHref = `${import.meta.env.BASE_URL}?stream-demo`;
+---
+
+<Layout title="Streams — Refarm Studio">
+  <section class="refarm-surface refarm-workbench" aria-labelledby="stream-workbench-title">
+    <div class="refarm-eyebrow refarm-eyebrow-chip stream-workbench__eyebrow">Studio dev surface</div>
+    <div class="refarm-workbench-grid">
+      <div>
+        <h1 id="stream-workbench-title" class="refarm-workbench-title">Agent stream workbench</h1>
+        <p class="refarm-workbench-lead">
+          Validate Homestead stream rendering inside <code class="refarm-code">apps/dev</code> before
+          promoting UI primitives to daily-driver app surfaces.
+        </p>
+        <div class="refarm-cluster refarm-workbench-actions">
+          <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={demoHref}>Enable demo stream</a>
+          <code class="refarm-code">localStorage["refarm:studio:stream-demo"] = "1"</code>
+        </div>
+      </div>
+      <aside class="refarm-surface-card refarm-card-roomy refarm-workbench-card" aria-label="Validation notes">
+        <strong>What this proves</strong>
+        <ul class="refarm-muted-list">
+          <li>Generic <code class="refarm-code">StreamSession</code> and <code class="refarm-code">StreamChunk</code> nodes are stored through Tractor.</li>
+          <li>Homestead observes typed nodes without schema-specific sync logic.</li>
+          <li>The Studio shell renders both statusbar and panel views.</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <style>
+    .stream-workbench__eyebrow {
+      margin-bottom: 1rem;
+    }
+  </style>
+</Layout>

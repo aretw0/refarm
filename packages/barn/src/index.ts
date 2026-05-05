@@ -1,80 +1,128 @@
 /**
  * Barn (O Celeiro) — Machinery Manager for Refarm.
- * 
+ *
  * Responsibilities:
  * 1. Plugin Lifecycle Management (Install/Uninstall).
- * 2. OPFS Cache Management for WASM binaries.
- * 3. Inventory of available and installed plugins.
+ * 2. Inventory of available and installed plugins.
+ * 3. Delegation to canonical install/cache/verify contract.
  */
 
+import {
+	installWasmArtifact,
+	type PluginArtifactMetadata,
+	type PluginBinaryCacheAdapter,
+} from "@refarm.dev/plugin-manifest";
+
 export interface PluginEntry {
-  id: string;
-  url: string;
-  integrity: string;
-  status: "pending" | "installed" | "error";
-  installedAt: number;
+	id: string;
+	url: string;
+	integrity: string;
+	status: "pending" | "installed" | "error";
+	installedAt: number;
+	cacheStatus: "hit" | "miss";
+	wasmHash: string;
 }
 
+type CachedBinary = {
+	bytes: ArrayBuffer;
+	metadata?: PluginArtifactMetadata;
+};
+
 export class Barn {
-  private _inventory: Map<string, PluginEntry> = new Map();
+	private _inventory: Map<string, PluginEntry> = new Map();
+	private _cacheByPluginId: Map<string, CachedBinary> = new Map();
+	private _pluginIdByUrl: Map<string, string> = new Map();
+	private readonly cacheAdapter: PluginBinaryCacheAdapter;
 
-  constructor() {
-    console.log("[barn] Barn initialized.");
-  }
+	constructor() {
+		console.log("[barn] Barn initialized.");
 
-  /**
-   * Mock implementation of SHA-256 for Node.js environments where crypto might differ from browser.
-   * In a real browser/OPFS context, this would use SubtleCrypto.
-   */
-  private async computeHash(buffer: ArrayBuffer): Promise<string> {
-    // Simplified hash for BDD phase
-    // Real implementation would use:
-    // const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
-    // return 'sha256-' + Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
-    
-    // For tests, we simulate a simple hash
-    const content = new TextDecoder().decode(buffer);
-    if (content === "bad content") {
-        return "sha256-wrong-hash";
-    }
-    if (content === "temp") {
-        return "sha256-temp";
-    }
-    return "sha256-abc123xyz"; // Mocking correct hash for test consistency
-  }
+		this.cacheAdapter = {
+			get: async (pluginId: string) =>
+				this._cacheByPluginId.get(pluginId)?.bytes ?? null,
+			set: async (
+				pluginId: string,
+				bytes: ArrayBuffer,
+				metadata?: PluginArtifactMetadata,
+			) => {
+				this._cacheByPluginId.set(pluginId, { bytes, metadata });
+			},
+			evict: async (pluginId: string) => {
+				this._cacheByPluginId.delete(pluginId);
+			},
+		};
+	}
 
-  async installPlugin(url: string, integrity: string): Promise<PluginEntry> {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Failed to fetch plugin: ${response.statusText}`);
-    
-    const buffer = await response.arrayBuffer();
-    const actualHash = await this.computeHash(buffer);
+	private buildPluginId(url: string): string {
+		const baseSlug =
+			url
+				.toLowerCase()
+				.replace(/^https?:\/\//, "")
+				.replace(/\.wasm$/i, "")
+				.replace(/[^a-z0-9]+/g, "-")
+				.replace(/^-+|-+$/g, "")
+				.slice(0, 48) || "plugin";
 
-    if (integrity !== "sha256-temp" && integrity !== actualHash) {
-        throw new Error("Integrity verification failed");
-    }
+		let hash = 2166136261;
+		for (let i = 0; i < url.length; i += 1) {
+			hash ^= url.charCodeAt(i);
+			hash = Math.imul(hash, 16777619);
+		}
+		const suffix = (hash >>> 0).toString(16).padStart(8, "0");
 
-    const id = `urn:refarm:plugin:${Math.random().toString(36).substring(2, 11)}`;
-    const entry: PluginEntry = {
-      id,
-      url,
-      integrity,
-      status: "installed",
-      installedAt: Date.now()
-    };
+		return `urn:refarm:plugin:${baseSlug}-${suffix}`;
+	}
 
-    this._inventory.set(id, entry);
-    return entry;
-  }
+	private resolvePluginId(url: string, explicitPluginId?: string): string {
+		if (explicitPluginId) return explicitPluginId;
+		const known = this._pluginIdByUrl.get(url);
+		if (known) return known;
+		return this.buildPluginId(url);
+	}
 
-  async listPlugins(): Promise<PluginEntry[]> {
-    return Array.from(this._inventory.values());
-  }
+	async installPlugin(
+		url: string,
+		integrity: string,
+		options: { pluginId?: string; force?: boolean } = {},
+	): Promise<PluginEntry> {
+		const pluginId = this.resolvePluginId(url, options.pluginId);
+		const installResult = await installWasmArtifact(
+			{
+				pluginId,
+				wasmUrl: url,
+				integrity,
+				force: options.force,
+			},
+			{
+				cache: this.cacheAdapter,
+				fetchFn: globalThis.fetch.bind(globalThis),
+			},
+		);
 
-  async uninstallPlugin(id: string): Promise<void> {
-    if (!this._inventory.has(id)) {
-        throw new Error(`Plugin not found: ${id}`);
-    }
-    this._inventory.delete(id);
-  }
+		this._pluginIdByUrl.set(url, pluginId);
+
+		const entry: PluginEntry = {
+			id: pluginId,
+			url,
+			integrity,
+			status: "installed",
+			installedAt: Date.now(),
+			cacheStatus: installResult.cached ? "hit" : "miss",
+			wasmHash: installResult.wasmHash,
+		};
+
+		this._inventory.set(pluginId, entry);
+		return entry;
+	}
+
+	async listPlugins(): Promise<PluginEntry[]> {
+		return Array.from(this._inventory.values());
+	}
+
+	async uninstallPlugin(id: string): Promise<void> {
+		if (!this._inventory.has(id)) {
+			throw new Error(`Plugin not found: ${id}`);
+		}
+		this._inventory.delete(id);
+	}
 }

@@ -1,30 +1,30 @@
 {
-  "name": "@refarm.me/app",
-  "version": "0.1.0",
-  "description": "Refarm.me — The Sovereign Citizen Hub",
-  "type": "module",
-  "scripts": {
-    "dev": "astro dev",
-    "build": "astro build",
-    "preview": "astro preview",
-    "astro:check": "astro check",
-    "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
-    "test:unit": "vitest run --passWithNoTests",
-    "test": "vitest run --passWithNoTests"
-  },
-  "dependencies": {
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "astro": "^5.3.0"
-  },
-  "devDependencies": {
-    "@refarm.dev/config": "*",
-    "typescript": "^5.7.3",
-    "@refarm.dev/tsconfig": "*",
-    "@astrojs/check": "^0.9.4"
-  },
-  "license": "MIT"
+	"name": "@refarm.me/app",
+	"version": "0.1.0",
+	"description": "Refarm.me — The Sovereign Citizen Hub",
+	"type": "module",
+	"scripts": {
+		"dev": "astro dev",
+		"build": "astro build",
+		"preview": "astro preview",
+		"astro:check": "astro check",
+		"type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
+		"test:unit": "vitest run --passWithNoTests",
+		"test": "vitest run --passWithNoTests"
+	},
+	"dependencies": {
+		"@refarm.dev/homestead": "*",
+		"@refarm.dev/storage-sqlite": "*",
+		"@refarm.dev/sync-loro": "*",
+		"@refarm.dev/tractor": "*",
+		"astro": "^6.1.8"
+	},
+	"devDependencies": {
+		"@astrojs/check": "^0.9.9",
+		"@refarm.dev/config": "*",
+		"@refarm.dev/tsconfig": "*",
+		"typescript": "^6.0.3"
+	},
+	"license": "MIT"
 }

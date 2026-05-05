@@ -23,6 +23,10 @@ a traditional centralized web app without adopting any of it.
 **Dogfood rule**: Every Refarm distro is built entirely from Refarm blocks. This validates
 the blocks and demonstrates composability. See [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md).
 
+**Host rule**: the product-facing `refarm` CLI/host should be a distro under
+`apps/`, while reusable runtime, renderer, plugin, trust, and design primitives
+remain blocks under `packages/`. See [Refarm Host Model](./REFARM_HOST_MODEL.md).
+
 ```text
 ┌─────────────────────────────────────────────────────────┐
 │                      DISTROS (apps/)                    │
@@ -77,33 +81,48 @@ Full **P2P Marketplace** (Nostr) and **Agêntic Function-Calling**. The system t
 
 ```
 refarm/
-├── apps/
-│   └── homestead/          # 🎨 Refarm Homestead — In-browser Admin/IDE (Astro)
-│       └── src/
-│           ├── pages/      # Dashboard, plugins, graph, dev
-│           └── layouts/
+├── apps/                             # 🌾 Distros — opinionated assemblies
+│   ├── dev/                          # refarm.dev — Developer portal (Astro)
+│   ├── me/                           # refarm.me  — Homestead · Identity (Astro)
+│   ├── farmhand/                     # Task execution daemon (Node.js)
+│   └── refarm/                       # Core runtime · CLI entry point
 │
-├── packages/               # 📦 Independent Primitives (cultivated by Tractor)
-│   ├── tractor/            # 🚜 Refarm Tractor — The machinery/host orchestrator
-│   ├── storage-sqlite/     # Offline-first SQLite/OPFS adapter
-│   ├── storage-pglite/     # Postgres WASM adapter for embeddings/AI
-│   ├── identity-nostr/     # Nostr keypair + NIP-89/94 discovery
-│   ├── sync-crdt/          # SyncEngine + Conflict-free replication
-│   ├── plugin-manifest/    # Schema & validation for the WASM sandbox
-│   └── storage-memory/     # Volatile in-memory primitive for testing
+├── packages/                         # 📦 Independent Blocks (44 packages)
+│   │
+│   ├── tractor/                      # 🚜 Tractor — Rust host (wasmtime + Loro)
+│   ├── tractor-ts/                   # 🚜 Tractor TS — Browser/Node host (JCO)
+│   │
+│   ├── [contracts]                   # Capability contracts (v1 interfaces)
+│   │   ├── storage-contract-v1/
+│   │   ├── sync-contract-v1/
+│   │   ├── identity-contract-v1/
+│   │   ├── effort-contract-v1/       # Task dispatch contract (transport layer)
+│   │   ├── stream-contract-v1/       # Streaming transport contract
+│   │   ├── task-contract-v1/         # Durable work items (memory layer — human + agent)
+│   │   └── session-contract-v1/      # Conversation threads (LLM, messaging, A2A)
+│   │
+│   ├── [adapters]                    # Contract implementations
+│   │   ├── storage-sqlite/           # SQLite/OPFS + Loro CRDT state
+│   │   ├── storage-memory/           # In-memory (tests / ephemeral)
+│   │   ├── sync-loro/                # Loro CRDT engine (ADR-045)
+│   │   ├── identity-nostr/           # Nostr keypair + relay adapter
+│   │   ├── file-stream-transport/    # NDJSON file stream
+│   │   ├── sse-stream-transport/     # Server-Sent Events stream
+│   │   └── ws-stream-transport/      # WebSocket stream
+│   │
+│   ├── plugin-manifest/              # Plugin manifest schema & validation
+│   ├── refarm-plugin-wit/            # WIT interface — plugin ↔ Tractor
+│   ├── barn/                         # Plugin lifecycle · OPFS cache · SHA-256
+│   ├── pi-agent/                     # Sovereign AI plugin (WASM)
+│   └── ...                           # heartwood, silo, fence, health, ds, …
 │
-├── wit/
-│   └── refarm-sdk.wit      # WIT interface — plugin ↔ tractor communication
-│
-├── schemas/
-│   └── sovereign-graph.jsonld  # JSON-LD schema — the "Solo Fértil" data layer
-│
-├── docs/
-│   └── ARCHITECTURE.md     # This file
-│
-├── turbo.json              # Turborepo task pipeline
-├── package.json            # Workspace root
-└── .gitignore              # Monorepo-aware ignores
+├── specs/                            # ADRs + feature specs + diagrams
+├── docs/                             # Architecture, workflow, governance docs
+├── roadmaps/                         # Version roadmaps
+├── validations/                      # WASM plugin validation suites
+├── turbo.json                        # Turborepo task pipeline
+├── package.json                      # Workspace root
+└── .gitignore
 ```
 
 ---
@@ -119,14 +138,15 @@ refarm/
 
 Each package under `packages/` is a **standalone library** (see [ADR-046](../specs/ADRs/ADR-046-refarm-composition-model.md) — Blocks are philosophy-neutral):
 
-- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite. Zero Refarm-specific code. (→ [ADR-031](../specs/ADRs/ADR-031-pluggable-relational-storage.md): pluggable relational storage)
-- **`@refarm.dev/storage-pglite`** — Postgres in the browser via WASM/WebGPU path.
+- **`@refarm.dev/storage-sqlite`** — Can be imported in any web app needing offline-first SQLite with Loro CRDT state co-located. Zero Refarm-specific code. (→ [ADR-031](../specs/ADRs/ADR-031-pluggable-relational-storage.md): pluggable relational storage)
 - **`@refarm.me/identity-nostr`** — Manages Nostr keys. A Transport-specific Identity adapter. (→ [ADR-034](../specs/ADRs/ADR-034-identity-adoption-conversion.md): identity adoption)
-- **`@refarm.dev/sync-crdt`** — Vector clocks, LWW registers, OR-Sets and a SyncEngine wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
+- **`@refarm.dev/sync-loro`** — Loro CRDT engine: binary deltas, state vectors, snapshot import/export, CQRS projector. Wirable to any transport. (→ [ADR-045](../specs/ADRs/ADR-045-loro-crdt-adoption.md): Loro CRDT adoption)
 - **`@refarm.dev/plugin-courier`** — The dynamic "Courier/Router". It abstracts the network layer, automatically figuring out if peers are on the same local network (mDNS/WebRTC) or if it needs to bounce signals off Public/Private Relays. Anyone running Refarm can operate their own Relay. It provides location-agnostic peer discovery and transport routing.
+- **`@refarm.dev/task-contract-v1`** — Durable work items persisted in the CRDT graph. Usable by agents and humans from the same base schema. Composes with `effort-contract-v1` for dispatch. (→ [design spec](./superpowers/specs/2026-05-03-task-session-contracts-design.md))
+- **`@refarm.dev/session-contract-v1`** — Conversation thread primitive for LLM agents, messaging integrations, and A2A coordination. Pi-agent extends with LLM-specific fields; base contract is agnostic. (→ [design spec](./superpowers/specs/2026-05-03-task-session-contracts-design.md))
 
 **Crucial Distinction on Independence:**
-While the *plugins* you write for Refarm are tightly coupled to the Tractor's WASM Sandbox (they don't make sense without the engine), the core primitives listed above (`storage-sqlite`, `storage-pglite`, core `identity`, and pure `sync-crdt` logic) are designed as agnostic libraries. If the Refarm UI disappears, you can still import these specific packages into a standard Node.js/Browser project and continue reading your local data or syncing via CRDTs.
+While the *plugins* you write for Refarm are tightly coupled to the Tractor's WASM Sandbox (they don't make sense without the engine), the core primitives listed above (`storage-sqlite`, core `identity`, and `sync-loro`) are designed as agnostic libraries. If the Refarm UI disappears, you can still import these specific packages into a standard Node.js/Browser project and continue reading your local data or syncing via CRDTs.
 
 ---
 
@@ -153,16 +173,41 @@ All communication is **typed by WIT contracts**. The tractor host validates ever
 
 ### Plugin Loading: Node.js vs Browser
 
-Plugin loading follows different strategies depending on the runtime environment:
+> **WASM is not universally mandatory today.**
+>
+> The manifest contract accepts both `.js` and `.wasm` entries. Refarm's hardening roadmap is currently
+> **WASM-first** because it provides deterministic integrity checks and stronger sandbox boundaries. For
+> teams onboarding gradually, `.js` plugins remain a valid entry path while runtime isolation guarantees
+> are incrementally tightened.
+
+Refarm has a **target architecture** (ADR-044) and a **current implementation snapshot**. Both matter for roadmap decisions.
+
+#### Target architecture (ADR-044)
 
 | Environment | Strategy | When | Stores |
 |---|---|---|---|
 | **Node.js** | JCO transpiles WASM → JS at `PluginHost.load()` | Plugin load time | `.jco-dist/` on disk |
-| **Browser** | WASM cached to OPFS at install time via `installPlugin()` | Plugin install | OPFS-cached ES modules |
-| **Browser (runtime)** | `dynamic import()` of OPFS-cached module | Plugin use | Instance in memory |
+| **Browser** | `installPlugin()` prepares plugin artifacts for offline reuse | Plugin install | OPFS cache |
+| **Browser (runtime)** | `PluginHost.load()` resolves plugin from installed cache | Plugin use | In-memory instance |
 | **CI (no Rust)** | Pre-compiled `pkg/` artifacts used directly | Build time | Git-tracked `pkg/` |
 
+#### Current implementation snapshot (2026-04-23)
+
+| Layer | Current behavior | Source |
+|---|---|---|
+| `@refarm.dev/barn` | `installPlugin(url, integrity, { pluginId? })` delega para contrato compartilhado `installWasmArtifact`; cache local em memória é indexado por `pluginId` (não por URL), com verificação SHA-256 padronizada. | `packages/barn/src/index.ts`, `packages/plugin-manifest/src/install-contract.js` |
+| `@refarm.dev/tractor` (browser export) | Browser `PluginHost` suporta `entry` `.js/.mjs` (import dinâmico) e `.wasm` em modo cache-backed com contrato de metadata+integridade (pluginId/url/hash). `artifactKind=module` executa direto; `artifactKind=component` exige `browserRuntimeModule` + `browserRuntimeDescriptor` + `browserRuntimeProvenance` íntegros em cache. `.cjs` permanece bloqueado no browser. | `packages/tractor-ts/src/index.browser.ts`, `packages/plugin-manifest/src/install-contract.js` |
+| `@refarm.dev/tractor` install helper | `installPlugin(manifest, wasmUrl)` usa o mesmo contrato `installWasmArtifact`; integridade SHA-256 é obrigatória e o cache OPFS segue layout canônico `/refarm/barn/{implements,metadata}` por `pluginId`. Para components, o helper aceita descriptor sidecar (objeto/URL) e persiste handshake (`browserRuntimeModule`, `browserRuntimeDescriptor`, `browserRuntimeToolchain`, `browserRuntimeProvenance`). Política padrão de distribuição é `package-embedded` (descriptor URL mesmo origin do wasm); `external-signed` requer `descriptorIntegrity` + provenance/sourceRepository e pode usar trust `repository-derived` (default) ou `strict-manual` com allowlist explícita. No modo `external-signed`, `descriptorSourceRepository` habilita auto-resolve por convenção de GitHub Release Assets (`runtime-descriptor-manifest.json`), com override explícito via `browserRuntimeModuleDescriptor.url`, e aplica gate de revogação via `runtime-descriptor-revocations.json` antes de cachear sidecar. A indisponibilidade da lista de revogação aceita política explícita (`descriptorRevocationUnavailablePolicy`) e profile (`descriptorRevocationProfile`: `dev`/`staging`/`production-sensitive`) com precedência determinística, fallback por ambiente genérico (`REFARM_ENVIRONMENT`/`NODE_ENV`/`VITE_REFARM_ENVIRONMENT`) e eventos de observabilidade para configuração inválida (`system:descriptor_revocation_config_invalid`), conflito de configuração (`system:descriptor_revocation_config_conflict`), fallback (`system:descriptor_revocation_stale_cache_used`) e bypass (`system:descriptor_revocation_unavailable`). O host expõe comandos de diagnóstico `system:diagnostics:descriptor-revocation-summary` e `system:diagnostics:descriptor-revocation-alerts`; no CI/ops os scripts `runtime-descriptor:revocation-report`, `runtime-descriptor:revocation-baseline` e `runtime-descriptor:revocation-history` geram artefatos JSON/Markdown para incidente + análise longitudinal de delta entre runs. O browser runtime também bloqueia load de component descriptor revogado. O pacote expõe gate `runtime-module:ci` para validar descriptor determinístico + provenance em CI e exporta bundle versionado para Release Assets no pipeline de release. | `packages/tractor-ts/src/lib/install-plugin.ts`, `packages/tractor-ts/src/lib/runtime-descriptor-revocation-policy.ts`, `packages/tractor-ts/src/lib/runtime-descriptor-revocation.ts`, `packages/tractor-ts/src/lib/opfs-plugin-cache.ts`, `packages/plugin-manifest/src/install-contract.js`, `packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs`, `scripts/ci/publish-runtime-descriptor-release-assets.mjs` |
+| `@refarm.dev/tractor` runtime (Node) | `PluginHost.load()` suporta dois caminhos: `.wasm` (prioriza cache instalado por `pluginId`, com fallback para `file://`/HTTP) e `.js` (carrega módulo JS via import dinâmico/fetch+data URL). | `packages/tractor-ts/src/lib/plugin-host.ts` |
+
 The `browser` export condition in `@refarm.dev/tractor` ensures Vite never bundles Node.js-only imports (`node:fs`, `node:path`, `@bytecodealliance/jco`). See [ADR-044](../specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md).
+
+For the detailed install/cache/integrity risk map and hardening backlog, see:
+`packages/barn/docs/INSTALL_FLOW_AUDIT_20260423.md`.
+
+For onboarding policy and migration path (`.js` → `.wasm`), including plugin envelope
+(minimum→maximum), environment matrix, and scale levels (L0→L3), see:
+`docs/PLUGIN_AUTHORING_TRACKS.md`.
 
 ### Plugin Distribution (Nostr)
 

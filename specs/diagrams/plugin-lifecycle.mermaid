@@ -11,8 +11,8 @@ stateDiagram-v2
 
   Running --> Ingesting: ingest() scheduled
   Ingesting --> Normalizing: plugin emits raw payload
-  Normalizing --> Persisting: kernel normalises to JSON-LD
-  Persisting --> Running: node stored via storage adapter
+  Normalizing --> Persisting: Tractor host normalises to JSON-LD
+  Persisting --> Running: node stored via storage-contract-v1
 
   Running --> Metadata: metadata() requested
   Metadata --> Running

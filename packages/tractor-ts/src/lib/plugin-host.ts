@@ -1,6 +1,10 @@
 // Dynamic import — node:fs/promises is only needed for file:// URLs (Node.js path).
 // Keeping it dynamic prevents the browser bundle from pulling in Node-only modules.
-import { PluginManifest } from "@refarm.dev/plugin-manifest";
+import {
+  assertEntryRuntimeCompatibility,
+  detectEntryFormat,
+  type PluginManifest,
+} from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { TelemetryEvent } from "./telemetry";
 import { TractorLogger, SecurityMode } from "./types";
@@ -8,12 +12,24 @@ import { SovereignNode } from "./graph-normalizer";
 import { TrustManager, ExecutionProfile } from "./trust-manager";
 import type { PluginTrustGrant } from "./trust-manager";
 import { WasiImports } from "./wasi-imports";
+import { PluginInstanceHandle } from "./instance-handle";
 import type { PluginInstance, PluginState } from "./instance-handle";
 import type { PluginRunner } from "./plugin-runner";
 import { MainThreadRunner } from "./main-thread-runner";
 import { WorkerRunner } from "./worker-runner";
+import { getCachedPlugin } from "./opfs-plugin-cache";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
+
+const DEFAULT_DIST_BASE = (() => {
+  const pathname = decodeURIComponent(
+    new URL("../.jco-dist", import.meta.url).pathname,
+  );
+
+  // Windows file URLs may include an extra leading slash before drive letters.
+  // Example: /C:/repo/.../.jco-dist -> C:/repo/.../.jco-dist
+  return pathname.replace(/^\/([A-Za-z]:\/)/, "$1");
+})();
 
 /**
  * Sandboxed plugin host.
@@ -30,7 +46,7 @@ export class PluginHost {
     private registry: SovereignRegistry,
     private logger: TractorLogger = console,
     private securityMode: SecurityMode = "strict",
-    private distBase: string = __dirname + "/../.jco-dist",
+    private distBase: string = DEFAULT_DIST_BASE,
     private storeNode?: (nodeJson: string) => Promise<void>,
   ) {
     this.trustManager = new TrustManager(emit);
@@ -79,16 +95,97 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
+  private normalizeJavaScriptModule(moduleNamespace: any): any {
+    if (!moduleNamespace) return moduleNamespace;
+
+    const defaultExport = moduleNamespace.default;
+    if (defaultExport && typeof defaultExport === "object") {
+      return {
+        ...defaultExport,
+        ...moduleNamespace,
+      };
+    }
+
+    return moduleNamespace;
+  }
+
+  private encodeBase64Utf8(source: string): string {
+    if (typeof Buffer !== "undefined") {
+      return Buffer.from(source, "utf8").toString("base64");
+    }
+
+    const bytes = new TextEncoder().encode(source);
+    let binary = "";
+    for (const byte of bytes) binary += String.fromCharCode(byte);
+    return btoa(binary);
+  }
+
+  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+    try {
+      const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
+    } catch {
+      const response = await fetch(entryUrl);
+      if (!response.ok) {
+        throw new Error(
+          `[tractor] Failed to fetch plugin JS module: ${response.statusText}`,
+        );
+      }
+
+      const source = await response.text();
+      const dataUrl = `data:text/javascript;base64,${this.encodeBase64Utf8(source)}`;
+      const moduleNamespace = await import(/* @vite-ignore */ dataUrl);
+      return this.normalizeJavaScriptModule(moduleNamespace);
+    }
+  }
+
+  private async readWasmBuffer(
+    pluginId: string,
+    wasmUrl: string,
+  ): Promise<ArrayBuffer> {
+    if (wasmUrl.startsWith("file://")) {
+      const filePath = wasmUrl.replace("file://", "");
+      const { readFile } = await import("node:fs/promises");
+      const buffer = await readFile(filePath);
+      return buffer.buffer.slice(
+        buffer.byteOffset,
+        buffer.byteOffset + buffer.byteLength,
+      );
+    }
+
+    if (detectEntryFormat(wasmUrl) === "wasm") {
+      const cached = await getCachedPlugin(pluginId);
+      if (cached) {
+        this.logger.debug(`[tractor] Using cached plugin WASM: ${pluginId}`);
+        return cached;
+      }
+    }
+
+    const response = await fetch(wasmUrl);
+    if (!response.ok)
+      throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
+    return response.arrayBuffer();
+  }
+
   async load(
     manifest: PluginManifest,
     wasmHash?: string,
   ): Promise<PluginInstance> {
     const pluginId = manifest.id;
     const wasmUrl = manifest.entry;
+    const entryFormat = detectEntryFormat(wasmUrl);
     const startTime = performance.now();
+
+    assertEntryRuntimeCompatibility(wasmUrl, "node");
 
     const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
     const trust = (manifest as any).trust;
+
+    if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
+      throw new Error(
+        `[tractor] Trusted-fast is only available for .wasm plugin entries (${pluginId}).`,
+      );
+    }
 
     if (trust?.profile === "trusted-fast" && !wasmHash) {
       throw new Error(`[tractor] Trusted-fast requires wasmHash for ${pluginId}.`);
@@ -116,19 +213,45 @@ export class PluginHost {
         this.logger.warn(msg);
     }
 
-    this.logger.debug(`[tractor] Fetching plugin WASM: ${wasmUrl}`);
-    let wasmBuffer: ArrayBuffer;
+    if (entryFormat !== "wasm") {
+      this.logger.debug(`[tractor] Loading JavaScript plugin module: ${wasmUrl}`);
+      const moduleNamespace = await this.loadJavaScriptModule(wasmUrl);
 
-    if (wasmUrl.startsWith("file://")) {
-      const filePath = wasmUrl.replace("file://", "");
-      const { readFile } = await import("node:fs/promises");
-      const buffer = await readFile(filePath);
-      wasmBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
-    } else {
-      const response = await fetch(wasmUrl);
-      if (!response.ok) throw new Error(`[tractor] Failed to fetch plugin: ${response.statusText}`);
-      wasmBuffer = await response.arrayBuffer();
+      const instance = new PluginInstanceHandle(
+        pluginId,
+        manifest.name,
+        manifest,
+        moduleNamespace,
+        this.emit,
+        (id) => {
+          this._instances.delete(id);
+          this.registry.deactivatePlugin(id).catch(() => {});
+        },
+      );
+
+      this._instances.set(pluginId, instance);
+
+      try {
+        await instance.call("setup");
+        if (registryEntry && registryEntry.status === "validated") {
+          await this.registry.activatePlugin(pluginId);
+        }
+      } catch (err) {
+        this.logger.warn(`[tractor] Setup failed for plugin ${pluginId}:`, err);
+      }
+
+      this.emit({
+        event: "plugin:load",
+        pluginId,
+        durationMs: performance.now() - startTime,
+        payload: { profile, wasmHash, entryType: "js" },
+      });
+
+      return instance;
     }
+
+    this.logger.debug(`[tractor] Loading plugin WASM: ${wasmUrl}`);
+    const wasmBuffer = await this.readWasmBuffer(pluginId, wasmUrl);
 
     const wasi = new WasiImports(pluginId, this.logger, this.emit, this.storeNode);
     const imports = wasi.generate(manifest, profile);

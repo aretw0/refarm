@@ -1,0 +1,40 @@
+{
+  "name": "@refarm.dev/file-stream-transport",
+  "version": "0.1.0",
+  "description": "NDJSON file-backed StreamTransportAdapter with replay",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["stream", "transport", "ndjson", "file"],
+  "author": "Refarm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/file-stream-transport"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@refarm.dev/stream-contract-v1": "*"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/vtconfig": "*"
+  }
+}

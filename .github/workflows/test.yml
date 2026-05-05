@@ -5,14 +5,40 @@ on:
     branches: [develop]
   pull_request:
     branches: [main, develop]
+  schedule:
+    - cron: "0 4 * * 1"
 
 permissions:
   contents: read
+  actions: read
+  pull-requests: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Opt-in early to the post-Node20 runner baseline to catch incompatibilities now.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
-  quality:
+  changes:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    outputs:
+      base_sha: ${{ steps.detect.outputs.base_sha }}
+      head_sha: ${{ steps.detect.outputs.head_sha }}
+      turbo_filter: ${{ steps.detect.outputs.turbo_filter }}
+      ci_changes: ${{ steps.detect.outputs.ci_changes }}
+      code_changes: ${{ steps.detect.outputs.code_changes }}
+      tractor_gates: ${{ steps.detect.outputs.tractor_gates }}
+      run_build: ${{ steps.detect.outputs.run_build }}
+      run_e2e: ${{ steps.detect.outputs.run_e2e }}
+      run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
+      run_audit: ${{ steps.detect.outputs.run_audit }}
+      run_deep: ${{ steps.detect.outputs.run_deep }}
+      skip_duplicate_push: ${{ steps.detect.outputs.skip_duplicate_push }}
+      quality_cache_key: ${{ steps.signatures.outputs.quality_key }}
+      e2e_cache_key: ${{ steps.signatures.outputs.e2e_key }}
 
     steps:
       - name: Checkout
@@ -20,8 +46,220 @@ jobs:
         with:
           fetch-depth: "0"
 
+      - name: Detect changed areas
+        id: detect
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+
+          skip_duplicate_push=false
+          run_deep=false
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            run_deep=true
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ contains(github.event.pull_request.labels.*.name, 'ci:deep') }}" = "true" ]; then
+            run_deep=true
+          fi
+
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "develop" ]; then
+            open_pr_count="$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" --jq 'length' 2>/dev/null || gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length' 2>/dev/null || echo 0)"
+            if [ "${open_pr_count:-0}" != "0" ]; then
+              echo "::notice::Skipping heavy push validation for develop because an open PR already validates this head branch. open_pr_count=$open_pr_count"
+              echo "skip_duplicate_push=true" >> "$GITHUB_OUTPUT"
+              echo "base_sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+              echo "head_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+              echo "turbo_filter=" >> "$GITHUB_OUTPUT"
+              echo "ci_changes=false" >> "$GITHUB_OUTPUT"
+              echo "code_changes=false" >> "$GITHUB_OUTPUT"
+              echo "tractor_gates=false" >> "$GITHUB_OUTPUT"
+              echo "run_build=false" >> "$GITHUB_OUTPUT"
+              echo "run_e2e=false" >> "$GITHUB_OUTPUT"
+              echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
+              echo "run_audit=false" >> "$GITHUB_OUTPUT"
+              echo "run_deep=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "skip_duplicate_push=false" >> "$GITHUB_OUTPUT"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            HEAD_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            BASE_SHA="${{ github.event.before }}"
+            HEAD_SHA="${{ github.sha }}"
+
+            # First push on branch may not have github.event.before resolved.
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA="$(git rev-parse HEAD^ 2>/dev/null || true)"
+            fi
+          fi
+
+          if [ -z "$BASE_SHA" ]; then
+            echo "::warning::Could not resolve BASE_SHA. Falling back to full checks."
+            echo "base_sha=" >> "$GITHUB_OUTPUT"
+            echo "head_sha=${HEAD_SHA:-}" >> "$GITHUB_OUTPUT"
+            echo "turbo_filter=" >> "$GITHUB_OUTPUT"
+            echo "ci_changes=true" >> "$GITHUB_OUTPUT"
+            echo "code_changes=true" >> "$GITHUB_OUTPUT"
+            echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
+            echo "run_build=false" >> "$GITHUB_OUTPUT"
+            echo "run_e2e=true" >> "$GITHUB_OUTPUT"
+            echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
+            echo "run_audit=true" >> "$GITHUB_OUTPUT"
+            echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > /tmp/refarm-changed-files.txt
+
+          echo "Changed files (base=$BASE_SHA head=$HEAD_SHA):"
+          cat /tmp/refarm-changed-files.txt || true
+
+          has_match() {
+            local pattern="$1"
+            grep -Eq "$pattern" /tmp/refarm-changed-files.txt
+          }
+
+          ci_changes=false
+          if has_match '^(\.github/workflows/|\.github/actions/)'; then
+            ci_changes=true
+          fi
+
+          code_changes=false
+          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$)'; then
+            code_changes=true
+          fi
+
+          tractor_gates=false
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|package-lock\.json$)'; then
+            tractor_gates=true
+          fi
+
+          # Standalone build artifact job is retired for normal PR validation.
+          # General build correctness is covered inside quality; E2E runs through
+          # Turbo and owns any build dependencies it needs in the E2E runner.
+          run_build=false
+          run_e2e=false
+          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
+            run_e2e=true
+          fi
+
+          run_task_smoke=false
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+            run_task_smoke=true
+          fi
+
+          run_audit=false
+          if [ "$code_changes" = "true" ]; then
+            run_audit=true
+          fi
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            run_audit=true
+          fi
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.base_ref }}" = "main" ]; then
+            run_audit=true
+          fi
+
+          turbo_filter="...[$BASE_SHA]"
+
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "turbo_filter=$turbo_filter" >> "$GITHUB_OUTPUT"
+
+          echo "ci_changes=$ci_changes" >> "$GITHUB_OUTPUT"
+          echo "code_changes=$code_changes" >> "$GITHUB_OUTPUT"
+          echo "tractor_gates=$tractor_gates" >> "$GITHUB_OUTPUT"
+          echo "run_build=$run_build" >> "$GITHUB_OUTPUT"
+          echo "run_e2e=$run_e2e" >> "$GITHUB_OUTPUT"
+          echo "run_task_smoke=$run_task_smoke" >> "$GITHUB_OUTPUT"
+          echo "run_audit=$run_audit" >> "$GITHUB_OUTPUT"
+          echo "run_deep=$run_deep" >> "$GITHUB_OUTPUT"
+
+          echo "::notice::changes: ci=$ci_changes code=$code_changes tractor_gates=$tractor_gates build=$run_build e2e=$run_e2e task_smoke=$run_task_smoke audit=$run_audit deep=$run_deep filter=$turbo_filter"
+
+      - name: Compute validation signatures
+        id: signatures
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cat > /tmp/refarm-quality-signature-patterns.txt <<'EOF'
+          apps
+          packages
+          validations
+          templates
+          scripts
+          .github/actions
+          .github/workflows/test.yml
+          package.json
+          package-lock.json
+          turbo.json
+          tsconfig.json
+          .cargo/config.toml
+          EOF
+
+          cat > /tmp/refarm-e2e-signature-patterns.txt <<'EOF'
+          apps
+          packages
+          validations
+          templates
+          playwright.config.js
+          playwright.config.mjs
+          playwright.config.ts
+          .github/actions/setup
+          .github/workflows/test.yml
+          scripts/ci/content-signature.mjs
+          package.json
+          package-lock.json
+          turbo.json
+          tsconfig.json
+          .cargo/config.toml
+          EOF
+
+          node scripts/ci/content-signature.mjs \
+            --name test-quality \
+            --output quality_key \
+            --patterns-file /tmp/refarm-quality-signature-patterns.txt
+
+          node scripts/ci/content-signature.mjs \
+            --name test-e2e \
+            --output e2e_key \
+            --patterns-file /tmp/refarm-e2e-signature-patterns.txt
+
+  quality:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Restore Test & Quality result cache
+        id: quality_cache
+        if: needs.changes.outputs.quality_cache_key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/test-quality
+          key: ${{ needs.changes.outputs.quality_cache_key }}
+
+      - name: Test & Quality cache hit
+        if: steps.quality_cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful Test & Quality validation for unchanged inputs."
+
+      - name: Validate .project cross-block consistency
+        run: npm run project:validate --silent
+
       - name: Setup
         id: setup
+        if: steps.quality_cache.outputs.cache-hit != 'true' && (needs.changes.outputs.code_changes == 'true' || needs.changes.outputs.run_task_smoke == 'true')
         uses: ./.github/actions/setup
 
       # Turbo Cache is now handled in ./.github/actions/setup
@@ -32,15 +270,106 @@ jobs:
       #     ...
 
       - name: Security audit
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
         run: npm audit --audit-level=high
 
+      - name: TSConfig preflight
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
+        run: npm run tsconfig:guard
+
+      - name: Carry-forward policy unit tests
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.ci_changes == 'true'
+        run: node --test scripts/ci/test-carry-forward-status-lib.mjs
+
+      - name: Farmhand task execution smoke (CLI ↔ sidecar)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
+        run: npm run task:execution:smoke
+
+      - name: Farmhand pi-agent respond smoke (effort round-trip)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
+        run: npm run task:execution:smoke:pi-agent
+
+      - name: Telemetry strict gate (blocking on develop + PR -> main)
+        id: telemetry_gate
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
+        continue-on-error: ${{ !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop')) }}
+        run: npm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
+
+      - name: Telemetry gate warning (non-blocking branches)
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop'))
+        run: |
+          echo "::warning::Telemetry gate failed on non-blocking branch/event."
+          echo "::warning::See artifact: telemetry-gate-report"
+
+      - name: Quality checks skipped
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
+        run: echo "::notice::Skipping quality heavy checks (no code-impacting changes detected)."
+
+      - name: Tractor health probe smoke
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: npm run test:smoke:health -w @refarm.dev/tractor-rs
+
+      - name: Browser runtime descriptor gate (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: npm --prefix packages/tractor-ts run runtime-module:ci
+
+      - name: Runtime descriptor release-path smoke (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+
+      - name: Revocation diagnostics report smoke (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: npm run runtime-descriptor:revocation-report:sample
+
+      - name: Revocation diagnostics baseline lookup (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/ci/fetch-runtime-descriptor-revocation-baseline.mjs \
+            --workflow-name "${{ github.workflow }}" \
+            --branch "${{ github.ref_name }}" \
+            --exclude-run-id "${{ github.run_id }}" \
+            --current-report .artifacts/runtime-descriptor-revocation-report/summary.json \
+            --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt
+
+      - name: Revocation diagnostics history smoke (Tractor TS)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        run: |
+          npm run runtime-descriptor:revocation-history -- \
+            --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
+            --out-dir .artifacts/runtime-descriptor-revocation-history
+
       - name: Verify (Full Turbo)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
+        run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+
+      - name: Verify (Full Turbo fallback)
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
         run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+
+      - name: Verify (Full Turbo) skipped
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
+        run: echo "::notice::Skipping Full Turbo verification (no code-impacting changes detected)."
+
+      - name: Append detailed Vitest report
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
+        run: node scripts/ci/summarize-vitest-reports.mjs
+
+      - name: Upload Vitest detailed report artifact
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: vitest-detailed-report
+          path: .artifacts/vitest
+          retention-days: 14
+          if-no-files-found: warn
 
       # Specialized gates for Tractor (Performance & Coverage)
       # These remain separate to use the GHA script logic but are fast due to cache hits above
       - name: Benchmark Quality Gate (Tractor)
         id: benchmark
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
           # Capture current branch explicitly for detached HEAD states
           CURRENT_BRANCH=$(git rev-parse HEAD)
@@ -71,7 +400,7 @@ jobs:
           fi
 
       - name: Comment PR on Benchmark Increase
-        if: github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.benchmark.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -122,6 +451,7 @@ jobs:
 
       - name: Coverage Quality Gate (Tractor)
         id: coverage
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
           cd packages/tractor
           npm run coverage:check
@@ -139,7 +469,7 @@ jobs:
           fi
 
       - name: Comment PR on Coverage Increase
-        if: github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
+        if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true' && github.event_name == 'pull_request' && steps.coverage.outputs.improved == 'true'
         uses: ./.github/actions/github-script
         with:
           script: |
@@ -195,27 +525,62 @@ jobs:
             }
 
       - name: Upload coverage
-        if: always()
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         uses: ./.github/actions/codecov-upload
         with:
           files: ./coverage/coverage-final.json
           flags: unittests
           name: codecov-refarm
 
+      - name: Upload revocation diagnostics report
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: runtime-descriptor-revocation-report
+          path: |
+            .artifacts/runtime-descriptor-revocation-report
+            .artifacts/runtime-descriptor-revocation-baseline
+            .artifacts/runtime-descriptor-revocation-history
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload telemetry gate artifact
+        if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: telemetry-gate-report
+          path: .artifacts/telemetry/gate-quality.json
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Record Test & Quality cache marker
+        if: success() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.quality_cache_key != ''
+        run: |
+          mkdir -p .artifacts/validation-cache/test-quality
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/test-quality/last-successful-sha.txt
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    needs: quality
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_build == 'true'
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
 
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
 
-      - name: Build
+      - name: Build (affected)
+        if: needs.changes.outputs.turbo_filter != ''
+        run: npx turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+
+      - name: Build (full fallback)
+        if: needs.changes.outputs.turbo_filter == ''
         run: npm run build
 
       - name: Upload build artifacts
@@ -231,21 +596,38 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: build
+    timeout-minutes: 45
+    needs: [changes, quality]
+    if: needs.changes.outputs.run_e2e == 'true'
 
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: "0"
+
+      - name: Restore E2E result cache
+        id: e2e_cache
+        if: needs.changes.outputs.e2e_cache_key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/test-e2e
+          key: ${{ needs.changes.outputs.e2e_cache_key }}
+
+      - name: E2E cache hit
+        if: steps.e2e_cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful E2E validation for unchanged inputs."
 
       - name: Setup
         id: setup
+        if: steps.e2e_cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
         with:
           playwright-setup: "true"
 
       - name: Check E2E script status
         id: e2e_check
+        if: steps.e2e_cache.outputs.cache-hit != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -257,19 +639,36 @@ jobs:
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Download build artifacts
-        if: steps.e2e_check.outputs.enabled == 'true'
-        uses: ./.github/actions/download-artifact
-        with:
-          name: workspace-build
-          path: .
+      # Guard against SCM gaps: only use affected filter when base commit is resolvable locally.
+      - name: Resolve E2E turbo filter
+        id: e2e_filter
+        if: "steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+        shell: bash
+        run: |
+          set -euo pipefail
+          FILTER="${{ needs.changes.outputs.turbo_filter }}"
+          BASE_SHA="${{ needs.changes.outputs.base_sha }}"
 
-      - name: Run E2E Tests (Full Turbo)
-        if: "steps.e2e_check.outputs.enabled == 'true' && !contains(github.event.pull_request.labels.*.name, 'phase:sdd') && !contains(github.event.pull_request.labels.*.name, 'phase:bdd')"
+          if [ -n "$FILTER" ] && [ -n "$BASE_SHA" ] && git cat-file -e "${BASE_SHA}^{commit}" 2>/dev/null; then
+            echo "mode=affected" >> "$GITHUB_OUTPUT"
+            echo "filter=$FILTER" >> "$GITHUB_OUTPUT"
+            echo "::notice::Using affected E2E filter: $FILTER"
+          else
+            echo "mode=full" >> "$GITHUB_OUTPUT"
+            echo "filter=" >> "$GITHUB_OUTPUT"
+            echo "::warning::Base commit unavailable for E2E filter (base=$BASE_SHA). Falling back to full test:e2e."
+          fi
+
+      - name: Run E2E Tests (affected)
+        if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'affected'
+        run: npx turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
+
+      - name: Run E2E Tests (full fallback)
+        if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'full'
         run: npx turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
-        if: always() && steps.e2e_check.outputs.enabled == 'true'
+        if: always() && steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true'
         uses: ./.github/actions/upload-artifact
         with:
           name: playwright-report
@@ -277,9 +676,36 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
 
+      - name: Record E2E cache marker
+        if: success() && steps.e2e_cache.outputs.cache-hit != 'true' && needs.changes.outputs.e2e_cache_key != ''
+        run: |
+          mkdir -p .artifacts/validation-cache/test-e2e
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/test-e2e/last-successful-sha.txt
+
+  deep-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: changes
+    if: needs.changes.outputs.run_deep == 'true'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup
+        id: setup
+        uses: ./.github/actions/setup
+        with:
+          playwright-setup: "true"
+
+      - name: Deep regression (full stack)
+        run: npx turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+
   audit-moderate:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.run_audit == 'true'
 
     steps:
       - name: Checkout
@@ -318,23 +744,136 @@ jobs:
 
   summary:
     if: always()
-    needs: [quality, build, e2e, audit-moderate]
+    needs: [changes, quality, build, e2e, audit-moderate, deep-regression]
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Carry forward status for skipped gates
+        id: carry_forward
+        if: needs.changes.outputs.skip_duplicate_push != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          CODE_CHANGES: ${{ needs.changes.outputs.code_changes }}
+          RUN_TASK_SMOKE: ${{ needs.changes.outputs.run_task_smoke }}
+          TRACTOR_GATES: ${{ needs.changes.outputs.tractor_gates }}
+          RUN_AUDIT: ${{ needs.changes.outputs.run_audit }}
+          RUN_BUILD: ${{ needs.changes.outputs.run_build }}
+          RUN_E2E: ${{ needs.changes.outputs.run_e2e }}
+          RUN_DEEP: ${{ needs.changes.outputs.run_deep }}
+        shell: bash
+        run: node scripts/ci/carry-forward-status.mjs
+
       - name: Check all checks
         run: |
+          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+
+          if [ "${{ needs.changes.outputs.skip_duplicate_push }}" = "true" ]; then
+            echo "::notice::Heavy push validation skipped because the open PR run is canonical for this develop head."
+            exit 0
+          fi
+
+          if [ "${{ steps.carry_forward.outputs.has_failure }}" = "true" ]; then
+            echo "::error::One or more skipped gates reused a prior failing status."
+            exit 1
+          fi
+
           if [ "${{ needs.quality.result }}" != "success" ]; then
             echo "::error::Quality checks failed"
             exit 1
           fi
-          if [ "${{ needs.build.result }}" != "success" ]; then
+
+          if [ "${{ needs.changes.outputs.run_audit }}" = "true" ] && [ "${{ needs.audit-moderate.result }}" != "success" ]; then
+            echo "::error::Audit moderate job failed"
+            exit 1
+          fi
+
+          if [ "${{ needs.changes.outputs.run_build }}" = "true" ] && [ "${{ needs.build.result }}" != "success" ]; then
             echo "::error::Build failed"
             exit 1
           fi
-          if [ "${{ needs.e2e.result }}" != "success" ]; then
+
+          if [ "${{ needs.changes.outputs.run_e2e }}" = "true" ] && [ "${{ needs.e2e.result }}" != "success" ]; then
             echo "::error::E2E tests failed"
             exit 1
           fi
 
+          if [ "${{ needs.changes.outputs.run_deep }}" = "true" ] && [ "${{ needs.deep-regression.result }}" != "success" ]; then
+            echo "::error::Deep regression failed"
+            exit 1
+          fi
+
           echo "::notice::All checks passed!"
+
+  ci-metrics:
+    if: always()
+    needs: [summary]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Export run metrics
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -sSfL \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" \
+            > /tmp/ci-jobs.json
+
+          node - <<'NODE'
+          const fs = require('fs');
+
+          const payload = JSON.parse(fs.readFileSync('/tmp/ci-jobs.json', 'utf8'));
+          const jobs = (payload.jobs || []).map((job) => {
+            const started = job.started_at ? new Date(job.started_at).getTime() : null;
+            const ended = job.completed_at ? new Date(job.completed_at).getTime() : null;
+            const durationSec = started && ended ? Math.max(0, Math.round((ended - started) / 1000)) : 0;
+            return {
+              name: job.name,
+              status: job.status,
+              conclusion: job.conclusion || '-',
+              durationSec,
+            };
+          });
+
+          const totalSec = jobs.reduce((acc, j) => acc + j.durationSec, 0);
+
+          const report = {
+            runId: process.env.GITHUB_RUN_ID,
+            workflow: process.env.GITHUB_WORKFLOW,
+            jobs,
+            totalDurationSec: totalSec,
+          };
+
+          fs.writeFileSync('ci-run-metrics.json', JSON.stringify(report, null, 2));
+
+          const lines = [];
+          lines.push('## CI timing snapshot');
+          lines.push('');
+          lines.push('| Job | Status | Conclusion | Duration (s) |');
+          lines.push('|---|---|---|---:|');
+          for (const j of jobs) {
+            lines.push(`| ${j.name} | ${j.status} | ${j.conclusion} | ${j.durationSec} |`);
+          }
+          lines.push('');
+          lines.push(`**Total job-seconds:** ${totalSec}`);
+
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          NODE
+
+      - name: Upload CI metrics artifact
+        if: always()
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: ci-run-metrics
+          path: ci-run-metrics.json
+          retention-days: 14
+          if-no-files-found: error

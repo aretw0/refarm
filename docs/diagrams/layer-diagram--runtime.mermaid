@@ -1,0 +1,46 @@
+graph TD
+    subgraph Contexts ["Deployment Contexts"]
+        direction LR
+        subgraph Edge ["Server / Edge / Pi  — tractor (Rust)"]
+            RS_PluginHost["PluginHost\n(wasmtime + WASI probe)"]
+            RS_CRDT["CRDT Store\n(Loro)"]
+            RS_Sidecar["HTTP Sidecar\n(:42001)"]
+            RS_Sync["SyncEngine"]
+        end
+        subgraph Browser ["Browser  — tractor-ts (TypeScript)"]
+            TS_PluginHost["PluginHost\n(JCO transpile)"]
+            TS_CRDT["CRDT Store\n(Loro)"]
+            TS_Sync["SyncEngine"]
+        end
+    end
+
+    subgraph WIT ["WIT Contract  (refarm:plugin@0.1.0)"]
+        direction LR
+        WIT_Int["integration\n(setup · ingest · push · respond · on_event)"]
+        WIT_LLM["llm-bridge"]
+        WIT_FS["agent-fs / agent-shell"]
+    end
+
+    subgraph Plugins ["Plugin Sandbox  (.wasm — P1 module or P2+ component)"]
+        direction LR
+        PiAgent["pi-agent\n(sovereign AI)"]
+        ThirdParty["third-party plugins"]
+    end
+
+    Edge ---|"same WIT"| WIT_Int
+    Browser ---|"same WIT"| WIT_Int
+
+    WIT_Int -->|"implemented by"| PiAgent
+    WIT_Int -->|"implemented by"| ThirdParty
+    WIT_LLM -.->|"imported by"| PiAgent
+    WIT_FS  -.->|"imported by"| PiAgent
+
+    classDef rust    fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef ts      fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+    classDef wit     fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+    classDef plugin  fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+
+    class RS_PluginHost,RS_CRDT,RS_Sidecar,RS_Sync rust;
+    class TS_PluginHost,TS_CRDT,TS_Sync ts;
+    class WIT_Int,WIT_LLM,WIT_FS wit;
+    class PiAgent,ThirdParty plugin;

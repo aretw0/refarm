@@ -1,0 +1,14 @@
+[package]
+name = "refarm-plugin-wit"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[package.metadata.component]
+package = "refarm:plugin"
+
+[package.metadata.component.target]
+path = "wit"

@@ -1,0 +1,60 @@
+{
+	"name": "work-quality",
+	"description": "On-demand work quality analysis",
+	"event": "command",
+	"when": "always",
+	"scope": {
+		"target": "main"
+	},
+	"classify": {
+		"context": ["user_text", "tool_calls", "assistant_text"],
+		"agent": "work-quality-classifier"
+	},
+	"patterns": {
+		"path": "work-quality.patterns.json",
+		"learn": true
+	},
+	"instructions": {
+		"path": "work-quality.instructions.json"
+	},
+	"actions": {
+		"on_flag": {
+			"steer": "{{ description }}",
+			"write": {
+				"path": ".project/issues.json",
+				"schema": "schemas/issues.schema.json",
+				"merge": "append",
+				"array_field": "issues",
+				"template": {
+					"id": "quality-{finding_id}",
+					"description": "{description}",
+					"status": "open",
+					"category": "work-quality",
+					"priority": "{severity}",
+					"source": "monitor"
+				}
+			}
+		},
+		"on_new": {
+			"steer": "{{ description }}",
+			"learn_pattern": true,
+			"write": {
+				"path": ".project/issues.json",
+				"schema": "schemas/issues.schema.json",
+				"merge": "append",
+				"array_field": "issues",
+				"template": {
+					"id": "quality-{finding_id}",
+					"description": "{description}",
+					"status": "open",
+					"category": "work-quality",
+					"priority": "warning",
+					"source": "monitor"
+				}
+			}
+		},
+		"on_clean": null
+	},
+	"ceiling": 3,
+	"escalate": "ask"
+}

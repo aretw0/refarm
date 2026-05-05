@@ -5,11 +5,12 @@
     "context": "."
   },
   "runArgs": ["--memory=4g", "--cpus=2"],
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
   "features": {
-    "ghcr.io/devcontainers/features/rust:1": {
-      "version": "stable",
-      "profile": "minimal"
-    },
+    "ghcr.io/jsburckhardt/devcontainer-features/uv:1": {},
     "ghcr.io/devcontainers/features/common-utils:2": {
       "installZsh": false,
       "username": "vscode"
@@ -17,24 +18,38 @@
   },
   "remoteUser": "vscode",
   "containerEnv": {
+    "UV_SYSTEM_PYTHON": "true",
+    "UV_LINK_MODE": "copy",
+    "RUSTUP_HOME": "/usr/local/rustup",
+    "CARGO_HOME": "/usr/local/cargo",
     "CARGO_TERM_COLOR": "always",
-    "TURBO_CACHE_DIR": "/home/vscode/.turbo"
+    "TURBO_CACHE_DIR": "/home/vscode/.turbo",
+    "CARGO_BUILD_JOBS": "2",
+    "CARGO_TARGET_DIR": "/home/vscode/.cargo-target",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LANGUAGE": "en_US:en",
+    "TERM_PROGRAM": "vscode"
   },
   "remoteEnv": {
     "NPM_CONFIG_PREFIX": "/home/vscode/.npm-global",
-    "PATH": "/home/vscode/.npm-global/bin:${containerEnv:PATH}"
+    "PATH": "/home/vscode/.npm-global/bin:${containerEnv:PATH}",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "LANGUAGE": "en_US:en",
+    "TERM_PROGRAM": "vscode"
   },
   "mounts": [
     "source=refarm-npm-cache,target=/home/vscode/.npm,type=volume",
     "source=refarm-npm-global,target=/home/vscode/.npm-global,type=volume",
     "source=refarm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume",
-    "source=refarm-cargo-bin,target=/usr/local/cargo/bin,type=volume",
-    "source=refarm-rustup,target=/usr/local/rustup,type=volume",
     "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume",
-    "source=refarm-playwright-cache,target=/home/vscode/.cache/ms-playwright,type=volume"
+    "source=refarm-playwright-cache,target=/home/vscode/.cache/ms-playwright,type=volume",
+    "source=refarm-cargo-target,target=/home/vscode/.cargo-target,type=volume"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -53,7 +68,8 @@
         "terminal.integrated.defaultProfile.linux": "bash",
         "rust-analyzer.lru.capacity": 44,
         "rust-analyzer.check.command": "check",
-        "rust-analyzer.checkOnSave": true,
+        "rust-analyzer.checkOnSave": false,
+        "rust-analyzer.cargo.autoreload": false,
         "rust-analyzer.linkedProjects": [
           "./packages/heartwood/Cargo.toml",
           "./packages/tractor/Cargo.toml",

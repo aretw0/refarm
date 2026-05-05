@@ -1,0 +1,30 @@
+{
+	"name": "commit-hygiene",
+	"description": "Detects uncommitted file changes at end of agent turn and steers to commit following project conventions",
+	"event": "agent_end",
+	"when": "has_file_writes",
+	"scope": { "target": "main" },
+	"classify": {
+		"context": ["tool_calls", "assistant_text", "user_text"],
+		"agent": "commit-hygiene-classifier"
+	},
+	"patterns": {
+		"path": "commit-hygiene.patterns.json",
+		"learn": true
+	},
+	"instructions": {
+		"path": "commit-hygiene.instructions.json"
+	},
+	"actions": {
+		"on_flag": {
+			"steer": "Commit your changes now. Use a detailed, specific commit message that describes what changed and why — aims and intentions, not certainties."
+		},
+		"on_new": {
+			"steer": "Commit your changes now. Use a detailed, specific commit message that describes what changed and why — aims and intentions, not certainties.",
+			"learn_pattern": true
+		},
+		"on_clean": null
+	},
+	"ceiling": 3,
+	"escalate": "ask"
+}

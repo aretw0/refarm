@@ -11,7 +11,7 @@
  *   node scripts/check-diagrams.mjs --ci     // Regenerate and verify no changes needed
  */
 
-import { execSync } from "child_process";
+import { execSync, execFileSync } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -23,6 +23,7 @@ const specsDiagramsDir = path.join(projectRoot, "specs", "diagrams");
 const mermaidConfigFile = path.join(specsDiagramsDir, "mermaid.config.json");
 
 const CI_MODE = process.argv.includes("--ci");
+const STRICT_SVG_SYNC = process.env.REFARM_DIAGRAM_SYNC_STRICT !== "0";
 
 // Find all .mermaid files
 function findMermaidFiles() {
@@ -56,10 +57,14 @@ function generateSvg(mermaidFile) {
   const svgFile = mermaidFile.replace(".mermaid", ".svg");
 
   try {
-    execSync(
-      `npx -y @mermaid-js/mermaid-cli -i "${mermaidFile}" -o "${svgFile}" -c "${mermaidConfigFile}"`,
-      { stdio: "pipe" }
-    );
+    const puppeteerConfig = path.join(projectRoot, "scripts", "puppeteer-no-sandbox.json");
+    const mmdc = path.join(projectRoot, "node_modules", ".bin", "mmdc");
+    execFileSync(mmdc, [
+      "-i", mermaidFile,
+      "-o", svgFile,
+      "-c", mermaidConfigFile,
+      "-p", puppeteerConfig,
+    ], { stdio: "pipe" });
     return svgFile;
   } catch (error) {
     console.error(`❌ Failed to generate SVG for ${mermaidFile}`);
@@ -95,17 +100,27 @@ function validateDiagrams() {
         encoding: "utf-8",
       });
 
-      const hasChanges = gitStatus
+      const changedSvgFiles = gitStatus
         .split("\n")
-        .some((line) => line.includes(".svg"));
+        .map((line) => line.trim())
+        .filter((line) => line.includes(".svg"));
 
-      if (hasChanges) {
+      if (changedSvgFiles.length > 0) {
         console.error(
           "❌ SVG files are out of sync with their Mermaid sources.\n"
         );
+        console.error("Changed SVG files:");
+        for (const line of changedSvgFiles) {
+          console.error(`  ${line}`);
+        }
+        console.error("");
         console.error("To fix, run locally:");
         console.error("  npm run diagrams:fix\n");
         console.error("Then commit the regenerated .svg files.");
+        if (!STRICT_SVG_SYNC) {
+          console.warn("⚠️  SVG sync drift is advisory for this run (REFARM_DIAGRAM_SYNC_STRICT=0).");
+          return;
+        }
         process.exit(1);
       } else {
         console.log("✅ All diagrams are in sync.");

@@ -1,0 +1,39 @@
+graph TD
+    RefarmCLI["refarm CLI\n(apps/refarm)"]
+    TractorRS["tractor (Rust)\nHTTP sidecar :42001"]
+    PiAgent["pi-agent WASM\n(sovereign AI)"]
+
+    subgraph Contracts ["Dispatch Contracts  (packages/)"]
+        direction LR
+        EffortV1["effort-contract-v1\nEffort · Task · TaskResult"]
+        StreamV1["stream-contract-v1\nStreamChunk · StreamTransportAdapter"]
+    end
+
+    subgraph EffortAdapters ["Effort Transports"]
+        HttpAdapt["HttpTransportAdapter\n:42001"]
+    end
+
+    subgraph StreamAdapters ["Stream Transports"]
+        direction LR
+        FileStream["~/.refarm/streams/ NDJSON\n(written by pi-agent via REFARM_STREAMS_DIR)"]
+        SSEStream["SseStreamTransport\nGET /stream/:ref"]
+        WSStream["WsStreamTransport\nWS /ws/stream"]
+    end
+
+    RefarmCLI -->|"submits effort"| HttpAdapt
+    HttpAdapt -->|"dispatches via"| EffortV1
+    EffortV1 -->|"routes to"| TractorRS
+    TractorRS -->|"on_event channel"| PiAgent
+    PiAgent -->|"writes final chunk"| FileStream
+    RefarmCLI -->|"polls stream file"| FileStream
+
+    StreamV1 -->|"bundled adapter"| SSEStream
+    StreamV1 -->|"bundled adapter"| WSStream
+
+    classDef app      fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+    classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+    classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+
+    class RefarmCLI,TractorRS,PiAgent app;
+    class EffortV1,StreamV1 contract;
+    class HttpAdapt,FileStream,SSEStream,WSStream transport;

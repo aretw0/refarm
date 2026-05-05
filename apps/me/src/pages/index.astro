@@ -3,66 +3,34 @@ import { Layout } from "@refarm.dev/homestead/ui";
 ---
 
 <Layout title="Refarm.me — My Sovereign Space">
-  <div id="loading-overlay" class="loading-state">
-    <div class="spinner"></div>
+  <div id="loading-overlay" class="refarm-loading-state">
+    <div class="refarm-spinner"></div>
     <p>Opening your personal vault...</p>
   </div>
-
-  <style>
-    .loading-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 40vh;
-      color: var(--refarm-text-secondary);
-      font-family: var(--refarm-font-mono);
-    }
-    .spinner {
-      width: 40px; height: 40px;
-      border: 3px solid var(--refarm-bg-elevated);
-      border-top: 3px solid var(--refarm-accent-primary);
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 1rem;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
 </Layout>
 
 <script>
-  import { StudioShell, FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
-  import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
-  import { LoroCRDTStorage, BrowserSyncClient, randomPeerId } from "@refarm.dev/sync-loro";
-  import { Tractor } from "@refarm.dev/tractor";
+  import { FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
+  import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
+  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
 
   async function boot() {
     try {
-      const sqliteStorage = await new OPFSSQLiteAdapter().open("refarm-me-main");
-      const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
-      const syncClient = new BrowserSyncClient(storage);
-      syncClient.connect();
-
-      const identity = {
-        id: "citizen",
-        getPublicKey: async () => "me",
-        sign: async (data: string) => data
-      };
-
-      const tractor = await Tractor.boot({
-        storage: storage as any,
-        sync: storage,
-        identity: identity as any,
+      const { tractor } = await bootStudioRuntime({
+        databaseName: "refarm-me-main",
         namespace: "citizen",
-        envMetadata: { version: "0.1.0-solo-fertil", commit: "me" }
+        identityId: "citizen",
+        identityPublicKey: "me",
+        envMetadata: { version: "0.1.0-solo-fertil", commit: "me" },
+        connectBrowserSync: true,
+        tractorSync: true,
       });
 
       // Register default citizen experience plugins
       new HeraldPlugin(tractor).announce();
       new FireflyPlugin(tractor);
 
-      const shell = new StudioShell(tractor);
-      await shell.setup();
+      await setupStudioShell(tractor);
 
       document.getElementById("loading-overlay")?.remove();
       

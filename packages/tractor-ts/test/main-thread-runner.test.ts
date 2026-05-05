@@ -51,7 +51,7 @@ describe("MainThreadRunner", () => {
     expect(runner.supports(manifest)).toBe(true);
   });
 
-  it("JCO transpile throws → returns PluginInstanceHandle with null component", async () => {
+  it("JCO transpile throws → returns PluginInstanceHandle that fails closed on call", async () => {
     const logger = makeLogger();
     vi.mocked(jco.transpile).mockRejectedValueOnce(new Error("bad wasm bytes"));
 
@@ -68,9 +68,7 @@ describe("MainThreadRunner", () => {
       expect.stringContaining("JCO instantiation failed for test_plugin")
     );
 
-    // Calling a function on the null-component instance returns null
-    const result = await instance.call("setup");
-    expect(result).toBeNull();
+    await expect(instance.call("setup")).rejects.toThrow(/not instantiated/i);
   });
 
   it("JCO transpile throws 'wasm module with component parser' → caught gracefully", async () => {
@@ -154,10 +152,17 @@ describe("MainThreadRunner", () => {
     const runner = new MainThreadRunner("/tmp/test-dist", logger);
     const instance = await runner.instantiate(manifest, wasmBuffer, {}, emit, vi.fn());
 
-    await instance.call("setup");
+    await expect(instance.call("setup")).rejects.toThrow(/not instantiated/i);
 
     expect(emit).toHaveBeenCalledWith(
-      expect.objectContaining({ event: "api:call", pluginId: "test_plugin" })
+      expect.objectContaining({
+        event: "api:call",
+        pluginId: "test_plugin",
+        payload: expect.objectContaining({
+          fn: "setup",
+          error: expect.stringContaining("not instantiated"),
+        }),
+      })
     );
   });
 

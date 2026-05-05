@@ -26,6 +26,16 @@ on:
         required: false
         type: string
         default: "documentation,validation"
+      validation-cache-key:
+        description: "Optional content-addressed cache key for reusing a previous successful validation"
+        required: false
+        type: string
+        default: ""
+      validation-cache-files:
+        description: "Optional newline-separated git pathspecs used to compute a content-addressed validation cache key"
+        required: false
+        type: string
+        default: ""
     outputs:
       validation-status:
         description: "Status of validation: success or failure"
@@ -39,18 +49,80 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     outputs:
-      status: ${{ steps.validation.outcome }}
+      status: ${{ steps.validation-cache.outputs.cache-hit == 'true' && 'success' || steps.validation.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Compute validation cache key
+        id: validation-cache-key
+        if: inputs.validation-cache-key != '' || inputs.validation-cache-files != ''
+        env:
+          VALIDATION_CACHE_KEY: ${{ inputs.validation-cache-key }}
+          VALIDATION_CACHE_FILES: ${{ inputs.validation-cache-files }}
+          VALIDATION_COMMAND: ${{ inputs.validation-command }}
+          VALIDATION_NAME: ${{ inputs.validation-name }}
+        run: |
+          node <<'NODE'
+          const { execFileSync } = require('node:child_process');
+          const crypto = require('node:crypto');
+          const fs = require('node:fs');
+
+          let key = (process.env.VALIDATION_CACHE_KEY || '').trim();
+          if (!key) {
+            const patterns = (process.env.VALIDATION_CACHE_FILES || '')
+              .split(/\r?\n/)
+              .map((line) => line.trim())
+              .filter(Boolean);
+            const files = [...new Set(patterns.flatMap((pattern) => {
+              const output = execFileSync('git', ['ls-files', '--', pattern], { encoding: 'utf8' });
+              return output.split('\n').map((line) => line.trim()).filter(Boolean);
+            }))].sort();
+            const hash = crypto.createHash('sha256');
+            hash.update(process.env.VALIDATION_COMMAND || '');
+            hash.update('\0');
+            for (const file of files) {
+              hash.update(file);
+              hash.update('\0');
+              hash.update(fs.readFileSync(file));
+              hash.update('\0');
+            }
+            const slug = (process.env.VALIDATION_NAME || 'validation')
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/^-|-$/g, '');
+            key = `validate-${slug}-${hash.digest('hex')}`;
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `key=${key}\n`);
+          NODE
+
+      - name: Restore validation result cache
+        id: validation-cache
+        if: steps.validation-cache-key.outputs.key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/${{ inputs.validation-name }}
+          key: ${{ steps.validation-cache-key.outputs.key }}
+
       - name: Setup
+        if: steps.validation-cache-key.outputs.key == '' || steps.validation-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
+
+      - name: Validation cache hit
+        if: steps.validation-cache-key.outputs.key != '' && steps.validation-cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful ${{ inputs.validation-name }} validation for unchanged content."
 
       - name: Run validation
         id: validation
+        if: steps.validation-cache-key.outputs.key == '' || steps.validation-cache.outputs.cache-hit != 'true'
         run: ${{ inputs.validation-command }}
         continue-on-error: ${{ inputs.create-issue-on-failure }}
+
+      - name: Record validation cache marker
+        if: steps.validation-cache-key.outputs.key != '' && steps.validation-cache.outputs.cache-hit != 'true' && steps.validation.outcome == 'success'
+        run: |
+          mkdir -p ".artifacts/validation-cache/${{ inputs.validation-name }}"
+          printf '%s\n' "${{ github.sha }}" > ".artifacts/validation-cache/${{ inputs.validation-name }}/last-successful-sha.txt"
 
       - name: Create or update issue on failure
         if: ${{ failure() && inputs.create-issue-on-failure }}

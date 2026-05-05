@@ -1,10 +1,10 @@
-import { exec } from 'node:child_process';
+import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import chokidar from 'chokidar';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 const DIAGRAM_EXT = '.mermaid';
 
@@ -12,8 +12,13 @@ async function generateSVG(filePath) {
   const svgPath = filePath.replace(DIAGRAM_EXT, '.svg');
   console.log(`Generating SVG for ${filePath}...`);
   try {
-    // Using npx mmdc to ensure we use the local version
-    await execAsync(`npx mmdc -i ${filePath} -o ${svgPath} -t neutral`);
+    const puppeteerConfig = path.resolve(process.cwd(), 'scripts/puppeteer-no-sandbox.json');
+    await execFileAsync('mmdc', [
+      '-i', filePath,
+      '-o', svgPath,
+      '-t', 'neutral',
+      '-p', puppeteerConfig,
+    ]);
     console.log(`Successfully generated ${svgPath}`);
   } catch (error) {
     console.error(`Error generating SVG for ${filePath}:`, error.message);

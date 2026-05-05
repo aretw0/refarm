@@ -7,20 +7,21 @@
 
 | Crate | Path | Publishable | Status |
 |---|---|---|---|
-| `refarm-tractor` | `packages/tractor` | ✅ | Ready — awaiting org migration |
-| `refarm-hello-world-plugin` | `validations/wasm-plugin/hello-world` | ✅ | Ready — awaiting org migration |
+| `refarm-tractor` | `packages/tractor` | ✅ | Ready |
+| `refarm-hello-world-plugin` | `validations/wasm-plugin/hello-world` | ✅ | Ready |
 | `refarm-simple-wasm-plugin` | `validations/simple-wasm-plugin` | ❌ | `publish = false` |
 | `rust-plugin-template` | `templates/rust-plugin` | ❌ | `publish = false` |
 
 ## Pre-requisites
 
-1. **GitHub org migration** — repo must be under `refarm-dev`
-2. **crates.io account** — register `refarm-dev` as owner / team
-3. **CI secret** — `CARGO_REGISTRY_TOKEN` available in GitHub Actions
+1. **crates.io account/team** — owner with publish permission for the crate
+2. **CI secret** — `CARGO_REGISTRY_TOKEN` available in GitHub Actions
+3. **CI release gate enabled** — `RELEASE_AUTOMATION=true`
+4. **Optional owner lock** — `RELEASE_OWNER=<owner>` to restrict publishes to one repo owner
 
 ## Publication Checklist
 
-When the org is ready, follow these steps per crate:
+When release automation is enabled, follow these steps per crate:
 
 ```bash
 # 1. Dry-run — validates metadata, README, license (per LICENSING_POLICY.md)
@@ -42,16 +43,16 @@ refarm-hello-world-plugin  # standalone WASM plugin
 
 ## CI Integration
 
-The release automation is handled by [.github/workflows/publish-crates.yml](file:///.github/workflows/publish-crates.yml) and follows the same security gates as npm:
+The release automation is handled by [.github/workflows/publish-crates.yml](../.github/workflows/publish-crates.yml) and follows the same security gates as npm:
 
 ```yaml
-if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
 ```
 
 ```yaml
 jobs:
   publish-crates:
-    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable

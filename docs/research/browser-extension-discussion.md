@@ -378,7 +378,7 @@
 **Rationale:**
 
 - User base estabelecida justifica investimento
-- Desktop apps (Electron/Tauri) compartilham lógica com extension
+- Desktop apps (Electron) compartilham lógica com extension
 - Side Panel oferece competitive advantage vs Obsidian/Logseq
 
 **Features Prioritárias:**
@@ -571,7 +571,7 @@ Usuário pode configurar Refarm para watch uma pasta, qualquer arquivo adicionad
 
 - Manifest v3 (Chrome + Firefox + Safari)
 - Opção 1: Extensão leve (única source-of-truth: PWA)
-- Share logic com desktop apps (Electron/Tauri)
+- Share logic com desktop apps (Electron)
 
 ---
 
@@ -589,7 +589,7 @@ Usuário pode configurar Refarm para watch uma pasta, qualquer arquivo adicionad
 
 - ≥100 users reclamando de clipping workflow
 - Time tem bandwidth para manter 2 codebases
-- Desktop apps (Electron/Tauri) já estão planejados → share logic
+- Desktop apps (Electron) já estão planejados → share logic
 
 **Foco imediato:** Polish PWA, validar product-market fit, construir ecossistema de plugins.
 

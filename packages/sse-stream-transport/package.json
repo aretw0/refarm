@@ -1,0 +1,41 @@
+{
+  "name": "@refarm.dev/sse-stream-transport",
+  "version": "0.1.0",
+  "description": "Server-Sent Events StreamTransportAdapter for Farmhand HTTP sidecar",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "tsc --noEmit",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "test:unit": "vitest run --passWithNoTests",
+    "clean": "rm -rf dist"
+  },
+  "keywords": ["stream", "transport", "sse", "server-sent-events"],
+  "author": "Refarm Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aretw0/refarm.git",
+    "directory": "packages/sse-stream-transport"
+  },
+  "files": ["dist", "README.md"],
+  "publishConfig": { "access": "public" },
+  "dependencies": {
+    "@refarm.dev/file-stream-transport": "*",
+    "@refarm.dev/stream-contract-v1": "*"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/vtconfig": "*"
+  }
+}

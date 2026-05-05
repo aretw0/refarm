@@ -51,7 +51,7 @@ Proc macro at compile time. No separate codegen step. Uses `wit/refarm-sdk.wit`,
 
 ### 7. Deployment forms — lib + binary
 
-- `[lib]` — embeddable in Tauri, CLI, edge agents via `use tractor::TractorNative`
+- `[lib]` — embeddable in Electron, CLI, edge agents via `use tractor::TractorNative`
 - `[[bin]]` — standalone daemon: `tractor --namespace default --port 42000`
 
 ### 8. Schema alignment — `crdt_log.id = TEXT PRIMARY KEY`, no `created_at`
@@ -160,6 +160,21 @@ matches defense-in-depth.
 6. tractor.shutdown()                   — flush + close storage
 ```
 
+### Known boot/runtime failure points (mapped)
+
+| Stage | Failure point | Severity | Current behavior | Source |
+|---|---|---|---|---|
+| `TractorNative::boot` | SQLite open/schema/init failure | High | Boot fails fast (daemon does not start) | `src/lib.rs` (`NativeStorage::open`, `NativeSync::new`) |
+| `PluginHost::new` | wasmtime engine/linker init failure | High | Boot fails fast | `src/host/plugin_host/env_and_runtime.rs` |
+| `load_plugin` loop | Plugin file/hash/setup failure | Medium | Default: `WARN` + continue; with `--require-plugin-load`: fail-fast (startup exits) | `src/main.rs` `run_daemon` + `src/host/plugin_host/env_and_runtime.rs` |
+| `WsServer::start` | Port bind/listen failure (`EADDRINUSE`, permissions) | High | Daemon exits with error | `src/daemon/ws_server.rs` |
+| WS client frame handling | Invalid/corrupted incoming frame | Medium | Frame discarded, warning logged, daemon stays up | `src/daemon/ws_server.rs` |
+
+Derived follow-up tasks from this map:
+- `T-RUNTIME-05` — ✅ implemented: fail-fast policy via `--require-plugin-load`.
+- `T-RUNTIME-06` — ✅ implemented: explicit startup/health probe (`tractor health`).
+- `T-RUNTIME-04` — ✅ validated in controlled CRDT/storage roundtrip (`tests/sync_crdt.rs::offline_first_roundtrip_preserves_all_nodes`).
+
 **CLI flags:**
 
 | Flag | Default | Effect |
@@ -169,13 +184,53 @@ matches defense-in-depth.
 | `--security-mode <MODE>` | `strict` | `strict` / `permissive` / `none` |
 | `--log-level <LEVEL>` | `info` | `trace` / `debug` / `info` / `warn` / `error` |
 | `--plugin <PATH>` | *(none)* | Load a WASM plugin at startup; repeatable |
+| `--require-plugin-load` | `false` | Fail startup if any `--plugin` fails to load |
+| `--ingest-on-load` | `false` | Call `ingest()` immediately after each plugin load (warn+continue on ingest failure) |
+| `--require-plugin-ingest` | `false` | Fail startup when plugin `ingest()` fails (implies ingest-on-load) |
 
 ### Plugin loading semantics
 
 `--plugin` may be specified multiple times. Plugins are loaded in declaration order
-after `boot()` and before `WsServer::start()`. A load failure for one plugin emits
-`WARN` and continues — the daemon does not exit. This follows the isolated-failure
-contract specified in `docs/specs/api-reference.md §1.2`.
+after `boot()` and before `WsServer::start()`.
+
+Default policy is isolated failure (`WARN` + continue startup). When
+`--require-plugin-load` is enabled, plugin load errors become startup-fatal
+(fail-fast) and the daemon exits with non-zero status.
+
+### Plugin lifecycle map (setup / ingest / teardown)
+
+`T-RUNTIME-03` mapeia o lifecycle real no runtime nativo (`tractor`) com base no código e testes atuais.
+
+| Stage | Fluxo atual | Evidência |
+|---|---|---|
+| `setup()` | O daemon chama `tractor.load_plugin(path)` no startup; `PluginHost::load()` instancia o componente WASM e executa `call_setup()` antes de retornar o handle. | `src/main.rs::run_daemon`, `src/lib.rs::TractorNative::load_plugin`, `src/host/plugin_host/env_and_runtime.rs::load` |
+| `ingest()` | A primitiva existe via `PluginInstanceHandle::call_ingest()` e agora pode ser disparada no startup do daemon com `--ingest-on-load` (ou fail-fast com `--require-plugin-ingest`). | `src/main.rs::run_daemon`, `src/main.rs::maybe_ingest_on_load`, testes `tests/conformance.rs::plugin_ingest_roundtrip` e `src/main.rs::maybe_ingest_on_load_runs_with_plugin_fixture` |
+| `teardown()` | O shutdown do daemon envia evento interno `__tractor:shutdown`, chama `teardown()` em cada runner e faz `join()` determinístico antes de fechar storage. | `src/lib.rs::TractorNative::shutdown`, `tests/plugin_shutdown.rs::shutdown_drains_plugin_channels_after_registration`, `src/host/instance.rs::call_teardown` |
+| `on-event()` | Após load, o handle é movido para thread dedicada via `register_for_events`; eventos WS `user:prompt` são roteados para `call_on_event()`. | `src/lib.rs::register_for_events`, `src/daemon/ws_server.rs` |
+
+### Gaps priorizados (runtime lifecycle)
+
+| Gap | Prioridade | Impacto operacional | Hardening task derivada |
+|---|---|---|---|
+| `ingest()` não é executado no ciclo de vida do daemon (somente caminho manual/teste). | High | Plugins que dependem de ingest periódico ficam sem ciclo operacional padronizado. | `T-RUNTIME-08` ✅ implementada (trigger operacional via `--ingest-on-load` / `--require-plugin-ingest`) |
+| `shutdown()` não garante `teardown()` explícito + drenagem coordenada das threads de plugin. | High | Risco de cleanup incompleto e semântica de encerramento inconsistente entre plugins. | `T-RUNTIME-07` ✅ implementada (evento interno de shutdown + teardown + join das runner threads) |
+| Telemetria de lifecycle estruturada por fase estava ausente em setup/ingest/teardown. | Medium | Falhas de fase ficavam sem trilha objetiva para diagnóstico por plugin. | `T-RUNTIME-09` ✅ implementada (`plugin:lifecycle:start|end|error` com `plugin_id` + `phase`) |
+| Alinhamento manifesto↔runtime exige manifesto adjacente (`plugin-manifest.json` / `manifest.json`) para checagens de `plugin_id`, hooks obrigatórios e versão metadata↔manifesto. | Medium | Mismatch crítico agora falha no `load()` com erro explícito, reduzindo ativação silenciosa de plugin inválido. | `T-RUNTIME-10` ✅ implementada |
+
+### Evidência de baseline executada (T-RUNTIME-03)
+
+```bash
+cargo test --test conformance plugin_ -- --nocapture
+cargo test --test host_integration call_teardown_does_not_panic -- --nocapture
+```
+
+Resultado: ✅ `plugin_ingest_roundtrip`, `plugin_lifecycle_setup_teardown` e `call_teardown_does_not_panic` verdes no baseline.
+
+Status de execução pós-mapeamento:
+- ✅ `T-RUNTIME-07` concluída (shutdown coordenado com teardown explícito e drenagem de runner threads).
+- ✅ `T-RUNTIME-08` concluída (trigger operacional de ingest no startup do daemon).
+- ✅ `T-RUNTIME-09` concluída (telemetria estruturada de lifecycle com cobertura de teste).
+- ✅ `T-RUNTIME-10` concluída (alinhamento manifesto↔runtime validado antes de ativar plugin).
 
 ---
 
@@ -184,6 +239,7 @@ contract specified in `docs/specs/api-reference.md §1.2`.
 Packages and apps that import from `@refarm.dev/tractor` (npm name unchanged after graduation):
 
 ### Apps
+
 | Consumer | Import | Notes |
 |---|---|---|
 | `apps/dev` | `Tractor` | graph.astro, index.astro, plugins.astro, shed.astro |
@@ -191,6 +247,7 @@ Packages and apps that import from `@refarm.dev/tractor` (npm name unchanged aft
 | `apps/me` | `Tractor` | src/pages/index.astro |
 
 ### Packages
+
 | Consumer | Imports | Notes |
 |---|---|---|
 | `packages/cli` | `Tractor` | plugin commands |
@@ -212,7 +269,7 @@ Migration path: see [Graduation Strategy](#graduation-strategy).
 
 | Use case | Recommendation |
 |----------|---------------|
-| Tauri desktop app | `use tractor::TractorNative` (lib crate) — embed directly |
+| Electron desktop app | `use tractor::TractorNative` (lib crate) — embed directly |
 | CLI agent (no UI) | `use tractor::TractorNative` (lib crate) — or run binary as subprocess |
 | Browser app (tractor-ts consumer) | Connect to the running `tractor` binary via WebSocket on port 42000 |
 | IoT / RPi daemon | Run `tractor` binary standalone — zero Node.js needed |

@@ -42,7 +42,7 @@ Fase 0–9 ✅  |  Todos os critérios de graduação atendidos ✅
 | WS daemon | Substitui farmhand na porta 42000 | `BrowserSyncClient` zero mudanças; menor complexidade |
 | CRDT | `loro` Rust crate | Formato binário compatível com `loro-crdt` JS@1.10.7 |
 | WIT bindings | `wasmtime::component::bindgen!` macro | Zero codegen manual; bindings gerados em compile time |
-| Deploy | lib + binary | lib = Tauri/CLI/RPi; binary = daemon standalone |
+| Deploy | lib + binary | lib = Electron/CLI/RPi; binary = daemon standalone |
 
 ---
 

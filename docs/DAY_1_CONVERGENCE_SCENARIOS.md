@@ -24,7 +24,7 @@
 ### What Refarm Provides Today (v0.1.0)
 
 ✅ **Sovereign Graph**: Nodes as diagram elements (boxes, arrows, text)  
-✅ **CRDT Sync**: Yjs handles concurrent edits (position, text, style)  
+✅ **CRDT Sync**: Loro handles concurrent edits (position, text, style)  
 ✅ **Offline-First**: Guest can edit offline, merge later  
 ✅ **Identity**: Guest mode + persistent identity (Nostr or anonymous)
 

@@ -1,0 +1,40 @@
+flowchart TD
+  Trigger["push·develop\nPR→main·develop\n(or weekly schedule)"]
+
+  Trigger --> Changes
+
+  subgraph Changes["changes job — smart filter"]
+    C1["diff base_sha..head_sha\n(git name-only)"]
+    C2["classify affected areas"]
+    C3["compute turbo_filter\n...[base_sha]"]
+    C4["compute content signatures\nquality / e2e"]
+    C1 --> C2 --> C3 --> C4
+  end
+
+  subgraph Flags["output flags"]
+    direction LR
+    F1["ci_changes\n(.github/**)"]
+    F2["code_changes\n(apps/ packages/ scripts/)"]
+    F3["tractor_gates\n(tractor* barn storage-sqlite sync-loro)"]
+    F4["run_build\n(false for normal PRs)"]
+    F5["run_e2e\n(apps/ validations/ tractor*)"]
+    F6["run_task_smoke\n(farmhand refarm effort pi-agent)"]
+    F7["run_audit\n(code changed or PR→main)"]
+    F8["run_deep\n(weekly or ci:deep label)"]
+  end
+
+  Changes --> Flags
+
+  Flags -->|"code=true"| Q["quality →"]
+  Flags -->|"e2e=true"| E["e2e →"]
+  Flags -->|"audit=true"| A["audit-moderate →"]
+  Flags -->|"deep=true"| D["deep-regression →"]
+  Flags -->|"package paths"| M["granular matrix →"]
+
+  classDef gate fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+  classDef flag fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef job  fill:#dcfce7,stroke:#166534,stroke-width:1px;
+
+  class Trigger,Changes gate;
+  class F1,F2,F3,F4,F5,F6,F7,F8 flag;
+  class Q,E,A,D,M job;
