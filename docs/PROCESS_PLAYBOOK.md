@@ -154,6 +154,8 @@ curl -X POST http://127.0.0.1:42001/efforts -H 'Content-Type: application/json' 
   -d '{"task": {...}, "effort": {...}}'
 # Check queue:
 curl -s http://127.0.0.1:42001/efforts/summary
+# Check rolling pressure window:
+curl -s 'http://127.0.0.1:42001/visibility/window?minutes=30'
 npm run farm:status
 # Stop:
 npm run farmhand:stop
@@ -172,6 +174,8 @@ Notes:
   `apps/refarm/dist` with the local resolver loader, so `refarm ask ...` works
   without manual node flags.
 - If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
+- Use `refarm visibility --profile balanced` (or conservative/throughput) to
+  watch queue/in-flight pressure and recent failure-rate signals.
 
 ### Scenario 3c — Session-first workflow
 

@@ -67,12 +67,13 @@ Refarm should always expose these pressure axes:
 4. **Resource pressure**
    - memory/CPU/disk snapshots (future extension)
 
-Current seed endpoint/command:
+Current canonical endpoint/commands:
 
-- `GET /visibility` (farmhand sidecar)
-- `refarm visibility` (host CLI)
+- `GET /visibility` (farmhand sidecar; current pressure snapshot)
+- `GET /visibility/window?minutes=<n>` (farmhand sidecar; rolling window)
+- `refarm visibility --profile <conservative|balanced|throughput>` (host CLI)
 
-This seed is intentionally lightweight and can be expanded while preserving shape.
+This contract is intentionally lightweight and can be expanded while preserving shape.
 
 ---
 
@@ -97,9 +98,9 @@ If pressure remains high, scope a micro-slice and validate with targeted tests b
 
 ## 5) Next extensions (backlog)
 
-- Add latency percentiles and rolling windows to visibility payload.
+- Add latency percentiles to visibility payload.
 - Add substrate adapters for unified tree/timeline (`session`, `crdt`, `git`).
-- Add threshold profiles (`conservative`, `balanced`, `throughput`) for alerting semantics.
 - Export visibility snapshots as JSON artifacts for CI trend diffing.
+- Add strict mode/policy gate so CI can fail when pressure exceeds profile thresholds.
 
 This keeps Refarm from becoming blind as complexity grows.
