@@ -614,17 +614,22 @@ git push origin feature/minha-feature
 
 # 5. Quando develop estiver pronto para release:
 #    Abrir PR: develop → main  
-# 6. Aprovar e mergear (estratégia: "Rebase and merge" para timeline linear)
+# 6. Aprovar e mergear usando uma estratégia permitida pelo repositório.
+#    Preferir histórico linear quando disponível; squash release também é suportado.
 
-# 7. ✅ O workflow sync-develop.yml faz rebase automático de develop.
-#    Não é necessário nenhuma ação manual.
+# 7. ✅ O workflow sync-develop.yml alinha develop ao baseline de main.
+#    Não é necessário nenhuma ação manual quando não há divergência real de conteúdo.
 ```
 
 ### Estratégia de merge
 
-- **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit)
-- **Em `main`**: prefira **rebase** para manter timeline linear
-- O workflow `sync-develop.yml` automaticamente rebasa `develop` sobre `main` após qualquer push em `main`, independente da estratégia usada
+- **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit) para integrar branches curtas.
+- **Em `main`**: usar a estratégia permitida pela proteção do repositório. Quando `develop → main` for squashado, `main` terá um commit novo com a mesma árvore de `develop`.
+- O workflow `sync-develop.yml` não rebaseia cegamente. Após qualquer push em `main`, ele:
+  1. não faz nada se `develop` já aponta para `main`;
+  2. faz fast-forward se `develop` é ancestral de `main`;
+  3. faz reset auditado com `--force-with-lease` quando `develop` e `main` têm a mesma árvore, mas histórico diferente (caso típico de squash release);
+  4. abre issue e falha quando há divergência real de conteúdo.
 
 ### Release via Changesets
 
@@ -632,7 +637,7 @@ git push origin feature/minha-feature
 2. Após o merge `develop → main`, o workflow `release-changesets.yml` cria automaticamente um PR de versão (`chore(release): version packages`) no `main`.
 3. Após esse PR ser aprovado, mergear com **rebase** também para manter linear.
 4. Os pacotes são publicados no npm/crates.io.
-5. O `sync-develop.yml` rebasa `develop` novamente.
+5. O `sync-develop.yml` alinha `develop` novamente ao baseline de `main` usando fast-forward ou equivalência de árvore.
 
 ### Observação pós-push (ritual curto)
 
@@ -650,20 +655,16 @@ Se `gh` não estiver disponível no ambiente, registrar no handoff:
 
 ### Sync automático falhou?
 
-Se há conflitos no rebase (commits simultâneas em `develop` e `main` com mudanças na mesma região), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:
+O workflow só deve falhar quando `develop` e `main` divergem por conteúdo. Isso geralmente significa que houve trabalho simultâneo em `main` e `develop` que precisa de decisão humana. Fix manual:
 
 ```bash
 git fetch origin
 git checkout develop
-git rebase origin/main
-
-# Resolver conflitos (editor abre automaticamente)
-# ...editar, depois:
-git add .
-git rebase --continue
-
-git push -f origin develop
+git diff --stat origin/main..origin/develop
+git log --oneline --left-right origin/main...origin/develop
 ```
+
+Depois escolha conscientemente entre merge, rebase ou reset, conforme a intenção da divergência. Não use force-push apenas para silenciar o workflow; force-push só é seguro quando a equivalência de árvore foi confirmada ou quando o owner decidiu descartar explicitamente a divergência.
 
 ---
 
