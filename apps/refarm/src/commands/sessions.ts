@@ -201,10 +201,21 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 		});
-		const parsed = (await response.json()) as {
+		const parsed = (await response
+			.json()
+			.catch(() => ({}))) as {
 			session?: SessionNode;
 			error?: string;
 		};
+		if (response.status === 404) {
+			console.error(
+				chalk.red("✗  Session creation endpoint is unavailable in this daemon."),
+			);
+			console.error(
+				chalk.dim("   Restart/update backend and retry: npm run farmhand:daemon"),
+			);
+			process.exit(1);
+		}
 		if (!response.ok || !parsed.session) {
 			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
 			process.exit(1);

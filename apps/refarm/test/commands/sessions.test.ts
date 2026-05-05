@@ -72,4 +72,36 @@ describe("refarm sessions", () => {
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
+
+	it("sessions new shows upgrade hint when endpoint is missing (HTTP 404)", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: false,
+				status: 404,
+				json: async () => ({}),
+			}) as any,
+		);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		const command = createSessionsCommand();
+		await expect(
+			command.commands.find((c) => c.name() === "new")!.parseAsync([], {
+				from: "user",
+			}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Session creation endpoint is unavailable"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Restart/update backend"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
 });
