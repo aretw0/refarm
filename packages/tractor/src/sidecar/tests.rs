@@ -329,6 +329,7 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     let port = listener.local_addr().unwrap().port();
 
     let router = axum::Router::new()
+        .route("/sessions/:id/fork", axum::routing::post(post_session_fork))
         .route("/sessions/:id/history", axum::routing::get(get_session_history))
         .with_state(state.clone());
 
@@ -456,6 +457,78 @@ async fn sidecar_session_history_ambiguous_prefix_returns_409() {
     assert_eq!(resp.status(), 409, "ambiguous prefix must return 409");
     let body: serde_json::Value = resp.json().await.unwrap();
     assert!(body["matches"].as_array().unwrap().len() >= 2);
+}
+
+// ── session fork tests ────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn sidecar_session_fork_creates_child_session() {
+    let ns = storage_path();
+    let sid = "urn:refarm:session:v1:parent01";
+    let e1 = "urn:refarm:entry:v1:p01e1";
+    write_entry(&ns, e1, "user", "hello", None, 1_000);
+    write_session(&ns, sid, Some(e1));
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post(format!("{}/sessions/{sid}/fork", base(port)))
+        .json(&serde_json::json!({ "name": "test-fork" }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    let fork = &body["session"];
+    assert_eq!(fork["parent_session_id"].as_str().unwrap(), sid);
+    assert_eq!(fork["leaf_entry_id"].as_str().unwrap(), e1, "inherits leaf from parent");
+    assert_eq!(fork["name"].as_str().unwrap(), "test-fork");
+    assert!(fork["@id"].as_str().unwrap().starts_with("urn:refarm:session:v1:"));
+}
+
+#[tokio::test]
+async fn sidecar_session_fork_at_explicit_entry() {
+    let ns = storage_path();
+    let sid = "urn:refarm:session:v1:parent02";
+    let e1 = "urn:refarm:entry:v1:p02e1";
+    let e2 = "urn:refarm:entry:v1:p02e2";
+    write_entry(&ns, e1, "user", "first", None, 1_000);
+    write_entry(&ns, e2, "agent", "reply", Some(e1), 2_000);
+    write_session(&ns, sid, Some(e2));
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let client = reqwest::Client::new();
+    let body: serde_json::Value = client
+        .post(format!("{}/sessions/{sid}/fork", base(port)))
+        .json(&serde_json::json!({ "entry_id": e1 }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        body["session"]["leaf_entry_id"].as_str().unwrap(),
+        e1,
+        "fork must branch at the specified entry, not the current leaf"
+    );
+}
+
+#[tokio::test]
+async fn sidecar_session_fork_unknown_session_returns_404() {
+    let ns = storage_path();
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("{}/sessions/ghost-session/fork", base(port)))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 404);
 }
 
 // ── task endpoint tests ───────────────────────────────────────────────────────

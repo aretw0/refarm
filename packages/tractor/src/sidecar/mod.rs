@@ -473,6 +473,101 @@ async fn get_sessions(State(state): State<SidecarState>) -> impl IntoResponse {
     Json(serde_json::json!({ "sessions": sessions })).into_response()
 }
 
+// ── session fork handler ──────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct ForkBody {
+    entry_id: Option<String>,
+    name: Option<String>,
+}
+
+async fn post_session_fork(
+    State(state): State<SidecarState>,
+    AxumPath(session_id): AxumPath<String>,
+    Json(body): Json<ForkBody>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    // Resolve original session — exact match then prefix.
+    let session_raw = match storage.get_node(&session_id) {
+        Ok(Some(raw)) => raw,
+        Ok(None) => {
+            let rows = storage.query_nodes("Session").unwrap_or_default();
+            let matched: Vec<_> = rows.iter().filter(|r| r.id.contains(&session_id)).collect();
+            match matched.len() {
+                0 => return err(StatusCode::NOT_FOUND, "session not found").into_response(),
+                1 => matched[0].payload.clone(),
+                _ => {
+                    return (
+                        StatusCode::CONFLICT,
+                        Json(serde_json::json!({
+                            "error": format!("ambiguous prefix — {} sessions match", matched.len()),
+                            "matches": matched.iter().map(|r| &r.id).collect::<Vec<_>>(),
+                        })),
+                    )
+                        .into_response();
+                }
+            }
+        }
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("get_node: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let original: Value = match serde_json::from_str(&session_raw) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("parse: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let original_id = original["@id"].as_str().unwrap_or(&session_id);
+
+    // Branch point: caller-supplied entry_id or the current leaf of the original.
+    let leaf = body
+        .entry_id
+        .as_deref()
+        .or_else(|| original["leaf_entry_id"].as_str())
+        .map(|s| s.to_owned());
+
+    let now_ns = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+
+    let new_id = format!("urn:refarm:session:v1:{}", uuid::Uuid::new_v4().simple());
+    let fork_node = serde_json::json!({
+        "@type": "Session",
+        "@id": new_id,
+        "name": body.name,
+        "leaf_entry_id": leaf,
+        "parent_session_id": original_id,
+        "created_at_ns": now_ns,
+    });
+
+    match storage.store_node(&new_id, "Session", None, &fork_node.to_string(), None) {
+        Ok(()) => Json(serde_json::json!({ "session": fork_node })).into_response(),
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &format!("store: {e}")).into_response(),
+    }
+}
+
 // ── session history handler ───────────────────────────────────────────────────
 
 async fn get_session_history(
@@ -727,6 +822,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/efforts/:id/retry", post(post_effort_retry))
         .route("/efforts/:id/cancel", post(post_effort_cancel))
         .route("/sessions", get(get_sessions))
+        .route("/sessions/:id/fork", post(post_session_fork))
         .route("/sessions/:id/history", get(get_session_history))
         .route("/tasks", get(get_tasks))
         .route("/tasks/:id", get(get_task))

@@ -88,6 +88,16 @@ export function createSessionsCommand(): Command {
 				}),
 		)
 		.addCommand(
+			new Command("fork")
+				.description("Branch a new session from an existing one (Loro-style fork)")
+				.argument("<id>", "Session ID or unique prefix to branch from")
+				.option("--at <entry-id>", "Branch from a specific entry instead of the current leaf")
+				.option("--name <name>", "Name for the new forked session")
+				.action(async (prefix: string, opts: { at?: string; name?: string }) => {
+					await forkSession(prefix, opts);
+				}),
+		)
+		.addCommand(
 			new Command("clear")
 				.description("Clear the active session (next ask starts fresh)")
 				.action(() => {
@@ -199,6 +209,61 @@ async function useSession(prefix: string): Promise<void> {
 
 	writeActiveSessionId(matches[0]["@id"]);
 	console.log(chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`));
+}
+
+async function forkSession(
+	prefix: string,
+	opts: { at?: string; name?: string },
+): Promise<void> {
+	const body: Record<string, string> = {};
+	if (opts.at) body["entry_id"] = opts.at;
+	if (opts.name) body["name"] = opts.name;
+
+	let fork: SessionNode;
+	try {
+		const response = await fetch(
+			`${SIDECAR_URL}/sessions/${encodeURIComponent(prefix)}/fork`,
+			{
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify(body),
+			},
+		);
+		const parsed = (await response.json()) as { session?: SessionNode; error?: string; matches?: string[] };
+		if (response.status === 404) {
+			console.error(chalk.red(`✗  No session matching "${prefix}"`));
+			process.exit(1);
+		}
+		if (response.status === 409) {
+			console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`));
+			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
+			process.exit(1);
+		}
+		if (!response.ok || !parsed.session) {
+			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
+			process.exit(1);
+		}
+		fork = parsed.session;
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+			console.error(chalk.red("✗  tractor is not running."));
+			console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		} else {
+			console.error(chalk.red(`✗  ${msg}`));
+		}
+		process.exit(1);
+	}
+
+	// Auto-switch to the new fork.
+	writeActiveSessionId(fork["@id"]);
+	const short = formatSessionId(fork["@id"]);
+	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
+	console.log(chalk.green(`✓  Forked from ${chalk.cyan(parentShort)} → new session ${chalk.cyan.bold(short)}`));
+	if (fork.leaf_entry_id) {
+		console.log(chalk.dim(`   Branch point: ${fork.leaf_entry_id}`));
+	}
+	console.log(chalk.dim("   Active session switched to the fork."));
 }
 
 async function showSession(prefix: string): Promise<void> {
