@@ -138,4 +138,58 @@ describe("refarm ask", () => {
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	});
+
+	it("uses explicit --session value in effort payload", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello", "--session", "urn:refarm:session:v1:test123"], {
+			from: "user",
+		});
+
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:test123",
+						}),
+					}),
+				],
+			}),
+		);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("rejects --new together with --session", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await expect(
+			command.parseAsync(["hello", "--new", "--session", "urn:refarm:session:v1:test123"], {
+				from: "user",
+			}),
+		).rejects.toThrow("exit:1");
+
+		expect(deps.submitEffort).not.toHaveBeenCalled();
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--new and --session cannot be used together"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+
+		errSpy.mockRestore();
+		exitSpy.mockRestore();
+	});
 });

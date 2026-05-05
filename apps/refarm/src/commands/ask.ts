@@ -391,13 +391,24 @@ export function createAskCommand(deps?: AskDeps): Command {
 		.argument("<query>", "Question or instruction for pi-agent")
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
+		.option("--session <id>", "Use a specific session ID")
 		.action(
-			async (query: string, opts: { files?: string; new?: boolean }) => {
+			async (
+				query: string,
+				opts: { files?: string; new?: boolean; session?: string },
+			) => {
 				if (!deps && detectConfiguredProvider() === null) {
 					console.error(chalk.red("\n✗  No LLM provider configured."));
 					console.error(chalk.dim("   Set up a provider:  refarm keys"));
 					console.error(
 						chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"),
+					);
+					process.exit(1);
+				}
+
+				if (opts.new && opts.session) {
+					console.error(
+						chalk.red("\n✗  --new and --session cannot be used together."),
 					);
 					process.exit(1);
 				}
@@ -410,7 +421,11 @@ export function createAskCommand(deps?: AskDeps): Command {
 					}
 				}
 
-				const sessionId = readSessionId() ?? newSessionId();
+				const explicitSession = opts.session?.trim();
+				const sessionId =
+					explicitSession && explicitSession.length > 0
+						? explicitSession
+						: readSessionId() ?? newSessionId();
 
 				const files = opts.files
 					? opts.files
