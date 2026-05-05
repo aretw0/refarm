@@ -43,6 +43,8 @@
 		"refarm:host:smoke:auto": "node scripts/ci/smoke-refarm-host-auto.mjs --execute",
 		"refarm:host:smoke:auto:plan": "node scripts/ci/smoke-refarm-host-auto.mjs",
 		"refarm:telemetry:gate": "node scripts/ci/refarm-telemetry-gate.mjs",
+		"refarm:telemetry:gate:ci": "node scripts/ci/refarm-telemetry-gate.mjs --profile balanced",
+		"refarm:telemetry:gate:strict-all": "node scripts/ci/refarm-telemetry-gate.mjs --profile balanced --strict-all",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",
 		"runtime-descriptor:revocation-report:test": "node --test scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",

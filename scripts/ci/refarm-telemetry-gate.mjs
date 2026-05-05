@@ -1,20 +1,39 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { runSubprocess } from "./subprocess-utils.mjs";
+import { mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { parseJsonOutput, runSubprocess } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-telemetry-gate]";
+const DEFAULT_STRICT_CODES = [
+	"saturation:queue",
+	"saturation:inflight",
+	"reliability:failure-rate",
+];
 
 function printUsage() {
 	console.log(`${LOGGER_PREFIX} usage:`);
 	console.log(
-		"  node scripts/ci/refarm-telemetry-gate.mjs [--profile <name>] [--window-minutes <n>] [--strict-on <codes>] [--skip-build] [--timeout-ms <n>]",
+		"  node scripts/ci/refarm-telemetry-gate.mjs [--profile <name>] [--window-minutes <n>] [--strict-on <codes>] [--strict-all] [--out <path>] [--skip-build] [--timeout-ms <n>]",
 	);
 	console.log("\nOptions:");
-	console.log("  --profile <name>         conservative|balanced|throughput (default: balanced)");
-	console.log("  --window-minutes <n>     Rolling window in minutes (default: 60)");
-	console.log("  --strict-on <codes>      Comma-separated diagnostics to enforce");
+	console.log(
+		"  --profile <name>         conservative|balanced|throughput (default: balanced)",
+	);
+	console.log(
+		"  --window-minutes <n>     Rolling window in minutes (default: 60)",
+	);
+	console.log(
+		"  --strict-on <codes>      Comma-separated diagnostics to enforce (default: saturation+failure-rate)",
+	);
+	console.log(
+		"  --strict-all             Enforce all diagnostics emitted by telemetry (disables strict-on filter)",
+	);
+	console.log("  --out <path>             Write telemetry JSON artifact to file");
 	console.log("  --skip-build             Skip apps/refarm build step");
-	console.log("  --timeout-ms <n>         Sidecar readiness timeout in ms (default: 20000)");
+	console.log(
+		"  --timeout-ms <n>         Sidecar readiness timeout in ms (default: 20000)",
+	);
 	console.log("  -h, --help               Show help");
 }
 
@@ -22,7 +41,9 @@ function parseArgs(argv) {
 	const options = {
 		profile: "balanced",
 		windowMinutes: "60",
-		strictOn: null,
+		strictOn: DEFAULT_STRICT_CODES.join(","),
+		strictAll: false,
+		out: null,
 		skipBuild: false,
 		timeoutMs: 20_000,
 	};
@@ -55,6 +76,16 @@ function parseArgs(argv) {
 				index += 1;
 				break;
 			}
+			case "--strict-all":
+				options.strictAll = true;
+				break;
+			case "--out": {
+				const value = argv[index + 1];
+				if (!value) throw new Error("Missing value for --out");
+				options.out = value;
+				index += 1;
+				break;
+			}
 			case "--skip-build":
 				options.skipBuild = true;
 				break;
@@ -70,6 +101,10 @@ function parseArgs(argv) {
 			default:
 				throw new Error(`Unknown argument: ${arg}`);
 		}
+	}
+
+	if (options.strictAll && argv.includes("--strict-on")) {
+		throw new Error("--strict-all cannot be combined with --strict-on");
 	}
 
 	return options;
@@ -112,14 +147,27 @@ async function runTelemetryCommand(options) {
 		"--window-minutes",
 		String(options.windowMinutes),
 	];
-	if (options.strictOn) {
+	if (!options.strictAll && options.strictOn) {
 		args.push("--strict-on", options.strictOn);
 	}
 
 	return new Promise((resolve, reject) => {
 		const child = spawn(process.execPath, args, {
 			env: { ...process.env, NODE_NO_WARNINGS: "1" },
-			stdio: "inherit",
+			stdio: ["ignore", "pipe", "pipe"],
+		});
+
+		let stdout = "";
+		let stderr = "";
+		child.stdout.on("data", (chunk) => {
+			const text = chunk.toString();
+			stdout += text;
+			process.stdout.write(text);
+		});
+		child.stderr.on("data", (chunk) => {
+			const text = chunk.toString();
+			stderr += text;
+			process.stderr.write(text);
 		});
 		child.on("error", reject);
 		child.on("exit", (code, signal) => {
@@ -127,9 +175,36 @@ async function runTelemetryCommand(options) {
 				reject(new Error(`telemetry command terminated by signal ${signal}`));
 				return;
 			}
-			resolve(code ?? 1);
+			resolve({ exitCode: code ?? 1, stdout, stderr });
 		});
 	});
+}
+
+async function maybeWriteArtifact(options, parsedJson, rawOutput, exitCode) {
+	if (!options.out) return;
+	const outputPath = path.resolve(process.cwd(), options.out);
+	await mkdir(path.dirname(outputPath), { recursive: true });
+
+	const payload = {
+		createdAt: new Date().toISOString(),
+		exitCode,
+		profile: options.profile,
+		windowMinutes: Number(options.windowMinutes),
+		strictAll: options.strictAll,
+		strictOn: options.strictOn,
+		telemetry: parsedJson ?? null,
+	};
+
+	if (parsedJson) {
+		await writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+		return;
+	}
+
+	await writeFile(
+		outputPath,
+		`${JSON.stringify({ ...payload, rawOutput }, null, 2)}\n`,
+		"utf8",
+	);
 }
 
 async function main() {
@@ -158,27 +233,44 @@ async function main() {
 			console.log(`${LOGGER_PREFIX} using existing farmhand daemon.`);
 		}
 
-		const exitCode = await runTelemetryCommand(options);
-		if (exitCode === 0) {
+		const result = await runTelemetryCommand(options);
+		let parsedTelemetry = null;
+		try {
+			parsedTelemetry = parseJsonOutput(result.stdout);
+		} catch {
+			// best-effort artifact capture still writes raw output
+		}
+		await maybeWriteArtifact(
+			options,
+			parsedTelemetry,
+			result.stdout || result.stderr,
+			result.exitCode,
+		);
+
+		if (result.exitCode === 0) {
 			console.log(`${LOGGER_PREFIX} strict telemetry gate passed.`);
 			return;
 		}
-		if (exitCode === 2) {
+		if (result.exitCode === 2) {
 			console.error(`${LOGGER_PREFIX} strict telemetry gate failed.`);
 			process.exit(2);
 		}
-		throw new Error(`telemetry command exited with code ${exitCode}`);
+		throw new Error(`telemetry command exited with code ${result.exitCode}`);
 	} finally {
 		if (startedFarmhand) {
 			try {
-				console.log(`${LOGGER_PREFIX} stopping farmhand daemon started by this gate...`);
+				console.log(
+					`${LOGGER_PREFIX} stopping farmhand daemon started by this gate...`,
+				);
 				await runSubprocess("npm", ["run", "farmhand:stop"], {
 					env: process.env,
 					captureOutput: false,
 				});
 			} catch (error) {
 				const message = error instanceof Error ? error.message : String(error);
-				console.error(`${LOGGER_PREFIX} warning: failed to stop farmhand cleanly: ${message}`);
+				console.error(
+					`${LOGGER_PREFIX} warning: failed to stop farmhand cleanly: ${message}`,
+				);
 			}
 		}
 	}
