@@ -349,6 +349,10 @@ A CI guard validates generated HTML links against `ASTRO_BASE`:
 
 - `node scripts/ci/check-astro-base-links.mjs apps/dev/dist "$ASTRO_BASE"`
 
+Domain rollout checklist:
+
+- `docs/DOMAIN_REFARM_DEV_CUTOVER.md`
+
 ### Future: Turbo Remote Cache
 
 **Status:** Not yet configured (awaiting credentials/team setup)
