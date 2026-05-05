@@ -329,6 +329,7 @@ async fn start_history_sidecar(namespace: &str) -> (SidecarState, u16) {
     let port = listener.local_addr().unwrap().port();
 
     let router = axum::Router::new()
+        .route("/sessions", axum::routing::post(post_session_new).get(get_sessions))
         .route("/sessions/:id/fork", axum::routing::post(post_session_fork))
         .route("/sessions/:id/history", axum::routing::get(get_session_history))
         .with_state(state.clone());
@@ -529,6 +530,79 @@ async fn sidecar_session_fork_unknown_session_returns_404() {
         .unwrap();
 
     assert_eq!(resp.status(), 404);
+}
+
+// ── session create tests ──────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn sidecar_post_session_creates_unnamed_session() {
+    let ns = storage_path();
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("{}/sessions", base(port)))
+        .json(&serde_json::json!({}))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    let session = &body["session"];
+    assert!(session["@id"].as_str().unwrap().starts_with("urn:refarm:session:v1:"));
+    assert!(session["leaf_entry_id"].is_null());
+    assert!(session["parent_session_id"].is_null());
+}
+
+#[tokio::test]
+async fn sidecar_post_session_creates_named_session() {
+    let ns = storage_path();
+    let (_state, port) = start_history_sidecar(&ns).await;
+
+    let resp = reqwest::Client::new()
+        .post(format!("{}/sessions", base(port)))
+        .json(&serde_json::json!({ "name": "auth-refactor" }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), 200);
+    let body: serde_json::Value = resp.json().await.unwrap();
+    assert_eq!(body["session"]["name"].as_str().unwrap(), "auth-refactor");
+}
+
+#[tokio::test]
+async fn sidecar_post_session_appears_in_list() {
+    let ns = storage_path();
+    let (_state, port) = start_history_sidecar(&ns).await;
+    let client = reqwest::Client::new();
+
+    // Create a named session.
+    let created: serde_json::Value = client
+        .post(format!("{}/sessions", base(port)))
+        .json(&serde_json::json!({ "name": "list-test" }))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let new_id = created["session"]["@id"].as_str().unwrap().to_owned();
+
+    // It must appear in GET /sessions.
+    let list: serde_json::Value = client
+        .get(format!("{}/sessions", base(port)))
+        .send()
+        .await
+        .unwrap()
+        .json()
+        .await
+        .unwrap();
+    let sessions = list["sessions"].as_array().unwrap();
+    assert!(
+        sessions.iter().any(|s| s["@id"].as_str() == Some(&new_id)),
+        "newly created session must appear in list"
+    );
 }
 
 // ── task endpoint tests ───────────────────────────────────────────────────────

@@ -473,6 +473,49 @@ async fn get_sessions(State(state): State<SidecarState>) -> impl IntoResponse {
     Json(serde_json::json!({ "sessions": sessions })).into_response()
 }
 
+// ── session create handler ────────────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct NewSessionBody {
+    name: Option<String>,
+}
+
+async fn post_session_new(
+    State(state): State<SidecarState>,
+    Json(body): Json<NewSessionBody>,
+) -> impl IntoResponse {
+    let storage = match crate::storage::NativeStorage::open(&state.namespace) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({ "error": format!("storage: {e}") })),
+            )
+                .into_response();
+        }
+    };
+
+    let now_ns = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64;
+
+    let new_id = format!("urn:refarm:session:v1:{}", uuid::Uuid::new_v4().simple());
+    let session_node = serde_json::json!({
+        "@type": "Session",
+        "@id": new_id,
+        "name": body.name,
+        "leaf_entry_id": serde_json::Value::Null,
+        "parent_session_id": serde_json::Value::Null,
+        "created_at_ns": now_ns,
+    });
+
+    match storage.store_node(&new_id, "Session", None, &session_node.to_string(), None) {
+        Ok(()) => Json(serde_json::json!({ "session": session_node })).into_response(),
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, &format!("store: {e}")).into_response(),
+    }
+}
+
 // ── session fork handler ──────────────────────────────────────────────────────
 
 #[derive(Debug, Deserialize)]
@@ -821,7 +864,7 @@ pub async fn start(state: SidecarState, port: u16) -> anyhow::Result<()> {
         .route("/efforts/:id/logs", get(get_effort_logs))
         .route("/efforts/:id/retry", post(post_effort_retry))
         .route("/efforts/:id/cancel", post(post_effort_cancel))
-        .route("/sessions", get(get_sessions))
+        .route("/sessions", post(post_session_new).get(get_sessions))
         .route("/sessions/:id/fork", post(post_session_fork))
         .route("/sessions/:id/history", get(get_session_history))
         .route("/tasks", get(get_tasks))
