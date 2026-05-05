@@ -120,7 +120,7 @@ jobs:
           fi
 
           run_task_smoke=false
-          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
             run_task_smoke=true
           fi
 
@@ -197,6 +197,18 @@ jobs:
       - name: Farmhand pi-agent respond smoke (effort round-trip)
         if: needs.changes.outputs.run_task_smoke == 'true'
         run: npm run task:execution:smoke:pi-agent
+
+      - name: Telemetry strict gate (blocking on PR -> main)
+        id: telemetry_gate
+        if: needs.changes.outputs.run_task_smoke == 'true'
+        continue-on-error: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
+        run: npm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
+
+      - name: Telemetry gate warning (non-blocking branches)
+        if: always() && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+        run: |
+          echo "::warning::Telemetry gate failed on non-blocking branch/event."
+          echo "::warning::See artifact: telemetry-gate-report"
 
       - name: Quality checks skipped
         if: needs.changes.outputs.code_changes != 'true'
@@ -438,6 +450,15 @@ jobs:
             .artifacts/runtime-descriptor-revocation-report
             .artifacts/runtime-descriptor-revocation-baseline
             .artifacts/runtime-descriptor-revocation-history
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: Upload telemetry gate artifact
+        if: always() && needs.changes.outputs.run_task_smoke == 'true'
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: telemetry-gate-report
+          path: .artifacts/telemetry/gate-quality.json
           retention-days: 14
           if-no-files-found: warn
 
