@@ -104,7 +104,7 @@ jobs:
             echo "ci_changes=true" >> "$GITHUB_OUTPUT"
             echo "code_changes=true" >> "$GITHUB_OUTPUT"
             echo "tractor_gates=true" >> "$GITHUB_OUTPUT"
-            echo "run_build=true" >> "$GITHUB_OUTPUT"
+            echo "run_build=false" >> "$GITHUB_OUTPUT"
             echo "run_e2e=true" >> "$GITHUB_OUTPUT"
             echo "run_task_smoke=true" >> "$GITHUB_OUTPUT"
             echo "run_audit=true" >> "$GITHUB_OUTPUT"
@@ -137,13 +137,13 @@ jobs:
             tractor_gates=true
           fi
 
-          # Standalone build job is only needed when E2E needs build artifacts.
-          # General build correctness is already covered inside quality (Verify Full Turbo).
+          # Standalone build artifact job is retired for normal PR validation.
+          # General build correctness is covered inside quality; E2E runs through
+          # Turbo and owns any build dependencies it needs in the E2E runner.
           run_build=false
           run_e2e=false
           if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
             run_e2e=true
-            run_build=true
           fi
 
           run_task_smoke=false
@@ -528,10 +528,8 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    needs: [changes, build]
+    needs: [changes, quality]
     if: needs.changes.outputs.run_e2e == 'true'
-    env:
-      REFARM_E2E_USE_PREBUILT: "1"
 
     steps:
       - name: Checkout
@@ -557,13 +555,6 @@ jobs:
           else
             echo "enabled=true" >> "$GITHUB_OUTPUT"
           fi
-
-      - name: Download build artifacts
-        if: steps.e2e_check.outputs.enabled == 'true'
-        uses: ./.github/actions/download-artifact
-        with:
-          name: workspace-build
-          path: .
 
       # Guard against SCM gaps: only use affected filter when base commit is resolvable locally.
       - name: Resolve E2E turbo filter
