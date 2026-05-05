@@ -31,11 +31,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/storage-contract-v1"
   },
   "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
+    "url": "https://github.com/aretw0/refarm/issues"
   },
   "homepage": "https://refarm.dev.br",
   "files": [

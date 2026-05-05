@@ -1,22 +1,22 @@
 name: Publish Packages
 
 # Triggered by pushing tags like:
-# @refarm.dev/storage-contract-v1@0.1.0
+# @aretw0/storage-contract-v1@0.1.0
 # @refarm.dev/sync-contract-v1@0.1.0
 # etc.
 
 on:
   push:
     tags:
-      - "@refarm.dev/storage-contract-v1@*"
-      - "@refarm.dev/sync-contract-v1@*"
-      - "@refarm.dev/identity-contract-v1@*"
-      - "@refarm.dev/plugin-manifest@*"
+      - "*storage-contract-v1@*"
+      - "*sync-contract-v1@*"
+      - "*identity-contract-v1@*"
+      - "*plugin-manifest@*"
 
 jobs:
   publish:
-    # TODO: Remove this condition when we have a separate org for refarm.dev
-    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    # Optional owner gate: set RELEASE_OWNER to lock releases to one owner.
+    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
     name: Publish to npm
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -46,8 +46,8 @@ jobs:
           TAG="${{ github.ref_name }}"
 
           # Extract package name and version
-          # Example: @refarm.dev/storage-contract-v1@0.1.0
-          # → name=@refarm.dev/storage-contract-v1, version=0.1.0
+          # Example: @aretw0/storage-contract-v1@0.1.0
+          # → name=@aretw0/storage-contract-v1, version=0.1.0
           PKG_NAME=$(echo "$TAG" | sed 's/@\([^@]*\)$//')
           VERSION=$(echo "$TAG" | sed 's/.*@//')
 

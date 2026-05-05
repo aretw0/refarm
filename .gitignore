@@ -139,4 +139,13 @@ deps-report.md
 __pycache__/
 *.pyc
 *.pyo
+
+# Coding Agents
 .claude/settings.local.json
+.workflows/
+
+# PI Lens cache
+.pi-lens/
+
+# Claude agent settings (keep local overrides, ignore global settings)
+.claude/settings.json

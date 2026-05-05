@@ -2,7 +2,12 @@ import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { describe, expect, it, vi } from "vitest";
 import { SecretHost, Tractor } from "../src/index";
-import { TelemetryRingBuffer } from "../src/lib/telemetry";
+import {
+  buildRuntimeDescriptorRevocationDiagnostics,
+  detectRuntimeDescriptorRevocationAlerts,
+  summarizeRuntimeDescriptorRevocationTelemetry,
+  TelemetryRingBuffer,
+} from "../src/lib/telemetry";
 
 describe("Tractor Telemetry", () => {
   const mockStorage: StorageAdapter = {
@@ -32,6 +37,28 @@ describe("Tractor Telemetry", () => {
       event: "storage:io",
       pluginId: "test-plugin",
       payload: expect.objectContaining({ action: "store", type: "TestNode" })
+    }));
+  });
+
+  it("should notify typed node subscribers when a node is stored", async () => {
+    const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-node" });
+    const handler = vi.fn();
+    tractor.onNode("StreamChunk", handler);
+
+    await tractor.storeNode({
+      "@context": "https://schema.org/",
+      "@type": "StreamChunk",
+      "@id": "urn:test:stream-chunk:1",
+      stream_ref: "urn:test:stream:1",
+      content: "hello",
+      "refarm:sourcePlugin": "test-plugin"
+    }, "none");
+
+    expect(handler).toHaveBeenCalledWith(expect.objectContaining({
+      "@type": "StreamChunk",
+      "@id": "urn:test:stream-chunk:1",
+      stream_ref: "urn:test:stream:1",
+      content: "hello",
     }));
   });
 
@@ -176,6 +203,160 @@ describe("TelemetryRingBuffer", () => {
     expect(payload.bigArray).toBe("[Array(100)]");
     expect(payload.smallArray).toEqual([1, 2, 3]);
   });
+
+  it("should summarize runtime descriptor revocation telemetry events", () => {
+    const summary = summarizeRuntimeDescriptorRevocationTelemetry([
+      {
+        event: "system:descriptor_revocation_unavailable",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          policy: "fail-open",
+          policySource: "environment-profile",
+          profile: "dev",
+        },
+      },
+      {
+        event: "system:descriptor_revocation_config_invalid",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          resolvedPolicy: "stale-allowed",
+          policySource: "fallback",
+        },
+      },
+      {
+        event: "system:descriptor_revocation_config_conflict",
+        pluginId: "@acme/plugin-b",
+        payload: {
+          resolvedPolicy: "fail-open",
+          policySource: "environment-profile",
+          profile: "dev",
+        },
+      },
+      {
+        event: "storage:io",
+        pluginId: "@acme/plugin-c",
+        payload: { action: "store" },
+      },
+    ]);
+
+    expect(summary.totalEvents).toBe(3);
+    expect(summary.byEvent["system:descriptor_revocation_unavailable"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_config_invalid"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_config_conflict"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_stale_cache_used"]).toBe(0);
+    expect(summary.byPolicy["fail-open"]).toBe(2);
+    expect(summary.byPolicy["stale-allowed"]).toBe(1);
+    expect(summary.byPolicySource["environment-profile"]).toBe(2);
+    expect(summary.byPolicySource.fallback).toBe(1);
+    expect(summary.byProfile.dev).toBe(2);
+    expect(summary.affectedPlugins).toEqual([
+      "@acme/plugin-a",
+      "@acme/plugin-b",
+    ]);
+  });
+
+  it("should support filtered revocation summaries with limit", () => {
+    const summary = summarizeRuntimeDescriptorRevocationTelemetry(
+      [
+        {
+          event: "system:descriptor_revocation_unavailable",
+          pluginId: "@acme/plugin-a",
+          payload: {
+            policy: "fail-open",
+            policySource: "environment-profile",
+            profile: "dev",
+          },
+        },
+        {
+          event: "system:descriptor_revocation_config_invalid",
+          pluginId: "@acme/plugin-a",
+          payload: {
+            resolvedPolicy: "stale-allowed",
+            policySource: "fallback",
+            profile: "dev",
+          },
+        },
+        {
+          event: "system:descriptor_revocation_stale_cache_used",
+          pluginId: "@acme/plugin-a",
+          payload: {
+            policy: "stale-allowed",
+            policySource: "environment-profile",
+            profile: "dev",
+          },
+        },
+      ],
+      {
+        pluginId: "@acme/plugin-a",
+        policy: "stale-allowed",
+        limit: 1,
+      },
+    );
+
+    expect(summary.totalEvents).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_stale_cache_used"]).toBe(1);
+    expect(summary.byEvent["system:descriptor_revocation_config_invalid"]).toBe(0);
+    expect(summary.byPolicy["stale-allowed"]).toBe(1);
+    expect(summary.affectedPlugins).toEqual(["@acme/plugin-a"]);
+  });
+
+  it("should detect severity-ranked revocation alerts", () => {
+    const summary = summarizeRuntimeDescriptorRevocationTelemetry([
+      {
+        event: "system:descriptor_revocation_unavailable",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          policy: "fail-closed",
+          policySource: "explicit-policy",
+          profile: "production",
+        },
+      },
+      {
+        event: "system:descriptor_revocation_config_conflict",
+        pluginId: "@acme/plugin-a",
+        payload: {
+          policy: "fail-closed",
+          policySource: "environment-profile",
+          profile: "production",
+        },
+      },
+    ]);
+
+    const alerts = detectRuntimeDescriptorRevocationAlerts(summary, {
+      unavailableWarnAt: 2,
+      unavailableCriticalAt: 5,
+      configDriftWarnAt: 1,
+    });
+
+    expect(alerts[0]?.id).toBe("revocation-unavailable");
+    expect(alerts[0]?.severity).toBe("critical");
+    expect(alerts.some((alert) => alert.id === "revocation-config-drift")).toBe(
+      true,
+    );
+  });
+
+  it("should build diagnostics with deterministic generatedAt override", () => {
+    const diagnostics = buildRuntimeDescriptorRevocationDiagnostics(
+      [
+        {
+          event: "system:descriptor_revocation_stale_cache_used",
+          pluginId: "@acme/plugin-a",
+          payload: {
+            policy: "stale-allowed",
+            policySource: "fallback",
+            profile: "dev",
+          },
+        },
+      ],
+      {
+        generatedAt: "2026-04-24T20:00:00.000Z",
+      },
+    );
+
+    expect(diagnostics.generatedAt).toBe("2026-04-24T20:00:00.000Z");
+    expect(diagnostics.summary.totalEvents).toBe(1);
+    expect(diagnostics.alerts[0]?.id).toBe("revocation-stale-cache");
+  });
 });
 
 describe("TelemetryHost", () => {
@@ -194,5 +375,123 @@ describe("TelemetryHost", () => {
     expect(dump.events.length).toBeGreaterThan(0);
     expect(dump.events.some((e: any) => e.event === "storage:io")).toBe(true);
   });
-});
 
+  it("should expose descriptor revocation summary command", async () => {
+    const mockStorage: any = {
+      ensureSchema: vi.fn(),
+      queryNodes: vi.fn().mockResolvedValue([]),
+    };
+    const mockIdentity: any = {
+      getSigningPublicKey: vi.fn().mockResolvedValue("key"),
+    };
+
+    const tractor = await Tractor.boot({
+      storage: mockStorage,
+      identity: mockIdentity,
+      namespace: "test-telemetry-revocation-summary",
+    });
+
+    tractor.telemetry.push({
+      event: "system:descriptor_revocation_unavailable",
+      pluginId: "@acme/plugin-a",
+      payload: {
+        policy: "fail-open",
+        policySource: "environment-profile",
+        profile: "dev",
+      },
+    });
+
+    const result = await tractor.commands.execute(
+      "system:diagnostics:descriptor-revocation-summary",
+    );
+
+    expect(result.summary.totalEvents).toBe(1);
+    expect(
+      result.summary.byEvent["system:descriptor_revocation_unavailable"],
+    ).toBe(1);
+    expect(result.summary.affectedPlugins).toEqual(["@acme/plugin-a"]);
+  });
+
+  it("should expose descriptor revocation alerts command", async () => {
+    const mockStorage: any = {
+      ensureSchema: vi.fn(),
+      queryNodes: vi.fn().mockResolvedValue([]),
+    };
+    const mockIdentity: any = {
+      getSigningPublicKey: vi.fn().mockResolvedValue("key"),
+    };
+
+    const tractor = await Tractor.boot({
+      storage: mockStorage,
+      identity: mockIdentity,
+      namespace: "test-telemetry-revocation-alerts",
+    });
+
+    tractor.telemetry.push({
+      event: "system:descriptor_revocation_config_invalid",
+      pluginId: "@acme/plugin-a",
+      payload: {
+        policySource: "fallback",
+        resolvedPolicy: "stale-allowed",
+        profile: "dev",
+      },
+    });
+
+    const result = await tractor.commands.execute(
+      "system:diagnostics:descriptor-revocation-alerts",
+      {
+        configDriftWarnAt: 1,
+      },
+    );
+
+    expect(result.summary.totalEvents).toBe(1);
+    expect(result.alerts[0]?.id).toBe("revocation-config-drift");
+    expect(result.alerts[0]?.severity).toBe("warn");
+  });
+
+  it("should allow filtered descriptor revocation summary command arguments", async () => {
+    const mockStorage: any = {
+      ensureSchema: vi.fn(),
+      queryNodes: vi.fn().mockResolvedValue([]),
+    };
+    const mockIdentity: any = {
+      getSigningPublicKey: vi.fn().mockResolvedValue("key"),
+    };
+
+    const tractor = await Tractor.boot({
+      storage: mockStorage,
+      identity: mockIdentity,
+      namespace: "test-telemetry-revocation-summary-filtered",
+    });
+
+    tractor.telemetry.push({
+      event: "system:descriptor_revocation_unavailable",
+      pluginId: "@acme/plugin-a",
+      payload: {
+        policy: "fail-open",
+        policySource: "environment-profile",
+        profile: "dev",
+      },
+    });
+
+    tractor.telemetry.push({
+      event: "system:descriptor_revocation_unavailable",
+      pluginId: "@acme/plugin-b",
+      payload: {
+        policy: "fail-open",
+        policySource: "environment-profile",
+        profile: "prod",
+      },
+    });
+
+    const result = await tractor.commands.execute(
+      "system:diagnostics:descriptor-revocation-summary",
+      {
+        pluginId: "@acme/plugin-a",
+      },
+    );
+
+    expect(result.summary.totalEvents).toBe(1);
+    expect(result.summary.affectedPlugins).toEqual(["@acme/plugin-a"]);
+  });
+});

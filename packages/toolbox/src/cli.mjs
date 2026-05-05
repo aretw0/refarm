@@ -36,6 +36,9 @@ async function run() {
                 }
                 await switchResolution(mode, { debug });
                 break;
+            case 'scope':
+                await import('./scope.mjs');
+                break;
             default:
                 console.log("🚜 Refarm Developer Toolbox");
                 console.log("Usage: refarm-task <command>");
@@ -46,6 +49,7 @@ async function run() {
                 console.log("  rebrand     - Emergency global refactoring protocol");
                 console.log("  sync-labels - Create/Update GitHub phase labels");
                 console.log("  reso        - Toggle between Local (src) and Published (dist) resolution");
+                console.log("  scope       - Preview/apply workspace package scope profile migration");
                 console.log("\nResolution docs: docs/DEVELOPMENT_RESOLUTION.md and docs/RESOLUTION_MATRIX.md");
                 process.exit(1);
         }

@@ -5,7 +5,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/storage-memory"
   },
   "homepage": "https://refarm.dev.br",
@@ -13,7 +13,8 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "test:conformance": "vitest run src/storage-v1.conformance.test.ts"
   },
   "dependencies": {
     "@refarm.dev/storage-contract-v1": "*"

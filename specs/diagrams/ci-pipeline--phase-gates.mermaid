@@ -1,0 +1,43 @@
+flowchart LR
+  PR["Pull Request\n(phase label applied)"]
+
+  subgraph SDD["phase:sdd — Gate 1"]
+    S1["specs/ dir changed?"]
+    S2["no TODO / TBD allowed"]
+    S1 --> S2
+  end
+
+  subgraph BDD["phase:bdd — Gate 2"]
+    B1["run integration tests"]
+    B2["expect FAIL 🔴\n(pass = error — red phase not ready)"]
+    B1 --> B2
+  end
+
+  subgraph TDD["phase:tdd — Gate 3"]
+    T1["run unit tests + coverage"]
+    T2["coverage ≥80% enforced"]
+    T1 --> T2
+  end
+
+  subgraph DDD["phase:ddd — Gate 4"]
+    D1["turbo run\nlint · type-check · build · test"]
+    D2["changeset required\n(.changeset/*.md present)"]
+    D1 --> D2
+  end
+
+  PR -->|"label phase:sdd"| SDD
+  PR -->|"label phase:bdd"| BDD
+  PR -->|"label phase:tdd"| TDD
+  PR -->|"label phase:ddd"| DDD
+  PR -->|"no phase label"| Notice["success with notice\nno phase gate requested"]
+
+  SDD -->|"Gate 1 ✅"| BDD
+  BDD -->|"Gate 2 ✅"| TDD
+  TDD -->|"Gate 3 ✅"| DDD
+  DDD -->|"Gate 4 ✅"| Done(["✅ Milestone complete\nready to merge"])
+
+  classDef gate fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+  classDef done fill:#dcfce7,stroke:#166534,stroke-width:2px;
+
+  class SDD,BDD,TDD,DDD gate;
+  class Done,Notice done;

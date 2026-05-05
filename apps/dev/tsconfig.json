@@ -1,22 +1,45 @@
 {
-  "extends": "@refarm.dev/tsconfig/dom.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "outDir": "./dist",
-    "baseUrl": ".",
-    "paths": {
-      "@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
-      "@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
-      "@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
-      "@refarm.dev/homestead/sdk": ["../../packages/homestead/src/sdk/index.ts"]
-    }
-  },
-  "exclude": ["node_modules", "dist"],
-  "include": ["src/**/*", ".astro/types.d.ts"],
-  "references": [
-    { "path": "../../packages/identity-contract-v1" },
-    { "path": "../../packages/storage-contract-v1" },
-    { "path": "../../packages/sync-contract-v1" },
-    { "path": "../../packages/tractor-ts/tsconfig.build.json" }
-  ]
+	"extends": "@refarm.dev/tsconfig/dom.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"outDir": "./dist",
+		"baseUrl": ".",
+		"rootDir": "../..",
+		"paths": {
+			"@refarm.dev/locales/*": ["../../locales/*"],
+			"@refarm.dev/tractor": ["../../packages/tractor/src/index.ts"],
+			"@refarm.dev/homestead": ["../../packages/homestead/src/index.ts"],
+			"@refarm.dev/homestead/ui": ["../../packages/homestead/src/ui/index.ts"],
+			"@refarm.dev/homestead/sdk": ["../../packages/homestead/src/sdk/index.ts"],
+			"@refarm.dev/homestead/sdk/custom-element": [
+				"../../packages/homestead/src/sdk/custom-element.ts"
+			],
+			"@refarm.dev/homestead/sdk/host-renderer": [
+				"../../packages/homestead/src/sdk/host-renderer.ts"
+			],
+			"@refarm.dev/homestead/sdk/plugin-handle": [
+				"../../packages/homestead/src/sdk/plugin-handle.ts"
+			],
+			"@refarm.dev/homestead/sdk/runtime": [
+				"../../packages/homestead/src/sdk/runtime.ts"
+			],
+			"@refarm.dev/homestead/sdk/shell": [
+				"../../packages/homestead/src/sdk/Shell.ts"
+			],
+			"@refarm.dev/homestead/sdk/surface-inspector": [
+				"../../packages/homestead/src/sdk/surface-inspector.ts"
+			],
+			"@refarm.dev/homestead/sdk/surface-renderer": [
+				"../../packages/homestead/src/sdk/surface-renderer.ts"
+			]
+		}
+	},
+	"exclude": ["node_modules", "dist"],
+	"include": ["src/**/*", ".astro/types.d.ts"],
+	"references": [
+		{ "path": "../../packages/identity-contract-v1" },
+		{ "path": "../../packages/storage-contract-v1" },
+		{ "path": "../../packages/sync-contract-v1" },
+		{ "path": "../../packages/tractor-ts/tsconfig.build.json" }
+	]
 }

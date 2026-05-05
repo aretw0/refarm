@@ -1,40 +1,41 @@
 {
-  "name": "@refarm.me/identity-nostr",
-  "version": "0.1.0",
-  "description": "Nostr identity primitive — keypair management, NIP-89/94 plugin discovery, usable independently",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/identity-nostr"
-  },
-  "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
-    "type-check": "tsc --noEmit",
-    "test:unit": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "nostr",
-    "nip-89",
-    "nip-94",
-    "identity",
-    "decentralized",
-    "sovereign"
-  ],
-  "license": "MIT"
+	"name": "@refarm.me/identity-nostr",
+	"version": "0.1.0",
+	"description": "Nostr identity primitive — keypair management, NIP-89/94 plugin discovery, usable independently",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/identity-nostr"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "tsc --noEmit",
+		"type-check": "tsc --noEmit",
+		"test:unit": "vitest run --passWithNoTests",
+		"test:conformance": "vitest run src/identity-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"keywords": [
+		"nostr",
+		"nip-89",
+		"nip-94",
+		"identity",
+		"decentralized",
+		"sovereign"
+	],
+	"license": "MIT"
 }

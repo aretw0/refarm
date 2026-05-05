@@ -1,0 +1,43 @@
+{
+  "name": "@refarm.dev/refarm",
+  "version": "0.1.0",
+  "description": "Refarm CLI — The Sovereign Farm distro binary.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "refarm": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/status-payload.test.ts test/commands/status-preflight.test.ts test/commands/doctor.test.ts test/commands/doctor-output.test.ts test/commands/headless.test.ts test/commands/launch-policy.test.ts test/commands/launch-guards.test.ts test/commands/launch-process.test.ts test/commands/launch-feedback.test.ts test/commands/launch-flow.test.ts test/commands/option-guards.test.ts test/commands/status-output.test.ts test/commands/brand.test.ts test/commands/version.test.ts test/commands/runtime-metadata.test.ts test/commands/web.test.ts test/commands/tui.test.ts test/program.test.ts"
+  },
+  "dependencies": {
+    "@refarm.dev/cli": "*",
+    "@refarm.dev/config": "*",
+    "@refarm.dev/context-provider-v1": "*",
+    "@refarm.dev/effort-contract-v1": "*",
+    "@refarm.dev/file-stream-transport": "*",
+    "@refarm.dev/health": "*",
+    "@refarm.dev/homestead": "*",
+    "@refarm.dev/registry": "*",
+    "@refarm.dev/runtime": "*",
+    "@refarm.dev/silo": "*",
+    "@refarm.dev/sower": "*",
+    "@refarm.dev/stream-contract-v1": "*",
+    "@refarm.dev/tractor": "*",
+    "@refarm.dev/trust": "*",
+    "@refarm.dev/windmill": "*",
+    "chalk": "^5.6.2",
+    "commander": "^14.0.3",
+    "inquirer": "^13.4.2"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/vtconfig": "*",
+    "@types/inquirer": "^9.0.9"
+  },
+  "license": "AGPL-3.0-only"
+}

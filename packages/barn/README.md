@@ -62,12 +62,13 @@ packages/barn/
 
 ### Plugin Installation Flow
 
-The Barn follows a strict security and persistence protocol when "storing" a new implement:
+The Barn follows a strict security protocol when "storing" a new implement, delegating installation to the shared `installWasmArtifact` contract:
 
-1. **Fetch**: Retrieve the WASM binary and its manifest from a URL.
-2. **Verify**: Validate the binary against the provided SHA-256 hash.
-3. **Store**: Persist the binary into the **OPFS** cache for sovereign, offline access.
-4. **Register**: Add the plugin to the local inventory and emit a `SovereignNode` to the graph.
+1. **Check cache**: Resolve cache by `pluginId`.
+2. **Verify**: Validate cached/fetched binary against provided SHA-256 digest.
+3. **Evict on mismatch**: Remove stale cache before refetch.
+4. **Fetch + Store**: Persist through the configured cache adapter (Barn currently uses in-memory adapter; Tractor uses OPFS canonical layout).
+5. **Register**: Add/update plugin in local inventory.
 
 ### WIT Interface
 
@@ -86,6 +87,9 @@ interface manager {
 ## Roadmap
 
 The Barn is currently in **Phase 1 (SDD/BDD)**. See the detailed [ROADMAP.md](./ROADMAP.md) for upcoming milestones and technical goals.
+
+For the latest install/cache/integrity flow mapping used by runtime hardening, see
+[`docs/INSTALL_FLOW_AUDIT_20260423.md`](./docs/INSTALL_FLOW_AUDIT_20260423.md).
 
 ---
 

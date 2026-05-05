@@ -27,7 +27,9 @@ npm run dev      # Start all apps in watch mode
 
 ### 2. Making Changes
 
-- Create a feature branch from `main`
+- Create a feature branch from `develop`
+- Use branch naming padrão: `task/<TASK-ID>-<slug>` (ex.: `task/T-PLAN-05-branch-policy`)
+- Keep 1 task primária por branch/PR para facilitar rastreabilidade
 - Make your changes across one or more packages
 - Test your changes locally
 
@@ -50,6 +52,28 @@ Useful references:
 
 - Governance policy: `docs/PR_QUALITY_GOVERNANCE.md`
 - Branch protection setup: `docs/BRANCH_PROTECTION_SETUP.md`
+- Colony playbook: `docs/COLONY_PLAYBOOK.md`
+
+### Smoke + Full gates
+
+Comandos operacionais:
+
+```bash
+npm run gate:smoke:foundation
+npm run gate:smoke:contracts
+npm run gate:smoke:runtime
+npm run gate:full:colony
+```
+
+Regra:
+- PR atômico: smoke do domínio alterado.
+- Consolidação de lote: full gate obrigatório.
+
+### Atomic Commit Pattern
+
+- Prefer small commits with Conventional Commits format
+- Keep each commit tied to a single intent (fix/refactor/test/docs)
+- Include task ID in PR description even when not in commit subject
 
 ### 3. Version Management with Changesets
 
@@ -370,8 +394,8 @@ npm run lint      # Type check & linting
 
 ## Questions?
 
-- **Issues**: Check [existing issues](https://github.com/refarm-dev/refarm/issues)
-- **Discussions**: Start a [discussion thread](https://github.com/refarm-dev/refarm/discussions)
+- **Issues**: Check [existing issues](https://github.com/aretw0/refarm/issues)
+- **Discussions**: Start a [discussion thread](https://github.com/aretw0/refarm/discussions)
 - **Security**: See [SECURITY.md](SECURITY.md) for reporting vulnerabilities
 
 ---

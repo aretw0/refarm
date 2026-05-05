@@ -255,3 +255,51 @@ describe("WasiImports — versioned WASI keys", () => {
     expect(imports["wasi:random/random@0.2.0"]).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// LLM bridge behavior (mock opt-in + fail-closed credentials)
+// ---------------------------------------------------------------------------
+describe("WasiImports — refarm:plugin/llm-bridge", () => {
+  beforeEach(() => {
+    delete process.env.REFARM_MOCK_LLM_BODY;
+    delete process.env.ANTHROPIC_API_KEY;
+    delete process.env.OPENAI_API_KEY;
+  });
+
+  it("fails closed when non-ollama provider has no credentials", () => {
+    const { imports } = makeImports("strict");
+    const llmBridge = imports["refarm:plugin/llm-bridge"];
+
+    expect(() =>
+      llmBridge["complete-http"](
+        "openai",
+        "https://api.openai.com",
+        "/v1/chat/completions",
+        [["content-type", "application/json"]],
+        new Uint8Array([123]),
+      ),
+    ).toThrow(/No credentials configured for provider "openai"/i);
+  });
+
+  it("uses explicit REFARM_MOCK_LLM_BODY when provided", () => {
+    process.env.REFARM_MOCK_LLM_BODY = JSON.stringify({
+      id: "t1",
+      choices: [{ message: { role: "assistant", content: "mocked from env" } }],
+      usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
+    });
+
+    const { imports } = makeImports("strict");
+    const llmBridge = imports["refarm:plugin/llm-bridge"];
+
+    const bytes = llmBridge["complete-http"](
+      "openai",
+      "https://api.openai.com",
+      "/v1/chat/completions",
+      [["content-type", "application/json"]],
+      new Uint8Array([123]),
+    ) as Uint8Array;
+
+    const parsed = JSON.parse(Buffer.from(bytes).toString("utf-8"));
+    expect(parsed.choices[0].message.content).toBe("mocked from env");
+  });
+});

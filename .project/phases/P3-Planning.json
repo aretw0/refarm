@@ -1,0 +1,19 @@
+{
+  "number": 3,
+  "name": "Planning",
+  "intent": "Planejar execução atômica e paralelização segura.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P3-Planning registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P3-Planning executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P3-Planning refletidos nos blocos .project"
+  ]
+}

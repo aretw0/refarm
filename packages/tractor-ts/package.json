@@ -1,65 +1,69 @@
 {
-  "name": "@refarm.dev/tractor",
-  "version": "0.1.0",
-  "description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
-    "directory": "packages/tractor-ts"
-  },
-  "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
-  "exports": {
-    ".": {
-      "node": "./dist/src/index.js",
-      "browser": "./dist/src/index.browser.js",
-      "import": "./dist/src/index.js",
-      "types": "./dist/src/index.d.ts"
-    },
-    "./test/test-utils": {
-      "types": "./dist/test/test-utils.d.ts",
-      "default": "./dist/test/test-utils.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "type-check": "tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "npm run test:unit",
-    "test:unit": "vitest run --passWithNoTests",
-    "coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
-    "coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
-    "bench": "vitest bench test/stress.bench.ts",
-    "bench:save": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/baseline.json && node scripts/sanitize-bench.mjs benchmarks/baseline.json",
-    "bench:compare": "vitest bench test/stress.bench.ts --run --compare benchmarks/baseline.json",
-    "bench:check": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/current.json && node scripts/sanitize-bench.mjs benchmarks/current.json && node scripts/check-benchmarks.mjs",
-    "clean": "rm -rf dist"
-  },
-  "dependencies": {
-    "@noble/ed25519": "^3.0.0",
-    "@refarm.dev/identity-contract-v1": "*",
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/registry": "*",
-    "@refarm.dev/storage-contract-v1": "*",
-    "@refarm.dev/sync-contract-v1": "*"
-  },
-  "devDependencies": {
-    "@refarm.dev/hello-world-plugin": "*",
-    "@refarm.dev/tsconfig": "*",
-    "nostr-tools": "^2.23.3"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "files": [
-    "dist",
-    "README.md"
-  ]
+	"name": "@refarm.dev/tractor",
+	"version": "0.1.0",
+	"description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/tractor-ts"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/src/index.js",
+	"types": "./dist/src/index.d.ts",
+	"exports": {
+		".": {
+			"browser": "./dist/src/index.browser.js",
+			"node": "./dist/src/index.js",
+			"import": "./dist/src/index.js",
+			"types": "./dist/src/index.d.ts"
+		},
+		"./test/test-utils": {
+			"types": "./dist/test/test-utils.d.ts",
+			"default": "./dist/test/test-utils.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --project tsconfig.json --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "npm run test:unit",
+		"test:unit": "vitest run --passWithNoTests",
+		"coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
+		"coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
+		"bench": "vitest bench test/stress.bench.ts",
+		"bench:save": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/baseline.json && node scripts/sanitize-bench.mjs benchmarks/baseline.json",
+		"bench:compare": "vitest bench test/stress.bench.ts --run --compare benchmarks/baseline.json",
+		"bench:check": "vitest bench test/stress.bench.ts --run --outputJson benchmarks/current.json && node scripts/sanitize-bench.mjs benchmarks/current.json && node scripts/check-benchmarks.mjs",
+		"clean": "rm -rf dist",
+		"runtime-module:descriptor": "node scripts/generate-browser-runtime-module-descriptor.mjs",
+		"runtime-module:verify": "node scripts/verify-browser-runtime-module-descriptor.mjs",
+		"runtime-module:smoke": "node scripts/smoke-browser-runtime-module-descriptor.mjs",
+		"runtime-module:ci": "npm run runtime-module:smoke"
+	},
+	"dependencies": {
+		"@noble/ed25519": "^3.1.0",
+		"@refarm.dev/identity-contract-v1": "*",
+		"@refarm.dev/plugin-manifest": "*",
+		"@refarm.dev/registry": "*",
+		"@refarm.dev/storage-contract-v1": "*",
+		"@refarm.dev/sync-contract-v1": "*"
+	},
+	"devDependencies": {
+		"@refarm.dev/hello-world-plugin": "*",
+		"@refarm.dev/tsconfig": "*",
+		"nostr-tools": "^2.23.3"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"files": [
+		"dist",
+		"README.md"
+	]
 }

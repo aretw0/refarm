@@ -1,4 +1,4 @@
-name: Quality Gates
+name: Phase Gates
 
 on:
   pull_request:
@@ -9,7 +9,25 @@ permissions:
   pull-requests: read
 
 jobs:
+  phase-gates-summary:
+    name: Phase Gates Summary
+    runs-on: ubuntu-latest
+    env:
+      PHASE_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+    steps:
+      - name: Explain phase-gate applicability
+        run: |
+          set -euo pipefail
+
+          if echo ",$PHASE_LABELS," | grep -Eq ',phase:(sdd|bdd|tdd|ddd),'; then
+            echo "::notice::Phase gate active for labels: $PHASE_LABELS"
+          else
+            echo "::notice::No phase:* label declared; phase gates are not applicable for this PR."
+            echo "::notice::General repository quality is owned by Test & Quality; package compatibility is owned by Granular Matrix Tests."
+          fi
+
   sdd-gate:
+    needs: phase-gates-summary
     if: contains(github.event.pull_request.labels.*.name, 'phase:sdd')
     runs-on: ubuntu-latest
     steps:
@@ -32,6 +50,7 @@ jobs:
           fi
 
   bdd-gate:
+    needs: phase-gates-summary
     if: contains(github.event.pull_request.labels.*.name, 'phase:bdd')
     runs-on: ubuntu-latest
     steps:
@@ -45,6 +64,7 @@ jobs:
           npm run test:integration && (echo "::error::Tests passed but were expected to FAIL in BDD Red Phase." && exit 1) || (echo "✅ Tests failed as expected for Red Phase." && exit 0)
 
   tdd-gate:
+    needs: phase-gates-summary
     if: contains(github.event.pull_request.labels.*.name, 'phase:tdd')
     runs-on: ubuntu-latest
     steps:
@@ -57,24 +77,17 @@ jobs:
           # The coverage report should exist. Higher level thresholds are handled in vitest/turbo config.
 
   ddd-gate:
+    needs: phase-gates-summary
     if: contains(github.event.pull_request.labels.*.name, 'phase:ddd')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-      - uses: ./.github/actions/setup
-      # Turbo Cache is now handled in ./.github/actions/setup
-      # - name: Cache Turbo
-      #   uses: actions/cache@...
-      #   with:
-      #     path: .turbo
-      #     ...
-      - name: Full Verification (Green Light)
+        with:
+          fetch-depth: 0
+      - name: Explain DDD gate scope
         run: |
-          # npm run lint
-          # npm run type-check
-          # npm run build
-          # npm test
-          npx turbo lint type-check build test
+          echo "::notice::DDD phase gate validates delivery metadata only."
+          echo "::notice::Build/lint/type/test health is owned by Test & Quality."
       - name: Verify Changeset
         run: |
           # Verify that at least one changeset exists (excluding README)

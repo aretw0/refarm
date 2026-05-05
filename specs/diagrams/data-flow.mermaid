@@ -1,24 +1,57 @@
 flowchart LR
-  U[External Source API] --> P[Bridge Plugin]
-  P -->|WIT call: store-node| K[Kernel Host]
-  P -->|WIT call: fetch| F[Capability Filter]
-  F --> U
+  subgraph External["External Sources"]
+    API["External Source API"]
+    BridgePlug["Bridge Plugin\n(.wasm via WIT)"]
+  end
 
-  K --> N[normaliseToSovereignGraph]
-  N --> V[JSON-LD schema validation]
+  subgraph Tractor["Tractor Host  (tractor-ts / tractor-rs)"]
+    CapFilter["Capability Filter\n(fence · http-gated)"]
+    Normalize["normaliseToSovereignGraph\nJSON-LD schema validation"]
+    Upsert["runMigrations + upsert\n(Loro CRDT delta)"]
+    Query["query-nodes\n(Loro snapshot + SQLite)"]
+  end
 
-  V -->|valid| M[runMigrations + upsert]
-  V -->|invalid| E[plugin-error: invalid-schema]
+  subgraph StreamLayer["Stream Layer  (stream-contract-v1)"]
+    SSE["SseStreamTransport\nGET /stream/:ref"]
+    WS["WsStreamTransport\nWS /ws/stream"]
+  end
 
-  M --> DB[(SQLite / OPFS)]
-  DB --> Q[query-nodes]
-  Q --> K
-  K --> S[Studio UI]
+  subgraph Persistence["Persistence  (storage-sqlite)"]
+    DB[("SQLite + OPFS\n(data + Loro CRDT state)")]
+  end
+
+  subgraph UI["Homestead  (apps/me)"]
+    HomesteadUI["Homestead UI\n(Browser · Astro · OPFS)"]
+  end
+
+  API --> BridgePlug
+  BridgePlug -->|"WIT: store-node"| Tractor
+  BridgePlug -->|"WIT: fetch"| CapFilter
+  CapFilter --> API
+
+  Tractor --> Normalize
+  Normalize -->|valid| Upsert
+  Normalize -->|"invalid"| Err["plugin-error:\ninvalid-schema"]
+
+  Upsert --> DB
+  DB --> Query
+  Query --> Tractor
+
+  Tractor -->|"CRDT delta"| SSE
+  Tractor -->|"CRDT delta"| WS
+  SSE --> HomesteadUI
+  WS --> HomesteadUI
 
   classDef ext fill:#e0f2fe,stroke:#075985,stroke-width:1px;
   classDef core fill:#ecfccb,stroke:#3f6212,stroke-width:1px;
+  classDef stream fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+  classDef persist fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+  classDef ui fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
   classDef err fill:#fee2e2,stroke:#b91c1c,stroke-width:1px;
 
-  class U,P,S ext;
-  class K,N,V,M,DB,Q,F core;
-  class E err;
+  class API,BridgePlug ext;
+  class CapFilter,Normalize,Upsert,Query core;
+  class SSE,WS stream;
+  class DB persist;
+  class HomesteadUI ui;
+  class Err err;

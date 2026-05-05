@@ -1,0 +1,247 @@
+/** @vitest-environment jsdom */
+import { describe, expect, it } from "vitest";
+import type { HomesteadSurfaceTelemetryEvent } from "@refarm.dev/homestead/sdk/surface-inspector";
+import {
+	defineStudioSurfaceLedgerElement,
+	mountReactiveStudioSurfaceLedger,
+	mountReactiveStudioSurfaceLedgerElement,
+	mountStudioSurfaceLedger,
+	STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+	type StudioSurfaceLedgerElement,
+} from "./surface-ledger";
+
+describe("Studio surface ledger", () => {
+	it("renders mounted and rejected surfaces as structured rows", () => {
+		const container = document.createElement("div");
+		const root = document.createElement("div");
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "studio-surface-diagnostics",
+				slotId: "main",
+				mountSource: "extension-surface",
+				state: "running",
+				surfaceKind: "panel",
+				surfaceId: "surface-ledger-panel",
+				surfaceCapabilities: ["ui:panel:render", "ui:stream:read"],
+				surfaceRenderMode: "html",
+			}),
+		);
+
+		const ledger = mountStudioSurfaceLedger(container, root, {
+			telemetryEvents: [
+				{
+					event: "ui:surface_rejected",
+					pluginId: "external-untrusted-surface",
+					payload: {
+						reason: "untrusted-plugin",
+						surfaceId: "external-ledger-panel",
+						slotId: "main",
+						surfaceKind: "panel",
+						trustSource: "registry",
+						registryStatus: "registered",
+					},
+				},
+				{
+					event: "ui:surface_action_requested",
+					pluginId: "studio-surface-diagnostics",
+					payload: {
+						actionId: "open-ledger",
+						actionIntent: "studio:navigate",
+						surfaceId: "surface-ledger-panel",
+						slotId: "main",
+						surfaceKind: "panel",
+						mountSource: "extension-surface",
+					},
+				},
+			],
+		});
+
+		expect(ledger.textContent).toContain("1 mounted");
+		expect(ledger.textContent).toContain("1 rejected");
+		expect(ledger.textContent).toContain("1 actions");
+		expect(ledger.textContent).toContain("studio-surface-diagnostics");
+		expect(ledger.textContent).toContain("surface-ledger-panel");
+		expect(ledger.textContent).toContain(
+			"caps: ui:panel:render, ui:stream:read",
+		);
+		expect(ledger.textContent).toContain("render: html");
+		expect(ledger.textContent).toContain("external-untrusted-surface");
+		expect(ledger.textContent).toContain(
+			"untrusted-plugin registry: registered",
+		);
+		expect(ledger.textContent).toContain("action requested");
+		expect(ledger.textContent).toContain("action: open-ledger");
+		expect(ledger.textContent).toContain("intent: studio:navigate");
+		expect(
+			ledger.querySelectorAll('[data-refarm-surface-ledger-state="mounted"]'),
+		).toHaveLength(1);
+		expect(
+			ledger.querySelectorAll('[data-refarm-surface-ledger-state="rejected"]'),
+		).toHaveLength(1);
+		expect(
+			ledger.querySelectorAll(
+				'[data-refarm-surface-ledger-state="action-requested"]',
+			),
+		).toHaveLength(1);
+	});
+
+	it("replaces previous ledgers when remounted", () => {
+		const container = document.createElement("div");
+
+		mountStudioSurfaceLedger(container, document.createElement("div"));
+		mountStudioSurfaceLedger(container, document.createElement("div"));
+
+		expect(
+			container.querySelectorAll("[data-refarm-studio-surface-ledger]"),
+		).toHaveLength(1);
+		expect(container.textContent).toContain(
+			"No surface activation telemetry is available yet.",
+		);
+	});
+
+	it("refreshes as surface telemetry arrives", () => {
+		const container = document.createElement("div");
+		const root = document.createElement("div");
+		const telemetry = createTelemetrySource();
+		const controller = mountReactiveStudioSurfaceLedger(container, {
+			root,
+			telemetry,
+		});
+
+		expect(controller.element.textContent).toContain("0 mounted");
+
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "studio-surface-diagnostics",
+				slotId: "main",
+				mountSource: "extension-surface",
+				surfaceKind: "panel",
+				surfaceId: "surface-ledger-panel",
+			}),
+		);
+		telemetry.emit({ event: "ui:surface_mounted" });
+
+		expect(controller.element.textContent).toContain("1 mounted");
+		expect(controller.element.textContent).toContain("surface-ledger-panel");
+
+		telemetry.emit({
+			event: "ui:surface_rejected",
+			pluginId: "external-untrusted-surface",
+			payload: {
+				reason: "missing-required-capability",
+				surfaceId: "external-ledger-panel",
+				missingCapabilities: ["ui:panel:render"],
+			},
+		});
+
+		expect(controller.element.textContent).toContain("1 rejected");
+		expect(controller.element.textContent).toContain(
+			"missing-required-capability missing: ui:panel:render",
+		);
+
+		telemetry.emit({
+			event: "ui:surface_action_failed",
+			pluginId: "studio-surface-diagnostics",
+			payload: {
+				actionId: "open-ledger",
+				actionIntent: "studio:navigate",
+				surfaceId: "surface-ledger-panel",
+				errorMessage: "navigation blocked",
+			},
+		});
+
+		expect(controller.element.textContent).toContain("1 actions");
+		expect(controller.element.textContent).toContain("action failed");
+		expect(controller.element.textContent).toContain(
+			"error: navigation blocked",
+		);
+	});
+
+	it("disposes reactive telemetry subscriptions", () => {
+		const container = document.createElement("div");
+		const root = document.createElement("div");
+		const telemetry = createTelemetrySource();
+		const controller = mountReactiveStudioSurfaceLedger(container, {
+			root,
+			telemetry,
+		});
+
+		controller.dispose();
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "late-plugin",
+				slotId: "main",
+				mountSource: "extension-surface",
+			}),
+		);
+		telemetry.emit({ event: "ui:surface_mounted" });
+
+		expect(controller.element.textContent).toContain("0 mounted");
+	});
+
+	it("mounts reactive ledgers through a custom element boundary", () => {
+		defineStudioSurfaceLedgerElement();
+		const root = document.createElement("div");
+		root.appendChild(
+			createSurfaceMount({
+				pluginId: "custom-ledger-plugin",
+				slotId: "streams",
+				mountSource: "extension-surface",
+				surfaceId: "custom-ledger-panel",
+			}),
+		);
+		const element = document.createElement(
+			STUDIO_SURFACE_LEDGER_ELEMENT_NAME,
+		) as StudioSurfaceLedgerElement;
+		document.body.appendChild(element);
+
+		const controller = mountReactiveStudioSurfaceLedgerElement(element, {
+			root,
+		});
+
+		expect(controller.element.textContent).toContain("1 mounted");
+		expect(element.textContent).toContain("custom-ledger-panel");
+		document.body.removeChild(element);
+	});
+});
+
+function createSurfaceMount(metadata: {
+	pluginId: string;
+	slotId: string;
+	mountSource: string;
+	state?: string;
+	surfaceKind?: string;
+	surfaceId?: string;
+	surfaceCapabilities?: string[];
+	surfaceRenderMode?: string;
+}): HTMLElement {
+	const element = document.createElement("div");
+	element.dataset.refarmPluginId = metadata.pluginId;
+	element.dataset.refarmSlotId = metadata.slotId;
+	element.dataset.refarmMountSource = metadata.mountSource;
+	if (metadata.state) element.dataset.refarmState = metadata.state;
+	if (metadata.surfaceKind)
+		element.dataset.refarmSurfaceKind = metadata.surfaceKind;
+	if (metadata.surfaceId) element.dataset.refarmSurfaceId = metadata.surfaceId;
+	if (metadata.surfaceCapabilities?.length) {
+		element.dataset.refarmSurfaceCapabilities =
+			metadata.surfaceCapabilities.join(" ");
+	}
+	if (metadata.surfaceRenderMode) {
+		element.dataset.refarmSurfaceRenderMode = metadata.surfaceRenderMode;
+	}
+	return element;
+}
+
+function createTelemetrySource() {
+	const listeners = new Set<(event: HomesteadSurfaceTelemetryEvent) => void>();
+	return {
+		observe(listener: (event: HomesteadSurfaceTelemetryEvent) => void) {
+			listeners.add(listener);
+			return () => listeners.delete(listener);
+		},
+		emit(event: HomesteadSurfaceTelemetryEvent) {
+			for (const listener of listeners) listener(event);
+		},
+	};
+}

@@ -305,6 +305,50 @@ export function deriveCommitMessage(groupId, items) {
 }
 
 // ---------------------------------------------------------------------------
+// Commit importance classification
+// ---------------------------------------------------------------------------
+
+/**
+ * Keeps "important commit" detection intentionally small and maintainable.
+ * Edge-case semantics should be curated by humans during review/edit flow.
+ */
+export function assessCommitImportance(groupId, items = []) {
+  const reasons = new Set();
+  const allSignals = new Set(items.flatMap(i => [...(i.signals || [])]));
+  const paths = items.map((i) => i.path || "");
+
+  const hasPath = (predicate) => paths.some((p) => predicate(p));
+
+  if (["security", "release_automation", "infra_github"].includes(groupId)) {
+    reasons.add("security/release/CI surface");
+  }
+
+  if (groupId.startsWith("scope_rust_crate:")) {
+    reasons.add("Rust/WASM crate surface");
+  }
+
+  if (allSignals.has("wit-bindings")) reasons.add("WIT interface contract");
+  if (allSignals.has("infra:workflows")) reasons.add("CI workflow behavior");
+  if (allSignals.has("infra:actions")) reasons.add("CI action behavior");
+  if (allSignals.has("rust-config")) reasons.add("Rust build configuration");
+
+  if (hasPath((p) => p.startsWith(".github/workflows/"))) {
+    reasons.add("workflow execution path");
+  }
+  if (hasPath((p) => p.endsWith("Cargo.toml"))) {
+    reasons.add("crate metadata/build path");
+  }
+  if (hasPath((p) => p.includes("/wit/") || p.endsWith(".wit"))) {
+    reasons.add("component contract path");
+  }
+
+  return {
+    important: reasons.size > 0,
+    reasons: [...reasons],
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Grouping logic
 // ---------------------------------------------------------------------------
 

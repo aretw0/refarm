@@ -4,14 +4,13 @@ on:
   pull_request:
     paths:
       - "docs/**/*.mermaid"
-      - ".github/workflows/validate-diagrams.yml"
-      - ".github/workflows/reusable-validate-docs.yml"
-      - "scripts/check-diagrams.mjs"
+      - "specs/diagrams/**/*.mermaid"
   push:
     branches:
       - main
     paths:
       - "docs/**/*.mermaid"
+      - "specs/diagrams/**/*.mermaid"
   # Manually triggered or scheduled validation
   workflow_dispatch:
   schedule:
@@ -21,12 +20,25 @@ permissions:
   contents: read
   issues: write
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: npm run diagrams:check -- --ci
+      validation-command: REFARM_DIAGRAM_SYNC_STRICT=0 npm run diagrams:check -- --ci
       validation-name: Diagrams
+      validation-cache-files: |
+        docs/**/*.mermaid
+        specs/diagrams/**/*.mermaid
+        specs/diagrams/mermaid.config.json
+        scripts/check-diagrams.mjs
+        scripts/puppeteer-no-sandbox.json
+        package-lock.json
+        .github/workflows/validate-diagrams.yml
+        .github/workflows/reusable-validate-docs.yml
       create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
       issue-title: "Mermaid diagram validation failed"
       issue-labels: "documentation,diagrams,validation"

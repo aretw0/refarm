@@ -1,0 +1,19 @@
+{
+  "number": 8,
+  "name": "Governance",
+  "intent": "Consolidar políticas de execução e controle de risco.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P8-Governance registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P8-Governance executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P8-Governance refletidos nos blocos .project"
+  ]
+}

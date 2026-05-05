@@ -92,9 +92,9 @@ git push origin @refarm.dev/storage-contract-v1@0.1.1
 
 ## Monitoring Releases
 
-1. **GitHub Actions:** <https://github.com/refarm-dev/refarm/actions>
+1. **GitHub Actions:** <https://github.com/aretw0/refarm/actions>
 2. **npm Package:** <https://www.npmjs.com/package/@refarm.dev/storage-contract-v1>
-3. **GitHub Releases:** <https://github.com/refarm-dev/refarm/releases>
+3. **GitHub Releases:** <https://github.com/aretw0/refarm/releases>
 
 ## Rollback a Release
 
@@ -113,7 +113,7 @@ git push origin @refarm.dev/storage-contract-v1@0.1.2
 
 ## Secrets Required
 
-Configurar em: <https://github.com/refarm-dev/refarm/settings/secrets/actions>
+Configurar em: <https://github.com/aretw0/refarm/settings/secrets/actions>
 
 | Secret | Description | How to Get |
 |--------|-------------|------------|

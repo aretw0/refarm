@@ -13,8 +13,9 @@ permissions:
 
 jobs:
   release:
-    # Safety gate: only run publish automation in the org repo and when explicitly enabled.
-    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    # Safety gate: publish automation must be explicitly enabled.
+    # Optional owner lock via RELEASE_OWNER.
+    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -37,6 +38,25 @@ jobs:
           npm run type-check
           npm run test:capabilities
 
+      - name: Validate browser runtime descriptor provenance gate
+        run: npm --prefix packages/tractor-ts run runtime-module:ci
+
+      - name: Export runtime descriptor bundle (versioned)
+        if: always()
+        run: node scripts/ci/export-runtime-descriptor-bundle.mjs --out-dir .artifacts/runtime-descriptors --version "${{ github.sha }}"
+
+      - name: Upload runtime descriptor bundle artifact
+        if: always()
+        uses: ./.github/actions/upload-artifact
+        with:
+          name: runtime-descriptor-bundle-${{ github.sha }}
+          path: .artifacts/runtime-descriptors/**
+          retention-days: "30"
+          if-no-files-found: warn
+
+      - name: Smoke release descriptor path (export + publish dry-run + resolver)
+        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+
       - name: Create Release PR or Publish
         id: changesets
         uses: changesets/action@v1
@@ -48,6 +68,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish runtime descriptor bundle to release assets
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          PUBLISHED_PACKAGES: ${{ steps.changesets.outputs.publishedPackages }}
+        run: node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha "${{ github.sha }}"
 
       - name: Publish summary
         if: steps.changesets.outputs.published == 'true'

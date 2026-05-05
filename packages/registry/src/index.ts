@@ -1,5 +1,7 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
 
+const HEARTWOOD_MODULE_ID = "@refarm.dev/heartwood";
+
 export interface RegistryPersistenceOptions {
   /** Absolute path to the JSON file used to persist registry state. */
   path: string;
@@ -143,7 +145,7 @@ export class SovereignRegistry {
             const publicKey = Uint8Array.from(Buffer.from(publicKeyHex, "hex"));
             const manifestData = new TextEncoder().encode(JSON.stringify(plugin.manifest));
 
-            const mod = await import("@refarm.dev/heartwood");
+            const mod = await import(HEARTWOOD_MODULE_ID);
             const heartwood = mod.default || mod;
             const isValid = await heartwood.verify(manifestData, signature, publicKey);
             

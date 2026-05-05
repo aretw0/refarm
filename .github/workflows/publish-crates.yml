@@ -9,7 +9,7 @@ on:
 
 jobs:
   publish:
-    if: github.repository_owner == 'refarm-dev' && vars.RELEASE_AUTOMATION == 'true'
+    if: vars.RELEASE_AUTOMATION == 'true' && (vars.RELEASE_OWNER == '' || github.repository_owner == vars.RELEASE_OWNER)
     name: Publish to crates.io
     runs-on: ubuntu-latest
     timeout-minutes: 30

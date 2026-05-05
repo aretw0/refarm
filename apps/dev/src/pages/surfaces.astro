@@ -1,0 +1,112 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const dashboardHref = import.meta.env.BASE_URL;
+const streamsHref = `${import.meta.env.BASE_URL}streams`;
+---
+
+<Layout title="Surfaces — Refarm Studio">
+  <section class="refarm-surface refarm-workbench surfaces-workbench" aria-labelledby="surface-workbench-title">
+    <div class="refarm-eyebrow refarm-eyebrow-chip surfaces-workbench__eyebrow">Activation ledger</div>
+    <div class="refarm-workbench-grid surfaces-workbench__grid">
+      <div>
+        <h1 id="surface-workbench-title" class="refarm-workbench-title surfaces-workbench__title">Surface trust graph</h1>
+        <p class="refarm-workbench-lead">
+          Inspect the Homestead activation path from manifest declaration to slot mount, including explicit render
+          capability, slot allow-listing, kind allow-listing, and registry trust state.
+        </p>
+        <div class="refarm-cluster refarm-workbench-actions">
+          <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={dashboardHref}>Open live shell</a>
+          <a class="refarm-btn refarm-btn-pill" href={streamsHref}>Stream workbench</a>
+        </div>
+      </div>
+      <aside class="refarm-surface-card refarm-card-roomy refarm-workbench-card" aria-label="Surface activation gates">
+        <strong>Activation gates</strong>
+        <ol class="refarm-muted-list">
+          <li><code class="refarm-code">slot</code> must exist in the current shell.</li>
+          <li><code class="refarm-code">kind</code> must be supported by Homestead.</li>
+          <li><code class="refarm-code">ui:panel:render</code> must be explicit.</li>
+          <li>External plugins must be <code class="refarm-code">validated</code> or <code class="refarm-code">active</code>.</li>
+        </ol>
+      </aside>
+    </div>
+  </section>
+
+  <section class="refarm-split-grid surfaces-ledger" aria-labelledby="surface-ledger-title">
+    <div class="refarm-surface-card refarm-card-roomy surfaces-ledger__panel surfaces-ledger__panel--primary">
+      <div class="refarm-panel-header">
+        <div>
+          <p class="refarm-eyebrow">Live diagnostics</p>
+          <h2 id="surface-ledger-title">Mounted and rejected Homestead surfaces</h2>
+        </div>
+        <span class="refarm-badge" data-refarm-surfaces-status>Booting</span>
+      </div>
+      <p class="refarm-card-body">
+        This page boots a tiny diagnostics runtime: one internal trusted surface should mount, one registry-validated
+        external surface should render, one trusted executable fixture should fail rendering audibly, and one external
+        unregistered surface should be rejected as <code class="refarm-code">untrusted-plugin</code>.
+      </p>
+      <refarm-surface-ledger class="surfaces-ledger__inspector" data-refarm-surfaces-ledger-slot></refarm-surface-ledger>
+    </div>
+
+    <div class="refarm-surface-card refarm-card-roomy surfaces-ledger__panel">
+      <p class="refarm-eyebrow">Expected proof</p>
+      <ul class="refarm-proof-list">
+        <li><span class="refarm-badge">mount</span> <code class="refarm-code">studio-surface-diagnostics</code> in <code class="refarm-code">streams</code></li>
+        <li><span class="refarm-badge">render</span> <code class="refarm-code">external-validated-surface</code> with <code class="refarm-code">registry: validated</code></li>
+        <li><span class="refarm-badge">fail</span> <code class="refarm-code">failing-surface-diagnostics</code> with <code class="refarm-code">render: failed</code></li>
+        <li><span class="refarm-badge">reject</span> <code class="refarm-code">untrusted-plugin</code> with <code class="refarm-code">registry: unregistered</code></li>
+        <li><span class="refarm-badge">action</span> click the diagnostics surface action to emit requested/failed telemetry</li>
+        <li><span class="refarm-badge">audit</span> telemetry visible through Homestead inspector helpers</li>
+      </ul>
+    </div>
+  </section>
+
+  <style>
+    .surfaces-workbench {
+      margin-bottom: 1.5rem;
+    }
+
+    .surfaces-workbench__eyebrow {
+      margin-bottom: 1rem;
+    }
+
+    .surfaces-workbench__title {
+      max-width: 10ch;
+    }
+
+    .surfaces-ledger {
+      --refarm-split-grid-columns: minmax(0, 1.25fr) minmax(18rem, 0.75fr);
+    }
+
+    .surfaces-ledger__panel--primary {
+      min-height: 18rem;
+    }
+
+    .surfaces-ledger__panel h2 {
+      margin: 0.25rem 0 0;
+      font-size: clamp(1.3rem, 3vw, 2rem);
+      letter-spacing: -0.04em;
+    }
+
+    .surfaces-ledger__inspector {
+      margin-top: 1rem;
+    }
+
+    :global(.surface-ledger-table) {
+      margin-top: 1rem;
+    }
+  </style>
+</Layout>
+
+<script>
+  import {
+    bootStudioSurfaceDiagnosticsWorkbench,
+    renderStudioSurfaceDiagnosticsBootFailure,
+  } from "../lib/surface-diagnostics-runtime";
+
+  bootStudioSurfaceDiagnosticsWorkbench().catch((error) => {
+    console.error("[studio/surfaces] Boot failed", error);
+    renderStudioSurfaceDiagnosticsBootFailure(error);
+  });
+</script>

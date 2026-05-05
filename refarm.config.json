@@ -1,4 +1,29 @@
 {
+  "brand": {
+    "scopes": {
+      "dev": "@aretw0",
+      "me": "@aretw0",
+      "social": "@aretw0"
+    },
+    "scopeProfiles": {
+      "personal": {
+        "dev": "@aretw0",
+        "me": "@aretw0",
+        "social": "@aretw0"
+      },
+      "organization": {
+        "dev": "@refarm.dev",
+        "me": "@refarm.me",
+        "social": "@refarm.social"
+      }
+    },
+    "activeScopeProfile": "personal",
+    "scopeAssignments": {
+      "default": "dev",
+      "apps/me": "me",
+      "packages/identity-nostr": "me"
+    }
+  },
   "mode": "persistent",
   "storage": "opfs"
 }

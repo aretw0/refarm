@@ -1,0 +1,54 @@
+graph TD
+    subgraph Apps["Distros  (apps/)"]
+        direction LR
+        Dev["apps/dev\nDev Portal · Astro"]
+        Me["apps/me\nHomestead · Identity · Astro"]
+        Farmhand["apps/farmhand\nTask Daemon · Node.js"]
+        RefarmCLI["apps/refarm\nRuntime · CLI entry"]
+    end
+
+    subgraph Core["Dual-Runtime Core  (tractor)"]
+        direction LR
+        TractorTS["tractor-ts\nJCO transpile · Browser / Node"]
+        TractorRS["tractor\nRust · wasmtime · IoT"]
+    end
+
+    subgraph WIT["WIT Contract  (refarm-plugin-wit)"]
+        direction LR
+        WITPkg["refarm:plugin@0.1.0\nsetup · ingest · push · respond · on-event"]
+        LLMBridge["llm-bridge"]
+        AgentFS["agent-fs · agent-shell"]
+    end
+
+    subgraph Plugins["Plugin Sandbox  (.wasm)"]
+        direction LR
+        PiAgent["pi-agent\n(sovereign AI)"]
+        ThirdParty["third-party plugins"]
+    end
+
+    HttpAdapt["HttpTransportAdapter\nport 42001"]
+
+    Dev -->|tractor-ts| TractorTS
+    Me -->|tractor-ts| TractorTS
+    Farmhand -->|tractor-ts| TractorTS
+    RefarmCLI -->|"HTTP 42001"| HttpAdapt
+
+    TractorTS ---|"same WIT"| WITPkg
+    TractorRS ---|"same WIT"| WITPkg
+
+    WITPkg -->|"implemented by"| PiAgent
+    WITPkg -->|"implemented by"| ThirdParty
+    LLMBridge -.->|"imported by"| PiAgent
+    AgentFS -.->|"imported by"| PiAgent
+
+    classDef app       fill:#dbeafe,stroke:#1d4ed8,stroke-width:1px;
+    classDef core      fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef wit       fill:#fef3c7,stroke:#92400e,stroke-width:1px;
+    classDef plugin    fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
+    classDef transport fill:#e0f2fe,stroke:#075985,stroke-width:1px;
+
+    class Dev,Me,Farmhand,RefarmCLI app;
+    class TractorTS,TractorRS core;
+    class WITPkg,LLMBridge,AgentFS wit;
+    class PiAgent,ThirdParty plugin;
+    class HttpAdapt transport;

@@ -125,13 +125,26 @@ Run `jco.transpile()` inside a dedicated Web Worker with OPFS write access.
 - `packages/tractor/package.json` — `exports` field with `node`/`browser` conditions
 - `docs/WASM_JCO_ARCHITECTURE.md` — updated transpilation flow and runtime/build-time table
 - `docs/KNOWN_LIMITATIONS.md` — new entry for browser plugin loading
+- `packages/tractor-ts/scripts/generate-browser-runtime-module-descriptor.mjs` — deterministic descriptor generator for component sidecars
 
 **Migration path:**
 
 1. ✅ Add `src/index.browser.ts` (stub entrypoint)
 2. ✅ Update `package.json` exports with `browser` condition
 3. 🔲 Implement `installPlugin(manifest, wasmUrl)` → fetches WASM, calls JCO in Node.js or a service worker, stores result in OPFS
-4. 🔲 Update `PluginHost` browser stub to use OPFS cache via `dynamic import()`
+4. 🟡 Update `PluginHost` browser path to consume OPFS cache at load time
+   - ✅ `tractor-ts` now attempts cache-backed `.wasm` load in browser (`WebAssembly.instantiate` over installed artifact)
+   - ✅ install/load contract now carries `artifactKind` (`module`/`component`/`unknown`) plus metadata handshake (`pluginId/url/integrity`)
+   - ✅ `artifactKind=component` can run through cache-backed `browserRuntimeModule` (integrity-verified ESM sidecar)
+   - ✅ descriptor-integrity handshake added (`browserRuntimeDescriptor` + optional toolchain metadata) to reduce manual drift
+   - ✅ CI smoke gate (`npm --prefix packages/tractor-ts run runtime-module:ci`) checks deterministic descriptor generation + verification
+   - ✅ descriptor provenance baseline now required (`commitSha`, `buildId`, toolchain) and validated in descriptor verify/install path
+   - ✅ distribution policy applied: `package-embedded` is canonical default (same-origin descriptor URL); `external-signed` is opt-in with `descriptorIntegrity` + provenance/source repository requirements
+   - ✅ trust mode supports `repository-derived` (default) to avoid per-package allowlists for known release origins; `strict-manual` remains available for hardened environments
+   - ✅ release workflow now publishes versioned descriptor bundle assets (`runtime-descriptor-bundle-*`, manifest, revocations) to GitHub Release endpoint and verifies post-upload presence
+   - ✅ install path supports `external-signed` auto-resolve from Release Assets manifest (`descriptorSourceRepository`), with explicit descriptor URL override when needed
+   - ✅ revocation enforcement wired for external-signed descriptors (`runtime-descriptor-revocations.json`) in install and browser runtime load
+   - 🔲 remaining: finalize canonical transpile/runtime contract for Component Model artifacts (JCO-compatible browser runner)
 
 **Timeline**: Steps 1–2 are delivered in this ADR. Steps 3–4 are future work, tracked when OPFS integration is scheduled.
 

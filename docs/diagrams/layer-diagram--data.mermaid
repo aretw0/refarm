@@ -1,0 +1,34 @@
+graph TD
+    TractorCore["Tractor  (tractor-ts / tractor)"]
+
+    subgraph Contracts ["Capability Contracts  (packages/)"]
+        direction LR
+        StorageV1["storage-contract-v1"]
+        SyncV1["sync-contract-v1"]
+        IdentityV1["identity-contract-v1"]
+    end
+
+    subgraph Adapters ["Adapters"]
+        direction LR
+        SQLite["storage-sqlite\nOPFS · SQLite + Loro state"]
+        StoreMem["storage-memory\n(tests / ephemeral)"]
+        SyncLoro["sync-loro\nLoro CRDT engine\n(ADR-045)"]
+        NostrId["identity-nostr\nNostr keypair + relay"]
+    end
+
+    TractorCore -->|"persists via"| StorageV1
+    TractorCore -->|"syncs via"| SyncV1
+    TractorCore -->|"identity via"| IdentityV1
+
+    StorageV1 -->|"adapter"| SQLite
+    StorageV1 -->|"adapter"| StoreMem
+    SyncV1    -->|"adapter"| SyncLoro
+    IdentityV1-->|"adapter"| NostrId
+
+    classDef core     fill:#dcfce7,stroke:#166534,stroke-width:1px;
+    classDef contract fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+    classDef adapter  fill:#f0fdf4,stroke:#15803d,stroke-width:1px;
+
+    class TractorCore core;
+    class StorageV1,SyncV1,IdentityV1 contract;
+    class SQLite,StoreMem,SyncLoro,NostrId adapter;

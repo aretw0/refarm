@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 description = "Sovereign WASM plugin host — native Rust implementation of the Refarm Tractor"
 license = "AGPL-3.0-only"
-repository = "https://github.com/refarm-dev/refarm"
+repository = "https://github.com/aretw0/refarm"
 homepage = "https://refarm.dev"
 keywords = ["wasm", "plugin-host", "sovereign", "crdt"]
 categories = ["wasm", "database"]
@@ -33,10 +33,12 @@ rusqlite = { version = "0.32", features = ["bundled"] }
 # CRDT sync — binary-compatible with loro-crdt JS (loro-crdt@1.10.7)
 loro = "~1.10"
 
-# Async runtime + WebSocket daemon
+# Async runtime + WebSocket daemon + HTTP sidecar (ADR-060)
 tokio             = { version = "1", features = ["full"] }
 tokio-tungstenite = { version = "0.24", features = ["native-tls"] }
 futures-util      = "0.3"
+axum              = { version = "0.7", default-features = false, features = ["json", "tokio", "http1", "macros", "query"] }
+tower             = { version = "0.4", default-features = false }
 
 # Crypto — ed25519 native (same algo as @noble/ed25519 / heartwood.wasm)
 # SecurityMode config makes signing opt-out — always available, never forced
@@ -47,15 +49,25 @@ sha2          = "0.10"   # SHA-256 for wasm_hash
 # Serialization
 serde      = { version = "1", features = ["derive"] }
 serde_json = "1"
+toml       = { version = "0.8", default-features = false, features = ["parse", "display"] }
+serde_yaml = "0.9"
 
 # Observability
 tracing            = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 
+# Diff/patch — used by agent-fs `edit` tool
+diffy = "0.3"
+
+# Atomic file write — used by agent-fs write/edit (tmp → rename)
+tempfile = "3"
+
 # Utilities
 anyhow    = "1"
 thiserror = "1"
+dirs      = "5"
 uuid      = { version = "1", features = ["v4"] }
+ureq      = "2"
 
 # CLI argument parsing (daemon)
 clap = { version = "4", features = ["derive"] }
@@ -63,7 +75,8 @@ hex  = "0.4"
 
 # ─── Dev dependencies ─────────────────────────────────────────────────────────
 [dev-dependencies]
-tempfile = "3"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+wat     = "1"
 
 # ─── Build profiles ───────────────────────────────────────────────────────────
 [profile.dev]
@@ -71,3 +84,6 @@ tempfile = "3"
 # Corta ~40% do uso de RAM do rustc na fase de codegen para wasmtime.
 # Não afeta comportamento em testes — só símbolos de debug.
 debug = 1
+# Serializa o codegen dentro de cada crate — troca velocidade por RAM.
+# Crítico no devcontainer (4 GB hard cap): cranelift usa ~1.5 GB/codegen-unit.
+codegen-units = 1

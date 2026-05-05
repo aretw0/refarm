@@ -1,0 +1,26 @@
+[package]
+name = "pi-agent"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+wit-bindgen = "0.36"
+serde_json = "1"
+toml       = { version = "0.8", default-features = false, features = ["parse", "display"] }
+serde_yaml = "0.9"
+
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+
+[package.metadata.component]
+package = "refarm:plugin"
+
+[package.metadata.component.target]
+path = "wit"
+world = "pi-agent"

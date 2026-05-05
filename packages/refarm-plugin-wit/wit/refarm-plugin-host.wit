@@ -1,0 +1,225 @@
+/// Host-side WIT for tractor-native bindgen!
+///
+/// Same package / interface names as refarm-sdk.wit so the generated Rust
+/// function names are binary-compatible with plugins built against the full SDK.
+///
+/// WASI imports (wasi:http, wasi:logging) are OMITTED here because:
+///   - They are registered with the wasmtime Linker separately via wasmtime_wasi.
+///   - bindgen! does not need to generate Rust types for them.
+///   - Runtime plugin binaries that import WASI still work — the Linker provides them.
+
+package refarm:plugin@0.1.0;
+
+// ─── Shared Types (in their own interface so WIT parser accepts them) ─────────
+
+interface types {
+    type json-ld-node = string;
+    type node-id = string;
+
+    variant plugin-error {
+        not-permitted(string),
+        not-found(node-id),
+        invalid-schema(string),
+        internal(string),
+    }
+
+    record identity-info {
+        identity-type: string,
+        storage-tier: string,
+        identifier: string,
+    }
+
+    record plugin-metadata {
+        name: string,
+        version: string,
+        description: string,
+        supported-types: list<string>,
+        required-capabilities: list<string>,
+    }
+}
+
+// ─── Tractor → Plugin Imports (host implements) ──────────────────────────────
+
+interface tractor-bridge {
+    use types.{json-ld-node, node-id, plugin-error, identity-info};
+
+    store-node:         func(node: json-ld-node) -> result<node-id, plugin-error>;
+    get-node:           func(id: node-id) -> result<json-ld-node, plugin-error>;
+    query-nodes:        func(node-type: string, limit: u32) -> result<list<json-ld-node>, plugin-error>;
+    request-permission: func(capability: string, reason: string) -> bool;
+    get-identity:       func() -> result<identity-info, plugin-error>;
+    get-plugin-api:     func(api-name: string) -> result<node-id, plugin-error>;
+    emit-telemetry:     func(event: string, payload: option<string>);
+}
+
+/// Host-proxied LLM completion bridge.
+///
+/// Plugins pass provider + HTTP request payload and receive raw response bytes.
+/// Credentials stay in the host process (plugin never reads provider API keys).
+interface llm-bridge {
+    record stream-response-metadata {
+        prompt-ref: string,
+        model: string,
+        provider-family: string,
+        last-sequence: option<u32>,
+    }
+
+    record stream-response-result {
+        final-body: list<u8>,
+        last-sequence: option<u32>,
+        stored-chunks: u32,
+    }
+
+    complete-http: func(
+        provider: string,
+        base-url: string,
+        path: string,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+    ) -> result<list<u8>, string>;
+
+    complete-http-stream: func(
+        provider: string,
+        base-url: string,
+        path: string,
+        headers: list<tuple<string, string>>,
+        body: list<u8>,
+        stream-metadata: stream-response-metadata,
+    ) -> result<stream-response-result, string>;
+}
+
+// ─── Plugin → Tractor Exports (host calls) ───────────────────────────────────
+
+interface integration {
+    use types.{json-ld-node, plugin-error, plugin-metadata};
+
+    setup:          func() -> result<_, plugin-error>;
+    ingest:         func() -> result<u32, plugin-error>;
+    push:           func(payload: json-ld-node) -> result<_, plugin-error>;
+    teardown:       func();
+    get-help-nodes: func() -> result<list<json-ld-node>, plugin-error>;
+    metadata:       func() -> plugin-metadata;
+    on-event:       func(event: string, payload: option<string>);
+    respond:        func(payload: string) -> result<string, plugin-error>;
+}
+
+// ─── Agent Tool Interfaces (host provides, plugin imports) ───────────────────
+
+/// Filesystem primitives for Pi Agent tools: read, write, edit.
+/// All paths are absolute. Capability gating via TrustManager before dispatch.
+interface agent-fs {
+    /// Read file contents from an absolute path.
+    read: func(path: string) -> result<list<u8>, string>;
+
+    /// Write bytes to a path atomically (tmp → fsync → rename).
+    write: func(path: string, content: list<u8>) -> result<_, string>;
+
+    /// Apply a unified diff string to an existing file, atomically.
+    /// Returns error if the diff context does not match current file state.
+    edit: func(path: string, diff: string) -> result<_, string>;
+}
+
+/// Shell primitive for Pi Agent bash tool.
+/// The host never interpolates through a shell — structured argv only.
+interface agent-shell {
+    record spawn-request {
+        /// Structured argv. argv[0] is the binary name (no shell expansion).
+        argv: list<string>,
+        /// Environment key-value pairs to forward (explicit allowlist).
+        env: list<tuple<string, string>>,
+        /// Working directory (absolute path). Defaults to tractor data dir.
+        cwd: option<string>,
+        /// Hard timeout in milliseconds; process is killed after this.
+        timeout-ms: u32,
+        /// Optional stdin bytes fed into the process.
+        stdin: option<list<u8>>,
+    }
+
+    record spawn-result {
+        stdout: list<u8>,
+        stderr: list<u8>,
+        exit-code: s32,
+        /// True if the process was killed due to timeout expiry.
+        timed-out: bool,
+    }
+
+    /// Spawn a subprocess with structured argv (no shell interpolation).
+    spawn: func(req: spawn-request) -> result<spawn-result, string>;
+}
+
+/// Structured I/O — parse and write JSON/TOML/YAML files with validation and pagination.
+///
+/// Defined here (refarm:plugin package) so pi-agent can import it as a host capability.
+/// The agent-tools.wasm component exports the same interface under refarm:agent-tools;
+/// tractor satisfies pi-agent's import natively until full Component Model composition
+/// is wired (HANDOFF.md Tarefa 2B follow-up).
+interface structured-io {
+    enum file-format { json, toml, yaml }
+
+    /// Parse a structured file and return paginated content as canonical JSON.
+    /// format is auto-detected from path extension when absent.
+    read-structured: func(
+        path: string,
+        format: option<file-format>,
+        page-size: u32,
+        page-offset: u32,
+    ) -> result<string, string>;
+
+    /// Validate content as format then write atomically to path.
+    /// Returns error without touching the file if content fails validation.
+    write-structured: func(
+        path: string,
+        content: string,
+        format: option<file-format>,
+    ) -> result<_, string>;
+}
+
+/// Semantic code operations via LSP (rename, find-references).
+///
+/// Host manages the LSP server subprocess; plugin calls clean primitives without
+/// knowing whether the backend is rust-analyzer, typescript-language-server, etc.
+/// Returns "lsp not connected" stub until tractor-side LSP bridge is implemented
+/// (ROADMAP v0.3.0 code-ops section).
+interface code-ops {
+    /// Location of a symbol in source code.
+    record symbol-location {
+        file:   string,
+        line:   u32,
+        column: u32,
+    }
+
+    /// A reference to a symbol found by LSP.
+    record code-reference {
+        file:   string,
+        line:   u32,
+        column: u32,
+        /// "definition" | "reference" | "implementation"
+        kind:   string,
+    }
+
+    /// Summary of a rename operation.
+    record rename-result {
+        files-changed: u32,
+        edits-applied: u32,
+    }
+
+    /// Rename symbol at loc across the entire project (LSP workspace/rename).
+    rename-symbol: func(loc: symbol-location, new-name: string) -> result<rename-result, string>;
+
+    /// Find all references to symbol at loc (LSP textDocument/references).
+    find-references: func(loc: symbol-location) -> result<list<code-reference>, string>;
+}
+
+// ─── Host-side World ─────────────────────────────────────────────────────────
+
+/// Minimal world for host-side bindgen! (tractor-native).
+/// Use world "refarm-plugin" in refarm-sdk.wit for plugin authors.
+world refarm-plugin-host {
+    import tractor-bridge;
+    import llm-bridge;
+    import agent-fs;
+    import agent-shell;
+    import structured-io;
+    import code-ops;
+    export integration;
+}

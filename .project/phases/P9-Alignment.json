@@ -1,0 +1,19 @@
+{
+  "number": 9,
+  "name": "Alignment",
+  "intent": "Sincronizar decisões, roadmap e estado operacional canônico.",
+  "status": "planned",
+  "success_criteria": [
+    {
+      "criterion": "Entregáveis-chave de P9-Alignment registrados e rastreáveis no .project",
+      "verify_method": "inspect"
+    },
+    {
+      "criterion": "Trabalho de P9-Alignment executado sem quebrar gates principais de CI",
+      "verify_method": "test"
+    }
+  ],
+  "outputs": [
+    "Estado e decisões de P9-Alignment refletidos nos blocos .project"
+  ]
+}

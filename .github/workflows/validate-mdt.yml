@@ -1,0 +1,126 @@
+name: Validate MDT Docs
+
+on:
+  pull_request:
+    paths:
+      - "packages/pi-agent/.templates/**"
+      - "packages/pi-agent/README.md"
+      - "packages/pi-agent/mdt.toml"
+      - "docs/diagrams/.templates/**"
+      - "docs/diagrams/LAYERS.md"
+      - "docs/diagrams/mdt.toml"
+      - "specs/diagrams/.templates/**"
+      - "specs/diagrams/CI_GUIDE.md"
+      - "specs/diagrams/mdt.toml"
+      - ".github/workflows/validate-mdt.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "packages/pi-agent/.templates/**"
+      - "packages/pi-agent/README.md"
+      - "docs/diagrams/.templates/**"
+      - "docs/diagrams/LAYERS.md"
+      - "specs/diagrams/.templates/**"
+      - "specs/diagrams/CI_GUIDE.md"
+  workflow_dispatch:
+  schedule:
+    - cron: "0 14 * * 3" # Every Wednesday at 14:00 UTC
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Restore MDT validation result cache
+        id: validation-cache
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/mdt
+          key: ${{ runner.os }}-validate-mdt-0.7.0-${{ hashFiles('packages/pi-agent/.templates/**', 'packages/pi-agent/README.md', 'packages/pi-agent/mdt.toml', 'docs/diagrams/.templates/**', 'docs/diagrams/LAYERS.md', 'docs/diagrams/mdt.toml', 'specs/diagrams/.templates/**', 'specs/diagrams/CI_GUIDE.md', 'specs/diagrams/mdt.toml', '.github/workflows/validate-mdt.yml') }}
+
+      - name: Setup
+        if: steps.validation-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/setup
+        with:
+          rust-target: "x86_64-unknown-linux-gnu"
+
+      - name: MDT validation cache hit
+        if: steps.validation-cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful MDT validation for unchanged content."
+
+      - name: Cache mdt_cli
+        id: cache-mdt
+        if: steps.validation-cache.outputs.cache-hit != 'true'
+        uses: ./.github/actions/cache
+        with:
+          path: ~/.cargo/bin/mdt
+          key: ${{ runner.os }}-mdt-cli-0.7.0
+
+      - name: Install mdt_cli
+        if: steps.validation-cache.outputs.cache-hit != 'true' && steps.cache-mdt.outputs.cache-hit != 'true'
+        run: cargo install mdt_cli --locked
+
+      - name: Check MDT sync — pi-agent
+        id: validation-pi-agent
+        if: steps.validation-cache.outputs.cache-hit != 'true'
+        run: cd packages/pi-agent && mdt check
+        continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Check MDT sync — docs/diagrams
+        id: validation-docs-diagrams
+        if: steps.validation-cache.outputs.cache-hit != 'true'
+        run: cd docs/diagrams && mdt check
+        continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Check MDT sync — specs/diagrams
+        id: validation-specs-diagrams
+        if: steps.validation-cache.outputs.cache-hit != 'true'
+        run: cd specs/diagrams && mdt check
+        continue-on-error: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+
+      - name: Record MDT validation cache marker
+        if: steps.validation-cache.outputs.cache-hit != 'true' && steps.validation-pi-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success'
+        run: |
+          mkdir -p .artifacts/validation-cache/mdt
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/mdt/last-successful-sha.txt
+
+      - name: Create or update issue on failure
+        if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        uses: ./.github/actions/manage-issue
+        with:
+          title: "MDT documentation drift detected"
+          labels: "documentation,mdt,validation"
+          body: |
+            # MDT Documentation Drift Detected
+
+            One or more `mdt check` runs found template blocks out of sync with target files.
+
+            **Workflow Run:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            **Branch:** ${{ github.ref_name }}
+
+            ## Fix
+
+            Run `mdt update` in the affected directory and commit the result:
+
+            ```bash
+            # pi-agent
+            cd packages/pi-agent && mdt update
+            git add README.md ROADMAP.md && git commit -m "docs: sync mdt template blocks (pi-agent)"
+
+            # docs/diagrams
+            cd docs/diagrams && mdt update
+            git add LAYERS.md && git commit -m "docs: sync mdt template blocks (docs/diagrams)"
+
+            # specs/diagrams
+            cd specs/diagrams && mdt update
+            git add CI_GUIDE.md && git commit -m "docs: sync mdt template blocks (specs/diagrams)"
+            ```
+          state: ${{ (steps.validation-pi-agent.outcome == 'success' && steps.validation-docs-diagrams.outcome == 'success' && steps.validation-specs-diagrams.outcome == 'success') && 'closed' || 'open' }}
+          token: ${{ secrets.GITHUB_TOKEN }}

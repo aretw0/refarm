@@ -583,7 +583,185 @@ specs/ADRs/
 
 ---
 
-## 🏗 Source Sovereignty & Hygiene
+## � Branch & Release Flow
+
+### Branch Model
+
+```
+feature/xyz ──┐
+feature/abc ──┤──► develop ──► main ──► (packages published)
+fix/yyy ───────┘       ▲                      │
+                       │                      │
+                       └──── auto-rebase ◄────┘
+```
+
+- **`main`** — produção, protegido. Nunca recebe push direto.
+- **`develop`** — integração contínua. Base para todas as feature branches.
+- **`feature/*`, `fix/*`, `docs/*`** — ramificam de `develop`, voltam para `develop` via PR.
+
+### Ciclo completo de uma feature
+
+```bash
+# 1. Criar branch a partir de develop
+git checkout develop && git pull origin develop
+git checkout -b feature/minha-feature
+
+# 2. Trabalhar, commitar, push
+git push origin feature/minha-feature
+
+# 3. Abrir PR → develop  (CI: testes, lint, type-check, changeset)
+# 4. Merge em develop (qualquer estratégia funciona)
+
+# 5. Quando develop estiver pronto para release:
+#    Abrir PR: develop → main  
+# 6. Aprovar e mergear (estratégia: "Rebase and merge" para timeline linear)
+
+# 7. ✅ O workflow sync-develop.yml faz rebase automático de develop.
+#    Não é necessário nenhuma ação manual.
+```
+
+### Estratégia de merge
+
+- **Em `develop`**: qualquer estratégia funciona (squash, rebase, ou merge commit)
+- **Em `main`**: prefira **rebase** para manter timeline linear
+- O workflow `sync-develop.yml` automaticamente rebasa `develop` sobre `main` após qualquer push em `main`, independente da estratégia usada
+
+### Release via Changesets
+
+1. Changesets acumulam em `develop` durante o sprint (arquivo em `.changeset/`).
+2. Após o merge `develop → main`, o workflow `release-changesets.yml` cria automaticamente um PR de versão (`chore(release): version packages`) no `main`.
+3. Após esse PR ser aprovado, mergear com **rebase** também para manter linear.
+4. Os pacotes são publicados no npm/crates.io.
+5. O `sync-develop.yml` rebasa `develop` novamente.
+
+### Observação pós-push (ritual curto)
+
+Após `git push origin develop` em lote relevante, acompanhar CI com:
+
+```bash
+gh run list --branch develop --limit 5
+gh run watch --exit-status
+```
+
+Se `gh` não estiver disponível no ambiente, registrar no handoff:
+- hash pushado,
+- checks esperados,
+- owner humano que ficará observando o CI.
+
+### Sync automático falhou?
+
+Se há conflitos no rebase (commits simultâneas em `develop` e `main` com mudanças na mesma região), o workflow `sync-develop.yml` abre um issue de manutenção. Fix manual:
+
+```bash
+git fetch origin
+git checkout develop
+git rebase origin/main
+
+# Resolver conflitos (editor abre automaticamente)
+# ...editar, depois:
+git add .
+git rebase --continue
+
+git push -f origin develop
+```
+
+---
+
+## Preflight obrigatório (go/no-go)
+
+Antes de qualquer lote paralelo (colônia, swarm ou macro-refactor), execute:
+
+### Preflight rápido (obrigatório)
+
+```bash
+node scripts/reso.mjs status
+npm run project:validate
+npm run factory:preflight
+```
+
+### Preflight completo (quando tocar runtime/host security)
+
+```bash
+cd packages/tractor
+cargo check --quiet
+cargo test --lib agent_tools_bridge --quiet
+cargo test --lib plugin_host --quiet
+cargo test --lib wasi_bridge --quiet
+npm run test:smoke:ws
+```
+
+### Critério de go/no-go
+
+- **GO**: todos os checks do preflight rápido verdes; se houver mudança de boundary runtime, preflight completo verde.
+- **NO-GO**: qualquer falha em toolchain/targets/permissão/reso status → corrigir ambiente antes de abrir lote.
+
+### Autorização explícita para escrita em lote
+
+Para evitar ambiguidade operacional, use confirmação textual explícita antes de ações de escrita em lote:
+
+- **Formato recomendado**: `AUTORIZO: executar lote <escopo> com commits`.
+- Sem autorização explícita, limitar execução a leitura/diagnóstico.
+
+---
+
+## Gate de validação: smoke + full
+
+### Smoke gate (por task/PR)
+
+Objetivo: feedback rápido por mudança atômica.
+
+- Rodar apenas o subconjunto afetado (ex.: boundary package + testes diretos).
+- Exigir evidência objetiva no PR/handoff (comando + resultado).
+
+### Full gate (integração de lote)
+
+Objetivo: garantir que o conjunto integrado não regrediu.
+
+- Rodar pipeline completo de qualidade definido no repositório (local e/ou CI).
+- Consolidar evidências em `.project/verification.json`.
+
+Regra prática:
+
+- **Task PR**: smoke obrigatório.
+- **Merge de lote / boundary sensível**: smoke + full obrigatórios.
+
+### Formato padrão de evidence (`.project/verification.json`)
+
+Campos obrigatórios por entrada de verificação:
+
+- `id`
+- `target`
+- `target_type`
+- `status`
+- `method`
+- `timestamp`
+- `evidence`
+- `criteria_results[]`
+
+Exemplo mínimo:
+
+```json
+{
+  "id": "VER-EXAMPLE-001",
+  "target": "T-PIPE-02",
+  "target_type": "task",
+  "status": "passed",
+  "method": "test",
+  "timestamp": "2026-04-24T12:00:00.000Z",
+  "evidence": "Comandos smoke executados com resultado verde.",
+  "criteria_results": [
+    {
+      "criterion": "Type-check passa nos pacotes Foundation",
+      "status": "passed",
+      "evidence": "gate:smoke:foundation verde"
+    }
+  ]
+}
+```
+
+---
+
+## Source Sovereignty & Hygiene
 
 ### 1. Tracking Policy: Source vs. Derivatives
 To avoid repository bloating and ensure reproducibility:
@@ -596,12 +774,168 @@ The project supports a dynamic resolution switcher to balance speed and rigor:
 - **Source Mode (`node scripts/reso.mjs src`)**: Instant DX with direct `src/` imports.
 - **Dist Mode (`node scripts/reso.mjs dist`)**: CI/Release verification against build artifacts.
 
+### 3. Política operacional src/dist (obrigatória)
+
+- Durante iteração diária, operar em **`reso src`**.
+- Antes de merge em branch protegida, validar em **`reso dist`**.
+- `node scripts/reso.mjs status` é obrigatório no início da task e antes de finalizar PR.
+
+Fluxo mínimo recomendado:
+
+```bash
+# início da task
+node scripts/reso.mjs status
+node scripts/reso.mjs src
+
+# validação final
+node scripts/reso.mjs dist
+npm run type-check
+npm run test:unit
+node scripts/reso.mjs status
+```
+
+---
+
+## Planejamento da colônia (baseline de execução)
+
+### Macro-domínios e ownership (paralelização segura)
+
+| Domínio | Ownership sugerido | Pacotes/arquivos principais | Regra de concorrência |
+|---|---|---|---|
+| Runtime Core | worker-runtime | `packages/tractor/**`, `packages/tractor-ts/**` | serializar por boundary |
+| Contracts & Storage/Sync | worker-contracts | `packages/*-contract-v1/**`, `packages/storage-*/**`, `packages/sync-*/**` | até 2 workers em pacotes distintos |
+| Plugin Platform | worker-plugin | `packages/plugin-manifest/**`, `packages/barn/**` | serializar mudanças no contrato |
+| Governance & CI | worker-governance | `.project/**`, `.github/workflows/**`, `docs/**` | 1 worker por vez em `.project` e workflows |
+
+### Granularidade padrão de task (PR pequeno e revisável)
+
+- Meta de diff por task: **até 300 linhas adicionadas/modificadas** (quando possível).
+- Meta de arquivos por task: **até 8 arquivos** (exceto mudanças de teste/documentação associadas).
+- Cada task deve incluir:
+  - objetivo único,
+  - critérios de aceite objetivos,
+  - comando de validação smoke.
+
+Template mínimo de acceptance criteria:
+
+```markdown
+- Comportamento X validado
+- Regressão Y coberta em teste
+- Evidência registrada em verification
+```
+
+### Fila inicial de 2 semanas (ordem e dependências)
+
+**Semana 1 (estabilização de fluxo):**
+1. `T-ENV-03` preflight de ambiente
+2. `T-ENV-04` política src/dist
+3. `T-PIPE-01` baseline de type-check
+4. `T-PLAN-01` macro-domínios e ownership
+5. `T-PLAN-02` granularidade padrão
+
+**Semana 2 (execução paralela governada):**
+1. `T-PLAN-03` fila de execução inicial
+2. `T-PLAN-04` anti-colisão/locks
+3. `T-PLAN-05` branch naming + commits atômicos
+4. `T-PLAN-06` limite de concorrência e escala
+5. `T-PLAN-07` prompt padrão para workers
+
+### Política anti-colisão (arquivos/pacotes críticos)
+
+Pacotes/áreas serializadas:
+- `packages/tractor/**`
+- `packages/tractor-ts/**`
+- `packages/plugin-manifest/**`
+- `.project/**`
+- `.github/workflows/**`
+
+Regra de lock operacional:
+- antes de iniciar task em área serializada, anunciar claim no handoff;
+- somente 1 task ativa por área serializada;
+- handoff de lock obrigatório ao trocar responsável.
+
+### Prompt de entrada padrão para workers
+
+Template canônico: `docs/superpowers/COLONY_WORKER_INPUT_TEMPLATE.md`.
+
+Templates complementares:
+- saída do worker: `docs/superpowers/COLONY_WORKER_OUTPUT_TEMPLATE.md`
+- pacote de templates para operação/review: `docs/templates/COLONY_*_TEMPLATE.md`
+
+Prompt obrigatório deve conter:
+- objetivo,
+- escopo (arquivos permitidos),
+- restrições (source sovereignty, sem artefatos),
+- validação mínima (smoke/full),
+- critério de escalonamento (quando parar e pedir humano).
+
+### Ritual semanal de triagem de bloqueios
+
+Cadência: **1x por semana** (segunda-feira, 30min).
+
+Roteiro:
+1. listar tasks `planned/in_progress` com dependências quebradas;
+2. classificar bloqueio: ambiente, dependência técnica, decisão pendente;
+3. definir ação: desbloquear, reatribuir, escalonar para humano, ou cancelar;
+4. atualizar `.project/tasks.json` + `.project/handoff.json`.
+
+Critérios de desbloqueio:
+- dependência concluída e validada;
+- ambiente reproduzível no preflight;
+- decisão arquitetural registrada em `.project/decisions.json`.
+
+Fluxo de reassign:
+- marcar owner atual no handoff,
+- reatribuir task no board,
+- anexar comando de retomada e último estado de validação.
+
+### Estratégia src/dist (quando alternar)
+
+Use esta matriz rápida:
+
+| Situação | Modo recomendado | Motivo |
+|---|---|---|
+| Implementação diária / iteração curta | `reso src` | DX e navegação direta ao código-fonte |
+| Pré-merge em branch protegida | `reso dist` | valida superfície distribuível |
+| Diagnóstico de ambiente | `reso status` | calibra estado real antes de agir |
+| Mudança de topology alias | `reso sync-tsconfig` | mantém paths consistentes |
+
+Exemplo operacional:
+
+```bash
+node scripts/reso.mjs status
+node scripts/reso.mjs src
+# ...trabalho local...
+node scripts/reso.mjs dist
+npm run gate:smoke:foundation
+node scripts/reso.mjs status
+```
+
+### Escalonamento de bloqueios (runbook)
+
+Quando **escalar para humano**:
+- conflito de decisão arquitetural sem ADR/DEC resolvida;
+- falha persistente de preflight após tentativa reprodutível;
+- colisão recorrente em área serializada.
+
+Quando **abrir/atualizar issue**:
+- bloqueio reproduzível,
+- afeta múltiplas tasks,
+- não cabe no slice atual sem desvio de escopo.
+
+Quando **cancelar task**:
+- requisito invalidado por decisão posterior,
+- caminho alternativo já aprovado,
+- custo/risco não justifica execução no ciclo atual.
+
 ---
 
 **See Also**:
 
+- [docs/COLONY_PLAYBOOK.md](./COLONY_PLAYBOOK.md) — Operação ponta-a-ponta (preflight, execução, consolidação)
+- [docs/DEVELOPMENT_RESOLUTION.md](./DEVELOPMENT_RESOLUTION.md) — Estratégia detalhada src/dist
 - [roadmaps/MAIN.md](../roadmaps/MAIN.md) — How this workflow applies to releases
 - [CONTRIBUTING.md](../CONTRIBUTING.md) — Developer workflow
 - [specs/ADRs/](../specs/ADRs/) — Architecture decisions
 
-**Last Updated**: March 2026
+**Last Updated**: April 2026

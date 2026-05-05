@@ -5,11 +5,11 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/storage-sqlite"
   },
   "bugs": {
-    "url": "https://github.com/refarm-dev/refarm/issues"
+    "url": "https://github.com/aretw0/refarm/issues"
   },
   "homepage": "https://refarm.dev.br",
   "main": "./dist/index.js",
@@ -18,6 +18,10 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
+    },
+    "./node": {
+      "import": "./dist/node.js",
+      "types": "./dist/node.d.ts"
     }
   },
   "scripts": {
@@ -26,7 +30,7 @@
     "lint": "tsc --noEmit",
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test:conformance": "vitest run src/storage-v1.conformance.test.ts",
+    "test:conformance": "vitest run src/storage-v1.conformance.test.ts src/task-v1.conformance.test.ts src/session-v1.conformance.test.ts",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
@@ -38,6 +42,8 @@
     "wasm"
   ],
   "dependencies": {
-    "@refarm.dev/storage-contract-v1": "*"
+    "@refarm.dev/storage-contract-v1": "*",
+    "@refarm.dev/task-contract-v1": "*",
+    "@refarm.dev/session-contract-v1": "*"
   }
 }

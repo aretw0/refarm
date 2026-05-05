@@ -1,0 +1,268 @@
+{
+	"decisions": [
+		{
+			"id": "DEC-001",
+			"decision": "Adotar .project como fonte oficial de planejamento operacional para execução por colônia.",
+			"rationale": "Centraliza requisitos, tarefas, verificação e decisões em estrutura validável por schema.",
+			"status": "decided",
+			"phase": 0,
+			"context": "Necessidade de paralelizar trabalho com rastreabilidade."
+		},
+		{
+			"id": "DEC-002",
+			"decision": "Executar trabalho em tarefas atômicas com regra 1 task = 1 branch = 1 PR.",
+			"rationale": "Reduz risco de regressão e facilita revisão incremental.",
+			"status": "decided",
+			"phase": 3,
+			"context": "Evitar colisão entre workers em monorepo grande."
+		},
+		{
+			"id": "DEC-003",
+			"decision": "Estabelecer gates de validação em dois níveis: smoke e full.",
+			"rationale": "Balanceia velocidade durante execução paralela e segurança na consolidação.",
+			"status": "decided",
+			"phase": 2,
+			"context": "Necessidade de throughput sem perder confiabilidade."
+		},
+		{
+			"id": "DEC-004",
+			"decision": "Tratar Source Sovereignty como regra operacional obrigatória para humanos e agentes.",
+			"rationale": "Evita correções efêmeras em artefatos e mantém reprodução via fonte.",
+			"status": "decided",
+			"phase": 0,
+			"context": "Diretriz central de AGENTS.md."
+		},
+		{
+			"id": "DEC-005",
+			"decision": "Serializar mudanças em pacotes de alto acoplamento quando houver conflito de escopo.",
+			"rationale": "Nem toda frente pode ser paralelizada sem custo de merge e retrabalho.",
+			"status": "decided",
+			"phase": 3,
+			"context": "Pacotes runtime/contracts compartilham superfícies críticas."
+		},
+		{
+			"id": "DEC-006",
+			"decision": "Tratar erro de toolchain Rust como bloqueador de fábrica até estabilização.",
+			"rationale": "Sem baseline de ambiente, workers desperdiçam ciclos em falhas de setup.",
+			"status": "decided",
+			"phase": 1,
+			"context": "Falha observada em type-check/build com tractor-rs."
+		},
+		{
+			"id": "DEC-007",
+			"decision": "Usar reso src para desenvolvimento e reso dist para validação final.",
+			"rationale": "Mantém DX rápida sem perder verificação de artefato distribuível.",
+			"status": "decided",
+			"phase": 1,
+			"context": "Monorepo híbrido com pacotes local/dist."
+		},
+		{
+			"id": "DEC-008",
+			"decision": "Registrar bloqueios recorrentes como issues com prioridade e pacote alvo.",
+			"rationale": "Transforma fricção operacional em trabalho planejável.",
+			"status": "decided",
+			"phase": 8,
+			"context": "Fechar loop entre execução, risco e melhoria contínua."
+		},
+		{
+			"id": "DEC-009",
+			"decision": "Centralizar estado operacional no .project (issues/tasks/verification) e tratar HANDOFF.md apenas como resumo humano opcional.",
+			"rationale": "Evita duplicação e divergência de contexto entre agentes, melhora execução por hordas e mantém rastreabilidade validável por schema.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Convergência de workflow humano+agente para fonte única de verdade em planejamento/execução."
+		},
+		{
+			"id": "DEC-010",
+			"decision": "Adotar estratégia híbrida de execução de modelos no harness (LLM grande + small models + Transformers.js) com roteamento por capacidade e custo.",
+			"rationale": "Usar um único modelo para tudo aumenta custo/latência e acoplamento. Roteamento por classe de tarefa preserva qualidade em planejamento/orquestração e reduz custo para classificação/extração/embeddings locais, mantendo fallback determinístico.",
+			"status": "revisit",
+			"phase": 2,
+			"context": "Alinhado ao ADR-012 (`Status: Proposed`). Permanece em revisit até aceitação explícita do ADR e rollout host-side concluído."
+		},
+		{
+			"id": "DEC-011",
+			"decision": "Encerrar a fase de centralização quando regras compartilháveis de sensibilidade estiverem em `sensitive_aliases.rs`, mantendo locais apenas limites estruturais de boundary (shape/charset/size/order dedupe).",
+			"rationale": "Evita centralização excessiva e arquivo monolítico sem ganho. Regras semânticas de sensibilidade ficam em fonte única; guardrails mecânicos de cada boundary permanecem locais por contexto de transporte.",
+			"status": "decided",
+			"phase": 2,
+			"context": "Definição de critério de done para a frente de hardening host-side após redução de duplicação em spawn/plugin/wasi."
+		},
+		{
+			"id": "DEC-012",
+			"decision": "Tratar plugin-manifest v1 como contrato de schema/validação (não capability runtime) e usar `test:conformance` do próprio pacote como gate oficial.",
+			"rationale": "O pacote define integridade estrutural e regras de manifesto; não há semântica de sessão/IO equivalente aos contratos storage/sync/identity. Manter gate no validador reduz complexidade e evita harness artificial antes de um contrato runtime explícito.",
+			"status": "decided",
+			"phase": 5,
+			"context": "Fechamento de T-CONTRACT-04 para formalizar escopo de conformance de plugin-manifest no bloco de contratos v1."
+		},
+		{
+			"id": "DEC-013",
+			"decision": "Adotar política dual-track para plugins (JS onboarding + WASM hardening progressivo), sem obrigatoriedade imediata de WASM em todas as superfícies.",
+			"rationale": "Evita excluir desenvolvedores sem toolchain WASM no curto prazo, mantendo trilha clara de maturidade para isolamento e integridade fortes.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Spec de envelope L0→L3 e matriz por ambiente/formato publicada em T-PLUGIN-07."
+		},
+		{
+			"id": "DEC-014",
+			"decision": "Padronizar distribuição de descriptor sidecar em modo `package-embedded` como default canônico, mantendo `external-signed` apenas por opt-in com allowlist e provenance reforçada.",
+			"rationale": "Default same-origin reduz superfície de trust e simplifica reprodução. Fluxo external-signed continua possível para cadeias dedicadas, mas com controles explícitos de origem e integridade.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Fechamento de T-RUNTIME-22 após baseline de descriptor/provenance em T-RUNTIME-21."
+		},
+		{
+			"id": "DEC-015",
+			"decision": "Adotar trust mode `repository-derived` como padrão para descriptors `external-signed`, mantendo `strict-manual` para ambientes que exigem allowlist explícita.",
+			"rationale": "Reduz fricção operacional e elimina allowlists por pacote no caminho comum, sem remover opção de hardening estrito para ambientes sensíveis.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Entrega de T-RUNTIME-23 com política de distribuição e provenance já consolidadas em T-RUNTIME-21/T-RUNTIME-22."
+		},
+		{
+			"id": "DEC-016",
+			"decision": "Para external-signed, adotar GitHub Release Assets como endpoint canônico inicial, trust híbrido por ambiente (repository-derived em dev/staging e strict-manual em produção sensível), SLA de revogação <24h e resolução híbrida (convenção + override explícito).",
+			"rationale": "Maximiza velocidade de entrega usando infraestrutura já existente, preservando hardening em produção e reduzindo risco operacional com SLA explícito de revogação.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Alinhamento de T-RUNTIME-25 para destravar implementação T-RUNTIME-26..29 sem depender de nova infraestrutura dedicada."
+		},
+		{
+			"id": "DEC-017",
+			"decision": "Padronizar resolução automática external-signed via manifesto estável `runtime-descriptor-manifest.json` em GitHub Release Assets por tag `<manifest.id>@<manifest.version>`, mantendo override explícito de URL.",
+			"rationale": "Reduz configuração manual por pacote e mantém controle operacional para exceções, sem bloquear ambientes com requisitos específicos.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Execução de T-RUNTIME-27 após defaults de endpoint/trust/SLA definidos em DEC-016."
+		},
+		{
+			"id": "DEC-018",
+			"decision": "Aplicar enforcement de revogação por `descriptorHash` para external-signed em install e browser runtime, usando lista oficial `runtime-descriptor-revocations.json` com cache local TTL.",
+			"rationale": "Fecha janela operacional de distribuição pública: impede novos installs e bloqueia loads de descriptors revogados sem depender de allowlist manual por pacote.",
+			"status": "decided",
+			"phase": 6,
+			"context": "Fechamento de T-RUNTIME-28/T-RUNTIME-29 após auto-resolve external-signed (DEC-017)."
+		},
+		{
+			"id": "DEC-019",
+			"decision": "Serializar mudanças em áreas críticas (tractor, plugin-manifest, workflows, blocos .project) com lock operacional por domínio e handoff explícito.",
+			"rationale": "Reduz colisões em superfícies de alto acoplamento e mantém revisão auditável em lotes paralelos.",
+			"status": "decided",
+			"phase": 3,
+			"context": "Execução de T-PLAN-04 para anti-colisão em operação de colônia."
+		},
+		{
+			"id": "DEC-020",
+			"decision": "Adotar concorrência inicial de 3 workers (escala máxima 4 sob estabilidade) com critérios explícitos de scale up/down.",
+			"rationale": "Equilibra throughput e previsibilidade de CI/preflight em monorepo híbrido com boundaries sensíveis.",
+			"status": "decided",
+			"phase": 3,
+			"context": "Execução de T-PLAN-06 para governança de capacidade da colônia."
+		},
+		{
+			"id": "DEC-021",
+			"decision": "Sincronizar decisões do `.project` com ADRs: quando ADR estiver `Proposed`, a decisão correspondente deve ficar em `revisit` até aceite formal.",
+			"rationale": "Evita falso fechamento arquitetural no board e mantém rastreabilidade real entre roadmap, ADR e execução.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Aplicado no alinhamento DEC-010 ↔ ADR-012 durante T-DEC-01."
+		},
+		{
+			"id": "DEC-022",
+			"decision": "Adotar separação de trilhas: ajustes operacionais imediatos no `pi` atual vs decisões de produto/plataforma direcionadas ao runtime Refarm futuro.",
+			"rationale": "Permite evoluir governança/fluxo hoje sem acoplar prematuramente implementação à migração completa do agente para Refarm.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Diretriz de transição registrada após alinhamento de continuidade operacional (heads-up de migração pi → Refarm)."
+		},
+		{
+			"id": "DEC-023",
+			"decision": "Consolidar gates de fábrica (`gate:smoke:*` e `gate:full:colony`) como baseline comum para o estado atual e para a migração gradual ao agente Refarm.",
+			"rationale": "Mantém contrato de qualidade estável entre fases de transição de plataforma e reduz risco de regressão durante migração.",
+			"status": "decided",
+			"phase": 9,
+			"context": "Sincronização roadmap operacional com `roadmaps/MAIN.md` e playbook de colônia."
+		},
+		{
+			"id": "DEC-024",
+			"decision": "Após pushes de lote em `develop`, executar observação curta de CI (ou registrar owner humano responsável quando `gh` indisponível).",
+			"rationale": "Reduz latência de detecção de regressão pós-push e melhora fechamento operacional de lotes.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Slice de operação pós-push no ciclo de batches pós-compactação."
+		},
+		{
+			"id": "DEC-025",
+			"decision": "Sessões próximas ao limite de contexto devem encerrar com checkpoint explícito (`VER-CHECKPOINT-*`) antes da compactação.",
+			"rationale": "Preserva continuidade sem depender de memória implícita da sessão e reduz perda de contexto entre lotes.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Padronização de encerramento de lote para execução contínua em múltiplos ciclos de compactação."
+		},
+		{
+			"id": "DEC-026",
+			"decision": "Política offline de revogação external-signed será profile-driven: fail-open em dev, stale-allowed em staging e fail-closed em produção sensível.",
+			"rationale": "Equilibra DX/throughput nos ambientes de entrega e hardening em ambientes críticos.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Fechado em NEXT7 após aceite ADR-051: precedence canônica (policy explícita > profile explícito > policy ambiente > profile ambiente > fallback), fallback genérico por ambiente (REFARM_ENVIRONMENT/NODE_ENV/VITE_REFARM_ENVIRONMENT), regra de conflito (dedicated profile vence generic environment) e observabilidade completa (invalid/conflict/stale/unavailable) com guardrail CI de release-path smoke em mudanças tractor."
+		},
+		{
+			"id": "DEC-027",
+			"decision": "Adotar comando de diagnóstico agregado para eventos de revogação (`system:diagnostics:descriptor-revocation-summary`) como baseline operacional de incident response.",
+			"rationale": "Consolida rapidamente sinais invalid/conflict/stale/unavailable e reduz tempo de triagem sem depender de inspeção manual de eventos brutos.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Implementado no NEXT8 com cobertura de testes, documentação e runbook operacional alinhados."
+		},
+		{
+			"id": "DEC-028",
+			"decision": "Adotar baseline severity-aware para observabilidade de revogação com thresholds default (unavailable warn=1/critical=3, configDrift warn=1, staleCache warn=1) e artifactação JSON/Markdown em CI/ops.",
+			"rationale": "Padroniza priorização operacional entre runtime/install, reduz tempo de triagem e habilita gates automatizados por severidade sem inspeção manual de eventos brutos.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Implementado no NEXT9 via comandos `descriptor-revocation-alerts`, report CLI e integração no workflow Test & Quality."
+		},
+		{
+			"id": "DEC-029",
+			"decision": "Padronizar análise operacional de revogação em duas camadas: snapshot (`revocation-report`) e análise longitudinal (`revocation-history`) com delta latest-vs-previous e políticas fail-on-* configuráveis.",
+			"rationale": "Separa diagnóstico instantâneo de tendência histórica, reduz tempo de triagem e permite gates automatizados orientados a regressão operacional.",
+			"status": "decided",
+			"phase": 10,
+			"context": "Implementado no NEXT10 com CLI dedicado, biblioteca utilitária, fixtures de smoke e integração no workflow Test & Quality."
+		},
+		{
+			"id": "DEC-030",
+			"decision": "Para análise longitudinal de revogação, adotar baseline preferencial via artifact do último run bem-sucedido de \"Test & Quality\" na mesma branch, com fallback não-bloqueante para snapshot atual quando baseline não estiver disponível.",
+			"rationale": "Reduz dependência de fixtures e aproxima observabilidade de produção real, mantendo resiliência no primeiro run/ausência temporária de artifacts.",
+			"status": "decided",
+			"phase": 11,
+			"context": "Implementado com scripts runtime-descriptor:revocation-baseline + runtime-descriptor:revocation-history e integração no workflow test.yml."
+		},
+		{
+			"id": "DEC-031",
+			"decision": "Refarm deve convergir para um host unificado (`refarm`) com renderers TUI, Web e headless, em vez de tratar `apps/*` como produtos desconectados.",
+			"rationale": "A experiência desejada é análoga ao Pi enquanto processo extensível: um host carrega plugins, aplica trust gates, roteia ações/telemetria/streams e expõe a interface apropriada. Web pode rodar via servidor/browser auxiliar, mas o domínio lógico deve permanecer um runtime único governado por contratos de plataforma.",
+			"status": "decided",
+			"phase": 29,
+			"context": "Discussão de analogia com pi-mono e objetivo de permitir que Refarm agêntico substitua gradualmente o uso direto do Pi com pragmatismo."
+		},
+		{
+			"id": "DEC-032",
+			"decision": "Manter o produto CLI/host `refarm` como distro em `apps/`, enquanto `packages/` guarda os blocos reutilizáveis.",
+			"rationale": "A CLI escolhe UX, defaults, perfis e política operacional, portanto é uma montagem opinativa de produto. Os pacotes devem fornecer primitivas reutilizáveis de runtime, renderers, trust, plugins, telemetry e DS para que a CLI dogfoode os blocos sem transformar o comando em bloco philosophy-neutral.",
+			"status": "decided",
+			"phase": 30,
+			"context": "Alinhamento pós-compactação: o usuário se sente melhor com a CLI nos apps e os packages como blocos."
+		},
+		{
+			"id": "DEC-033",
+			"decision": "Planejar a CLI `refarm` como uma distro docs-first em `apps/refarm` antes de scaffoldar código executável.",
+			"rationale": "O host/renderers ainda está sendo estabilizado. Documentar comandos mínimos, modos e composição de pacotes reduz risco de criar uma CLI prematura ou mover UX de produto para packages.",
+			"status": "decided",
+			"phase": 34,
+			"context": "Próximo slice após provas Web/headless de renderer: preparar o produto CLI mantendo atomicidade e sem acoplamento prematuro. O nome esperado do produto/comando é `refarm`."
+		}
+	]
+}

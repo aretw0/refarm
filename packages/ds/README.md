@@ -8,6 +8,22 @@ The Refarm Design System (DS) is the source of truth for all visual tokens, styl
 - **Headless-First**: Focus on accessibility and behavior contracts rather than prescribed visuals.
 - **Storybook Included**: Integrated development environment for component testing.
 
+## CSS primitives
+
+Import `@refarm.dev/ds/styles/styles.css` once in a host shell to expose shared,
+framework-agnostic primitives:
+
+- layout: `.refarm-grid`, `.refarm-stack`, `.refarm-cluster`, `.refarm-split-grid`;
+- surfaces: `.refarm-surface`, `.refarm-surface-tinted`, `.refarm-panel`, `.refarm-surface-card`, `.refarm-card-roomy`;
+- actions: `.refarm-btn`, `.refarm-btn-primary`, `.refarm-btn-pill`;
+- data display: `.refarm-pill`, `.refarm-badge`, `.refarm-tag`, `.refarm-code`, `.refarm-data-table`;
+- workbench composition: `.refarm-workbench`, `.refarm-workbench-grid`, `.refarm-workbench-title`, `.refarm-workbench-lead`, `.refarm-workbench-actions`, `.refarm-workbench-card`, `.refarm-eyebrow-chip`, `.refarm-muted-list`, `.refarm-proof-list`;
+- loading states: `.refarm-loading-state`, `.refarm-spinner`.
+
+Host packages should keep domain logic local and consume these classes for
+agnostic presentation. For example, Homestead owns stream node rendering while
+the DS owns the generic pill, panel, card, badge, and workbench styling.
+
 ## Usage
 
 ```bash

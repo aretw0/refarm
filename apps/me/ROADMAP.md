@@ -26,7 +26,13 @@ This is intentional — `apps/me` represents the sovereign citizen, not the deve
 
 ---
 
-## v0.1.0 — Bootstrap
+## pi-era recalibration
+
+This roadmap describes capability tracks for `apps/me`; it is not a promise to promote Refarm by version number. The current priority is making `apps/me` reliable enough to be the creator's personal daily-driver shell before any `v0.1.0` release is minted.
+
+---
+
+## Daily-driver bootstrap track (legacy `v0.1.0` bucket)
 
 **Status**: 🚧 In progress (Gate 3)
 **What "bootstrap" means**: Everything loads from the repo. No graph discovery.
@@ -51,15 +57,15 @@ See [Gate 3b spec](../../docs/gate3-homestead-tractor-spec.md#gate-3b-reference-
 
 ---
 
-## v0.2.0 — Sovereign Mode
+## Sovereign mode backlog (legacy `v0.2.0` bucket)
 
-**Status**: 🔄 Planned
+**Status**: 🔄 Planned after daily-driver bootstrap
 **What "sovereign" means**: The distro reads the user's graph. Plugins are discovered, not hardcoded.
 
 ### Deliverables
 
 - [ ] `HeraldPlugin` reads identity from the graph — Nostr key via `identity-nostr`
-  (`world refarm-identity-plugin` WIT, commit `07f338b`)
+      (`world refarm-identity-plugin` WIT, commit `07f338b`)
 - [ ] Distro checks graph for `refarm:PluginRegistry` nodes on boot
 - [ ] Plugins discovered from registry → installed dynamically (no URL hardcoded in repo)
 - [ ] First plugin management UI:
@@ -73,15 +79,15 @@ See [Gate 3b spec](../../docs/gate3-homestead-tractor-spec.md#gate-3b-reference-
 
 ### Inflexion point
 
-The transition from v0.1.0 bootstrap → v0.2.0 sovereign mode occurs when the user's
-graph contains at least one `refarm:PluginRegistry` node. See
+The transition from bootstrap → sovereign mode occurs when the user's
+graph contains at least one `refarm:PluginRegistry` node and the daily-driver shell remains reliable. See
 [distro-evolution-model.md](../../docs/distro-evolution-model.md#the-point-of-inflexion).
 
 ---
 
-## v0.3.0 — Social & Discovery
+## Social & discovery backlog (legacy `v0.3.0` bucket)
 
-**Status**: 🔄 Planned (post-sovereign)
+**Status**: 🔄 Planned (post-sovereign, post-daily-driver)
 
 ### Deliverables
 

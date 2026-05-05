@@ -1,8 +1,134 @@
-# User Story: "A Day in the Life of a Refarm User"
+# User Stories: Refarm in Practice
 
 > **Purpose**: Validate that the Refarm roadmap delivers a complete, compelling end-to-end experience.
 > **Audience**: Product managers, developers, community feedback.
-> **Format**: Narrative walkthrough of first-time user journey.
+> **Format**: Narrative walkthroughs of real user journeys.
+
+---
+
+## Primary User: You (The Creator)
+
+**Context**: Refarm is designed first and foremost as your **personal sovereign workspace**. You are the daily user validating architecture, UX, and velocity.
+
+### Your Needs
+
+- **Unified workspace** — Tasks, notes, projects, research, decision logs in one place (replaces GitHub issues + Notion + notes)
+- **Ownership** — All data encrypted locally; complete recovery control via mnemonic
+- **Offline-first** — Works completely without cloud sync; seamless reconnect when online
+- **Knowledge graph** — Interconnected nodes queryable by you, not owned by Notion/Confluence
+- **Automation** — Personal workflows: reminders, batch operations, scheduled tasks
+- **Portability** — Run on laptop, Raspberry Pi, browser; sync via P2P or personal relay
+- **Cryptographic identity** — Your work is signed by you; portable across devices
+- **Intelligence** — Local AI queries over your graph using Claude or local models
+
+### Act 0: Your First Day with Refarm
+
+**Your action**: Launch `apps/me` locally, connect to `tractor` daemon.
+
+```
+[apps/me starts]
+  ✓ Tractor daemon connected (ws://localhost:42000)
+  ✓ Browser OPFS: 1.2 GB available
+  ✓ SQLite database loaded (production .db)
+  ✓ Your identity recognized from Nostr key
+  ✓ Last 7 nodes displayed
+
+  [Inbox]  [Work]  [Research]  [Automation]  [Settings]
+```
+
+**You click [Inbox]** — Your daily unprocessed items:
+
+```
+📌 3 new items from tractor daemon logs
+📧 1 Courier message (Matrix bridge synced)
+🔗 5 bookmarks from web clipper plugin
+🤖 1 action delegated from yesterday's workflow
+```
+
+**You click [Work]** — Project graph:
+
+```
+Tasks (38)
+├── Refarm (11)
+│   ├── Fix Gate 3: tractor sync (urgent)
+│   ├── Plugin validation in Barn (next)
+│   └── ...
+├── Personal (8)
+│   └── ...
+└── Community (19)
+    └── ...
+```
+
+**You click [Research]** — Your knowledge graph:
+
+```
+Articles (127) | Papers (43) | Decisions (12)
+
+Recent clusters:
+  • OPAQUE protocol (3 articles, 2 decisions, 5 bookmarks)
+  • Loro CRDT internals (7 articles, ADR-045)
+  • Nostr ecosystem (12 articles, 1 personal note)
+
+[Graph View]  [Timeline]  [Full-Text Search]
+```
+
+**You click [Automation]** — Your personal scripts:
+
+```
+Workflows (14)
+  ✓ Daily standup (triggered 09:00)
+  ✓ Weekly review (triggered Fridays 17:00)
+  ✓ Sync bookmarks to Refarm (triggered on save)
+  ✓ Archive completed tasks (triggered daily 23:00)
+  ⏸ Notarize decisions (paused)
+
+[+ New Workflow]
+```
+
+**You click [Settings]** — Your sovereign control:
+
+```
+Identity
+  ✓ Keypair: nostr:npub1abc...
+  📋 Mnemonic: [Backup]  [Restore]
+
+Storage
+  ✓ SQLite in OPFS (1.2 GB / 10 GB)
+  ✓ Backup location: ~/refarm-backups/
+  📥 [Restore from Backup]
+
+Devices
+  ✓ Laptop (this device)
+  ○ Phone (awaiting sync code)
+  ○ Tablet (paired, last sync 2h ago)
+  
+  [+ Add Device]  [Recovery Code]
+```
+
+### What Makes This Real
+
+**You've been using Refarm for 3 months:**
+
+- All GitHub issues initially migrated to `/work/refarm` project
+- All personal notes moved from Notion to `/research`
+- Weekly review workflow automated
+- 3 personal plugins loaded (web clipper, Courier bridge, task scheduler)
+- 0 data loss events, 0 sync conflicts resolved
+- **Result**: Refarm is now your "source of truth" for work/life; GitHub/Notion act as mirrors
+
+**You discover a plugin need**: "I want to batch-rename all my Refarm tasks to include priorities."
+
+- Write a small WASM plugin (Rust + `cargo-component`)
+- Load into `packages/plugins/personal/` for testing
+- Test in `apps/me` against production `.db` (no risk; fully recoverable)
+- Once stable, publish as `@aretw0/refarm-plugin-task-prioritizer` to npm + Nostr
+- Other users can install and validate it
+
+---
+
+## Secondary User: Alice (The Federation User)
+
+**Context**: Eventually, Refarm will support collaborative boards and federation via Nostr relays. Alice represents that future.
 
 ---
 
@@ -276,55 +402,55 @@ can't access her local filesystem directly.
 [Studio — Install Plugin]
   🔗 Obsidian Bridge v1.0.0
      Imports .md files from a local Obsidian vault
-     ⚠️  Requires Farmhand (local file access)
+     ⚠️  Requires Tractor Daemon (local file access)
 
-  [Install on Farmhand]  [Learn more]
+  [Install on Tractor Node]  [Learn more]
 ```
 
 Alice clicks **"Learn more"** and follows the daemon setup:
 
 ```bash
 # Alice runs on her laptop terminal:
-npx @refarm.dev/farmhand
-# → Farmhand running at localhost:42000
+refarm tractor start
+# → Tractor daemon running at ws://localhost:42000
 # → Scanning ~/.refarm/plugins/...
 ```
 
-Studio detects Farmhand automatically:
+Studio detects the Tractor node automatically:
 
 ```
 [New device connected]
-  🖥️  Alice's Laptop — Farmhand
+  🖥️  Alice's Laptop — Tractor
 
   [Sync as new device]  [Ignore]
 ```
 
-Alice clicks "Sync as new device". Farmhand joins her CRDT swarm — same as adding a new phone.
+Alice clicks "Sync as new device". Tractor joins her CRDT swarm — same as adding a new phone.
 
 ```
 [Devices]
   📱 Alice's Phone
   💻 Alice's Laptop (browser)
-  🖥️  Alice's Laptop — Farmhand   ← new
+  🖥️  Alice's Laptop — Tractor   ← new
 ```
 
-Farmhand has already scanned `~/.refarm/plugins/` and written a `PluginDiscovery` node to the graph.
+Tractor has already scanned `~/.refarm/plugins/` and written a `PluginDiscovery` node to the graph.
 Studio shows the routing panel:
 
 ```
-[Studio — Farmhand Devices]
-  🖥️  Alice's Laptop — Farmhand
+[Studio — Tractor Nodes]
+  🖥️  Alice's Laptop — Tractor
      Discovered plugins:
        📦 Obsidian Bridge v1.0.0  (found in ~/.refarm/plugins/)
-           [Load on this device]  [Load on RPi]  [Load on Edge]
+           [Load on this node]  [Load on Pi Node]  [Load on Edge Relay]
 ```
 
 Alice clicks **"Load on this device"**. Studio writes a `PluginRoute` node to the graph.
-Farmhand picks it up and loads the plugin:
+Tractor picks it up and loads the plugin:
 
 ```
 [Progress]
-  Obsidian Bridge loading on Farmhand...
+  Obsidian Bridge loading on Tractor...
   ✓ 347 notes imported from ~/obsidian/vault/
   Syncing to your other devices...
 ```
@@ -332,11 +458,11 @@ Farmhand picks it up and loads the plugin:
 Alice sees her Obsidian notes in the browser Refarm — **the browser never touched a local file**.
 
 > **If Obsidian Bridge isn't in `~/.refarm/plugins/` yet:**
-> Alice can install it via Studio → the plugin is flagged as requiring Farmhand and routed there automatically.
+> Alice can install it via Studio -> the plugin is flagged as requiring a Tractor node and routed there automatically.
 
 **Refarm delivered**:
 
-- ✅ v0.3.0 Farmhand (always-on CRDT peer + plugin scanner + router, ADR-037 Phase 3)
+- ✅ v0.3.0 Tractor Node (always-on CRDT peer + plugin scanner + router, ADR-037 Phase 3)
 
 ---
 
@@ -568,7 +694,7 @@ Anyone with the URL + manifest can install immediately:
 
 If Alice closes laptop, phone, and daemon, her Refarm is offline.
 
-**Partial solution (v0.3.0+)**: She can run Farmhand on an always-on device
+**Partial solution (v0.3.0+)**: She can run a Tractor node on an always-on device
 (Raspberry Pi, home server) — it acts as a permanent CRDT peer and webhook receiver.
 
 **Cloud option (v0.4.0+)**: She can use a hosted relay as an async mailbox — relay stores

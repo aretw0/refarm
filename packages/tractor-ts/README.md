@@ -133,7 +133,7 @@ const plugin = await tractor.loadPlugin(manifest);
 ### Phase 1: Unit Tests (Red)
 
 ```bash
-npm run test:unit -- apps/kernel
+npm run test:unit -- packages/tractor-ts
 
 # All tests should FAIL initially (red phase)
 ```
@@ -141,7 +141,7 @@ npm run test:unit -- apps/kernel
 ### Phase 2: Integration Tests (Red)
 
 ```bash
-npm run test:integration -- apps/kernel
+npm run test:integration -- packages/tractor-ts
 
 # Multi-module scenarios should FAIL
 ```
@@ -150,7 +150,7 @@ npm run test:integration -- apps/kernel
 
 ```bash
 # Make tests pass
-npm run test:watch -- apps/kernel
+npm run test:watch -- packages/tractor-ts
 
 # Watch mode auto-reruns on file changes
 ```
@@ -207,7 +207,12 @@ The contract defines:
 
 Plugins communicate via **WIT interface** defined in [`wit/refarm-sdk.wit`](../../wit/refarm-sdk.wit).
 
-**Runtime**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at runtime. This allows seamless integration with Node.js and Browser ESM while maintaining the capability-gated sandbox.
+**Runtime**:
+
+- **Node.js**: Tractor uses [`jco`](https://github.com/bytecodealliance/jco) to transpile WASM components into JavaScript modules at load time.
+- **Browser**: Tractor loads cache-backed artifacts from OPFS.
+  - `artifactKind=module` executes via `WebAssembly.instantiate`
+  - `artifactKind=component` executes via integrity-verified ESM sidecar (`browserRuntimeModule`) linked by descriptor metadata.
 
 **Security model**:
 
@@ -249,6 +254,89 @@ DEBUG=refarm:* npm run dev
 DEBUG=refarm:plugin-host:* npm run dev
 ```
 
+### Generate browser runtime descriptor for component sidecars
+
+```bash
+npm run runtime-module:descriptor -- \
+  --plugin-id @acme/component-plugin \
+  --component-url https://cdn.example/component.wasm \
+  --module-file ./dist/component.browser.mjs \
+  --module-url https://cdn.example/component.browser.mjs \
+  --provenance-commit $(git rev-parse HEAD) \
+  --provenance-build local-build-001 \
+  --provenance-repo https://github.com/aretw0/refarm \
+  --out ./dist/component.runtime-descriptor.json
+```
+
+This emits a deterministic descriptor with `descriptorIntegrity` and mandatory provenance (`commitSha`, `buildId`, toolchain) so install-time flows can verify sidecar origin.
+In CI, `--provenance-commit`/`--provenance-build` can be omitted when `GITHUB_SHA`/`GITHUB_RUN_ID` are available.
+
+For CI/local gate validation:
+
+```bash
+npm run runtime-module:ci
+```
+
+This runs deterministic smoke generation + descriptor verification (`runtime-module:smoke`).
+
+Distribution policy at install-time:
+- default: `package-embedded` (descriptor URL must stay on same origin as component wasm)
+- optional: `external-signed` (requires `descriptorIntegrity` and `provenance.sourceRepository`)
+  - trust mode default is `repository-derived` (derives trusted descriptor origins from `provenance.sourceRepository`, e.g. GitHub release asset domains)
+  - use `descriptorTrustMode: "strict-manual"` + `descriptorTrustedOrigins` when you need explicit allowlists only
+  - when `descriptorSourceRepository` is provided, install can auto-resolve `runtime-descriptor-manifest.json` from GitHub release assets (tag default: `${manifest.id}@${manifest.version}`)
+  - install checks `runtime-descriptor-revocations.json` (same release/tag convention) and blocks revoked descriptor hashes before caching runtime sidecars
+  - pass `descriptorRevocationList` (inline or URL) and/or `descriptorRevocationAssetName` when you need explicit revocation source control
+  - choose behavior when revocation source is unavailable with `descriptorRevocationUnavailablePolicy`:
+    - `fail-closed` (default): reject install
+    - `stale-allowed`: allow stale cache only (if available)
+    - `fail-open`: continue install with warning
+  - or choose by profile with `descriptorRevocationProfile`:
+    - `dev` → `fail-open`
+    - `staging` → `stale-allowed`
+    - `production-sensitive` → `fail-closed`
+  - explicit `descriptorRevocationUnavailablePolicy` takes precedence over `descriptorRevocationProfile`
+  - explicit `browserRuntimeModuleDescriptor.url` still overrides auto-resolve
+
+Install-time environment overrides (when install options omit policy/profile):
+- dedicated revocation vars:
+  - `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- generic environment fallback (mapped to profile):
+  - `REFARM_ENVIRONMENT` or `NODE_ENV`
+- browser-compatible aliases:
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+  - `VITE_REFARM_ENVIRONMENT`
+- global overrides:
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+  - `globalThis.__REFARM_ENVIRONMENT__`
+
+Browser runtime load policy for revocation-source unavailability can be configured with:
+- dedicated revocation vars:
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY`
+  - `VITE_REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE`
+- generic environment fallback:
+  - `VITE_REFARM_ENVIRONMENT`
+- runtime overrides:
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__`
+  - `globalThis.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__`
+  - `globalThis.__REFARM_ENVIRONMENT__`
+
+Accepted policy values: `fail-closed`, `stale-allowed` (default), `fail-open`.
+Accepted profile values: `dev`, `staging`, `production-sensitive`.
+
+Conflict behavior:
+- dedicated profile (`...REVOCATION_PROFILE`) has precedence over generic environment (`...ENVIRONMENT`)
+- when both are valid but map to different profiles, runtime emits conflict observability and install warns while keeping the dedicated profile
+
+Runtime observability events for revocation flow:
+- `system:descriptor_revocation_config_invalid` when policy/profile inputs are invalid and ignored by deterministic resolution
+- `system:descriptor_revocation_config_conflict` when dedicated profile conflicts with generic environment mapping and precedence is applied
+- `system:descriptor_revocation_stale_cache_used` when stale cache is used after revocation fetch failure
+- `system:descriptor_revocation_unavailable` when fail-open bypass is applied
+
 ### Profile Performance
 
 ```bash
@@ -262,6 +350,10 @@ npm run bench:check
 Refarm Tractor uses a "Black Box Recorder" pattern designed to give diagnostics without compromising data privacy or degrading console performance.
 
 - You can export the in-memory **Telemetry Ring Buffer** to a sanitized JSON document using `system:diagnostics:export`.
+- You can get an aggregated summary for revocation incidents with `system:diagnostics:descriptor-revocation-summary` (supports filters: `pluginId`, `policy`, `profile`, `limit`).
+- You can evaluate severity-ranked alerts with `system:diagnostics:descriptor-revocation-alerts` (supports threshold overrides).
+- CI/ops can generate markdown+JSON report artifacts from exports via `npm run runtime-descriptor:revocation-report:sample` (or `runtime-descriptor:revocation-report` with `--input`).
+- CI/ops can aggregate **history + latest delta** across runs by resolving the prior artifact (`npm run runtime-descriptor:revocation-baseline -- --current-report <summary.json> --reports-file <reports.txt>`) and then running `runtime-descriptor:revocation-history -- --reports-file <reports.txt>`.
 - Sensitive fields like `secretKey` or `token` are masked automatically (`[REDACTED]`).
 - Massive payloads and strings are elegantly truncated.
 - **For a detailed architecture, read [docs/OBSERVABILITY.md](./docs/OBSERVABILITY.md)**.

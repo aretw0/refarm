@@ -44,7 +44,7 @@ Se a organização ainda não existe:
 1. Vá para **Settings → General → Danger Zone → Transfer ownership**
 2. Novo owner: `refarm-dev`
 3. Confirme digitando o nome do repositório
-4. O repositório passa a ser `github.com/refarm-dev/refarm`
+4. O repositório passa a ser `github.com/aretw0/refarm`
 
 > GitHub automaticamente configura redirects do URL antigo para o novo. Os clones existentes
 > continuarão funcionando temporariamente, mas atualize os remotes o quanto antes.
@@ -52,7 +52,7 @@ Se a organização ainda não existe:
 ### Atualizar remote local
 
 ```bash
-git remote set-url origin https://github.com/refarm-dev/refarm.git
+git remote set-url origin https://github.com/aretw0/refarm.git
 git remote -v  # confirmar
 ```
 
@@ -66,7 +66,7 @@ Em cada `package.json` de package publicável, atualizar o campo `repository`:
 {
   "repository": {
     "type": "git",
-    "url": "https://github.com/refarm-dev/refarm.git",
+    "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/PACKAGE_NAME"
   }
 }
@@ -90,6 +90,13 @@ No novo org (`github.com/refarm-dev`), configurar os secrets necessários:
 | `CODECOV_TOKEN` | codecov.io (se usar) | Upload de coverage reports |
 
 **Settings → Secrets and variables → Actions → New repository secret**
+
+Variables recomendadas (repository variables):
+
+| Variable | Valor sugerido | Para quê |
+|---|---|---|
+| `RELEASE_AUTOMATION` | `true` | Habilita jobs de publicação |
+| `RELEASE_OWNER` | `refarm-dev` | Lock opcional por owner (evita publish em forks) |
 
 ---
 
@@ -129,6 +136,8 @@ npm view @refarm.dev/sync-contract-v1
 npm view @refarm.dev/plugin-manifest
 ```
 
+> Se o profile ativo de scope estiver em namespace pessoal, substitua os exemplos acima pelo scope correspondente (ex.: `@aretw0/...`).
+
 Se a publicação automática via CI não funcionar, publicar manualmente:
 
 ```bash
@@ -146,7 +155,7 @@ npm publish --access public
 
 ```bash
 # 1. Clone fresh no novo URL
-git clone https://github.com/refarm-dev/refarm.git /tmp/refarm-verify
+git clone https://github.com/aretw0/refarm.git /tmp/refarm-verify
 cd /tmp/refarm-verify
 
 # 2. Build completo

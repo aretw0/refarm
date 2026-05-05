@@ -30,11 +30,15 @@ import {
 } from "./lib/types";
 
 
+export * from "./lib/agent-response-stream.js";
 export * from "./lib/graph-normalizer.js";
 export * from "./lib/identity-recovery-host.js";
 export * from "./lib/l8n-host.js";
 export * from "./lib/plugin-host.js";
 export * from "./lib/secret-host.js";
+export * from "./lib/stream-chunk.js";
+export * from "./lib/stream-session.js";
+export * from "./lib/stream-view.js";
 export * from "./lib/telemetry.js";
 export * from "./lib/types.js";
 
@@ -390,6 +394,11 @@ export class Tractor {
       JSON.stringify(signedNode),
       (signedNode["refarm:sourcePlugin"] as string | undefined) ?? null,
     );
+    this.events.emit({
+      event: "storage:node:written",
+      pluginId: node["refarm:sourcePlugin"] as string | undefined,
+      payload: signedNode,
+    });
     this.events.emit({
       event: "storage:io",
       pluginId: node["refarm:sourcePlugin"] as string | undefined,

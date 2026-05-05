@@ -1,0 +1,90 @@
+{
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"description": "Evidence that work meets its criteria. Per-task, per-phase, or per-requirement completion evidence. The accountability record linking implementation to acceptance.",
+	"title": "Verification",
+	"type": "object",
+	"required": ["verifications"],
+	"properties": {
+		"verifications": {
+			"type": "array",
+			"items": {
+				"type": "object",
+				"required": [
+					"id",
+					"target",
+					"target_type",
+					"status",
+					"method",
+					"timestamp",
+					"evidence",
+					"criteria_results"
+				],
+				"properties": {
+					"id": {
+						"type": "string"
+					},
+					"target": {
+						"type": "string",
+						"description": "ID of what was verified (task, phase, requirement)"
+					},
+					"target_type": {
+						"type": "string",
+						"enum": ["task", "phase", "requirement"]
+					},
+					"status": {
+						"type": "string",
+						"enum": ["passed", "failed", "partial", "skipped"]
+					},
+					"method": {
+						"type": "string",
+						"enum": ["command", "inspect", "test"]
+					},
+					"evidence": {
+						"type": "string",
+						"description": "What was checked and what was found"
+					},
+					"timestamp": {
+						"type": "string"
+					},
+					"criteria_results": {
+						"type": "array",
+						"items": {
+							"type": "object",
+							"required": ["criterion", "status"],
+							"properties": {
+								"criterion": {
+									"type": "string"
+								},
+								"status": {
+									"type": "string",
+									"enum": ["passed", "failed", "skipped"]
+								},
+								"evidence": {
+									"type": "string"
+								}
+							}
+						}
+					}
+				},
+				"examples": [
+					{
+						"id": "VER-EXAMPLE-001",
+						"target": "T-EXAMPLE-01",
+						"target_type": "task",
+						"status": "passed",
+						"method": "command",
+						"timestamp": "2026-04-24T00:00:00.000Z",
+						"evidence": "Comando executado com saída verde e critérios validados.",
+						"criteria_results": [
+							{
+								"criterion": "Critério de aceite 1",
+								"status": "passed",
+								"evidence": "Trecho da saída do comando"
+							}
+						]
+					}
+				]
+			}
+		}
+	}
+}

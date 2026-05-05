@@ -1,0 +1,60 @@
+{
+	"name": "fragility",
+	"description": "Detects unaddressed fragilities after tool use",
+	"event": "message_end",
+	"when": "has_tool_results",
+	"scope": {
+		"target": "main"
+	},
+	"classify": {
+		"context": ["tool_results", "assistant_text", "user_text"],
+		"agent": "fragility-classifier"
+	},
+	"patterns": {
+		"path": "fragility.patterns.json",
+		"learn": true
+	},
+	"instructions": {
+		"path": "fragility.instructions.json"
+	},
+	"actions": {
+		"on_flag": {
+			"steer": "{% if user_text %}{{ description }}{% else %}Fix the issue you left behind: {{ description }}{% endif %}",
+			"write": {
+				"path": ".project/issues.json",
+				"schema": "schemas/issues.schema.json",
+				"merge": "append",
+				"array_field": "issues",
+				"template": {
+					"id": "fragility-{finding_id}",
+					"description": "{description}",
+					"status": "open",
+					"category": "fragility",
+					"priority": "{severity}",
+					"source": "monitor"
+				}
+			}
+		},
+		"on_new": {
+			"steer": "{% if user_text %}{{ description }}{% else %}Fix the issue you left behind: {{ description }}{% endif %}",
+			"learn_pattern": true,
+			"write": {
+				"path": ".project/issues.json",
+				"schema": "schemas/issues.schema.json",
+				"merge": "append",
+				"array_field": "issues",
+				"template": {
+					"id": "fragility-{finding_id}",
+					"description": "{description}",
+					"status": "open",
+					"category": "fragility",
+					"priority": "warning",
+					"source": "monitor"
+				}
+			}
+		},
+		"on_clean": null
+	},
+	"ceiling": 5,
+	"escalate": "ask"
+}

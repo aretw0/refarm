@@ -8,6 +8,34 @@
       "types": "./dist/sdk/index.d.ts",
       "import": "./dist/sdk/index.js"
     },
+    "./sdk/custom-element": {
+      "types": "./dist/sdk/custom-element.d.ts",
+      "import": "./dist/sdk/custom-element.js"
+    },
+    "./sdk/host-renderer": {
+      "types": "./dist/sdk/host-renderer.d.ts",
+      "import": "./dist/sdk/host-renderer.js"
+    },
+    "./sdk/plugin-handle": {
+      "types": "./dist/sdk/plugin-handle.d.ts",
+      "import": "./dist/sdk/plugin-handle.js"
+    },
+    "./sdk/runtime": {
+      "types": "./dist/sdk/runtime.d.ts",
+      "import": "./dist/sdk/runtime.js"
+    },
+    "./sdk/shell": {
+      "types": "./dist/sdk/Shell.d.ts",
+      "import": "./dist/sdk/Shell.js"
+    },
+    "./sdk/surface-inspector": {
+      "types": "./dist/sdk/surface-inspector.d.ts",
+      "import": "./dist/sdk/surface-inspector.js"
+    },
+    "./sdk/surface-renderer": {
+      "types": "./dist/sdk/surface-renderer.d.ts",
+      "import": "./dist/sdk/surface-renderer.js"
+    },
     "./ui": {
       "types": "./dist/ui/index.d.ts",
       "import": "./dist/ui/index.js"
@@ -22,8 +50,11 @@
   },
   "dependencies": {
     "@refarm.dev/ds": "*",
+    "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/storage-sqlite": "*",
+    "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
-    "astro": "^5.3.0"
+    "astro": "^6.1.8"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
