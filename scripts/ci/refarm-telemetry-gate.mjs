@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { parseJsonOutput, runSubprocess } from "./subprocess-utils.mjs";
+import {
+	ensureTaskSmokeTypeBuilds,
+	parseJsonOutput,
+	runSubprocess,
+} from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-telemetry-gate]";
 const DEFAULT_STRICT_CODES = [
@@ -29,7 +33,9 @@ function printUsage() {
 	console.log(
 		"  --strict-all             Enforce all diagnostics emitted by telemetry (disables strict-on filter)",
 	);
-	console.log("  --out <path>             Write telemetry JSON artifact to file");
+	console.log(
+		"  --out <path>             Write telemetry JSON artifact to file",
+	);
 	console.log("  --skip-build             Skip apps/refarm build step");
 	console.log(
 		"  --timeout-ms <n>         Sidecar readiness timeout in ms (default: 20000)",
@@ -125,13 +131,26 @@ async function isTelemetryReady() {
 	}
 }
 
+async function readFarmhandLogTail() {
+	try {
+		const logPath = path.resolve(process.cwd(), ".refarm/farmhand.log");
+		const content = await readFile(logPath, "utf8");
+		return content.split("\n").filter(Boolean).slice(-80).join("\n");
+	} catch {
+		return "";
+	}
+}
+
 async function waitForTelemetryReady(timeoutMs) {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		if (await isTelemetryReady()) return;
 		await sleep(250);
 	}
-	throw new Error("Timed out waiting for farmhand telemetry sidecar on :42001");
+	const tail = await readFarmhandLogTail();
+	throw new Error(
+		`Timed out waiting for farmhand telemetry sidecar on :42001${tail ? `\n--- farmhand.log tail ---\n${tail}` : ""}`,
+	);
 }
 
 async function runTelemetryCommand(options) {
@@ -196,7 +215,11 @@ async function maybeWriteArtifact(options, parsedJson, rawOutput, exitCode) {
 	};
 
 	if (parsedJson) {
-		await writeFile(outputPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
+		await writeFile(
+			outputPath,
+			`${JSON.stringify(payload, null, 2)}\n`,
+			"utf8",
+		);
 		return;
 	}
 
@@ -213,6 +236,9 @@ async function main() {
 
 	try {
 		if (!options.skipBuild) {
+			await ensureTaskSmokeTypeBuilds(process.env, LOGGER_PREFIX, {
+				skipWorkspaces: ["apps/refarm"],
+			});
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
 			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
 				env: process.env,

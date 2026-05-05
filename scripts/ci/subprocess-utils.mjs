@@ -135,6 +135,42 @@ async function resetTsBuildArtifacts(workspaceDir) {
 	await rm(tsBuildInfo, { force: true });
 }
 
+async function hasBuildArtifact(workspaceDir) {
+	try {
+		await access(path.join(workspaceDir, "dist"));
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+export async function ensureTaskSmokeTypeBuilds(
+	env,
+	loggerPrefix = "[task-smoke]",
+	options = {},
+) {
+	await assertTaskSmokeBuildOrderIntegrity(loggerPrefix);
+	const skipWorkspaces = new Set(options.skipWorkspaces ?? []);
+	let built = 0;
+	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
+		if (skipWorkspaces.has(workspaceDir)) continue;
+		if (await hasBuildArtifact(workspaceDir)) continue;
+		if (built === 0) {
+			console.log(
+				`${loggerPrefix} building missing TS dependency artifacts...`,
+			);
+		}
+		built += 1;
+		await resetTsBuildArtifacts(workspaceDir);
+		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
+			env,
+		});
+	}
+	if (built === 0) {
+		console.log(`${loggerPrefix} TS dependency artifacts already present.`);
+	}
+}
+
 export async function prepareTaskSmokeTypeBuilds(
 	env,
 	loggerPrefix = "[task-smoke]",
@@ -146,11 +182,7 @@ export async function prepareTaskSmokeTypeBuilds(
 	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
 		await resetTsBuildArtifacts(workspaceDir);
 	}
-	for (const workspaceDir of TASK_SMOKE_TS_BUILD_ORDER) {
-		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
-			env,
-		});
-	}
+	await ensureTaskSmokeTypeBuilds(env, loggerPrefix);
 }
 
 export function stripAnsi(input) {
