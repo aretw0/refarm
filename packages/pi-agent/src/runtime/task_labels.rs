@@ -25,9 +25,33 @@ pub(super) fn status_from_content(content: &str) -> &'static str {
     }
 }
 
+/// Format recent task nodes as a brief system-prompt memory block.
+///
+/// Returns `None` when `limit` is 0 or all tasks lack a title.
+/// The returned string is intended to be appended to the system prompt
+/// so the agent has cross-session context without an explicit tool call.
+pub(super) fn format_task_context(tasks: &[serde_json::Value], limit: usize) -> Option<String> {
+    if limit == 0 || tasks.is_empty() {
+        return None;
+    }
+    let lines: Vec<String> = tasks
+        .iter()
+        .take(limit)
+        .filter_map(|t| {
+            let title = t["title"].as_str()?;
+            let status = t["status"].as_str().unwrap_or("?");
+            Some(format!("- [{status}] {title}"))
+        })
+        .collect();
+    if lines.is_empty() {
+        return None;
+    }
+    Some(format!("\n\nRecent work:\n{}", lines.join("\n")))
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{status_from_content, title_from_prompt};
+    use super::{format_task_context, status_from_content, title_from_prompt};
 
     #[test]
     fn title_uses_first_line() {
@@ -80,5 +104,59 @@ mod tests {
     fn status_normal_content_is_done() {
         assert_eq!(status_from_content("here is your answer"), "done");
         assert_eq!(status_from_content(""), "done");
+    }
+
+    #[test]
+    fn task_context_zero_limit_returns_none() {
+        let task = serde_json::json!({ "title": "something", "status": "done" });
+        assert!(format_task_context(&[task], 0).is_none());
+    }
+
+    #[test]
+    fn task_context_empty_list_returns_none() {
+        assert!(format_task_context(&[], 5).is_none());
+    }
+
+    #[test]
+    fn task_context_formats_status_and_title() {
+        let tasks = vec![
+            serde_json::json!({ "title": "implement fork", "status": "done" }),
+            serde_json::json!({ "title": "add task endpoint", "status": "done" }),
+        ];
+        let ctx = format_task_context(&tasks, 5).unwrap();
+        assert!(ctx.contains("Recent work:"), "must include header");
+        assert!(ctx.contains("[done] implement fork"));
+        assert!(ctx.contains("[done] add task endpoint"));
+    }
+
+    #[test]
+    fn task_context_caps_at_limit() {
+        let tasks: Vec<_> = (0..10)
+            .map(|i| serde_json::json!({ "title": format!("task {i}"), "status": "done" }))
+            .collect();
+        let ctx = format_task_context(&tasks, 3).unwrap();
+        let bullet_lines: Vec<_> = ctx.lines().filter(|l| l.starts_with("- ")).collect();
+        assert_eq!(bullet_lines.len(), 3);
+    }
+
+    #[test]
+    fn task_context_skips_tasks_without_title() {
+        let tasks = vec![
+            serde_json::json!({ "status": "done" }),          // no title — skip
+            serde_json::json!({ "title": "valid", "status": "active" }),
+        ];
+        let ctx = format_task_context(&tasks, 5).unwrap();
+        let bullet_lines: Vec<_> = ctx.lines().filter(|l| l.starts_with("- ")).collect();
+        assert_eq!(bullet_lines.len(), 1);
+        assert!(ctx.contains("[active] valid"));
+    }
+
+    #[test]
+    fn task_context_all_titleless_returns_none() {
+        let tasks = vec![
+            serde_json::json!({ "status": "done" }),
+            serde_json::json!({ "status": "active" }),
+        ];
+        assert!(format_task_context(&tasks, 5).is_none());
     }
 }

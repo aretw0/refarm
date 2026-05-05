@@ -22,6 +22,27 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
 }
 
 #[cfg(target_arch = "wasm32")]
+fn task_context_for_prompt() -> Option<String> {
+    let n = std::env::var("LLM_TASK_CONTEXT_TURNS")
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(0);
+    if n == 0 {
+        return None;
+    }
+    let raw = crate::refarm::plugin::tractor_bridge::query_nodes("Task", n as u32).ok()?;
+    let tasks: Vec<serde_json::Value> = raw
+        .iter()
+        .filter_map(|r| serde_json::from_str(r).ok())
+        .collect();
+    super::task_labels::format_task_context(&tasks, n)
+}
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn resolve_system_prompt() -> String {
-    std::env::var("LLM_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned())
+    let base = std::env::var("LLM_SYSTEM").unwrap_or_else(|_| DEFAULT_SYSTEM_PROMPT.to_owned());
+    match task_context_for_prompt() {
+        Some(ctx) => format!("{base}{ctx}"),
+        None => base,
+    }
 }
