@@ -80,6 +80,14 @@ export function createSessionsCommand(): Command {
 				}),
 		)
 		.addCommand(
+			new Command("new")
+				.description("Create a new session and switch to it")
+				.option("--name <name>", "Optional session name")
+				.action(async (opts: { name?: string }) => {
+					await createSession(opts);
+				}),
+		)
+		.addCommand(
 			new Command("show")
 				.description("Show conversation history for a session")
 				.argument("<id>", "Session ID or unique prefix")
@@ -178,7 +186,47 @@ async function listSessions(): Promise<void> {
 	console.log(
 		chalk.dim(
 			"\n  refarm sessions use <id-prefix>   switch session" +
-			"\n  refarm ask --new                  start fresh\n",
+				"\n  refarm sessions new               create and switch" +
+				"\n  refarm ask --new                  start fresh\n",
+		),
+	);
+}
+
+async function createSession(opts: { name?: string }): Promise<void> {
+	let created: SessionNode;
+	try {
+		const body = opts.name ? { name: opts.name } : {};
+		const response = await fetch(`${SIDECAR_URL}/sessions`, {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify(body),
+		});
+		const parsed = (await response.json()) as {
+			session?: SessionNode;
+			error?: string;
+		};
+		if (!response.ok || !parsed.session) {
+			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
+			process.exit(1);
+		}
+		created = parsed.session;
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+			console.error(chalk.red("✗  tractor is not running."));
+			console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		} else {
+			console.error(chalk.red(`✗  ${msg}`));
+		}
+		process.exit(1);
+	}
+
+	writeActiveSessionId(created["@id"]);
+	const short = formatSessionId(created["@id"]);
+	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
+	console.log(
+		chalk.green(
+			`✓  Created session ${chalk.cyan.bold(short)}  ${name} (switched active session).`,
 		),
 	);
 }
