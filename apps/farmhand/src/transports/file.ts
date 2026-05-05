@@ -18,6 +18,13 @@ export type TaskExecutorFn = (
 const DEFAULT_MAX_ATTEMPTS = 2;
 const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"] as const);
 
+export interface RuntimeVisibilitySnapshot extends EffortSummary {
+	queueDepth: number;
+	inFlight: number;
+	cancelRequests: number;
+	generatedAt: string;
+}
+
 function nowIso(): string {
 	return new Date().toISOString();
 }
@@ -208,6 +215,17 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		}
 
 		return summary;
+	}
+
+	async visibility(): Promise<RuntimeVisibilitySnapshot> {
+		const summary = await this.summary();
+		return {
+			...summary,
+			queueDepth: this.queue.length,
+			inFlight: this.inFlightEfforts.size,
+			cancelRequests: this.cancelRequests.size,
+			generatedAt: nowIso(),
+		};
 	}
 
 	async process(effort: Effort): Promise<void> {

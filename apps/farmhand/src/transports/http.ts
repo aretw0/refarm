@@ -15,6 +15,7 @@ export interface SidecarAdapter {
 	cancel(effortId: string): Promise<boolean>;
 	summary(): Promise<EffortSummary>;
 	process(effort: Effort): Promise<void>;
+	visibility?(): Promise<unknown>;
 }
 
 export class HttpSidecar {
@@ -80,6 +81,15 @@ export class HttpSidecar {
 
 			if (req.method === "GET" && url === "/efforts/summary") {
 				json(res, 200, await this.adapter.summary());
+				return;
+			}
+
+			if (req.method === "GET" && url === "/visibility") {
+				if (!this.adapter.visibility) {
+					json(res, 404, { error: "not found" });
+					return;
+				}
+				json(res, 200, await this.adapter.visibility());
 				return;
 			}
 
