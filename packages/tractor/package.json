@@ -4,7 +4,7 @@
 	"private": true,
 	"scripts": {
 		"build": "RUSTUP_TOOLCHAIN=stable cargo build --release",
-		"test": "RUSTUP_TOOLCHAIN=stable cargo test",
+		"test": "RUSTUP_TOOLCHAIN=stable cargo test --lib && RUSTUP_TOOLCHAIN=stable cargo test --test ws_integration",
 		"lint": "RUSTUP_TOOLCHAIN=stable cargo clippy -- -D warnings",
 		"lint:prepush": "RUSTUP_TOOLCHAIN=stable cargo clippy --lib -- -D warnings",
 		"test:unit": "npm run test",
