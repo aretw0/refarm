@@ -10,6 +10,7 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
+import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
@@ -171,6 +172,7 @@ async function main() {
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
+	await mkdir(farmhandBaseDir, { recursive: true });
 	const loadSummary = await loadInstalledPlugins(
 		tractor as any,
 		farmhandBaseDir,

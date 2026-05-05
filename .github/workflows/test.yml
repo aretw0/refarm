@@ -11,6 +11,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,6 +36,7 @@ jobs:
       run_task_smoke: ${{ steps.detect.outputs.run_task_smoke }}
       run_audit: ${{ steps.detect.outputs.run_audit }}
       run_deep: ${{ steps.detect.outputs.run_deep }}
+      skip_duplicate_push: ${{ steps.detect.outputs.skip_duplicate_push }}
 
     steps:
       - name: Checkout
@@ -45,9 +47,12 @@ jobs:
       - name: Detect changed areas
         id: detect
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
+          skip_duplicate_push=false
           run_deep=false
           if [ "${{ github.event_name }}" = "schedule" ]; then
             run_deep=true
@@ -55,6 +60,28 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ contains(github.event.pull_request.labels.*.name, 'ci:deep') }}" = "true" ]; then
             run_deep=true
           fi
+
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "develop" ]; then
+            open_pr_count="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length' 2>/dev/null || echo 0)"
+            if [ "${open_pr_count:-0}" != "0" ]; then
+              echo "::notice::Skipping heavy push validation for develop because an open PR already validates this head branch. open_pr_count=$open_pr_count"
+              echo "skip_duplicate_push=true" >> "$GITHUB_OUTPUT"
+              echo "base_sha=${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+              echo "head_sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
+              echo "turbo_filter=" >> "$GITHUB_OUTPUT"
+              echo "ci_changes=false" >> "$GITHUB_OUTPUT"
+              echo "code_changes=false" >> "$GITHUB_OUTPUT"
+              echo "tractor_gates=false" >> "$GITHUB_OUTPUT"
+              echo "run_build=false" >> "$GITHUB_OUTPUT"
+              echo "run_e2e=false" >> "$GITHUB_OUTPUT"
+              echo "run_task_smoke=false" >> "$GITHUB_OUTPUT"
+              echo "run_audit=false" >> "$GITHUB_OUTPUT"
+              echo "run_deep=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          echo "skip_duplicate_push=false" >> "$GITHUB_OUTPUT"
 
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             BASE_SHA="${{ github.event.pull_request.base.sha }}"
@@ -156,6 +183,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: changes
+    if: needs.changes.outputs.skip_duplicate_push != 'true'
 
     steps:
       - name: Checkout
@@ -645,6 +673,7 @@ jobs:
 
       - name: Carry forward status for skipped gates
         id: carry_forward
+        if: needs.changes.outputs.skip_duplicate_push != 'true'
         env:
           GITHUB_TOKEN: ${{ github.token }}
           CODE_CHANGES: ${{ needs.changes.outputs.code_changes }}
@@ -659,7 +688,12 @@ jobs:
 
       - name: Check all checks
         run: |
-          echo "changes: ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+          echo "changes: skip_duplicate_push=${{ needs.changes.outputs.skip_duplicate_push }} ci=${{ needs.changes.outputs.ci_changes }} code=${{ needs.changes.outputs.code_changes }} build=${{ needs.changes.outputs.run_build }} e2e=${{ needs.changes.outputs.run_e2e }} tractor_gates=${{ needs.changes.outputs.tractor_gates }} audit=${{ needs.changes.outputs.run_audit }} deep=${{ needs.changes.outputs.run_deep }} base=${{ needs.changes.outputs.base_sha }} filter=${{ needs.changes.outputs.turbo_filter }}"
+
+          if [ "${{ needs.changes.outputs.skip_duplicate_push }}" = "true" ]; then
+            echo "::notice::Heavy push validation skipped because the open PR run is canonical for this develop head."
+            exit 0
+          fi
 
           if [ "${{ steps.carry_forward.outputs.has_failure }}" = "true" ]; then
             echo "::error::One or more skipped gates reused a prior failing status."

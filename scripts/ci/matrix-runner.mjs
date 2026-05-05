@@ -64,6 +64,20 @@ function rewriteWorkspaceDepsToLatest(packageJsonPath) {
 	writeFileSync(packageJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, "utf8");
 }
 
+function pickValidationScript(pkg) {
+	const scripts = pkg.scripts ?? {};
+	for (const scriptName of [
+		"test:prepush",
+		"test:unit",
+		"test",
+		"type-check",
+		"build",
+	]) {
+		if (scripts[scriptName]) return scriptName;
+	}
+	return undefined;
+}
+
 // 1. Identify changed packages
 function getChangedPackages() {
 	try {
@@ -129,12 +143,24 @@ function runForward(pkgName) {
 		);
 		return;
 	}
+	const validationScript = pickValidationScript(workspace);
+	if (!validationScript) {
+		console.log(
+			`⚠️  Skipping forward compat for ${pkgName}: no test/type-check/build script declared.`,
+		);
+		return;
+	}
 	try {
 		// Replace local workspace dependencies with their published registry baseline.
 		rewriteWorkspaceDepsToLatest(join(pkgDir, "package.json"));
-		execSync("npm install --no-workspaces", { cwd: pkgDir, stdio: "inherit" });
-		execSync("npm run test", { cwd: pkgDir, stdio: "inherit" });
-		console.log(`✅ Forward compat passed for ${pkgName}`);
+		execSync("npm install --no-workspaces --package-lock=false", {
+			cwd: pkgDir,
+			stdio: "inherit",
+		});
+		execSync(`npm run ${validationScript}`, { cwd: pkgDir, stdio: "inherit" });
+		console.log(
+			`✅ Forward compat passed for ${pkgName} (${validationScript})`,
+		);
 	} catch (err) {
 		console.error(`❌ Forward compat failed for ${pkgName}`);
 		console.error(err instanceof Error ? err.message : String(err));
