@@ -62,7 +62,7 @@ jobs:
           fi
 
           if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref_name }}" = "develop" ]; then
-            open_pr_count="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length' 2>/dev/null || echo 0)"
+            open_pr_count="$(gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$GITHUB_REPOSITORY_OWNER:$GITHUB_REF_NAME" --jq 'length' 2>/dev/null || gh pr list --repo "$GITHUB_REPOSITORY" --head "$GITHUB_REF_NAME" --state open --json number --jq 'length' 2>/dev/null || echo 0)"
             if [ "${open_pr_count:-0}" != "0" ]; then
               echo "::notice::Skipping heavy push validation for develop because an open PR already validates this head branch. open_pr_count=$open_pr_count"
               echo "skip_duplicate_push=true" >> "$GITHUB_OUTPUT"
