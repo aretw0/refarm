@@ -296,6 +296,14 @@ async function main() {
 		);
 
 		console.log(
+			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when farmhand is down`,
+		);
+		await assertCommandFailsWith(
+			["telemetry", "--json", "--strict"],
+			"farmhand is not running",
+		);
+
+		console.log(
 			`${LOGGER_PREFIX} smoke: refarm tui --launch --dry-run --input`,
 		);
 		const tuiLaunchRun = await runRefarmCommand([
