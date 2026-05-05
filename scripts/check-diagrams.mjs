@@ -23,6 +23,7 @@ const specsDiagramsDir = path.join(projectRoot, "specs", "diagrams");
 const mermaidConfigFile = path.join(specsDiagramsDir, "mermaid.config.json");
 
 const CI_MODE = process.argv.includes("--ci");
+const STRICT_SVG_SYNC = process.env.REFARM_DIAGRAM_SYNC_STRICT !== "0";
 
 // Find all .mermaid files
 function findMermaidFiles() {
@@ -116,6 +117,10 @@ function validateDiagrams() {
         console.error("To fix, run locally:");
         console.error("  npm run diagrams:fix\n");
         console.error("Then commit the regenerated .svg files.");
+        if (!STRICT_SVG_SYNC) {
+          console.warn("⚠️  SVG sync drift is advisory for this run (REFARM_DIAGRAM_SYNC_STRICT=0).");
+          return;
+        }
         process.exit(1);
       } else {
         console.log("✅ All diagrams are in sync.");

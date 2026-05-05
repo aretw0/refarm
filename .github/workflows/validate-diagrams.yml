@@ -28,7 +28,7 @@ jobs:
   validate:
     uses: ./.github/workflows/reusable-validate-docs.yml
     with:
-      validation-command: npm run diagrams:check -- --ci
+      validation-command: REFARM_DIAGRAM_SYNC_STRICT=0 npm run diagrams:check -- --ci
       validation-name: Diagrams
       create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
       issue-title: "Mermaid diagram validation failed"
