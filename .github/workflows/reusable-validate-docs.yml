@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: "documentation,validation"
+      validation-cache-key:
+        description: "Optional content-addressed cache key for reusing a previous successful validation"
+        required: false
+        type: string
+        default: ""
     outputs:
       validation-status:
         description: "Status of validation: success or failure"
@@ -39,18 +44,38 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     outputs:
-      status: ${{ steps.validation.outcome }}
+      status: ${{ steps.validation-cache.outputs.cache-hit == 'true' && 'success' || steps.validation.outcome }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Restore validation result cache
+        id: validation-cache
+        if: inputs.validation-cache-key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/${{ inputs.validation-name }}
+          key: ${{ inputs.validation-cache-key }}
+
       - name: Setup
+        if: inputs.validation-cache-key == '' || steps.validation-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
+
+      - name: Validation cache hit
+        if: inputs.validation-cache-key != '' && steps.validation-cache.outputs.cache-hit == 'true'
+        run: echo "::notice::Reusing previous successful ${{ inputs.validation-name }} validation for unchanged content."
 
       - name: Run validation
         id: validation
+        if: inputs.validation-cache-key == '' || steps.validation-cache.outputs.cache-hit != 'true'
         run: ${{ inputs.validation-command }}
         continue-on-error: ${{ inputs.create-issue-on-failure }}
+
+      - name: Record validation cache marker
+        if: inputs.validation-cache-key != '' && steps.validation-cache.outputs.cache-hit != 'true' && steps.validation.outcome == 'success'
+        run: |
+          mkdir -p ".artifacts/validation-cache/${{ inputs.validation-name }}"
+          printf '%s\n' "${{ github.sha }}" > ".artifacts/validation-cache/${{ inputs.validation-name }}/last-successful-sha.txt"
 
       - name: Create or update issue on failure
         if: ${{ failure() && inputs.create-issue-on-failure }}
