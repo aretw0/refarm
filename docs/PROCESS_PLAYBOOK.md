@@ -24,7 +24,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 
 ```bash
 npm run farm:status        # unified status: both services, ports, artifacts, LLM
-refarm visibility          # runtime pressure snapshot (queue/in-flight/failures)
+refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
 npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
@@ -155,7 +155,7 @@ curl -X POST http://127.0.0.1:42001/efforts -H 'Content-Type: application/json' 
 # Check queue:
 curl -s http://127.0.0.1:42001/efforts/summary
 # Check rolling pressure window:
-curl -s 'http://127.0.0.1:42001/visibility/window?minutes=30'
+curl -s 'http://127.0.0.1:42001/telemetry/window?minutes=30'
 npm run farm:status
 # Stop:
 npm run farmhand:stop
@@ -174,7 +174,7 @@ Notes:
   `apps/refarm/dist` with the local resolver loader, so `refarm ask ...` works
   without manual node flags.
 - If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
-- Use `refarm visibility --profile balanced` (or conservative/throughput) to
+- Use `refarm telemetry --profile balanced` (or conservative/throughput) to
   watch queue/in-flight pressure and recent failure-rate signals.
 
 ### Scenario 3c — Session-first workflow
