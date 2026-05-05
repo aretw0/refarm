@@ -61,6 +61,14 @@ export interface TelemetryDeps {
 	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
 }
 
+function parseDiagnosticList(raw: string | undefined): string[] {
+	if (!raw) return [];
+	return raw
+		.split(",")
+		.map((item) => item.trim())
+		.filter(Boolean);
+}
+
 function toPositiveInt(raw: string | undefined, fallback: number): number {
 	const parsed = Number(raw);
 	if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
@@ -122,7 +130,9 @@ function printConnectionFailure(message: string): never {
 		console.error(chalk.red("✗  farmhand is not running."));
 		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
 	} else if (message.includes("telemetry endpoint not available")) {
-		console.error(chalk.red("✗  telemetry endpoint is unavailable in this daemon."));
+		console.error(
+			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),
+		);
 		console.error(chalk.dim("   Update/restart farmhand and retry."));
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
@@ -137,7 +147,9 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 	};
 
 	return new Command("telemetry")
-		.description("Show runtime telemetry snapshot and saturation/reliability signals")
+		.description(
+			"Show runtime telemetry snapshot and saturation/reliability signals",
+		)
 		.option("--json", "Output machine-readable JSON")
 		.option(
 			"--profile <name>",
@@ -151,6 +163,11 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 			"--fail-rate-warn <pct>",
 			"Warn threshold for rolling-window failure rate (%)",
 		)
+		.option("--strict", "Exit non-zero when selected diagnostics are present")
+		.option(
+			"--strict-on <codes>",
+			"Comma-separated diagnostic codes to enforce in strict mode (default: all diagnostics)",
+		)
 		.action(
 			async (opts: {
 				json?: boolean;
@@ -159,6 +176,8 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				queueWarn?: string;
 				inflightWarn?: string;
 				failRateWarn?: string;
+				strict?: boolean;
+				strictOn?: string;
 			}) => {
 				const profileName = opts.profile ?? "balanced";
 				if (!isThresholdProfileName(profileName)) {
@@ -211,7 +230,8 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 					diagnostics.push("reliability:failures-present");
 				}
 				if (window) {
-					if (window.failed > 0) diagnostics.push("reliability:failures-recent");
+					if (window.failed > 0)
+						diagnostics.push("reliability:failures-recent");
 					if (
 						window.failureRatePct !== null &&
 						window.failureRatePct >= thresholds.failRateWarn
@@ -220,23 +240,35 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 					}
 				}
 
+				const strictTargets = parseDiagnosticList(opts.strictOn);
+				const strictMatches =
+					strictTargets.length > 0
+						? diagnostics.filter((code) => strictTargets.includes(code))
+						: [...diagnostics];
+				const strictPassed = !opts.strict || strictMatches.length === 0;
+
+				const payload = {
+					snapshot,
+					window,
+					thresholds: {
+						profile: profileName,
+						windowMinutes,
+						...thresholds,
+					},
+					diagnostics,
+					strict: {
+						enabled: !!opts.strict,
+						targets: strictTargets,
+						matchedDiagnostics: strictMatches,
+						passed: strictPassed,
+					},
+				};
+
 				if (opts.json) {
-					console.log(
-						JSON.stringify(
-							{
-								snapshot,
-								window,
-								thresholds: {
-									profile: profileName,
-									windowMinutes,
-									...thresholds,
-								},
-								diagnostics,
-							},
-							null,
-							2,
-						),
-					);
+					console.log(JSON.stringify(payload, null, 2));
+					if (!strictPassed) {
+						process.exit(2);
+					}
 					return;
 				}
 
@@ -279,6 +311,20 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				console.log(chalk.yellow("\n  ⚠ pressure signals detected:"));
 				for (const item of diagnostics) {
 					console.log(chalk.yellow(`    - ${item}`));
+				}
+
+				if (!strictPassed) {
+					console.error(
+						chalk.red(
+							`\n✗ strict telemetry gate failed (${strictMatches.length} matching diagnostics).`,
+						),
+					);
+					if (strictTargets.length > 0) {
+						console.error(
+							chalk.dim(`  enforced codes: ${strictTargets.join(", ")}`),
+						);
+					}
+					process.exit(2);
 				}
 			},
 		);

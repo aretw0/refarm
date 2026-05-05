@@ -119,4 +119,79 @@ describe("refarm telemetry", () => {
 		expect(payload.diagnostics).toContain("reliability:failures-recent");
 		expect(payload.diagnostics).toContain("reliability:failure-rate");
 	});
+
+	it("fails strict gate with exit code 2 when diagnostics are present", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 8,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 0,
+				inProgress: 0,
+				done: 22,
+				failed: 8,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await expect(
+			command.parseAsync(["--json", "--strict"], { from: "user" }),
+		).rejects.toThrow("exit:2");
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			strict?: { passed?: boolean; matchedDiagnostics?: string[] };
+		};
+		expect(payload.strict?.passed).toBe(false);
+		expect(payload.strict?.matchedDiagnostics?.length).toBeGreaterThan(0);
+		expect(exitSpy).toHaveBeenCalledWith(2);
+
+		exitSpy.mockRestore();
+	});
+
+	it("strict-on filters diagnostics and passes when no selected code matches", async () => {
+		const deps = makeDeps({
+			fetchTelemetry: vi.fn().mockResolvedValue({
+				queueDepth: 20,
+				inFlight: 8,
+				cancelRequests: 0,
+				generatedAt: new Date().toISOString(),
+				total: 30,
+				pending: 0,
+				inProgress: 0,
+				done: 22,
+				failed: 8,
+				cancelled: 0,
+			}),
+		});
+		const command = createTelemetryCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await command.parseAsync(
+			["--json", "--strict", "--strict-on", "reliability:failure-rate"],
+			{ from: "user" },
+		);
+
+		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
+			strict?: { passed?: boolean; matchedDiagnostics?: string[] };
+		};
+		expect(payload.strict?.passed).toBe(true);
+		expect(payload.strict?.matchedDiagnostics).toEqual([]);
+		expect(exitSpy).not.toHaveBeenCalled();
+
+		exitSpy.mockRestore();
+	});
 });
