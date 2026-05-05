@@ -10,7 +10,7 @@ describe("refarm program", () => {
 		expect(names).toContain("web");
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
-		expect(names).toContain("visibility");
+		expect(names).toContain("telemetry");
 	});
 
 	it("uses shared runtime metadata resolver for CLI version", () => {

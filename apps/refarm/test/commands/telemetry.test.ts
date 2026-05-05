@@ -1,10 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { VisibilityDeps } from "../../src/commands/visibility.js";
-import { createVisibilityCommand } from "../../src/commands/visibility.js";
+import type { TelemetryDeps } from "../../src/commands/telemetry.js";
+import { createTelemetryCommand } from "../../src/commands/telemetry.js";
 
-function makeDeps(overrides: Partial<VisibilityDeps> = {}): VisibilityDeps {
+function makeDeps(overrides: Partial<TelemetryDeps> = {}): TelemetryDeps {
 	return {
-		fetchVisibility: vi.fn().mockResolvedValue({
+		fetchTelemetry: vi.fn().mockResolvedValue({
 			queueDepth: 0,
 			inFlight: 0,
 			cancelRequests: 0,
@@ -16,12 +16,12 @@ function makeDeps(overrides: Partial<VisibilityDeps> = {}): VisibilityDeps {
 			failed: 0,
 			cancelled: 0,
 		}),
-		fetchVisibilityWindow: vi.fn().mockResolvedValue(null),
+		fetchTelemetryWindow: vi.fn().mockResolvedValue(null),
 		...overrides,
 	};
 }
 
-describe("refarm visibility", () => {
+describe("refarm telemetry", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
@@ -29,21 +29,21 @@ describe("refarm visibility", () => {
 
 	it("prints summary and no-pressure message by default", async () => {
 		const deps = makeDeps();
-		const command = createVisibilityCommand(deps);
+		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await command.parseAsync([], { from: "user" });
 
-		expect(deps.fetchVisibility).toHaveBeenCalledOnce();
-		expect(deps.fetchVisibilityWindow).toHaveBeenCalledWith(60);
+		expect(deps.fetchTelemetry).toHaveBeenCalledOnce();
+		expect(deps.fetchTelemetryWindow).toHaveBeenCalledWith(60);
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
-		expect(output).toContain("Refarm Visibility Snapshot");
+		expect(output).toContain("Refarm Telemetry Snapshot");
 		expect(output).toContain("no pressure signals");
 	});
 
 	it("emits core diagnostics in --json mode", async () => {
 		const deps = makeDeps({
-			fetchVisibility: vi.fn().mockResolvedValue({
+			fetchTelemetry: vi.fn().mockResolvedValue({
 				queueDepth: 20,
 				inFlight: 8,
 				cancelRequests: 0,
@@ -56,24 +56,27 @@ describe("refarm visibility", () => {
 				cancelled: 0,
 			}),
 		});
-		const command = createVisibilityCommand(deps);
+		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await command.parseAsync(["--json", "--queue-warn", "5", "--inflight-warn", "3"], {
-			from: "user",
-		});
+		await command.parseAsync(
+			["--json", "--queue-warn", "5", "--inflight-warn", "3"],
+			{
+				from: "user",
+			},
+		);
 
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			diagnostics?: string[];
 		};
-		expect(payload.diagnostics).toContain("pressure:queue-depth");
-		expect(payload.diagnostics).toContain("pressure:in-flight");
-		expect(payload.diagnostics).toContain("efforts:failed-present");
+		expect(payload.diagnostics).toContain("saturation:queue");
+		expect(payload.diagnostics).toContain("saturation:inflight");
+		expect(payload.diagnostics).toContain("reliability:failures-present");
 	});
 
 	it("uses profile thresholds and window diagnostics", async () => {
 		const deps = makeDeps({
-			fetchVisibility: vi.fn().mockResolvedValue({
+			fetchTelemetry: vi.fn().mockResolvedValue({
 				queueDepth: 6,
 				inFlight: 1,
 				cancelRequests: 0,
@@ -85,7 +88,7 @@ describe("refarm visibility", () => {
 				failed: 2,
 				cancelled: 0,
 			}),
-			fetchVisibilityWindow: vi.fn().mockResolvedValue({
+			fetchTelemetryWindow: vi.fn().mockResolvedValue({
 				windowMinutes: 15,
 				since: new Date(Date.now() - 15 * 60_000).toISOString(),
 				terminal: 4,
@@ -99,7 +102,7 @@ describe("refarm visibility", () => {
 				cancelled: 1,
 			}),
 		});
-		const command = createVisibilityCommand(deps);
+		const command = createTelemetryCommand(deps);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await command.parseAsync(
@@ -112,8 +115,8 @@ describe("refarm visibility", () => {
 		const payload = JSON.parse(String(logSpy.mock.calls[0]?.[0] ?? "{}")) as {
 			diagnostics?: string[];
 		};
-		expect(payload.diagnostics).toContain("pressure:queue-depth");
-		expect(payload.diagnostics).toContain("efforts:failed-recent");
-		expect(payload.diagnostics).toContain("pressure:failure-rate");
+		expect(payload.diagnostics).toContain("saturation:queue");
+		expect(payload.diagnostics).toContain("reliability:failures-recent");
+		expect(payload.diagnostics).toContain("reliability:failure-rate");
 	});
 });

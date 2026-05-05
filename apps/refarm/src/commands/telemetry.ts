@@ -5,13 +5,13 @@ const SIDECAR_URL = "http://127.0.0.1:42001";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
 
-interface VisibilityThresholds {
+interface TelemetryThresholds {
 	queueWarn: number;
 	inflightWarn: number;
 	failRateWarn: number;
 }
 
-const PROFILE_THRESHOLDS: Record<ThresholdProfileName, VisibilityThresholds> = {
+const PROFILE_THRESHOLDS: Record<ThresholdProfileName, TelemetryThresholds> = {
 	conservative: {
 		queueWarn: 5,
 		inflightWarn: 2,
@@ -29,7 +29,7 @@ const PROFILE_THRESHOLDS: Record<ThresholdProfileName, VisibilityThresholds> = {
 	},
 };
 
-export interface RuntimeVisibilitySnapshot {
+export interface RuntimeTelemetrySnapshot {
 	queueDepth: number;
 	inFlight: number;
 	cancelRequests: number;
@@ -42,7 +42,7 @@ export interface RuntimeVisibilitySnapshot {
 	cancelled: number;
 }
 
-export interface RuntimeVisibilityWindow {
+export interface RuntimeTelemetryWindow {
 	windowMinutes: number;
 	since: string;
 	terminal: number;
@@ -56,9 +56,9 @@ export interface RuntimeVisibilityWindow {
 	cancelled: number;
 }
 
-export interface VisibilityDeps {
-	fetchVisibility(): Promise<RuntimeVisibilitySnapshot>;
-	fetchVisibilityWindow(minutes: number): Promise<RuntimeVisibilityWindow | null>;
+export interface TelemetryDeps {
+	fetchTelemetry(): Promise<RuntimeTelemetrySnapshot>;
+	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
 }
 
 function toPositiveInt(raw: string | undefined, fallback: number): number {
@@ -77,22 +77,22 @@ function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
 	return raw === "conservative" || raw === "balanced" || raw === "throughput";
 }
 
-async function fetchVisibilityFromSidecar(): Promise<RuntimeVisibilitySnapshot> {
-	const response = await fetch(`${SIDECAR_URL}/visibility`);
+async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
+	const response = await fetch(`${SIDECAR_URL}/telemetry`);
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error("visibility endpoint not available");
+			throw new Error("telemetry endpoint not available");
 		}
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
-	return (await response.json()) as RuntimeVisibilitySnapshot;
+	return (await response.json()) as RuntimeTelemetrySnapshot;
 }
 
-async function fetchVisibilityWindowFromSidecar(
+async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
-): Promise<RuntimeVisibilityWindow | null> {
+): Promise<RuntimeTelemetryWindow | null> {
 	const response = await fetch(
-		`${SIDECAR_URL}/visibility/window?minutes=${minutes}`,
+		`${SIDECAR_URL}/telemetry/window?minutes=${minutes}`,
 	);
 	if (!response.ok) {
 		if (response.status === 404) {
@@ -100,10 +100,10 @@ async function fetchVisibilityWindowFromSidecar(
 		}
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
-	return (await response.json()) as RuntimeVisibilityWindow;
+	return (await response.json()) as RuntimeTelemetryWindow;
 }
 
-function formatSummary(snapshot: RuntimeVisibilitySnapshot): string[] {
+function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
 	return [
 		`  queue depth   : ${snapshot.queueDepth}`,
 		`  in-flight     : ${snapshot.inFlight}`,
@@ -121,10 +121,8 @@ function printConnectionFailure(message: string): never {
 	if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
 		console.error(chalk.red("✗  farmhand is not running."));
 		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
-	} else if (message.includes("visibility endpoint not available")) {
-		console.error(
-			chalk.red("✗  visibility endpoint is unavailable in this daemon."),
-		);
+	} else if (message.includes("telemetry endpoint not available")) {
+		console.error(chalk.red("✗  telemetry endpoint is unavailable in this daemon."));
 		console.error(chalk.dim("   Update/restart farmhand and retry."));
 	} else {
 		console.error(chalk.red(`✗  ${message}`));
@@ -132,14 +130,14 @@ function printConnectionFailure(message: string): never {
 	process.exit(1);
 }
 
-export function createVisibilityCommand(deps?: VisibilityDeps): Command {
-	const resolved: VisibilityDeps = deps ?? {
-		fetchVisibility: fetchVisibilityFromSidecar,
-		fetchVisibilityWindow: fetchVisibilityWindowFromSidecar,
+export function createTelemetryCommand(deps?: TelemetryDeps): Command {
+	const resolved: TelemetryDeps = deps ?? {
+		fetchTelemetry: fetchTelemetryFromSidecar,
+		fetchTelemetryWindow: fetchTelemetryWindowFromSidecar,
 	};
 
-	return new Command("visibility")
-		.description("Show runtime visibility snapshot and pressure signals")
+	return new Command("telemetry")
+		.description("Show runtime telemetry snapshot and saturation/reliability signals")
 		.option("--json", "Output machine-readable JSON")
 		.option(
 			"--profile <name>",
@@ -186,17 +184,17 @@ export function createVisibilityCommand(deps?: VisibilityDeps): Command {
 				};
 				const windowMinutes = toPositiveInt(opts.windowMinutes, 60);
 
-				let snapshot: RuntimeVisibilitySnapshot;
+				let snapshot: RuntimeTelemetrySnapshot;
 				try {
-					snapshot = await resolved.fetchVisibility();
+					snapshot = await resolved.fetchTelemetry();
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printConnectionFailure(message);
 				}
 
-				let window: RuntimeVisibilityWindow | null = null;
+				let window: RuntimeTelemetryWindow | null = null;
 				try {
-					window = await resolved.fetchVisibilityWindow(windowMinutes);
+					window = await resolved.fetchTelemetryWindow(windowMinutes);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printConnectionFailure(message);
@@ -204,21 +202,21 @@ export function createVisibilityCommand(deps?: VisibilityDeps): Command {
 
 				const diagnostics: string[] = [];
 				if (snapshot.queueDepth >= thresholds.queueWarn) {
-					diagnostics.push("pressure:queue-depth");
+					diagnostics.push("saturation:queue");
 				}
 				if (snapshot.inFlight >= thresholds.inflightWarn) {
-					diagnostics.push("pressure:in-flight");
+					diagnostics.push("saturation:inflight");
 				}
 				if (snapshot.failed > 0) {
-					diagnostics.push("efforts:failed-present");
+					diagnostics.push("reliability:failures-present");
 				}
 				if (window) {
-					if (window.failed > 0) diagnostics.push("efforts:failed-recent");
+					if (window.failed > 0) diagnostics.push("reliability:failures-recent");
 					if (
 						window.failureRatePct !== null &&
 						window.failureRatePct >= thresholds.failRateWarn
 					) {
-						diagnostics.push("pressure:failure-rate");
+						diagnostics.push("reliability:failure-rate");
 					}
 				}
 
@@ -242,7 +240,7 @@ export function createVisibilityCommand(deps?: VisibilityDeps): Command {
 					return;
 				}
 
-				console.log(chalk.bold("\nRefarm Visibility Snapshot\n"));
+				console.log(chalk.bold("\nRefarm Telemetry Snapshot\n"));
 				for (const line of formatSummary(snapshot)) {
 					console.log(line);
 				}
@@ -286,4 +284,4 @@ export function createVisibilityCommand(deps?: VisibilityDeps): Command {
 		);
 }
 
-export const visibilityCommand = createVisibilityCommand();
+export const telemetryCommand = createTelemetryCommand();
