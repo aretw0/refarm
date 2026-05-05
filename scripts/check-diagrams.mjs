@@ -99,14 +99,20 @@ function validateDiagrams() {
         encoding: "utf-8",
       });
 
-      const hasChanges = gitStatus
+      const changedSvgFiles = gitStatus
         .split("\n")
-        .some((line) => line.includes(".svg"));
+        .map((line) => line.trim())
+        .filter((line) => line.includes(".svg"));
 
-      if (hasChanges) {
+      if (changedSvgFiles.length > 0) {
         console.error(
           "❌ SVG files are out of sync with their Mermaid sources.\n"
         );
+        console.error("Changed SVG files:");
+        for (const line of changedSvgFiles) {
+          console.error(`  ${line}`);
+        }
+        console.error("");
         console.error("To fix, run locally:");
         console.error("  npm run diagrams:fix\n");
         console.error("Then commit the regenerated .svg files.");
