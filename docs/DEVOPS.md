@@ -333,6 +333,22 @@ Implementation baseline:
 - `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
 - Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
+### GitHub Pages base-path contract (Astro)
+
+`Deploy to Refarm.dev` now builds Astro with explicit base/site envs:
+
+- `ASTRO_BASE`: defaults to `/<repo>/` (project pages; for this repo, `/refarm/`)
+- `ASTRO_SITE`: defaults to `https://<owner>.github.io/<repo>/`
+
+Override via repository variables when moving to custom domain:
+
+- `REFARM_ASTRO_BASE=/`
+- `REFARM_ASTRO_SITE=https://refarm.dev/`
+
+A CI guard validates generated HTML links against `ASTRO_BASE`:
+
+- `node scripts/ci/check-astro-base-links.mjs apps/dev/dist "$ASTRO_BASE"`
+
 ### Future: Turbo Remote Cache
 
 **Status:** Not yet configured (awaiting credentials/team setup)
