@@ -30,6 +30,12 @@ npm run agent:stop         # stop tractor
 npm run farmhand:daemon    # start farmhand in background
 npm run farmhand:stop      # stop farmhand
 npm run disk:check         # disk usage: target dirs, node_modules, volumes
+
+# Session memory helpers (host-owned)
+refarm sessions list        # list known sessions
+refarm sessions new         # create and switch active session
+refarm sessions fork <id>   # branch from an existing session
+refarm sessions use <id>    # switch active session
 ```
 
 ---
@@ -165,6 +171,17 @@ Notes:
   `apps/refarm/dist` with the local resolver loader, so `refarm ask ...` works
   without manual node flags.
 - If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
+
+### Scenario 3c — Session-first workflow
+
+```bash
+refarm sessions new --name "auth-refactor"
+refarm ask "planeje os próximos passos"
+refarm sessions fork <id-prefix> --name "auth-refactor-alt"
+refarm sessions use <id-prefix>
+```
+
+Use this when exploring multiple solution branches without losing continuity.
 
 ### Scenario 4 — Port conflict at startup
 
