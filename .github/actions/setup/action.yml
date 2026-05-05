@@ -44,6 +44,15 @@ runs:
         echo "Installing dependencies with npm ci (deterministic mode)..."
         npm ci
 
+    - name: Configure CI cargo target directory
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "${CARGO_TARGET_DIR:-}" ] && [ -n "${GITHUB_WORKSPACE:-}" ]; then
+          echo "CARGO_TARGET_DIR=${GITHUB_WORKSPACE}/target" >> "$GITHUB_ENV"
+          echo "Using CI cargo target directory: ${GITHUB_WORKSPACE}/target"
+        fi
+
     - name: Cache Playwright browsers
       if: ${{ inputs.playwright-setup == 'true' }}
       id: cache-playwright
