@@ -11,6 +11,7 @@ on:
       - "scripts/ci/github-matrix-builder.mjs"
       - "scripts/ci/matrix-runner.mjs"
       - "scripts/ci/setup-env.mjs"
+      - "scripts/ci/content-signature.mjs"
       - ".github/actions/setup/**"
       - ".github/workflows/granular-tests.yml"
       - "package.json"
@@ -34,17 +35,64 @@ jobs:
     name: Matrix Discovery
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.build-matrix.outputs.matrix }}
+      matrix: ${{ steps.matrix-cache-hit.outputs.matrix || steps.build-matrix.outputs.matrix }}
+      matrix_key: ${{ steps.signature.outputs.matrix_key }}
+      cache_hit: ${{ steps.matrix-cache.outputs.cache-hit }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
+      - name: Compute matrix validation signature
+        id: signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/refarm-matrix-signature-patterns.txt <<'EOF'
+          apps
+          packages
+          templates
+          validations
+          scripts/ci/github-matrix-builder.mjs
+          scripts/ci/matrix-runner.mjs
+          scripts/ci/setup-env.mjs
+          scripts/ci/content-signature.mjs
+          .github/actions/setup
+          .github/workflows/granular-tests.yml
+          package.json
+          package-lock.json
+          turbo.json
+          tsconfig.json
+          .cargo/config.toml
+          EOF
+
+          node scripts/ci/content-signature.mjs \
+            --name granular-matrix \
+            --output matrix_key \
+            --patterns-file /tmp/refarm-matrix-signature-patterns.txt
+
+      - name: Restore matrix result cache
+        id: matrix-cache
+        if: steps.signature.outputs.matrix_key != ''
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/granular-matrix
+          key: ${{ steps.signature.outputs.matrix_key }}
+
+      - name: Matrix cache hit
+        id: matrix-cache-hit
+        if: steps.matrix-cache.outputs.cache-hit == 'true'
+        run: |
+          echo "::notice::Reusing previous successful Granular Matrix validation for unchanged inputs."
+          echo 'matrix={"include":[]}' >> "$GITHUB_OUTPUT"
+
       - uses: ./.github/actions/setup
+        if: steps.matrix-cache.outputs.cache-hit != 'true'
 
       - name: Build Matrix DAG
         id: build-matrix
+        if: steps.matrix-cache.outputs.cache-hit != 'true'
         run: node scripts/ci/github-matrix-builder.mjs
 
   # -----------------------------------------------------------------
@@ -82,3 +130,25 @@ jobs:
       - name: Execute Backward Compatibility
         if: ${{ matrix.strategy == 'backward' }}
         run: node scripts/ci/matrix-runner.mjs --run-backward ${{ matrix.package }} ${{ matrix.consumer }}
+
+  matrix-cache-finalize:
+    name: Matrix Cache Finalize
+    needs: [matrix-setup, matrix-runner]
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.matrix-setup.outputs.matrix_key != '' && needs.matrix-setup.outputs.cache_hit != 'true' && (needs.matrix-runner.result == 'success' || needs.matrix-runner.result == 'skipped') }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Prepare matrix cache save
+        id: matrix-cache-save
+        uses: ./.github/actions/cache
+        with:
+          path: .artifacts/validation-cache/granular-matrix
+          key: ${{ needs.matrix-setup.outputs.matrix_key }}
+
+      - name: Record matrix cache marker
+        if: steps.matrix-cache-save.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .artifacts/validation-cache/granular-matrix
+          printf '%s\n' "${{ github.sha }}" > .artifacts/validation-cache/granular-matrix/last-successful-sha.txt
