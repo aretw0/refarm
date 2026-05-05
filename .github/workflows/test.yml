@@ -198,14 +198,14 @@ jobs:
         if: needs.changes.outputs.run_task_smoke == 'true'
         run: npm run task:execution:smoke:pi-agent
 
-      - name: Telemetry strict gate (blocking on PR -> main)
+      - name: Telemetry strict gate (blocking on develop + PR -> main)
         id: telemetry_gate
         if: needs.changes.outputs.run_task_smoke == 'true'
-        continue-on-error: ${{ github.event_name != 'pull_request' || github.base_ref != 'main' }}
+        continue-on-error: ${{ !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop')) }}
         run: npm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
 
       - name: Telemetry gate warning (non-blocking branches)
-        if: always() && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && (github.event_name != 'pull_request' || github.base_ref != 'main')
+        if: always() && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop'))
         run: |
           echo "::warning::Telemetry gate failed on non-blocking branch/event."
           echo "::warning::See artifact: telemetry-gate-report"
