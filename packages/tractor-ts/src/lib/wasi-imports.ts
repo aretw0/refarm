@@ -1,8 +1,26 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { spawnSync } from "node:child_process";
 import type { TelemetryEvent } from "./telemetry";
 import type { ExecutionProfile } from "./trust-manager";
 import type { TractorLogger } from "./types";
+
+type SpawnSyncResult = {
+	error?: Error;
+	status: number | null;
+	stderr?: Buffer;
+	stdout?: Buffer;
+};
+
+function spawnSync(command: string, args: string[], options: { input: Buffer; maxBuffer: number }): SpawnSyncResult {
+	const getBuiltinModule = (globalThis as any).process?.getBuiltinModule;
+	const childProcess =
+		typeof getBuiltinModule === "function"
+			? getBuiltinModule("node:child_process")
+			: null;
+	if (!childProcess?.spawnSync) {
+		throw new Error("llm-bridge requires Node.js child_process.spawnSync");
+	}
+	return childProcess.spawnSync(command, args, options);
+}
 
 /**
  * Generates WASI and bridge imports for a plugin based on its manifest and execution profile.

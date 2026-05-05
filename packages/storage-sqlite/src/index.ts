@@ -221,10 +221,8 @@ export function createStorageV1Provider(): StorageProvider {
 
 export { createTaskV1StorageAdapter } from "./task-v1.adapter";
 export { createSessionV1StorageAdapter } from "./session-v1.adapter";
-export {
-	NodeSqliteStorageProvider,
-	createNodeSqliteStorageProvider,
-} from "./node-sqlite.provider";
+// Node.js-specific exports live in @refarm.dev/storage-sqlite/node so browser
+// bundles never pull node:sqlite into their dependency graph.
 
 // ─── Schema Migrations ───────────────────────────────────────────────────────
 

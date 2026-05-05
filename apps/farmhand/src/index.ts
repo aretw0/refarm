@@ -15,10 +15,8 @@ import path from "node:path";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
-import {
-	createNodeSqliteStorageProvider,
-	createTaskV1StorageAdapter,
-} from "@refarm.dev/storage-sqlite";
+import { createTaskV1StorageAdapter } from "@refarm.dev/storage-sqlite";
+import { createNodeSqliteStorageProvider } from "@refarm.dev/storage-sqlite/node";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
