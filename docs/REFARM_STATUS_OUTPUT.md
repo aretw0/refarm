@@ -18,11 +18,15 @@ cat status.json | refarm status --input - --markdown  # read artifact from stdin
 ```
 
 The JSON shape is the canonical contract. Human and Markdown output are views of
-that contract.
+that contract. When `plugins.availableActions` is present, summary and Markdown
+views list the available action `id`, `label`, and optional `intent` so operators
+can discover affordances without inspecting Web DOM.
 
 `--markdown` includes YAML frontmatter with the same status envelope (host,
 renderer, runtime, trust, plugin, stream counters) so static-site/reporting
-pipelines can parse metadata without scraping body text.
+pipelines can parse metadata without scraping body text. The Markdown body also
+contains an `Available Actions` section, rendered as `- none` when no action
+affordances are available.
 
 ## Canonical JSON shape
 
@@ -126,6 +130,20 @@ The first implementation should compose existing proofs:
 - Tractor/registry/trust summaries when available.
 
 Do not make `refarm status` depend on Astro, browser DOM, or a TUI package.
+
+Human-readable action discovery format:
+
+```text
+Available actions:
+  - open-node: Open node (node:open)
+```
+
+Markdown action discovery format:
+
+```md
+## Available Actions
+- open-node: Open node (node:open)
+```
 
 Code-level contract helpers live in `@refarm.dev/cli/status`:
 
