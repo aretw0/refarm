@@ -19,6 +19,16 @@ export interface TuiSurfaceActionSelectionResult {
 	rows: readonly TuiSurfaceActionRow[];
 }
 
+export interface TuiSurfaceActionDryRunEnvelope {
+	schemaVersion: 1;
+	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	reason: "dry-run";
+	renderer: "tui";
+	selection?: RefarmActionAffordanceSelectionMetadata;
+	selectedAction?: TuiSurfaceActionRow;
+	actionRows: readonly TuiSurfaceActionRow[];
+}
+
 export function createTuiSurfaceActionRows(
 	status: RefarmStatusJson,
 ): TuiSurfaceActionRow[] {
@@ -30,6 +40,21 @@ export function resolveTuiSurfaceActionSelection(
 	selection: string,
 ): TuiSurfaceActionSelectionResult {
 	return resolveRefarmActionAffordanceSelection(status, selection);
+}
+
+export function createTuiSurfaceActionDryRunEnvelope(
+	status: RefarmStatusJson,
+	selection?: TuiSurfaceActionSelectionResult,
+): TuiSurfaceActionDryRunEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "dry-run",
+		renderer: "tui",
+		selection: selection?.selected ? selection.selection : undefined,
+		selectedAction: selection?.selected,
+		actionRows: selection?.rows ?? createTuiSurfaceActionRows(status),
+	};
 }
 
 export function formatTuiSurfaceActionRows(

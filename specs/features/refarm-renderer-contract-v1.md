@@ -145,8 +145,8 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
 - [x] `apps/refarm/test/commands/headless-action.test.ts` verifies headless action request envelopes use the shared Homestead action helper path
 - [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by headless/TUI readiness paths
-- [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows and selected-row output are derived from `plugins.availableActions`
-- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, TUI action rows, and selected TUI rows through `--input`
+- [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
+- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, TUI action rows, selected TUI rows, and TUI JSON dry-run envelopes through `--input`
 
 **Next conformance additions (planned):**
 

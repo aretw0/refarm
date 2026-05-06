@@ -68,6 +68,43 @@ describe("status-with-actions fixture", () => {
 		logSpy.mockRestore();
 	});
 
+	it("drives TUI selected action JSON output from --input", async () => {
+		const command = createTuiCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"--input",
+				STATUS_WITH_ACTIONS_FIXTURE,
+				"--actions",
+				"--select",
+				"2",
+				"--json",
+			],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			renderer: "tui",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
+			},
+			selectedAction: {
+				id: "inspect-trust",
+				label: "Inspect trust",
+				intent: "trust:inspect",
+			},
+		});
+		logSpy.mockRestore();
+	});
+
 	it("drives TUI selected action output from --input", async () => {
 		const command = createTuiCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

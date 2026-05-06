@@ -15,6 +15,7 @@ import {
 } from "./status.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import {
+	createTuiSurfaceActionDryRunEnvelope,
 	createTuiSurfaceActionRows,
 	formatTuiSurfaceActionRows,
 	formatTuiSurfaceActionSelection,
@@ -160,11 +161,25 @@ async function emitTuiActionRows(
 		},
 		run: (json) => {
 			if (options.select) {
-				const selection = resolveTuiSurfaceActionSelection(json, options.select);
+				const selection = resolveTuiSurfaceActionSelection(
+					json,
+					options.select,
+				);
 				if (!selection.selected) {
 					throw new Error(
 						`TUI action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
 					);
+				}
+
+				if (options.json) {
+					console.log(
+						JSON.stringify(
+							createTuiSurfaceActionDryRunEnvelope(json, selection),
+							null,
+							2,
+						),
+					);
+					return;
 				}
 
 				console.log(
@@ -177,15 +192,27 @@ async function emitTuiActionRows(
 				return;
 			}
 
-			console.log(formatTuiSurfaceActionRows(createTuiSurfaceActionRows(json)));
+			const rows = createTuiSurfaceActionRows(json);
+			if (options.json) {
+				console.log(
+					JSON.stringify(
+						createTuiSurfaceActionDryRunEnvelope(json),
+						null,
+						2,
+					),
+				);
+				return;
+			}
+
+			console.log(formatTuiSurfaceActionRows(rows));
 		},
 	});
 }
 
 function assertTuiActionsOutputOptions(options: TuiOptions): void {
-	if (options.json || options.markdown || options.launch || options.dryRun) {
+	if (options.markdown || options.launch || options.dryRun) {
 		throw new Error(
-			"--actions cannot be combined with --json, --markdown, --launch, or --dry-run.",
+			"--actions cannot be combined with --markdown, --launch, or --dry-run.",
 		);
 	}
 }

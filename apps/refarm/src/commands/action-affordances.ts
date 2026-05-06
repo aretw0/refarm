@@ -52,9 +52,8 @@ export function resolveRefarmActionAffordanceSelection(
 ): RefarmActionAffordanceSelectionResult {
 	const rows = createRefarmActionAffordanceRows(status);
 	const normalizedSelection = selection.trim();
-	const selectionSource = getRefarmActionAffordanceSelectionSource(
-		normalizedSelection,
-	);
+	const selectionSource =
+		getRefarmActionAffordanceSelectionSource(normalizedSelection);
 	const selectionMetadata: RefarmActionAffordanceSelectionMetadata = {
 		requested: normalizedSelection,
 		source: selectionSource,

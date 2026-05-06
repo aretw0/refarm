@@ -166,7 +166,9 @@ TUI action row dry-run:
 
 ```bash
 refarm tui --input status.json --actions
+refarm tui --input status.json --actions --json
 refarm tui --input status.json --actions --select 1
+refarm tui --input status.json --actions --select 1 --json
 ```
 
 A reusable local fixture is available at
@@ -176,7 +178,9 @@ A reusable local fixture is available at
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions
+refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --json
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2
+refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2 --json
 ```
 
 This command does not launch the TUI runtime. It formats
@@ -185,7 +189,10 @@ This command does not launch the TUI runtime. It formats
 same selection vocabulary. `--actions --select <id-or-index>` resolves the same
 vocabulary and prints the selected row, selection metadata (`requested`,
 `resolved`, `source`), and the full available-action context without executing
-product behavior.
+product behavior. Adding `--json` emits a deterministic dry-run envelope with
+`schemaVersion`, `statusSchemaVersion`, `renderer: "tui"`, optional `selection`,
+optional `selectedAction`, and `actionRows` for agents that need structured
+readiness output.
 
 Code-level contract helpers live in `@refarm.dev/cli/status`:
 

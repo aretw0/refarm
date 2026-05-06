@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
+	createTuiSurfaceActionDryRunEnvelope,
 	createTuiSurfaceActionRows,
 	formatTuiSurfaceActionRows,
 	formatTuiSurfaceActionSelection,
@@ -91,6 +92,36 @@ Selection:
 Available TUI actions:
   [1] Open node — open-node (node:open)
   [2] Inspect trust — inspect-trust`);
+	});
+
+	it("creates deterministic JSON dry-run envelopes", () => {
+		const status = makeStatus();
+		const selection = resolveTuiSurfaceActionSelection(status, "2");
+
+		expect(createTuiSurfaceActionDryRunEnvelope(status, selection)).toEqual({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			renderer: "tui",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
+			},
+			selectedAction: expect.objectContaining({ id: "inspect-trust" }),
+			actionRows: [
+				expect.objectContaining({ id: "open-node" }),
+				expect.objectContaining({ id: "inspect-trust" }),
+			],
+		});
+		expect(createTuiSurfaceActionDryRunEnvelope(status)).toMatchObject({
+			renderer: "tui",
+			actionRows: [
+				{ id: "open-node" },
+				{ id: "inspect-trust" },
+			],
+		});
 	});
 
 	it("renders an explicit empty state", () => {

@@ -113,7 +113,9 @@ available action extraction, one-based rows, ID/index selection, selection
 metadata, and ID-list formatting. `apps/refarm/src/commands/tui-actions.ts`
 keeps the TUI-specific heading/UX wrapper. `refarm tui --actions` emits those rows, and
 `refarm tui --actions --select <id-or-index>` resolves one row using the same
-selection vocabulary, without launching or executing product behavior.
+selection vocabulary, without launching or executing product behavior. Adding
+`--json` to either TUI readiness form emits a deterministic dry-run envelope for
+agents while preserving the human row output as the default.
 
 These paths keep action invocation and selection testable without giving
 headless/TUI hosts product-specific action meaning.
