@@ -39,7 +39,8 @@ export interface RefarmTimelineShowEnvelope {
 	node: RefarmTimelineNode;
 }
 
-export interface RefarmSessionTimelineShowEnvelope extends RefarmTimelineShowEnvelope {
+export interface RefarmSessionTimelineShowEnvelope
+	extends RefarmTimelineShowEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
 	entries: unknown[];
 	total: number;
