@@ -322,6 +322,8 @@ async function main() {
 			"HEAD",
 			"--scope",
 			"git",
+			"--name",
+			"smoke/tree-preview",
 			"--json",
 		]);
 		const treeGitPreview = parseCommandJsonOutput(
@@ -341,6 +343,11 @@ async function main() {
 		if (treeGitPreview.plan?.destructive !== false) {
 			throw new Error(
 				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (!treeGitPreview.plan?.recommendedCommand?.includes("smoke/tree-preview")) {
+			throw new Error(
+				`Expected named git preview command, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
 
