@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("node:child_process", () => ({
@@ -603,6 +604,9 @@ describe("refarm tree", () => {
 			}) as any,
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(fs, "readFileSync").mockImplementation(() => {
+			throw new Error("no active session");
+		});
 
 		const command = createTreeCommand();
 		await command.commands
@@ -635,36 +639,68 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("previews already-active session switches as blocked", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--switch", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan).toMatchObject({
+			action: "switch",
+			readyToExecute: false,
+			blockedReason: 'Session "abc123def456" is already active.',
+			substrate: {
+				kind: "session-switch",
+				activeSessionIdBefore: SESSION["@id"],
+				targetSessionIdAfter: SESSION["@id"],
+			},
+		});
+		expect(writeSpy).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it.each([
 		["--name", "other", "--name is only supported for fork previews"],
 		["--at", "entry-1", "--at is only supported for session fork previews"],
-	])(
-		"rejects session switch preview %s before sidecar calls",
-		async (flag, value, expectedMessage) => {
-			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-			const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-				code?: string | number | null | undefined,
-			) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
-			const fetchMock = vi.fn();
-			vi.stubGlobal("fetch", fetchMock as any);
+	])("rejects session switch preview %s before sidecar calls", async (flag, value, expectedMessage) => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock as any);
 
-			const command = createTreeCommand();
-			await expect(
-				command.commands
-					.find((c) => c.name() === "preview")!
-					.parseAsync(["abc123", "--switch", flag, value], { from: "user" }),
-			).rejects.toThrow("exit:1");
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "preview")!
+				.parseAsync(["abc123", "--switch", flag, value], { from: "user" }),
+		).rejects.toThrow("exit:1");
 
-			expect(errorSpy).toHaveBeenCalledWith(
-				expect.stringContaining(expectedMessage),
-			);
-			expect(exitSpy).toHaveBeenCalledWith(1);
-			expect(fetchMock).not.toHaveBeenCalled();
-			expect(spawnSyncMock).not.toHaveBeenCalled();
-		},
-	);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(expectedMessage),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
 
 	it("includes explicit branch names in executable git preview plans", async () => {
 		spawnSyncMock
