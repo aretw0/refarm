@@ -73,7 +73,7 @@ function assertCleanGitWorktree(): void {
 	}
 }
 
-function listGitTimelineNodes(limit: number): RefarmGitTimelineNode[] {
+export function getGitTimelineNodes(limit: number): RefarmGitTimelineNode[] {
 	const output = runGit([
 		"log",
 		`--max-count=${limit}`,
@@ -109,7 +109,7 @@ function exitForGitError(err: unknown): never {
 export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	let nodes: RefarmGitTimelineNode[];
 	try {
-		nodes = listGitTimelineNodes(opts.limit ?? 20);
+		nodes = getGitTimelineNodes(opts.limit ?? 20);
 	} catch (err) {
 		exitForGitError(err);
 	}

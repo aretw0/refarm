@@ -2,12 +2,15 @@ import type { RefarmExecutionPlanBase } from "./execution-plan.js";
 
 const SESSION_SCOPE = "session";
 const GIT_SCOPE = "git";
+const ALL_SCOPE = "all";
 
 export const REFARM_TREE_SCHEMA_VERSION = 1;
 export const REFARM_TREE_SESSION_SCOPE = SESSION_SCOPE;
 export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
+export const REFARM_TREE_ALL_SCOPE = ALL_SCOPE;
 
 export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
+export type RefarmTimelineEnvelopeScope = RefarmTimelineScope | typeof ALL_SCOPE;
 
 export interface RefarmTimelineMetadata {
 	shortId: string;
@@ -48,7 +51,7 @@ export interface RefarmGitTimelineNode extends RefarmTimelineNode {
 export interface RefarmTimelineListEnvelope {
 	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
 	command: "tree";
-	scope: RefarmTimelineScope;
+	scope: RefarmTimelineEnvelopeScope;
 	operation: "list";
 	nodes: RefarmTimelineNode[];
 }
@@ -63,6 +66,12 @@ export interface RefarmGitTimelineListEnvelope
 	extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
 	nodes: RefarmGitTimelineNode[];
+}
+
+export interface RefarmAllTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_ALL_SCOPE;
+	nodes: Array<RefarmSessionTimelineNode | RefarmGitTimelineNode>;
 }
 
 export interface RefarmTimelineShowEnvelope {
@@ -249,6 +258,7 @@ export interface RefarmSessionTimelineSwitchEnvelope {
 export type RefarmTreeJsonEnvelope =
 	| RefarmSessionTimelineListEnvelope
 	| RefarmGitTimelineListEnvelope
+	| RefarmAllTimelineListEnvelope
 	| RefarmSessionTimelineShowEnvelope
 	| RefarmGitTimelineShowEnvelope
 	| RefarmSessionTimelinePreviewEnvelope

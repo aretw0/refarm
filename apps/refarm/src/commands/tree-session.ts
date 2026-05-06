@@ -123,6 +123,15 @@ function exitForSidecarError(err: unknown): never {
 	process.exit(1);
 }
 
+export async function getSessionTimelineNodes(): Promise<
+	RefarmSessionTimelineNode[]
+> {
+	const sessions = await fetchSessions();
+	return [...sessions]
+		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
+		.map(createSessionTimelineNode);
+}
+
 export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 	let sessions: SessionNode[];
 	try {

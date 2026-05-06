@@ -54,6 +54,7 @@ Implemented first slice:
 ```bash
 refarm tree list --scope session [--json]
 refarm tree list --scope git [--limit <count>] [--json]
+refarm tree list --scope all [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
@@ -67,7 +68,7 @@ refarm tree switch --scope git <branch-name> [--json]
 
 The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
-`operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `preview` emits a dry-run envelope that recommends
+`operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `list --scope all` is read-only and combines currently supported session and git nodes into one envelope; `all` is intentionally unavailable for `show`, `preview`, `fork`, and `switch` until composite execution semantics are proven. `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session fork timelines, `refarm sessions use ...`
 or `refarm tree switch <session> ...` for session switch timelines,
 `refarm tree fork --scope git ...` for git fork timelines, or
@@ -465,7 +466,8 @@ partial-failure semantics are deterministic.
 Acceptance criteria for the read-only CRDT/composite slice:
 
 1. `refarm tree list --scope crdt --json` or an equivalent guarded scope emits
-   schema-versioned nodes without changing document state.
+   schema-versioned nodes without changing document state, and can later join
+   `refarm tree list --scope all` without adding mutation paths.
 2. `refarm tree show <crdt-node> --json` resolves exact or unambiguous prefixes
    and fails closed on ambiguity.
 3. Composite preview can describe a multi-substrate plan, but no command mutates

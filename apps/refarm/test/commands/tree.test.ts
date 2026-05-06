@@ -155,6 +155,47 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("lists all timeline nodes as a read-only combined envelope", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [SESSION] }),
+			}) as any,
+		);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			schemaVersion: 1,
+			command: "tree",
+			scope: "all",
+			operation: "list",
+		});
+		expect(payload.nodes).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ kind: "session", nodeId: SESSION["@id"] }),
+				expect.objectContaining({
+					kind: "git",
+					nodeId: "abcdef1234567890abcdef1234567890abcdef12",
+				}),
+			]),
+		);
+	});
+
 	it("lists git tree execution affordances in human output", async () => {
 		spawnSyncMock.mockReturnValue({
 			status: 0,
@@ -1523,7 +1564,7 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it("fails closed for unsupported scopes", async () => {
+	it("fails closed for unsupported list scopes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -1541,7 +1582,28 @@ describe("refarm tree", () => {
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("--scope session|git"),
+			expect.stringContaining("--scope session|git|all"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
+	it("rejects all scope outside read-only list", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "show")!
+				.parseAsync(["abc123", "--scope", "all"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--scope session|git for this operation"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

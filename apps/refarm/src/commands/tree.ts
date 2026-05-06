@@ -2,6 +2,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import {
 	forkGitTree,
+	getGitTimelineNodes,
 	listGitTree,
 	previewGitSwitchTree,
 	previewGitTree,
@@ -9,17 +10,24 @@ import {
 	switchGitTree,
 } from "./tree-git.js";
 import {
+	outputTreeJson,
+	REFARM_TREE_ALL_SCOPE,
 	REFARM_TREE_GIT_SCOPE,
+	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
+	type RefarmAllTimelineListEnvelope,
 	type RefarmTimelineScope,
 } from "./tree-model.js";
 import {
+	getSessionTimelineNodes,
 	listSessionTree,
 	previewSessionSwitchTree,
 	previewSessionTree,
 	showSessionTree,
 	switchSessionTree,
 } from "./tree-session.js";
+
+type RefarmTimelineListScope = RefarmTimelineScope | typeof REFARM_TREE_ALL_SCOPE;
 
 function parseScope(scope: string | undefined): RefarmTimelineScope {
 	const value = scope ?? REFARM_TREE_SESSION_SCOPE;
@@ -28,7 +36,24 @@ function parseScope(scope: string | undefined): RefarmTimelineScope {
 	}
 	console.error(
 		chalk.red(
-			`✗  refarm tree currently supports --scope session|git; received "${value}".`,
+			`✗  refarm tree currently supports --scope session|git for this operation; received "${value}".`,
+		),
+	);
+	process.exit(1);
+}
+
+function parseListScope(scope: string | undefined): RefarmTimelineListScope {
+	const value = scope ?? REFARM_TREE_SESSION_SCOPE;
+	if (
+		value === REFARM_TREE_SESSION_SCOPE ||
+		value === REFARM_TREE_GIT_SCOPE ||
+		value === REFARM_TREE_ALL_SCOPE
+	) {
+		return value;
+	}
+	console.error(
+		chalk.red(
+			`✗  refarm tree list currently supports --scope session|git|all; received "${value}".`,
 		),
 	);
 	process.exit(1);
@@ -99,12 +124,64 @@ function parseLimit(limit: string | undefined): number {
 	return value;
 }
 
+async function listAllTree(opts: { json?: boolean; limit?: string }): Promise<void> {
+	let nodes: RefarmAllTimelineListEnvelope["nodes"];
+	try {
+		const [sessionNodes, gitNodes] = await Promise.all([
+			getSessionTimelineNodes(),
+			Promise.resolve(getGitTimelineNodes(parseLimit(opts.limit))),
+		]);
+		nodes = [...sessionNodes, ...gitNodes].sort((a, b) =>
+			b.timestamp.localeCompare(a.timestamp),
+		);
+	} catch (err) {
+		const msg = err instanceof Error ? err.message : String(err);
+		console.error(chalk.red(`✗  ${msg}`));
+		process.exit(1);
+	}
+
+	if (opts.json) {
+		const envelope: RefarmAllTimelineListEnvelope = {
+			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+			command: "tree",
+			scope: REFARM_TREE_ALL_SCOPE,
+			operation: "list",
+			nodes,
+		};
+		outputTreeJson(envelope);
+		return;
+	}
+
+	if (nodes.length === 0) {
+		console.log(chalk.dim("No session or git timeline nodes found."));
+		return;
+	}
+	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_ALL_SCOPE} scope)\n`));
+	for (const node of nodes) {
+		console.log(
+			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.dim(`[${node.kind}]`)}  ${chalk.white(node.label)}`,
+		);
+	}
+	console.log(
+		chalk.dim(
+			"\n  refarm tree show <id-prefix>              inspect a session node" +
+				"\n  refarm tree show --scope git <commit>     inspect a git node" +
+				"\n  refarm tree preview <id-prefix>           preview a session plan" +
+				"\n  refarm tree preview --scope git <commit>  preview a git plan\n",
+		),
+	);
+}
+
 async function listTree(opts: {
 	scope?: string;
 	json?: boolean;
 	limit?: string;
 }): Promise<void> {
-	const scope = parseScope(opts.scope);
+	const scope = parseListScope(opts.scope);
+	if (scope === REFARM_TREE_ALL_SCOPE) {
+		await listAllTree(opts);
+		return;
+	}
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		listGitTree({ json: opts.json, limit: parseLimit(opts.limit) });
 		return;
