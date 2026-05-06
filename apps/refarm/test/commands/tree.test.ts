@@ -225,7 +225,10 @@ describe("refarm tree", () => {
 	});
 
 	it("prints sidecar guidance when all-scope session nodes are unavailable", async () => {
-		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockRejectedValue(new Error("fetch failed")),
+		);
 		spawnSyncMock.mockReturnValue({
 			status: 0,
 			stdout: GIT_LINE,
