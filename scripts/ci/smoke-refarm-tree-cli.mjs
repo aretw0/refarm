@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { createServer } from "node:http";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -23,6 +23,14 @@ const REFARM_NODE_ARGS_PREFIX = [
 ];
 
 const skipBuild = process.argv.includes("--skip-build");
+const TREE_STUB_SESSION_ID = "urn:refarm:session:v1:000treecli01";
+const TREE_STUB_SESSION = {
+	"@id": TREE_STUB_SESSION_ID,
+	"@type": "Session",
+	name: "tree-cli-smoke-session",
+	created_at_ns: 1_700_000_000_000_000_000,
+	leaf_entry_id: "entry-cli-1",
+};
 
 function buildRefarmCommandArgs(args) {
 	return [...REFARM_NODE_ARGS_PREFIX, ...args];
@@ -78,7 +86,25 @@ async function startTreeSidecarStub() {
 	const server = createServer((request, response) => {
 		if (request.url === "/sessions") {
 			response.writeHead(200, { "content-type": "application/json" });
-			response.end(JSON.stringify({ sessions: [] }));
+			response.end(JSON.stringify({ sessions: [TREE_STUB_SESSION] }));
+			return;
+		}
+		if (request.url?.startsWith("/sessions/") && request.url.endsWith("/history")) {
+			response.writeHead(200, { "content-type": "application/json" });
+			response.end(
+				JSON.stringify({
+					session: TREE_STUB_SESSION,
+					entries: [
+						{
+							id: "entry-cli-1",
+							kind: "assistant",
+							content: "tree cli smoke",
+							timestamp_ns: 1_700_000_000_000_000_000,
+						},
+					],
+					total: 1,
+				}),
+			);
 			return;
 		}
 		response.writeHead(404, { "content-type": "application/json" });
@@ -195,6 +221,68 @@ async function main() {
 			"--scope session|git for this operation",
 			{ cwd: isolatedGitRepoPath },
 		);
+
+		if (sidecarStub.started) {
+			console.log(`${LOGGER_PREFIX} smoke: tree session switch isolated HOME`);
+			const sessionEnv = { HOME: tempDir };
+			const sessionPrefix = "000treecli01";
+			const sessionPreviewRun = await runRefarmCommand(
+				["tree", "preview", sessionPrefix, "--switch", "--json"],
+				{ cwd: isolatedGitRepoPath, env: sessionEnv },
+			);
+			const sessionPreviewJson = parseCommandJsonOutput(
+				"tree preview --switch session",
+				sessionPreviewRun,
+			);
+			if (
+				sessionPreviewJson?.operation !== "preview" ||
+				sessionPreviewJson?.reason !== "dry-run" ||
+				sessionPreviewJson?.scope !== "session" ||
+				sessionPreviewJson?.plan?.action !== "switch" ||
+				sessionPreviewJson?.plan?.readyToExecute !== true ||
+				sessionPreviewJson?.plan?.substrate?.kind !== "session-switch" ||
+				sessionPreviewJson?.plan?.substrate?.targetSessionIdAfter !==
+					TREE_STUB_SESSION_ID
+			) {
+				throw new Error(
+					`Expected session switch preview envelope, got: ${JSON.stringify(sessionPreviewJson)}`,
+				);
+			}
+
+			const sessionSwitchRun = await runRefarmCommand(
+				["tree", "switch", sessionPrefix, "--json"],
+				{ cwd: isolatedGitRepoPath, env: sessionEnv },
+			);
+			const sessionSwitchJson = parseCommandJsonOutput(
+				"tree switch session",
+				sessionSwitchRun,
+			);
+			if (
+				sessionSwitchJson?.operation !== "switch" ||
+				sessionSwitchJson?.reason !== "executed" ||
+				sessionSwitchJson?.scope !== "session" ||
+				sessionSwitchJson?.result?.kind !== "session-switch" ||
+				sessionSwitchJson?.result?.currentSessionIdAfter !==
+					TREE_STUB_SESSION_ID
+			) {
+				throw new Error(
+					`Expected session switch envelope, got: ${JSON.stringify(sessionSwitchJson)}`,
+				);
+			}
+			const lockContent = await readFile(
+				path.join(tempDir, ".refarm", "session.lock"),
+				"utf8",
+			);
+			if (lockContent !== TREE_STUB_SESSION_ID) {
+				throw new Error(
+					`Expected isolated session lock ${TREE_STUB_SESSION_ID}, got ${lockContent}`,
+				);
+			}
+		} else {
+			console.log(
+				`${LOGGER_PREFIX} skipping session switch smoke because :42001 is already owned`,
+			);
+		}
 
 		console.log(`${LOGGER_PREFIX} smoke: tree git show JSON`);
 		const showRun = await runRefarmCommand(
