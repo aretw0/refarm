@@ -1,6 +1,6 @@
 # Refarm Tree Primitive
 
-Status: design baseline + session preview slice
+Status: design baseline + session/git preview slices
 
 ## Why this exists
 
@@ -53,12 +53,16 @@ Implemented first slice:
 
 ```bash
 refarm tree list --scope session [--json]
+refarm tree list --scope git [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
+refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--json]
+refarm tree preview --scope git <commit-ish> [--json]
 ```
 
-The first slice is intentionally read-only. `preview` emits a dry-run envelope
-that recommends `refarm sessions fork ...` but does not fork or switch.
+The first slices are intentionally read-only. `preview` emits a dry-run envelope
+that recommends `refarm sessions fork ...` or `git switch -c ...` but does not
+fork, branch, check out, or switch.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must
@@ -126,9 +130,9 @@ planned envelope until there is a deterministic rollback story.
    data.
 3. ✅ Add fail-closed tests for unsupported scopes and JSON contract tests for
    list/show/preview.
-4. Add `fork` only after preview output is stable.
-5. Add git adapter second, because it provides an independent substrate without
-   requiring CRDT migration work.
+4. ✅ Add git adapter read-only list/show/preview because it provides an
+   independent substrate without requiring CRDT migration work.
+5. Add `fork`/branch execution only after preview output is stable.
 6. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 

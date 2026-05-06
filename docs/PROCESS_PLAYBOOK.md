@@ -42,8 +42,10 @@ refarm sessions list        # list known sessions
 refarm sessions new         # create and switch active session
 refarm sessions fork <id>   # branch from an existing session
 refarm sessions use <id>    # switch active session
-refarm tree list --json     # read-only session timeline nodes
-refarm tree preview <id>    # dry-run fork plan for a historical node
+refarm tree list --json             # read-only session timeline nodes
+refarm tree list --scope git --json # read-only git timeline nodes
+refarm tree preview <id>            # dry-run fork plan for a session node
+refarm tree preview --scope git <commit> # dry-run branch plan for a commit
 ```
 
 ---

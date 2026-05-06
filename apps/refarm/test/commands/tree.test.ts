@@ -1,5 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("node:child_process", () => ({
+	spawnSync: vi.fn(),
+}));
+
+import { spawnSync } from "node:child_process";
 import { createTreeCommand } from "../../src/commands/tree.js";
+
+const spawnSyncMock = vi.mocked(spawnSync);
 
 const SESSION = {
 	"@id": "urn:refarm:session:v1:abc123def456",
@@ -18,6 +26,14 @@ const HISTORY = {
 	],
 	total: 2,
 };
+
+const GIT_LINE = [
+	"abcdef1234567890abcdef1234567890abcdef12",
+	"1111111111111111111111111111111111111111",
+	"HEAD -> develop, origin/develop",
+	"2026-05-06T14:00:00+00:00",
+	"feat(refarm): grow timeline tree",
+].join("\u001f");
 
 describe("refarm tree", () => {
 	beforeEach(() => {
@@ -68,6 +84,41 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("lists git commits as timeline nodes", async () => {
+		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "git", "--limit", "1", "--json"], {
+				from: "user",
+			});
+
+		expect(spawnSyncMock).toHaveBeenCalledWith("git", expect.arrayContaining(["log"]), {
+			encoding: "utf8",
+		});
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			command: "tree",
+			scope: "git",
+			nodes: [
+				{
+					timelineId: "git",
+					nodeId: "abcdef1234567890abcdef1234567890abcdef12",
+					parentNodeId: "1111111111111111111111111111111111111111",
+					branchId: "HEAD -> develop",
+					kind: "git",
+					label: "feat(refarm): grow timeline tree",
+					metadata: {
+						shortId: "abcdef123456",
+						refs: ["HEAD -> develop", "origin/develop"],
+					},
+				},
+			],
+		});
+	});
+
 	it("shows a session timeline node with entries", async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,
@@ -94,6 +145,27 @@ describe("refarm tree", () => {
 			node: { nodeId: SESSION["@id"], kind: "session" },
 		});
 		expect(payload.entries).toHaveLength(2);
+	});
+
+	it("shows a git timeline node", async () => {
+		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abcdef", "--scope", "git", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			command: "tree",
+			scope: "git",
+			operation: "show",
+			node: {
+				nodeId: "abcdef1234567890abcdef1234567890abcdef12",
+				kind: "git",
+			},
+		});
 	});
 
 	it("previews a non-destructive session fork plan", async () => {
@@ -127,6 +199,30 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("previews a non-destructive git branch plan", async () => {
+		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abcdef", "--scope", "git", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			command: "tree",
+			scope: "git",
+			operation: "preview",
+			reason: "dry-run",
+			plan: {
+				kind: "git-branch",
+				destructive: false,
+				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
+				recommendedCommand: "git switch -c <branch-name> abcdef123456",
+			},
+		});
+	});
+
 	it("fails closed for unsupported scopes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi
@@ -137,12 +233,14 @@ describe("refarm tree", () => {
 
 		const command = createTreeCommand();
 		await expect(
-			command.commands.find((c) => c.name() === "list")!.parseAsync(["--scope", "git"], {
+			command.commands.find((c) => c.name() === "list")!.parseAsync(["--scope", "crdt"], {
 				from: "user",
 			}),
 		).rejects.toThrow("exit:1");
 
-		expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining("--scope session only"));
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--scope session|git"),
+		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 });
