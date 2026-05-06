@@ -184,6 +184,18 @@ async function main() {
 		assertIncludes(tuiPreflightOutput, "available via --launch");
 		assertIncludes(tuiPreflightOutput, "(watch|prompt)");
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm open-url --dry-run`);
+		const openUrlRun = await runRefarmCommand([
+			"open-url",
+			"https://github.com/login/device",
+			"--dry-run",
+		]);
+		const openUrlOutput = stripAnsi(
+			`${openUrlRun.stdout}\n${openUrlRun.stderr}`,
+		);
+		assertIncludes(openUrlOutput, "[dry-run] would open browser URL");
+		assertIncludes(openUrlOutput, "candidate:");
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web --launch --dry-run --open --input`,
 		);

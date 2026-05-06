@@ -49,6 +49,7 @@ state using the same contracts as the apps?
 - `refarm headless` (headless snapshot-first output surface)
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
 - `refarm tui` (tui renderer preflight + terminal launcher entrypoint via `--launch`)
+- `refarm open-url` (host-browser URL opener with devcontainer-aware fallbacks for auth/provider flows)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
   including host metadata in human/JSON report output)
 
@@ -58,6 +59,11 @@ It can also request browser opening (`--open`, optional `--open-url`) while
 keeping launcher failures explicit and non-fatal to preflight reporting.
 Launch is fail-closed when status diagnostics include failure codes (for
 example `runtime:not-ready` or `trust:critical-present`).
+`refarm open-url <url>` is a small host-browser primitive for auth/provider
+flows that need to open a URL from devcontainers, WSL, Linux desktops, macOS, or
+Windows. It tries explicit `REFARM_BROWSER_OPEN_COMMAND`, VS Code `code --open-url`,
+`wslview`, and common Linux openers before printing a manual fallback URL.
+
 `refarm tui` reuses the same status contract and can launch terminal runtime
 entrypoints (`watch` or `prompt`) after runtime preflight
 (`--launch`, optional `--dry-run`). Launch is fail-closed when status
@@ -95,8 +101,8 @@ npm run refarm:host:smoke:auto
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
-  `refarm status --json --input`, `refarm headless --input`,
-  `refarm web --launch --dry-run --open`, `refarm tui --json`,
+  `refarm open-url --dry-run`, `refarm status --json --input`,
+  `refarm headless --input`, `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values,
   fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid

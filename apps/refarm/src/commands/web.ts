@@ -1,6 +1,10 @@
-import { spawn } from "node:child_process";
-import { type RefarmStatusJson } from "@refarm.dev/cli/status";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import {
+	openHostBrowserUrl,
+	resolveBrowserOpenSpec,
+	type BrowserOpenSpec,
+} from "./browser-open.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -29,12 +33,6 @@ const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
 export interface WebLaunchSpec {
-	command: string;
-	args: string[];
-	display: string;
-}
-
-export interface BrowserOpenSpec {
 	command: string;
 	args: string[];
 	display: string;
@@ -75,60 +73,10 @@ export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
 	return launchProcess(spec);
 }
 
-export function resolveBrowserOpenSpec(
-	url: string,
-	platform = process.platform,
-): BrowserOpenSpec {
-	if (platform === "darwin") {
-		return {
-			command: "open",
-			args: [url],
-			display: `open ${url}`,
-		};
-	}
+export { resolveBrowserOpenSpec };
 
-	if (platform === "win32") {
-		return {
-			command: "cmd",
-			args: ["/c", "start", "", url],
-			display: `cmd /c start "" ${url}`,
-		};
-	}
-
-	return {
-		command: "xdg-open",
-		args: [url],
-		display: `xdg-open ${url}`,
-	};
-}
-
-export function openBrowserUrl(url: string): Promise<void> {
-	const spec = resolveBrowserOpenSpec(url);
-
-	return new Promise((resolve, reject) => {
-		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
-			stdio: "ignore",
-			env: process.env,
-		});
-
-		child.once("error", (error) => {
-			reject(error);
-		});
-
-		child.once("close", (code) => {
-			if ((code ?? 0) === 0) {
-				resolve();
-				return;
-			}
-
-			reject(
-				new Error(
-					`Browser opener exited with code ${code ?? -1} (${spec.display}).`,
-				),
-			);
-		});
-	});
+export async function openBrowserUrl(url: string): Promise<void> {
+	await openHostBrowserUrl(url);
 }
 
 export function createWebCommand(deps?: Partial<WebDeps>): Command {

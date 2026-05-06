@@ -10,6 +10,7 @@ describe("refarm program", () => {
 		expect(names).toContain("web");
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
+		expect(names).toContain("open-url");
 		expect(names).toContain("telemetry");
 	});
 
