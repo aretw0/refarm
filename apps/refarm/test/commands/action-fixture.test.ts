@@ -12,12 +12,7 @@ describe("status-with-actions fixture", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		await headlessCommand.parseAsync(
-			[
-				"--input",
-				STATUS_WITH_ACTIONS_FIXTURE,
-				"--action-request",
-				"open-node",
-			],
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--action-request", "open-node"],
 			{ from: "user" },
 		);
 

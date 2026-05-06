@@ -9,6 +9,7 @@ import {
 	type HomesteadSurfaceRenderHostContext,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
+import { getRefarmStatusAvailableActions } from "./action-affordances.js";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
@@ -81,7 +82,7 @@ export function createHeadlessStatusSurfaceHostContext(
 			rendererKind: status.renderer.kind,
 			...options.hostData,
 		},
-		actions: [...(status.plugins.availableActions ?? [])],
+		actions: [...getRefarmStatusAvailableActions(status)],
 	};
 }
 

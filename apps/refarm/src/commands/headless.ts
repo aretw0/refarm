@@ -1,4 +1,5 @@
 import { Command } from "commander";
+import { formatRefarmActionIds } from "./action-affordances.js";
 import { resolveHeadlessStatusSurfaceActionRequest } from "./headless-action.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
@@ -78,7 +79,7 @@ async function emitHeadlessActionRequest(
 
 			if (!resolution.request) {
 				throw new Error(
-					`Action "${actionId}" is not available. Available actions: ${formatAvailableActionIds(resolution.availableActions)}.`,
+					`Action "${actionId}" is not available. Available actions: ${formatRefarmActionIds(resolution.availableActions)}.`,
 				);
 			}
 
@@ -97,10 +98,4 @@ async function emitHeadlessActionRequest(
 			);
 		},
 	});
-}
-
-function formatAvailableActionIds(actions: readonly { id: string }[]): string {
-	return actions.length > 0
-		? actions.map((action) => action.id).join(", ")
-		: "none";
 }

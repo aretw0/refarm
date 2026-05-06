@@ -106,10 +106,12 @@ host context, then delegates selected action IDs through
 exposes the non-destructive half of that path by emitting the deterministic
 action request envelope without executing product behavior.
 
-`apps/refarm/src/commands/tui-actions.ts` mirrors the same affordance vocabulary
-for TUI readiness: it turns `plugins.availableActions` into stable selectable
-rows, and `refarm tui --actions` emits those rows without launching or executing
-product behavior.
+`apps/refarm/src/commands/action-affordances.ts` owns the app-level action
+affordance vocabulary shared by both headless and TUI readiness paths: stable
+available action extraction, one-based rows, ID/index selection, and ID-list
+formatting. `apps/refarm/src/commands/tui-actions.ts` keeps the TUI-specific
+heading/UX wrapper, and `refarm tui --actions` emits those rows without
+launching or executing product behavior.
 
 These paths keep action invocation and selection testable without giving
 headless/TUI hosts product-specific action meaning.
