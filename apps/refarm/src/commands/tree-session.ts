@@ -1,4 +1,5 @@
 import chalk from "chalk";
+import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
 	outputTreeJson,
 	REFARM_TREE_SCHEMA_VERSION,
@@ -359,11 +360,12 @@ export async function previewSessionTree(
 	if (substrate.kind === "session-fork" && substrate.branchPointEntryId) {
 		console.log(chalk.dim(`  Branch point: ${substrate.branchPointEntryId}`));
 	}
-	if (envelope.plan.blockedReason) {
-		console.log(chalk.yellow(`  Blocked: ${envelope.plan.blockedReason}`));
-	} else {
-		console.log(chalk.dim(`  Ready: ${envelope.plan.readyToExecute ? "yes" : "no"}`));
-	}
+	const readiness = formatExecutionPlanReadinessLine(envelope.plan);
+	console.log(
+		readiness.status === "blocked"
+			? chalk.yellow(`  ${readiness.label}`)
+			: chalk.dim(`  ${readiness.label}`),
+	);
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }
 
@@ -450,10 +452,11 @@ export async function previewSessionSwitchTree(
 			),
 		);
 	}
-	if (envelope.plan.blockedReason) {
-		console.log(chalk.yellow(`  Blocked: ${envelope.plan.blockedReason}`));
-	} else {
-		console.log(chalk.dim(`  Ready: ${envelope.plan.readyToExecute ? "yes" : "no"}`));
-	}
+	const readiness = formatExecutionPlanReadinessLine(envelope.plan);
+	console.log(
+		readiness.status === "blocked"
+			? chalk.yellow(`  ${readiness.label}`)
+			: chalk.dim(`  ${readiness.label}`),
+	);
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }

@@ -11,3 +11,28 @@ export interface RefarmExecutionPlanBase<
 	effects: Effects;
 	substrate: Substrate;
 }
+
+export interface RefarmExecutionPlanReadinessInput {
+	readyToExecute: boolean;
+	blockedReason?: string;
+}
+
+export interface RefarmExecutionPlanReadinessLine {
+	status: "blocked" | "ready";
+	label: string;
+}
+
+export function formatExecutionPlanReadinessLine(
+	plan: RefarmExecutionPlanReadinessInput,
+): RefarmExecutionPlanReadinessLine {
+	if (plan.blockedReason) {
+		return {
+			status: "blocked",
+			label: `Blocked: ${plan.blockedReason}`,
+		};
+	}
+	return {
+		status: "ready",
+		label: `Ready: ${plan.readyToExecute ? "yes" : "no"}`,
+	};
+}

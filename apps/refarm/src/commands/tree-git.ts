@@ -1,5 +1,6 @@
 import * as childProcess from "node:child_process";
 import chalk from "chalk";
+import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
@@ -345,11 +346,12 @@ export function previewGitTree(
 		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
 	);
 	console.log("  Would:  create a non-destructive git branch");
-	if (envelope.plan.blockedReason) {
-		console.log(chalk.yellow(`  Blocked: ${envelope.plan.blockedReason}`));
-	} else {
-		console.log(chalk.dim(`  Ready: ${envelope.plan.readyToExecute ? "yes" : "no"}`));
-	}
+	const readiness = formatExecutionPlanReadinessLine(envelope.plan);
+	console.log(
+		readiness.status === "blocked"
+			? chalk.yellow(`  ${readiness.label}`)
+			: chalk.dim(`  ${readiness.label}`),
+	);
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }
 
@@ -400,11 +402,12 @@ export function previewGitSwitchTree(
 	console.log(
 		chalk.dim(`  Worktree clean: ${substrate.worktreeClean ? "yes" : "no"}`),
 	);
-	if (plan.blockedReason) {
-		console.log(chalk.yellow(`  Blocked: ${plan.blockedReason}`));
-	} else {
-		console.log(chalk.dim(`  Ready: ${plan.readyToExecute ? "yes" : "no"}`));
-	}
+	const readiness = formatExecutionPlanReadinessLine(plan);
+	console.log(
+		readiness.status === "blocked"
+			? chalk.yellow(`  ${readiness.label}`)
+			: chalk.dim(`  ${readiness.label}`),
+	);
 	console.log(chalk.dim(`  Command: ${plan.recommendedCommand}\n`));
 }
 
