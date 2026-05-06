@@ -1601,6 +1601,34 @@ describe("refarm tree", () => {
 		"0",
 		"201",
 		"1abc",
+	])("fails closed for invalid all list limit %s", async (limit) => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "list")!
+				.parseAsync(["--scope", "all", "--limit", limit, "--json"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(`Invalid --limit "${limit}"`),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		"0",
+		"201",
+		"1abc",
 	])("fails closed for invalid git list limit %s", async (limit) => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((

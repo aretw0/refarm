@@ -141,11 +141,12 @@ async function listAllTree(opts: {
 	json?: boolean;
 	limit?: string;
 }): Promise<void> {
+	const gitLimit = parseLimit(opts.limit);
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
 	try {
 		const [sessionNodes, gitNodes] = await Promise.all([
 			getSessionTimelineNodes(),
-			Promise.resolve(getGitTimelineNodes(parseLimit(opts.limit))),
+			Promise.resolve(getGitTimelineNodes(gitLimit)),
 		]);
 		nodes = [...sessionNodes, ...gitNodes].sort((a, b) =>
 			b.timestamp.localeCompare(a.timestamp),
