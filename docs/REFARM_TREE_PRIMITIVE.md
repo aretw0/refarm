@@ -64,8 +64,8 @@ refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
 The first slices are intentionally read-only. Machine-readable tree envelopes
 use `schemaVersion: 1` and an explicit `operation` discriminator (`list`,
 `show`, `preview`, or `fork`). `preview` emits a dry-run envelope that recommends
-`refarm sessions fork ...` or `git branch ...` but does not fork, branch, check
-out, or switch. Session previews may target a historical entry with
+`refarm sessions fork ...` for session timelines or `refarm tree fork --scope git ...`
+for git timelines, but does not fork, branch, check out, or switch. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false` in JSON),
@@ -147,8 +147,9 @@ planned envelope until there is a deterministic rollback story.
 4. ✅ Add git adapter read-only list/show/preview because it provides an
    independent substrate without requiring CRDT migration work.
 5. ✅ Add historical-entry session preview with `--at <entry-id>`.
-6. Add `fork`/branch execution only after preview output is stable.
-6. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
+6. ✅ Add explicit git `fork`/branch execution after preview output stabilized;
+   keep it non-switching and isolated from session fork execution.
+7. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 
 ## Non-goals

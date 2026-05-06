@@ -432,7 +432,8 @@ describe("refarm tree", () => {
 				kind: "git-branch",
 				destructive: false,
 				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
-				recommendedCommand: "git branch <branch-name> abcdef123456",
+				recommendedCommand:
+					"refarm tree fork --scope git abcdef123456 --name <branch-name>",
 			},
 		});
 	});
@@ -457,7 +458,7 @@ describe("refarm tree", () => {
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.plan.recommendedCommand).toBe(
-			"git branch safe/fork abcdef123456",
+			"refarm tree fork --scope git abcdef123456 --name safe/fork",
 		);
 	});
 
@@ -556,7 +557,15 @@ describe("refarm tree", () => {
 			command.commands
 				.find((c) => c.name() === "fork")!
 				.parseAsync(
-					["abcdef", "--scope", "git", "--name", "safe/fork", "--at", "entry-1"],
+					[
+						"abcdef",
+						"--scope",
+						"git",
+						"--name",
+						"safe/fork",
+						"--at",
+						"entry-1",
+					],
 					{ from: "user" },
 				),
 		).rejects.toThrow("exit:1");
