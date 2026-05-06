@@ -1,6 +1,6 @@
 # Refarm Tree Primitive
 
-Status: design baseline
+Status: design baseline + session preview slice
 
 ## Why this exists
 
@@ -48,6 +48,17 @@ refarm tree preview <node-or-prefix>
 refarm tree fork <node-or-prefix> --name <branch-name>
 refarm tree switch <branch-or-node-prefix>
 ```
+
+Implemented first slice:
+
+```bash
+refarm tree list --scope session [--json]
+refarm tree show <session-id-or-prefix> [--json]
+refarm tree preview <session-id-or-prefix> [--json]
+```
+
+The first slice is intentionally read-only. `preview` emits a dry-run envelope
+that recommends `refarm sessions fork ...` but does not fork or switch.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must
@@ -110,10 +121,11 @@ planned envelope until there is a deterministic rollback story.
 
 ## First implementation slice
 
-1. Keep this as the design baseline.
-2. Implement session-only `refarm tree list/show/preview` over existing session
+1. ✅ Keep this as the design baseline.
+2. ✅ Implement session-only `refarm tree list/show/preview` over existing session
    data.
-3. Add prefix-resolution tests matching the existing session fail-closed UX.
+3. ✅ Add fail-closed tests for unsupported scopes and JSON contract tests for
+   list/show/preview.
 4. Add `fork` only after preview output is stable.
 5. Add git adapter second, because it provides an independent substrate without
    requiring CRDT migration work.

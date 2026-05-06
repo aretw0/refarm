@@ -19,6 +19,7 @@ import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
 import { tuiCommand } from "./commands/tui.js";
 import { telemetryCommand } from "./commands/telemetry.js";
+import { treeCommand } from "./commands/tree.js";
 import { webCommand } from "./commands/web.js";
 
 export const program = new Command();
@@ -48,3 +49,4 @@ program.addCommand(sessionsCommand);
 program.addCommand(tasksCommand);
 program.addCommand(keysCommand);
 program.addCommand(telemetryCommand);
+program.addCommand(treeCommand);

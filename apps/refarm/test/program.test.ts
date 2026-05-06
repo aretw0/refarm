@@ -13,6 +13,7 @@ describe("refarm program", () => {
 		expect(names).toContain("open-url");
 		expect(names).toContain("actions");
 		expect(names).toContain("telemetry");
+		expect(names).toContain("tree");
 	});
 
 	it("uses shared runtime metadata resolver for CLI version", () => {

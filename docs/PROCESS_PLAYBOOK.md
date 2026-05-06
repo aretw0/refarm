@@ -42,6 +42,8 @@ refarm sessions list        # list known sessions
 refarm sessions new         # create and switch active session
 refarm sessions fork <id>   # branch from an existing session
 refarm sessions use <id>    # switch active session
+refarm tree list --json     # read-only session timeline nodes
+refarm tree preview <id>    # dry-run fork plan for a historical node
 ```
 
 ---
