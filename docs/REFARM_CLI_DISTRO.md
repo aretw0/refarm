@@ -104,7 +104,8 @@ npm run refarm:host:smoke:auto
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
   `refarm open-url --dry-run`, `refarm actions --input --select --json`,
-  `refarm tree list --scope git --json`, `refarm status --json --input`,
+  `refarm tree list --scope git --json`,
+  `refarm tree preview --scope git --json`, `refarm status --json --input`,
   `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and

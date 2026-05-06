@@ -315,6 +315,35 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git preview JSON`);
+		const treeGitPreviewRun = await runRefarmCommand([
+			"tree",
+			"preview",
+			"HEAD",
+			"--scope",
+			"git",
+			"--json",
+		]);
+		const treeGitPreview = parseCommandJsonOutput(
+			"tree preview --scope git --json",
+			treeGitPreviewRun,
+		);
+		if (treeGitPreview?.reason !== "dry-run") {
+			throw new Error(
+				`Expected tree preview reason=dry-run, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
+		if (treeGitPreview?.plan?.kind !== "git-branch") {
+			throw new Error(
+				`Expected git-branch preview plan, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.destructive !== false) {
+			throw new Error(
+				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
 		);
