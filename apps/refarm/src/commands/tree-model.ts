@@ -31,12 +31,27 @@ export interface RefarmTimelineListEnvelope {
 	nodes: RefarmTimelineNode[];
 }
 
+export interface RefarmSessionTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+}
+
+export interface RefarmGitTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+}
+
 export interface RefarmTimelineShowEnvelope {
 	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
 	command: "tree";
 	scope: RefarmTimelineScope;
 	operation: "show";
 	node: RefarmTimelineNode;
+}
+
+export interface RefarmGitTimelineShowEnvelope
+	extends RefarmTimelineShowEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
 }
 
 export interface RefarmSessionTimelineShowEnvelope
@@ -71,6 +86,18 @@ export interface RefarmTimelinePreviewEnvelope {
 	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan;
 }
 
+export interface RefarmSessionTimelinePreviewEnvelope
+	extends RefarmTimelinePreviewEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	plan: RefarmSessionTimelinePreviewPlan;
+}
+
+export interface RefarmGitTimelinePreviewEnvelope
+	extends RefarmTimelinePreviewEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	plan: RefarmGitTimelinePreviewPlan;
+}
+
 export interface RefarmGitTimelineForkResult {
 	kind: "git-branch";
 	destructive: false;
@@ -92,6 +119,21 @@ export interface RefarmTimelineForkEnvelope {
 	result: RefarmGitTimelineForkResult;
 }
 
-export function outputTreeJson(value: unknown): void {
+export interface RefarmGitTimelineForkEnvelope
+	extends RefarmTimelineForkEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	result: RefarmGitTimelineForkResult;
+}
+
+export type RefarmTreeJsonEnvelope =
+	| RefarmSessionTimelineListEnvelope
+	| RefarmGitTimelineListEnvelope
+	| RefarmSessionTimelineShowEnvelope
+	| RefarmGitTimelineShowEnvelope
+	| RefarmSessionTimelinePreviewEnvelope
+	| RefarmGitTimelinePreviewEnvelope
+	| RefarmGitTimelineForkEnvelope;
+
+export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {
 	console.log(JSON.stringify(value, null, 2));
 }

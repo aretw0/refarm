@@ -4,11 +4,11 @@ import {
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SCHEMA_VERSION,
-	type RefarmTimelineForkEnvelope,
-	type RefarmTimelineListEnvelope,
+	type RefarmGitTimelineForkEnvelope,
+	type RefarmGitTimelineListEnvelope,
+	type RefarmGitTimelinePreviewEnvelope,
+	type RefarmGitTimelineShowEnvelope,
 	type RefarmTimelineNode,
-	type RefarmTimelinePreviewEnvelope,
-	type RefarmTimelineShowEnvelope,
 } from "./tree-model.js";
 
 function createGitTimelineNode(line: string): RefarmTimelineNode | null {
@@ -101,7 +101,7 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	}
 
 	if (opts.json) {
-		const envelope: RefarmTimelineListEnvelope = {
+		const envelope: RefarmGitTimelineListEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
@@ -145,7 +145,7 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	}
 
 	if (opts.json) {
-		const envelope: RefarmTimelineShowEnvelope = {
+		const envelope: RefarmGitTimelineShowEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
@@ -173,7 +173,7 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 function createGitPreviewEnvelope(
 	node: RefarmTimelineNode,
 	name: string | undefined,
-): RefarmTimelinePreviewEnvelope {
+): RefarmGitTimelinePreviewEnvelope {
 	const branchName = name ?? "<branch-name>";
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
@@ -197,7 +197,7 @@ function createGitForkEnvelope(
 	name: string,
 	currentRefBefore: string,
 	currentRefAfter: string,
-): RefarmTimelineForkEnvelope {
+): RefarmGitTimelineForkEnvelope {
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 		command: "tree",

@@ -3,10 +3,10 @@ import {
 	outputTreeJson,
 	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
+	type RefarmSessionTimelineListEnvelope,
+	type RefarmSessionTimelinePreviewEnvelope,
 	type RefarmSessionTimelineShowEnvelope,
-	type RefarmTimelineListEnvelope,
 	type RefarmTimelineNode,
-	type RefarmTimelinePreviewEnvelope,
 } from "./tree-model.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -132,7 +132,7 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 		.map(createSessionTimelineNode);
 
 	if (opts.json) {
-		const envelope: RefarmTimelineListEnvelope = {
+		const envelope: RefarmSessionTimelineListEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
@@ -220,7 +220,7 @@ function createSessionPreviewEnvelope(
 	node: RefarmTimelineNode,
 	branchPointEntryId: string | null,
 	name: string | undefined,
-): RefarmTimelinePreviewEnvelope {
+): RefarmSessionTimelinePreviewEnvelope {
 	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
 	const branchName = name ?? "<branch-name>";
 	return {
