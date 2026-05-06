@@ -147,7 +147,7 @@ function createGitPreviewEnvelope(
 			kind: "git-branch",
 			destructive: false,
 			baseCommit: node.nodeId,
-			recommendedCommand: `git switch -c <branch-name> ${node.metadata.shortId}`,
+			recommendedCommand: `git branch <branch-name> ${node.metadata.shortId}`,
 		},
 	};
 }

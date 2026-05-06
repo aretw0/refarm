@@ -241,7 +241,7 @@ describe("refarm tree", () => {
 				kind: "git-branch",
 				destructive: false,
 				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
-				recommendedCommand: "git switch -c <branch-name> abcdef123456",
+				recommendedCommand: "git branch <branch-name> abcdef123456",
 			},
 		});
 	});

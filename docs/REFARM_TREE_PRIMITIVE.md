@@ -61,7 +61,7 @@ refarm tree preview --scope git <commit-ish> [--json]
 ```
 
 The first slices are intentionally read-only. `preview` emits a dry-run envelope
-that recommends `refarm sessions fork ...` or `git switch -c ...` but does not
+that recommends `refarm sessions fork ...` or `git branch ...` but does not
 fork, branch, check out, or switch.
 
 `preview` is the safety boundary. It materializes what would change without
