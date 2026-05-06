@@ -121,6 +121,38 @@ describe("headlessCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("accepts a one-based action row index with --action-request", async () => {
+		mockResolveStatusPayload.mockResolvedValueOnce({
+			json: {
+				...makeStatus(),
+				plugins: {
+					installed: 2,
+					active: 2,
+					rejectedSurfaces: 0,
+					surfaceActions: 2,
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+						{ id: "inspect-trust", label: "Inspect trust" },
+					],
+				},
+			},
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await headlessCommand.parseAsync(["--action-request", "2"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output.actionRequest.action).toMatchObject({
+			id: "inspect-trust",
+			label: "Inspect trust",
+		});
+		expect(mockShutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
 	it("rejects --action-request when the action is unavailable", async () => {
 		mockResolveStatusPayload.mockResolvedValueOnce({
 			json: {

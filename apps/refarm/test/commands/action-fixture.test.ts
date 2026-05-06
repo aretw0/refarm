@@ -39,6 +39,23 @@ describe("status-with-actions fixture", () => {
 		logSpy.mockRestore();
 	});
 
+	it("drives headless dry-run action request output from a row index", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await headlessCommand.parseAsync(
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--action-request", "2"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output.actionRequest.action).toMatchObject({
+			id: "inspect-trust",
+			label: "Inspect trust",
+			intent: "trust:inspect",
+		});
+		logSpy.mockRestore();
+	});
+
 	it("drives TUI action row output from --input", async () => {
 		const command = createTuiCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

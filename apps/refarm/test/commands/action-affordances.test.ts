@@ -95,8 +95,9 @@ describe("Refarm action affordance helpers", () => {
 	});
 
 	it("resolves selections by one-based row index or stable id", () => {
-		expect(resolveRefarmActionAffordanceSelection(makeStatus(), "1"))
-			.toMatchObject({ reason: "selected", selected: { id: "open-node" } });
+		expect(
+			resolveRefarmActionAffordanceSelection(makeStatus(), "1"),
+		).toMatchObject({ reason: "selected", selected: { id: "open-node" } });
 		expect(
 			resolveRefarmActionAffordanceSelection(makeStatus(), " inspect-trust "),
 		).toMatchObject({
@@ -106,12 +107,15 @@ describe("Refarm action affordance helpers", () => {
 	});
 
 	it("reports missing selections and formats available IDs", () => {
-		expect(resolveRefarmActionAffordanceSelection(makeStatus(), "missing"))
-			.toMatchObject({ reason: "missing-action" });
-		expect(resolveRefarmActionAffordanceSelection(makeStatus([]), "1"))
-			.toMatchObject({ reason: "no-actions" });
-		expect(formatRefarmActionIds(getRefarmStatusAvailableActions(makeStatus())))
-			.toBe("open-node, inspect-trust");
+		expect(
+			resolveRefarmActionAffordanceSelection(makeStatus(), "missing"),
+		).toMatchObject({ reason: "missing-action" });
+		expect(
+			resolveRefarmActionAffordanceSelection(makeStatus([]), "1"),
+		).toMatchObject({ reason: "no-actions" });
+		expect(
+			formatRefarmActionIds(getRefarmStatusAvailableActions(makeStatus())),
+		).toBe("open-node, inspect-trust");
 		expect(formatRefarmActionIds([])).toBe("none");
 	});
 });

@@ -15,7 +15,8 @@ refarm status --renderer web --json   # same contract in Web renderer mode
 refarm status --renderer tui --json   # same contract in TUI renderer mode
 refarm status --input status.json --json  # validate/render an existing status artifact
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
-refarm headless --input status.json --action-request open-node  # dry-run action envelope
+refarm headless --input status.json --action-request open-node  # dry-run action envelope by ID
+refarm headless --input status.json --action-request 1          # dry-run action envelope by row index
 refarm tui --input status.json --actions  # selectable action rows for TUI readiness
 ```
 
@@ -151,11 +152,13 @@ Headless action request dry-run:
 
 ```bash
 refarm headless --input status.json --action-request open-node
+refarm headless --input status.json --action-request 1
 ```
 
 This command does not execute product behavior. It validates that the selected
-ID is present in `plugins.availableActions` and emits the deterministic
-Homestead action request envelope that a future product handler can consume.
+ID or one-based row index resolves to an entry in `plugins.availableActions` and
+emits the deterministic Homestead action request envelope that a future product
+handler can consume.
 
 TUI action row dry-run:
 
@@ -168,6 +171,7 @@ A reusable local fixture is available at
 
 ```bash
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
+refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions
 ```
 

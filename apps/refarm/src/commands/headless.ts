@@ -1,5 +1,8 @@
 import { Command } from "commander";
-import { formatRefarmActionIds } from "./action-affordances.js";
+import {
+	formatRefarmActionIds,
+	resolveRefarmActionAffordanceSelection,
+} from "./action-affordances.js";
 import { resolveHeadlessStatusSurfaceActionRequest } from "./headless-action.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
@@ -24,8 +27,8 @@ export const headlessCommand = new Command("headless")
 	.option("--markdown", "Output markdown report")
 	.option("--summary", "Output human-readable status summary")
 	.option(
-		"--action-request <id>",
-		"Output a dry-run Homestead action request envelope for an available action ID",
+		"--action-request <id-or-index>",
+		"Output a dry-run Homestead action request envelope for an available action ID or row index",
 	)
 	.action(async (options: HeadlessOptions) => {
 		if (options.actionRequest) {
@@ -68,18 +71,30 @@ async function emitHeadlessActionRequest(
 			input: options.input,
 		},
 		run: (json) => {
-			const actionId = options.actionRequest;
-			if (!actionId) {
-				throw new Error("Missing --action-request action ID.");
+			const actionSelection = options.actionRequest;
+			if (!actionSelection) {
+				throw new Error("Missing --action-request action ID or row index.");
 			}
+
+			const selectedAction = resolveRefarmActionAffordanceSelection(
+				json,
+				actionSelection,
+			);
+
+			if (!selectedAction.selected) {
+				throw new Error(
+					`Action "${actionSelection}" is not available. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+				);
+			}
+
 			const resolution = resolveHeadlessStatusSurfaceActionRequest({
 				status: json,
-				actionId,
+				actionId: selectedAction.selected.id,
 			});
 
 			if (!resolution.request) {
 				throw new Error(
-					`Action "${actionId}" is not available. Available actions: ${formatRefarmActionIds(resolution.availableActions)}.`,
+					`Action "${selectedAction.selected.id}" is not available. Available actions: ${formatRefarmActionIds(resolution.availableActions)}.`,
 				);
 			}
 

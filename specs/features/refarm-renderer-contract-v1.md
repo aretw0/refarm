@@ -55,7 +55,7 @@ with explicit conformance expectations.
 
 5. **Given** status exposes `plugins.availableActions`
    **When** headless or TUI action-readiness views are requested
-   **Then** they use stable action IDs from the status contract rather than DOM selectors or product-private payloads.
+   **Then** they use stable action IDs and one-based row selections from the status contract rather than DOM selectors or product-private payloads.
 
 ---
 
