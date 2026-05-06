@@ -417,6 +417,38 @@ Adapters own substrate mechanics:
 Composite timelines start read-only. Cross-substrate mutation must remain a
 planned envelope until there is a deterministic rollback story.
 
+## CRDT/composite read-only activation plan
+
+The next substrate should enter through read-only nodes before any mutation is
+allowed. A CRDT adapter is ready to participate in `tree list/show/preview` only
+when it can expose all of the following without product-private assumptions:
+
+- stable document or workspace timeline IDs;
+- stable node IDs for frontiers, checkpoints, or named heads;
+- parent/frontier ancestry that can be rendered without replaying arbitrary app
+  state;
+- human labels and timestamps suitable for operator inspection;
+- metadata that stays adapter-local, such as frontier IDs, actor IDs, or
+  checkpoint hashes.
+
+Composite timelines should then join evidence instead of moving state. A
+composite node can reference session, git, and CRDT observations, but its first
+`preview` output should be coordinated-plan-only: `readyToExecute: false`, a
+clear `blockedReason`, and substrate details that identify each selected adapter
+node. Composite `fork`/`switch` should remain unavailable until rollback and
+partial-failure semantics are deterministic.
+
+Acceptance criteria for the read-only CRDT/composite slice:
+
+1. `refarm tree list --scope crdt --json` or an equivalent guarded scope emits
+   schema-versioned nodes without changing document state.
+2. `refarm tree show <crdt-node> --json` resolves exact or unambiguous prefixes
+   and fails closed on ambiguity.
+3. Composite preview can describe a multi-substrate plan, but no command mutates
+   more than one substrate in a single execution path.
+4. Existing session/git JSON envelopes remain backward-compatible at
+   `schemaVersion: 1`.
+
 ## Fail-closed rules
 
 - Ambiguous prefixes fail with deterministic retry choices.
