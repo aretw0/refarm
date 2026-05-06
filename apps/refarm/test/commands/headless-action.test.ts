@@ -4,6 +4,7 @@ import {
 	createHeadlessStatusSurfaceHostContext,
 	createHeadlessStatusSurfaceRenderRequest,
 	invokeHeadlessStatusSurfaceAction,
+	resolveHeadlessStatusSurfaceActionRequest,
 } from "../../src/commands/headless-action.js";
 
 function makeStatus(): RefarmStatusJson {
@@ -77,6 +78,30 @@ describe("headless surface action invocation", () => {
 					intent: "node:open",
 				},
 			],
+		});
+	});
+
+	it("resolves a selected action request without invoking product handlers", () => {
+		expect(
+			resolveHeadlessStatusSurfaceActionRequest({
+				status: makeStatus(),
+				actionId: "open-node",
+			}),
+		).toMatchObject({
+			available: true,
+			reason: "available",
+			action: {
+				id: "open-node",
+				label: "Open node",
+				intent: "node:open",
+			},
+			request: {
+				pluginId: "apps/refarm",
+				slotId: "headless",
+				mountSource: "legacy-ui-slot",
+				locale: "en",
+				action: expect.objectContaining({ id: "open-node" }),
+			},
 		});
 	});
 

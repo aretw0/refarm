@@ -84,6 +84,75 @@ describe("headlessCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("outputs a dry-run action request with --action-request", async () => {
+		mockResolveStatusPayload.mockResolvedValueOnce({
+			json: {
+				...makeStatus(),
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			},
+			shutdown: mockShutdown,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await headlessCommand.parseAsync(["--action-request", "open-node"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			actionRequest: {
+				pluginId: "apps/refarm",
+				slotId: "headless",
+				action: { id: "open-node", label: "Open node", intent: "node:open" },
+			},
+		});
+		expect(mockShutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("rejects --action-request when the action is unavailable", async () => {
+		mockResolveStatusPayload.mockResolvedValueOnce({
+			json: {
+				...makeStatus(),
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			},
+			shutdown: mockShutdown,
+		});
+
+		await expect(
+			headlessCommand.parseAsync(["--action-request", "missing-action"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Available actions: open-node/);
+		expect(mockShutdown).toHaveBeenCalled();
+	});
+
+	it("rejects --action-request with human output flags", async () => {
+		await expect(
+			headlessCommand.parseAsync(["--action-request", "open-node", "--summary"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Choose only one output format/);
+		expect(mockResolveStatusPayload).not.toHaveBeenCalled();
+	});
+
 	it("delegates summary formatting with --summary", async () => {
 		await headlessCommand.parseAsync(["--summary"], { from: "user" });
 		expect(mockPrintStatusSummary).toHaveBeenCalledWith(

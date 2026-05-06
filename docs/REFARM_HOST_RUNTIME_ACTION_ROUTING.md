@@ -102,8 +102,11 @@ The action envelope is shared; the interaction modality is not.
 consumer of that envelope. It turns a status payload with
 `plugins.availableActions` into a deterministic Homestead render request and
 host context, then delegates selected action IDs through
-`invokeHomesteadSurfaceRenderAction(...)`. This keeps action invocation testable
-without giving the headless host product-specific action meaning.
+`invokeHomesteadSurfaceRenderAction(...)`. `refarm headless --action-request <id>`
+exposes the non-destructive half of that path by emitting the deterministic
+action request envelope without executing product behavior. This keeps action
+invocation testable without giving the headless host product-specific action
+meaning.
 
 ## Promotion threshold
 
@@ -121,7 +124,7 @@ Promote only when at least two independent consumers need the same mechanic **an
 
 1. Keep `apps/refarm` status/preflight as the canonical renderer-independent host signal.
 2. Add richer host status inputs only through package summaries, not DOM/runtime globals.
-3. Wire CLI UX for invoking a headless action by ID on top of the local `headless-action` primitive once product handlers are available.
+3. Add product-owned action handlers behind the headless action primitive when a real app flow needs execution; keep dry-run envelope output available for agents and tests.
 4. Keep CI smoke wiring deferred while GitHub Actions budget is over allocation; validate locally with focused package/app tests.
 5. Revisit the shell layout/footer scroll TODO before expanding Web renderer UX, because stable viewport ownership affects action surfaces, streams, and statusbars.
 

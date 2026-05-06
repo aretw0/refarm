@@ -1,4 +1,6 @@
 import { Command } from "commander";
+import { resolveHeadlessStatusSurfaceActionRequest } from "./headless-action.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
 import { resolveStatusOutputMode } from "./status-output.js";
@@ -7,6 +9,7 @@ interface HeadlessOptions {
 	input?: string;
 	markdown?: boolean;
 	summary?: boolean;
+	actionRequest?: string;
 }
 
 export const headlessCommand = new Command("headless")
@@ -19,7 +22,22 @@ export const headlessCommand = new Command("headless")
 	)
 	.option("--markdown", "Output markdown report")
 	.option("--summary", "Output human-readable status summary")
+	.option(
+		"--action-request <id>",
+		"Output a dry-run Homestead action request envelope for an available action ID",
+	)
 	.action(async (options: HeadlessOptions) => {
+		if (options.actionRequest) {
+			if (options.markdown || options.summary) {
+				throw new Error(
+					"Choose only one output format: --action-request, --markdown, or --summary.",
+				);
+			}
+
+			await emitHeadlessActionRequest(options);
+			return;
+		}
+
 		const outputMode = resolveStatusOutputMode(
 			{ markdown: options.markdown, summary: options.summary },
 			{
@@ -38,3 +56,51 @@ export const headlessCommand = new Command("headless")
 			printSummary: printStatusSummary,
 		});
 	});
+
+async function emitHeadlessActionRequest(options: HeadlessOptions): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload,
+		resolveOptions: {
+			renderer: "headless",
+			input: options.input,
+		},
+		run: (json) => {
+			const actionId = options.actionRequest;
+			if (!actionId) {
+				throw new Error("Missing --action-request action ID.");
+			}
+			const resolution = resolveHeadlessStatusSurfaceActionRequest({
+				status: json,
+				actionId,
+			});
+
+			if (!resolution.request) {
+				throw new Error(
+					`Action "${actionId}" is not available. Available actions: ${formatAvailableActionIds(resolution.availableActions)}.`,
+				);
+			}
+
+			console.log(
+				JSON.stringify(
+					{
+						schemaVersion: 1,
+						statusSchemaVersion: json.schemaVersion,
+						reason: "dry-run",
+						actionRequest: resolution.request,
+						availableActions: resolution.availableActions,
+					},
+					null,
+					2,
+				),
+			);
+		},
+	});
+}
+
+function formatAvailableActionIds(
+	actions: readonly { id: string }[],
+): string {
+	return actions.length > 0
+		? actions.map((action) => action.id).join(", ")
+		: "none";
+}

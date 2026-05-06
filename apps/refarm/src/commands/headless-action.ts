@@ -14,6 +14,10 @@ export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
 	| "extension-surface";
 
+export type HeadlessSurfaceActionRequestResolutionReason =
+	| "available"
+	| "missing-action";
+
 export type HeadlessSurfaceActionInvocationReason =
 	| "handled"
 	| "unhandled"
@@ -29,6 +33,14 @@ export interface HeadlessSurfaceActionInvocationOptions {
 	mountSource?: HeadlessSurfaceActionMountSource;
 	surface?: ExtensionSurfaceDeclaration;
 	hostData?: Record<string, unknown>;
+}
+
+export interface HeadlessSurfaceActionRequestResolution {
+	available: boolean;
+	reason: HeadlessSurfaceActionRequestResolutionReason;
+	action?: HomesteadSurfaceRenderAction;
+	request?: HomesteadSurfaceRenderActionRequest;
+	availableActions: readonly HomesteadSurfaceRenderAction[];
 }
 
 export interface HeadlessSurfaceActionInvocationResult {
@@ -73,9 +85,9 @@ export function createHeadlessStatusSurfaceHostContext(
 	};
 }
 
-export async function invokeHeadlessStatusSurfaceAction(
-	options: HeadlessSurfaceActionInvocationOptions,
-): Promise<HeadlessSurfaceActionInvocationResult> {
+export function resolveHeadlessStatusSurfaceActionRequest(
+	options: Omit<HeadlessSurfaceActionInvocationOptions, "handler">,
+): HeadlessSurfaceActionRequestResolution {
 	const renderRequest = createHeadlessStatusSurfaceRenderRequest(
 		options.status,
 		options,
@@ -89,24 +101,46 @@ export async function invokeHeadlessStatusSurfaceAction(
 
 	if (!request) {
 		return {
-			handled: false,
+			available: false,
 			reason: "missing-action",
 			availableActions: host.actions ?? [],
 		};
 	}
 
+	return {
+		available: true,
+		reason: "available",
+		action: request.action,
+		request,
+		availableActions: host.actions ?? [],
+	};
+}
+
+export async function invokeHeadlessStatusSurfaceAction(
+	options: HeadlessSurfaceActionInvocationOptions,
+): Promise<HeadlessSurfaceActionInvocationResult> {
+	const resolution = resolveHeadlessStatusSurfaceActionRequest(options);
+
+	if (!resolution.request) {
+		return {
+			handled: false,
+			reason: "missing-action",
+			availableActions: resolution.availableActions,
+		};
+	}
+
 	const handled = await invokeHomesteadSurfaceRenderAction(
 		options.handler,
-		renderRequest,
-		host,
+		resolution.request,
+		resolution.request.host,
 		options.actionId,
 	);
 
 	return {
 		handled,
 		reason: handled ? "handled" : "unhandled",
-		action: request.action,
-		request,
-		availableActions: host.actions ?? [],
+		action: resolution.request.action,
+		request: resolution.request,
+		availableActions: resolution.availableActions,
 	};
 }
