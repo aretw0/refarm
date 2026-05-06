@@ -459,6 +459,10 @@ async function main() {
 			["tree", "fork", "HEAD", "--name", "smoke/tree-fork"],
 			"refarm tree fork currently supports --scope git only",
 		);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--name", "unsafe..name"],
+			"refarm tree fork currently supports --scope git only",
+		);
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork rejects unsafe names`);
 		await assertCommandFailsWith(
@@ -476,6 +480,20 @@ async function main() {
 				"git",
 				"--name",
 				"smoke/tree-fork",
+				"--at",
+				"entry-1",
+			],
+			"--at is only supported for session timelines",
+		);
+		await assertCommandFailsWith(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"unsafe..name",
 				"--at",
 				"entry-1",
 			],
