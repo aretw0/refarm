@@ -54,7 +54,7 @@ with explicit conformance expectations.
    **Then** guardrail errors are deterministic and mode-agnostic.
 
 5. **Given** status exposes `plugins.availableActions`
-   **When** headless or TUI action-readiness views are requested
+   **When** Web, headless, or TUI action-readiness views are requested
    **Then** they use stable action IDs and one-based row selections from the status contract rather than DOM selectors or product-private payloads.
 
 ---
@@ -145,8 +145,9 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
 - [x] `apps/refarm/test/commands/headless-action.test.ts` verifies headless action request envelopes use the shared Homestead action helper path
 - [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by headless/TUI readiness paths
+- [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
-- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, TUI action rows, selected TUI rows, and TUI JSON dry-run envelopes through `--input`
+- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, Web/TUI action rows, selected Web/TUI rows, and Web/TUI JSON dry-run envelopes through `--input`
 
 **Next conformance additions (planned):**
 
@@ -169,7 +170,7 @@ export interface RefarmStatusJson {
 **DDD**
 
 - [x] Expose reusable conformance helper from Homestead SDK
-- [x] Expose local headless/TUI action-readiness views over `plugins.availableActions`
+- [x] Expose local Web/headless/TUI action-readiness views over `plugins.availableActions`
 - [ ] Wire conformance smoke to CI host lane
 
 ---

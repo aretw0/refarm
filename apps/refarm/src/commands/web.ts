@@ -5,6 +5,7 @@ import {
 } from "@refarm.dev/cli/browser-open";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { formatRefarmActionIds } from "./action-affordances.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -15,6 +16,7 @@ import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
@@ -22,6 +24,13 @@ import {
 	resolveStatusPayload,
 } from "./status.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
+import {
+	createWebSurfaceActionDryRunEnvelope,
+	createWebSurfaceActionRows,
+	formatWebSurfaceActionRows,
+	formatWebSurfaceActionSelection,
+	resolveWebSurfaceActionSelection,
+} from "./web-actions.js";
 
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
@@ -51,6 +60,8 @@ interface WebOptions {
 	dryRun?: boolean;
 	open?: boolean;
 	openUrl?: string;
+	actions?: boolean;
+	select?: string;
 	launcher?: RefarmWebLauncherMode;
 }
 
@@ -96,6 +107,11 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.option("--launch", "Launch the local web runtime after renderer preflight")
 		.option("--dry-run", "Print launcher command without executing it")
 		.option("--open", "Open default browser after starting web runtime")
+		.option("--actions", "Output selectable Web surface action rows")
+		.option(
+			"--select <id-or-index>",
+			"Select an available Web action ID or row index when used with --actions",
+		)
 		.option(
 			"--open-url <url>",
 			"Browser URL used with --open",
@@ -103,6 +119,16 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		)
 		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
 		.action(async (options: WebOptions) => {
+			if (options.select && !options.actions) {
+				throw new Error("--select requires --actions.");
+			}
+
+			if (options.actions) {
+				assertWebActionsOutputOptions(options);
+				await emitWebActionRows(options, resolvedDeps);
+				return;
+			}
+
 			assertLaunchGuardOptions({
 				json: options.json,
 				markdown: options.markdown,
@@ -163,6 +189,70 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				},
 			});
 		});
+}
+
+async function emitWebActionRows(
+	options: WebOptions,
+	deps: WebDeps,
+): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload: deps.resolveStatusPayload,
+		resolveOptions: {
+			renderer: "web",
+			input: options.input,
+		},
+		run: (json) => {
+			if (options.select) {
+				const selection = resolveWebSurfaceActionSelection(
+					json,
+					options.select,
+				);
+				if (!selection.selected) {
+					throw new Error(
+						`Web action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
+					);
+				}
+
+				if (options.json) {
+					console.log(
+						JSON.stringify(
+							createWebSurfaceActionDryRunEnvelope(json, selection),
+							null,
+							2,
+						),
+					);
+					return;
+				}
+
+				console.log(
+					formatWebSurfaceActionSelection(
+						selection.selected,
+						selection.rows,
+						selection.selection,
+					),
+				);
+				return;
+			}
+
+			const rows = createWebSurfaceActionRows(json);
+			if (options.json) {
+				console.log(
+					JSON.stringify(createWebSurfaceActionDryRunEnvelope(json), null, 2),
+				);
+				return;
+			}
+
+			console.log(formatWebSurfaceActionRows(rows));
+		},
+	});
+}
+
+function assertWebActionsOutputOptions(options: WebOptions): void {
+	if (options.markdown || options.launch || options.dryRun || options.open) {
+		throw new Error(
+			"--actions cannot be combined with --markdown, --launch, --dry-run, or --open.",
+		);
+	}
 }
 
 export const webCommand = createWebCommand();

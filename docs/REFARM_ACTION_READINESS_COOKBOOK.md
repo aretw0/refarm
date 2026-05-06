@@ -68,6 +68,43 @@ Expected Markdown section:
 - inspect-trust: Inspect trust (trust:inspect)
 ```
 
+### Web readiness rows
+
+```bash
+refarm web --input "$STATUS_FIXTURE" --actions
+```
+
+Expected shape:
+
+```text
+Available Web actions:
+[1] Open node — open-node (node:open)
+[2] Inspect trust — inspect-trust (trust:inspect)
+```
+
+This does not launch the Web runtime or open a browser.
+
+### Web selected-row dry-run
+
+```bash
+refarm web --input "$STATUS_FIXTURE" --actions --select 2
+refarm web --input "$STATUS_FIXTURE" --actions --select inspect-trust
+```
+
+Both forms resolve to the same selected action and print selection metadata plus
+the full Web action row context.
+
+### Web JSON readiness envelope
+
+```bash
+refarm web --input "$STATUS_FIXTURE" --actions --json
+refarm web --input "$STATUS_FIXTURE" --actions --select 2 --json
+```
+
+Use this path for agents that need structured Web readiness output without
+starting the browser renderer. The envelope contains the same row/selection
+shape as TUI with `renderer: "web"`.
+
 ### TUI readiness rows
 
 ```bash
@@ -128,7 +165,7 @@ shape. The envelope contains:
 
 ## Selection rules
 
-Selection is shared by headless and TUI readiness paths:
+Selection is shared by Web, headless, and TUI readiness paths:
 
 1. A stable action ID wins when it matches exactly.
 2. A decimal integer resolves as a one-based row index.
@@ -147,12 +184,16 @@ git diff --check -- \
   apps/refarm/src/commands/action-affordances.ts \
   apps/refarm/src/commands/headless.ts \
   apps/refarm/src/commands/headless-action.ts \
+  apps/refarm/src/commands/web.ts \
+  apps/refarm/src/commands/web-actions.ts \
   apps/refarm/src/commands/tui.ts \
   apps/refarm/src/commands/tui-actions.ts \
   apps/refarm/test/commands/action-affordances.test.ts \
   apps/refarm/test/commands/action-fixture.test.ts \
   apps/refarm/test/commands/headless.test.ts \
   apps/refarm/test/commands/headless-action.test.ts \
+  apps/refarm/test/commands/web.test.ts \
+  apps/refarm/test/commands/web-actions.test.ts \
   apps/refarm/test/commands/tui.test.ts \
   apps/refarm/test/commands/tui-actions.test.ts
 
@@ -161,6 +202,8 @@ npm --prefix apps/refarm run test -- \
   test/commands/action-fixture.test.ts \
   test/commands/headless.test.ts \
   test/commands/headless-action.test.ts \
+  test/commands/web.test.ts \
+  test/commands/web-actions.test.ts \
   test/commands/tui.test.ts \
   test/commands/tui-actions.test.ts \
   --pool=threads

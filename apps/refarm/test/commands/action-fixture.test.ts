@@ -2,6 +2,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { headlessCommand } from "../../src/commands/headless.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
+import { createWebCommand } from "../../src/commands/web.js";
 
 const STATUS_WITH_ACTIONS_FIXTURE = fileURLToPath(
 	new URL("../fixtures/status-with-actions.json", import.meta.url),
@@ -65,6 +66,62 @@ describe("status-with-actions fixture", () => {
 			label: "Inspect trust",
 			intent: "trust:inspect",
 		});
+		logSpy.mockRestore();
+	});
+
+	it("drives Web selected action JSON output from --input", async () => {
+		const command = createWebCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			[
+				"--input",
+				STATUS_WITH_ACTIONS_FIXTURE,
+				"--actions",
+				"--select",
+				"2",
+				"--json",
+			],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			renderer: "web",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
+			},
+			selectedAction: {
+				id: "inspect-trust",
+				label: "Inspect trust",
+				intent: "trust:inspect",
+			},
+		});
+		logSpy.mockRestore();
+	});
+
+	it("drives Web action row output from --input", async () => {
+		const command = createWebCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--actions"],
+			{ from: "user" },
+		);
+
+		expect(logSpy).toHaveBeenCalledWith(
+			[
+				"Available Web actions:",
+				"  [1] Open node — open-node (node:open)",
+				"  [2] Inspect trust — inspect-trust (trust:inspect)",
+			].join("\n"),
+		);
 		logSpy.mockRestore();
 	});
 

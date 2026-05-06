@@ -19,6 +19,8 @@ refarm status --input status.json --json  # validate/render an existing status a
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
 refarm headless --input status.json --action-request open-node  # dry-run action envelope by ID
 refarm headless --input status.json --action-request 1          # dry-run action envelope by row index
+refarm web --input status.json --actions              # selectable action rows for Web readiness
+refarm web --input status.json --actions --select 1 --json  # selected Web action JSON dry-run
 refarm tui --input status.json --actions              # selectable action rows for TUI readiness
 refarm tui --input status.json --actions --select 1   # selected TUI action dry-run
 ```
@@ -165,6 +167,19 @@ handler can consume. The JSON is produced by the app-owned headless dry-run
 envelope helper and also includes additive `selection` metadata: `requested`,
 `source` (`id` or `index`), `resolvedId`, and one-based `index`.
 
+Web action row dry-run:
+
+```bash
+refarm web --input status.json --actions
+refarm web --input status.json --actions --json
+refarm web --input status.json --actions --select 1
+refarm web --input status.json --actions --select 1 --json
+```
+
+This command does not launch the Web runtime or open a browser. It uses the same
+shared ID/index selection vocabulary as TUI and emits `renderer: "web"` JSON
+dry-run envelopes for agent-safe Web readiness checks.
+
 TUI action row dry-run:
 
 ```bash
@@ -180,6 +195,10 @@ A reusable local fixture is available at
 ```bash
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
+refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions
+refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions --json
+refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2
+refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2 --json
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --json
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2
