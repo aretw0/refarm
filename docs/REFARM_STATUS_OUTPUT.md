@@ -49,7 +49,14 @@ pipelines can parse metadata without scraping body text.
     "installed": 0,
     "active": 0,
     "rejectedSurfaces": 0,
-    "surfaceActions": 0
+    "surfaceActions": 1,
+    "availableActions": [
+      {
+        "id": "open-node",
+        "label": "Open node",
+        "intent": "node:open"
+      }
+    ]
   },
   "trust": {
     "profile": "dev",
@@ -73,7 +80,12 @@ pipelines can parse metadata without scraping body text.
 - `runtime.ready` means the host could initialize enough runtime state to report
   trust/plugin/renderer status.
 - `plugins.rejectedSurfaces` and `plugins.surfaceActions` should be derived from
-  semantic Homestead telemetry, not DOM inspection.
+  semantic Homestead state/telemetry, not DOM inspection. `surfaceActions`
+  prefers currently available affordances and falls back to historical action
+  telemetry for older producers.
+- `plugins.availableActions` is optional and should only expose stable action
+  affordance metadata (`id`, `label`, optional `intent`), not product-private
+  payloads or DOM selectors.
 - `trust` should summarize active policy/profile and warning/critical counts.
 - `streams` should summarize stream observation state when available.
 - `diagnostics` should use stable string codes before adding rich objects.
@@ -89,6 +101,7 @@ Use stable string codes first:
 - `trust:warnings-present`
 - `trust:critical-present`
 - `plugins:rejected-surfaces-present`
+- `plugins:surface-actions-available`
 - `streams:active-present`
 
 Current builder behavior in `@refarm.dev/cli/status` emits these diagnostics
@@ -97,7 +110,7 @@ from contract state (not UI state):
 - renderer capability posture (`renderer:*`)
 - runtime readiness (`runtime:not-ready`)
 - trust pressure counters (`trust:*`)
-- plugin surface rejection counts (`plugins:*`)
+- plugin surface rejection and available action counts (`plugins:*`)
 - stream activity (`streams:*`)
 
 Richer diagnostic objects can be added later as `diagnosticDetails` without
