@@ -216,6 +216,28 @@ result. Active-session pointer writes are verified through the shared
 `session-lock.ts` helper. The longer-term substrate-agnostic design lives in
 [Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
 
+### Scenario 3d — Timeline-first tree workflow
+
+Use `refarm tree` when you want renderer-neutral inspection and dry-run readiness
+before moving state:
+
+```bash
+refarm tree list --scope session
+refarm tree preview <session-id-prefix> --switch
+refarm tree switch <session-id-prefix>
+
+refarm tree list --scope git --limit 5
+refarm tree preview --scope git HEAD --name experiment/refactor
+refarm tree fork --scope git HEAD --name experiment/refactor
+refarm tree preview --scope git experiment/refactor --switch
+refarm tree switch --scope git experiment/refactor
+```
+
+Preview commands are non-mutating. Blocked-but-resolvable previews should return
+operator-readable readiness (`Blocked: ...`) and, for JSON output,
+`readyToExecute: false`. Execution remains explicit via `tree fork` or
+`tree switch`.
+
 ### Scenario 4 — Port conflict at startup
 
 ```bash
