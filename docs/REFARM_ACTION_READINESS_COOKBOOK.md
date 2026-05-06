@@ -261,6 +261,18 @@ npm --prefix apps/refarm run type-check
 npm --prefix apps/refarm run build
 ```
 
+When a change affects built CLI distribution behavior or package ESM resolution,
+run the local dist wrapper after source-level validation:
+
+```bash
+npm --prefix apps/refarm run smoke:dist-actions
+```
+
+It builds `apps/refarm`, runs the emitted CLI, verifies `refarm web --actions`,
+and verifies `refarm status --action 2` returns a handled Homestead action
+invocation envelope. Keep this as a local wrapper; CI wiring remains deferred
+while GitHub Actions budget is over allocation.
+
 Run `npm --prefix apps/refarm run test:host-smoke -- --pool=threads` before a
 larger checkpoint. Keep CI wiring deferred while GitHub Actions budget is over
 allocation.

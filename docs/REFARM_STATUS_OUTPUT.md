@@ -218,7 +218,17 @@ fixture:
 refarm web --actions
 refarm tui --actions
 refarm headless --action-request inspect-trust
+refarm status --action inspect-trust
 ```
+
+For built CLI distribution checks, use the local wrapper:
+
+```bash
+npm --prefix apps/refarm run smoke:dist-actions
+```
+
+It builds the CLI, runs `dist/index.js`, verifies Web action readiness, and
+verifies live status action invocation through the emitted package graph.
 
 A reusable local fixture is also available at
 `apps/refarm/test/fixtures/status-with-actions.json` for deterministic fixture-backed examples:
