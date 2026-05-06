@@ -27,6 +27,12 @@ function parseChangedFileList(output) {
 		.filter(Boolean);
 }
 
+function uniqueSortedFiles(files) {
+	return Array.from(
+		new Set(files.filter((file) => !isPiTodoFile(file))),
+	).sort();
+}
+
 async function gitChangedFilesForRange(fromRef, toRef) {
 	const range = `${fromRef}..${toRef}`;
 	const { stdout } = await runSubprocess(
@@ -34,7 +40,7 @@ async function gitChangedFilesForRange(fromRef, toRef) {
 		["diff", "--name-only", "--relative", range],
 		{ env: process.env, captureOutput: true },
 	);
-	return parseChangedFileList(stdout);
+	return uniqueSortedFiles(parseChangedFileList(stdout));
 }
 
 async function gitChangedFilesForWorkingTree() {
@@ -60,7 +66,67 @@ async function gitChangedFilesForWorkingTree() {
 		}
 	}
 
-	return Array.from(files).sort();
+	return uniqueSortedFiles(Array.from(files));
+}
+
+async function gitUpstreamRef() {
+	try {
+		const { stdout } = await runSubprocess(
+			"git",
+			["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"],
+			{ env: process.env, captureOutput: true },
+		);
+		return stdout.trim() || undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+async function gitAheadCount(upstreamRef) {
+	try {
+		const { stdout } = await runSubprocess(
+			"git",
+			["rev-list", "--count", `${upstreamRef}..HEAD`],
+			{ env: process.env, captureOutput: true },
+		);
+		return Number.parseInt(stdout.trim(), 10) || 0;
+	} catch {
+		return 0;
+	}
+}
+
+async function gitDefaultChangeSet() {
+	const workingTreeFiles = await gitChangedFilesForWorkingTree();
+	const upstreamRef = await gitUpstreamRef();
+	if (!upstreamRef) {
+		return {
+			ahead: 0,
+			files: workingTreeFiles,
+			source: "working-tree",
+		};
+	}
+
+	const ahead = await gitAheadCount(upstreamRef);
+	if (ahead <= 0) {
+		return {
+			ahead,
+			files: workingTreeFiles,
+			source: "working-tree",
+			upstreamRef,
+		};
+	}
+
+	const committedFiles = await gitChangedFilesForRange(upstreamRef, "HEAD");
+	return {
+		ahead,
+		files: uniqueSortedFiles([...committedFiles, ...workingTreeFiles]),
+		source: "upstream-range+working-tree",
+		upstreamRef,
+	};
+}
+
+function isPiTodoFile(file) {
+	return file.startsWith(".pi/todos/");
 }
 
 function isDocsOnlyFile(file) {
@@ -102,7 +168,7 @@ function decideProfile(files) {
 		return {
 			profile: "skip",
 			reason:
-				"No local file changes detected; skipping host smoke until there is a delta.",
+				"No smoke-relevant file changes detected; skipping host smoke until there is a delta.",
 		};
 	}
 
@@ -155,7 +221,7 @@ async function main() {
 			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>]",
 		);
 		console.log(
-			"  default mode inspects local working tree + staged + untracked files and prints a recommendation.",
+			"  default mode inspects upstream..HEAD when the branch is ahead, plus local working tree/staged/untracked files, and prints a recommendation.",
 		);
 		return;
 	}
@@ -164,15 +230,32 @@ async function main() {
 	const toRef = readArgValue("--to") ?? "HEAD";
 	const execute = hasArg("--execute");
 
-	const changedFiles = fromRef
-		? await gitChangedFilesForRange(fromRef, toRef)
-		: await gitChangedFilesForWorkingTree();
+	let changeSet;
+	if (fromRef) {
+		changeSet = {
+			ahead: undefined,
+			files: await gitChangedFilesForRange(fromRef, toRef),
+			source: "explicit-range",
+			upstreamRef: fromRef,
+		};
+	} else {
+		changeSet = await gitDefaultChangeSet();
+	}
+	const changedFiles = changeSet.files;
 
 	const decision = decideProfile(changedFiles);
 	const command = PROFILE_SCRIPT[decision.profile];
 
 	console.log(
 		`${LOGGER_PREFIX} profile=${decision.profile} files=${changedFiles.length}`,
+	);
+	const upstreamLabel = changeSet.upstreamRef
+		? ` upstream=${changeSet.upstreamRef}`
+		: "";
+	const aheadLabel =
+		typeof changeSet.ahead === "number" ? ` ahead=${changeSet.ahead}` : "";
+	console.log(
+		`${LOGGER_PREFIX} source=${changeSet.source}${upstreamLabel}${aheadLabel}`,
 	);
 	console.log(`${LOGGER_PREFIX} reason=${decision.reason}`);
 	if (changedFiles.length > 0) {

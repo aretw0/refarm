@@ -121,7 +121,10 @@ npm run refarm:host:smoke:auto
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | quick | dev | ci`) without executing it.
+  recommended lane (`skip | quick | dev | ci`) without executing it. By default
+  it considers `@{upstream}..HEAD` when the branch is ahead, plus local
+  working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
+  operational notes.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 
@@ -129,6 +132,8 @@ npm run refarm:host:smoke:auto
 
 - **Default ergonomic path:** `npm run refarm:host:smoke:auto`
 - **Preview decision only:** `npm run refarm:host:smoke:auto:plan`
+- **Explicit pre-push range preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --from origin/develop --to HEAD`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
 - **Manual override pre-push:** `npm run refarm:host:smoke:dev`
 - **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`
