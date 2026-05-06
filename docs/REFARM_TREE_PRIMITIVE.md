@@ -1,6 +1,6 @@
 # Refarm Tree Primitive
 
-Status: design baseline + session/git preview slices
+Status: design baseline + session/git preview/execution slices
 
 ## Why this exists
 
@@ -68,9 +68,11 @@ refarm tree switch --scope git <branch-name> [--json]
 The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
 `operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `preview` emits a dry-run envelope that recommends
-`refarm sessions fork ...` for session timelines, `refarm tree fork --scope git ...`
-for git fork timelines, or `refarm tree switch --scope git ...` for git switch
-plans, but does not fork, branch, check out, or switch. Git preview plans keep
+`refarm sessions fork ...` for session fork timelines, `refarm sessions use ...`
+or `refarm tree switch <session> ...` for session switch timelines,
+`refarm tree fork --scope git ...` for git fork timelines, or
+`refarm tree switch --scope git ...` for git switch plans, but does not fork,
+branch, check out, or switch. Git preview plans keep
 command-level semantics generic (`action`, `destructive`, `readyToExecute`,
 `blockedReason`, `recommendedCommand`, and `effects`) and place git-specific
 details under `substrate`. Tree preview effects declare generic timeline impact
@@ -91,6 +93,13 @@ after `git switch`; session switch resolves a non-active target session, writes
 `.refarm/session.lock`, verifies the active-session pointer after writing, and
 emits `currentSessionIdBefore`/`currentSessionIdAfter`. Session fork execution
 remains delegated to `refarm sessions fork`.
+Session pointer mechanics are centralized in `apps/refarm/src/commands/session-lock.ts`:
+all explicit active-session writes should use the shared read/write/verify helper
+so `sessions`, `ask`, and `tree` preserve one definition of `.refarm/session.lock`.
+Session identity and prefix resolution are centralized in
+`apps/refarm/src/commands/session-ids.ts` so human commands and tree commands
+share exact-match precedence, ambiguity errors, and short-ID formatting.
+
 Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty

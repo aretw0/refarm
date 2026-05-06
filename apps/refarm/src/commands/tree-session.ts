@@ -169,8 +169,10 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 	}
 	console.log(
 		chalk.dim(
-			"\n  refarm tree show <id-prefix>      inspect a node" +
-				"\n  refarm tree preview <id-prefix>   preview a safe fork plan\n",
+			"\n  refarm tree show <id-prefix>              inspect a node" +
+				"\n  refarm tree preview <id-prefix>           preview a safe fork plan" +
+				"\n  refarm tree preview <id-prefix> --switch  preview active-session switch" +
+				"\n  refarm tree switch <id-prefix>            switch active session\n",
 		),
 	);
 }
