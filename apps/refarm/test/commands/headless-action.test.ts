@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
+	createHeadlessStatusSurfaceActionDryRunEnvelope,
 	createHeadlessStatusSurfaceHostContext,
 	createHeadlessStatusSurfaceRenderRequest,
 	invokeHeadlessStatusSurfaceAction,
@@ -102,6 +103,45 @@ describe("headless surface action invocation", () => {
 				locale: "en",
 				action: expect.objectContaining({ id: "open-node" }),
 			},
+		});
+	});
+
+	it("creates a deterministic dry-run action request envelope", () => {
+		const status = makeStatus();
+		const resolution = resolveHeadlessStatusSurfaceActionRequest({
+			status,
+			actionId: "open-node",
+		});
+
+		expect(resolution.request).toBeDefined();
+		expect(
+			createHeadlessStatusSurfaceActionDryRunEnvelope(
+				status,
+				{
+					requested: "1",
+					source: "index",
+					resolvedId: "open-node",
+					index: 1,
+				},
+				resolution.request!,
+				resolution.availableActions,
+			),
+		).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			selection: {
+				requested: "1",
+				source: "index",
+				resolvedId: "open-node",
+				index: 1,
+			},
+			actionRequest: {
+				pluginId: "apps/refarm",
+				slotId: "headless",
+				action: { id: "open-node" },
+			},
+			availableActions: [expect.objectContaining({ id: "open-node" })],
 		});
 	});
 

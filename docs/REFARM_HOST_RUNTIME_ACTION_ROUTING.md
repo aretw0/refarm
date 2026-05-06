@@ -101,11 +101,12 @@ The action envelope is shared; the interaction modality is not.
 `apps/refarm/src/commands/headless-action.ts` is the first local headless
 consumer of that envelope. It turns a status payload with
 `plugins.availableActions` into a deterministic Homestead render request and
-host context, then delegates selected action IDs through
-`invokeHomesteadSurfaceRenderAction(...)`. `refarm headless --action-request <id-or-index>`
-uses the shared app-level action affordance selector and exposes the
-non-destructive half of that path by emitting the deterministic action request
-envelope without executing product behavior.
+host context, exposes a typed dry-run envelope helper, then delegates selected
+action IDs through `invokeHomesteadSurfaceRenderAction(...)`.
+`refarm headless --action-request <id-or-index>` uses the shared app-level
+action affordance selector and exposes the non-destructive half of that path by
+emitting the deterministic action request envelope without executing product
+behavior.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action
 affordance vocabulary shared by both headless and TUI readiness paths: stable

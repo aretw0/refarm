@@ -159,8 +159,9 @@ refarm headless --input status.json --action-request 1
 This command does not execute product behavior. It validates that the selected
 ID or one-based row index resolves to an entry in `plugins.availableActions` and
 emits the deterministic Homestead action request envelope that a future product
-handler can consume. The JSON also includes additive `selection` metadata:
-`requested`, `source` (`id` or `index`), `resolvedId`, and one-based `index`.
+handler can consume. The JSON is produced by the app-owned headless dry-run
+envelope helper and also includes additive `selection` metadata: `requested`,
+`source` (`id` or `index`), `resolvedId`, and one-based `index`.
 
 TUI action row dry-run:
 

@@ -3,7 +3,10 @@ import {
 	formatRefarmActionIds,
 	resolveRefarmActionAffordanceSelection,
 } from "./action-affordances.js";
-import { resolveHeadlessStatusSurfaceActionRequest } from "./headless-action.js";
+import {
+	createHeadlessStatusSurfaceActionDryRunEnvelope,
+	resolveHeadlessStatusSurfaceActionRequest,
+} from "./headless-action.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import { printStatusSummary, resolveStatusPayload } from "./status.js";
@@ -100,14 +103,12 @@ async function emitHeadlessActionRequest(
 
 			console.log(
 				JSON.stringify(
-					{
-						schemaVersion: 1,
-						statusSchemaVersion: json.schemaVersion,
-						reason: "dry-run",
-						selection: selectedAction.selection,
-						actionRequest: resolution.request,
-						availableActions: resolution.availableActions,
-					},
+					createHeadlessStatusSurfaceActionDryRunEnvelope(
+						json,
+						selectedAction.selection,
+						resolution.request,
+						resolution.availableActions,
+					),
 					null,
 					2,
 				),

@@ -9,7 +9,10 @@ import {
 	type HomesteadSurfaceRenderHostContext,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
 import type { ExtensionSurfaceDeclaration } from "@refarm.dev/plugin-manifest";
-import { getRefarmStatusAvailableActions } from "./action-affordances.js";
+import {
+	getRefarmStatusAvailableActions,
+	type RefarmActionAffordanceSelectionMetadata,
+} from "./action-affordances.js";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
@@ -52,6 +55,15 @@ export interface HeadlessSurfaceActionInvocationResult {
 	availableActions: readonly HomesteadSurfaceRenderAction[];
 }
 
+export interface HeadlessSurfaceActionDryRunEnvelope {
+	schemaVersion: 1;
+	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	reason: "dry-run";
+	selection: RefarmActionAffordanceSelectionMetadata;
+	actionRequest: HomesteadSurfaceRenderActionRequest;
+	availableActions: readonly HomesteadSurfaceRenderAction[];
+}
+
 export function createHeadlessStatusSurfaceRenderRequest(
 	status: RefarmStatusJson,
 	options: Pick<
@@ -83,6 +95,22 @@ export function createHeadlessStatusSurfaceHostContext(
 			...options.hostData,
 		},
 		actions: [...getRefarmStatusAvailableActions(status)],
+	};
+}
+
+export function createHeadlessStatusSurfaceActionDryRunEnvelope(
+	status: RefarmStatusJson,
+	selection: RefarmActionAffordanceSelectionMetadata,
+	request: HomesteadSurfaceRenderActionRequest,
+	availableActions: readonly HomesteadSurfaceRenderAction[],
+): HeadlessSurfaceActionDryRunEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "dry-run",
+		selection,
+		actionRequest: request,
+		availableActions,
 	};
 }
 
