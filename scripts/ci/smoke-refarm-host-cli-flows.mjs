@@ -285,6 +285,36 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree --scope git JSON`);
+		const treeGitJsonRun = await runRefarmCommand([
+			"tree",
+			"list",
+			"--scope",
+			"git",
+			"--limit",
+			"1",
+			"--json",
+		]);
+		const treeGitJson = parseCommandJsonOutput(
+			"tree list --scope git --json",
+			treeGitJsonRun,
+		);
+		if (treeGitJson?.command !== "tree" || treeGitJson?.scope !== "git") {
+			throw new Error(
+				`Expected tree command/scope from JSON output, got: ${JSON.stringify(treeGitJson)}`,
+			);
+		}
+		if (!Array.isArray(treeGitJson?.nodes) || treeGitJson.nodes.length < 1) {
+			throw new Error(
+				`Expected at least one git timeline node, got: ${JSON.stringify(treeGitJson?.nodes)}`,
+			);
+		}
+		if (treeGitJson.nodes[0]?.kind !== "git") {
+			throw new Error(
+				`Expected first tree node kind=git, got: ${JSON.stringify(treeGitJson.nodes[0])}`,
+			);
+		}
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
 		);
