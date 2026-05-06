@@ -13,6 +13,10 @@
     "./status": {
       "types": "./dist/status.d.ts",
       "import": "./dist/status.js"
+    },
+    "./browser-open": {
+      "types": "./dist/browser-open.d.ts",
+      "import": "./dist/browser-open.js"
     }
   },
   "scripts": {

@@ -3,7 +3,7 @@ import {
 	openHostBrowserUrl,
 	resolveBrowserOpenCandidates,
 	resolveBrowserOpenSpec,
-} from "../../src/commands/browser-open.js";
+} from "./browser-open.js";
 
 describe("resolveBrowserOpenSpec", () => {
 	it("maps browser opener command by platform", () => {

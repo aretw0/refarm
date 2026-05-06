@@ -1,10 +1,10 @@
-import type { RefarmStatusJson } from "@refarm.dev/cli/status";
-import { Command } from "commander";
 import {
 	openHostBrowserUrl,
 	resolveBrowserOpenSpec,
 	type BrowserOpenSpec,
-} from "./browser-open.js";
+} from "@refarm.dev/cli/browser-open";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
+import { Command } from "commander";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,

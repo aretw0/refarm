@@ -3,7 +3,7 @@ import {
 	openHostBrowserUrl,
 	resolveBrowserOpenCandidates,
 	type BrowserOpenResult,
-} from "./browser-open.js";
+} from "@refarm.dev/cli/browser-open";
 import {
 	openDryRunMessage,
 	openFailureMessage,

@@ -61,7 +61,7 @@ Launch is fail-closed when status diagnostics include failure codes (for
 example `runtime:not-ready` or `trust:critical-present`).
 `refarm open-url <url>` is a small host-browser primitive for auth/provider
 flows that need to open a URL from devcontainers, WSL, Linux desktops, macOS, or
-Windows. It tries explicit `REFARM_BROWSER_OPEN_COMMAND`, VS Code `code --open-url`,
+Windows. The reusable opener lives in `@refarm.dev/cli/browser-open` and tries explicit `REFARM_BROWSER_OPEN_COMMAND`, VS Code `code --open-url`,
 `wslview`, and common Linux openers before printing a manual fallback URL.
 
 `refarm tui` reuses the same status contract and can launch terminal runtime
