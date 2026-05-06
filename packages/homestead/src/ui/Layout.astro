@@ -7,7 +7,7 @@
  * SharedArrayBuffer (needed by WebContainers / sqlite-wasm) is available.
  */
 interface Props {
-  title?: string;
+	title?: string;
 }
 
 const { title = "Refarm Studio" } = Astro.props;
@@ -15,171 +15,290 @@ const { title = "Refarm Studio" } = Astro.props;
 
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{title}</title>
-    <style is:global>
-      @import "../styles/tokens.css";
-      @import "../styles/global.css";
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>{title}</title>
+		<style is:global>
+			@import "../styles/tokens.css";
+			@import "../styles/global.css";
 
-      body {
-        background: var(--refarm-bg-primary);
-        color: var(--refarm-text-primary);
-        font-family: var(--refarm-font-sans);
-        min-height: 100dvh;
-        display: flex;
-        flex-direction: column;
-        line-height: 1.5;
-        -webkit-font-smoothing: antialiased;
-      }
+			* {
+				box-sizing: border-box;
+				margin: 0;
+				padding: 0;
+			}
 
-      * { box-sizing: border-box; margin: 0; padding: 0; }
+			html {
+				background: var(--refarm-bg-primary);
+			}
 
-      header {
-        background: var(--refarm-glass-bg);
-        backdrop-filter: var(--refarm-glass-blur);
-        border-bottom: 1px solid var(--refarm-border-default);
-        padding: 1rem 2rem;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-      }
+			html,
+			body {
+				width: 100%;
+				height: 100%;
+				overflow: hidden;
+			}
 
-      header .logo {
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        font-weight: 700;
-        font-size: 1.2rem;
-        color: var(--refarm-text-primary);
-        text-decoration: none;
-      }
+			body {
+				background: var(--refarm-bg-primary);
+				color: var(--refarm-text-primary);
+				font-family: var(--refarm-font-sans);
+				line-height: 1.5;
+				-webkit-font-smoothing: antialiased;
+			}
 
-      header .logo span { color: var(--refarm-accent-primary); }
+			a {
+				color: inherit;
+			}
 
-      nav {
-        display: flex;
-        gap: 1.5rem;
-      }
+			#refarm-shell {
+				display: flex;
+				flex-direction: column;
+				height: 100vh;
+				height: 100dvh;
+				min-height: 0;
+				overflow: hidden;
+				isolation: isolate;
+			}
 
-      nav a {
-        color: var(--refarm-text-secondary);
-        text-decoration: none;
-        font-size: 0.9rem;
-        font-weight: 500;
-        transition: color 0.2s ease;
-      }
+			#refarm-header {
+				flex: 0 0 auto;
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 1rem;
+				padding: 0.75rem 1.5rem;
+				background: var(--refarm-glass-bg);
+				backdrop-filter: var(--refarm-glass-blur);
+				-webkit-backdrop-filter: var(--refarm-glass-blur);
+				border-bottom: 1px solid var(--refarm-border-default);
+				z-index: 100;
+			}
 
-      nav a:hover {
-        color: var(--refarm-accent-primary);
-      }
+			#refarm-header .logo {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				font-weight: 700;
+				font-size: 1.2rem;
+				color: var(--refarm-text-primary);
+				text-decoration: none;
+			}
 
-      main {
-        flex: 1;
-        padding: 2rem;
-        max-width: 1400px;
-        margin: 0 auto;
-        width: 100%;
-      }
+			#refarm-header .logo span {
+				color: var(--refarm-accent-primary);
+			}
 
-      /* Plugin Lifecycle States */
-      .plugin-view {
-        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        position: relative;
-      }
-      
-      .plugin-view[data-refarm-state="hot"] {
-        outline: 1px solid rgba(255, 152, 0, 0.5);
-        box-shadow: 0 0 15px rgba(255, 152, 0, 0.1);
-      }
+			#refarm-slot-nav {
+				display: flex;
+				align-items: center;
+				gap: 1.5rem;
+				min-width: 0;
+				overflow-x: auto;
+				overflow-y: hidden;
+				scrollbar-width: thin;
+			}
 
-      .plugin-view[data-refarm-state="throttled"] {
-        opacity: 0.4;
-        pointer-events: none;
-        filter: grayscale(1) contrast(0.8);
-        transform: scale(0.98);
-      }
+			#refarm-slot-nav a {
+				color: var(--refarm-text-secondary);
+				text-decoration: none;
+				font-size: 0.9rem;
+				font-weight: 500;
+				white-space: nowrap;
+				transition: color 0.2s ease;
+			}
 
-      .plugin-view[data-refarm-state="error"] {
-        border: 1px dashed var(--refarm-accent-error, #f44336);
-        background: rgba(244, 67, 54, 0.02);
-      }
+			#refarm-slot-nav a:hover,
+			#refarm-slot-nav a:focus-visible {
+				color: var(--refarm-accent-primary);
+			}
 
-      /* Custom scrollbar to match the theme */
-      ::-webkit-scrollbar { width: 8px; }
-      ::-webkit-scrollbar-track { background: var(--refarm-bg-primary); }
-      ::-webkit-scrollbar-thumb { background: var(--refarm-border-default); border-radius: 4px; }
-      ::-webkit-scrollbar-thumb:hover { background: var(--refarm-text-muted); }
-    </style>
-  </head>
-  <body>
-    <div id="refarm-shell">
-      <header id="refarm-header">
-        <div id="refarm-slot-logo" class="slot">
-           <a href={import.meta.env.BASE_URL} class="logo">🚜 <span>Refarm</span></a>
-        </div>
-        <nav id="refarm-slot-nav" class="slot">
-          <a href={import.meta.env.BASE_URL}>Dashboard</a>
-          <a href={`${import.meta.env.BASE_URL}streams`}>Streams</a>
-          <a href={`${import.meta.env.BASE_URL}surfaces`}>Surfaces</a>
-          <a href={`${import.meta.env.BASE_URL}plugins`}>Marketplace</a>
-          <a href={`${import.meta.env.BASE_URL}graph`}>Graph</a>
-          <a href={`${import.meta.env.BASE_URL}shed`}>The Shed</a>
-        </nav>
-      </header>
-      
-      <main id="refarm-main">
-        <div id="refarm-slot-main" class="slot">
-          <slot />
-        </div>
-        <aside id="refarm-slot-streams" class="slot" hidden></aside>
-      </main>
+			#refarm-main {
+				flex: 1 1 auto;
+				min-height: 0;
+				width: 100%;
+				overflow: auto;
+				overscroll-behavior: contain;
+				scrollbar-gutter: stable both-edges;
+			}
 
-      <footer id="refarm-footer">
-        <div id="refarm-slot-statusbar" class="slot">
-          <span id="system-status">Refarm Studio Online</span>
-          <span id="system-health" style="margin-left: 1rem; opacity: 0.8;">👤 100%</span>
-        </div>
-      </footer>
-    </div>
+			#refarm-main:focus-visible {
+				outline: var(--refarm-focus-ring);
+				outline-offset: -3px;
+			}
 
-    <style>
-      #refarm-shell {
-        display: flex;
-        flex-direction: column;
-        min-height: 100vh;
-      }
-      header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0.75rem 1.5rem;
-        background: var(--refarm-bg-secondary);
-        border-bottom: 1px solid var(--refarm-border-default);
-      }
-      #refarm-main {
-        flex: 1;
-        padding: 2rem;
-        display: grid;
-        gap: 1.5rem;
-      }
-      #refarm-slot-streams[hidden] {
-        display: none;
-      }
-      footer {
-        padding: 0.5rem 1.5rem;
-        background: var(--refarm-bg-elevated);
-        border-top: 1px solid var(--refarm-border-default);
-        font-size: 0.75rem;
-        color: var(--refarm-text-secondary);
-      }
-      .slot {
-        transition: opacity 0.3s ease;
-      }
-    </style>
-  </body>
+			#refarm-main-frame {
+				display: grid;
+				gap: 1.5rem;
+				width: 100%;
+				max-width: 1400px;
+				min-height: 100%;
+				margin: 0 auto;
+				padding: 2rem;
+			}
+
+			#refarm-slot-main,
+			#refarm-slot-streams {
+				min-width: 0;
+			}
+
+			#refarm-slot-streams[hidden] {
+				display: none;
+			}
+
+			#refarm-footer {
+				flex: 0 0 auto;
+				padding: 0.5rem 1.5rem;
+				background: var(--refarm-bg-elevated);
+				border-top: 1px solid var(--refarm-border-default);
+				font-size: 0.75rem;
+				color: var(--refarm-text-secondary);
+				z-index: 100;
+			}
+
+			#refarm-slot-statusbar {
+				display: flex;
+				align-items: center;
+				gap: 1rem;
+				min-width: 0;
+				overflow: hidden;
+				white-space: nowrap;
+			}
+
+			#system-status,
+			#system-health {
+				min-width: 0;
+				overflow: hidden;
+				text-overflow: ellipsis;
+			}
+
+			#system-health {
+				opacity: 0.8;
+			}
+
+			.slot {
+				transition: opacity 0.3s ease;
+			}
+
+			.refarm-scroll-region,
+			[data-refarm-scroll-region] {
+				min-height: 0;
+				overflow: auto;
+				overscroll-behavior: contain;
+				scrollbar-gutter: stable;
+			}
+
+			.refarm-scroll-region-y,
+			[data-refarm-scroll-region="y"] {
+				min-height: 0;
+				overflow-x: hidden;
+				overflow-y: auto;
+				overscroll-behavior-y: contain;
+				scrollbar-gutter: stable;
+			}
+
+			.refarm-scroll-region-x,
+			[data-refarm-scroll-region="x"] {
+				min-width: 0;
+				overflow-x: auto;
+				overflow-y: hidden;
+				overscroll-behavior-x: contain;
+			}
+
+			/* Plugin Lifecycle States */
+			.plugin-view {
+				position: relative;
+				transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+			}
+
+			.plugin-view[data-refarm-state="hot"] {
+				outline: 1px solid rgba(255, 152, 0, 0.5);
+				box-shadow: 0 0 15px rgba(255, 152, 0, 0.1);
+			}
+
+			.plugin-view[data-refarm-state="throttled"] {
+				opacity: 0.4;
+				pointer-events: none;
+				filter: grayscale(1) contrast(0.8);
+				transform: scale(0.98);
+			}
+
+			.plugin-view[data-refarm-state="error"] {
+				border: 1px dashed var(--refarm-accent-error, #f44336);
+				background: rgba(244, 67, 54, 0.02);
+			}
+
+			/* Custom scrollbar to match the theme */
+			#refarm-main::-webkit-scrollbar,
+			.refarm-scroll-region::-webkit-scrollbar,
+			[data-refarm-scroll-region]::-webkit-scrollbar {
+				width: 8px;
+				height: 8px;
+			}
+
+			#refarm-main::-webkit-scrollbar-track,
+			.refarm-scroll-region::-webkit-scrollbar-track,
+			[data-refarm-scroll-region]::-webkit-scrollbar-track {
+				background: var(--refarm-bg-primary);
+			}
+
+			#refarm-main::-webkit-scrollbar-thumb,
+			.refarm-scroll-region::-webkit-scrollbar-thumb,
+			[data-refarm-scroll-region]::-webkit-scrollbar-thumb {
+				background: var(--refarm-border-default);
+				border-radius: 4px;
+			}
+
+			#refarm-main::-webkit-scrollbar-thumb:hover,
+			.refarm-scroll-region::-webkit-scrollbar-thumb:hover,
+			[data-refarm-scroll-region]::-webkit-scrollbar-thumb:hover {
+				background: var(--refarm-text-muted);
+			}
+		</style>
+	</head>
+	<body>
+		<div id="refarm-shell" data-refarm-shell="viewport">
+			<header id="refarm-header" data-refarm-shell-region="header">
+				<div id="refarm-slot-logo" class="slot">
+					<a href={import.meta.env.BASE_URL} class="logo">🚜 <span>Refarm</span></a>
+				</div>
+				<nav id="refarm-slot-nav" class="slot" aria-label="Refarm sections">
+					<a href={import.meta.env.BASE_URL}>Dashboard</a>
+					<a href={`${import.meta.env.BASE_URL}streams`}>Streams</a>
+					<a href={`${import.meta.env.BASE_URL}surfaces`}>Surfaces</a>
+					<a href={`${import.meta.env.BASE_URL}plugins`}>Marketplace</a>
+					<a href={`${import.meta.env.BASE_URL}graph`}>Graph</a>
+					<a href={`${import.meta.env.BASE_URL}shed`}>The Shed</a>
+				</nav>
+			</header>
+
+			<main
+				id="refarm-main"
+				data-refarm-shell-region="main"
+				data-refarm-scroll-region="main"
+				aria-label="Refarm workspace"
+				tabindex="-1"
+			>
+				<div id="refarm-main-frame">
+					<div id="refarm-slot-main" class="slot">
+						<slot />
+					</div>
+					<aside id="refarm-slot-streams" class="slot" hidden></aside>
+				</div>
+			</main>
+
+			<footer id="refarm-footer" data-refarm-shell-region="statusbar">
+				<div
+					id="refarm-slot-statusbar"
+					class="slot"
+					role="status"
+					aria-live="polite"
+				>
+					<span id="system-status">Refarm Studio Online</span>
+					<span id="system-health">👤 100%</span>
+				</div>
+			</footer>
+		</div>
+	</body>
 </html>
