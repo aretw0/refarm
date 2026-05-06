@@ -168,6 +168,50 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("starts a fresh session for --new even when an old active pointer exists", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:oldactive"),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["fresh please", "--new"], { from: "user" });
+
+		expect(deps.clearActiveSessionId).toHaveBeenCalledOnce();
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: expect.stringMatching(
+								/^urn:refarm:session:v1:/,
+							),
+						}),
+					}),
+				],
+			}),
+		);
+		expect(deps.submitEffort).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:oldactive",
+						}),
+					}),
+				],
+			}),
+		);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("falls back to effort result file payload when stream times out", async () => {
 		const deps = makeDeps({
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),

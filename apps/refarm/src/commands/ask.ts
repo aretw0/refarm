@@ -443,7 +443,9 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				const explicitSession = opts.session?.trim();
-				let sessionId = readActiveSession() ?? newSessionId();
+				let sessionId = opts.new
+					? newSessionId()
+					: (readActiveSession() ?? newSessionId());
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
