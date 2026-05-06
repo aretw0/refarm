@@ -201,7 +201,9 @@ refarm ask --session <id-prefix> "continue deste branch"
 ```
 
 Use this when exploring multiple solution branches without losing continuity.
-`--session` pins a request to a specific session without switching first.
+`--session` pins a request to a specific session without switching first. The
+longer-term substrate-agnostic design lives in
+[Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
 
 ### Scenario 4 — Port conflict at startup
 

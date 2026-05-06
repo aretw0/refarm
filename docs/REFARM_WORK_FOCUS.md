@@ -67,6 +67,7 @@ for Refarm work.
    - renderers present the same state in Web, headless, or TUI.
 2. Agent loop on Refarm primitives:
    - sessions, messages, tool calls, and forks become graph/CRDT concepts;
+   - timeline/fork UX follows the substrate-agnostic [Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md);
    - file/shell/model/tool operations run through auditable host actions;
    - plugin surfaces show state and ask for host actions instead of owning power.
 3. TUI when justified:
