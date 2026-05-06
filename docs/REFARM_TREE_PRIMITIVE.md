@@ -73,9 +73,9 @@ explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
 `currentRefBefore`/`currentRefAfter` in JSON), fails closed when the target branch already exists, and rejects session-only
 entry selectors (`--at`). `switch` is git-only in the first executable slice:
-it requires an existing branch, rejects dirty worktrees before moving the active
-pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the active ref
-after `git switch`. Session fork/switch execution remains delegated or rejected
+it requires an existing non-active branch, rejects dirty worktrees before moving
+the active pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the
+active ref after `git switch`. Session fork/switch execution remains delegated or rejected
 until active-session switching semantics are made explicit in the tree contract.
 Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`

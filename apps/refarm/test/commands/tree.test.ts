@@ -723,6 +723,36 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
+	it("rejects git tree switches when the target branch is already active", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: "safe/fork\n",
+				stderr: "",
+			} as any);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "switch")!
+				.parseAsync(["safe/fork", "--scope", "git"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Git branch "safe/fork" is already active.'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
+	});
+
 	it("rejects session tree switches until active-session semantics are explicit", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
