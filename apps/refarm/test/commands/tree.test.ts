@@ -224,6 +224,36 @@ describe("refarm tree", () => {
 		expect(output).toContain("refarm tree show --scope git <commit>");
 	});
 
+	it("prints sidecar guidance when all-scope session nodes are unavailable", async () => {
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "list")!
+				.parseAsync(["--scope", "all", "--json"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("farmhand sidecar is not running"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("npm run farmhand:daemon"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
 	it("lists git tree execution affordances in human output", async () => {
 		spawnSyncMock.mockReturnValue({
 			status: 0,

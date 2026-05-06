@@ -126,6 +126,17 @@ function parseLimit(limit: string | undefined): number {
 	return value;
 }
 
+function exitForAllListError(err: unknown): never {
+	const msg = err instanceof Error ? err.message : String(err);
+	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
+		console.error(chalk.red("✗  farmhand sidecar is not running."));
+		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+	} else {
+		console.error(chalk.red(`✗  ${msg}`));
+	}
+	process.exit(1);
+}
+
 async function listAllTree(opts: {
 	json?: boolean;
 	limit?: string;
@@ -140,9 +151,7 @@ async function listAllTree(opts: {
 			b.timestamp.localeCompare(a.timestamp),
 		);
 	} catch (err) {
-		const msg = err instanceof Error ? err.message : String(err);
-		console.error(chalk.red(`✗  ${msg}`));
-		process.exit(1);
+		exitForAllListError(err);
 	}
 
 	if (opts.json) {
