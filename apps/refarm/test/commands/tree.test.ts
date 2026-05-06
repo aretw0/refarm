@@ -58,9 +58,11 @@ describe("refarm tree", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await command.commands.find((c) => c.name() === "list")!.parseAsync(["--json"], {
-			from: "user",
-		});
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--json"], {
+				from: "user",
+			});
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
@@ -85,7 +87,11 @@ describe("refarm tree", () => {
 	});
 
 	it("lists git commits as timeline nodes", async () => {
-		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -95,9 +101,13 @@ describe("refarm tree", () => {
 				from: "user",
 			});
 
-		expect(spawnSyncMock).toHaveBeenCalledWith("git", expect.arrayContaining(["log"]), {
-			encoding: "utf8",
-		});
+		expect(spawnSyncMock).toHaveBeenCalledWith(
+			"git",
+			expect.arrayContaining(["log"]),
+			{
+				encoding: "utf8",
+			},
+		);
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
 			command: "tree",
@@ -129,9 +139,11 @@ describe("refarm tree", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await command.commands.find((c) => c.name() === "show")!.parseAsync(["abc123", "--json"], {
-			from: "user",
-		});
+		await command.commands
+			.find((c) => c.name() === "show")!
+			.parseAsync(["abc123", "--json"], {
+				from: "user",
+			});
 
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/sessions/abc123/history",
@@ -148,7 +160,11 @@ describe("refarm tree", () => {
 	});
 
 	it("shows a git timeline node", async () => {
-		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -180,9 +196,11 @@ describe("refarm tree", () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await command.commands.find((c) => c.name() === "preview")!.parseAsync(["abc123", "--json"], {
-			from: "user",
-		});
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--json"], {
+				from: "user",
+			});
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
@@ -194,13 +212,18 @@ describe("refarm tree", () => {
 				kind: "session-fork",
 				destructive: false,
 				branchPointEntryId: "entry-2",
-				recommendedCommand: "refarm sessions fork abc123def456 --name <branch-name>",
+				recommendedCommand:
+					"refarm sessions fork abc123def456 --name <branch-name>",
 			},
 		});
 	});
 
 	it("previews a non-destructive git branch plan", async () => {
-		spawnSyncMock.mockReturnValue({ status: 0, stdout: GIT_LINE, stderr: "" } as any);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -225,17 +248,19 @@ describe("refarm tree", () => {
 
 	it("fails closed for unsupported scopes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		const command = createTreeCommand();
 		await expect(
-			command.commands.find((c) => c.name() === "list")!.parseAsync(["--scope", "crdt"], {
-				from: "user",
-			}),
+			command.commands
+				.find((c) => c.name() === "list")!
+				.parseAsync(["--scope", "crdt"], {
+					from: "user",
+				}),
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
