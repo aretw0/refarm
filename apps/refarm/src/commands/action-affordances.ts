@@ -16,9 +16,19 @@ export type RefarmActionAffordanceSelectionReason =
 	| "missing-action"
 	| "no-actions";
 
+export type RefarmActionAffordanceSelectionSource = "id" | "index";
+
+export interface RefarmActionAffordanceSelectionMetadata {
+	requested: string;
+	source: RefarmActionAffordanceSelectionSource;
+	resolvedId?: string;
+	index?: number;
+}
+
 export interface RefarmActionAffordanceSelectionResult {
 	selected?: RefarmActionAffordanceRow;
 	reason: RefarmActionAffordanceSelectionReason;
+	selection: RefarmActionAffordanceSelectionMetadata;
 	rows: readonly RefarmActionAffordanceRow[];
 }
 
@@ -41,9 +51,19 @@ export function resolveRefarmActionAffordanceSelection(
 	selection: string,
 ): RefarmActionAffordanceSelectionResult {
 	const rows = createRefarmActionAffordanceRows(status);
-	if (rows.length === 0) return { reason: "no-actions", rows };
-
 	const normalizedSelection = selection.trim();
+	const selectionSource = getRefarmActionAffordanceSelectionSource(
+		normalizedSelection,
+	);
+	const selectionMetadata: RefarmActionAffordanceSelectionMetadata = {
+		requested: normalizedSelection,
+		source: selectionSource,
+	};
+
+	if (rows.length === 0) {
+		return { reason: "no-actions", selection: selectionMetadata, rows };
+	}
+
 	const selectedByIndex = resolveRefarmActionAffordanceRowIndex(
 		rows,
 		normalizedSelection,
@@ -51,9 +71,20 @@ export function resolveRefarmActionAffordanceSelection(
 	const selected =
 		selectedByIndex ?? rows.find((row) => row.id === normalizedSelection);
 
-	return selected
-		? { reason: "selected", selected, rows }
-		: { reason: "missing-action", rows };
+	if (!selected) {
+		return { reason: "missing-action", selection: selectionMetadata, rows };
+	}
+
+	return {
+		reason: "selected",
+		selected,
+		selection: {
+			...selectionMetadata,
+			resolvedId: selected.id,
+			index: selected.index,
+		},
+		rows,
+	};
 }
 
 export function formatRefarmActionAffordanceRows(
@@ -87,11 +118,19 @@ function createRefarmActionAffordanceRow(
 	};
 }
 
+function getRefarmActionAffordanceSelectionSource(
+	selection: string,
+): RefarmActionAffordanceSelectionSource {
+	return /^\d+$/.test(selection) ? "index" : "id";
+}
+
 function resolveRefarmActionAffordanceRowIndex(
 	rows: readonly RefarmActionAffordanceRow[],
 	selection: string,
 ): RefarmActionAffordanceRow | undefined {
-	if (!/^\d+$/.test(selection)) return undefined;
+	if (getRefarmActionAffordanceSelectionSource(selection) !== "index") {
+		return undefined;
+	}
 	const index = Number.parseInt(selection, 10);
 	return rows.find((row) => row.index === index);
 }

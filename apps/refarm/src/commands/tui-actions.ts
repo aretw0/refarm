@@ -4,6 +4,7 @@ import {
 	formatRefarmActionAffordanceRows,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
+	type RefarmActionAffordanceSelectionMetadata,
 	type RefarmActionAffordanceSelectionReason,
 } from "./action-affordances.js";
 
@@ -14,6 +15,7 @@ export type TuiSurfaceActionSelectionReason =
 export interface TuiSurfaceActionSelectionResult {
 	selected?: TuiSurfaceActionRow;
 	reason: TuiSurfaceActionSelectionReason;
+	selection: RefarmActionAffordanceSelectionMetadata;
 	rows: readonly TuiSurfaceActionRow[];
 }
 
@@ -39,10 +41,21 @@ export function formatTuiSurfaceActionRows(
 export function formatTuiSurfaceActionSelection(
 	selected: TuiSurfaceActionRow,
 	rows: readonly TuiSurfaceActionRow[],
+	selection?: RefarmActionAffordanceSelectionMetadata,
 ): string {
+	const selectionLines = selection
+		? [
+				"Selection:",
+				`  requested: ${selection.requested}`,
+				`  resolved: ${selection.resolvedId ?? selected.id}`,
+				`  source: ${selection.source}`,
+			]
+		: [];
+
 	return [
 		"Selected TUI action:",
 		`  ${selected.display}`,
+		...selectionLines,
 		formatTuiSurfaceActionRows(rows),
 	].join("\n");
 }

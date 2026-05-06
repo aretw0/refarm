@@ -104,6 +104,7 @@ async function emitHeadlessActionRequest(
 						schemaVersion: 1,
 						statusSchemaVersion: json.schemaVersion,
 						reason: "dry-run",
+						selection: selectedAction.selection,
 						actionRequest: resolution.request,
 						availableActions: resolution.availableActions,
 					},

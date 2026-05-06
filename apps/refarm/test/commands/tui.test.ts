@@ -175,6 +175,10 @@ describe("tuiCommand", () => {
 			[
 				"Selected TUI action:",
 				"  [2] Inspect trust — inspect-trust",
+				"Selection:",
+				"  requested: 2",
+				"  resolved: inspect-trust",
+				"  source: index",
 				"Available TUI actions:",
 				"  [1] Open node — open-node (node:open)",
 				"  [2] Inspect trust — inspect-trust",

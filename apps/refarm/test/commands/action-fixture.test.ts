@@ -21,6 +21,12 @@ describe("status-with-actions fixture", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			selection: {
+				requested: "open-node",
+				source: "id",
+				resolvedId: "open-node",
+				index: 1,
+			},
 			actionRequest: {
 				pluginId: "apps/refarm",
 				slotId: "headless",
@@ -48,6 +54,12 @@ describe("status-with-actions fixture", () => {
 		);
 
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output.selection).toEqual({
+			requested: "2",
+			source: "index",
+			resolvedId: "inspect-trust",
+			index: 2,
+		});
 		expect(output.actionRequest.action).toMatchObject({
 			id: "inspect-trust",
 			label: "Inspect trust",
@@ -69,6 +81,10 @@ describe("status-with-actions fixture", () => {
 			[
 				"Selected TUI action:",
 				"  [2] Inspect trust — inspect-trust (trust:inspect)",
+				"Selection:",
+				"  requested: 2",
+				"  resolved: inspect-trust",
+				"  source: index",
 				"Available TUI actions:",
 				"  [1] Open node — open-node (node:open)",
 				"  [2] Inspect trust — inspect-trust (trust:inspect)",

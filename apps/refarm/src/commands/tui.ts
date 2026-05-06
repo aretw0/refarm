@@ -171,6 +171,7 @@ async function emitTuiActionRows(
 					formatTuiSurfaceActionSelection(
 						selection.selected,
 						selection.rows,
+						selection.selection,
 					),
 				);
 				return;

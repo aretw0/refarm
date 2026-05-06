@@ -111,6 +111,12 @@ describe("headlessCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			selection: {
+				requested: "open-node",
+				source: "id",
+				resolvedId: "open-node",
+				index: 1,
+			},
 			actionRequest: {
 				pluginId: "apps/refarm",
 				slotId: "headless",
@@ -145,6 +151,12 @@ describe("headlessCommand", () => {
 		});
 
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output.selection).toEqual({
+			requested: "2",
+			source: "index",
+			resolvedId: "inspect-trust",
+			index: 2,
+		});
 		expect(output.actionRequest.action).toMatchObject({
 			id: "inspect-trust",
 			label: "Inspect trust",

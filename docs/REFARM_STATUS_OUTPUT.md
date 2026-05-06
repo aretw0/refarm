@@ -159,7 +159,8 @@ refarm headless --input status.json --action-request 1
 This command does not execute product behavior. It validates that the selected
 ID or one-based row index resolves to an entry in `plugins.availableActions` and
 emits the deterministic Homestead action request envelope that a future product
-handler can consume.
+handler can consume. The JSON also includes additive `selection` metadata:
+`requested`, `source` (`id` or `index`), `resolvedId`, and one-based `index`.
 
 TUI action row dry-run:
 
@@ -182,8 +183,9 @@ This command does not launch the TUI runtime. It formats
 `plugins.availableActions` as stable one-based rows such as
 `[1] Open node — open-node (node:open)` so a future interactive TUI can use the
 same selection vocabulary. `--actions --select <id-or-index>` resolves the same
-vocabulary and prints the selected row plus the full available-action context
-without executing product behavior.
+vocabulary and prints the selected row, selection metadata (`requested`,
+`resolved`, `source`), and the full available-action context without executing
+product behavior.
 
 Code-level contract helpers live in `@refarm.dev/cli/status`:
 
