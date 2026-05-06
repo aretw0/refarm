@@ -224,6 +224,33 @@ describe("refarm tree", () => {
 		expect(output).toContain("refarm tree show --scope git <commit>");
 	});
 
+	it("prints empty all-scope human output without mutating state", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [] }),
+			}) as any,
+		);
+		spawnSyncMock.mockReturnValue({ status: 0, stdout: "", stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all"], { from: "user" });
+
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("No session or git timeline nodes found."),
+		);
+		expect(spawnSyncMock).toHaveBeenCalledWith(
+			"git",
+			expect.arrayContaining(["log"]),
+			{ encoding: "utf8" },
+		);
+	});
+
 	it("prints sidecar guidance when all-scope session nodes are unavailable", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -1676,7 +1703,12 @@ describe("refarm tree", () => {
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
-	it("rejects all scope outside read-only list", async () => {
+	it.each([
+		["show", ["abc123", "--scope", "all"]],
+		["preview", ["abc123", "--scope", "all"]],
+		["fork", ["abc123", "--scope", "all", "--name", "safe/fork"]],
+		["switch", ["abc123", "--scope", "all"]],
+	] as const)("rejects all scope outside read-only list for %s", async (commandName, args) => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -1687,8 +1719,8 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await expect(
 			command.commands
-				.find((c) => c.name() === "show")!
-				.parseAsync(["abc123", "--scope", "all"], { from: "user" }),
+				.find((c) => c.name() === commandName)!
+				.parseAsync([...args], { from: "user" }),
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
