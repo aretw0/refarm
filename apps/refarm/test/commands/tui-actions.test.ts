@@ -117,10 +117,7 @@ Available TUI actions:
 		});
 		expect(createTuiSurfaceActionDryRunEnvelope(status)).toMatchObject({
 			renderer: "tui",
-			actionRows: [
-				{ id: "open-node" },
-				{ id: "inspect-trust" },
-			],
+			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
 		});
 	});
 

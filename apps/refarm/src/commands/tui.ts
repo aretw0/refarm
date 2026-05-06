@@ -195,11 +195,7 @@ async function emitTuiActionRows(
 			const rows = createTuiSurfaceActionRows(json);
 			if (options.json) {
 				console.log(
-					JSON.stringify(
-						createTuiSurfaceActionDryRunEnvelope(json),
-						null,
-						2,
-					),
+					JSON.stringify(createTuiSurfaceActionDryRunEnvelope(json), null, 2),
 				);
 				return;
 			}

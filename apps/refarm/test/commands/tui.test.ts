@@ -174,9 +174,7 @@ describe("tuiCommand", () => {
 			statusSchemaVersion: 1,
 			reason: "dry-run",
 			renderer: "tui",
-			actionRows: [
-				{ index: 1, id: "open-node", label: "Open node" },
-			],
+			actionRows: [{ index: 1, id: "open-node", label: "Open node" }],
 		});
 		expect(output).not.toHaveProperty("selectedAction");
 		expect(printStatusSummary).not.toHaveBeenCalled();
