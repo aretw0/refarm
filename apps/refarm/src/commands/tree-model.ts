@@ -199,6 +199,16 @@ export interface RefarmGitTimelineSwitchResult {
 	command: string;
 }
 
+export interface RefarmSessionTimelineSwitchResult {
+	kind: "session-switch";
+	destructive: false;
+	activePointerChanged: true;
+	currentSessionIdBefore: string | null;
+	currentSessionIdAfter: string;
+	targetSessionId: string;
+	command: string;
+}
+
 export interface RefarmTimelineForkEnvelope {
 	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
 	command: "tree";
@@ -226,6 +236,16 @@ export interface RefarmGitTimelineSwitchEnvelope {
 	result: RefarmGitTimelineSwitchResult;
 }
 
+export interface RefarmSessionTimelineSwitchEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	operation: "switch";
+	reason: "executed";
+	target: RefarmSessionTimelineNode;
+	result: RefarmSessionTimelineSwitchResult;
+}
+
 export type RefarmTreeJsonEnvelope =
 	| RefarmSessionTimelineListEnvelope
 	| RefarmGitTimelineListEnvelope
@@ -234,6 +254,7 @@ export type RefarmTreeJsonEnvelope =
 	| RefarmSessionTimelinePreviewEnvelope
 	| RefarmGitTimelinePreviewEnvelope
 	| RefarmGitTimelineForkEnvelope
+	| RefarmSessionTimelineSwitchEnvelope
 	| RefarmGitTimelineSwitchEnvelope;
 
 export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {

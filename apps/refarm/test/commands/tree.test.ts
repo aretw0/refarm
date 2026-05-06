@@ -1063,7 +1063,70 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
-	it("rejects session tree switches until active-session semantics are explicit", async () => {
+	it("switches active session pointers explicitly", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		vi.spyOn(fs, "readFileSync")
+			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
+			.mockReturnValueOnce(SESSION["@id"]);
+		const mkdirSpy = vi
+			.spyOn(fs, "mkdirSync")
+			.mockImplementation(() => undefined as any);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "switch")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		expect(mkdirSpy).toHaveBeenCalled();
+		expect(writeSpy).toHaveBeenCalledWith(
+			expect.stringContaining(".refarm/session.lock"),
+			SESSION["@id"],
+			"utf-8",
+		);
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			schemaVersion: 1,
+			command: "tree",
+			scope: "session",
+			operation: "switch",
+			reason: "executed",
+			result: {
+				kind: "session-switch",
+				destructive: false,
+				activePointerChanged: true,
+				currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
+				currentSessionIdAfter: SESSION["@id"],
+				targetSessionId: SESSION["@id"],
+				command: "refarm sessions use abc123def456",
+			},
+		});
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("rejects already-active session tree switches before writing", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -1075,15 +1138,14 @@ describe("refarm tree", () => {
 		await expect(
 			command.commands
 				.find((c) => c.name() === "switch")!
-				.parseAsync(["unsafe..name"], { from: "user" }),
+				.parseAsync(["abc123"], { from: "user" }),
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"refarm tree switch currently supports --scope git only",
-			),
+			expect.stringContaining('Session "abc123def456" is already active.'),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(writeSpy).not.toHaveBeenCalled();
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 

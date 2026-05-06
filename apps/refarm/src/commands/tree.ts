@@ -18,6 +18,7 @@ import {
 	previewSessionSwitchTree,
 	previewSessionTree,
 	showSessionTree,
+	switchSessionTree,
 } from "./tree-session.js";
 
 function parseScope(scope: string | undefined): RefarmTimelineScope {
@@ -209,16 +210,12 @@ async function switchTree(
 	opts: { json?: boolean; scope?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
-	if (scope !== REFARM_TREE_GIT_SCOPE) {
-		console.error(
-			chalk.red(
-				"✗  refarm tree switch currently supports --scope git only; session switching requires an explicit active-session pointer contract.",
-			),
-		);
-		process.exit(1);
+	if (scope === REFARM_TREE_GIT_SCOPE) {
+		const branchName = validateBranchName(target);
+		switchGitTree(branchName, opts);
+		return;
 	}
-	const branchName = validateBranchName(target);
-	switchGitTree(branchName, opts);
+	await switchSessionTree(target, opts);
 }
 
 export function createTreeCommand(): Command {
@@ -301,7 +298,7 @@ export function createTreeCommand(): Command {
 		)
 		.addCommand(
 			new Command("switch")
-				.description("Switch the active git worktree to an existing branch")
+				.description("Switch the active timeline pointer")
 				.argument("<branch>", "Existing branch name")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--json", "Print machine-readable JSON")

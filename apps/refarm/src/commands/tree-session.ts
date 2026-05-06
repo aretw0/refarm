@@ -10,6 +10,7 @@ import {
 	type RefarmSessionTimelinePreviewEnvelope,
 	type RefarmSessionTimelineNode,
 	type RefarmSessionTimelineShowEnvelope,
+	type RefarmSessionTimelineSwitchEnvelope,
 } from "./tree-model.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -44,6 +45,11 @@ function readActiveSessionId(): string | null {
 	} catch {
 		return null;
 	}
+}
+
+function writeActiveSessionId(id: string): void {
+	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
+	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
 }
 
 function formatSessionId(id: string): string {
@@ -270,6 +276,30 @@ function createSessionForkPreviewEnvelope(
 	};
 }
 
+function createSessionSwitchEnvelope(
+	node: RefarmSessionTimelineNode,
+	currentSessionIdBefore: string | null,
+	currentSessionIdAfter: string,
+): RefarmSessionTimelineSwitchEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "switch",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "session-switch",
+			destructive: false,
+			activePointerChanged: true,
+			currentSessionIdBefore,
+			currentSessionIdAfter,
+			targetSessionId: node.nodeId,
+			command: `refarm sessions use ${node.metadata.shortId}`,
+		},
+	};
+}
+
 function createSessionSwitchPreviewEnvelope(
 	node: RefarmSessionTimelineNode,
 	activeSessionIdBefore: string | null,
@@ -346,6 +376,52 @@ export async function previewSessionTree(
 		console.log(chalk.dim(`  Branch point: ${substrate.branchPointEntryId}`));
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+}
+
+export async function switchSessionTree(
+	prefix: string,
+	opts: { json?: boolean },
+): Promise<void> {
+	let history: SessionHistory;
+	try {
+		history = await fetchSessionHistory(prefix);
+	} catch (err) {
+		exitForSidecarError(err);
+	}
+	const node = createSessionTimelineNode(history.session);
+	const currentSessionIdBefore = readActiveSessionId();
+	if (currentSessionIdBefore === node.nodeId) {
+		console.error(
+			chalk.red(`✗  Session "${node.metadata.shortId}" is already active.`),
+		);
+		process.exit(1);
+	}
+	writeActiveSessionId(node.nodeId);
+	const currentSessionIdAfter = readActiveSessionId();
+	if (currentSessionIdAfter !== node.nodeId) {
+		console.error(
+			chalk.red(
+				`✗  Session switch expected active session "${node.nodeId}", got "${currentSessionIdAfter ?? "none"}".`,
+			),
+		);
+		process.exit(1);
+	}
+	const envelope = createSessionSwitchEnvelope(
+		node,
+		currentSessionIdBefore,
+		currentSessionIdAfter,
+	);
+
+	if (opts.json) {
+		outputTreeJson(envelope);
+		return;
+	}
+
+	console.log(
+		chalk.green(
+			`✓  Switched active session to ${chalk.cyan.bold(node.metadata.shortId)}.`,
+		),
+	);
 }
 
 export async function previewSessionSwitchTree(

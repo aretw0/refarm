@@ -61,6 +61,7 @@ refarm tree preview <session-id-or-prefix> --switch [--json]
 refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
 refarm tree preview --scope git <branch-name> --switch [--json]
 refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
+refarm tree switch <session-id-or-prefix> [--json]
 refarm tree switch --scope git <branch-name> [--json]
 ```
 
@@ -83,12 +84,13 @@ write `.refarm/session.lock`. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
 `currentRefBefore`/`currentRefAfter` in JSON), fails closed when the target branch already exists, and rejects session-only
-entry selectors (`--at`). `switch` is git-only in the first executable slice:
-it requires an existing non-active branch, rejects dirty worktrees before moving
-the active pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the
-active ref after `git switch`. Session fork execution remains delegated to
-`refarm sessions fork`; session switch execution remains delegated to
-`refarm sessions use` until tree-owned active-session pointer mutation is proven.
+entry selectors (`--at`). `switch` execution is explicit: git switch requires
+an existing non-active branch, rejects dirty worktrees before moving the active
+pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the active ref
+after `git switch`; session switch resolves a non-active target session, writes
+`.refarm/session.lock`, verifies the active-session pointer after writing, and
+emits `currentSessionIdBefore`/`currentSessionIdAfter`. Session fork execution
+remains delegated to `refarm sessions fork`.
 Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
@@ -126,7 +128,7 @@ npm run refarm:host:smoke:cli
 | `show` | Read-only node detail | Fails on ambiguous prefixes |
 | `preview` | Dry-run restore/fork/switch plan | Emits `reason: "dry-run"`; never mutates active state |
 | `fork` | Creates a new branch pointer from an immutable node | Git-only first slice; creates a branch without switching |
-| `switch` | Moves active pointer to an existing branch/head | Git execution is implemented with existing-branch, clean-worktree, and before/after ref verification; session switch is preview/delegated only |
+| `switch` | Moves active pointer to an existing branch/head | Explicit execution only; git verifies branch/worktree refs, session verifies active-session pointer before/after writing |
 
 Avoid a first-class `rewind` command until the preview + switch/fork semantics
 are proven. "Rewind" is user language; the safe primitive is either:
@@ -206,8 +208,8 @@ planned envelope until there is a deterministic rollback story.
 6. ✅ Add explicit git `fork`/branch execution after preview output stabilized;
    keep it non-switching and isolated from session fork execution.
 7. ✅ Add explicit git `switch` execution with clean-worktree and before/after
-   active-ref verification; keep session switch execution delegated while adding
-   dry-run active-session pointer preview.
+   active-ref verification; add dry-run and explicit execution for session
+   active-session pointer switching.
 8. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 
