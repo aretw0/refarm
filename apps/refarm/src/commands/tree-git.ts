@@ -95,7 +95,12 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	}
 
 	if (opts.json) {
-		outputTreeJson({ command: "tree", scope: REFARM_TREE_GIT_SCOPE, nodes });
+		outputTreeJson({
+			command: "tree",
+			scope: REFARM_TREE_GIT_SCOPE,
+			operation: "list",
+			nodes,
+		});
 		return;
 	}
 

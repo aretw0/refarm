@@ -133,6 +133,7 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 		outputTreeJson({
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
+			operation: "list",
 			nodes,
 		});
 		return;
