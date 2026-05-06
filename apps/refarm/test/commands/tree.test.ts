@@ -876,7 +876,7 @@ describe("refarm tree", () => {
 				action: "switch",
 				destructive: false,
 				readyToExecute: true,
-				recommendedCommand: "refarm sessions use abc123def456",
+				recommendedCommand: "refarm tree switch abc123def456",
 				effects: {
 					activePointerChanged: true,
 					branchCreated: false,
@@ -915,7 +915,7 @@ describe("refarm tree", () => {
 		expect(output).toContain(
 			'Blocked: Session "abc123def456" is already active.',
 		);
-		expect(output).toContain("Command: refarm sessions use abc123def456");
+		expect(output).toContain("Command: refarm tree switch abc123def456");
 		expect(writeSpy).not.toHaveBeenCalled();
 	});
 
@@ -1412,7 +1412,7 @@ describe("refarm tree", () => {
 				currentSessionIdBefore: "urn:refarm:session:v1:previous0001",
 				currentSessionIdAfter: SESSION["@id"],
 				targetSessionId: SESSION["@id"],
-				command: "refarm sessions use abc123def456",
+				command: "refarm tree switch abc123def456",
 			},
 		});
 		expect(spawnSyncMock).not.toHaveBeenCalled();

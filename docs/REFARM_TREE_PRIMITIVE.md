@@ -69,8 +69,8 @@ refarm tree switch --scope git <branch-name> [--json]
 The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
 `operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `list --scope all` is read-only and combines currently supported session and git nodes into one envelope; `all` is intentionally unavailable for `show`, `preview`, `fork`, and `switch` until composite execution semantics are proven. All-scope list output is sorted by timestamp descending and uses deterministic tie-breakers (`kind`, `metadata.shortId`, then `nodeId`) so renderer snapshots do not flap when adapters report equal timestamps. `preview` emits a dry-run envelope that recommends
-`refarm sessions fork ...` for session fork timelines, `refarm sessions use ...`
-or `refarm tree switch <session> ...` for session switch timelines,
+`refarm sessions fork ...` for session fork timelines,
+`refarm tree switch <session> ...` for session switch timelines,
 `refarm tree fork --scope git ...` for git fork timelines, or
 `refarm tree switch --scope git ...` for git switch plans, but does not fork,
 branch, check out, or switch. Git preview plans keep
@@ -82,7 +82,7 @@ stays in git substrate details (`worktreeSwitched`,
 `currentRefBefore`/`targetRefAfter`, and `worktreeClean`). Session fork previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. Session
 switch previews are dry-run only: they resolve the target session, read the
-current active-session pointer, recommend `refarm sessions use ...`, and do not
+current active-session pointer, recommend `refarm tree switch ...`, and do not
 write `.refarm/session.lock`. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
@@ -291,7 +291,7 @@ Session switch preview is a non-mutating readiness envelope:
     "action": "switch",
     "destructive": false,
     "readyToExecute": true,
-    "recommendedCommand": "refarm sessions use abc123def456",
+    "recommendedCommand": "refarm tree switch abc123def456",
     "effects": {
       "activePointerChanged": true,
       "branchCreated": false
@@ -322,7 +322,7 @@ Explicit session switch execution is a result envelope, not a plan:
     "currentSessionIdBefore": "urn:refarm:session:v1:before",
     "currentSessionIdAfter": "urn:refarm:session:v1:abc123def456",
     "targetSessionId": "urn:refarm:session:v1:abc123def456",
-    "command": "refarm sessions use abc123def456"
+    "command": "refarm tree switch abc123def456"
   }
 }
 ```

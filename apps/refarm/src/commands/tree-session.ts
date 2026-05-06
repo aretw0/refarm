@@ -289,7 +289,7 @@ function createSessionSwitchEnvelope(
 			currentSessionIdBefore,
 			currentSessionIdAfter,
 			targetSessionId: node.nodeId,
-			command: `refarm sessions use ${node.metadata.shortId}`,
+			command: `refarm tree switch ${node.metadata.shortId}`,
 		},
 	};
 }
@@ -315,7 +315,7 @@ function createSessionSwitchPreviewEnvelope(
 						blockedReason: `Session "${node.metadata.shortId}" is already active.`,
 					}
 				: {}),
-			recommendedCommand: `refarm sessions use ${node.metadata.shortId}`,
+			recommendedCommand: `refarm tree switch ${node.metadata.shortId}`,
 			effects: {
 				activePointerChanged: true,
 				branchCreated: false,
