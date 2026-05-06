@@ -579,6 +579,39 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("rejects entry selectors for git tree forks before branch-name validation", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "fork")!
+				.parseAsync(
+					[
+						"abcdef",
+						"--scope",
+						"git",
+						"--name",
+						"unsafe..name",
+						"--at",
+						"entry-1",
+					],
+					{ from: "user" },
+				),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--at is only supported for session timelines"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("rejects session tree forks until session execution is explicit", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
@@ -592,6 +625,30 @@ describe("refarm tree", () => {
 			command.commands
 				.find((c) => c.name() === "fork")!
 				.parseAsync(["abc123", "--name", "safe/fork"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(
+				"refarm tree fork currently supports --scope git only",
+			),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
+	it("rejects session tree forks before branch-name validation", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "fork")!
+				.parseAsync(["abc123", "--name", "unsafe..name"], { from: "user" }),
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(

@@ -142,7 +142,6 @@ async function forkTree(
 	opts: { json?: boolean; scope?: string; at?: string; name?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
-	const name = requireBranchName(opts.name);
 	if (scope !== REFARM_TREE_GIT_SCOPE) {
 		console.error(
 			chalk.red(
@@ -157,6 +156,7 @@ async function forkTree(
 		);
 		process.exit(1);
 	}
+	const name = requireBranchName(opts.name);
 	forkGitTree(prefix, { ...opts, name });
 }
 
