@@ -231,6 +231,7 @@ function createGitSwitchPreviewEnvelope(
 	name: string,
 	currentRefBefore: string,
 	worktreeClean: boolean,
+	blockedReason?: string,
 ): RefarmGitTimelinePreviewEnvelope {
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
@@ -242,13 +243,15 @@ function createGitSwitchPreviewEnvelope(
 		plan: {
 			action: "switch",
 			destructive: false,
-			readyToExecute: worktreeClean,
-			...(worktreeClean
-				? {}
-				: {
-						blockedReason:
-							"Git worktree must be clean before tree switch execution.",
-					}),
+			readyToExecute: !blockedReason && worktreeClean,
+			...(blockedReason
+				? { blockedReason }
+				: worktreeClean
+					? {}
+					: {
+							blockedReason:
+								"Git worktree must be clean before tree switch execution.",
+						}),
 			recommendedCommand: `refarm tree switch --scope git ${name}`,
 			effects: {
 				activePointerChanged: true,
@@ -367,9 +370,6 @@ export function previewGitSwitchTree(
 			throw new Error(`Git branch "${name}" does not exist.`);
 		}
 		currentRefBefore = currentGitRef();
-		if (currentRefBefore === name) {
-			throw new Error(`Git branch "${name}" is already active.`);
-		}
 		worktreeClean = gitWorktreeIsClean();
 		node = showGitTimelineNode(name);
 	} catch (err) {
@@ -380,6 +380,9 @@ export function previewGitSwitchTree(
 		name,
 		currentRefBefore,
 		worktreeClean,
+		currentRefBefore === name
+			? `Git branch "${name}" is already active.`
+			: undefined,
 	);
 
 	if (opts.json) {

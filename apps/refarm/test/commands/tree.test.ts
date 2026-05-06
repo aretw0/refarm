@@ -578,6 +578,44 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
 	});
 
+	it("previews already-active git switches as blocked", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: "safe/fork\n",
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["safe/fork", "--scope", "git", "--switch", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan).toMatchObject({
+			action: "switch",
+			readyToExecute: false,
+			blockedReason: 'Git branch "safe/fork" is already active.',
+			substrate: {
+				kind: "git-switch",
+				worktreeClean: true,
+				currentRefBefore: "safe/fork",
+				targetRefAfter: "safe/fork",
+			},
+		});
+		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
+	});
+
 	it("previews git switches against dirty worktrees without failing", async () => {
 		spawnSyncMock
 			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
