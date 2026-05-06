@@ -6,6 +6,7 @@ import {
 	HOMESTEAD_HOST_RENDERER_KINDS,
 	requiredHomesteadHostRendererCapabilities,
 	runHostRendererConformance,
+	summarizeHomesteadHostSurfaceState,
 } from "./host-renderer";
 
 describe("Homestead host renderer conformance", () => {
@@ -100,5 +101,63 @@ describe("Homestead host renderer conformance", () => {
 				}),
 			]),
 		);
+	});
+});
+
+describe("Homestead host surface state summary", () => {
+	it("defaults all surface counts to zero", () => {
+		expect(summarizeHomesteadHostSurfaceState(undefined)).toEqual({
+			mounted: 0,
+			rejected: 0,
+			availableActions: 0,
+			actionEvents: 0,
+			surfaceActions: 0,
+		});
+	});
+
+	it("prefers available action affordances over historical telemetry events", () => {
+		expect(
+			summarizeHomesteadHostSurfaceState({
+				mounted: [
+					{
+						pluginId: "plugin-a",
+						slotId: "main",
+						mountSource: "extension-surface",
+					},
+				],
+				rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-b" }],
+				availableActions: [
+					{
+						id: "open-node",
+						label: "Open node",
+						intent: "node:open",
+					},
+				],
+				actions: [
+					{ actionId: "historical-open", status: "requested" },
+					{ actionId: "historical-close", status: "failed" },
+				],
+			}),
+		).toEqual({
+			mounted: 1,
+			rejected: 1,
+			availableActions: 1,
+			actionEvents: 2,
+			surfaceActions: 1,
+		});
+	});
+
+	it("falls back to historical action telemetry when no affordance snapshot exists", () => {
+		expect(
+			summarizeHomesteadHostSurfaceState({
+				actions: [
+					{ actionId: "historical-open", status: "requested" },
+					{ actionId: "historical-close", status: "failed" },
+				],
+			}),
+		).toMatchObject({
+			actionEvents: 2,
+			surfaceActions: 2,
+		});
 	});
 });

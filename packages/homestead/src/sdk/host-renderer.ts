@@ -92,6 +92,14 @@ export interface HomesteadHostSurfaceState {
 	context?: HomesteadSurfaceRenderHostContext;
 }
 
+export interface HomesteadHostSurfaceSummary {
+	mounted: number;
+	rejected: number;
+	availableActions: number;
+	actionEvents: number;
+	surfaceActions: number;
+}
+
 export interface HomesteadHostStreamState {
 	active?: number;
 	terminal?: number;
@@ -169,6 +177,20 @@ export function homesteadHostRendererCan(
 	capability: HomesteadHostRendererCapability,
 ): boolean {
 	return renderer.capabilities.includes(capability);
+}
+
+export function summarizeHomesteadHostSurfaceState(
+	surfaces: HomesteadHostSurfaceState | undefined,
+): HomesteadHostSurfaceSummary {
+	const availableActions = surfaces?.availableActions?.length ?? 0;
+	const actionEvents = surfaces?.actions?.length ?? 0;
+	return {
+		mounted: surfaces?.mounted?.length ?? 0,
+		rejected: surfaces?.rejected?.length ?? 0,
+		availableActions,
+		actionEvents,
+		surfaceActions: surfaces?.availableActions ? availableActions : actionEvents,
+	};
 }
 
 export function missingHomesteadHostRendererCapabilities(

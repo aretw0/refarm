@@ -1,5 +1,6 @@
 import {
   homesteadHostRendererCan,
+  summarizeHomesteadHostSurfaceState,
   type HomesteadHostRendererDescriptor,
   type HomesteadHostSurfaceState,
   type HomesteadHostStreamState,
@@ -67,6 +68,7 @@ export function buildRefarmStatusJson(
   options: RefarmStatusOptions,
 ): RefarmStatusJson {
   const { host, renderer, runtime, trust, streams, plugins } = options;
+  const surfaces = summarizeHomesteadHostSurfaceState(plugins?.surfaces);
 	return {
 		schemaVersion: REFARM_STATUS_SCHEMA_VERSION,
     host,
@@ -79,11 +81,8 @@ export function buildRefarmStatusJson(
     plugins: {
       installed: plugins?.installed ?? 0,
       active: plugins?.active ?? 0,
-      rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
-      surfaceActions:
-        plugins?.surfaces?.availableActions?.length ??
-        plugins?.surfaces?.actions?.length ??
-        0,
+      rejectedSurfaces: surfaces.rejected,
+      surfaceActions: surfaces.surfaceActions,
     },
     trust,
 		streams: {
@@ -95,7 +94,7 @@ export function buildRefarmStatusJson(
 			runtime,
 			trust,
 			plugins: {
-				rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
+				rejectedSurfaces: surfaces.rejected,
 			},
 			streams: {
 				active: streams?.active ?? 0,
