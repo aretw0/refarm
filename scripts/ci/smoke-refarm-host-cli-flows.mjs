@@ -361,6 +361,12 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree session fork rejects execution`);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--name", "smoke/tree-fork"],
+			"refarm tree fork currently supports --scope git only",
+		);
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
 		);

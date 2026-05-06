@@ -30,11 +30,15 @@ function requireBranchName(name: string | undefined): string {
 		console.error(chalk.red("✗  refarm tree fork requires --name <branch-name>."));
 		process.exit(1);
 	}
-	return name;
+	return validateBranchName(name);
 }
 
-function validateBranchName(name: string | undefined): string | undefined {
+function validateOptionalBranchName(name: string | undefined): string | undefined {
 	if (!name) return undefined;
+	return validateBranchName(name);
+}
+
+function validateBranchName(name: string): string {
 	const hasSafeChars = /^[A-Za-z0-9._/-]+$/u.test(name);
 	const hasUnsafeShape =
 		name.startsWith("-") ||
@@ -102,7 +106,7 @@ async function previewTree(
 	opts: { json?: boolean; scope?: string; at?: string; name?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
-	const name = validateBranchName(opts.name);
+	const name = validateOptionalBranchName(opts.name);
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		if (opts.at) {
 			console.error(
@@ -121,7 +125,7 @@ async function forkTree(
 	opts: { json?: boolean; scope?: string; at?: string; name?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
-	const name = validateBranchName(requireBranchName(opts.name))!;
+	const name = requireBranchName(opts.name);
 	if (scope !== REFARM_TREE_GIT_SCOPE) {
 		console.error(
 			chalk.red(
