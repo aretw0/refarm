@@ -349,6 +349,40 @@ async function main() {
 			);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: tree git active switch preview is blocked`);
+		const activeSwitchPreviewRun = await runRefarmCommand(
+			[
+				"tree",
+				"preview",
+				"smoke/tree-fork",
+				"--scope",
+				"git",
+				"--switch",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const activeSwitchPreviewJson = parseCommandJsonOutput(
+			"tree preview --scope git --switch active",
+			activeSwitchPreviewRun,
+		);
+		if (
+			activeSwitchPreviewJson?.operation !== "preview" ||
+			activeSwitchPreviewJson?.reason !== "dry-run" ||
+			activeSwitchPreviewJson?.plan?.action !== "switch" ||
+			activeSwitchPreviewJson?.plan?.readyToExecute !== false ||
+			activeSwitchPreviewJson?.plan?.blockedReason !==
+				'Git branch "smoke/tree-fork" is already active.' ||
+			activeSwitchPreviewJson?.plan?.substrate?.currentRefBefore !==
+				"smoke/tree-fork" ||
+			activeSwitchPreviewJson?.plan?.substrate?.targetRefAfter !==
+				"smoke/tree-fork"
+		) {
+			throw new Error(
+				`Expected active git switch preview envelope, got: ${JSON.stringify(activeSwitchPreviewJson)}`,
+			);
+		}
+
 		await assertCommandFailsWith(
 			["tree", "switch", "smoke/tree-fork", "--scope", "git"],
 			'Git branch "smoke/tree-fork" is already active.',
