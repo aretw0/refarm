@@ -92,6 +92,35 @@ describe("buildRefarmStatusJson", () => {
 		expect(result.plugins.surfaceActions).toBe(2);
 	});
 
+	it("prefers available surface actions over historical action telemetry", () => {
+		const result = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{
+							id: "open-node",
+							label: "Open node",
+							intent: "node:open",
+						},
+					],
+					actions: [
+						{
+							actionId: "historical-open-node",
+							status: "requested",
+						},
+						{
+							actionId: "historical-close-node",
+							status: "failed",
+						},
+					],
+				},
+			},
+		});
+
+		expect(result.plugins.surfaceActions).toBe(1);
+	});
+
 	it("defaults streams to zero when not provided", () => {
 		expect(buildRefarmStatusJson(BASE_OPTIONS).streams).toEqual({
 			active: 0,
