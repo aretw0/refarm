@@ -28,6 +28,24 @@ Homestead. The shared app-owned selection vocabulary currently lives in
 `apps/refarm/src/commands/action-affordances.ts` and should not move to
 `packages/*` until a second independent consumer proves the need.
 
+## Live status affordances
+
+`apps/refarm` now publishes app-owned host status affordances from a local
+Homestead surface-state snapshot. These commands work without an input fixture:
+
+```bash
+refarm status --json
+refarm web --actions
+refarm web --actions --select inspect-trust --json
+refarm tui --actions
+refarm headless --action-request inspect-trust
+```
+
+The live status affordances are intentionally small and product-owned by the CLI
+distro: `open-status-report` and `inspect-trust`. They prove that renderer
+action readiness can come from semantic host state instead of manually authored
+fixtures.
+
 ## Canonical fixture
 
 Use the local fixture when you need deterministic examples:
@@ -36,7 +54,7 @@ Use the local fixture when you need deterministic examples:
 STATUS_FIXTURE=apps/refarm/test/fixtures/status-with-actions.json
 ```
 
-It contains two available actions:
+It contains two fixture actions:
 
 | Row | ID              | Label         | Intent          |
 | --- | --------------- | ------------- | --------------- |

@@ -113,6 +113,12 @@ action affordance selector and exposes the non-destructive half of that path by
 emitting the deterministic action request envelope without executing product
 behavior.
 
+`apps/refarm/src/commands/status-surfaces.ts` owns the CLI distro's live host
+status affordances. It converts product-owned `apps/refarm` actions such as
+`open-status-report` and `inspect-trust` into a Homestead surface-state snapshot
+so `refarm status` can expose `plugins.availableActions` without relying on DOM
+inspection or fixture-only payloads.
+
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action
 affordance vocabulary shared by Web, headless, and TUI readiness paths: stable
 available action extraction, one-based rows, ID/index selection, selection

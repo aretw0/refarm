@@ -98,6 +98,10 @@ affordances are available.
 - `plugins.availableActions` is optional and should only expose stable action
   affordance metadata (`id`, `label`, optional `intent`), not product-private
   payloads or DOM selectors.
+- `apps/refarm` live status currently derives app-owned host status affordances
+  from a local Homestead surface-state snapshot (`open-status-report` and
+  `inspect-trust`) so renderer readiness works without a manually authored
+  input fixture.
 - `trust` should summarize active policy/profile and warning/critical counts.
 - `streams` should summarize stream observation state when available.
 - `diagnostics` should use stable string codes before adding rich objects.
@@ -189,8 +193,17 @@ refarm tui --input status.json --actions --select 1
 refarm tui --input status.json --actions --select 1 --json
 ```
 
-A reusable local fixture is available at
-`apps/refarm/test/fixtures/status-with-actions.json` for exercising both paths:
+Live `apps/refarm` status exposes status/readiness affordances without an input
+fixture:
+
+```bash
+refarm web --actions
+refarm tui --actions
+refarm headless --action-request inspect-trust
+```
+
+A reusable local fixture is also available at
+`apps/refarm/test/fixtures/status-with-actions.json` for deterministic fixture-backed examples:
 
 ```bash
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node

@@ -14,6 +14,7 @@ import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	resolveJsonMarkdownStatusOutputMode,
@@ -165,6 +166,9 @@ export async function resolveStatusPayload(
 		renderer,
 		runtime,
 		trust,
+		plugins: {
+			surfaces: createRefarmStatusHostSurfaceState(),
+		},
 	});
 	assertRefarmStatusJson(json);
 

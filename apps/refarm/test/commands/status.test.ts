@@ -38,6 +38,10 @@ vi.mock("@refarm.dev/cli/status", () => ({
 }));
 
 import { statusCommand } from "../../src/commands/status.js";
+import {
+	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+	REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+} from "../../src/commands/status-surfaces.js";
 
 describe("statusCommand", () => {
 	beforeEach(() => {
@@ -145,6 +149,30 @@ describe("statusCommand", () => {
 				}),
 			);
 		}
+	});
+
+	it("forwards app-owned status action affordances to status builder", async () => {
+		await statusCommand.parseAsync(["--json"], { from: "user" });
+
+		expect(mockBuildRefarmStatusJson).toHaveBeenCalledWith(
+			expect.objectContaining({
+				plugins: {
+					surfaces: expect.objectContaining({
+						context: expect.objectContaining({ hostId: "apps/refarm" }),
+						availableActions: [
+							expect.objectContaining({
+								id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+								intent: "refarm:status-open",
+							}),
+							expect.objectContaining({
+								id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+								intent: "trust:inspect",
+							}),
+						],
+					}),
+				},
+			}),
+		);
 	});
 
 	it("fails fast for unknown renderer kinds", async () => {
