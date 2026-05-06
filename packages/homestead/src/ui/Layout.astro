@@ -181,31 +181,6 @@ const { title = "Refarm Studio" } = Astro.props;
 				transition: opacity 0.3s ease;
 			}
 
-			.refarm-scroll-region,
-			[data-refarm-scroll-region] {
-				min-height: 0;
-				overflow: auto;
-				overscroll-behavior: contain;
-				scrollbar-gutter: stable;
-			}
-
-			.refarm-scroll-region-y,
-			[data-refarm-scroll-region="y"] {
-				min-height: 0;
-				overflow-x: hidden;
-				overflow-y: auto;
-				overscroll-behavior-y: contain;
-				scrollbar-gutter: stable;
-			}
-
-			.refarm-scroll-region-x,
-			[data-refarm-scroll-region="x"] {
-				min-width: 0;
-				overflow-x: auto;
-				overflow-y: hidden;
-				overscroll-behavior-x: contain;
-			}
-
 			/* Plugin Lifecycle States */
 			.plugin-view {
 				position: relative;
@@ -229,30 +204,22 @@ const { title = "Refarm Studio" } = Astro.props;
 				background: rgba(244, 67, 54, 0.02);
 			}
 
-			/* Custom scrollbar to match the theme */
-			#refarm-main::-webkit-scrollbar,
-			.refarm-scroll-region::-webkit-scrollbar,
-			[data-refarm-scroll-region]::-webkit-scrollbar {
+			/* Primary shell scrollbar; nested regions use DS scroll utilities. */
+			#refarm-main::-webkit-scrollbar {
 				width: 8px;
 				height: 8px;
 			}
 
-			#refarm-main::-webkit-scrollbar-track,
-			.refarm-scroll-region::-webkit-scrollbar-track,
-			[data-refarm-scroll-region]::-webkit-scrollbar-track {
+			#refarm-main::-webkit-scrollbar-track {
 				background: var(--refarm-bg-primary);
 			}
 
-			#refarm-main::-webkit-scrollbar-thumb,
-			.refarm-scroll-region::-webkit-scrollbar-thumb,
-			[data-refarm-scroll-region]::-webkit-scrollbar-thumb {
+			#refarm-main::-webkit-scrollbar-thumb {
 				background: var(--refarm-border-default);
 				border-radius: 4px;
 			}
 
-			#refarm-main::-webkit-scrollbar-thumb:hover,
-			.refarm-scroll-region::-webkit-scrollbar-thumb:hover,
-			[data-refarm-scroll-region]::-webkit-scrollbar-thumb:hover {
+			#refarm-main::-webkit-scrollbar-thumb:hover {
 				background: var(--refarm-text-muted);
 			}
 		</style>

@@ -29,7 +29,7 @@ Refarm is converging on one host model with Web, TUI, and headless renderers. Th
 - `#refarm-header[data-refarm-shell-region="header"]` stays outside scrolling content.
 - `#refarm-main[data-refarm-scroll-region="main"]` is the primary scroll container.
 - `#refarm-footer[data-refarm-shell-region="statusbar"]` stays outside scrolling content.
-- Nested panels that need independent scrolling must opt in with one of:
+- Nested panels that need independent scrolling must opt in with DS-owned utilities:
   - `.refarm-scroll-region` or `[data-refarm-scroll-region]`
   - `.refarm-scroll-region-y` or `[data-refarm-scroll-region="y"]`
   - `.refarm-scroll-region-x` or `[data-refarm-scroll-region="x"]`
