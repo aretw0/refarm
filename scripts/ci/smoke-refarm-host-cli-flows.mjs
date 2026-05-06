@@ -299,6 +299,11 @@ async function main() {
 			"tree list --scope git --json",
 			treeGitJsonRun,
 		);
+		if (treeGitJson?.schemaVersion !== 1) {
+			throw new Error(
+				`Expected tree schemaVersion=1 from JSON output, got: ${JSON.stringify(treeGitJson)}`,
+			);
+		}
 		if (treeGitJson?.command !== "tree" || treeGitJson?.scope !== "git") {
 			throw new Error(
 				`Expected tree command/scope from JSON output, got: ${JSON.stringify(treeGitJson)}`,
@@ -330,6 +335,11 @@ async function main() {
 			"tree preview --scope git --json",
 			treeGitPreviewRun,
 		);
+		if (treeGitPreview?.schemaVersion !== 1) {
+			throw new Error(
+				`Expected tree preview schemaVersion=1, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
 		if (treeGitPreview?.reason !== "dry-run") {
 			throw new Error(
 				`Expected tree preview reason=dry-run, got: ${JSON.stringify(treeGitPreview)}`,
