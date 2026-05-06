@@ -233,10 +233,26 @@ function createSessionPreviewEnvelope(
 		reason: "dry-run",
 		target: node,
 		plan: {
-			kind: "session-fork",
+			action: "fork",
 			destructive: false,
-			branchPointEntryId,
+			readyToExecute: Boolean(name),
+			...(name
+				? {}
+				: {
+						blockedReason:
+							"Provide --name <branch-name> before executing session fork.",
+					}),
 			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`,
+			effects: {
+				activePointerChanged: true,
+				branchCreated: true,
+			},
+			substrate: {
+				kind: "session-fork",
+				branchPointEntryId,
+				branchName,
+				activeSessionWillSwitch: true,
+			},
 		},
 	};
 }
@@ -276,12 +292,9 @@ export async function previewSessionTree(
 		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
 	);
 	console.log("  Would:  create a non-destructive session fork");
-	if (
-		envelope.plan.kind === "session-fork" &&
-		envelope.plan.branchPointEntryId
-	) {
+	if (envelope.plan.substrate.branchPointEntryId) {
 		console.log(
-			chalk.dim(`  Branch point: ${envelope.plan.branchPointEntryId}`),
+			chalk.dim(`  Branch point: ${envelope.plan.substrate.branchPointEntryId}`),
 		);
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));

@@ -71,10 +71,10 @@ for git fork timelines, or `refarm tree switch --scope git ...` for git switch
 plans, but does not fork, branch, check out, or switch. Git preview plans keep
 command-level semantics generic (`action`, `destructive`, `readyToExecute`,
 `blockedReason`, `recommendedCommand`, and `effects`) and place git-specific
-details under `substrate`. Git fork preview effects declare
-`worktreeSwitched: false`, while git switch preview effects declare
-`worktreeSwitched: true`; git switch substrate details include
-`currentRefBefore`/`targetRefAfter` and `worktreeClean`. Session previews may target a historical entry with
+details under `substrate`. Tree preview effects declare generic timeline impact
+such as `activePointerChanged` and `branchCreated`; git-specific worktree impact
+stays in git substrate details (`worktreeSwitched`,
+`currentRefBefore`/`targetRefAfter`, and `worktreeClean`). Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
@@ -142,11 +142,12 @@ fused forever:
    `effects`.
 
 `refarm tree` is the first consumer because timeline operations make the safety
-boundary obvious, but the plan vocabulary should eventually move out of the tree
-module and be reused by status actions, renderer actions, telemetry gates, and
-other host-governed commands. Substrate-specific facts (`baseCommit`, git refs,
-worktree cleanliness, session entry IDs, CRDT frontiers) should live under
-adapter-specific details, not in the generic plan surface.
+boundary obvious. The shared type lives app-locally for now in
+`apps/refarm/src/commands/execution-plan.ts`; it should move further out only
+when status actions, renderer actions, telemetry gates, or another host-governed
+command become a second real consumer. Substrate-specific facts (`baseCommit`,
+git refs, worktree cleanliness, session entry IDs, CRDT frontiers) should live
+under adapter-specific details, not in the generic plan surface.
 
 ## Adapter contract
 

@@ -162,9 +162,11 @@ async function main() {
 			previewJson?.operation !== "preview" ||
 			previewJson?.reason !== "dry-run" ||
 			previewJson?.plan?.action !== "fork" ||
-			previewJson?.plan?.effects?.worktreeSwitched !== false ||
+			previewJson?.plan?.effects?.activePointerChanged !== false ||
+			previewJson?.plan?.effects?.branchCreated !== true ||
 			previewJson?.plan?.readyToExecute !== true ||
 			previewJson?.plan?.substrate?.kind !== "git-branch" ||
+			previewJson?.plan?.substrate?.worktreeSwitched !== false ||
 			!previewJson?.plan?.recommendedCommand?.startsWith(
 				"refarm tree fork --scope git ",
 			)
@@ -222,6 +224,7 @@ async function main() {
 			switchPreviewJson?.plan?.action !== "switch" ||
 			switchPreviewJson?.plan?.substrate?.kind !== "git-switch" ||
 			switchPreviewJson?.plan?.substrate?.worktreeClean !== true ||
+			switchPreviewJson?.plan?.substrate?.worktreeSwitched !== true ||
 			switchPreviewJson?.plan?.readyToExecute !== true ||
 			switchPreviewJson?.plan?.substrate?.currentRefBefore !== "main" ||
 			switchPreviewJson?.plan?.substrate?.targetRefAfter !== "smoke/tree-fork"

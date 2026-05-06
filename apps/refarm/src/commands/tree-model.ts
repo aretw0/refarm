@@ -1,3 +1,5 @@
+import type { RefarmExecutionPlanBase } from "./execution-plan.js";
+
 const SESSION_SCOPE = "session";
 const GIT_SCOPE = "git";
 
@@ -85,49 +87,49 @@ export interface RefarmSessionTimelineShowEnvelope
 	total: number;
 }
 
-export interface RefarmSessionTimelinePreviewPlan {
-	kind: "session-fork";
-	destructive: false;
-	branchPointEntryId: string | null;
-	recommendedCommand: string;
-}
+export type RefarmSessionTimelinePreviewPlan = RefarmExecutionPlanBase<
+	"fork",
+	{
+		activePointerChanged: true;
+		branchCreated: true;
+	},
+	{
+		kind: "session-fork";
+		branchPointEntryId: string | null;
+		branchName: string;
+		activeSessionWillSwitch: true;
+	}
+>;
 
-export interface RefarmGitTimelineBranchPreviewPlan {
-	action: "fork";
-	destructive: false;
-	readyToExecute: boolean;
-	blockedReason?: string;
-	recommendedCommand: string;
-	effects: {
+export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
+	"fork",
+	{
 		activePointerChanged: false;
 		branchCreated: true;
-		worktreeSwitched: false;
-	};
-	substrate: {
+	},
+	{
 		kind: "git-branch";
 		baseCommit: string;
 		branchName: string;
-	};
-}
+		worktreeSwitched: false;
+	}
+>;
 
-export interface RefarmGitTimelineSwitchPreviewPlan {
-	action: "switch";
-	destructive: false;
-	blockedReason?: string;
-	readyToExecute: boolean;
-	recommendedCommand: string;
-	effects: {
+export type RefarmGitTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+	"switch",
+	{
 		activePointerChanged: true;
-		worktreeSwitched: true;
-	};
-	substrate: {
+		branchCreated: false;
+	},
+	{
 		kind: "git-switch";
 		currentRefBefore: string;
 		targetRefAfter: string;
 		targetCommit: string;
 		worktreeClean: boolean;
-	};
-}
+		worktreeSwitched: true;
+	}
+>;
 
 export type RefarmGitTimelinePreviewPlan =
 	| RefarmGitTimelineBranchPreviewPlan

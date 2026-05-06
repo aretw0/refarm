@@ -216,11 +216,23 @@ describe("refarm tree", () => {
 			operation: "preview",
 			reason: "dry-run",
 			plan: {
-				kind: "session-fork",
+				action: "fork",
 				destructive: false,
-				branchPointEntryId: "entry-2",
+				readyToExecute: false,
+				blockedReason:
+					"Provide --name <branch-name> before executing session fork.",
 				recommendedCommand:
 					"refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
+				effects: {
+					activePointerChanged: true,
+					branchCreated: true,
+				},
+				substrate: {
+					kind: "session-fork",
+					branchPointEntryId: "entry-2",
+					branchName: "<branch-name>",
+					activeSessionWillSwitch: true,
+				},
 			},
 		});
 	});
@@ -251,11 +263,21 @@ describe("refarm tree", () => {
 			operation: "preview",
 			reason: "dry-run",
 			plan: {
-				kind: "session-fork",
+				action: "fork",
 				destructive: false,
-				branchPointEntryId: "entry-1",
+				readyToExecute: false,
 				recommendedCommand:
 					"refarm sessions fork abc123def456 --at entry-1 --name <branch-name>",
+				effects: {
+					activePointerChanged: true,
+					branchCreated: true,
+				},
+				substrate: {
+					kind: "session-fork",
+					branchPointEntryId: "entry-1",
+					branchName: "<branch-name>",
+					activeSessionWillSwitch: true,
+				},
 			},
 		});
 	});
@@ -282,9 +304,17 @@ describe("refarm tree", () => {
 			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
-		expect(payload.plan.recommendedCommand).toBe(
-			"refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
-		);
+		expect(payload.plan).toMatchObject({
+			action: "fork",
+			readyToExecute: true,
+			recommendedCommand:
+				"refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+			substrate: {
+				kind: "session-fork",
+				branchName: "safe/fork",
+				branchPointEntryId: "entry-1",
+			},
+		});
 	});
 
 	it("fails closed for unsafe branch names", async () => {
@@ -441,12 +471,12 @@ describe("refarm tree", () => {
 				effects: {
 					activePointerChanged: false,
 					branchCreated: true,
-					worktreeSwitched: false,
 				},
 				substrate: {
 					kind: "git-branch",
 					baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
 					branchName: "<branch-name>",
+					worktreeSwitched: false,
 				},
 			},
 		});
@@ -485,7 +515,7 @@ describe("refarm tree", () => {
 				recommendedCommand: "refarm tree switch --scope git safe/fork",
 				effects: {
 					activePointerChanged: true,
-					worktreeSwitched: true,
+					branchCreated: false,
 				},
 				substrate: {
 					kind: "git-switch",
@@ -493,6 +523,7 @@ describe("refarm tree", () => {
 					currentRefBefore: "main",
 					targetRefAfter: "safe/fork",
 					targetCommit: "abcdef1234567890abcdef1234567890abcdef12",
+					worktreeSwitched: true,
 				},
 			},
 		});
@@ -613,11 +644,13 @@ describe("refarm tree", () => {
 			recommendedCommand:
 				"refarm tree fork --scope git abcdef123456 --name safe/fork",
 			effects: {
-				worktreeSwitched: false,
+				activePointerChanged: false,
+				branchCreated: true,
 			},
 			substrate: {
 				kind: "git-branch",
 				branchName: "safe/fork",
+				worktreeSwitched: false,
 			},
 		});
 	});

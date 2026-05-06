@@ -432,9 +432,13 @@ async function main() {
 				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
-		if (treeGitPreview.plan?.effects?.worktreeSwitched !== false) {
+		if (
+			treeGitPreview.plan?.effects?.activePointerChanged !== false ||
+			treeGitPreview.plan?.effects?.branchCreated !== true ||
+			treeGitPreview.plan?.substrate?.worktreeSwitched !== false
+		) {
 			throw new Error(
-				`Expected git preview effects.worktreeSwitched=false, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+				`Expected non-switching git fork preview effects, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
 		if (treeGitPreview.plan?.readyToExecute !== true) {

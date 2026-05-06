@@ -107,13 +107,15 @@ describe("refarm tree git integration", () => {
 				readyToExecute: true,
 				recommendedCommand: "refarm tree switch --scope git smoke/tree-fork",
 				effects: {
-					worktreeSwitched: true,
+					activePointerChanged: true,
+					branchCreated: false,
 				},
 				substrate: {
 					kind: "git-switch",
 					worktreeClean: true,
 					currentRefBefore: "main",
 					targetRefAfter: "smoke/tree-fork",
+					worktreeSwitched: true,
 				},
 			},
 		});

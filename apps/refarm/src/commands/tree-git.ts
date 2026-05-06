@@ -211,12 +211,12 @@ function createGitPreviewEnvelope(
 			effects: {
 				activePointerChanged: false,
 				branchCreated: true,
-				worktreeSwitched: false,
 			},
 			substrate: {
 				kind: "git-branch",
 				baseCommit: node.nodeId,
 				branchName,
+				worktreeSwitched: false,
 			},
 		},
 	};
@@ -248,7 +248,7 @@ function createGitSwitchPreviewEnvelope(
 			recommendedCommand: `refarm tree switch --scope git ${name}`,
 			effects: {
 				activePointerChanged: true,
-				worktreeSwitched: true,
+				branchCreated: false,
 			},
 			substrate: {
 				kind: "git-switch",
@@ -256,6 +256,7 @@ function createGitSwitchPreviewEnvelope(
 				targetRefAfter: name,
 				targetCommit: node.nodeId,
 				worktreeClean,
+				worktreeSwitched: true,
 			},
 		},
 	};
