@@ -56,14 +56,16 @@ refarm tree list --scope session [--json]
 refarm tree list --scope git [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
-refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--json]
-refarm tree preview --scope git <commit-ish> [--json]
+refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
+refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
 ```
 
 The first slices are intentionally read-only. `preview` emits a dry-run envelope
 that recommends `refarm sessions fork ...` or `git branch ...` but does not
 fork, branch, check out, or switch. Session previews may target a historical
 entry with `--at <entry-id>` and fail closed if the entry is not in that session.
+Preview branch names are optional and fail closed unless they contain only
+letters, numbers, `.`, `_`, `/`, or `-`.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must

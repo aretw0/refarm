@@ -252,6 +252,51 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("includes explicit branch names in session preview plans", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--at", "entry-1", "--name", "safe/fork", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan.recommendedCommand).toBe(
+			"refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+		);
+	});
+
+	it("fails closed for unsafe branch names", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "preview")!
+				.parseAsync(["abc123", "--name", "unsafe name"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Invalid branch name "unsafe name"'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
 	it("fails closed when a session preview entry is missing", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -332,6 +377,27 @@ describe("refarm tree", () => {
 				recommendedCommand: "git branch <branch-name> abcdef123456",
 			},
 		});
+	});
+
+	it("includes explicit branch names in git preview plans", async () => {
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan.recommendedCommand).toBe(
+			"git branch safe/fork abcdef123456",
+		);
 	});
 
 	it("fails closed for unsupported scopes", async () => {

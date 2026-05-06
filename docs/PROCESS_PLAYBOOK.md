@@ -46,6 +46,7 @@ refarm tree list --json             # read-only session timeline nodes
 refarm tree list --scope git --json # read-only git timeline nodes
 refarm tree preview <id>            # dry-run fork plan for a session node
 refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry
+refarm tree preview <id> --name <branch> # dry-run fork plan with explicit name
 refarm tree preview --scope git <commit> # dry-run branch plan for a commit
 ```
 

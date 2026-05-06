@@ -211,8 +211,10 @@ export async function showSessionTree(
 function createSessionPreviewEnvelope(
 	node: RefarmTimelineNode,
 	branchPointEntryId: string | null,
+	name: string | undefined,
 ): RefarmTimelinePreviewEnvelope {
 	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
+	const branchName = name ?? "<branch-name>";
 	return {
 		command: "tree",
 		scope: REFARM_TREE_SESSION_SCOPE,
@@ -223,14 +225,14 @@ function createSessionPreviewEnvelope(
 			kind: "session-fork",
 			destructive: false,
 			branchPointEntryId,
-			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name <branch-name>`,
+			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`,
 		},
 	};
 }
 
 export async function previewSessionTree(
 	prefix: string,
-	opts: { json?: boolean; at?: string },
+	opts: { json?: boolean; at?: string; name?: string },
 ): Promise<void> {
 	let history: SessionHistory;
 	try {
@@ -250,6 +252,7 @@ export async function previewSessionTree(
 	const envelope = createSessionPreviewEnvelope(
 		createSessionTimelineNode(history.session),
 		branchPointEntryId,
+		opts.name,
 	);
 
 	if (opts.json) {

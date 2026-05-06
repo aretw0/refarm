@@ -25,6 +25,19 @@ function parseScope(scope: string | undefined): RefarmTimelineScope {
 	process.exit(1);
 }
 
+function validateBranchName(name: string | undefined): string | undefined {
+	if (!name) return undefined;
+	if (!/^[A-Za-z0-9._/-]+$/u.test(name)) {
+		console.error(
+			chalk.red(
+				`✗  Invalid branch name "${name}". Use letters, numbers, '.', '_', '/', or '-'.`,
+			),
+		);
+		process.exit(1);
+	}
+	return name;
+}
+
 async function listTree(opts: {
 	scope?: string;
 	json?: boolean;
@@ -52,18 +65,21 @@ async function showTree(
 
 async function previewTree(
 	prefix: string,
-	opts: { json?: boolean; scope?: string; at?: string },
+	opts: { json?: boolean; scope?: string; at?: string; name?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
+	const name = validateBranchName(opts.name);
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		if (opts.at) {
-			console.error(chalk.red("✗  --at is only supported for session timelines."));
+			console.error(
+				chalk.red("✗  --at is only supported for session timelines."),
+			);
 			process.exit(1);
 		}
-		previewGitTree(prefix, opts);
+		previewGitTree(prefix, { ...opts, name });
 		return;
 	}
-	await previewSessionTree(prefix, opts);
+	await previewSessionTree(prefix, { ...opts, name });
 }
 
 export function createTreeCommand(): Command {
@@ -99,11 +115,12 @@ export function createTreeCommand(): Command {
 				.argument("<id>", "Timeline node ID or unique prefix")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
+				.option("--name <branch-name>", "Branch/fork name to include in the dry-run plan")
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (
 						prefix: string,
-						opts: { scope?: string; at?: string; json?: boolean },
+						opts: { scope?: string; at?: string; name?: string; json?: boolean },
 					) => {
 						await previewTree(prefix, opts);
 					},

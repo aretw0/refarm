@@ -142,7 +142,9 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 
 function createGitPreviewEnvelope(
 	node: RefarmTimelineNode,
+	name: string | undefined,
 ): RefarmTimelinePreviewEnvelope {
+	const branchName = name ?? "<branch-name>";
 	return {
 		command: "tree",
 		scope: REFARM_TREE_GIT_SCOPE,
@@ -153,19 +155,22 @@ function createGitPreviewEnvelope(
 			kind: "git-branch",
 			destructive: false,
 			baseCommit: node.nodeId,
-			recommendedCommand: `git branch <branch-name> ${node.metadata.shortId}`,
+			recommendedCommand: `git branch ${branchName} ${node.metadata.shortId}`,
 		},
 	};
 }
 
-export function previewGitTree(prefix: string, opts: { json?: boolean }): void {
+export function previewGitTree(
+	prefix: string,
+	opts: { json?: boolean; name?: string },
+): void {
 	let node: RefarmTimelineNode;
 	try {
 		node = showGitTimelineNode(prefix);
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitPreviewEnvelope(node);
+	const envelope = createGitPreviewEnvelope(node, opts.name);
 
 	if (opts.json) {
 		outputTreeJson(envelope);
