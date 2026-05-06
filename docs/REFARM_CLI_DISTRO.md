@@ -113,7 +113,9 @@ npm run refarm:host:smoke:auto
   `status --action --input`) are rejected fail-closed, using fixture-backed
   status input.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
-  wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
+  wrappers under `scripts/ci/`, includes `apps/refarm` type-check by default,
+  and runs the built dist action-readiness smoke so dry-run vs live execution
+  guardrails are covered before/inside CI validation.
 - `refarm:host:smoke:quick` is the cheapest local lane (`--quick`): runs only
   `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
