@@ -6,20 +6,23 @@ describe("execution plan readiness", () => {
 		expect(
 			formatExecutionPlanReadinessLine({
 				readyToExecute: false,
-				blockedReason: "Git worktree must be clean before tree switch execution.",
+				blockedReason:
+					"Git worktree must be clean before tree switch execution.",
 			}),
 		).toEqual({
 			status: "blocked",
-			label: "Blocked: Git worktree must be clean before tree switch execution.",
+			label:
+				"Blocked: Git worktree must be clean before tree switch execution.",
 		});
 	});
 
 	it("formats ready and not-ready plans without substrate-specific knowledge", () => {
-		expect(
-			formatExecutionPlanReadinessLine({ readyToExecute: true }),
-		).toEqual({ status: "ready", label: "Ready: yes" });
-		expect(
-			formatExecutionPlanReadinessLine({ readyToExecute: false }),
-		).toEqual({ status: "ready", label: "Ready: no" });
+		expect(formatExecutionPlanReadinessLine({ readyToExecute: true })).toEqual({
+			status: "ready",
+			label: "Ready: yes",
+		});
+		expect(formatExecutionPlanReadinessLine({ readyToExecute: false })).toEqual(
+			{ status: "ready", label: "Ready: no" },
+		);
 	});
 });
