@@ -85,13 +85,20 @@ export function createSessionsCommand(): Command {
 		)
 		.addCommand(
 			new Command("fork")
-				.description("Branch a new session from an existing one (Loro-style fork)")
+				.description(
+					"Branch a new session from an existing one (Loro-style fork)",
+				)
 				.argument("<id>", "Session ID or unique prefix to branch from")
-				.option("--at <entry-id>", "Branch from a specific entry instead of the current leaf")
+				.option(
+					"--at <entry-id>",
+					"Branch from a specific entry instead of the current leaf",
+				)
 				.option("--name <name>", "Name for the new forked session")
-				.action(async (prefix: string, opts: { at?: string; name?: string }) => {
-					await forkSession(prefix, opts);
-				}),
+				.action(
+					async (prefix: string, opts: { at?: string; name?: string }) => {
+						await forkSession(prefix, opts);
+					},
+				),
 		)
 		.addCommand(
 			new Command("clear")
@@ -137,14 +144,14 @@ async function listSessions(): Promise<void> {
 	}
 
 	if (sessions.length === 0) {
-		console.log(chalk.dim("No sessions yet. Start one with: refarm ask <query>"));
+		console.log(
+			chalk.dim("No sessions yet. Start one with: refarm ask <query>"),
+		);
 		return;
 	}
 
 	// Sort newest first by created_at_ns
-	sessions.sort(
-		(a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0),
-	);
+	sessions.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0));
 
 	console.log(chalk.bold(`\n  Sessions  (${sessions.length} total)\n`));
 
@@ -152,13 +159,13 @@ async function listSessions(): Promise<void> {
 		const short = formatSessionId(session["@id"]);
 		const age = formatAge(session.created_at_ns);
 		const isActive = session["@id"] === activeId;
-		const name = session.name ? chalk.white(session.name) : chalk.dim("unnamed");
+		const name = session.name
+			? chalk.white(session.name)
+			: chalk.dim("unnamed");
 		const hasHistory = !!session.leaf_entry_id;
 
 		const prefix = isActive ? chalk.green("▶") : " ";
-		const idStr = isActive
-			? chalk.green.bold(short)
-			: chalk.cyan(short);
+		const idStr = isActive ? chalk.green.bold(short) : chalk.cyan(short);
 		const ageStr = chalk.dim(age);
 		const historyStr = hasHistory ? chalk.dim(" · has history") : "";
 
@@ -166,9 +173,7 @@ async function listSessions(): Promise<void> {
 	}
 
 	if (activeId) {
-		console.log(
-			chalk.dim(`\n  Active: ${activeId}`),
-		);
+		console.log(chalk.dim(`\n  Active: ${activeId}`));
 	}
 	console.log(
 		chalk.dim(
@@ -188,23 +193,27 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
 		});
-		const parsed = (await response
-			.json()
-			.catch(() => ({}))) as {
+		const parsed = (await response.json().catch(() => ({}))) as {
 			session?: SessionNode;
 			error?: string;
 		};
 		if (response.status === 404) {
 			console.error(
-				chalk.red("✗  Session creation endpoint is unavailable in this daemon."),
+				chalk.red(
+					"✗  Session creation endpoint is unavailable in this daemon.",
+				),
 			);
 			console.error(
-				chalk.dim("   Restart/update backend and retry: npm run farmhand:daemon"),
+				chalk.dim(
+					"   Restart/update backend and retry: npm run farmhand:daemon",
+				),
 			);
 			process.exit(1);
 		}
 		if (!response.ok || !parsed.session) {
-			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
+			console.error(
+				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
+			);
 			process.exit(1);
 		}
 		created = parsed.session;
@@ -248,13 +257,19 @@ async function useSession(prefix: string): Promise<void> {
 		process.exit(1);
 	}
 	if (matches.length > 1) {
-		console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`));
+		console.error(
+			chalk.red(
+				`✗  Ambiguous prefix "${prefix}" — matches ${matches.length} sessions:`,
+			),
+		);
 		for (const m of matches) console.error(chalk.dim(`   ${m["@id"]}`));
 		process.exit(1);
 	}
 
 	writeActiveSessionId(matches[0]["@id"]);
-	console.log(chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`));
+	console.log(
+		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`),
+	);
 }
 
 async function forkSession(
@@ -275,18 +290,26 @@ async function forkSession(
 				body: JSON.stringify(body),
 			},
 		);
-		const parsed = (await response.json()) as { session?: SessionNode; error?: string; matches?: string[] };
+		const parsed = (await response.json()) as {
+			session?: SessionNode;
+			error?: string;
+			matches?: string[];
+		};
 		if (response.status === 404) {
 			console.error(chalk.red(`✗  No session matching "${prefix}"`));
 			process.exit(1);
 		}
 		if (response.status === 409) {
-			console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`));
+			console.error(
+				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${parsed.error}`),
+			);
 			for (const m of parsed.matches ?? []) console.error(chalk.dim(`   ${m}`));
 			process.exit(1);
 		}
 		if (!response.ok || !parsed.session) {
-			console.error(chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`));
+			console.error(
+				chalk.red(`✗  ${parsed.error ?? `HTTP ${response.status}`}`),
+			);
 			process.exit(1);
 		}
 		fork = parsed.session;
@@ -305,7 +328,11 @@ async function forkSession(
 	writeActiveSessionId(fork["@id"]);
 	const short = formatSessionId(fork["@id"]);
 	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
-	console.log(chalk.green(`✓  Forked from ${chalk.cyan(parentShort)} → new session ${chalk.cyan.bold(short)}`));
+	console.log(
+		chalk.green(
+			`✓  Forked from ${chalk.cyan(parentShort)} → new session ${chalk.cyan.bold(short)}`,
+		),
+	);
 	if (fork.leaf_entry_id) {
 		console.log(chalk.dim(`   Branch point: ${fork.leaf_entry_id}`));
 	}
@@ -317,14 +344,21 @@ async function showSession(prefix: string): Promise<void> {
 	const encodedId = encodeURIComponent(prefix);
 	let history: SessionHistory;
 	try {
-		const response = await fetch(`${SIDECAR_URL}/sessions/${encodedId}/history`);
-		const body = await response.json() as SessionHistory & { error?: string; matches?: string[] };
+		const response = await fetch(
+			`${SIDECAR_URL}/sessions/${encodedId}/history`,
+		);
+		const body = (await response.json()) as SessionHistory & {
+			error?: string;
+			matches?: string[];
+		};
 		if (response.status === 404) {
 			console.error(chalk.red(`✗  No session matching "${prefix}"`));
 			process.exit(1);
 		}
 		if (response.status === 409) {
-			console.error(chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`));
+			console.error(
+				chalk.red(`✗  Ambiguous prefix "${prefix}" — ${body.error}`),
+			);
 			for (const m of body.matches ?? []) console.error(chalk.dim(`   ${m}`));
 			process.exit(1);
 		}
@@ -361,9 +395,7 @@ async function showSession(prefix: string): Promise<void> {
 
 	for (const entry of history.entries) {
 		const isUser = entry.kind === "user";
-		const label = isUser
-			? chalk.blue.bold("  You")
-			: chalk.green.bold("  Pi ");
+		const label = isUser ? chalk.blue.bold("  You") : chalk.green.bold("  Pi ");
 		console.log(label);
 		const lines = entry.content.split("\n");
 		for (const line of lines) {
@@ -372,7 +404,11 @@ async function showSession(prefix: string): Promise<void> {
 		console.log();
 	}
 
-	console.log(chalk.dim(`  ${history.total} message${history.total === 1 ? "" : "s"} · ${session["@id"]}\n`));
+	console.log(
+		chalk.dim(
+			`  ${history.total} message${history.total === 1 ? "" : "s"} · ${session["@id"]}\n`,
+		),
+	);
 }
 
 export const sessionsCommand = createSessionsCommand();

@@ -2,7 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-export const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
+export const SESSION_LOCK_PATH = path.join(
+	os.homedir(),
+	".refarm",
+	"session.lock",
+);
 
 export function readActiveSessionId(): string | null {
 	try {

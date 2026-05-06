@@ -337,12 +337,16 @@ function resolveSessionPrefix(prefix: string, sessions: SessionNode[]): string {
 		throw new Error(`No session matching "${prefix}"`);
 	}
 	if (matches.length > 1) {
-		throw new Error(`Ambiguous session prefix "${prefix}" (${matches.length} matches)`);
+		throw new Error(
+			`Ambiguous session prefix "${prefix}" (${matches.length} matches)`,
+		);
 	}
 	return matches[0]["@id"];
 }
 
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function resolveSessionIdPrefixFromSidecar(
+	prefix: string,
+): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const response = await fetch(`${SIDECAR_URL}/sessions`);
@@ -431,7 +435,9 @@ export function createAskCommand(deps?: AskDeps): Command {
 					console.error(chalk.red("\n✗  No LLM provider configured."));
 					console.error(chalk.dim("   Set up a provider:  refarm keys"));
 					console.error(
-						chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"),
+						chalk.dim(
+							"   Or use Ollama:      ollama serve  (then refarm keys)",
+						),
 					);
 					process.exit(1);
 				}
@@ -452,7 +458,8 @@ export function createAskCommand(deps?: AskDeps): Command {
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
-							sessionId = await resolved.resolveSessionIdPrefix(explicitSession);
+							sessionId =
+								await resolved.resolveSessionIdPrefix(explicitSession);
 						} catch (error) {
 							const message =
 								error instanceof Error ? error.message : String(error);
@@ -462,7 +469,9 @@ export function createAskCommand(deps?: AskDeps): Command {
 							) {
 								console.error(chalk.red(`\n✗  ${message}`));
 								console.error(
-									chalk.dim("   Use: refarm sessions list  to inspect available IDs."),
+									chalk.dim(
+										"   Use: refarm sessions list  to inspect available IDs.",
+									),
 								);
 							} else {
 								printAskError(message);
