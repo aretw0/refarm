@@ -175,6 +175,7 @@ function createGitPreviewEnvelope(
 		plan: {
 			kind: "git-branch",
 			destructive: false,
+			worktreeSwitched: false,
 			baseCommit: node.nodeId,
 			recommendedCommand: `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`,
 		},

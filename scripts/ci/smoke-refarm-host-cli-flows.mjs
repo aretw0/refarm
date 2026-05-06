@@ -396,6 +396,11 @@ async function main() {
 				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
+		if (treeGitPreview.plan?.worktreeSwitched !== false) {
+			throw new Error(
+				`Expected git preview worktreeSwitched=false, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
 		if (
 			!treeGitPreview.plan?.recommendedCommand?.startsWith(
 				"refarm tree fork --scope git ",

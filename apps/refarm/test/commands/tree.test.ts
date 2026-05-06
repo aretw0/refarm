@@ -431,6 +431,7 @@ describe("refarm tree", () => {
 			plan: {
 				kind: "git-branch",
 				destructive: false,
+				worktreeSwitched: false,
 				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
 				recommendedCommand:
 					"refarm tree fork --scope git abcdef123456 --name <branch-name>",
@@ -457,6 +458,7 @@ describe("refarm tree", () => {
 			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan.worktreeSwitched).toBe(false);
 		expect(payload.plan.recommendedCommand).toBe(
 			"refarm tree fork --scope git abcdef123456 --name safe/fork",
 		);

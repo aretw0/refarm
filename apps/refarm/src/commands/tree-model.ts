@@ -33,6 +33,7 @@ export interface RefarmSessionTimelinePreviewPlan {
 export interface RefarmGitTimelinePreviewPlan {
 	kind: "git-branch";
 	destructive: false;
+	worktreeSwitched: false;
 	baseCommit: string;
 	recommendedCommand: string;
 }

@@ -65,7 +65,8 @@ The first slices are intentionally read-only. Machine-readable tree envelopes
 use `schemaVersion: 1` and an explicit `operation` discriminator (`list`,
 `show`, `preview`, or `fork`). `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session timelines or `refarm tree fork --scope git ...`
-for git timelines, but does not fork, branch, check out, or switch. Session previews may target a historical entry with
+for git timelines, but does not fork, branch, check out, or switch; git preview
+plans also declare `worktreeSwitched: false`. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false` in JSON),
