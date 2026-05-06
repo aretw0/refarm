@@ -14,6 +14,9 @@ Astro pages/layouts
 Homestead SDK
   -> runtime boot, shell orchestration, plugin/surface contracts, trust gates
 
+Studio diagnostic routes
+  -> narrow proof screens for streams, surfaces, and runtime inspectors
+
 Small client controllers or custom elements
   -> live telemetry, DOM observers, user events, runtime-only updates
 
@@ -27,6 +30,7 @@ product-facing host/CLI direction is documented in
 [Refarm Host Model](./REFARM_HOST_MODEL.md): the CLI product can live in `apps/`,
 while reusable renderer/runtime blocks stay in `packages/`. Homestead viewport
 ownership is documented in [Homestead shell layout and scroll ownership](./HOMESTEAD_SHELL_LAYOUT.md).
+Studio diagnostic route strategy is documented in [Refarm Studio diagnostic screens](./REFARM_STUDIO_DIAGNOSTIC_SCREENS.md).
 
 ## Ownership rules
 

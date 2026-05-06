@@ -287,8 +287,8 @@
     --refarm-surface-shadow: var(--refarm-shadow-lg);
     padding: clamp(1.25rem, 3vw, 2.5rem);
     background:
-        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.18), transparent 34rem),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(35, 134, 54, 0.06));
+        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.22), transparent 34rem),
+        linear-gradient(135deg, rgba(22, 27, 34, 0.96), rgba(13, 17, 23, 0.92));
 }
 
 .refarm-workbench-grid {
