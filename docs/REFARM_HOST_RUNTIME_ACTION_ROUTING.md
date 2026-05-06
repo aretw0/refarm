@@ -171,6 +171,7 @@ npm --prefix packages/homestead run type-check
 npm --prefix packages/homestead run build
 npm --prefix apps/refarm run test -- test/commands/status.test.ts test/commands/renderers.test.ts --pool=threads
 npm --prefix apps/refarm run type-check
+npm run refarm:host:smoke:dist-actions
 npm --prefix apps/me run test -- me-surfaces me-renderers --pool=threads
 npm --prefix apps/me run test -- me-runtime --pool=threads
 npm --prefix apps/me run type-check

@@ -266,11 +266,12 @@ run the local dist wrapper after source-level validation:
 
 ```bash
 npm --prefix apps/refarm run smoke:dist-actions
+npm run refarm:host:smoke:dist-actions
 ```
 
-It builds `apps/refarm`, runs the emitted CLI, verifies `refarm web --actions`,
-and verifies `refarm status --action 2` returns a handled Homestead action
-invocation envelope. Keep this as a local wrapper; CI wiring remains deferred
+Both wrappers build `apps/refarm`, run the emitted CLI, verify `refarm web --actions`,
+and verify `refarm status --action 2` returns a handled Homestead action
+invocation envelope. Keep this as local validation; CI wiring remains deferred
 while GitHub Actions budget is over allocation.
 
 Run `npm --prefix apps/refarm run test:host-smoke -- --pool=threads` before a

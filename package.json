@@ -36,6 +36,7 @@
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"refarm:host:smoke": "npm --prefix apps/refarm run test:host-smoke",
+		"refarm:host:smoke:dist-actions": "npm --prefix apps/refarm run smoke:dist-actions",
 		"refarm:host:smoke:cli": "node scripts/ci/smoke-refarm-host-cli-flows.mjs",
 		"refarm:host:smoke:quick": "node scripts/ci/smoke-refarm-host-spine.mjs --quick",
 		"refarm:host:smoke:dev": "node scripts/ci/smoke-refarm-host-spine.mjs --skip-type-check",
