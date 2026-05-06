@@ -398,7 +398,9 @@ describe("formatRefarmStatusMarkdown", () => {
 
 describe("formatRefarmStatusSummary", () => {
 	it("renders a deterministic human summary", () => {
-		const summary = formatRefarmStatusSummary(buildRefarmStatusJson(BASE_OPTIONS));
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson(BASE_OPTIONS),
+		);
 		expect(summary).toContain("Host:      apps/refarm (headless)");
 		expect(summary).toContain("Renderer:  refarm-headless (headless)");
 		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
@@ -425,12 +427,19 @@ describe("formatRefarmStatusSummary", () => {
 	});
 
 	it("omits diagnostics section when no diagnostics are present", () => {
-		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
+		const webRenderer = createHomesteadHostRendererDescriptor(
+			"refarm-web",
+			"web",
+		);
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson({
 				...BASE_OPTIONS,
 				renderer: webRenderer,
-				runtime: { ready: true, databaseName: "refarm-main", namespace: "refarm-main" },
+				runtime: {
+					ready: true,
+					databaseName: "refarm-main",
+					namespace: "refarm-main",
+				},
 			}),
 		);
 		expect(summary).not.toContain("Diagnostics:");
@@ -455,9 +464,7 @@ describe("formatRefarmStatusJson", () => {
 			},
 		});
 
-		expect(formatRefarmStatusJson(json)).toContain(
-			'"availableActions": [',
-		);
+		expect(formatRefarmStatusJson(json)).toContain('"availableActions": [');
 		expect(parseRefarmStatusJson(formatRefarmStatusJson(json))).toMatchObject({
 			plugins: {
 				availableActions: [

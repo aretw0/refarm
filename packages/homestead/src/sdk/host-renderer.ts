@@ -189,7 +189,9 @@ export function summarizeHomesteadHostSurfaceState(
 		rejected: surfaces?.rejected?.length ?? 0,
 		availableActions,
 		actionEvents,
-		surfaceActions: surfaces?.availableActions ? availableActions : actionEvents,
+		surfaceActions: surfaces?.availableActions
+			? availableActions
+			: actionEvents,
 	};
 }
 
