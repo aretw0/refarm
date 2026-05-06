@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
@@ -201,6 +202,44 @@ describe("refarm ask", () => {
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
+	});
+
+	it("fails closed when active pointer verification reads back the wrong session", async () => {
+		const deps = makeDeps();
+		const command = createAskCommand(deps);
+		vi.spyOn(fs, "readFileSync")
+			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
+			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
+			.mockReturnValueOnce("urn:refarm:session:v1:other0000000");
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi
+			.spyOn(process, "exit")
+			.mockImplementation(((code?: string | number | null | undefined) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+
+		await expect(
+			command.parseAsync(["hello", "--session", "urn:refarm:session:v1:target"], {
+				from: "user",
+			}),
+		).rejects.toThrow("exit:1");
+
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Session switch expected active session"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+		errSpy.mockRestore();
+		exitSpy.mockRestore();
 	});
 
 	it("fails when --session prefix is ambiguous", async () => {

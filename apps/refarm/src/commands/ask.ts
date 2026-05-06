@@ -18,7 +18,7 @@ import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
-	writeActiveSessionId,
+	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 
 export interface AskDeps {
@@ -535,7 +535,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-							writeActiveSessionId(sessionId);
+							writeActiveSessionIdAndVerify(sessionId);
 							return;
 						}
 
@@ -548,7 +548,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 						throw streamError;
 					}
 
-					writeActiveSessionId(sessionId);
+					writeActiveSessionIdAndVerify(sessionId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);
