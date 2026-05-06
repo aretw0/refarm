@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import {
@@ -9,10 +9,15 @@ import {
 } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-cli-smoke]";
-const REFARM_DIST_ENTRY = "apps/refarm/dist/index.js";
+const REPO_ROOT = process.cwd();
+const REFARM_DIST_ENTRY = path.join(REPO_ROOT, "apps/refarm/dist/index.js");
+const REFARM_ESM_LOADER = path.join(
+	REPO_ROOT,
+	"scripts/ci/esm-extension-loader.mjs",
+);
 const REFARM_NODE_ARGS_PREFIX = [
 	"--experimental-loader",
-	"./scripts/ci/esm-extension-loader.mjs",
+	REFARM_ESM_LOADER,
 	REFARM_DIST_ENTRY,
 ];
 const ACTION_AFFORDANCES = [
@@ -79,6 +84,7 @@ function buildRefarmCommandArgs(args) {
 
 async function runRefarmCommand(args, options = {}) {
 	return runSubprocess(process.execPath, buildRefarmCommandArgs(args), {
+		cwd: options.cwd,
 		env: {
 			...process.env,
 			NODE_NO_WARNINGS: "1",
@@ -128,6 +134,36 @@ async function assertCommandFailsWith(args, expectedSubstring) {
 		);
 		assertIncludes(output, expectedSubstring);
 	}
+}
+
+async function createIsolatedGitRepo(tempDir) {
+	const gitRepoPath = path.join(tempDir, "tree-fork-git-repo");
+	await mkdir(gitRepoPath, { recursive: true });
+	await runSubprocess("git", ["init", "--initial-branch=main"], {
+		cwd: gitRepoPath,
+		env: process.env,
+		captureOutput: true,
+	});
+	await writeFile(path.join(gitRepoPath, "README.md"), "# tree fork smoke\n", "utf8");
+	await runSubprocess("git", ["add", "README.md"], {
+		cwd: gitRepoPath,
+		env: process.env,
+		captureOutput: true,
+	});
+	await runSubprocess(
+		"git",
+		[
+			"-c",
+			"user.name=Refarm Smoke",
+			"-c",
+			"user.email=refarm-smoke@example.invalid",
+			"commit",
+			"-m",
+			"seed",
+		],
+		{ cwd: gitRepoPath, env: process.env, captureOutput: true },
+	);
+	return gitRepoPath;
 }
 
 async function main() {
@@ -372,6 +408,42 @@ async function main() {
 			["tree", "fork", "HEAD", "--scope", "git", "--name", "unsafe..name"],
 			'Invalid branch name "unsafe..name"',
 		);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork creates branch in isolated repo`);
+		const isolatedGitRepoPath = await createIsolatedGitRepo(tempDir);
+		const treeGitForkRun = await runRefarmCommand(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"smoke/tree-fork",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const treeGitFork = parseCommandJsonOutput(
+			"tree fork --scope git --json",
+			treeGitForkRun,
+		);
+		if (treeGitFork?.operation !== "fork" || treeGitFork?.reason !== "executed") {
+			throw new Error(
+				`Expected executed tree fork envelope, got: ${JSON.stringify(treeGitFork)}`,
+			);
+		}
+		if (treeGitFork?.result?.branchName !== "smoke/tree-fork") {
+			throw new Error(
+				`Expected tree fork branchName=smoke/tree-fork, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
+		const branchListRun = await runSubprocess(
+			"git",
+			["branch", "--list", "smoke/tree-fork"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		assertIncludes(branchListRun.stdout, "smoke/tree-fork");
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
