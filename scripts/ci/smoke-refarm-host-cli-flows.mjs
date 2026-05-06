@@ -449,6 +449,16 @@ async function main() {
 			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
 		);
 		assertIncludes(branchListRun.stdout, "smoke/tree-fork");
+		const currentBranchRun = await runSubprocess(
+			"git",
+			["branch", "--show-current"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		if (currentBranchRun.stdout.trim() !== "main") {
+			throw new Error(
+				`Expected git tree fork smoke to keep current branch main, got: ${JSON.stringify(currentBranchRun.stdout.trim())}`,
+			);
+		}
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
