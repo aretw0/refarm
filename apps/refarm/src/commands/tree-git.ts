@@ -100,6 +100,7 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 
 	if (opts.json) {
 		outputTreeJson({
+			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
 			operation: "list",
@@ -142,6 +143,7 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 
 	if (opts.json) {
 		outputTreeJson({
+			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
 			operation: "show",

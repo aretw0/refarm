@@ -131,6 +131,7 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 
 	if (opts.json) {
 		outputTreeJson({
+			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
 			operation: "list",
@@ -182,6 +183,7 @@ export async function showSessionTree(
 
 	if (opts.json) {
 		outputTreeJson({
+			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
 			operation: "show",
