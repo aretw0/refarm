@@ -31,7 +31,8 @@ function runGit(args: string[]): string {
 		encoding: "utf8",
 	});
 	if (result.status !== 0) {
-		const detail = result.stderr || result.stdout || `git ${args.join(" ")} failed`;
+		const detail =
+			result.stderr || result.stdout || `git ${args.join(" ")} failed`;
 		throw new Error(detail.trim());
 	}
 	return result.stdout.trim();
@@ -88,12 +89,16 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 		return;
 	}
 
-	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_GIT_SCOPE} scope)\n`));
+	console.log(
+		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_GIT_SCOPE} scope)\n`),
+	);
 	for (const node of nodes) {
 		const refs = node.metadata.refs?.length
 			? chalk.dim(` · ${node.metadata.refs.join(", ")}`)
 			: "";
-		console.log(`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}${refs}`);
+		console.log(
+			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.white(node.label)}${refs}`,
+		);
 	}
 	console.log(
 		chalk.dim(
@@ -127,7 +132,8 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 		),
 	);
 	console.log(chalk.dim(`  kind=${node.kind} timeline=${node.timelineId}`));
-	if (node.parentNodeId) console.log(chalk.dim(`  parent=${node.parentNodeId}`));
+	if (node.parentNodeId)
+		console.log(chalk.dim(`  parent=${node.parentNodeId}`));
 	if (node.metadata.refs?.length) {
 		console.log(chalk.dim(`  refs=${node.metadata.refs.join(", ")}`));
 	}
