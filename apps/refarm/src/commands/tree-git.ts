@@ -7,11 +7,11 @@ import {
 	type RefarmGitTimelineForkEnvelope,
 	type RefarmGitTimelineListEnvelope,
 	type RefarmGitTimelinePreviewEnvelope,
+	type RefarmGitTimelineNode,
 	type RefarmGitTimelineShowEnvelope,
-	type RefarmTimelineNode,
 } from "./tree-model.js";
 
-function createGitTimelineNode(line: string): RefarmTimelineNode | null {
+function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
 	const [hash, parents, refs, timestamp, subject] = line.split("\u001f");
 	if (!hash) return null;
 	const refList = refs ? refs.split(", ").filter(Boolean) : [];
@@ -59,7 +59,7 @@ function currentGitRef(): string {
 	return runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
 }
 
-function listGitTimelineNodes(limit: number): RefarmTimelineNode[] {
+function listGitTimelineNodes(limit: number): RefarmGitTimelineNode[] {
 	const output = runGit([
 		"log",
 		`--max-count=${limit}`,
@@ -70,10 +70,10 @@ function listGitTimelineNodes(limit: number): RefarmTimelineNode[] {
 	return output
 		.split("\n")
 		.map(createGitTimelineNode)
-		.filter((node): node is RefarmTimelineNode => Boolean(node));
+		.filter((node): node is RefarmGitTimelineNode => Boolean(node));
 }
 
-function showGitTimelineNode(ref: string): RefarmTimelineNode {
+function showGitTimelineNode(ref: string): RefarmGitTimelineNode {
 	const output = runGit([
 		"show",
 		"--no-patch",
@@ -93,7 +93,7 @@ function exitForGitError(err: unknown): never {
 }
 
 export function listGitTree(opts: { json?: boolean; limit?: number }): void {
-	let nodes: RefarmTimelineNode[];
+	let nodes: RefarmGitTimelineNode[];
 	try {
 		nodes = listGitTimelineNodes(opts.limit ?? 20);
 	} catch (err) {
@@ -137,7 +137,7 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 }
 
 export function showGitTree(prefix: string, opts: { json?: boolean }): void {
-	let node: RefarmTimelineNode;
+	let node: RefarmGitTimelineNode;
 	try {
 		node = showGitTimelineNode(prefix);
 	} catch (err) {
@@ -171,7 +171,7 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 }
 
 function createGitPreviewEnvelope(
-	node: RefarmTimelineNode,
+	node: RefarmGitTimelineNode,
 	name: string | undefined,
 ): RefarmGitTimelinePreviewEnvelope {
 	const branchName = name ?? "<branch-name>";
@@ -193,7 +193,7 @@ function createGitPreviewEnvelope(
 }
 
 function createGitForkEnvelope(
-	node: RefarmTimelineNode,
+	node: RefarmGitTimelineNode,
 	name: string,
 	currentRefBefore: string,
 	currentRefAfter: string,
@@ -222,7 +222,7 @@ export function previewGitTree(
 	prefix: string,
 	opts: { json?: boolean; name?: string },
 ): void {
-	let node: RefarmTimelineNode;
+	let node: RefarmGitTimelineNode;
 	try {
 		node = showGitTimelineNode(prefix);
 	} catch (err) {
@@ -247,7 +247,7 @@ export function forkGitTree(
 	prefix: string,
 	opts: { json?: boolean; name: string },
 ): void {
-	let node: RefarmTimelineNode;
+	let node: RefarmGitTimelineNode;
 	let currentRefBefore: string;
 	let currentRefAfter: string;
 	try {

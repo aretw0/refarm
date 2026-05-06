@@ -5,8 +5,8 @@ import {
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmSessionTimelineListEnvelope,
 	type RefarmSessionTimelinePreviewEnvelope,
+	type RefarmSessionTimelineNode,
 	type RefarmSessionTimelineShowEnvelope,
-	type RefarmTimelineNode,
 } from "./tree-model.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -55,7 +55,9 @@ function formatAge(createdAtNs: number | undefined): string {
 	return "just now";
 }
 
-function createSessionTimelineNode(session: SessionNode): RefarmTimelineNode {
+function createSessionTimelineNode(
+	session: SessionNode,
+): RefarmSessionTimelineNode {
 	return {
 		timelineId: REFARM_TREE_SESSION_SCOPE,
 		nodeId: session["@id"],
@@ -217,7 +219,7 @@ export async function showSessionTree(
 }
 
 function createSessionPreviewEnvelope(
-	node: RefarmTimelineNode,
+	node: RefarmSessionTimelineNode,
 	branchPointEntryId: string | null,
 	name: string | undefined,
 ): RefarmSessionTimelinePreviewEnvelope {

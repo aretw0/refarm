@@ -7,6 +7,22 @@ export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
 
 export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
 
+export interface RefarmTimelineMetadata {
+	shortId: string;
+	leafEntryId?: string | null;
+	hasHistory?: boolean;
+	refs?: string[];
+}
+
+export interface RefarmSessionTimelineMetadata extends RefarmTimelineMetadata {
+	leafEntryId?: string | null;
+	hasHistory?: boolean;
+}
+
+export interface RefarmGitTimelineMetadata extends RefarmTimelineMetadata {
+	refs: string[];
+}
+
 export interface RefarmTimelineNode {
 	timelineId: RefarmTimelineScope;
 	nodeId: string;
@@ -15,12 +31,19 @@ export interface RefarmTimelineNode {
 	kind: RefarmTimelineScope;
 	label: string;
 	timestamp: string;
-	metadata: {
-		shortId: string;
-		leafEntryId?: string | null;
-		hasHistory?: boolean;
-		refs?: string[];
-	};
+	metadata: RefarmTimelineMetadata;
+}
+
+export interface RefarmSessionTimelineNode extends RefarmTimelineNode {
+	timelineId: typeof REFARM_TREE_SESSION_SCOPE;
+	kind: typeof REFARM_TREE_SESSION_SCOPE;
+	metadata: RefarmSessionTimelineMetadata;
+}
+
+export interface RefarmGitTimelineNode extends RefarmTimelineNode {
+	timelineId: typeof REFARM_TREE_GIT_SCOPE;
+	kind: typeof REFARM_TREE_GIT_SCOPE;
+	metadata: RefarmGitTimelineMetadata;
 }
 
 export interface RefarmTimelineListEnvelope {
@@ -34,11 +57,13 @@ export interface RefarmTimelineListEnvelope {
 export interface RefarmSessionTimelineListEnvelope
 	extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	nodes: RefarmSessionTimelineNode[];
 }
 
 export interface RefarmGitTimelineListEnvelope
 	extends RefarmTimelineListEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
+	nodes: RefarmGitTimelineNode[];
 }
 
 export interface RefarmTimelineShowEnvelope {
@@ -52,11 +77,13 @@ export interface RefarmTimelineShowEnvelope {
 export interface RefarmGitTimelineShowEnvelope
 	extends RefarmTimelineShowEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
+	node: RefarmGitTimelineNode;
 }
 
 export interface RefarmSessionTimelineShowEnvelope
 	extends RefarmTimelineShowEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	node: RefarmSessionTimelineNode;
 	entries: unknown[];
 	total: number;
 }
@@ -89,12 +116,14 @@ export interface RefarmTimelinePreviewEnvelope {
 export interface RefarmSessionTimelinePreviewEnvelope
 	extends RefarmTimelinePreviewEnvelope {
 	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	target: RefarmSessionTimelineNode;
 	plan: RefarmSessionTimelinePreviewPlan;
 }
 
 export interface RefarmGitTimelinePreviewEnvelope
 	extends RefarmTimelinePreviewEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
+	target: RefarmGitTimelineNode;
 	plan: RefarmGitTimelinePreviewPlan;
 }
 
@@ -122,6 +151,7 @@ export interface RefarmTimelineForkEnvelope {
 export interface RefarmGitTimelineForkEnvelope
 	extends RefarmTimelineForkEnvelope {
 	scope: typeof REFARM_TREE_GIT_SCOPE;
+	target: RefarmGitTimelineNode;
 	result: RefarmGitTimelineForkResult;
 }
 
