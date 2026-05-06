@@ -188,9 +188,7 @@ describe("refarm ask", () => {
 				tasks: [
 					expect.objectContaining({
 						args: expect.objectContaining({
-							session_id: expect.stringMatching(
-								/^urn:refarm:session:v1:/,
-							),
+							session_id: expect.stringMatching(/^urn:refarm:session:v1:/),
 						}),
 					}),
 				],

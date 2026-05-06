@@ -208,8 +208,12 @@ refarm ask --session <id-prefix> "continue deste branch"
 ```
 
 Use this when exploring multiple solution branches without losing continuity.
-`--session` pins a request to a specific session without switching first. The
-longer-term substrate-agnostic design lives in
+`--session` pins a request to a specific session without switching first. Use
+`refarm ask --new "..."` when you explicitly want a fresh conversation: the CLI
+clears the active pointer, allocates a new session ID, submits the ask with that
+fresh ID, and persists the same ID only after a successful stream or fallback
+result. Active-session pointer writes are verified through the shared
+`session-lock.ts` helper. The longer-term substrate-agnostic design lives in
 [Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
 
 ### Scenario 4 — Port conflict at startup
