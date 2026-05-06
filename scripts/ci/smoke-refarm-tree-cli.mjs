@@ -278,6 +278,32 @@ async function main() {
 					`Expected isolated session lock ${TREE_STUB_SESSION_ID}, got ${lockContent}`,
 				);
 			}
+
+			const activeSessionPreviewRun = await runRefarmCommand(
+				["tree", "preview", sessionPrefix, "--switch", "--json"],
+				{ cwd: isolatedGitRepoPath, env: sessionEnv },
+			);
+			const activeSessionPreviewJson = parseCommandJsonOutput(
+				"tree preview --switch active session",
+				activeSessionPreviewRun,
+			);
+			if (
+				activeSessionPreviewJson?.operation !== "preview" ||
+				activeSessionPreviewJson?.reason !== "dry-run" ||
+				activeSessionPreviewJson?.plan?.action !== "switch" ||
+				activeSessionPreviewJson?.plan?.readyToExecute !== false ||
+				activeSessionPreviewJson?.plan?.blockedReason !==
+					'Session "000treecli01" is already active.'
+			) {
+				throw new Error(
+					`Expected active session switch preview envelope, got: ${JSON.stringify(activeSessionPreviewJson)}`,
+				);
+			}
+			await assertCommandFailsWith(
+				["tree", "switch", sessionPrefix],
+				'Session "000treecli01" is already active.',
+				{ cwd: isolatedGitRepoPath, env: sessionEnv },
+			);
 		} else {
 			console.log(
 				`${LOGGER_PREFIX} skipping session switch smoke because :42001 is already owned`,
