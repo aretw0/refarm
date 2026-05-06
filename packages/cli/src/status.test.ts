@@ -143,6 +143,19 @@ describe("buildRefarmStatusJson", () => {
 		expect(diagnostics).toContain("runtime:not-ready");
 	});
 
+	it("adds an informational diagnostic when surface actions are available", () => {
+		const diagnostics = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			},
+		}).diagnostics;
+
+		expect(diagnostics).toContain("plugins:surface-actions-available");
+	});
+
 	it("emits no renderer diagnostics for web renderer", () => {
 		const webRenderer = createHomesteadHostRendererDescriptor(
 			"refarm-web",
@@ -267,6 +280,7 @@ describe("classifyRefarmStatusDiagnostics", () => {
 				plugins: {
 					surfaces: {
 						rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-a" }],
+						availableActions: [{ id: "open-node", label: "Open node" }],
 						actions: [],
 					},
 				},
@@ -279,6 +293,9 @@ describe("classifyRefarmStatusDiagnostics", () => {
 		expect(summary.warnings).toContain("plugins:rejected-surfaces-present");
 		expect(summary.warnings).toContain("streams:active-present");
 		expect(summary.informational).toContain("renderer:non-interactive");
+		expect(summary.informational).toContain(
+			"plugins:surface-actions-available",
+		);
 		expect(summary.hasFailure).toBe(true);
 	});
 

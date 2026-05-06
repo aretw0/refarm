@@ -95,6 +95,7 @@ export function buildRefarmStatusJson(
 			trust,
 			plugins: {
 				rejectedSurfaces: surfaces.rejected,
+				surfaceActions: surfaces.surfaceActions,
 			},
 			streams: {
 				active: streams?.active ?? 0,
@@ -415,7 +416,7 @@ function buildStatusDiagnostics(input: {
 	renderer: HomesteadHostRendererDescriptor;
 	runtime: RuntimeSummary;
 	trust: TrustSummary;
-	plugins: { rejectedSurfaces: number };
+	plugins: { rejectedSurfaces: number; surfaceActions: number };
 	streams: { active: number };
 }): string[] {
 	const { renderer, runtime, trust, plugins, streams } = input;
@@ -437,6 +438,9 @@ function buildStatusDiagnostics(input: {
 	}
 	if (plugins.rejectedSurfaces > 0) {
 		diagnostics.push("plugins:rejected-surfaces-present");
+	}
+	if (plugins.surfaceActions > 0) {
+		diagnostics.push("plugins:surface-actions-available");
 	}
 	if (streams.active > 0) {
 		diagnostics.push("streams:active-present");
