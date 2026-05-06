@@ -635,6 +635,37 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it.each([
+		["--name", "other", "--name is only supported for fork previews"],
+		["--at", "entry-1", "--at is only supported for session fork previews"],
+	])(
+		"rejects session switch preview %s before sidecar calls",
+		async (flag, value, expectedMessage) => {
+			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+				code?: string | number | null | undefined,
+			) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
+			const fetchMock = vi.fn();
+			vi.stubGlobal("fetch", fetchMock as any);
+
+			const command = createTreeCommand();
+			await expect(
+				command.commands
+					.find((c) => c.name() === "preview")!
+					.parseAsync(["abc123", "--switch", flag, value], { from: "user" }),
+			).rejects.toThrow("exit:1");
+
+			expect(errorSpy).toHaveBeenCalledWith(
+				expect.stringContaining(expectedMessage),
+			);
+			expect(exitSpy).toHaveBeenCalledWith(1);
+			expect(fetchMock).not.toHaveBeenCalled();
+			expect(spawnSyncMock).not.toHaveBeenCalled();
+		},
+	);
+
 	it("includes explicit branch names in executable git preview plans", async () => {
 		spawnSyncMock
 			.mockReturnValueOnce({
