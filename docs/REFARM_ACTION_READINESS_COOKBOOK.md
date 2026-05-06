@@ -44,7 +44,9 @@ refarm headless --action-request inspect-trust
 The live status affordances are intentionally small and product-owned by the CLI
 distro: `open-status-report` and `inspect-trust`. They prove that renderer
 action readiness can come from semantic host state instead of manually authored
-fixtures.
+fixtures. The matching app-owned handler seam lives in
+`apps/refarm/src/commands/status-actions.ts` and consumes the same Homestead
+action request envelope without moving CLI product semantics into `packages/*`.
 
 ## Canonical fixture
 
