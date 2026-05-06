@@ -1,5 +1,7 @@
 # Refarm Status Output
 
+Related: [Action readiness cookbook](./REFARM_ACTION_READINESS_COOKBOOK.md)
+
 `refarm status` is the first stable headless contract for the `apps/refarm`
 CLI distro. It summarizes the host without requiring a Web DOM or TUI renderer.
 

@@ -180,5 +180,6 @@ export interface RefarmStatusJson {
 - [Refarm Host Model](../../docs/REFARM_HOST_MODEL.md)
 - [Refarm CLI Distro Plan](../../docs/REFARM_CLI_DISTRO.md)
 - [Refarm Status Output](../../docs/REFARM_STATUS_OUTPUT.md)
+- [Refarm Action Readiness Cookbook](../../docs/REFARM_ACTION_READINESS_COOKBOOK.md)
 - [packages/homestead/src/sdk/host-renderer.ts](../../packages/homestead/src/sdk/host-renderer.ts)
 - [packages/cli/src/status.ts](../../packages/cli/src/status.ts)

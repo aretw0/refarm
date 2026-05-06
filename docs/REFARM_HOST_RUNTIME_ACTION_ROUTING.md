@@ -1,7 +1,7 @@
 # Refarm host runtime and action routing boundary
 
 Status: local planning baseline  
-Related: [ADR-056](../specs/ADRs/ADR-056-unified-refarm-host-boundary.md), [Refarm Host Model](./REFARM_HOST_MODEL.md), [Renderer Contract v1](../specs/features/refarm-renderer-contract-v1.md)
+Related: [ADR-056](../specs/ADRs/ADR-056-unified-refarm-host-boundary.md), [Refarm Host Model](./REFARM_HOST_MODEL.md), [Renderer Contract v1](../specs/features/refarm-renderer-contract-v1.md), [Action readiness cookbook](./REFARM_ACTION_READINESS_COOKBOOK.md)
 
 ## Purpose
 
