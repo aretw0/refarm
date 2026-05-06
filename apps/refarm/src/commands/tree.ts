@@ -46,7 +46,15 @@ function validateBranchName(name: string): string {
 		name.endsWith("/") ||
 		name.includes("..") ||
 		name.includes("//") ||
-		name.split("/").some((part) => part === "" || part.startsWith(".") || part.endsWith("."));
+		name
+			.split("/")
+			.some(
+				(part) =>
+					part === "" ||
+					part.startsWith(".") ||
+					part.endsWith(".") ||
+					part.endsWith(".lock"),
+			);
 	if (!hasSafeChars || hasUnsafeShape) {
 		console.error(
 			chalk.red(

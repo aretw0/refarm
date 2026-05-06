@@ -324,26 +324,29 @@ describe("refarm tree", () => {
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
-	it("fails closed for parent-traversal branch names", async () => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
+	it.each(["unsafe..name", "refs/foo.lock", "safe/.hidden"])(
+		"fails closed for unsafe branch shape %s",
+		async (name) => {
+			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+			const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+				code?: string | number | null | undefined,
+			) => {
+				throw new Error(`exit:${code ?? 0}`);
+			}) as never);
 
-		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "preview")!
-				.parseAsync(["abc123", "--name", "unsafe..name"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+			const command = createTreeCommand();
+			await expect(
+				command.commands
+					.find((c) => c.name() === "preview")!
+					.parseAsync(["abc123", "--name", name], { from: "user" }),
+			).rejects.toThrow("exit:1");
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining('Invalid branch name "unsafe..name"'),
-		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
-	});
+			expect(errorSpy).toHaveBeenCalledWith(
+				expect.stringContaining(`Invalid branch name "${name}"`),
+			);
+			expect(exitSpy).toHaveBeenCalledWith(1);
+		},
+	);
 
 	it("fails closed when a session preview entry is missing", async () => {
 		vi.stubGlobal(
