@@ -119,6 +119,9 @@ describe("buildRefarmStatusJson", () => {
 		});
 
 		expect(result.plugins.surfaceActions).toBe(1);
+		expect(result.plugins.availableActions).toEqual([
+			{ id: "open-node", label: "Open node", intent: "node:open" },
+		]);
 	});
 
 	it("defaults streams to zero when not provided", () => {
@@ -214,6 +217,30 @@ describe("status contract validation", () => {
 		expect(() => assertRefarmStatusJson(invalid)).toThrow(
 			/Unsupported Refarm status schemaVersion=2/,
 		);
+	});
+
+	it("validates optional available action details", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			},
+		});
+
+		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(
+			isRefarmStatusJson({
+				...json,
+				plugins: {
+					...json.plugins,
+					availableActions: [{ id: "open-node" }],
+				},
+			}),
+		).toBe(false);
 	});
 
 	it("rejects payloads with malformed renderer capabilities", () => {
@@ -376,6 +403,30 @@ describe("formatRefarmStatusJson", () => {
 	it("matches the schema v1 golden snapshot", () => {
 		const json = buildRefarmStatusJson(BASE_OPTIONS);
 		expect(formatRefarmStatusJson(json)).toBe(STATUS_JSON_GOLDEN);
+	});
+
+	it("preserves optional available action details in canonical JSON", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			},
+		});
+
+		expect(formatRefarmStatusJson(json)).toContain(
+			'"availableActions": [',
+		);
+		expect(parseRefarmStatusJson(formatRefarmStatusJson(json))).toMatchObject({
+			plugins: {
+				availableActions: [
+					{ id: "open-node", label: "Open node", intent: "node:open" },
+				],
+			},
+		});
 	});
 
 	it("normalizes key ordering for equivalent payloads", () => {

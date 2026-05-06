@@ -10,6 +10,12 @@ import type { RuntimeSummary } from "@refarm.dev/runtime";
 
 export const REFARM_STATUS_SCHEMA_VERSION = 1 as const;
 
+export interface RefarmStatusSurfaceAction {
+  id: string;
+  label: string;
+  intent?: string;
+}
+
 export interface RefarmStatusJson {
   schemaVersion: typeof REFARM_STATUS_SCHEMA_VERSION;
   host: { app: string; command: string; profile: string; mode: string };
@@ -20,6 +26,7 @@ export interface RefarmStatusJson {
     active: number;
     rejectedSurfaces: number;
     surfaceActions: number;
+    availableActions?: readonly RefarmStatusSurfaceAction[];
   };
   trust: TrustSummary;
   streams: { active: number; terminal: number };
@@ -83,6 +90,7 @@ export function buildRefarmStatusJson(
       active: plugins?.active ?? 0,
       rejectedSurfaces: surfaces.rejected,
       surfaceActions: surfaces.surfaceActions,
+      ...statusAvailableSurfaceActions(plugins?.surfaces?.availableActions),
     },
     trust,
 		streams: {
@@ -140,6 +148,10 @@ export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
     !isFiniteNumber(plugins.active) ||
     !isFiniteNumber(plugins.rejectedSurfaces) ||
     !isFiniteNumber(plugins.surfaceActions)
+  ) return false;
+  if (
+    typeof plugins.availableActions !== "undefined" &&
+    !isRefarmStatusSurfaceActions(plugins.availableActions)
   ) return false;
 
   const trust = value.trust;
@@ -354,7 +366,25 @@ export function formatRefarmStatusJson(json: RefarmStatusJson): string {
   return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
 }
 
+function statusAvailableSurfaceActions(
+  actions:
+    | readonly { id: string; label: string; intent?: string }[]
+    | undefined,
+): { availableActions?: RefarmStatusSurfaceAction[] } {
+  if (!actions?.length) return {};
+  return {
+    availableActions: actions.map((action) => ({
+      id: action.id,
+      label: action.label,
+      ...(action.intent ? { intent: action.intent } : {}),
+    })),
+  };
+}
+
 function toCanonicalRefarmStatusJson(json: RefarmStatusJson): RefarmStatusJson {
+  const availableActions = statusAvailableSurfaceActions(
+    json.plugins.availableActions,
+  );
   return {
     schemaVersion: json.schemaVersion,
     host: {
@@ -378,6 +408,7 @@ function toCanonicalRefarmStatusJson(json: RefarmStatusJson): RefarmStatusJson {
       active: json.plugins.active,
       rejectedSurfaces: json.plugins.rejectedSurfaces,
       surfaceActions: json.plugins.surfaceActions,
+      ...availableActions,
     },
     trust: {
       profile: json.trust.profile,
@@ -398,6 +429,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === "string");
+}
+
+function isRefarmStatusSurfaceActions(
+  value: unknown,
+): value is RefarmStatusSurfaceAction[] {
+  return (
+    Array.isArray(value) &&
+    value.every((item) => {
+      if (!isRecord(item)) return false;
+      if (typeof item.id !== "string" || typeof item.label !== "string") {
+        return false;
+      }
+      return (
+        typeof item.intent === "undefined" || typeof item.intent === "string"
+      );
+    })
+  );
 }
 
 function isFiniteNumber(value: unknown): value is number {

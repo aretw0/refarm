@@ -55,7 +55,7 @@ The shell can detect and route a clicked surface action, but it must not decide 
 
 ### Status and diagnostics
 
-`@refarm.dev/cli/status` owns the stable headless status envelope. It summarizes surfaces/actions from semantic state/telemetry rather than inspecting DOM. For `schemaVersion: 1`, `plugins.surfaceActions` prefers currently available surface action affordances when a host snapshot provides them, then falls back to historical action telemetry for older producers.
+`@refarm.dev/cli/status` owns the stable headless status envelope. It summarizes surfaces/actions from semantic state/telemetry rather than inspecting DOM. For `schemaVersion: 1`, `plugins.surfaceActions` prefers currently available surface action affordances when a host snapshot provides them, then falls back to historical action telemetry for older producers. Producers may also include optional `plugins.availableActions` entries with stable `id`, `label`, and `intent` fields so TUI/headless renderers can list/select affordances without DOM inspection.
 
 `packages/runtime` and `packages/trust` currently expose small adapter summaries from Tractor-like objects. These are intentionally narrow and should remain stable seams for richer host state later.
 
