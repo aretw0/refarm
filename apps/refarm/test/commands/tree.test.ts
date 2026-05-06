@@ -155,6 +155,32 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("lists git tree execution affordances in human output", async () => {
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "git", "--limit", "1"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain(
+			"refarm tree preview --scope git <commit> --name <branch>",
+		);
+		expect(output).toContain(
+			"refarm tree fork --scope git <commit> --name <branch>",
+		);
+		expect(output).toContain(
+			"refarm tree preview --scope git <branch> --switch",
+		);
+		expect(output).toContain("refarm tree switch --scope git <branch>");
+	});
+
 	it("shows a session timeline node with entries", async () => {
 		const fetchMock = vi.fn().mockResolvedValue({
 			ok: true,

@@ -144,7 +144,10 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	console.log(
 		chalk.dim(
 			"\n  refarm tree show --scope git <commit>" +
-				"\n  refarm tree preview --scope git <commit>\n",
+				"\n  refarm tree preview --scope git <commit> --name <branch>" +
+				"\n  refarm tree fork --scope git <commit> --name <branch>" +
+				"\n  refarm tree preview --scope git <branch> --switch" +
+				"\n  refarm tree switch --scope git <branch>\n",
 		),
 	);
 }
