@@ -55,6 +55,7 @@ describe("refarm tree git integration", () => {
 	afterEach(async () => {
 		process.chdir(originalCwd);
 		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
 		if (tempDir) {
 			await rm(tempDir, { recursive: true, force: true });
 			tempDir = undefined;
@@ -66,6 +67,42 @@ describe("refarm tree git integration", () => {
 		process.chdir(gitRepoPath);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const command = createTreeCommand();
+
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({
+					sessions: [
+						{
+							"@id": "urn:refarm:session:v1:integration0001",
+							"@type": "Session",
+							name: "integration-session",
+							created_at_ns: 1_700_000_000_000_000_000,
+							leaf_entry_id: "entry-1",
+						},
+					],
+				}),
+			}) as any,
+		);
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+				from: "user",
+			});
+		const allPayload = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(allPayload).toMatchObject({
+			schemaVersion: 1,
+			scope: "all",
+			operation: "list",
+		});
+		expect(allPayload.nodes).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ kind: "session" }),
+				expect.objectContaining({ kind: "git" }),
+			]),
+		);
 
 		await command.commands
 			.find((c) => c.name() === "fork")!
