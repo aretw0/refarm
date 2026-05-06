@@ -5,7 +5,7 @@ import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,
-	writeActiveSessionId,
+	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -30,6 +30,16 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
+}
+
+function writeActiveSessionOrExit(targetSessionId: string): void {
+	try {
+		writeActiveSessionIdAndVerify(targetSessionId);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(chalk.red(`✗  ${message}`));
+		process.exit(1);
+	}
 }
 
 function formatAge(createdAtNs: number | undefined): string {
@@ -223,7 +233,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 		process.exit(1);
 	}
 
-	writeActiveSessionId(created["@id"]);
+	writeActiveSessionOrExit(created["@id"]);
 	const short = formatSessionId(created["@id"]);
 	const name = created.name ? chalk.white(created.name) : chalk.dim("unnamed");
 	console.log(
@@ -259,7 +269,7 @@ async function useSession(prefix: string): Promise<void> {
 		process.exit(1);
 	}
 
-	writeActiveSessionId(matches[0]["@id"]);
+	writeActiveSessionOrExit(matches[0]["@id"]);
 	console.log(
 		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`),
 	);
@@ -318,7 +328,7 @@ async function forkSession(
 	}
 
 	// Auto-switch to the new fork.
-	writeActiveSessionId(fork["@id"]);
+	writeActiveSessionOrExit(fork["@id"]);
 	const short = formatSessionId(fork["@id"]);
 	const parentShort = formatSessionId(fork.parent_session_id ?? prefix);
 	console.log(
