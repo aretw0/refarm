@@ -36,6 +36,14 @@ const GIT_LINE = [
 	"feat(refarm): grow timeline tree",
 ].join("\u001f");
 
+const SAME_TIMESTAMP_GIT_LINE = [
+	"abcdef1234567890abcdef1234567890abcdef12",
+	"1111111111111111111111111111111111111111",
+	"HEAD -> develop, origin/develop",
+	"2023-11-14T22:13:20.000Z",
+	"feat(refarm): grow timeline tree",
+].join("\u001f");
+
 describe("refarm tree", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -194,6 +202,36 @@ describe("refarm tree", () => {
 				}),
 			]),
 		);
+	});
+
+	it("orders all-scope timeline ties deterministically", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [SESSION] }),
+			}) as any,
+		);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: SAME_TIMESTAMP_GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.nodes.map((node: { kind: string }) => node.kind)).toEqual([
+			"git",
+			"session",
+		]);
 	});
 
 	it("lists all timeline nodes in human output", async () => {

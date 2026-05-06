@@ -137,6 +137,18 @@ function exitForAllListError(err: unknown): never {
 	process.exit(1);
 }
 
+function compareAllTimelineNodes(
+	a: RefarmAllTimelineListEnvelope["nodes"][number],
+	b: RefarmAllTimelineListEnvelope["nodes"][number],
+): number {
+	return (
+		b.timestamp.localeCompare(a.timestamp) ||
+		a.kind.localeCompare(b.kind) ||
+		a.metadata.shortId.localeCompare(b.metadata.shortId) ||
+		a.nodeId.localeCompare(b.nodeId)
+	);
+}
+
 async function listAllTree(opts: {
 	json?: boolean;
 	limit?: string;
@@ -148,9 +160,7 @@ async function listAllTree(opts: {
 			getSessionTimelineNodes(),
 			Promise.resolve(getGitTimelineNodes(gitLimit)),
 		]);
-		nodes = [...sessionNodes, ...gitNodes].sort((a, b) =>
-			b.timestamp.localeCompare(a.timestamp),
-		);
+		nodes = [...sessionNodes, ...gitNodes].sort(compareAllTimelineNodes);
 	} catch (err) {
 		exitForAllListError(err);
 	}
