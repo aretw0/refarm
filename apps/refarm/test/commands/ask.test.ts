@@ -214,6 +214,9 @@ describe("refarm ask", () => {
 
 	it("falls back to effort result file payload when stream times out", async () => {
 		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:activefallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -231,6 +234,9 @@ describe("refarm ask", () => {
 
 		expect(deps.followStream).toHaveBeenCalledOnce();
 		expect(deps.readEffortResult).toHaveBeenCalledWith("eff-1");
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			"urn:refarm:session:v1:activefallback",
+		);
 		expect(outSpy).toHaveBeenCalledWith("fallback response\n");
 
 		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
