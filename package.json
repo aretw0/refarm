@@ -38,7 +38,7 @@
 		"refarm:host:smoke": "npm --prefix apps/refarm run test:host-smoke",
 		"refarm:host:smoke:dist-actions": "npm --prefix apps/refarm run smoke:dist-actions",
 		"refarm:host:smoke:cli": "node scripts/ci/smoke-refarm-host-cli-flows.mjs",
-		"refarm:tree:test": "npm --prefix apps/refarm run test -- test/commands/tree.test.ts --pool=threads",
+		"refarm:tree:test": "npm --prefix apps/refarm run test -- test/commands/tree.test.ts test/commands/execution-plan.test.ts --pool=threads",
 		"refarm:tree:smoke": "npm --prefix apps/refarm run test -- test/commands/tree.integration.test.ts --pool=forks",
 		"refarm:tree:smoke:cli": "node scripts/ci/smoke-refarm-tree-cli.mjs",
 		"refarm:host:smoke:quick": "node scripts/ci/smoke-refarm-host-spine.mjs --quick",

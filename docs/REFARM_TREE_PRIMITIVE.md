@@ -119,10 +119,11 @@ npm run refarm:tree:test
 npm run refarm:tree:smoke
 ```
 
-`refarm:tree:test` runs the mocked command contract suite. `refarm:tree:smoke`
-runs a fast in-process integration smoke against an isolated temp git repo, so it
-validates real `git branch`/`git switch` behavior without exercising the entire
-host CLI flow. Use the slower built CLI smoke only as a broader checkpoint:
+`refarm:tree:test` runs the mocked command contract suite plus the shared
+execution-plan readiness helper tests. `refarm:tree:smoke` runs a fast in-process
+integration smoke against an isolated temp git repo, so it validates real
+`git branch`/`git switch` behavior without exercising the entire host CLI flow.
+Use the slower built CLI smoke only as a broader checkpoint:
 
 ```bash
 npm run refarm:tree:smoke:cli
