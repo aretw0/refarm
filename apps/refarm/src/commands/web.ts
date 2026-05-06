@@ -12,10 +12,7 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import {
-	createLaunchProcessSpec,
-	launchProcess,
-} from "./launch-process.js";
+import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
 import { runStatusPreflight } from "./status-preflight.js";
@@ -24,9 +21,7 @@ import {
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
@@ -136,9 +131,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				printSummary: resolvedDeps.printStatusSummary,
 				afterEmit: () => {
 					if (outputMode === "summary" && !options.launch) {
-						console.log(
-							launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES),
-						);
+						console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
 					}
 				},
 			});

@@ -18,14 +18,16 @@ function relativeLuminance(hex: string): number {
 	const red = (value >> 16) & 255;
 	const green = (value >> 8) & 255;
 	const blue = value & 255;
-	return 0.2126 * channelLuminance(red) + 0.7152 * channelLuminance(green) + 0.0722 * channelLuminance(blue);
+	return (
+		0.2126 * channelLuminance(red) +
+		0.7152 * channelLuminance(green) +
+		0.0722 * channelLuminance(blue)
+	);
 }
 
 function channelLuminance(channel: number): number {
 	const srgb = channel / 255;
-	return srgb <= 0.03928
-		? srgb / 12.92
-		: ((srgb + 0.055) / 1.055) ** 2.4;
+	return srgb <= 0.03928 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
 }
 
 describe("Refarm DS text contrast", () => {
@@ -43,7 +45,8 @@ describe("Refarm DS text contrast", () => {
 			"styles.css",
 		);
 		const styles = readFileSync(stylesPath, "utf8");
-		const workbenchBlock = styles.match(/\.refarm-workbench\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
+		const workbenchBlock =
+			styles.match(/\.refarm-workbench\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
 
 		expect(workbenchBlock).toContain("rgba(22, 27, 34");
 		expect(workbenchBlock).toContain("rgba(13, 17, 23");

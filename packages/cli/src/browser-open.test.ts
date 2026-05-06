@@ -30,13 +30,16 @@ describe("resolveBrowserOpenSpec", () => {
 
 describe("resolveBrowserOpenCandidates", () => {
 	it("prioritizes VS Code and WSL helpers in devcontainer-like environments", () => {
-		const candidates = resolveBrowserOpenCandidates("https://github.com/login/device", {
-			platform: "linux",
-			env: {
-				TERM_PROGRAM: "vscode",
-				WSL_DISTRO_NAME: "Ubuntu",
+		const candidates = resolveBrowserOpenCandidates(
+			"https://github.com/login/device",
+			{
+				platform: "linux",
+				env: {
+					TERM_PROGRAM: "vscode",
+					WSL_DISTRO_NAME: "Ubuntu",
+				},
 			},
-		});
+		);
 
 		expect(candidates.map((candidate) => candidate.command)).toEqual([
 			"code",
@@ -48,12 +51,15 @@ describe("resolveBrowserOpenCandidates", () => {
 	});
 
 	it("allows an explicit REFARM_BROWSER_OPEN_COMMAND override", () => {
-		const candidates = resolveBrowserOpenCandidates("https://example.test/auth", {
-			platform: "linux",
-			env: {
-				REFARM_BROWSER_OPEN_COMMAND: "custom-open --flag",
+		const candidates = resolveBrowserOpenCandidates(
+			"https://example.test/auth",
+			{
+				platform: "linux",
+				env: {
+					REFARM_BROWSER_OPEN_COMMAND: "custom-open --flag",
+				},
 			},
-		});
+		);
 
 		expect(candidates[0]).toEqual({
 			command: "custom-open",
