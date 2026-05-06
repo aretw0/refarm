@@ -145,6 +145,62 @@ are proven. "Rewind" is user language; the safe primitive is either:
 1. `preview` + `switch` to an existing branch/head; or
 2. `preview` + `fork` from a historical node.
 
+## Session switch JSON contract examples
+
+Session switch preview is a non-mutating readiness envelope:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "session",
+  "operation": "preview",
+  "reason": "dry-run",
+  "plan": {
+    "action": "switch",
+    "destructive": false,
+    "readyToExecute": true,
+    "recommendedCommand": "refarm sessions use abc123def456",
+    "effects": {
+      "activePointerChanged": true,
+      "branchCreated": false
+    },
+    "substrate": {
+      "kind": "session-switch",
+      "activeSessionIdBefore": "urn:refarm:session:v1:before",
+      "targetSessionIdAfter": "urn:refarm:session:v1:abc123def456",
+      "activeSessionWillSwitch": true
+    }
+  }
+}
+```
+
+Explicit session switch execution is a result envelope, not a plan:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "session",
+  "operation": "switch",
+  "reason": "executed",
+  "result": {
+    "kind": "session-switch",
+    "destructive": false,
+    "activePointerChanged": true,
+    "currentSessionIdBefore": "urn:refarm:session:v1:before",
+    "currentSessionIdAfter": "urn:refarm:session:v1:abc123def456",
+    "targetSessionId": "urn:refarm:session:v1:abc123def456",
+    "command": "refarm sessions use abc123def456"
+  }
+}
+```
+
+If the target is already active, preview stays non-mutating and reports
+`readyToExecute: false` plus a deterministic `blockedReason`; execution rejects
+before writing. If read-back verification after writing does not match the target,
+execution fails closed.
+
 ## Primitive boundary: timeline vs execution plan
 
 This work is intentionally exposing two related primitives that should not stay
