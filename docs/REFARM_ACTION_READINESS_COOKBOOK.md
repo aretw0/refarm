@@ -292,9 +292,11 @@ npm run refarm:host:smoke:dist-actions
 
 Both wrappers build `apps/refarm`, run the emitted CLI, verify `refarm web --actions`,
 verify `refarm actions --select 2 --json` returns a non-executing host dry-run
-envelope, and verify `refarm status --action 2` returns a handled Homestead
-action invocation envelope. Keep this as local validation; CI wiring remains
-deferred while GitHub Actions budget is over allocation.
+envelope, verify fixture-backed `refarm actions --input ... --select 2 --json`
+stays dry-run, verify `refarm status --action --input` is rejected, and verify
+`refarm status --action 2` returns a handled Homestead action invocation envelope.
+Keep this as local validation; CI wiring remains deferred while GitHub Actions
+budget is over allocation.
 
 Run `npm --prefix apps/refarm run test:host-smoke -- --pool=threads` before a
 larger checkpoint. Keep CI wiring deferred while GitHub Actions budget is over

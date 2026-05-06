@@ -285,6 +285,14 @@ async function main() {
 			);
 		}
 
+		console.log(
+			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
+		);
+		await assertCommandFailsWith(
+			["status", "--input", webStatusPath, "--action", "2"],
+			"--action cannot be combined with --input",
+		);
+
 		console.log(`${LOGGER_PREFIX} smoke: refarm status --json --input`);
 		const statusJsonRun = await runRefarmCommand([
 			"status",

@@ -4,16 +4,34 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
+const statusWithActionsFixture =
+	"apps/refarm/test/fixtures/status-with-actions.json";
 
 function runRefarm(args) {
 	return execFileSync(process.execPath, [cliPath, ...args], {
 		cwd: repoRoot,
 		encoding: "utf8",
+		stdio: ["ignore", "pipe", "pipe"],
 		env: {
 			...process.env,
 			NO_COLOR: "1",
 		},
 	});
+}
+
+function assertRefarmFails(args, expected, label) {
+	try {
+		runRefarm(args);
+	} catch (error) {
+		const output = [error.stdout, error.stderr, error.message]
+			.filter(Boolean)
+			.join("\n");
+		assertIncludes(output, expected, label);
+		return;
+	}
+	throw new Error(
+		`${label} should have failed with ${JSON.stringify(expected)}.`,
+	);
 }
 
 function assertIncludes(value, expected, label) {
@@ -40,6 +58,16 @@ assertIncludes(
 const hostActionReadiness = JSON.parse(
 	runRefarm(["actions", "--select", "2", "--json"]),
 );
+const artifactHostActionReadiness = JSON.parse(
+	runRefarm([
+		"actions",
+		"--input",
+		statusWithActionsFixture,
+		"--select",
+		"2",
+		"--json",
+	]),
+);
 
 if (hostActionReadiness.schemaVersion !== 1) {
 	throw new Error(
@@ -61,6 +89,22 @@ if (hostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 		`Expected actions selection.resolvedId=inspect-trust, received ${hostActionReadiness.selection?.resolvedId}`,
 	);
 }
+if (artifactHostActionReadiness.reason !== "dry-run") {
+	throw new Error(
+		`Expected artifact actions reason=dry-run, received ${artifactHostActionReadiness.reason}`,
+	);
+}
+if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {
+	throw new Error(
+		`Expected artifact actions selection.resolvedId=inspect-trust, received ${artifactHostActionReadiness.selection?.resolvedId}`,
+	);
+}
+
+assertRefarmFails(
+	["status", "--input", statusWithActionsFixture, "--action", "2"],
+	"--action cannot be combined with --input",
+	"status --action --input",
+);
 
 const statusAction = JSON.parse(runRefarm(["status", "--action", "2"]));
 
