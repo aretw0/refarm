@@ -103,18 +103,27 @@ describe("refarm tree git integration", () => {
 			operation: "preview",
 			reason: "dry-run",
 			plan: {
-				kind: "git-switch",
-				worktreeSwitched: true,
-				worktreeClean: true,
+				action: "switch",
 				readyToExecute: true,
-				currentRefBefore: "main",
-				targetRefAfter: "smoke/tree-fork",
 				recommendedCommand: "refarm tree switch --scope git smoke/tree-fork",
+				effects: {
+					worktreeSwitched: true,
+				},
+				substrate: {
+					kind: "git-switch",
+					worktreeClean: true,
+					currentRefBefore: "main",
+					targetRefAfter: "smoke/tree-fork",
+				},
 			},
 		});
 		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
 
-		await writeFile(path.join(gitRepoPath, "README.md"), "# dirty preview\n", "utf8");
+		await writeFile(
+			path.join(gitRepoPath, "README.md"),
+			"# dirty preview\n",
+			"utf8",
+		);
 		await command.commands
 			.find((c) => c.name() === "preview")!
 			.parseAsync(["smoke/tree-fork", "--scope", "git", "--switch", "--json"], {
@@ -124,13 +133,15 @@ describe("refarm tree git integration", () => {
 			logSpy.mock.calls.at(-1)?.[0] as string,
 		);
 		expect(dirtyPreviewPayload.plan).toMatchObject({
-			kind: "git-switch",
-			worktreeClean: false,
+			action: "switch",
 			readyToExecute: false,
-			blockedReason:
-				"Git worktree must be clean before tree switch execution.",
-			currentRefBefore: "main",
-			targetRefAfter: "smoke/tree-fork",
+			blockedReason: "Git worktree must be clean before tree switch execution.",
+			substrate: {
+				kind: "git-switch",
+				worktreeClean: false,
+				currentRefBefore: "main",
+				targetRefAfter: "smoke/tree-fork",
+			},
 		});
 		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
 		runGit(["checkout", "--", "README.md"], gitRepoPath);

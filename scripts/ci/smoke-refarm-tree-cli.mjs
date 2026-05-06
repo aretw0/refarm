@@ -161,7 +161,10 @@ async function main() {
 		if (
 			previewJson?.operation !== "preview" ||
 			previewJson?.reason !== "dry-run" ||
-			previewJson?.plan?.worktreeSwitched !== false ||
+			previewJson?.plan?.action !== "fork" ||
+			previewJson?.plan?.effects?.worktreeSwitched !== false ||
+			previewJson?.plan?.readyToExecute !== true ||
+			previewJson?.plan?.substrate?.kind !== "git-branch" ||
 			!previewJson?.plan?.recommendedCommand?.startsWith(
 				"refarm tree fork --scope git ",
 			)
@@ -216,11 +219,12 @@ async function main() {
 		if (
 			switchPreviewJson?.operation !== "preview" ||
 			switchPreviewJson?.reason !== "dry-run" ||
-			switchPreviewJson?.plan?.kind !== "git-switch" ||
-			switchPreviewJson?.plan?.worktreeClean !== true ||
+			switchPreviewJson?.plan?.action !== "switch" ||
+			switchPreviewJson?.plan?.substrate?.kind !== "git-switch" ||
+			switchPreviewJson?.plan?.substrate?.worktreeClean !== true ||
 			switchPreviewJson?.plan?.readyToExecute !== true ||
-			switchPreviewJson?.plan?.currentRefBefore !== "main" ||
-			switchPreviewJson?.plan?.targetRefAfter !== "smoke/tree-fork"
+			switchPreviewJson?.plan?.substrate?.currentRefBefore !== "main" ||
+			switchPreviewJson?.plan?.substrate?.targetRefAfter !== "smoke/tree-fork"
 		) {
 			throw new Error(
 				`Expected git switch preview envelope, got: ${JSON.stringify(switchPreviewJson)}`,

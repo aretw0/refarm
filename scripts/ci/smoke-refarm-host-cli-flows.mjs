@@ -419,9 +419,12 @@ async function main() {
 				`Expected tree preview reason=dry-run, got: ${JSON.stringify(treeGitPreview)}`,
 			);
 		}
-		if (treeGitPreview?.plan?.kind !== "git-branch") {
+		if (
+			treeGitPreview?.plan?.action !== "fork" ||
+			treeGitPreview?.plan?.substrate?.kind !== "git-branch"
+		) {
 			throw new Error(
-				`Expected git-branch preview plan, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+				`Expected git branch fork preview plan, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
 		if (treeGitPreview.plan?.destructive !== false) {
@@ -429,9 +432,14 @@ async function main() {
 				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
-		if (treeGitPreview.plan?.worktreeSwitched !== false) {
+		if (treeGitPreview.plan?.effects?.worktreeSwitched !== false) {
 			throw new Error(
-				`Expected git preview worktreeSwitched=false, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+				`Expected git preview effects.worktreeSwitched=false, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.readyToExecute !== true) {
+			throw new Error(
+				`Expected git preview readyToExecute=true, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
 		if (

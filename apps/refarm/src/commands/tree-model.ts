@@ -93,24 +93,40 @@ export interface RefarmSessionTimelinePreviewPlan {
 }
 
 export interface RefarmGitTimelineBranchPreviewPlan {
-	kind: "git-branch";
+	action: "fork";
 	destructive: false;
-	worktreeSwitched: false;
-	baseCommit: string;
+	readyToExecute: boolean;
+	blockedReason?: string;
 	recommendedCommand: string;
+	effects: {
+		activePointerChanged: false;
+		branchCreated: true;
+		worktreeSwitched: false;
+	};
+	substrate: {
+		kind: "git-branch";
+		baseCommit: string;
+		branchName: string;
+	};
 }
 
 export interface RefarmGitTimelineSwitchPreviewPlan {
-	kind: "git-switch";
+	action: "switch";
 	destructive: false;
-	worktreeSwitched: true;
-	worktreeClean: boolean;
-	readyToExecute: boolean;
 	blockedReason?: string;
-	currentRefBefore: string;
-	targetRefAfter: string;
-	targetCommit: string;
+	readyToExecute: boolean;
 	recommendedCommand: string;
+	effects: {
+		activePointerChanged: true;
+		worktreeSwitched: true;
+	};
+	substrate: {
+		kind: "git-switch";
+		currentRefBefore: string;
+		targetRefAfter: string;
+		targetCommit: string;
+		worktreeClean: boolean;
+	};
 }
 
 export type RefarmGitTimelinePreviewPlan =

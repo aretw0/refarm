@@ -68,11 +68,13 @@ emit `schemaVersion: 1` directly at each producer and use explicit, scope-specif
 `operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session timelines, `refarm tree fork --scope git ...`
 for git fork timelines, or `refarm tree switch --scope git ...` for git switch
-plans, but does not fork, branch, check out, or switch. Git branch preview plans
-declare `worktreeSwitched: false`; git switch preview plans declare
-`worktreeSwitched: true`, include `currentRefBefore`/`targetRefAfter`, and report
-`worktreeClean`, `readyToExecute`, and a `blockedReason` when execution would be
-rejected by the switch guard. Session previews may target a historical entry with
+plans, but does not fork, branch, check out, or switch. Git preview plans keep
+command-level semantics generic (`action`, `destructive`, `readyToExecute`,
+`blockedReason`, `recommendedCommand`, and `effects`) and place git-specific
+details under `substrate`. Git fork preview effects declare
+`worktreeSwitched: false`, while git switch preview effects declare
+`worktreeSwitched: true`; git switch substrate details include
+`currentRefBefore`/`targetRefAfter` and `worktreeClean`. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
@@ -126,6 +128,25 @@ are proven. "Rewind" is user language; the safe primitive is either:
 
 1. `preview` + `switch` to an existing branch/head; or
 2. `preview` + `fork` from a historical node.
+
+## Primitive boundary: timeline vs execution plan
+
+This work is intentionally exposing two related primitives that should not stay
+fused forever:
+
+1. **Timeline primitive**: `tree list/show/preview/fork/switch` resolves stable
+   nodes, branch points, and active pointers across substrates.
+2. **Execution-plan primitive**: a generic affordance/readiness envelope for any
+   command that can move state later, with `action`, `destructive`,
+   `readyToExecute`, `blockedReason`, `recommendedCommand`, and generic
+   `effects`.
+
+`refarm tree` is the first consumer because timeline operations make the safety
+boundary obvious, but the plan vocabulary should eventually move out of the tree
+module and be reused by status actions, renderer actions, telemetry gates, and
+other host-governed commands. Substrate-specific facts (`baseCommit`, git refs,
+worktree cleanliness, session entry IDs, CRDT frontiers) should live under
+adapter-specific details, not in the generic plan surface.
 
 ## Adapter contract
 

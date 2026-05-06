@@ -431,12 +431,23 @@ describe("refarm tree", () => {
 			operation: "preview",
 			reason: "dry-run",
 			plan: {
-				kind: "git-branch",
+				action: "fork",
 				destructive: false,
-				worktreeSwitched: false,
-				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
+				readyToExecute: false,
+				blockedReason:
+					"Provide --name <branch-name> before executing tree fork.",
 				recommendedCommand:
 					"refarm tree fork --scope git abcdef123456 --name <branch-name>",
+				effects: {
+					activePointerChanged: false,
+					branchCreated: true,
+					worktreeSwitched: false,
+				},
+				substrate: {
+					kind: "git-branch",
+					baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
+					branchName: "<branch-name>",
+				},
 			},
 		});
 	});
@@ -468,15 +479,21 @@ describe("refarm tree", () => {
 			operation: "preview",
 			reason: "dry-run",
 			plan: {
-				kind: "git-switch",
+				action: "switch",
 				destructive: false,
-				worktreeSwitched: true,
-				worktreeClean: true,
 				readyToExecute: true,
-				currentRefBefore: "main",
-				targetRefAfter: "safe/fork",
-				targetCommit: "abcdef1234567890abcdef1234567890abcdef12",
 				recommendedCommand: "refarm tree switch --scope git safe/fork",
+				effects: {
+					activePointerChanged: true,
+					worktreeSwitched: true,
+				},
+				substrate: {
+					kind: "git-switch",
+					worktreeClean: true,
+					currentRefBefore: "main",
+					targetRefAfter: "safe/fork",
+					targetCommit: "abcdef1234567890abcdef1234567890abcdef12",
+				},
 			},
 		});
 		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
@@ -507,13 +524,15 @@ describe("refarm tree", () => {
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.plan).toMatchObject({
-			kind: "git-switch",
-			worktreeClean: false,
+			action: "switch",
 			readyToExecute: false,
-			blockedReason:
-				"Git worktree must be clean before tree switch execution.",
-			currentRefBefore: "main",
-			targetRefAfter: "safe/fork",
+			blockedReason: "Git worktree must be clean before tree switch execution.",
+			substrate: {
+				kind: "git-switch",
+				worktreeClean: false,
+				currentRefBefore: "main",
+				targetRefAfter: "safe/fork",
+			},
 		});
 		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
 	});
@@ -567,12 +586,14 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it("includes explicit branch names in git preview plans", async () => {
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+	it("includes explicit branch names in executable git preview plans", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -586,10 +607,51 @@ describe("refarm tree", () => {
 			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
-		expect(payload.plan.worktreeSwitched).toBe(false);
-		expect(payload.plan.recommendedCommand).toBe(
-			"refarm tree fork --scope git abcdef123456 --name safe/fork",
-		);
+		expect(payload.plan).toMatchObject({
+			action: "fork",
+			readyToExecute: true,
+			recommendedCommand:
+				"refarm tree fork --scope git abcdef123456 --name safe/fork",
+			effects: {
+				worktreeSwitched: false,
+			},
+			substrate: {
+				kind: "git-branch",
+				branchName: "safe/fork",
+			},
+		});
+	});
+
+	it("previews existing git fork targets as blocked", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(
+				["abcdef", "--scope", "git", "--name", "safe/fork", "--json"],
+				{
+					from: "user",
+				},
+			);
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan).toMatchObject({
+			action: "fork",
+			readyToExecute: false,
+			blockedReason: 'Git branch "safe/fork" already exists.',
+			substrate: {
+				kind: "git-branch",
+				branchName: "safe/fork",
+			},
+		});
 	});
 
 	it("creates a non-switching git branch from a tree fork", async () => {
