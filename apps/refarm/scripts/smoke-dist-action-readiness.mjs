@@ -18,7 +18,9 @@ function runRefarm(args) {
 
 function assertIncludes(value, expected, label) {
 	if (!value.includes(expected)) {
-		throw new Error(`${label} did not include ${JSON.stringify(expected)}.\n${value}`);
+		throw new Error(
+			`${label} did not include ${JSON.stringify(expected)}.\n${value}`,
+		);
 	}
 }
 
@@ -38,7 +40,9 @@ assertIncludes(
 const statusAction = JSON.parse(runRefarm(["status", "--action", "2"]));
 
 if (statusAction.schemaVersion !== 1) {
-	throw new Error(`Expected schemaVersion=1, received ${statusAction.schemaVersion}`);
+	throw new Error(
+		`Expected schemaVersion=1, received ${statusAction.schemaVersion}`,
+	);
 }
 if (statusAction.statusSchemaVersion !== 1) {
 	throw new Error(
@@ -49,7 +53,9 @@ if (statusAction.reason !== "executed") {
 	throw new Error(`Expected reason=executed, received ${statusAction.reason}`);
 }
 if (statusAction.renderer !== "status") {
-	throw new Error(`Expected renderer=status, received ${statusAction.renderer}`);
+	throw new Error(
+		`Expected renderer=status, received ${statusAction.renderer}`,
+	);
 }
 if (statusAction.handled !== true) {
 	throw new Error(`Expected handled=true, received ${statusAction.handled}`);
