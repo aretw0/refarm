@@ -113,6 +113,24 @@ describe("refarm tree git integration", () => {
 		});
 		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
 
+		await writeFile(path.join(gitRepoPath, "README.md"), "# dirty preview\n", "utf8");
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["smoke/tree-fork", "--scope", "git", "--switch", "--json"], {
+				from: "user",
+			});
+		const dirtyPreviewPayload = JSON.parse(
+			logSpy.mock.calls.at(-1)?.[0] as string,
+		);
+		expect(dirtyPreviewPayload.plan).toMatchObject({
+			kind: "git-switch",
+			worktreeClean: false,
+			currentRefBefore: "main",
+			targetRefAfter: "smoke/tree-fork",
+		});
+		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
+		runGit(["checkout", "--", "README.md"], gitRepoPath);
+
 		await command.commands
 			.find((c) => c.name() === "switch")!
 			.parseAsync(["smoke/tree-fork", "--scope", "git", "--json"], {

@@ -481,6 +481,39 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
 	});
 
+	it("previews git switches against dirty worktrees without failing", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: " M apps/refarm/src/commands/tree.ts\n",
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["safe/fork", "--scope", "git", "--switch", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.plan).toMatchObject({
+			kind: "git-switch",
+			worktreeClean: false,
+			currentRefBefore: "main",
+			targetRefAfter: "safe/fork",
+		});
+		expect(spawnSyncMock).toHaveBeenCalledTimes(4);
+	});
+
 	it("rejects git switch previews with fork names before git execution", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
