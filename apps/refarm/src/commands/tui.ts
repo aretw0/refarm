@@ -1,5 +1,5 @@
-import {
-	type RefarmStatusJson,
+import type {
+	RefarmStatusJson,
 } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
@@ -9,6 +9,7 @@ import {
 import {
 	launchAvailabilityMessage,
 } from "./launch-feedback.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
@@ -21,6 +22,10 @@ import {
 import {
 	resolveJsonMarkdownStatusOutputMode,
 } from "./status-output.js";
+import {
+	createTuiSurfaceActionRows,
+	formatTuiSurfaceActionRows,
+} from "./tui-actions.js";
 
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
@@ -38,6 +43,7 @@ interface TuiOptions {
 	markdown?: boolean;
 	launch?: boolean;
 	dryRun?: boolean;
+	actions?: boolean;
 	launcher?: RefarmTuiLauncherMode;
 }
 
@@ -84,8 +90,15 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch TUI runtime after renderer preflight")
 		.option("--dry-run", "Print launcher command without executing it")
+		.option("--actions", "Output selectable TUI surface action rows")
 		.option("--launcher <mode>", "Launcher mode: watch | prompt", "watch")
 		.action(async (options: TuiOptions) => {
+			if (options.actions) {
+				assertTuiActionsOutputOptions(options);
+				await emitTuiActionRows(options, resolvedDeps);
+				return;
+			}
+
 			assertLaunchGuardOptions({
 				json: options.json,
 				markdown: options.markdown,
@@ -132,6 +145,30 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				launchProcess: resolvedDeps.launch,
 			});
 		});
+}
+
+async function emitTuiActionRows(
+	options: TuiOptions,
+	deps: TuiDeps,
+): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload: deps.resolveStatusPayload,
+		resolveOptions: {
+			renderer: "tui",
+			input: options.input,
+		},
+		run: (json) => {
+			console.log(formatTuiSurfaceActionRows(createTuiSurfaceActionRows(json)));
+		},
+	});
+}
+
+function assertTuiActionsOutputOptions(options: TuiOptions): void {
+	if (options.json || options.markdown || options.launch || options.dryRun) {
+		throw new Error(
+			"--actions cannot be combined with --json, --markdown, --launch, or --dry-run.",
+		);
+	}
 }
 
 export const tuiCommand = createTuiCommand();

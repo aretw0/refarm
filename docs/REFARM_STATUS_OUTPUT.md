@@ -16,6 +16,7 @@ refarm status --renderer tui --json   # same contract in TUI renderer mode
 refarm status --input status.json --json  # validate/render an existing status artifact
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
 refarm headless --input status.json --action-request open-node  # dry-run action envelope
+refarm tui --input status.json --actions  # selectable action rows for TUI readiness
 ```
 
 The JSON shape is the canonical contract. Human and Markdown output are views of
@@ -155,6 +156,17 @@ refarm headless --input status.json --action-request open-node
 This command does not execute product behavior. It validates that the selected
 ID is present in `plugins.availableActions` and emits the deterministic
 Homestead action request envelope that a future product handler can consume.
+
+TUI action row dry-run:
+
+```bash
+refarm tui --input status.json --actions
+```
+
+This command does not launch the TUI runtime. It formats
+`plugins.availableActions` as stable one-based rows such as
+`[1] Open node — open-node (node:open)` so a future interactive TUI can use the
+same selection vocabulary.
 
 Code-level contract helpers live in `@refarm.dev/cli/status`:
 

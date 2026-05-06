@@ -104,9 +104,15 @@ consumer of that envelope. It turns a status payload with
 host context, then delegates selected action IDs through
 `invokeHomesteadSurfaceRenderAction(...)`. `refarm headless --action-request <id>`
 exposes the non-destructive half of that path by emitting the deterministic
-action request envelope without executing product behavior. This keeps action
-invocation testable without giving the headless host product-specific action
-meaning.
+action request envelope without executing product behavior.
+
+`apps/refarm/src/commands/tui-actions.ts` mirrors the same affordance vocabulary
+for TUI readiness: it turns `plugins.availableActions` into stable selectable
+rows, and `refarm tui --actions` emits those rows without launching or executing
+product behavior.
+
+These paths keep action invocation and selection testable without giving
+headless/TUI hosts product-specific action meaning.
 
 ## Promotion threshold
 

@@ -106,6 +106,56 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("outputs selectable action rows with --actions", async () => {
+		const shutdown = vi.fn().mockResolvedValue(undefined);
+		resolveStatusPayload.mockResolvedValueOnce({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			}),
+			shutdown,
+		});
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions"], { from: "user" });
+
+		expect(resolveStatusPayload).toHaveBeenCalledWith(
+			expect.objectContaining({ renderer: "tui" }),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			"Available TUI actions:\n  [1] Open node — open-node (node:open)",
+		);
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(shutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("rejects --actions with other output or launch modes", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--actions", "--json"], { from: "user" }),
+		).rejects.toThrow(/--actions cannot be combined/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
 	it("launches watch mode when --launch is requested", async () => {
 		const command = createTuiCommand({
 			resolveStatusPayload,
