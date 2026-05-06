@@ -490,6 +490,7 @@ describe("refarm tree", () => {
 			result: {
 				kind: "git-branch",
 				destructive: false,
+				worktreeSwitched: false,
 				branchName: "safe/fork",
 				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
 				command: "git branch safe/fork abcdef123456",

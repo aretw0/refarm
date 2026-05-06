@@ -50,6 +50,7 @@ export interface RefarmTimelinePreviewEnvelope {
 export interface RefarmGitTimelineForkResult {
 	kind: "git-branch";
 	destructive: false;
+	worktreeSwitched: false;
 	branchName: string;
 	baseCommit: string;
 	command: string;

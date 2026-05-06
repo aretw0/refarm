@@ -438,6 +438,11 @@ async function main() {
 				`Expected tree fork branchName=smoke/tree-fork, got: ${JSON.stringify(treeGitFork?.result)}`,
 			);
 		}
+		if (treeGitFork?.result?.worktreeSwitched !== false) {
+			throw new Error(
+				`Expected tree fork worktreeSwitched=false, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
 		const branchListRun = await runSubprocess(
 			"git",
 			["branch", "--list", "smoke/tree-fork"],

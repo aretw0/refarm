@@ -177,6 +177,7 @@ function createGitForkEnvelope(
 		result: {
 			kind: "git-branch",
 			destructive: false,
+			worktreeSwitched: false,
 			branchName: name,
 			baseCommit: node.nodeId,
 			command: `git branch ${name} ${node.metadata.shortId}`,
