@@ -604,6 +604,11 @@ async function main() {
 			);
 		}
 		await assertCommandFailsWith(
+			["tree", "switch", "smoke/tree-fork", "--scope", "git"],
+			'Git branch "smoke/tree-fork" is already active.',
+			{ cwd: isolatedGitRepoPath },
+		);
+		await assertCommandFailsWith(
 			["tree", "fork", "HEAD", "--scope", "git", "--name", "smoke/tree-fork"],
 			'Git branch "smoke/tree-fork" already exists.',
 			{ cwd: isolatedGitRepoPath },

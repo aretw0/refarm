@@ -87,6 +87,25 @@ integers from 1 to 200.
 moving the active pointer. Any future destructive or state-moving operation must
 be explainable as "the preview became explicit execution".
 
+## Local validation economy
+
+Use the cheapest tree-specific signal during iteration:
+
+```bash
+npm run refarm:tree:test
+npm run refarm:tree:smoke
+```
+
+`refarm:tree:test` runs the mocked command contract suite. `refarm:tree:smoke`
+runs a fast in-process integration smoke against an isolated temp git repo, so it
+validates real `git branch`/`git switch` behavior without exercising the entire
+host CLI flow. Use the slower built CLI smoke only as a broader checkpoint:
+
+```bash
+npm run refarm:tree:smoke:cli
+npm run refarm:host:smoke:cli
+```
+
 ## Operation semantics
 
 | Operation | Default behavior | Safety rule |
