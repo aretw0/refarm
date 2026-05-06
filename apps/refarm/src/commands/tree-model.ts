@@ -10,7 +10,9 @@ export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
 export const REFARM_TREE_ALL_SCOPE = ALL_SCOPE;
 
 export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
-export type RefarmTimelineEnvelopeScope = RefarmTimelineScope | typeof ALL_SCOPE;
+export type RefarmTimelineEnvelopeScope =
+	| RefarmTimelineScope
+	| typeof ALL_SCOPE;
 
 export interface RefarmTimelineMetadata {
 	shortId: string;

@@ -27,7 +27,9 @@ import {
 	switchSessionTree,
 } from "./tree-session.js";
 
-type RefarmTimelineListScope = RefarmTimelineScope | typeof REFARM_TREE_ALL_SCOPE;
+type RefarmTimelineListScope =
+	| RefarmTimelineScope
+	| typeof REFARM_TREE_ALL_SCOPE;
 
 function parseScope(scope: string | undefined): RefarmTimelineScope {
 	const value = scope ?? REFARM_TREE_SESSION_SCOPE;
@@ -124,7 +126,10 @@ function parseLimit(limit: string | undefined): number {
 	return value;
 }
 
-async function listAllTree(opts: { json?: boolean; limit?: string }): Promise<void> {
+async function listAllTree(opts: {
+	json?: boolean;
+	limit?: string;
+}): Promise<void> {
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
 	try {
 		const [sessionNodes, gitNodes] = await Promise.all([
@@ -156,7 +161,9 @@ async function listAllTree(opts: { json?: boolean; limit?: string }): Promise<vo
 		console.log(chalk.dim("No session or git timeline nodes found."));
 		return;
 	}
-	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_ALL_SCOPE} scope)\n`));
+	console.log(
+		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_ALL_SCOPE} scope)\n`),
+	);
 	for (const node of nodes) {
 		console.log(
 			`  ${chalk.cyan(node.metadata.shortId)}  ${chalk.dim(`[${node.kind}]`)}  ${chalk.white(node.label)}`,
