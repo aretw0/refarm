@@ -26,7 +26,11 @@ async function createIsolatedGitRepo(): Promise<string> {
 	const gitRepoPath = path.join(tempDir, "repo");
 	await mkdir(gitRepoPath, { recursive: true });
 	runGit(["init", "--initial-branch=main"], gitRepoPath);
-	await writeFile(path.join(gitRepoPath, "README.md"), "# tree integration\n", "utf8");
+	await writeFile(
+		path.join(gitRepoPath, "README.md"),
+		"# tree integration\n",
+		"utf8",
+	);
 	runGit(["add", "README.md"], gitRepoPath);
 	runGit(
 		[
@@ -83,9 +87,31 @@ describe("refarm tree git integration", () => {
 			},
 		});
 		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
-		expect(runGit(["branch", "--list", "smoke/tree-fork"], gitRepoPath)).toContain(
-			"smoke/tree-fork",
-		);
+		expect(
+			runGit(["branch", "--list", "smoke/tree-fork"], gitRepoPath),
+		).toContain("smoke/tree-fork");
+
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["smoke/tree-fork", "--scope", "git", "--switch", "--json"], {
+				from: "user",
+			});
+		const previewPayload = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(previewPayload).toMatchObject({
+			schemaVersion: 1,
+			scope: "git",
+			operation: "preview",
+			reason: "dry-run",
+			plan: {
+				kind: "git-switch",
+				worktreeSwitched: true,
+				worktreeClean: true,
+				currentRefBefore: "main",
+				targetRefAfter: "smoke/tree-fork",
+				recommendedCommand: "refarm tree switch --scope git smoke/tree-fork",
+			},
+		});
+		expect(runGit(["branch", "--show-current"], gitRepoPath)).toBe("main");
 
 		await command.commands
 			.find((c) => c.name() === "switch")!

@@ -3,6 +3,7 @@ import { Command } from "commander";
 import {
 	forkGitTree,
 	listGitTree,
+	previewGitSwitchTree,
 	previewGitTree,
 	showGitTree,
 	switchGitTree,
@@ -123,10 +124,15 @@ async function showTree(
 
 async function previewTree(
 	prefix: string,
-	opts: { json?: boolean; scope?: string; at?: string; name?: string },
+	opts: {
+		json?: boolean;
+		scope?: string;
+		at?: string;
+		name?: string;
+		switch?: boolean;
+	},
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
-	const name = validateOptionalBranchName(opts.name);
 	if (scope === REFARM_TREE_GIT_SCOPE) {
 		if (opts.at) {
 			console.error(
@@ -134,9 +140,31 @@ async function previewTree(
 			);
 			process.exit(1);
 		}
+		if (opts.switch) {
+			if (opts.name) {
+				console.error(
+					chalk.red(
+						"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
+					),
+				);
+				process.exit(1);
+			}
+			previewGitSwitchTree(validateBranchName(prefix), opts);
+			return;
+		}
+		const name = validateOptionalBranchName(opts.name);
 		previewGitTree(prefix, { ...opts, name });
 		return;
 	}
+	if (opts.switch) {
+		console.error(
+			chalk.red(
+				"✗  refarm tree preview --switch currently supports --scope git only; session switching requires an explicit active-session pointer contract.",
+			),
+		);
+		process.exit(1);
+	}
+	const name = validateOptionalBranchName(opts.name);
 	await previewSessionTree(prefix, { ...opts, name });
 }
 
@@ -209,7 +237,7 @@ export function createTreeCommand(): Command {
 		)
 		.addCommand(
 			new Command("preview")
-				.description("Preview the safe fork plan for a timeline node")
+				.description("Preview a safe fork or switch plan for a timeline node")
 				.argument("<id>", "Timeline node ID or unique prefix")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
@@ -217,6 +245,7 @@ export function createTreeCommand(): Command {
 					"--name <branch-name>",
 					"Branch/fork name to include in the dry-run plan",
 				)
+				.option("--switch", "Preview switching to an existing git branch")
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (
@@ -225,6 +254,7 @@ export function createTreeCommand(): Command {
 							scope?: string;
 							at?: string;
 							name?: string;
+							switch?: boolean;
 							json?: boolean;
 						},
 					) => {
@@ -263,10 +293,7 @@ export function createTreeCommand(): Command {
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--json", "Print machine-readable JSON")
 				.action(
-					async (
-						target: string,
-						opts: { scope?: string; json?: boolean },
-					) => {
+					async (target: string, opts: { scope?: string; json?: boolean }) => {
 						await switchTree(target, opts);
 					},
 				),

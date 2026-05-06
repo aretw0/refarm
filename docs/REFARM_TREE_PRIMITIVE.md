@@ -58,6 +58,7 @@ refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
 refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
+refarm tree preview --scope git <branch-name> --switch [--json]
 refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
 refarm tree switch --scope git <branch-name> [--json]
 ```
@@ -65,9 +66,12 @@ refarm tree switch --scope git <branch-name> [--json]
 The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
 `operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `preview` emits a dry-run envelope that recommends
-`refarm sessions fork ...` for session timelines or `refarm tree fork --scope git ...`
-for git timelines, but does not fork, branch, check out, or switch; git preview
-plans also declare `worktreeSwitched: false`. Session previews may target a historical entry with
+`refarm sessions fork ...` for session timelines, `refarm tree fork --scope git ...`
+for git fork timelines, or `refarm tree switch --scope git ...` for git switch
+plans, but does not fork, branch, check out, or switch. Git branch preview plans
+declare `worktreeSwitched: false`; git switch preview plans declare
+`worktreeSwitched: true`, include `currentRefBefore`/`targetRefAfter`, and report
+whether the worktree is currently clean. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
@@ -112,7 +116,7 @@ npm run refarm:host:smoke:cli
 | --- | --- | --- |
 | `list` | Read-only tree/branch rows | Never mutates active state |
 | `show` | Read-only node detail | Fails on ambiguous prefixes |
-| `preview` | Dry-run restore/fork plan | Emits `reason: "dry-run"`; never mutates active state |
+| `preview` | Dry-run restore/fork/switch plan | Emits `reason: "dry-run"`; never mutates active state |
 | `fork` | Creates a new branch pointer from an immutable node | Git-only first slice; creates a branch without switching |
 | `switch` | Moves active pointer to an existing branch/head | Git-only first slice; requires an existing branch, clean worktree, and verified before/after refs |
 

@@ -92,13 +92,28 @@ export interface RefarmSessionTimelinePreviewPlan {
 	recommendedCommand: string;
 }
 
-export interface RefarmGitTimelinePreviewPlan {
+export interface RefarmGitTimelineBranchPreviewPlan {
 	kind: "git-branch";
 	destructive: false;
 	worktreeSwitched: false;
 	baseCommit: string;
 	recommendedCommand: string;
 }
+
+export interface RefarmGitTimelineSwitchPreviewPlan {
+	kind: "git-switch";
+	destructive: false;
+	worktreeSwitched: true;
+	worktreeClean: boolean;
+	currentRefBefore: string;
+	targetRefAfter: string;
+	targetCommit: string;
+	recommendedCommand: string;
+}
+
+export type RefarmGitTimelinePreviewPlan =
+	| RefarmGitTimelineBranchPreviewPlan
+	| RefarmGitTimelineSwitchPreviewPlan;
 
 export interface RefarmTimelinePreviewEnvelope {
 	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;

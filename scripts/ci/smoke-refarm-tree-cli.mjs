@@ -196,6 +196,36 @@ async function main() {
 			throw new Error(`Expected git fork envelope, got: ${JSON.stringify(forkJson)}`);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: tree git switch preview stays dry-run`);
+		const switchPreviewRun = await runRefarmCommand(
+			[
+				"tree",
+				"preview",
+				"smoke/tree-fork",
+				"--scope",
+				"git",
+				"--switch",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const switchPreviewJson = parseCommandJsonOutput(
+			"tree preview --scope git --switch",
+			switchPreviewRun,
+		);
+		if (
+			switchPreviewJson?.operation !== "preview" ||
+			switchPreviewJson?.reason !== "dry-run" ||
+			switchPreviewJson?.plan?.kind !== "git-switch" ||
+			switchPreviewJson?.plan?.worktreeClean !== true ||
+			switchPreviewJson?.plan?.currentRefBefore !== "main" ||
+			switchPreviewJson?.plan?.targetRefAfter !== "smoke/tree-fork"
+		) {
+			throw new Error(
+				`Expected git switch preview envelope, got: ${JSON.stringify(switchPreviewJson)}`,
+			);
+		}
+
 		console.log(`${LOGGER_PREFIX} smoke: tree git switch moves isolated repo branch`);
 		const switchRun = await runRefarmCommand(
 			["tree", "switch", "smoke/tree-fork", "--scope", "git", "--json"],

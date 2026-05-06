@@ -60,9 +60,12 @@ function currentGitRef(): string {
 	return runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
 }
 
+function gitWorktreeIsClean(): boolean {
+	return runGit(["status", "--porcelain"]) === "";
+}
+
 function assertCleanGitWorktree(): void {
-	const status = runGit(["status", "--porcelain"]);
-	if (status) {
+	if (!gitWorktreeIsClean()) {
 		throw new Error(
 			"Git worktree must be clean before tree switch. Commit, stash, or remove pending changes first.",
 		);
@@ -202,6 +205,32 @@ function createGitPreviewEnvelope(
 	};
 }
 
+function createGitSwitchPreviewEnvelope(
+	node: RefarmGitTimelineNode,
+	name: string,
+	currentRefBefore: string,
+	worktreeClean: boolean,
+): RefarmGitTimelinePreviewEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			kind: "git-switch",
+			destructive: false,
+			worktreeSwitched: true,
+			worktreeClean,
+			currentRefBefore,
+			targetRefAfter: name,
+			targetCommit: node.nodeId,
+			recommendedCommand: `refarm tree switch --scope git ${name}`,
+		},
+	};
+}
+
 function createGitForkEnvelope(
 	node: RefarmGitTimelineNode,
 	name: string,
@@ -279,6 +308,55 @@ export function previewGitTree(
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }
 
+export function previewGitSwitchTree(
+	name: string,
+	opts: { json?: boolean },
+): void {
+	let node: RefarmGitTimelineNode;
+	let currentRefBefore: string;
+	let worktreeClean: boolean;
+	try {
+		if (!gitBranchExists(name)) {
+			throw new Error(`Git branch "${name}" does not exist.`);
+		}
+		currentRefBefore = currentGitRef();
+		if (currentRefBefore === name) {
+			throw new Error(`Git branch "${name}" is already active.`);
+		}
+		worktreeClean = gitWorktreeIsClean();
+		node = showGitTimelineNode(name);
+	} catch (err) {
+		exitForGitError(err);
+	}
+	const envelope = createGitSwitchPreviewEnvelope(
+		node,
+		name,
+		currentRefBefore,
+		worktreeClean,
+	);
+
+	if (opts.json) {
+		outputTreeJson(envelope);
+		return;
+	}
+
+	const plan = envelope.plan;
+	if (plan.kind !== "git-switch") {
+		throw new Error("Unexpected git switch preview plan shape.");
+	}
+	console.log(chalk.bold("\n  Tree switch preview (dry-run)\n"));
+	console.log(
+		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
+	);
+	console.log(
+		`  Would:  switch git worktree from ${chalk.cyan(plan.currentRefBefore)} to ${chalk.cyan(plan.targetRefAfter)}`,
+	);
+	console.log(
+		chalk.dim(`  Worktree clean: ${plan.worktreeClean ? "yes" : "no"}`),
+	);
+	console.log(chalk.dim(`  Command: ${plan.recommendedCommand}\n`));
+}
+
 export function forkGitTree(
 	prefix: string,
 	opts: { json?: boolean; name: string },
@@ -322,10 +400,7 @@ export function forkGitTree(
 	console.log(chalk.dim("   Active worktree was not switched."));
 }
 
-export function switchGitTree(
-	name: string,
-	opts: { json?: boolean },
-): void {
+export function switchGitTree(name: string, opts: { json?: boolean }): void {
 	let node: RefarmGitTimelineNode;
 	let currentRefBefore: string;
 	let currentRefAfter: string;
