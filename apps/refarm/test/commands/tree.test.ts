@@ -89,6 +89,27 @@ describe("refarm tree", () => {
 		});
 	});
 
+	it("lists session timeline switch affordances in human output", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [SESSION] }),
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync([], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("refarm tree preview <id-prefix> --switch");
+		expect(output).toContain("refarm tree switch <id-prefix>");
+	});
+
 	it("lists git commits as timeline nodes", async () => {
 		spawnSyncMock.mockReturnValue({
 			status: 0,
