@@ -54,7 +54,7 @@ with explicit conformance expectations.
    **Then** guardrail errors are deterministic and mode-agnostic.
 
 5. **Given** status exposes `plugins.availableActions`
-   **When** Web, headless, or TUI action-readiness views are requested
+   **When** renderer-neutral host, Web, headless, or TUI action-readiness views are requested
    **Then** they use stable action IDs and one-based row selections from the status contract rather than DOM selectors or product-private payloads.
 
 6. **Given** a live `apps/refarm` status action is selected explicitly
@@ -151,11 +151,12 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/status-surfaces.test.ts` verifies live `apps/refarm` status affordances are exposed as a Homestead surface-state snapshot
 - [x] `apps/refarm/test/commands/status-actions.test.ts` verifies live `apps/refarm` status actions resolve, invoke, and emit deterministic invocation envelopes through the shared Homestead action envelope
 - [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --action <id-or-index>` invokes live status actions by ID and row index
-- [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by Web/headless/TUI readiness paths
+- [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by renderer-neutral host, Web/headless/TUI readiness paths
+- [x] `apps/refarm/test/commands/actions.test.ts` verifies `refarm actions` exposes non-executing host action rows, selected-row metadata, and JSON dry-run envelopes over `plugins.availableActions`
 - [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, Web/TUI action rows, selected Web/TUI rows, and Web/TUI JSON dry-run envelopes through `--input`
-- [x] `npm run refarm:host:smoke:dist-actions` verifies the emitted `apps/refarm/dist/index.js` can discover Web actions and execute a live status action through the built package graph
+- [x] `npm run refarm:host:smoke:dist-actions` verifies the emitted `apps/refarm/dist/index.js` can discover Web actions, emit renderer-neutral `refarm actions` dry-run output, and execute a live status action through the built package graph
 
 **Next conformance additions (planned):**
 
@@ -178,7 +179,7 @@ export interface RefarmStatusJson {
 **DDD**
 
 - [x] Expose reusable conformance helper from Homestead SDK
-- [x] Expose local Web/headless/TUI action-readiness views over `plugins.availableActions`
+- [x] Expose local renderer-neutral host/Web/headless/TUI action-readiness views over `plugins.availableActions`
 - [ ] Wire conformance smoke to CI host lane
 
 ---

@@ -19,6 +19,8 @@ refarm status --input status.json --json  # validate/render an existing status a
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
 refarm status --action inspect-trust  # explicitly invoke a live status action by ID
 refarm status --action 2              # explicitly invoke a live status action by row index
+refarm actions --input status.json    # renderer-neutral host action readiness rows
+refarm actions --input status.json --select 1 --json  # selected host action JSON dry-run
 refarm headless --input status.json --action-request open-node  # dry-run action envelope by ID
 refarm headless --input status.json --action-request 1          # dry-run action envelope by row index
 refarm web --input status.json --actions              # selectable action rows for Web readiness
@@ -159,6 +161,21 @@ Markdown action discovery format:
 - open-node: Open node (node:open)
 ```
 
+Renderer-neutral host action readiness:
+
+```bash
+refarm actions --input status.json
+refarm actions --input status.json --json
+refarm actions --input status.json --select 1
+refarm actions --input status.json --select 1 --json
+```
+
+This command lists or selects `plugins.availableActions` without choosing a
+Web/TUI/headless-specific row heading and without executing product behavior.
+JSON output is a dry-run envelope with `command: "actions"`, the status renderer
+kind used for context, optional `selection`, optional `selectedAction`, and
+`actionRows`.
+
 Headless action request dry-run:
 
 ```bash
@@ -215,6 +232,7 @@ Live `apps/refarm` status exposes status/readiness affordances without an input
 fixture:
 
 ```bash
+refarm actions
 refarm web --actions
 refarm tui --actions
 refarm headless --action-request inspect-trust
@@ -227,13 +245,16 @@ For built CLI distribution checks, use the local wrapper:
 npm --prefix apps/refarm run smoke:dist-actions
 ```
 
-It builds the CLI, runs `dist/index.js`, verifies Web action readiness, and
-verifies live status action invocation through the emitted package graph.
+It builds the CLI, runs `dist/index.js`, verifies Web action readiness, verifies
+renderer-neutral `refarm actions` dry-run output, and verifies live status action
+invocation through the emitted package graph.
 
 A reusable local fixture is also available at
 `apps/refarm/test/fixtures/status-with-actions.json` for deterministic fixture-backed examples:
 
 ```bash
+refarm actions --input apps/refarm/test/fixtures/status-with-actions.json
+refarm actions --input apps/refarm/test/fixtures/status-with-actions.json --select 2 --json
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
 refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions

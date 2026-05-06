@@ -37,6 +37,31 @@ assertIncludes(
 	"web --actions",
 );
 
+const hostActionReadiness = JSON.parse(
+	runRefarm(["actions", "--select", "2", "--json"]),
+);
+
+if (hostActionReadiness.schemaVersion !== 1) {
+	throw new Error(
+		`Expected actions schemaVersion=1, received ${hostActionReadiness.schemaVersion}`,
+	);
+}
+if (hostActionReadiness.reason !== "dry-run") {
+	throw new Error(
+		`Expected actions reason=dry-run, received ${hostActionReadiness.reason}`,
+	);
+}
+if (hostActionReadiness.command !== "actions") {
+	throw new Error(
+		`Expected actions command=actions, received ${hostActionReadiness.command}`,
+	);
+}
+if (hostActionReadiness.selection?.resolvedId !== "inspect-trust") {
+	throw new Error(
+		`Expected actions selection.resolvedId=inspect-trust, received ${hostActionReadiness.selection?.resolvedId}`,
+	);
+}
+
 const statusAction = JSON.parse(runRefarm(["status", "--action", "2"]));
 
 if (statusAction.schemaVersion !== 1) {

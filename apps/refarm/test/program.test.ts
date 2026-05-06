@@ -11,6 +11,7 @@ describe("refarm program", () => {
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
 		expect(names).toContain("open-url");
+		expect(names).toContain("actions");
 		expect(names).toContain("telemetry");
 	});
 

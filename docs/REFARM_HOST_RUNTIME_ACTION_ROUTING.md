@@ -19,6 +19,7 @@ The goal is to prevent two failure modes:
 `apps/refarm` currently owns product command UX and renderer selection:
 
 - `refarm status --renderer web|tui|headless`
+- `refarm actions`
 - `refarm web`
 - `refarm tui`
 - `refarm headless`
@@ -128,15 +129,18 @@ with `handled` status. Web/TUI/headless readiness commands remain
 non-destructive dry-runs.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action
-affordance vocabulary shared by Web, headless, and TUI readiness paths: stable
-available action extraction, one-based rows, ID/index selection, selection
-metadata, and ID-list formatting. `apps/refarm/src/commands/web-actions.ts` and
-`apps/refarm/src/commands/tui-actions.ts` keep renderer-specific headings/UX
-wrappers. `refarm web --actions` and `refarm tui --actions` emit those rows, and
-`--select <id-or-index>` resolves one row using the same selection vocabulary,
-without launching or executing product behavior. Adding `--json` to either Web
-or TUI readiness form emits a deterministic dry-run envelope for agents while
-preserving the human row output as the default.
+affordance vocabulary shared by renderer-neutral host, Web, headless, and TUI
+readiness paths: stable available action extraction, one-based rows, ID/index
+selection, selection metadata, and ID-list formatting.
+`apps/refarm/src/commands/actions.ts` exposes `refarm actions` as the canonical
+non-executing host action discovery command for operators and agents that do not
+need a renderer-specific presentation. `apps/refarm/src/commands/web-actions.ts`
+and `apps/refarm/src/commands/tui-actions.ts` keep renderer-specific headings/UX
+wrappers. `refarm actions`, `refarm web --actions`, and `refarm tui --actions`
+emit those rows, and `--select <id-or-index>` resolves one row using the same
+selection vocabulary, without launching or executing product behavior. Adding
+`--json` to those readiness forms emits deterministic dry-run envelopes for
+agents while preserving the human row output as the default.
 
 These paths keep action invocation and selection testable without giving
 headless/TUI hosts product-specific action meaning.

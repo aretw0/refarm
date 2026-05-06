@@ -43,6 +43,8 @@ Homestead surface-state snapshot. These commands work without an input fixture:
 
 ```bash
 refarm status --json
+refarm actions
+refarm actions --select inspect-trust --json
 refarm web --actions
 refarm web --actions --select inspect-trust --json
 refarm tui --actions
@@ -93,6 +95,20 @@ It contains two fixture actions:
 | 2   | `inspect-trust` | Inspect trust | `trust:inspect` |
 
 ## Discovery paths
+
+### Renderer-neutral host action readiness
+
+```bash
+refarm actions --input "$STATUS_FIXTURE"
+refarm actions --input "$STATUS_FIXTURE" --select 2
+refarm actions --input "$STATUS_FIXTURE" --select inspect-trust --json
+```
+
+Use this command when an operator or agent wants the canonical host action
+vocabulary without choosing Web, TUI, or headless-specific presentation. It
+resolves the same `plugins.availableActions` rows, never executes product
+behavior, and emits JSON dry-run envelopes with `command: "actions"` plus the
+status renderer kind used to resolve context.
 
 ### Human status views
 
@@ -214,7 +230,7 @@ shape. The envelope contains:
 
 ## Selection rules
 
-Selection is shared by Web, headless, and TUI readiness paths:
+Selection is shared by `refarm actions`, Web, headless, and TUI readiness paths:
 
 1. A stable action ID wins when it matches exactly.
 2. A decimal integer resolves as a one-based row index.
@@ -233,11 +249,13 @@ git diff --check -- \
   apps/refarm/src/commands/action-affordances.ts \
   apps/refarm/src/commands/headless.ts \
   apps/refarm/src/commands/headless-action.ts \
+  apps/refarm/src/commands/actions.ts \
   apps/refarm/src/commands/web.ts \
   apps/refarm/src/commands/web-actions.ts \
   apps/refarm/src/commands/tui.ts \
   apps/refarm/src/commands/tui-actions.ts \
   apps/refarm/test/commands/action-affordances.test.ts \
+  apps/refarm/test/commands/actions.test.ts \
   apps/refarm/test/commands/action-fixture.test.ts \
   apps/refarm/test/commands/headless.test.ts \
   apps/refarm/test/commands/headless-action.test.ts \
@@ -251,6 +269,7 @@ npm --prefix apps/refarm run test -- \
   test/commands/action-fixture.test.ts \
   test/commands/headless.test.ts \
   test/commands/headless-action.test.ts \
+  test/commands/actions.test.ts \
   test/commands/web.test.ts \
   test/commands/web-actions.test.ts \
   test/commands/tui.test.ts \
@@ -270,9 +289,10 @@ npm run refarm:host:smoke:dist-actions
 ```
 
 Both wrappers build `apps/refarm`, run the emitted CLI, verify `refarm web --actions`,
-and verify `refarm status --action 2` returns a handled Homestead action
-invocation envelope. Keep this as local validation; CI wiring remains deferred
-while GitHub Actions budget is over allocation.
+verify `refarm actions --select 2 --json` returns a non-executing host dry-run
+envelope, and verify `refarm status --action 2` returns a handled Homestead
+action invocation envelope. Keep this as local validation; CI wiring remains
+deferred while GitHub Actions budget is over allocation.
 
 Run `npm --prefix apps/refarm run test:host-smoke -- --pool=threads` before a
 larger checkpoint. Keep CI wiring deferred while GitHub Actions budget is over
