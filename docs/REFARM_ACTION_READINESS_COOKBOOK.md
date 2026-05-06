@@ -68,7 +68,7 @@ refarm status --action 2
 
 This is the app-owned execution proof for the live status actions. The command:
 
-- boots or reads the status payload;
+- always resolves a live status payload and rejects `--input` artifacts;
 - resolves the selected action using the shared ID/index selection rules;
 - creates the Homestead action request from the live `apps/refarm` status
   surface;

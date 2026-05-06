@@ -295,6 +295,17 @@ describe("statusCommand", () => {
 		expect(mockBoot).not.toHaveBeenCalled();
 	});
 
+	it("rejects live status action invocation from input artifacts", async () => {
+		await expect(
+			statusCommand.parseAsync(
+				["--action", "1", "--input", "status.json"],
+				{ from: "user" },
+			),
+		).rejects.toThrow(/--action cannot be combined with --input/);
+		expect(mockBoot).not.toHaveBeenCalled();
+		expect(mockParseRefarmStatusJson).not.toHaveBeenCalled();
+	});
+
 	it("fails fast for unknown renderer kinds", async () => {
 		await expect(
 			statusCommand.parseAsync(["--json", "--renderer", "matrix"], {

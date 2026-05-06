@@ -122,10 +122,11 @@ inspection or fixture-only payloads. `apps/refarm/src/commands/status-actions.ts
 keeps the matching product-owned handler seam and invokes those live status
 actions through the same shared Homestead action request envelope.
 `refarm status --action <id-or-index>` is the explicit CLI execution seam for
-those live status actions: it resolves the selection from
-`plugins.availableActions`, creates the Homestead request from the live status
-surface, invokes the app-owned handler, and prints a deterministic JSON envelope
-with `handled` status. Web/TUI/headless readiness commands remain
+those live status actions: it resolves the selection from live
+`plugins.availableActions`, rejects `--input` artifacts so fixture/stale JSON
+cannot authorize product behavior, creates the Homestead request from the live
+status surface, invokes the app-owned handler, and prints a deterministic JSON
+envelope with `handled` status. Web/TUI/headless readiness commands remain
 non-destructive dry-runs.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action

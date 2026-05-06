@@ -59,7 +59,7 @@ with explicit conformance expectations.
 
 6. **Given** a live `apps/refarm` status action is selected explicitly
    **When** `refarm status --action <id-or-index>` is executed
-   **Then** the command resolves the same status affordance vocabulary, invokes the app-owned handler through the Homestead action envelope, and reports deterministic handled/unhandled metadata.
+   **Then** the command resolves the same live status affordance vocabulary, rejects `--input` artifact authorization, invokes the app-owned handler through the Homestead action envelope, and reports deterministic handled/unhandled metadata.
 
 ---
 

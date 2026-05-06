@@ -198,13 +198,15 @@ refarm status --action 2
 ```
 
 This command is the explicit app-owned execution seam for live `apps/refarm`
-status affordances. It resolves the selected `plugins.availableActions` entry by
-stable ID or one-based row index, creates the Homestead action request from the
-live status surface, invokes the status action handler, and emits deterministic
-JSON with `reason: "executed"`, `renderer: "status"`, `selection`,
-`actionRequest`, `handled`, and `availableActions`. It is intentionally
-separate from Web/TUI/headless dry-runs so operators and agents can distinguish
-readiness from execution.
+status affordances. It always resolves a live status payload and rejects
+`--input` artifacts so stale or fixture JSON cannot authorize product behavior.
+It resolves the selected `plugins.availableActions` entry by stable ID or
+one-based row index, creates the Homestead action request from the live status
+surface, invokes the status action handler, and emits deterministic JSON with
+`reason: "executed"`, `renderer: "status"`, `selection`, `actionRequest`,
+`handled`, and `availableActions`. It is intentionally separate from
+Web/TUI/headless dry-runs so operators and agents can distinguish readiness from
+execution.
 
 Web action row dry-run:
 

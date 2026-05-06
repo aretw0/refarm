@@ -135,6 +135,11 @@ export const statusCommand = new Command("status")
 						"--action cannot be combined with --json or --markdown.",
 					);
 				}
+				if (options.input) {
+					throw new Error(
+						"--action cannot be combined with --input; use refarm actions --input <path> --select <id-or-index> for dry-run readiness.",
+					);
+				}
 
 				await emitStatusActionInvocation(options);
 				return;
