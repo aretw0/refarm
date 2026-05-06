@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 
@@ -46,6 +46,10 @@ describe("refarm ask", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it("submits effort with pi-agent respond payload", async () => {
