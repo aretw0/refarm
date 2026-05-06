@@ -65,7 +65,8 @@ that recommends `refarm sessions fork ...` or `git branch ...` but does not
 fork, branch, check out, or switch. Session previews may target a historical
 entry with `--at <entry-id>` and fail closed if the entry is not in that session.
 Preview branch names are optional and fail closed unless they contain only
-letters, numbers, `.`, `_`, `/`, or `-`.
+letters, numbers, `.`, `_`, `/`, or `-`. Git list limits fail closed unless they
+are integers from 1 to 200.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must

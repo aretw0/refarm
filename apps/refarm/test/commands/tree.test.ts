@@ -400,6 +400,30 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("fails closed for invalid git list limits", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "list")!
+				.parseAsync(["--scope", "git", "--limit", "0", "--json"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Invalid --limit "0"'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("fails closed for unsupported scopes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((

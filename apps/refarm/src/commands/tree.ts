@@ -38,6 +38,15 @@ function validateBranchName(name: string | undefined): string | undefined {
 	return name;
 }
 
+function parseLimit(limit: string | undefined): number {
+	const value = Number.parseInt(limit ?? "20", 10);
+	if (!Number.isInteger(value) || value < 1 || value > 200) {
+		console.error(chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`));
+		process.exit(1);
+	}
+	return value;
+}
+
 async function listTree(opts: {
 	scope?: string;
 	json?: boolean;
@@ -45,7 +54,7 @@ async function listTree(opts: {
 }): Promise<void> {
 	const scope = parseScope(opts.scope);
 	if (scope === REFARM_TREE_GIT_SCOPE) {
-		listGitTree({ json: opts.json, limit: Number(opts.limit ?? 20) });
+		listGitTree({ json: opts.json, limit: parseLimit(opts.limit) });
 		return;
 	}
 	await listSessionTree(opts);
