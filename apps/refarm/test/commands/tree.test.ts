@@ -593,27 +593,45 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it("rejects session switch previews before branch-name validation", async () => {
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-			code?: string | number | null | undefined,
-		) => {
-			throw new Error(`exit:${code ?? 0}`);
-		}) as never);
+	it("previews session switches without validating git branch-name shape", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
-		await expect(
-			command.commands
-				.find((c) => c.name() === "preview")!
-				.parseAsync(["unsafe..name", "--switch"], { from: "user" }),
-		).rejects.toThrow("exit:1");
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--switch", "--json"], { from: "user" });
 
-		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining(
-				"refarm tree preview --switch currently supports --scope git only",
-			),
-		);
-		expect(exitSpy).toHaveBeenCalledWith(1);
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			schemaVersion: 1,
+			command: "tree",
+			scope: "session",
+			operation: "preview",
+			reason: "dry-run",
+			plan: {
+				action: "switch",
+				destructive: false,
+				readyToExecute: true,
+				recommendedCommand: "refarm sessions use abc123def456",
+				effects: {
+					activePointerChanged: true,
+					branchCreated: false,
+				},
+				substrate: {
+					kind: "session-switch",
+					targetSessionIdAfter: SESSION["@id"],
+					activeSessionWillSwitch: true,
+				},
+			},
+		});
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 

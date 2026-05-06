@@ -15,6 +15,7 @@ import {
 } from "./tree-model.js";
 import {
 	listSessionTree,
+	previewSessionSwitchTree,
 	previewSessionTree,
 	showSessionTree,
 } from "./tree-session.js";
@@ -157,12 +158,24 @@ async function previewTree(
 		return;
 	}
 	if (opts.switch) {
-		console.error(
-			chalk.red(
-				"✗  refarm tree preview --switch currently supports --scope git only; session switching requires an explicit active-session pointer contract.",
-			),
-		);
-		process.exit(1);
+		if (opts.name) {
+			console.error(
+				chalk.red(
+					"✗  --name is only supported for fork previews; omit it when previewing a tree switch.",
+				),
+			);
+			process.exit(1);
+		}
+		if (opts.at) {
+			console.error(
+				chalk.red(
+					"✗  --at is only supported for session fork previews; omit it when previewing a tree switch.",
+				),
+			);
+			process.exit(1);
+		}
+		await previewSessionSwitchTree(prefix, opts);
+		return;
 	}
 	const name = validateOptionalBranchName(opts.name);
 	await previewSessionTree(prefix, { ...opts, name });

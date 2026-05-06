@@ -87,7 +87,7 @@ export interface RefarmSessionTimelineShowEnvelope
 	total: number;
 }
 
-export type RefarmSessionTimelinePreviewPlan = RefarmExecutionPlanBase<
+export type RefarmSessionTimelineForkPreviewPlan = RefarmExecutionPlanBase<
 	"fork",
 	{
 		activePointerChanged: true;
@@ -100,6 +100,24 @@ export type RefarmSessionTimelinePreviewPlan = RefarmExecutionPlanBase<
 		activeSessionWillSwitch: true;
 	}
 >;
+
+export type RefarmSessionTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+	"switch",
+	{
+		activePointerChanged: true;
+		branchCreated: false;
+	},
+	{
+		kind: "session-switch";
+		activeSessionIdBefore: string | null;
+		targetSessionIdAfter: string;
+		activeSessionWillSwitch: true;
+	}
+>;
+
+export type RefarmSessionTimelinePreviewPlan =
+	| RefarmSessionTimelineForkPreviewPlan
+	| RefarmSessionTimelineSwitchPreviewPlan;
 
 export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
 	"fork",

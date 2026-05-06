@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import chalk from "chalk";
 import {
 	outputTreeJson,
@@ -10,6 +13,7 @@ import {
 } from "./tree-model.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
+const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
 
 interface SessionNode {
 	"@id": string;
@@ -31,6 +35,15 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
+}
+
+function readActiveSessionId(): string | null {
+	try {
+		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
+		return content.length > 0 ? content : null;
+	} catch {
+		return null;
+	}
 }
 
 function formatSessionId(id: string): string {
@@ -218,7 +231,7 @@ export async function showSessionTree(
 	console.log();
 }
 
-function createSessionPreviewEnvelope(
+function createSessionForkPreviewEnvelope(
 	node: RefarmSessionTimelineNode,
 	branchPointEntryId: string | null,
 	name: string | undefined,
@@ -257,6 +270,42 @@ function createSessionPreviewEnvelope(
 	};
 }
 
+function createSessionSwitchPreviewEnvelope(
+	node: RefarmSessionTimelineNode,
+	activeSessionIdBefore: string | null,
+): RefarmSessionTimelinePreviewEnvelope {
+	const alreadyActive = activeSessionIdBefore === node.nodeId;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			action: "switch",
+			destructive: false,
+			readyToExecute: !alreadyActive,
+			...(alreadyActive
+				? {
+						blockedReason: `Session "${node.metadata.shortId}" is already active.`,
+					}
+				: {}),
+			recommendedCommand: `refarm sessions use ${node.metadata.shortId}`,
+			effects: {
+				activePointerChanged: true,
+				branchCreated: false,
+			},
+			substrate: {
+				kind: "session-switch",
+				activeSessionIdBefore,
+				targetSessionIdAfter: node.nodeId,
+				activeSessionWillSwitch: true,
+			},
+		},
+	};
+}
+
 export async function previewSessionTree(
 	prefix: string,
 	opts: { json?: boolean; at?: string; name?: string },
@@ -276,7 +325,7 @@ export async function previewSessionTree(
 		);
 		process.exit(1);
 	}
-	const envelope = createSessionPreviewEnvelope(
+	const envelope = createSessionForkPreviewEnvelope(
 		createSessionTimelineNode(history.session),
 		branchPointEntryId,
 		opts.name,
@@ -292,10 +341,44 @@ export async function previewSessionTree(
 		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
 	);
 	console.log("  Would:  create a non-destructive session fork");
-	if (envelope.plan.substrate.branchPointEntryId) {
-		console.log(
-			chalk.dim(`  Branch point: ${envelope.plan.substrate.branchPointEntryId}`),
-		);
+	const substrate = envelope.plan.substrate;
+	if (substrate.kind === "session-fork" && substrate.branchPointEntryId) {
+		console.log(chalk.dim(`  Branch point: ${substrate.branchPointEntryId}`));
+	}
+	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+}
+
+export async function previewSessionSwitchTree(
+	prefix: string,
+	opts: { json?: boolean },
+): Promise<void> {
+	let history: SessionHistory;
+	try {
+		history = await fetchSessionHistory(prefix);
+	} catch (err) {
+		exitForSidecarError(err);
+	}
+	const envelope = createSessionSwitchPreviewEnvelope(
+		createSessionTimelineNode(history.session),
+		readActiveSessionId(),
+	);
+
+	if (opts.json) {
+		outputTreeJson(envelope);
+		return;
+	}
+
+	const substrate = envelope.plan.substrate;
+	if (substrate.kind !== "session-switch") {
+		throw new Error("Unexpected session switch preview plan shape.");
+	}
+	console.log(chalk.bold("\n  Tree switch preview (dry-run)\n"));
+	console.log(
+		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
+	);
+	console.log("  Would:  switch active session pointer");
+	if (substrate.activeSessionIdBefore) {
+		console.log(chalk.dim(`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`));
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }

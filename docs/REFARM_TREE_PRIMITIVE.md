@@ -57,6 +57,7 @@ refarm tree list --scope git [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
+refarm tree preview <session-id-or-prefix> --switch [--json]
 refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
 refarm tree preview --scope git <branch-name> --switch [--json]
 refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
@@ -74,16 +75,20 @@ command-level semantics generic (`action`, `destructive`, `readyToExecute`,
 details under `substrate`. Tree preview effects declare generic timeline impact
 such as `activePointerChanged` and `branchCreated`; git-specific worktree impact
 stays in git substrate details (`worktreeSwitched`,
-`currentRefBefore`/`targetRefAfter`, and `worktreeClean`). Session previews may target a historical entry with
-`--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
+`currentRefBefore`/`targetRefAfter`, and `worktreeClean`). Session fork previews may target a historical entry with
+`--at <entry-id>` and fail closed if the entry is not in that session. Session
+switch previews are dry-run only: they resolve the target session, read the
+current active-session pointer, recommend `refarm sessions use ...`, and do not
+write `.refarm/session.lock`. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
 `currentRefBefore`/`currentRefAfter` in JSON), fails closed when the target branch already exists, and rejects session-only
 entry selectors (`--at`). `switch` is git-only in the first executable slice:
 it requires an existing non-active branch, rejects dirty worktrees before moving
 the active pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the
-active ref after `git switch`. Session fork/switch execution remains delegated or rejected
-until active-session switching semantics are made explicit in the tree contract.
+active ref after `git switch`. Session fork execution remains delegated to
+`refarm sessions fork`; session switch execution remains delegated to
+`refarm sessions use` until tree-owned active-session pointer mutation is proven.
 Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
@@ -121,7 +126,7 @@ npm run refarm:host:smoke:cli
 | `show` | Read-only node detail | Fails on ambiguous prefixes |
 | `preview` | Dry-run restore/fork/switch plan | Emits `reason: "dry-run"`; never mutates active state |
 | `fork` | Creates a new branch pointer from an immutable node | Git-only first slice; creates a branch without switching |
-| `switch` | Moves active pointer to an existing branch/head | Git-only first slice; requires an existing branch, clean worktree, and verified before/after refs |
+| `switch` | Moves active pointer to an existing branch/head | Git execution is implemented with existing-branch, clean-worktree, and before/after ref verification; session switch is preview/delegated only |
 
 Avoid a first-class `rewind` command until the preview + switch/fork semantics
 are proven. "Rewind" is user language; the safe primitive is either:
@@ -201,8 +206,8 @@ planned envelope until there is a deterministic rollback story.
 6. ✅ Add explicit git `fork`/branch execution after preview output stabilized;
    keep it non-switching and isolated from session fork execution.
 7. ✅ Add explicit git `switch` execution with clean-worktree and before/after
-   active-ref verification; keep session switching rejected until active-session
-   pointer semantics are explicit.
+   active-ref verification; keep session switch execution delegated while adding
+   dry-run active-session pointer preview.
 8. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 
