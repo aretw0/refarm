@@ -222,6 +222,7 @@ Use `refarm tree` when you want renderer-neutral inspection and dry-run readines
 before moving state:
 
 ```bash
+refarm tree list --scope all
 refarm tree list --scope session
 refarm tree preview <session-id-prefix> --switch
 refarm tree switch <session-id-prefix>

@@ -196,6 +196,34 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("lists all timeline nodes in human output", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [SESSION] }),
+			}) as any,
+		);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", "1"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("Tree timeline  (all scope)");
+		expect(output).toContain("[session]");
+		expect(output).toContain("[git]");
+		expect(output).toContain("refarm tree show --scope git <commit>");
+	});
+
 	it("lists git tree execution affordances in human output", async () => {
 		spawnSyncMock.mockReturnValue({
 			status: 0,
