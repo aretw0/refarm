@@ -53,6 +53,10 @@ with explicit conformance expectations.
    **When** incompatible flags are provided  
    **Then** guardrail errors are deterministic and mode-agnostic.
 
+5. **Given** status exposes `plugins.availableActions`
+   **When** headless or TUI action-readiness views are requested
+   **Then** they use stable action IDs from the status contract rather than DOM selectors or product-private payloads.
+
 ---
 
 ## Technical Approach
@@ -117,6 +121,11 @@ export interface RefarmStatusJson {
     active: number;
     rejectedSurfaces: number;
     surfaceActions: number;
+    availableActions?: readonly {
+      id: string;
+      label: string;
+      intent?: string;
+    }[];
   };
   streams: { active: number; terminal: number };
   diagnostics: string[];
@@ -134,6 +143,8 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --renderer <kind>` forwards each descriptor and capability profile to status building
 - [x] `packages/homestead/src/sdk/host-renderer.test.ts` verifies required renderer capability profiles and `runHostRendererConformance(kind, descriptorFactory)`
 - [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
+- [x] `apps/refarm/test/commands/headless-action.test.ts` verifies headless action request envelopes use the shared Homestead action helper path
+- [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows are derived from `plugins.availableActions`
 
 **Next conformance additions (planned):**
 
@@ -156,6 +167,7 @@ export interface RefarmStatusJson {
 **DDD**
 
 - [x] Expose reusable conformance helper from Homestead SDK
+- [x] Expose local headless/TUI action-readiness views over `plugins.availableActions`
 - [ ] Wire conformance smoke to CI host lane
 
 ---
