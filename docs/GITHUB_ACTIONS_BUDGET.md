@@ -13,6 +13,7 @@ compatible changes before opening or refreshing PRs.
 ```bash
 npm run actions:budget
 npm run actions:budget:json
+npm run actions:budget:guard
 ```
 
 Defaults:
@@ -38,6 +39,15 @@ slower job-summed runner-time estimate:
 ```bash
 npm run actions:budget -- --no-official
 npm run actions:budget -- --jobs
+```
+
+Use the guard form before a push/PR that will trigger Actions. It fails closed
+when the target repository is over allocation, and can optionally fail on WARN:
+
+```bash
+npm run actions:budget:guard
+npm run actions:budget:guard -- --repo aretw0/refarm
+npm run actions:budget:guard -- --fail-on-warn
 ```
 
 ## Official billing source
@@ -66,7 +76,7 @@ The report keeps two signals separate:
 Before opening or refreshing a PR:
 
 1. Run the closest local validation first.
-2. Run `npm run actions:budget` if the work is likely to trigger broad CI.
+2. Run `npm run actions:budget:guard` if the work is likely to trigger broad CI.
 3. Keep Refarm below its allocation unless explicitly borrowing from agents-lab budget.
 4. Prefer one coherent PR over repeated force-refreshes that retrigger the same workflows.
 5. If CI fails, inspect exact failed logs before pushing another attempt.
