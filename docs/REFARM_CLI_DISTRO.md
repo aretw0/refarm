@@ -106,7 +106,8 @@ npm run refarm:host:smoke:auto
   `refarm open-url --dry-run`, `refarm actions --input --select --json`,
   `refarm tree list --scope git --json`,
   `refarm tree preview --scope git --json`,
-  fail-closed `refarm tree fork` guards, `refarm status --json --input`,
+  isolated git `refarm tree fork --scope git --json`, fail-closed tree fork
+  guards, `refarm status --json --input`,
   `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and
