@@ -27,10 +27,18 @@ function parseScope(scope: string | undefined): RefarmTimelineScope {
 
 function validateBranchName(name: string | undefined): string | undefined {
 	if (!name) return undefined;
-	if (!/^[A-Za-z0-9._/-]+$/u.test(name)) {
+	const hasSafeChars = /^[A-Za-z0-9._/-]+$/u.test(name);
+	const hasUnsafeShape =
+		name.startsWith("-") ||
+		name.startsWith("/") ||
+		name.endsWith("/") ||
+		name.includes("..") ||
+		name.includes("//") ||
+		name.split("/").some((part) => part === "" || part.startsWith(".") || part.endsWith("."));
+	if (!hasSafeChars || hasUnsafeShape) {
 		console.error(
 			chalk.red(
-				`✗  Invalid branch name "${name}". Use letters, numbers, '.', '_', '/', or '-'.`,
+				`✗  Invalid branch name "${name}". Use safe git-style names with letters, numbers, '.', '_', '/', or '-' and no option-like, empty, hidden, or parent-traversal segments.`,
 			),
 		);
 		process.exit(1);
@@ -39,7 +47,14 @@ function validateBranchName(name: string | undefined): string | undefined {
 }
 
 function parseLimit(limit: string | undefined): number {
-	const value = Number.parseInt(limit ?? "20", 10);
+	const raw = limit ?? "20";
+	if (!/^\d+$/u.test(raw)) {
+		console.error(
+			chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`),
+		);
+		process.exit(1);
+	}
+	const value = Number.parseInt(raw, 10);
 	if (!Number.isInteger(value) || value < 1 || value > 200) {
 		console.error(
 			chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`),
