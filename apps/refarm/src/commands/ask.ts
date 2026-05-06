@@ -15,6 +15,10 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import {
+	isFullSessionId,
+	resolveSessionIdPrefix,
+} from "./session-ids.js";
+import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionId,
@@ -321,29 +325,6 @@ function detectConfiguredProvider(): string | null {
 	return null;
 }
 
-function isFullSessionId(value: string): boolean {
-	return value.startsWith("urn:refarm:session:v1:");
-}
-
-function resolveSessionPrefix(prefix: string, sessions: SessionNode[]): string {
-	const exact = sessions.find((session) => session["@id"] === prefix);
-	if (exact) return exact["@id"];
-
-	const matches = sessions.filter(
-		(session) =>
-			session["@id"].includes(prefix) || session["@id"].endsWith(prefix),
-	);
-	if (matches.length === 0) {
-		throw new Error(`No session matching "${prefix}"`);
-	}
-	if (matches.length > 1) {
-		throw new Error(
-			`Ambiguous session prefix "${prefix}" (${matches.length} matches)`,
-		);
-	}
-	return matches[0]["@id"];
-}
-
 async function resolveSessionIdPrefixFromSidecar(
 	prefix: string,
 ): Promise<string> {
@@ -354,7 +335,7 @@ async function resolveSessionIdPrefixFromSidecar(
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
-	return resolveSessionPrefix(prefix, body.sessions ?? []);
+	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
 function defaultDeps(): AskDeps {

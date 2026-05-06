@@ -2,6 +2,10 @@ import chalk from "chalk";
 import { Command } from "commander";
 
 import {
+	findSessionIdPrefixMatches,
+	formatSessionId,
+} from "./session-ids.js";
+import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionId,
@@ -29,12 +33,6 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
-}
-
-function formatSessionId(id: string): string {
-	// urn:refarm:session:v1:0123456789abcdef → show last 12 chars
-	const parts = id.split(":");
-	return parts.at(-1)?.slice(-12) ?? id;
 }
 
 function formatAge(createdAtNs: number | undefined): string {
@@ -248,9 +246,7 @@ async function useSession(prefix: string): Promise<void> {
 		process.exit(1);
 	}
 
-	const matches = sessions.filter(
-		(s) => s["@id"].includes(prefix) || s["@id"].endsWith(prefix),
-	);
+	const matches = findSessionIdPrefixMatches(prefix, sessions);
 
 	if (matches.length === 0) {
 		console.error(chalk.red(`✗  No session matching "${prefix}"`));

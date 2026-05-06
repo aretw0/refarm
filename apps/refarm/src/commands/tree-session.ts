@@ -9,6 +9,7 @@ import {
 	type RefarmSessionTimelineShowEnvelope,
 	type RefarmSessionTimelineSwitchEnvelope,
 } from "./tree-model.js";
+import { formatSessionId } from "./session-ids.js";
 import { readActiveSessionId, writeActiveSessionId } from "./session-lock.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -33,11 +34,6 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
-}
-
-function formatSessionId(id: string): string {
-	const parts = id.split(":");
-	return parts.at(-1)?.slice(-12) ?? id;
 }
 
 function nsToIso(ns: number | undefined): string {
