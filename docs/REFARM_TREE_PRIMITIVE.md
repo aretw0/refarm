@@ -318,8 +318,9 @@ Git fork preview stays non-mutating and, without `--name`, deliberately reports
 ```
 
 Git switch preview describes active-pointer movement but never calls
-`git switch`. Dirty worktrees keep the preview successful while setting
-`readyToExecute: false` and a deterministic `blockedReason`:
+`git switch`. Dirty worktrees and already-active target branches keep the preview
+successful while setting `readyToExecute: false` and a deterministic
+`blockedReason`:
 
 ```json
 {
