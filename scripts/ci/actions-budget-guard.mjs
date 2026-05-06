@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import process from "node:process";
 
 const DEFAULT_REPO = "aretw0/refarm";
@@ -30,7 +31,11 @@ function statusForBurn(burn) {
 	return "OK";
 }
 
-function loadBudgetReport(extraArgs) {
+function loadBudgetReport(extraArgs, inputPath) {
+	if (inputPath) {
+		return JSON.parse(readFileSync(inputPath, "utf8"));
+	}
+
 	const output = execFileSync(
 		process.execPath,
 		["scripts/ci/actions-budget.mjs", "--json", ...extraArgs],
@@ -48,7 +53,7 @@ function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log("GitHub Actions budget guard usage:");
 		console.log(
-			"  node scripts/ci/actions-budget-guard.mjs [--repo owner/repo] [--fail-on-warn] [actions-budget args...]",
+			"  node scripts/ci/actions-budget-guard.mjs [--repo owner/repo] [--input report.json] [--fail-on-warn] [actions-budget args...]",
 		);
 		console.log("  default repo: aretw0/refarm");
 		return;
@@ -58,6 +63,7 @@ function main() {
 		readArgValue("--repo") ??
 		process.env.GITHUB_ACTIONS_BUDGET_GUARD_REPO ??
 		DEFAULT_REPO;
+	const inputPath = readArgValue("--input");
 	const failOnWarn = hasArg("--fail-on-warn");
 	const passthroughArgs = [];
 
@@ -67,11 +73,15 @@ function main() {
 			i += 1;
 			continue;
 		}
+		if (arg === "--input") {
+			i += 1;
+			continue;
+		}
 		if (arg === "--fail-on-warn") continue;
 		passthroughArgs.push(arg);
 	}
 
-	const report = loadBudgetReport(passthroughArgs);
+	const report = loadBudgetReport(passthroughArgs, inputPath);
 	const repoReport = report.repos?.find((candidate) => candidate.repo === repo);
 	if (!repoReport) {
 		throw new Error(`Budget report does not include repo ${repo}`);
