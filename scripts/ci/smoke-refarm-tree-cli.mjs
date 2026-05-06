@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createServer } from "node:http";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -73,6 +74,34 @@ async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 	}
 }
 
+async function startTreeSidecarStub() {
+	const server = createServer((request, response) => {
+		if (request.url === "/sessions") {
+			response.writeHead(200, { "content-type": "application/json" });
+			response.end(JSON.stringify({ sessions: [] }));
+			return;
+		}
+		response.writeHead(404, { "content-type": "application/json" });
+		response.end(JSON.stringify({ error: "not found" }));
+	});
+
+	return new Promise((resolve, reject) => {
+		server.once("error", (error) => {
+			if (error && error.code === "EADDRINUSE") {
+				resolve({ started: false, close: async () => {} });
+				return;
+			}
+			reject(error);
+		});
+		server.listen(42001, "127.0.0.1", () => {
+			resolve({
+				started: true,
+				close: () => new Promise((closeResolve) => server.close(closeResolve)),
+			});
+		});
+	});
+}
+
 async function createIsolatedGitRepo(tempDir) {
 	const gitRepoPath = path.join(tempDir, "refarm-tree-git-repo");
 	await mkdir(gitRepoPath, { recursive: true });
@@ -108,6 +137,7 @@ async function main() {
 		process.env.REFARM_TREE_SMOKE_KEEP_ARTIFACTS === "1" ||
 		process.env.REFARM_TREE_SMOKE_KEEP_ARTIFACTS === "true";
 	const tempDir = await mkdtemp(path.join(tmpdir(), "refarm-tree-cli-smoke-"));
+	let sidecarStub;
 
 	try {
 		if (!skipBuild) {
@@ -118,6 +148,14 @@ async function main() {
 		}
 
 		const isolatedGitRepoPath = await createIsolatedGitRepo(tempDir);
+		sidecarStub = await startTreeSidecarStub();
+		if (sidecarStub.started) {
+			console.log(`${LOGGER_PREFIX} using local session sidecar stub on :42001`);
+		} else {
+			console.log(
+				`${LOGGER_PREFIX} using existing session sidecar on :42001 for all-scope smoke`,
+			);
+		}
 
 		console.log(`${LOGGER_PREFIX} smoke: tree git list JSON`);
 		const listRun = await runRefarmCommand(
@@ -132,6 +170,31 @@ async function main() {
 		) {
 			throw new Error(`Expected git list envelope, got: ${JSON.stringify(listJson)}`);
 		}
+
+		console.log(`${LOGGER_PREFIX} smoke: tree all list JSON`);
+		const allListRun = await runRefarmCommand(
+			["tree", "list", "--scope", "all", "--limit", "1", "--json"],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const allListJson = parseCommandJsonOutput("tree list --scope all", allListRun);
+		if (
+			allListJson?.schemaVersion !== 1 ||
+			allListJson?.operation !== "list" ||
+			allListJson?.scope !== "all" ||
+			!Array.isArray(allListJson?.nodes) ||
+			!allListJson.nodes.some((node) => node?.kind === "git")
+		) {
+			throw new Error(
+				`Expected all-scope list envelope with git node, got: ${JSON.stringify(allListJson)}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: tree all scope remains read-only`);
+		await assertCommandFailsWith(
+			["tree", "switch", "HEAD", "--scope", "all"],
+			"--scope session|git for this operation",
+			{ cwd: isolatedGitRepoPath },
+		);
 
 		console.log(`${LOGGER_PREFIX} smoke: tree git show JSON`);
 		const showRun = await runRefarmCommand(
@@ -401,6 +464,9 @@ async function main() {
 
 		console.log(`${LOGGER_PREFIX} passed`);
 	} finally {
+		if (sidecarStub) {
+			await sidecarStub.close();
+		}
 		if (keepArtifacts) {
 			console.log(`${LOGGER_PREFIX} artifacts kept at ${tempDir}`);
 		} else {
