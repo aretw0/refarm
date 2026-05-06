@@ -57,6 +57,10 @@ with explicit conformance expectations.
    **When** Web, headless, or TUI action-readiness views are requested
    **Then** they use stable action IDs and one-based row selections from the status contract rather than DOM selectors or product-private payloads.
 
+6. **Given** a live `apps/refarm` status action is selected explicitly
+   **When** `refarm status --action <id-or-index>` is executed
+   **Then** the command resolves the same status affordance vocabulary, invokes the app-owned handler through the Homestead action envelope, and reports deterministic handled/unhandled metadata.
+
 ---
 
 ## Technical Approach
@@ -145,7 +149,8 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
 - [x] `apps/refarm/test/commands/headless-action.test.ts` verifies headless action request envelopes use the shared Homestead action helper path
 - [x] `apps/refarm/test/commands/status-surfaces.test.ts` verifies live `apps/refarm` status affordances are exposed as a Homestead surface-state snapshot
-- [x] `apps/refarm/test/commands/status-actions.test.ts` verifies live `apps/refarm` status actions resolve and invoke through the shared Homestead action envelope
+- [x] `apps/refarm/test/commands/status-actions.test.ts` verifies live `apps/refarm` status actions resolve, invoke, and emit deterministic invocation envelopes through the shared Homestead action envelope
+- [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --action <id-or-index>` invokes live status actions by ID and row index
 - [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by Web/headless/TUI readiness paths
 - [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`

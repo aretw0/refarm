@@ -15,13 +15,21 @@ or preparing the first real app-owned handler.
 
 ## Safety model
 
-These commands are dry-runs:
+Renderer readiness commands are dry-runs:
 
 - they validate an action exists in `plugins.availableActions`;
 - they resolve stable IDs or one-based row indexes;
 - they emit deterministic human or JSON envelopes;
 - they do **not** invoke product behavior;
 - they do **not** decide app-specific action meaning.
+
+`refarm status --action <id-or-index>` is the explicit execution seam for the
+current live status affordances. It still resolves through the same stable
+ID/index vocabulary and Homestead action request envelope, but unlike Web/TUI
+readiness rows or `headless --action-request`, it invokes the app-owned status
+handler and reports whether the request was handled. Keep this path limited to
+small, product-owned status actions unless a broader app flow has its own
+confirmation UX.
 
 Product semantics stay in `apps/*`. Generic action envelope mechanics stay in
 Homestead. The shared app-owned selection vocabulary currently lives in
@@ -39,6 +47,7 @@ refarm web --actions
 refarm web --actions --select inspect-trust --json
 refarm tui --actions
 refarm headless --action-request inspect-trust
+refarm status --action inspect-trust
 ```
 
 The live status affordances are intentionally small and product-owned by the CLI
@@ -47,6 +56,26 @@ action readiness can come from semantic host state instead of manually authored
 fixtures. The matching app-owned handler seam lives in
 `apps/refarm/src/commands/status-actions.ts` and consumes the same Homestead
 action request envelope without moving CLI product semantics into `packages/*`.
+
+### Live status action invocation
+
+```bash
+refarm status --action inspect-trust
+refarm status --action 2
+```
+
+This is the app-owned execution proof for the live status actions. The command:
+
+- boots or reads the status payload;
+- resolves the selected action using the shared ID/index selection rules;
+- creates the Homestead action request from the live `apps/refarm` status
+  surface;
+- invokes the `apps/refarm` status action handler;
+- prints a deterministic JSON envelope with `selection`, `actionRequest`,
+  `handled`, and `availableActions`.
+
+It is intentionally separate from Web/TUI/headless readiness commands so agents
+can keep non-destructive discovery/dry-runs distinct from explicit execution.
 
 ## Canonical fixture
 
@@ -238,7 +267,8 @@ allocation.
 
 ## Next implementation step
 
-The next non-documentation slice should add the first product-owned handler
-behind this readiness path. Keep the handler in the owning app (`apps/dev` or
-`apps/me`), consume the existing Homestead action request envelope, and retain
-these dry-run commands for agent-safe verification.
+The next non-documentation slice should connect a richer product flow behind an
+owning app handler only after the app has a clear confirmation/safety model.
+Keep the handler in the owning app (`apps/dev`, `apps/me`, or `apps/refarm`),
+consume the existing Homestead action request envelope, and retain the dry-run
+commands for agent-safe verification.

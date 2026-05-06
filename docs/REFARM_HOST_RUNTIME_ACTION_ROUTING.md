@@ -120,6 +120,12 @@ so `refarm status` can expose `plugins.availableActions` without relying on DOM
 inspection or fixture-only payloads. `apps/refarm/src/commands/status-actions.ts`
 keeps the matching product-owned handler seam and invokes those live status
 actions through the same shared Homestead action request envelope.
+`refarm status --action <id-or-index>` is the explicit CLI execution seam for
+those live status actions: it resolves the selection from
+`plugins.availableActions`, creates the Homestead request from the live status
+surface, invokes the app-owned handler, and prints a deterministic JSON envelope
+with `handled` status. Web/TUI/headless readiness commands remain
+non-destructive dry-runs.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action
 affordance vocabulary shared by Web, headless, and TUI readiness paths: stable
@@ -151,7 +157,7 @@ Promote only when at least two independent consumers need the same mechanic **an
 
 1. Keep `apps/refarm` status/preflight as the canonical renderer-independent host signal.
 2. Add richer host status inputs only through package summaries, not DOM/runtime globals.
-3. Add product-owned action handlers behind the headless action primitive when a real app flow needs execution; keep dry-run envelope output available for agents and tests.
+3. Add richer product-owned action handlers only when the owning app has a clear confirmation/safety model; keep dry-run envelope output available for agents and tests.
 4. Keep CI smoke wiring deferred while GitHub Actions budget is over allocation; validate locally with focused package/app tests.
 5. Revisit the shell layout/footer scroll TODO before expanding Web renderer UX, because stable viewport ownership affects action surfaces, streams, and statusbars.
 

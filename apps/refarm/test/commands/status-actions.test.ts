@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	createRefarmStatusSurfaceActionHandler,
+	createRefarmStatusSurfaceActionInvocationEnvelope,
 	createRefarmStatusSurfaceRenderRequest,
 	invokeRefarmStatusSurfaceAction,
 	REFARM_STATUS_SURFACE_ID,
@@ -89,5 +90,54 @@ describe("Refarm status surface actions", () => {
 			}),
 		).resolves.toBe(false);
 		expect(observer).not.toHaveBeenCalled();
+	});
+
+	it("creates deterministic status action invocation envelopes", () => {
+		const resolution = resolveRefarmStatusSurfaceActionRequest(
+			REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+		);
+
+		expect(
+			createRefarmStatusSurfaceActionInvocationEnvelope(
+				{ schemaVersion: 1 } as any,
+				{
+					requested: "2",
+					source: "index",
+					resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					index: 2,
+				},
+				resolution.request!,
+				true,
+				[
+					{
+						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						label: "Inspect trust",
+						intent: "trust:inspect",
+					},
+				],
+			),
+		).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "executed",
+			renderer: "status",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				index: 2,
+			},
+			actionRequest: {
+				action: { id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID },
+			},
+			handled: true,
+			availableActions: [
+				{
+					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					label: "Inspect trust",
+					intent: "trust:inspect",
+				},
+			],
+		});
 	});
 });

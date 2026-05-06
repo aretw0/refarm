@@ -13,12 +13,21 @@ import { Tractor } from "@refarm.dev/tractor";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
+import {
+	formatRefarmActionIds,
+	getRefarmStatusAvailableActions,
+	resolveRefarmActionAffordanceSelection,
+} from "./action-affordances.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import {
+	createRefarmStatusSurfaceActionInvocationEnvelope,
+	invokeRefarmStatusSurfaceAction,
+	resolveRefarmStatusSurfaceActionRequest,
+} from "./status-actions.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 import { runStatusPreflight } from "./status-preflight.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 
 interface StorageAdapter {
 	ensureSchema(): Promise<void>;
@@ -108,13 +117,29 @@ export const statusCommand = new Command("status")
 	)
 	.option("--markdown", "Output markdown report")
 	.option("--json", "Output machine-readable JSON")
+	.option(
+		"--action <id-or-index>",
+		"Invoke a live app-owned status action by available action ID or row index",
+	)
 	.action(
 		async (options: {
 			json?: boolean;
 			markdown?: boolean;
 			renderer?: string;
 			input?: string;
+			action?: string;
 		}) => {
+			if (options.action) {
+				if (options.json || options.markdown) {
+					throw new Error(
+						"--action cannot be combined with --json or --markdown.",
+					);
+				}
+
+				await emitStatusActionInvocation(options);
+				return;
+			}
+
 			const outputMode = resolveJsonMarkdownStatusOutputMode({
 				json: options.json,
 				markdown: options.markdown,
@@ -129,6 +154,62 @@ export const statusCommand = new Command("status")
 			});
 		},
 	);
+
+async function emitStatusActionInvocation(options: {
+	renderer?: string;
+	input?: string;
+	action?: string;
+}): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload,
+		resolveOptions: options,
+		run: async (json) => {
+			const actionSelection = options.action;
+			if (!actionSelection) {
+				throw new Error("Missing --action action ID or row index.");
+			}
+
+			const selectedAction = resolveRefarmActionAffordanceSelection(
+				json,
+				actionSelection,
+			);
+
+			if (!selectedAction.selected) {
+				throw new Error(
+					`Status action "${actionSelection}" is not available. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+				);
+			}
+
+			const resolution = resolveRefarmStatusSurfaceActionRequest(
+				selectedAction.selected.id,
+			);
+
+			if (!resolution.request) {
+				throw new Error(
+					`Status action "${selectedAction.selected.id}" has no live handler. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+				);
+			}
+
+			const handled = await invokeRefarmStatusSurfaceAction(
+				selectedAction.selected.id,
+			);
+
+			console.log(
+				JSON.stringify(
+					createRefarmStatusSurfaceActionInvocationEnvelope(
+						json,
+						selectedAction.selection,
+						resolution.request,
+						handled,
+						getRefarmStatusAvailableActions(json),
+					),
+					null,
+					2,
+				),
+			);
+		},
+	});
+}
 
 export async function resolveStatusPayload(
 	options: ResolveStatusPayloadOptions,

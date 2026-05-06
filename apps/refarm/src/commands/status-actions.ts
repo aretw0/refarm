@@ -6,6 +6,11 @@ import {
 	type HomesteadSurfaceRenderActionRequest,
 	type HomesteadSurfaceRenderContextRequest,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
+import type {
+	RefarmStatusJson,
+	RefarmStatusSurfaceAction,
+} from "@refarm.dev/cli/status";
+import type { RefarmActionAffordanceSelectionMetadata } from "./action-affordances.js";
 import {
 	createRefarmStatusHostSurfaceState,
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
@@ -23,6 +28,17 @@ export type RefarmStatusSurfaceActionObserver = (
 export interface RefarmStatusSurfaceActionResolution {
 	request?: HomesteadSurfaceRenderActionRequest;
 	reason: "available" | "missing-action";
+}
+
+export interface RefarmStatusSurfaceActionInvocationEnvelope {
+	schemaVersion: 1;
+	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	reason: "executed";
+	renderer: "status";
+	selection: RefarmActionAffordanceSelectionMetadata;
+	actionRequest: HomesteadSurfaceRenderActionRequest;
+	handled: boolean;
+	availableActions: readonly RefarmStatusSurfaceAction[];
 }
 
 export function createRefarmStatusSurfaceRenderRequest(
@@ -89,6 +105,25 @@ export async function invokeRefarmStatusSurfaceAction(
 		host,
 		actionId,
 	);
+}
+
+export function createRefarmStatusSurfaceActionInvocationEnvelope(
+	status: RefarmStatusJson,
+	selection: RefarmActionAffordanceSelectionMetadata,
+	actionRequest: HomesteadSurfaceRenderActionRequest,
+	handled: boolean,
+	availableActions: readonly RefarmStatusSurfaceAction[],
+): RefarmStatusSurfaceActionInvocationEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "executed",
+		renderer: "status",
+		selection,
+		actionRequest,
+		handled,
+		availableActions,
+	};
 }
 
 function isRefarmStatusSurfaceActionId(actionId: string): boolean {

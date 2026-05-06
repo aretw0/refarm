@@ -175,6 +175,126 @@ describe("statusCommand", () => {
 		);
 	});
 
+	it("invokes a live status action by ID", async () => {
+		mockBuildRefarmStatusJson.mockImplementation((input: any) => ({
+			schemaVersion: 1,
+			host: input.host,
+			renderer: input.renderer,
+			runtime: input.runtime,
+			plugins: {
+				installed: 0,
+				active: 0,
+				rejectedSurfaces: 0,
+				surfaceActions: 2,
+				availableActions: [
+					{
+						id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+						label: "Open status report",
+						intent: "refarm:status-open",
+					},
+					{
+						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						label: "Inspect trust",
+						intent: "trust:inspect",
+					},
+				],
+			},
+			trust: input.trust,
+			streams: { active: 0, terminal: 0 },
+			diagnostics: [],
+		}));
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await statusCommand.parseAsync(
+			["--action", REFARM_STATUS_INSPECT_TRUST_ACTION_ID],
+			{ from: "user" },
+		);
+
+		const envelope = JSON.parse(spy.mock.calls.at(-1)?.[0] as string);
+		expect(envelope).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "executed",
+			renderer: "status",
+			handled: true,
+			selection: {
+				requested: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				source: "id",
+				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				index: 2,
+			},
+			actionRequest: {
+				pluginId: "apps/refarm",
+				action: {
+					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+					intent: "trust:inspect",
+				},
+			},
+		});
+		expect(mockShutdown).toHaveBeenCalled();
+		spy.mockRestore();
+	});
+
+	it("invokes a live status action by row index", async () => {
+		mockBuildRefarmStatusJson.mockImplementation((input: any) => ({
+			schemaVersion: 1,
+			host: input.host,
+			renderer: input.renderer,
+			runtime: input.runtime,
+			plugins: {
+				installed: 0,
+				active: 0,
+				rejectedSurfaces: 0,
+				surfaceActions: 2,
+				availableActions: [
+					{
+						id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+						label: "Open status report",
+						intent: "refarm:status-open",
+					},
+					{
+						id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+						label: "Inspect trust",
+						intent: "trust:inspect",
+					},
+				],
+			},
+			trust: input.trust,
+			streams: { active: 0, terminal: 0 },
+			diagnostics: [],
+		}));
+		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await statusCommand.parseAsync(["--action", "2"], { from: "user" });
+
+		const envelope = JSON.parse(spy.mock.calls.at(-1)?.[0] as string);
+		expect(envelope.selection).toEqual({
+			requested: "2",
+			source: "index",
+			resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+			index: 2,
+		});
+		expect(envelope.handled).toBe(true);
+		spy.mockRestore();
+	});
+
+	it("rejects unavailable status actions", async () => {
+		await expect(
+			statusCommand.parseAsync(["--action", "missing-action"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Status action "missing-action" is not available/);
+	});
+
+	it("rejects status action invocation combined with other output modes", async () => {
+		await expect(
+			statusCommand.parseAsync(["--action", "1", "--json"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/--action cannot be combined with --json or --markdown/);
+		expect(mockBoot).not.toHaveBeenCalled();
+	});
+
 	it("fails fast for unknown renderer kinds", async () => {
 		await expect(
 			statusCommand.parseAsync(["--json", "--renderer", "matrix"], {

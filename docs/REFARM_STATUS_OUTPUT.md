@@ -17,6 +17,8 @@ refarm status --renderer web --json   # same contract in Web renderer mode
 refarm status --renderer tui --json   # same contract in TUI renderer mode
 refarm status --input status.json --json  # validate/render an existing status artifact
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
+refarm status --action inspect-trust  # explicitly invoke a live status action by ID
+refarm status --action 2              # explicitly invoke a live status action by row index
 refarm headless --input status.json --action-request open-node  # dry-run action envelope by ID
 refarm headless --input status.json --action-request 1          # dry-run action envelope by row index
 refarm web --input status.json --actions              # selectable action rows for Web readiness
@@ -170,6 +172,22 @@ emits the deterministic Homestead action request envelope that a future product
 handler can consume. The JSON is produced by the app-owned headless dry-run
 envelope helper and also includes additive `selection` metadata: `requested`,
 `source` (`id` or `index`), `resolvedId`, and one-based `index`.
+
+Live status action invocation:
+
+```bash
+refarm status --action inspect-trust
+refarm status --action 2
+```
+
+This command is the explicit app-owned execution seam for live `apps/refarm`
+status affordances. It resolves the selected `plugins.availableActions` entry by
+stable ID or one-based row index, creates the Homestead action request from the
+live status surface, invokes the status action handler, and emits deterministic
+JSON with `reason: "executed"`, `renderer: "status"`, `selection`,
+`actionRequest`, `handled`, and `availableActions`. It is intentionally
+separate from Web/TUI/headless dry-runs so operators and agents can distinguish
+readiness from execution.
 
 Web action row dry-run:
 
