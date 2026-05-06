@@ -275,6 +275,20 @@ async function main() {
 				`Expected dirty git switch preview envelope, got: ${JSON.stringify(dirtySwitchPreviewJson)}`,
 			);
 		}
+		const refAfterDirtyPreview = await runSubprocess(
+			"git",
+			["rev-parse", "--abbrev-ref", "HEAD"],
+			{
+				cwd: isolatedGitRepoPath,
+				env: process.env,
+				captureOutput: true,
+			},
+		);
+		if (refAfterDirtyPreview.stdout.trim() !== "main") {
+			throw new Error(
+				`Expected dirty switch preview to leave active ref on main, got: ${refAfterDirtyPreview.stdout}`,
+			);
+		}
 		await runSubprocess("git", ["checkout", "--", "README.md"], {
 			cwd: isolatedGitRepoPath,
 			env: process.env,
