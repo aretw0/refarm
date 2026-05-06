@@ -98,6 +98,13 @@ This model supports Web today and should also support TUI/headless later:
 
 The action envelope is shared; the interaction modality is not.
 
+`apps/refarm/src/commands/headless-action.ts` is the first local headless
+consumer of that envelope. It turns a status payload with
+`plugins.availableActions` into a deterministic Homestead render request and
+host context, then delegates selected action IDs through
+`invokeHomesteadSurfaceRenderAction(...)`. This keeps action invocation testable
+without giving the headless host product-specific action meaning.
+
 ## Promotion threshold
 
 Do **not** promote a new runtime/action abstraction to `packages/*` after a single consumer.
@@ -114,7 +121,7 @@ Promote only when at least two independent consumers need the same mechanic **an
 
 1. Keep `apps/refarm` status/preflight as the canonical renderer-independent host signal.
 2. Add richer host status inputs only through package summaries, not DOM/runtime globals.
-3. Wire the first TUI/headless action invoker through the Homestead action request helpers instead of introducing a second action protocol.
+3. Wire CLI UX for invoking a headless action by ID on top of the local `headless-action` primitive once product handlers are available.
 4. Keep CI smoke wiring deferred while GitHub Actions budget is over allocation; validate locally with focused package/app tests.
 5. Revisit the shell layout/footer scroll TODO before expanding Web renderer UX, because stable viewport ownership affects action surfaces, streams, and statusbars.
 
