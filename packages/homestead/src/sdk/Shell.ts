@@ -27,6 +27,7 @@ import {
 } from "./stream-observer.js";
 import {
 	homesteadSurfaceRenderContent,
+	createHomesteadSurfaceRenderActionRequest,
 	homesteadSurfaceRenderActionById,
 	type HomesteadSurfaceRenderAction,
 	type HomesteadSurfaceRenderActionHandler,
@@ -555,11 +556,18 @@ export class StudioShell {
 		host: HomesteadSurfaceRenderHostContext,
 		action: HomesteadSurfaceRenderAction,
 	) {
-		this.emitSurfaceActionRequested(renderRequest, action);
+		const actionRequest = createHomesteadSurfaceRenderActionRequest(
+			renderRequest,
+			host,
+			action.id,
+		);
+		if (!actionRequest) return;
+
+		this.emitSurfaceActionRequested(renderRequest, actionRequest.action);
 		try {
-			await this.options.surfaceAction?.({ ...renderRequest, host, action });
+			await this.options.surfaceAction?.(actionRequest);
 		} catch (error) {
-			this.emitSurfaceActionFailed(renderRequest, action, error);
+			this.emitSurfaceActionFailed(renderRequest, actionRequest.action, error);
 		}
 	}
 

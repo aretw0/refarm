@@ -91,6 +91,11 @@ This model supports Web today and should also support TUI/headless later:
 - TUI can select an action row/keybinding and emit the same action request.
 - Headless can invoke an action by ID against a status/surface snapshot.
 
+`@refarm.dev/homestead/sdk/surface-renderer` owns the shared action request helpers:
+
+- `createHomesteadSurfaceRenderActionRequest(...)` resolves a host action ID into the renderer-independent request envelope.
+- `invokeHomesteadSurfaceRenderAction(...)` invokes a product handler through that same envelope and returns whether it was handled.
+
 The action envelope is shared; the interaction modality is not.
 
 ## Promotion threshold
@@ -109,7 +114,7 @@ Promote only when at least two independent consumers need the same mechanic **an
 
 1. Keep `apps/refarm` status/preflight as the canonical renderer-independent host signal.
 2. Add richer host status inputs only through package summaries, not DOM/runtime globals.
-3. When a TUI or headless action invoker is needed, route it through the Homestead action envelope instead of introducing a second action protocol.
+3. Wire the first TUI/headless action invoker through the Homestead action request helpers instead of introducing a second action protocol.
 4. Keep CI smoke wiring deferred while GitHub Actions budget is over allocation; validate locally with focused package/app tests.
 5. Revisit the shell layout/footer scroll TODO before expanding Web renderer UX, because stable viewport ownership affects action surfaces, streams, and statusbars.
 
