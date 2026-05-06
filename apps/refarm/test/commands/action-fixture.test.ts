@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
+import { createActionsCommand } from "../../src/commands/actions.js";
 import { headlessCommand } from "../../src/commands/headless.js";
 import { createTuiCommand } from "../../src/commands/tui.js";
 import { createWebCommand } from "../../src/commands/web.js";
@@ -9,6 +10,55 @@ const STATUS_WITH_ACTIONS_FIXTURE = fileURLToPath(
 );
 
 describe("status-with-actions fixture", () => {
+	it("drives renderer-neutral host action JSON output from --input", async () => {
+		const command = createActionsCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--select", "2", "--json"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			command: "actions",
+			renderer: "headless",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
+			},
+			selectedAction: {
+				id: "inspect-trust",
+				label: "Inspect trust",
+				intent: "trust:inspect",
+			},
+		});
+		logSpy.mockRestore();
+	});
+
+	it("drives renderer-neutral host action row output from --input", async () => {
+		const command = createActionsCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--input", STATUS_WITH_ACTIONS_FIXTURE], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			[
+				"Available host actions:",
+				"  [1] Open node — open-node (node:open)",
+				"  [2] Inspect trust — inspect-trust (trust:inspect)",
+			].join("\n"),
+		);
+		logSpy.mockRestore();
+	});
+
 	it("drives headless dry-run action request output from --input", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 

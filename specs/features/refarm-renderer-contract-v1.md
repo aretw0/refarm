@@ -155,7 +155,7 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/actions.test.ts` verifies `refarm actions` exposes non-executing host action rows, selected-row metadata, and JSON dry-run envelopes over `plugins.availableActions`
 - [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
-- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives headless action envelopes, indexed selection, Web/TUI action rows, selected Web/TUI rows, and Web/TUI JSON dry-run envelopes through `--input`
+- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives renderer-neutral host action rows/JSON, headless action envelopes, indexed selection, Web/TUI action rows, selected Web/TUI rows, and Web/TUI JSON dry-run envelopes through `--input`
 - [x] `npm run refarm:host:smoke:dist-actions` verifies the emitted `apps/refarm/dist/index.js` can discover Web actions, emit renderer-neutral `refarm actions` dry-run output, and execute a live status action through the built package graph
 
 **Next conformance additions (planned):**
