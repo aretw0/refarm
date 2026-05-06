@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
 	formatRefarmActionIds,
 	getRefarmStatusAvailableActions,
 	resolveRefarmActionAffordanceSelection,
@@ -119,6 +121,68 @@ describe("Refarm action affordance helpers", () => {
 				index: 2,
 			},
 		});
+	});
+
+	it("creates shared dry-run envelopes for action readiness commands", () => {
+		const status = makeStatus();
+		const selection = resolveRefarmActionAffordanceSelection(status, "2");
+
+		expect(
+			createRefarmActionReadinessDryRunEnvelope(status, {
+				command: "actions",
+				renderer: "headless",
+				selection,
+			}),
+		).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			command: "actions",
+			renderer: "headless",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
+			},
+			selectedAction: { id: "inspect-trust", index: 2 },
+			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
+		});
+
+		expect(
+			createRefarmActionReadinessDryRunEnvelope(status, {
+				renderer: "web",
+			}),
+		).toMatchObject({
+			reason: "dry-run",
+			renderer: "web",
+			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
+		});
+	});
+
+	it("formats selected action context with caller-owned headings", () => {
+		const status = makeStatus();
+		const selection = resolveRefarmActionAffordanceSelection(status, "2");
+
+		expect(
+			formatRefarmActionAffordanceSelection(
+				selection.selected!,
+				selection.rows,
+				{
+					selectedHeading: "Selected host action:",
+					availableHeading: "Available host actions:",
+					selection: selection.selection,
+				},
+			),
+		).toBe(`Selected host action:
+  [2] Inspect trust — inspect-trust
+Selection:
+  requested: 2
+  resolved: inspect-trust
+  source: index
+Available host actions:
+  [1] Open node — open-node (node:open)
+  [2] Inspect trust — inspect-trust`);
 	});
 
 	it("reports missing selections and formats available IDs", () => {

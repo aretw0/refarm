@@ -32,6 +32,29 @@ export interface RefarmActionAffordanceSelectionResult {
 	rows: readonly RefarmActionAffordanceRow[];
 }
 
+export interface RefarmActionReadinessDryRunEnvelope {
+	schemaVersion: 1;
+	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
+	reason: "dry-run";
+	command?: string;
+	renderer: string;
+	selection?: RefarmActionAffordanceSelectionMetadata;
+	selectedAction?: RefarmActionAffordanceRow;
+	actionRows: readonly RefarmActionAffordanceRow[];
+}
+
+export interface RefarmActionReadinessDryRunEnvelopeOptions {
+	renderer: string;
+	command?: string;
+	selection?: RefarmActionAffordanceSelectionResult;
+}
+
+export interface RefarmActionAffordanceSelectionFormatOptions {
+	selectedHeading: string;
+	availableHeading: string;
+	selection?: RefarmActionAffordanceSelectionMetadata;
+}
+
 export function getRefarmStatusAvailableActions(
 	status: RefarmStatusJson,
 ): readonly RefarmStatusSurfaceAction[] {
@@ -92,6 +115,47 @@ export function formatRefarmActionAffordanceRows(
 ): string {
 	if (rows.length === 0) return `${heading}\n  none`;
 	return [heading, ...rows.map((row) => `  ${row.display}`)].join("\n");
+}
+
+export function createRefarmActionReadinessDryRunEnvelope(
+	status: RefarmStatusJson,
+	options: RefarmActionReadinessDryRunEnvelopeOptions,
+): RefarmActionReadinessDryRunEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "dry-run",
+		...(options.command ? { command: options.command } : {}),
+		renderer: options.renderer,
+		selection: options.selection?.selected
+			? options.selection.selection
+			: undefined,
+		selectedAction: options.selection?.selected,
+		actionRows:
+			options.selection?.rows ?? createRefarmActionAffordanceRows(status),
+	};
+}
+
+export function formatRefarmActionAffordanceSelection(
+	selected: RefarmActionAffordanceRow,
+	rows: readonly RefarmActionAffordanceRow[],
+	options: RefarmActionAffordanceSelectionFormatOptions,
+): string {
+	const selectionLines = options.selection
+		? [
+				"Selection:",
+				`  requested: ${options.selection.requested}`,
+				`  resolved: ${options.selection.resolvedId ?? selected.id}`,
+				`  source: ${options.selection.source}`,
+			]
+		: [];
+
+	return [
+		options.selectedHeading,
+		`  ${selected.display}`,
+		...selectionLines,
+		formatRefarmActionAffordanceRows(rows, options.availableHeading),
+	].join("\n");
 }
 
 export function formatRefarmActionIds(

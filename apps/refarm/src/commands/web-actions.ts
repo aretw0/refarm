@@ -1,11 +1,14 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
 	type RefarmActionAffordanceSelectionMetadata,
 	type RefarmActionAffordanceSelectionReason,
+	type RefarmActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 
 export type WebSurfaceActionRow = RefarmActionAffordanceRow;
@@ -19,15 +22,10 @@ export interface WebSurfaceActionSelectionResult {
 	rows: readonly WebSurfaceActionRow[];
 }
 
-export interface WebSurfaceActionDryRunEnvelope {
-	schemaVersion: 1;
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
-	reason: "dry-run";
-	renderer: "web";
-	selection?: RefarmActionAffordanceSelectionMetadata;
-	selectedAction?: WebSurfaceActionRow;
-	actionRows: readonly WebSurfaceActionRow[];
-}
+export type WebSurfaceActionDryRunEnvelope =
+	RefarmActionReadinessDryRunEnvelope & {
+		renderer: "web";
+	};
 
 export function createWebSurfaceActionRows(
 	status: RefarmStatusJson,
@@ -46,15 +44,10 @@ export function createWebSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: WebSurfaceActionSelectionResult,
 ): WebSurfaceActionDryRunEnvelope {
-	return {
-		schemaVersion: 1,
-		statusSchemaVersion: status.schemaVersion,
-		reason: "dry-run",
+	return createRefarmActionReadinessDryRunEnvelope(status, {
 		renderer: "web",
-		selection: selection?.selected ? selection.selection : undefined,
-		selectedAction: selection?.selected,
-		actionRows: selection?.rows ?? createWebSurfaceActionRows(status),
-	};
+		selection,
+	}) as WebSurfaceActionDryRunEnvelope;
 }
 
 export function formatWebSurfaceActionRows(
@@ -68,19 +61,9 @@ export function formatWebSurfaceActionSelection(
 	rows: readonly WebSurfaceActionRow[],
 	selection?: RefarmActionAffordanceSelectionMetadata,
 ): string {
-	const selectionLines = selection
-		? [
-				"Selection:",
-				`  requested: ${selection.requested}`,
-				`  resolved: ${selection.resolvedId ?? selected.id}`,
-				`  source: ${selection.source}`,
-			]
-		: [];
-
-	return [
-		"Selected Web action:",
-		`  ${selected.display}`,
-		...selectionLines,
-		formatWebSurfaceActionRows(rows),
-	].join("\n");
+	return formatRefarmActionAffordanceSelection(selected, rows, {
+		selectedHeading: "Selected Web action:",
+		availableHeading: "Available Web actions:",
+		selection,
+	});
 }

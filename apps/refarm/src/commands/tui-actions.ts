@@ -1,11 +1,14 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
 	type RefarmActionAffordanceSelectionMetadata,
 	type RefarmActionAffordanceSelectionReason,
+	type RefarmActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 
 export type TuiSurfaceActionRow = RefarmActionAffordanceRow;
@@ -19,15 +22,10 @@ export interface TuiSurfaceActionSelectionResult {
 	rows: readonly TuiSurfaceActionRow[];
 }
 
-export interface TuiSurfaceActionDryRunEnvelope {
-	schemaVersion: 1;
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
-	reason: "dry-run";
-	renderer: "tui";
-	selection?: RefarmActionAffordanceSelectionMetadata;
-	selectedAction?: TuiSurfaceActionRow;
-	actionRows: readonly TuiSurfaceActionRow[];
-}
+export type TuiSurfaceActionDryRunEnvelope =
+	RefarmActionReadinessDryRunEnvelope & {
+		renderer: "tui";
+	};
 
 export function createTuiSurfaceActionRows(
 	status: RefarmStatusJson,
@@ -46,15 +44,10 @@ export function createTuiSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: TuiSurfaceActionSelectionResult,
 ): TuiSurfaceActionDryRunEnvelope {
-	return {
-		schemaVersion: 1,
-		statusSchemaVersion: status.schemaVersion,
-		reason: "dry-run",
+	return createRefarmActionReadinessDryRunEnvelope(status, {
 		renderer: "tui",
-		selection: selection?.selected ? selection.selection : undefined,
-		selectedAction: selection?.selected,
-		actionRows: selection?.rows ?? createTuiSurfaceActionRows(status),
-	};
+		selection,
+	}) as TuiSurfaceActionDryRunEnvelope;
 }
 
 export function formatTuiSurfaceActionRows(
@@ -68,19 +61,9 @@ export function formatTuiSurfaceActionSelection(
 	rows: readonly TuiSurfaceActionRow[],
 	selection?: RefarmActionAffordanceSelectionMetadata,
 ): string {
-	const selectionLines = selection
-		? [
-				"Selection:",
-				`  requested: ${selection.requested}`,
-				`  resolved: ${selection.resolvedId ?? selected.id}`,
-				`  source: ${selection.source}`,
-			]
-		: [];
-
-	return [
-		"Selected TUI action:",
-		`  ${selected.display}`,
-		...selectionLines,
-		formatTuiSurfaceActionRows(rows),
-	].join("\n");
+	return formatRefarmActionAffordanceSelection(selected, rows, {
+		selectedHeading: "Selected TUI action:",
+		availableHeading: "Available TUI actions:",
+		selection,
+	});
 }

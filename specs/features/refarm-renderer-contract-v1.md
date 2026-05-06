@@ -151,7 +151,7 @@ export interface RefarmStatusJson {
 - [x] `apps/refarm/test/commands/status-surfaces.test.ts` verifies live `apps/refarm` status affordances are exposed as a Homestead surface-state snapshot
 - [x] `apps/refarm/test/commands/status-actions.test.ts` verifies live `apps/refarm` status actions resolve, invoke, and emit deterministic invocation envelopes through the shared Homestead action envelope
 - [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --action <id-or-index>` invokes live status actions by ID and row index
-- [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary used by renderer-neutral host, Web/headless/TUI readiness paths
+- [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary, selected-row formatting, and dry-run envelope construction used by renderer-neutral host, Web/headless/TUI readiness paths
 - [x] `apps/refarm/test/commands/actions.test.ts` verifies `refarm actions` exposes non-executing host action rows, selected-row metadata, and JSON dry-run envelopes over `plugins.availableActions`
 - [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
 - [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`

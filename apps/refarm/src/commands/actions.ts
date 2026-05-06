@@ -2,12 +2,15 @@ import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
 	createRefarmActionAffordanceRows,
+	createRefarmActionReadinessDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
+	formatRefarmActionAffordanceSelection,
 	formatRefarmActionIds,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
 	type RefarmActionAffordanceSelectionMetadata,
 	type RefarmActionAffordanceSelectionReason,
+	type RefarmActionReadinessDryRunEnvelope,
 } from "./action-affordances.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import {
@@ -26,16 +29,11 @@ export interface HostSurfaceActionSelectionResult {
 	rows: readonly HostSurfaceActionRow[];
 }
 
-export interface HostSurfaceActionDryRunEnvelope {
-	schemaVersion: 1;
-	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
-	reason: "dry-run";
-	command: "actions";
-	renderer: RefarmStatusJson["renderer"]["kind"];
-	selection?: RefarmActionAffordanceSelectionMetadata;
-	selectedAction?: HostSurfaceActionRow;
-	actionRows: readonly HostSurfaceActionRow[];
-}
+export type HostSurfaceActionDryRunEnvelope =
+	RefarmActionReadinessDryRunEnvelope & {
+		command: "actions";
+		renderer: RefarmStatusJson["renderer"]["kind"];
+	};
 
 export interface ActionsDeps {
 	resolveStatusPayload(options: {
@@ -68,16 +66,11 @@ export function createHostSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: HostSurfaceActionSelectionResult,
 ): HostSurfaceActionDryRunEnvelope {
-	return {
-		schemaVersion: 1,
-		statusSchemaVersion: status.schemaVersion,
-		reason: "dry-run",
+	return createRefarmActionReadinessDryRunEnvelope(status, {
 		command: "actions",
 		renderer: status.renderer.kind,
-		selection: selection?.selected ? selection.selection : undefined,
-		selectedAction: selection?.selected,
-		actionRows: selection?.rows ?? createHostSurfaceActionRows(status),
-	};
+		selection,
+	}) as HostSurfaceActionDryRunEnvelope;
 }
 
 export function formatHostSurfaceActionRows(
@@ -91,21 +84,11 @@ export function formatHostSurfaceActionSelection(
 	rows: readonly HostSurfaceActionRow[],
 	selection?: RefarmActionAffordanceSelectionMetadata,
 ): string {
-	const selectionLines = selection
-		? [
-				"Selection:",
-				`  requested: ${selection.requested}`,
-				`  resolved: ${selection.resolvedId ?? selected.id}`,
-				`  source: ${selection.source}`,
-			]
-		: [];
-
-	return [
-		"Selected host action:",
-		`  ${selected.display}`,
-		...selectionLines,
-		formatHostSurfaceActionRows(rows),
-	].join("\n");
+	return formatRefarmActionAffordanceSelection(selected, rows, {
+		selectedHeading: "Selected host action:",
+		availableHeading: "Available host actions:",
+		selection,
+	});
 }
 
 export function createActionsCommand(deps?: Partial<ActionsDeps>): Command {
