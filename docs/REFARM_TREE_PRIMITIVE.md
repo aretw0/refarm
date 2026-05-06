@@ -129,6 +129,28 @@ npm run refarm:tree:smoke:cli
 npm run refarm:host:smoke:cli
 ```
 
+## JSON envelope invariants
+
+Tree JSON envelopes are renderer contracts, not terminal transcripts. Keep these
+rules stable while `schemaVersion` remains `1`:
+
+- every envelope has `schemaVersion`, `command: "tree"`, `scope`, and
+  `operation` at the top level;
+- `preview` envelopes use `reason: "dry-run"` and contain `plan`, never
+  `result`;
+- executed `fork`/`switch` envelopes use `reason: "executed"` and contain
+  `result`, never `plan`;
+- generic plan fields (`action`, `destructive`, `readyToExecute`,
+  `blockedReason`, `recommendedCommand`, and `effects`) stay substrate-neutral;
+- substrate-specific facts stay under `plan.substrate` or `result`, including
+  git refs/worktree state and session IDs/entry IDs;
+- blocked previews should prefer successful JSON with `readyToExecute: false`
+  when the target can be resolved safely, and reserve process failure for invalid
+  input, missing/ambiguous targets, or unsupported execution surfaces.
+
+These invariants let Web/TUI/headless renderers share readiness UI without
+coupling to git/session mechanics.
+
 ## Operation semantics
 
 | Operation | Default behavior | Safety rule |
