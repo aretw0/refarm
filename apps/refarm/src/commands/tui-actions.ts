@@ -1,4 +1,7 @@
-import type { RefarmStatusJson, RefarmStatusSurfaceAction } from "@refarm.dev/cli/status";
+import type {
+	RefarmStatusJson,
+	RefarmStatusSurfaceAction,
+} from "@refarm.dev/cli/status";
 
 export interface TuiSurfaceActionRow {
 	index: number;

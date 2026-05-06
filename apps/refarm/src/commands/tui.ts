@@ -1,14 +1,7 @@
-import type {
-	RefarmStatusJson,
-} from "@refarm.dev/cli/status";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import {
-	createLaunchProcessSpec,
-	launchProcess,
-} from "./launch-process.js";
-import {
-	launchAvailabilityMessage,
-} from "./launch-feedback.js";
+import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
+import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
@@ -19,9 +12,7 @@ import {
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import {
 	createTuiSurfaceActionRows,
 	formatTuiSurfaceActionRows,
@@ -126,9 +117,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				printSummary: resolvedDeps.printStatusSummary,
 				afterEmit: () => {
 					if (outputMode === "summary" && !options.launch) {
-						console.log(
-							launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES),
-						);
+						console.log(launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES));
 					}
 				},
 			});

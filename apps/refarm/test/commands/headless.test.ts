@@ -146,9 +146,12 @@ describe("headlessCommand", () => {
 
 	it("rejects --action-request with human output flags", async () => {
 		await expect(
-			headlessCommand.parseAsync(["--action-request", "open-node", "--summary"], {
-				from: "user",
-			}),
+			headlessCommand.parseAsync(
+				["--action-request", "open-node", "--summary"],
+				{
+					from: "user",
+				},
+			),
 		).rejects.toThrow(/Choose only one output format/);
 		expect(mockResolveStatusPayload).not.toHaveBeenCalled();
 	});

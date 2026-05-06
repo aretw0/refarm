@@ -57,7 +57,9 @@ export const headlessCommand = new Command("headless")
 		});
 	});
 
-async function emitHeadlessActionRequest(options: HeadlessOptions): Promise<void> {
+async function emitHeadlessActionRequest(
+	options: HeadlessOptions,
+): Promise<void> {
 	await withResolvedStatusPayload({
 		resolveStatusPayload,
 		resolveOptions: {
@@ -97,9 +99,7 @@ async function emitHeadlessActionRequest(options: HeadlessOptions): Promise<void
 	});
 }
 
-function formatAvailableActionIds(
-	actions: readonly { id: string }[],
-): string {
+function formatAvailableActionIds(actions: readonly { id: string }[]): string {
 	return actions.length > 0
 		? actions.map((action) => action.id).join(", ")
 		: "none";

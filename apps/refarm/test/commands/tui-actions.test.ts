@@ -39,9 +39,7 @@ function makeStatus(
 		},
 		trust: { profile: "dev", warnings: 0, critical: 0 },
 		streams: { active: 0, terminal: 0 },
-		diagnostics: actions?.length
-			? ["plugins:surface-actions-available"]
-			: [],
+		diagnostics: actions?.length ? ["plugins:surface-actions-available"] : [],
 	};
 }
 
@@ -66,15 +64,17 @@ describe("TUI surface action rows", () => {
 	});
 
 	it("formats rows for non-interactive TUI readiness output", () => {
-		expect(formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus())))
-			.toBe(`Available TUI actions:
+		expect(
+			formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus())),
+		).toBe(`Available TUI actions:
   [1] Open node — open-node (node:open)
   [2] Inspect trust — inspect-trust`);
 	});
 
 	it("renders an explicit empty state", () => {
-		expect(formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus([]))))
-			.toBe("Available TUI actions:\n  none");
+		expect(
+			formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus([]))),
+		).toBe("Available TUI actions:\n  none");
 	});
 
 	it("resolves selections by row index or stable action id", () => {
@@ -91,9 +91,11 @@ describe("TUI surface action rows", () => {
 	});
 
 	it("reports missing selections without inventing fallback behavior", () => {
-		expect(resolveTuiSurfaceActionSelection(makeStatus(), "missing"))
-			.toMatchObject({ reason: "missing-action" });
-		expect(resolveTuiSurfaceActionSelection(makeStatus([]), "1"))
-			.toMatchObject({ reason: "no-actions" });
+		expect(
+			resolveTuiSurfaceActionSelection(makeStatus(), "missing"),
+		).toMatchObject({ reason: "missing-action" });
+		expect(resolveTuiSurfaceActionSelection(makeStatus([]), "1")).toMatchObject(
+			{ reason: "no-actions" },
+		);
 	});
 });
