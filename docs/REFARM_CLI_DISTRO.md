@@ -50,6 +50,7 @@ state using the same contracts as the apps?
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
 - `refarm tui` (tui renderer preflight + terminal launcher entrypoint via `--launch`)
 - `refarm open-url` (host-browser URL opener with devcontainer-aware fallbacks for auth/provider flows)
+- `refarm actions` (renderer-neutral, non-executing host action readiness rows/JSON)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
   including host metadata in human/JSON report output)
 
@@ -101,8 +102,9 @@ npm run refarm:host:smoke:auto
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
-  `refarm open-url --dry-run`, `refarm status --json --input`,
-  `refarm headless --input`, `refarm web --launch --dry-run --open`, `refarm tui --json`,
+  `refarm open-url --dry-run`, `refarm actions --input --select --json`,
+  `refarm status --json --input`, `refarm headless --input`,
+  `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values,
   fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid

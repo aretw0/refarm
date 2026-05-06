@@ -15,6 +15,14 @@ const REFARM_NODE_ARGS_PREFIX = [
 	"./scripts/ci/esm-extension-loader.mjs",
 	REFARM_DIST_ENTRY,
 ];
+const ACTION_AFFORDANCES = [
+	{
+		id: "open-status-report",
+		label: "Open status report",
+		intent: "refarm:status-open",
+	},
+	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
+];
 
 function makeStatusPayload(mode, options = {}) {
 	const diagnostics = options.diagnostics ?? [];
@@ -24,6 +32,8 @@ function makeStatusPayload(mode, options = {}) {
 		mode === "web"
 			? ["interactive", "rich-html", "diagnostics"]
 			: ["interactive", "diagnostics"];
+
+	const availableActions = options.availableActions ?? [];
 
 	return {
 		schemaVersion: 1,
@@ -44,10 +54,11 @@ function makeStatusPayload(mode, options = {}) {
 			databaseName: "refarm-main",
 		},
 		plugins: {
-			installed: 0,
-			active: 0,
+			installed: availableActions.length,
+			active: availableActions.length,
 			rejectedSurfaces: 0,
-			surfaceActions: 0,
+			surfaceActions: availableActions.length,
+			...(availableActions.length > 0 ? { availableActions } : {}),
 		},
 		trust: {
 			profile: "dev",
@@ -132,7 +143,11 @@ async function main() {
 	try {
 		await writeFile(
 			webStatusPath,
-			`${JSON.stringify(makeStatusPayload("web"), null, 2)}\n`,
+			`${JSON.stringify(
+				makeStatusPayload("web", { availableActions: ACTION_AFFORDANCES }),
+				null,
+				2,
+			)}\n`,
 			"utf8",
 		);
 		await writeFile(
@@ -238,6 +253,35 @@ async function main() {
 		if (tuiJson?.renderer?.kind !== "tui") {
 			throw new Error(
 				`Expected tui renderer kind from JSON output, got: ${JSON.stringify(tuiJson?.renderer)}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm actions --input selected JSON`);
+		const actionsJsonRun = await runRefarmCommand([
+			"actions",
+			"--input",
+			webStatusPath,
+			"--select",
+			"2",
+			"--json",
+		]);
+		const actionsJson = parseCommandJsonOutput(
+			"actions --select --json",
+			actionsJsonRun,
+		);
+		if (actionsJson?.command !== "actions") {
+			throw new Error(
+				`Expected actions command=actions from JSON output, got: ${JSON.stringify(actionsJson)}`,
+			);
+		}
+		if (actionsJson?.reason !== "dry-run") {
+			throw new Error(
+				`Expected actions reason=dry-run from JSON output, got: ${JSON.stringify(actionsJson)}`,
+			);
+		}
+		if (actionsJson?.selection?.resolvedId !== "inspect-trust") {
+			throw new Error(
+				`Expected actions selection.resolvedId=inspect-trust, got: ${JSON.stringify(actionsJson?.selection)}`,
 			);
 		}
 
