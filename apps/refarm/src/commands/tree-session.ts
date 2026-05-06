@@ -378,7 +378,11 @@ export async function previewSessionSwitchTree(
 	);
 	console.log("  Would:  switch active session pointer");
 	if (substrate.activeSessionIdBefore) {
-		console.log(chalk.dim(`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`));
+		console.log(
+			chalk.dim(
+				`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`,
+			),
+		);
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }
