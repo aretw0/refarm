@@ -1,6 +1,6 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionIds } from "./action-affordances.js";
+import { formatRefarmActionSelectionChoices } from "./action-affordances.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -167,7 +167,7 @@ async function emitTuiActionRows(
 				);
 				if (!selection.selected) {
 					throw new Error(
-						`TUI action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
+						`TUI action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
 					);
 				}
 

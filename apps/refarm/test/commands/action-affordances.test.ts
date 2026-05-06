@@ -6,6 +6,7 @@ import {
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	formatRefarmActionIds,
+	formatRefarmActionSelectionChoices,
 	getRefarmStatusAvailableActions,
 	resolveRefarmActionAffordanceSelection,
 } from "../../src/commands/action-affordances.js";
@@ -202,5 +203,11 @@ Available host actions:
 			formatRefarmActionIds(getRefarmStatusAvailableActions(makeStatus())),
 		).toBe("open-node, inspect-trust");
 		expect(formatRefarmActionIds([])).toBe("none");
+		expect(
+			formatRefarmActionSelectionChoices(
+				createRefarmActionAffordanceRows(makeStatus()),
+			),
+		).toBe("[1] open-node, [2] inspect-trust");
+		expect(formatRefarmActionSelectionChoices([])).toBe("none");
 	});
 });

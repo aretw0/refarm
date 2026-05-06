@@ -5,7 +5,7 @@ import {
 } from "@refarm.dev/cli/browser-open";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionIds } from "./action-affordances.js";
+import { formatRefarmActionSelectionChoices } from "./action-affordances.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -209,7 +209,7 @@ async function emitWebActionRows(
 				);
 				if (!selection.selected) {
 					throw new Error(
-						`Web action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
+						`Web action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
 					);
 				}
 

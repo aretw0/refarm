@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import {
-	formatRefarmActionIds,
+	formatRefarmActionSelectionChoices,
 	resolveRefarmActionAffordanceSelection,
 } from "./action-affordances.js";
 import {
@@ -86,7 +86,7 @@ async function emitHeadlessActionRequest(
 
 			if (!selectedAction.selected) {
 				throw new Error(
-					`Action "${actionSelection}" is not available. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+					`Action "${actionSelection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
 				);
 			}
 
@@ -97,7 +97,7 @@ async function emitHeadlessActionRequest(
 
 			if (!resolution.request) {
 				throw new Error(
-					`Action "${selectedAction.selected.id}" is not available. Available actions: ${formatRefarmActionIds(resolution.availableActions)}.`,
+					`Action "${selectedAction.selected.id}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
 				);
 			}
 

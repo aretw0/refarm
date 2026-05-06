@@ -133,7 +133,7 @@ non-destructive dry-runs.
 affordance vocabulary shared by renderer-neutral host, Web, headless, and TUI
 readiness paths: stable available action extraction, one-based rows, ID/index
 selection, selection metadata, dry-run envelope construction, selected-row
-formatting, and ID-list formatting.
+formatting, and selection-choice formatting for deterministic guardrail errors.
 `apps/refarm/src/commands/actions.ts` exposes `refarm actions` as the canonical
 non-executing host action discovery command for operators and agents that do not
 need a renderer-specific presentation. `apps/refarm/src/commands/web-actions.ts`

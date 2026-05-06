@@ -5,7 +5,7 @@ import {
 	createRefarmActionReadinessDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
-	formatRefarmActionIds,
+	formatRefarmActionSelectionChoices,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
 	type RefarmActionAffordanceSelectionMetadata,
@@ -138,7 +138,7 @@ async function emitHostActionRows(
 				);
 				if (!selection.selected) {
 					throw new Error(
-						`Host action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
+						`Host action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
 					);
 				}
 

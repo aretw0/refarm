@@ -184,7 +184,7 @@ describe("headlessCommand", () => {
 			headlessCommand.parseAsync(["--action-request", "missing-action"], {
 				from: "user",
 			}),
-		).rejects.toThrow(/Available actions: open-node/);
+		).rejects.toThrow(/Available selections: \[1\] open-node/);
 		expect(mockShutdown).toHaveBeenCalled();
 	});
 

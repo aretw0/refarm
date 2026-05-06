@@ -301,7 +301,7 @@ describe("tuiCommand", () => {
 			command.parseAsync(["--actions", "--select", "missing"], {
 				from: "user",
 			}),
-		).rejects.toThrow(/Available actions: open-node/);
+		).rejects.toThrow(/Available selections: \[1\] open-node/);
 		expect(launch).not.toHaveBeenCalled();
 	});
 

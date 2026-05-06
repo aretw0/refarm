@@ -34,7 +34,9 @@ confirmation UX.
 Product semantics stay in `apps/*`. Generic action envelope mechanics stay in
 Homestead. The shared app-owned selection vocabulary currently lives in
 `apps/refarm/src/commands/action-affordances.ts` and should not move to
-`packages/*` until a second independent consumer proves the need.
+`packages/*` until a second independent consumer proves the need. When a
+selection is unavailable, guardrail errors list deterministic choices as
+`[row] id` pairs so operators can retry by stable ID or row index.
 
 ## Live status affordances
 

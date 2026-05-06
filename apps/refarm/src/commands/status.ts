@@ -14,7 +14,7 @@ import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import {
-	formatRefarmActionIds,
+	formatRefarmActionSelectionChoices,
 	getRefarmStatusAvailableActions,
 	resolveRefarmActionAffordanceSelection,
 } from "./action-affordances.js";
@@ -181,7 +181,7 @@ async function emitStatusActionInvocation(options: {
 
 			if (!selectedAction.selected) {
 				throw new Error(
-					`Status action "${actionSelection}" is not available. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+					`Status action "${actionSelection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
 				);
 			}
 
@@ -191,7 +191,7 @@ async function emitStatusActionInvocation(options: {
 
 			if (!resolution.request) {
 				throw new Error(
-					`Status action "${selectedAction.selected.id}" has no live handler. Available actions: ${formatRefarmActionIds(selectedAction.rows)}.`,
+					`Status action "${selectedAction.selected.id}" has no live handler. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
 				);
 			}
 

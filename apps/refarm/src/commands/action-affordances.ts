@@ -166,6 +166,17 @@ export function formatRefarmActionIds(
 		: "none";
 }
 
+export function formatRefarmActionSelectionChoices(
+	rows: readonly { id: string; index?: number }[],
+): string {
+	if (rows.length === 0) return "none";
+	return rows
+		.map((row) =>
+			typeof row.index === "number" ? `[${row.index}] ${row.id}` : row.id,
+		)
+		.join(", ");
+}
+
 function createRefarmActionAffordanceRow(
 	action: RefarmStatusSurfaceAction,
 	index: number,
