@@ -94,7 +94,8 @@ async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 		console.error(
 			chalk.red(`✗  Ambiguous timeline node "${prefix}" — ${body.error}`),
 		);
-		for (const match of body.matches ?? []) console.error(chalk.dim(`   ${match}`));
+		for (const match of body.matches ?? [])
+			console.error(chalk.dim(`   ${match}`));
 		process.exit(1);
 	}
 	if (!response.ok) {
@@ -128,18 +129,26 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 		.map(createSessionTimelineNode);
 
 	if (opts.json) {
-		outputTreeJson({ command: "tree", scope: REFARM_TREE_SESSION_SCOPE, nodes });
+		outputTreeJson({
+			command: "tree",
+			scope: REFARM_TREE_SESSION_SCOPE,
+			nodes,
+		});
 		return;
 	}
 
 	if (nodes.length === 0) {
 		console.log(
-			chalk.dim("No session timeline nodes yet. Start one with: refarm ask <query>"),
+			chalk.dim(
+				"No session timeline nodes yet. Start one with: refarm ask <query>",
+			),
 		);
 		return;
 	}
 
-	console.log(chalk.bold(`\n  Tree timeline  (${REFARM_TREE_SESSION_SCOPE} scope)\n`));
+	console.log(
+		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_SESSION_SCOPE} scope)\n`),
+	);
 	for (const node of nodes) {
 		const createdAtNs = sessions.find(
 			(session) => session["@id"] === node.nodeId,
@@ -187,9 +196,12 @@ export async function showSessionTree(
 		),
 	);
 	console.log(
-		chalk.dim(`  kind=${node.kind} timeline=${node.timelineId} total=${history.total}`),
+		chalk.dim(
+			`  kind=${node.kind} timeline=${node.timelineId} total=${history.total}`,
+		),
 	);
-	if (node.parentNodeId) console.log(chalk.dim(`  parent=${node.parentNodeId}`));
+	if (node.parentNodeId)
+		console.log(chalk.dim(`  parent=${node.parentNodeId}`));
 	if (node.metadata.leafEntryId) {
 		console.log(chalk.dim(`  leaf=${node.metadata.leafEntryId}`));
 	}
@@ -198,7 +210,9 @@ export async function showSessionTree(
 
 function createSessionPreviewEnvelope(
 	node: RefarmTimelineNode,
+	branchPointEntryId: string | null,
 ): RefarmTimelinePreviewEnvelope {
+	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
 	return {
 		command: "tree",
 		scope: REFARM_TREE_SESSION_SCOPE,
@@ -208,15 +222,15 @@ function createSessionPreviewEnvelope(
 		plan: {
 			kind: "session-fork",
 			destructive: false,
-			branchPointEntryId: node.metadata.leafEntryId ?? null,
-			recommendedCommand: `refarm sessions fork ${node.metadata.shortId} --name <branch-name>`,
+			branchPointEntryId,
+			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name <branch-name>`,
 		},
 	};
 }
 
 export async function previewSessionTree(
 	prefix: string,
-	opts: { json?: boolean },
+	opts: { json?: boolean; at?: string },
 ): Promise<void> {
 	let history: SessionHistory;
 	try {
@@ -224,8 +238,18 @@ export async function previewSessionTree(
 	} catch (err) {
 		exitForSidecarError(err);
 	}
+	const branchPointEntryId = opts.at ?? history.session.leaf_entry_id ?? null;
+	if (opts.at && !history.entries.some((entry) => entry.id === opts.at)) {
+		console.error(
+			chalk.red(
+				`✗  No entry "${opts.at}" in session ${formatSessionId(history.session["@id"])}.`,
+			),
+		);
+		process.exit(1);
+	}
 	const envelope = createSessionPreviewEnvelope(
 		createSessionTimelineNode(history.session),
+		branchPointEntryId,
 	);
 
 	if (opts.json) {
@@ -238,8 +262,13 @@ export async function previewSessionTree(
 		`  Target: ${chalk.cyan(envelope.target.metadata.shortId)}  ${chalk.white(envelope.target.label)}`,
 	);
 	console.log("  Would:  create a non-destructive session fork");
-	if (envelope.plan.kind === "session-fork" && envelope.plan.branchPointEntryId) {
-		console.log(chalk.dim(`  Branch point: ${envelope.plan.branchPointEntryId}`));
+	if (
+		envelope.plan.kind === "session-fork" &&
+		envelope.plan.branchPointEntryId
+	) {
+		console.log(
+			chalk.dim(`  Branch point: ${envelope.plan.branchPointEntryId}`),
+		);
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }

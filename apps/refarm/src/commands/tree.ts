@@ -52,10 +52,14 @@ async function showTree(
 
 async function previewTree(
 	prefix: string,
-	opts: { json?: boolean; scope?: string },
+	opts: { json?: boolean; scope?: string; at?: string },
 ): Promise<void> {
 	const scope = parseScope(opts.scope);
 	if (scope === REFARM_TREE_GIT_SCOPE) {
+		if (opts.at) {
+			console.error(chalk.red("✗  --at is only supported for session timelines."));
+			process.exit(1);
+		}
 		previewGitTree(prefix, opts);
 		return;
 	}
@@ -94,9 +98,13 @@ export function createTreeCommand(): Command {
 				.description("Preview the safe fork plan for a timeline node")
 				.argument("<id>", "Timeline node ID or unique prefix")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option("--at <entry-id>", "Session entry to use as the branch point")
 				.option("--json", "Print machine-readable JSON")
 				.action(
-					async (prefix: string, opts: { scope?: string; json?: boolean }) => {
+					async (
+						prefix: string,
+						opts: { scope?: string; at?: string; json?: boolean },
+					) => {
 						await previewTree(prefix, opts);
 					},
 				),

@@ -56,13 +56,14 @@ refarm tree list --scope session [--json]
 refarm tree list --scope git [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
-refarm tree preview <session-id-or-prefix> [--json]
+refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--json]
 refarm tree preview --scope git <commit-ish> [--json]
 ```
 
 The first slices are intentionally read-only. `preview` emits a dry-run envelope
 that recommends `refarm sessions fork ...` or `git branch ...` but does not
-fork, branch, check out, or switch.
+fork, branch, check out, or switch. Session previews may target a historical
+entry with `--at <entry-id>` and fail closed if the entry is not in that session.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must
@@ -132,7 +133,8 @@ planned envelope until there is a deterministic rollback story.
    list/show/preview.
 4. ✅ Add git adapter read-only list/show/preview because it provides an
    independent substrate without requiring CRDT migration work.
-5. Add `fork`/branch execution only after preview output is stable.
+5. ✅ Add historical-entry session preview with `--at <entry-id>`.
+6. Add `fork`/branch execution only after preview output is stable.
 6. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 

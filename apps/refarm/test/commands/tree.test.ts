@@ -213,9 +213,97 @@ describe("refarm tree", () => {
 				destructive: false,
 				branchPointEntryId: "entry-2",
 				recommendedCommand:
-					"refarm sessions fork abc123def456 --name <branch-name>",
+					"refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
 			},
 		});
+	});
+
+	it("previews a non-destructive session fork plan at a historical entry", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--at", "entry-1", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			command: "tree",
+			scope: "session",
+			operation: "preview",
+			reason: "dry-run",
+			plan: {
+				kind: "session-fork",
+				destructive: false,
+				branchPointEntryId: "entry-1",
+				recommendedCommand:
+					"refarm sessions fork abc123def456 --at entry-1 --name <branch-name>",
+			},
+		});
+	});
+
+	it("fails closed when a session preview entry is missing", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "preview")!
+				.parseAsync(["abc123", "--at", "missing-entry", "--json"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('No entry "missing-entry"'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
+
+	it("rejects --at for git previews", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "preview")!
+				.parseAsync(["abcdef", "--scope", "git", "--at", "entry-1"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("--at is only supported for session timelines"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
 	it("previews a non-destructive git branch plan", async () => {
