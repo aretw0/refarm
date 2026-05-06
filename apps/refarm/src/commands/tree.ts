@@ -41,7 +41,9 @@ function validateBranchName(name: string | undefined): string | undefined {
 function parseLimit(limit: string | undefined): number {
 	const value = Number.parseInt(limit ?? "20", 10);
 	if (!Number.isInteger(value) || value < 1 || value > 200) {
-		console.error(chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`));
+		console.error(
+			chalk.red(`✗  Invalid --limit "${limit}". Use an integer from 1 to 200.`),
+		);
 		process.exit(1);
 	}
 	return value;
@@ -124,12 +126,20 @@ export function createTreeCommand(): Command {
 				.argument("<id>", "Timeline node ID or unique prefix")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
-				.option("--name <branch-name>", "Branch/fork name to include in the dry-run plan")
+				.option(
+					"--name <branch-name>",
+					"Branch/fork name to include in the dry-run plan",
+				)
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (
 						prefix: string,
-						opts: { scope?: string; at?: string; name?: string; json?: boolean },
+						opts: {
+							scope?: string;
+							at?: string;
+							name?: string;
+							json?: boolean;
+						},
 					) => {
 						await previewTree(prefix, opts);
 					},

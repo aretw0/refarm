@@ -266,9 +266,12 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "preview")!
-			.parseAsync(["abc123", "--at", "entry-1", "--name", "safe/fork", "--json"], {
-				from: "user",
-			});
+			.parseAsync(
+				["abc123", "--at", "entry-1", "--name", "safe/fork", "--json"],
+				{
+					from: "user",
+				},
+			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.plan.recommendedCommand).toBe(
@@ -390,9 +393,12 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "preview")!
-			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork", "--json"], {
-				from: "user",
-			});
+			.parseAsync(
+				["abcdef", "--scope", "git", "--name", "safe/fork", "--json"],
+				{
+					from: "user",
+				},
+			);
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.plan.recommendedCommand).toBe(
