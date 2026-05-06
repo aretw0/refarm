@@ -9,6 +9,7 @@ import {
 	type RefarmGitTimelinePreviewEnvelope,
 	type RefarmGitTimelineNode,
 	type RefarmGitTimelineShowEnvelope,
+	type RefarmGitTimelineSwitchEnvelope,
 } from "./tree-model.js";
 
 function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
@@ -57,6 +58,15 @@ function gitBranchExists(name: string): boolean {
 
 function currentGitRef(): string {
 	return runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+}
+
+function assertCleanGitWorktree(): void {
+	const status = runGit(["status", "--porcelain"]);
+	if (status) {
+		throw new Error(
+			"Git worktree must be clean before tree switch. Commit, stash, or remove pending changes first.",
+		);
+	}
 }
 
 function listGitTimelineNodes(limit: number): RefarmGitTimelineNode[] {
@@ -218,6 +228,32 @@ function createGitForkEnvelope(
 	};
 }
 
+function createGitSwitchEnvelope(
+	node: RefarmGitTimelineNode,
+	name: string,
+	currentRefBefore: string,
+	currentRefAfter: string,
+): RefarmGitTimelineSwitchEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "switch",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "git-switch",
+			destructive: false,
+			worktreeSwitched: true,
+			currentRefBefore,
+			currentRefAfter,
+			branchName: name,
+			targetCommit: node.nodeId,
+			command: `git switch ${name}`,
+		},
+	};
+}
+
 export function previewGitTree(
 	prefix: string,
 	opts: { json?: boolean; name?: string },
@@ -284,4 +320,51 @@ export function forkGitTree(
 		),
 	);
 	console.log(chalk.dim("   Active worktree was not switched."));
+}
+
+export function switchGitTree(
+	name: string,
+	opts: { json?: boolean },
+): void {
+	let node: RefarmGitTimelineNode;
+	let currentRefBefore: string;
+	let currentRefAfter: string;
+	try {
+		if (!gitBranchExists(name)) {
+			throw new Error(`Git branch "${name}" does not exist.`);
+		}
+		assertCleanGitWorktree();
+		currentRefBefore = currentGitRef();
+		if (currentRefBefore === name) {
+			throw new Error(`Git branch "${name}" is already active.`);
+		}
+		node = showGitTimelineNode(name);
+		runGit(["switch", name]);
+		currentRefAfter = currentGitRef();
+		if (currentRefAfter !== name) {
+			throw new Error(
+				`Git switch expected current ref "${name}", got "${currentRefAfter}".`,
+			);
+		}
+	} catch (err) {
+		exitForGitError(err);
+	}
+	const envelope = createGitSwitchEnvelope(
+		node,
+		name,
+		currentRefBefore,
+		currentRefAfter,
+	);
+
+	if (opts.json) {
+		outputTreeJson(envelope);
+		return;
+	}
+
+	console.log(
+		chalk.green(
+			`✓  Switched git worktree from ${chalk.cyan(currentRefBefore)} to ${chalk.cyan(currentRefAfter)}.`,
+		),
+	);
+	console.log(chalk.dim(`   Target commit ${node.metadata.shortId}.`));
 }

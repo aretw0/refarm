@@ -59,11 +59,12 @@ refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
 refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
 refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
+refarm tree switch --scope git <branch-name> [--json]
 ```
 
-The first slices are intentionally read-only. Machine-readable tree envelopes
+The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
-`operation` discriminators and metadata shapes (`list`, `show`, `preview`, or `fork`). `preview` emits a dry-run envelope that recommends
+`operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session timelines or `refarm tree fork --scope git ...`
 for git timelines, but does not fork, branch, check out, or switch; git preview
 plans also declare `worktreeSwitched: false`. Session previews may target a historical entry with
@@ -71,9 +72,12 @@ plans also declare `worktreeSwitched: false`. Session previews may target a hist
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching
 `currentRefBefore`/`currentRefAfter` in JSON), fails closed when the target branch already exists, and rejects session-only
-entry selectors (`--at`). Session fork execution remains delegated to
-`refarm sessions fork` until active-session switching semantics are made explicit
-in the tree contract. Preview/fork branch names fail closed unless they contain
+entry selectors (`--at`). `switch` is git-only in the first executable slice:
+it requires an existing branch, rejects dirty worktrees before moving the active
+pointer, emits `currentRefBefore`/`currentRefAfter`, and verifies the active ref
+after `git switch`. Session fork/switch execution remains delegated or rejected
+until active-session switching semantics are made explicit in the tree contract.
+Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
 path segments, `.lock` ref lock files, or parent traversal. Git list limits fail closed unless they are plain
@@ -91,7 +95,7 @@ be explainable as "the preview became explicit execution".
 | `show` | Read-only node detail | Fails on ambiguous prefixes |
 | `preview` | Dry-run restore/fork plan | Emits `reason: "dry-run"`; never mutates active state |
 | `fork` | Creates a new branch pointer from an immutable node | Git-only first slice; creates a branch without switching |
-| `switch` | Moves active pointer to an existing branch/head | Requires exact or unambiguous target |
+| `switch` | Moves active pointer to an existing branch/head | Git-only first slice; requires an existing branch, clean worktree, and verified before/after refs |
 
 Avoid a first-class `rewind` command until the preview + switch/fork semantics
 are proven. "Rewind" is user language; the safe primitive is either:
@@ -150,7 +154,10 @@ planned envelope until there is a deterministic rollback story.
 5. ✅ Add historical-entry session preview with `--at <entry-id>`.
 6. ✅ Add explicit git `fork`/branch execution after preview output stabilized;
    keep it non-switching and isolated from session fork execution.
-7. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
+7. ✅ Add explicit git `switch` execution with clean-worktree and before/after
+   active-ref verification; keep session switching rejected until active-session
+   pointer semantics are explicit.
+8. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
    exposed as read-only timeline nodes.
 
 ## Non-goals

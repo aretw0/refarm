@@ -135,6 +135,17 @@ export interface RefarmGitTimelineForkResult {
 	command: string;
 }
 
+export interface RefarmGitTimelineSwitchResult {
+	kind: "git-switch";
+	destructive: false;
+	worktreeSwitched: true;
+	currentRefBefore: string;
+	currentRefAfter: string;
+	branchName: string;
+	targetCommit: string;
+	command: string;
+}
+
 export interface RefarmTimelineForkEnvelope {
 	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
 	command: "tree";
@@ -152,6 +163,16 @@ export interface RefarmGitTimelineForkEnvelope
 	result: RefarmGitTimelineForkResult;
 }
 
+export interface RefarmGitTimelineSwitchEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	operation: "switch";
+	reason: "executed";
+	target: RefarmGitTimelineNode;
+	result: RefarmGitTimelineSwitchResult;
+}
+
 export type RefarmTreeJsonEnvelope =
 	| RefarmSessionTimelineListEnvelope
 	| RefarmGitTimelineListEnvelope
@@ -159,7 +180,8 @@ export type RefarmTreeJsonEnvelope =
 	| RefarmGitTimelineShowEnvelope
 	| RefarmSessionTimelinePreviewEnvelope
 	| RefarmGitTimelinePreviewEnvelope
-	| RefarmGitTimelineForkEnvelope;
+	| RefarmGitTimelineForkEnvelope
+	| RefarmGitTimelineSwitchEnvelope;
 
 export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {
 	console.log(JSON.stringify(value, null, 2));

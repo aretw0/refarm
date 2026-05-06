@@ -5,6 +5,7 @@ import {
 	listGitTree,
 	previewGitTree,
 	showGitTree,
+	switchGitTree,
 } from "./tree-git.js";
 import {
 	REFARM_TREE_GIT_SCOPE,
@@ -162,6 +163,23 @@ async function forkTree(
 	forkGitTree(prefix, { ...opts, name });
 }
 
+async function switchTree(
+	target: string,
+	opts: { json?: boolean; scope?: string },
+): Promise<void> {
+	const scope = parseScope(opts.scope);
+	if (scope !== REFARM_TREE_GIT_SCOPE) {
+		console.error(
+			chalk.red(
+				"✗  refarm tree switch currently supports --scope git only; session switching requires an explicit active-session pointer contract.",
+			),
+		);
+		process.exit(1);
+	}
+	const branchName = validateBranchName(target);
+	switchGitTree(branchName, opts);
+}
+
 export function createTreeCommand(): Command {
 	return new Command("tree")
 		.description("Inspect and preview substrate-agnostic Refarm timelines")
@@ -235,6 +253,21 @@ export function createTreeCommand(): Command {
 						},
 					) => {
 						await forkTree(prefix, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("switch")
+				.description("Switch the active git worktree to an existing branch")
+				.argument("<branch>", "Existing branch name")
+				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option("--json", "Print machine-readable JSON")
+				.action(
+					async (
+						target: string,
+						opts: { scope?: string; json?: boolean },
+					) => {
+						await switchTree(target, opts);
 					},
 				),
 		)

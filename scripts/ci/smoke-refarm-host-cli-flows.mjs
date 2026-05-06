@@ -558,6 +558,51 @@ async function main() {
 				`Expected git tree fork smoke to keep current branch main, got: ${JSON.stringify(currentBranchRun.stdout.trim())}`,
 			);
 		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git switch moves isolated repo branch`);
+		const treeGitSwitchRun = await runRefarmCommand(
+			[
+				"tree",
+				"switch",
+				"smoke/tree-fork",
+				"--scope",
+				"git",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const treeGitSwitch = parseCommandJsonOutput(
+			"tree switch --scope git --json",
+			treeGitSwitchRun,
+		);
+		if (
+			treeGitSwitch?.operation !== "switch" ||
+			treeGitSwitch?.reason !== "executed"
+		) {
+			throw new Error(
+				`Expected executed tree switch envelope, got: ${JSON.stringify(treeGitSwitch)}`,
+			);
+		}
+		if (
+			treeGitSwitch?.result?.branchName !== "smoke/tree-fork" ||
+			treeGitSwitch?.result?.currentRefBefore !== "main" ||
+			treeGitSwitch?.result?.currentRefAfter !== "smoke/tree-fork" ||
+			treeGitSwitch?.result?.worktreeSwitched !== true
+		) {
+			throw new Error(
+				`Expected tree switch to move main -> smoke/tree-fork, got: ${JSON.stringify(treeGitSwitch?.result)}`,
+			);
+		}
+		const switchedBranchRun = await runSubprocess(
+			"git",
+			["branch", "--show-current"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		if (switchedBranchRun.stdout.trim() !== "smoke/tree-fork") {
+			throw new Error(
+				`Expected git tree switch smoke to move current branch to smoke/tree-fork, got: ${JSON.stringify(switchedBranchRun.stdout.trim())}`,
+			);
+		}
 		await assertCommandFailsWith(
 			["tree", "fork", "HEAD", "--scope", "git", "--name", "smoke/tree-fork"],
 			'Git branch "smoke/tree-fork" already exists.',
