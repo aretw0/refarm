@@ -91,18 +91,18 @@ describe("host action readiness helpers", () => {
 			selected: { id: "inspect-trust", index: 2 },
 		});
 
-		expect(resolveHostSurfaceActionSelection(statusWithActions, "2")).toMatchObject(
-			{
-				reason: "selected",
-				selection: {
-					requested: "2",
-					source: "index",
-					resolvedId: "inspect-trust",
-					index: 2,
-				},
-				selected: { id: "inspect-trust", index: 2 },
+		expect(
+			resolveHostSurfaceActionSelection(statusWithActions, "2"),
+		).toMatchObject({
+			reason: "selected",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: "inspect-trust",
+				index: 2,
 			},
-		);
+			selected: { id: "inspect-trust", index: 2 },
+		});
 	});
 
 	it("formats host action rows and selected rows", () => {
@@ -152,7 +152,10 @@ describe("actionsCommand", () => {
 
 	beforeEach(() => {
 		vi.clearAllMocks();
-		resolveStatusPayload.mockResolvedValue({ json: statusWithActions, shutdown });
+		resolveStatusPayload.mockResolvedValue({
+			json: statusWithActions,
+			shutdown,
+		});
 	});
 
 	it("prints host action rows without executing actions", async () => {
