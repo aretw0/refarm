@@ -143,6 +143,89 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("outputs a selected action row with --actions --select", async () => {
+		const shutdown = vi.fn().mockResolvedValue(undefined);
+		resolveStatusPayload.mockResolvedValueOnce({
+			json: makeStatus({
+				plugins: {
+					installed: 2,
+					active: 2,
+					rejectedSurfaces: 0,
+					surfaceActions: 2,
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+						{ id: "inspect-trust", label: "Inspect trust" },
+					],
+				},
+			}),
+			shutdown,
+		});
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "2"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			[
+				"Selected TUI action:",
+				"  [2] Inspect trust — inspect-trust",
+				"Available TUI actions:",
+				"  [1] Open node — open-node (node:open)",
+				"  [2] Inspect trust — inspect-trust",
+			].join("\n"),
+		);
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(shutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("rejects --actions --select when the action is unavailable", async () => {
+		resolveStatusPayload.mockResolvedValueOnce({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--actions", "--select", "missing"], {
+				from: "user",
+			}),
+		).rejects.toThrow(/Available actions: open-node/);
+		expect(launch).not.toHaveBeenCalled();
+	});
+
+	it("rejects --select without --actions", async () => {
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+
+		await expect(
+			command.parseAsync(["--select", "open-node"], { from: "user" }),
+		).rejects.toThrow(/--select requires --actions/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
 	it("rejects --actions with other output or launch modes", async () => {
 		const command = createTuiCommand({
 			resolveStatusPayload,

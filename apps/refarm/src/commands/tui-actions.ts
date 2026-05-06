@@ -35,3 +35,14 @@ export function formatTuiSurfaceActionRows(
 ): string {
 	return formatRefarmActionAffordanceRows(rows, "Available TUI actions:");
 }
+
+export function formatTuiSurfaceActionSelection(
+	selected: TuiSurfaceActionRow,
+	rows: readonly TuiSurfaceActionRow[],
+): string {
+	return [
+		"Selected TUI action:",
+		`  ${selected.display}`,
+		formatTuiSurfaceActionRows(rows),
+	].join("\n");
+}

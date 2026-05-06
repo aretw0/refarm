@@ -17,7 +17,8 @@ refarm status --input status.json --json  # validate/render an existing status a
 cat status.json | refarm status --input - --markdown  # read artifact from stdin
 refarm headless --input status.json --action-request open-node  # dry-run action envelope by ID
 refarm headless --input status.json --action-request 1          # dry-run action envelope by row index
-refarm tui --input status.json --actions  # selectable action rows for TUI readiness
+refarm tui --input status.json --actions              # selectable action rows for TUI readiness
+refarm tui --input status.json --actions --select 1   # selected TUI action dry-run
 ```
 
 The JSON shape is the canonical contract. Human and Markdown output are views of
@@ -164,6 +165,7 @@ TUI action row dry-run:
 
 ```bash
 refarm tui --input status.json --actions
+refarm tui --input status.json --actions --select 1
 ```
 
 A reusable local fixture is available at
@@ -173,12 +175,15 @@ A reusable local fixture is available at
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
 refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions
+refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions --select 2
 ```
 
 This command does not launch the TUI runtime. It formats
 `plugins.availableActions` as stable one-based rows such as
 `[1] Open node — open-node (node:open)` so a future interactive TUI can use the
-same selection vocabulary.
+same selection vocabulary. `--actions --select <id-or-index>` resolves the same
+vocabulary and prints the selected row plus the full available-action context
+without executing product behavior.
 
 Code-level contract helpers live in `@refarm.dev/cli/status`:
 

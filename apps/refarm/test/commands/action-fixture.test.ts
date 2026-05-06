@@ -56,6 +56,27 @@ describe("status-with-actions fixture", () => {
 		logSpy.mockRestore();
 	});
 
+	it("drives TUI selected action output from --input", async () => {
+		const command = createTuiCommand();
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--actions", "--select", "2"],
+			{ from: "user" },
+		);
+
+		expect(logSpy).toHaveBeenCalledWith(
+			[
+				"Selected TUI action:",
+				"  [2] Inspect trust — inspect-trust (trust:inspect)",
+				"Available TUI actions:",
+				"  [1] Open node — open-node (node:open)",
+				"  [2] Inspect trust — inspect-trust (trust:inspect)",
+			].join("\n"),
+		);
+		logSpy.mockRestore();
+	});
+
 	it("drives TUI action row output from --input", async () => {
 		const command = createTuiCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

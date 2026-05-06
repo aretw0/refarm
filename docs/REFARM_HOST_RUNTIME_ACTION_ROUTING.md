@@ -111,8 +111,9 @@ envelope without executing product behavior.
 affordance vocabulary shared by both headless and TUI readiness paths: stable
 available action extraction, one-based rows, ID/index selection, and ID-list
 formatting. `apps/refarm/src/commands/tui-actions.ts` keeps the TUI-specific
-heading/UX wrapper, and `refarm tui --actions` emits those rows without
-launching or executing product behavior.
+heading/UX wrapper. `refarm tui --actions` emits those rows, and
+`refarm tui --actions --select <id-or-index>` resolves one row using the same
+selection vocabulary, without launching or executing product behavior.
 
 These paths keep action invocation and selection testable without giving
 headless/TUI hosts product-specific action meaning.

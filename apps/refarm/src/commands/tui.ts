@@ -1,5 +1,6 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { formatRefarmActionIds } from "./action-affordances.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -16,6 +17,8 @@ import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 import {
 	createTuiSurfaceActionRows,
 	formatTuiSurfaceActionRows,
+	formatTuiSurfaceActionSelection,
+	resolveTuiSurfaceActionSelection,
 } from "./tui-actions.js";
 
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
@@ -35,6 +38,7 @@ interface TuiOptions {
 	launch?: boolean;
 	dryRun?: boolean;
 	actions?: boolean;
+	select?: string;
 	launcher?: RefarmTuiLauncherMode;
 }
 
@@ -82,8 +86,16 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--launch", "Launch TUI runtime after renderer preflight")
 		.option("--dry-run", "Print launcher command without executing it")
 		.option("--actions", "Output selectable TUI surface action rows")
+		.option(
+			"--select <id-or-index>",
+			"Select an available TUI action ID or row index when used with --actions",
+		)
 		.option("--launcher <mode>", "Launcher mode: watch | prompt", "watch")
 		.action(async (options: TuiOptions) => {
+			if (options.select && !options.actions) {
+				throw new Error("--select requires --actions.");
+			}
+
 			if (options.actions) {
 				assertTuiActionsOutputOptions(options);
 				await emitTuiActionRows(options, resolvedDeps);
@@ -147,6 +159,23 @@ async function emitTuiActionRows(
 			input: options.input,
 		},
 		run: (json) => {
+			if (options.select) {
+				const selection = resolveTuiSurfaceActionSelection(json, options.select);
+				if (!selection.selected) {
+					throw new Error(
+						`TUI action "${options.select}" is not available. Available actions: ${formatRefarmActionIds(selection.rows)}.`,
+					);
+				}
+
+				console.log(
+					formatTuiSurfaceActionSelection(
+						selection.selected,
+						selection.rows,
+					),
+				);
+				return;
+			}
+
 			console.log(formatTuiSurfaceActionRows(createTuiSurfaceActionRows(json)));
 		},
 	});

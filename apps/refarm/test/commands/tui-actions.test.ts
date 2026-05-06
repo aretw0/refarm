@@ -3,6 +3,7 @@ import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createTuiSurfaceActionRows,
 	formatTuiSurfaceActionRows,
+	formatTuiSurfaceActionSelection,
 	resolveTuiSurfaceActionSelection,
 } from "../../src/commands/tui-actions.js";
 
@@ -67,6 +68,19 @@ describe("TUI surface action rows", () => {
 		expect(
 			formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus())),
 		).toBe(`Available TUI actions:
+  [1] Open node — open-node (node:open)
+  [2] Inspect trust — inspect-trust`);
+	});
+
+	it("formats a selected action with the full action row context", () => {
+		const selection = resolveTuiSurfaceActionSelection(makeStatus(), "2");
+
+		expect(selection.selected).toBeDefined();
+		expect(
+			formatTuiSurfaceActionSelection(selection.selected!, selection.rows),
+		).toBe(`Selected TUI action:
+  [2] Inspect trust — inspect-trust
+Available TUI actions:
   [1] Open node — open-node (node:open)
   [2] Inspect trust — inspect-trust`);
 	});
