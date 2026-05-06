@@ -145,6 +145,67 @@ are proven. "Rewind" is user language; the safe primitive is either:
 1. `preview` + `switch` to an existing branch/head; or
 2. `preview` + `fork` from a historical node.
 
+## Session fork JSON contract examples
+
+Session fork preview is a non-mutating readiness envelope. Session fork execution
+remains delegated to `refarm sessions fork`, so `tree` currently emits only the
+plan/readiness contract for this session operation:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "session",
+  "operation": "preview",
+  "reason": "dry-run",
+  "plan": {
+    "action": "fork",
+    "destructive": false,
+    "readyToExecute": false,
+    "blockedReason": "Provide --name <branch-name> before executing session fork.",
+    "recommendedCommand": "refarm sessions fork abc123def456 --at entry-2 --name <branch-name>",
+    "effects": {
+      "activePointerChanged": true,
+      "branchCreated": true
+    },
+    "substrate": {
+      "kind": "session-fork",
+      "branchPointEntryId": "entry-2",
+      "branchName": "<branch-name>",
+      "activeSessionWillSwitch": true
+    }
+  }
+}
+```
+
+With a safe branch name, the same preview becomes ready while remaining dry-run:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "session",
+  "operation": "preview",
+  "reason": "dry-run",
+  "plan": {
+    "action": "fork",
+    "destructive": false,
+    "readyToExecute": true,
+    "recommendedCommand": "refarm sessions fork abc123def456 --at entry-1 --name safe/fork",
+    "effects": {
+      "activePointerChanged": true,
+      "branchCreated": true
+    },
+    "substrate": {
+      "kind": "session-fork",
+      "branchPointEntryId": "entry-1",
+      "branchName": "safe/fork",
+      "activeSessionWillSwitch": true
+    }
+  }
+}
+```
+
 ## Session switch JSON contract examples
 
 Session switch preview is a non-mutating readiness envelope:
