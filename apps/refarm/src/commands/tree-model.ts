@@ -9,14 +9,11 @@ export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
 
 export interface RefarmTimelineMetadata {
 	shortId: string;
-	leafEntryId?: string | null;
-	hasHistory?: boolean;
-	refs?: string[];
 }
 
 export interface RefarmSessionTimelineMetadata extends RefarmTimelineMetadata {
-	leafEntryId?: string | null;
-	hasHistory?: boolean;
+	leafEntryId: string | null;
+	hasHistory: boolean;
 }
 
 export interface RefarmGitTimelineMetadata extends RefarmTimelineMetadata {

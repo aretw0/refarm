@@ -63,7 +63,7 @@ refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
 
 The first slices are intentionally read-only. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
-`operation` discriminators (`list`, `show`, `preview`, or `fork`). `preview` emits a dry-run envelope that recommends
+`operation` discriminators and metadata shapes (`list`, `show`, `preview`, or `fork`). `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session timelines or `refarm tree fork --scope git ...`
 for git timelines, but does not fork, branch, check out, or switch; git preview
 plans also declare `worktreeSwitched: false`. Session previews may target a historical entry with
