@@ -297,10 +297,9 @@ describe("statusCommand", () => {
 
 	it("rejects live status action invocation from input artifacts", async () => {
 		await expect(
-			statusCommand.parseAsync(
-				["--action", "1", "--input", "status.json"],
-				{ from: "user" },
-			),
+			statusCommand.parseAsync(["--action", "1", "--input", "status.json"], {
+				from: "user",
+			}),
 		).rejects.toThrow(/--action cannot be combined with --input/);
 		expect(mockBoot).not.toHaveBeenCalled();
 		expect(mockParseRefarmStatusJson).not.toHaveBeenCalled();
