@@ -234,6 +234,53 @@ async function main() {
 			);
 		}
 
+		console.log(
+			`${LOGGER_PREFIX} smoke: tree git switch preview reports dirty worktree`,
+		);
+		await writeFile(
+			path.join(isolatedGitRepoPath, "README.md"),
+			"# dirty tree smoke\n",
+			"utf8",
+		);
+		const dirtySwitchPreviewRun = await runRefarmCommand(
+			[
+				"tree",
+				"preview",
+				"smoke/tree-fork",
+				"--scope",
+				"git",
+				"--switch",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const dirtySwitchPreviewJson = parseCommandJsonOutput(
+			"tree preview --scope git --switch dirty",
+			dirtySwitchPreviewRun,
+		);
+		if (
+			dirtySwitchPreviewJson?.operation !== "preview" ||
+			dirtySwitchPreviewJson?.reason !== "dry-run" ||
+			dirtySwitchPreviewJson?.plan?.action !== "switch" ||
+			dirtySwitchPreviewJson?.plan?.readyToExecute !== false ||
+			dirtySwitchPreviewJson?.plan?.blockedReason !==
+				"Git worktree must be clean before tree switch execution." ||
+			dirtySwitchPreviewJson?.plan?.substrate?.kind !== "git-switch" ||
+			dirtySwitchPreviewJson?.plan?.substrate?.worktreeClean !== false ||
+			dirtySwitchPreviewJson?.plan?.substrate?.currentRefBefore !== "main" ||
+			dirtySwitchPreviewJson?.plan?.substrate?.targetRefAfter !==
+				"smoke/tree-fork"
+		) {
+			throw new Error(
+				`Expected dirty git switch preview envelope, got: ${JSON.stringify(dirtySwitchPreviewJson)}`,
+			);
+		}
+		await runSubprocess("git", ["checkout", "--", "README.md"], {
+			cwd: isolatedGitRepoPath,
+			env: process.env,
+			captureOutput: true,
+		});
+
 		console.log(`${LOGGER_PREFIX} smoke: tree git switch moves isolated repo branch`);
 		const switchRun = await runRefarmCommand(
 			["tree", "switch", "smoke/tree-fork", "--scope", "git", "--json"],
