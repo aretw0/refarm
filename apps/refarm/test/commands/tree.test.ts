@@ -541,7 +541,11 @@ describe("refarm tree", () => {
 			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any)
 			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
 			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "safe/fork\n", stderr: "" } as any);
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: "safe/fork\n",
+				stderr: "",
+			} as any);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
