@@ -5,8 +5,10 @@ import {
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SCHEMA_VERSION,
 	type RefarmTimelineForkEnvelope,
+	type RefarmTimelineListEnvelope,
 	type RefarmTimelineNode,
 	type RefarmTimelinePreviewEnvelope,
+	type RefarmTimelineShowEnvelope,
 } from "./tree-model.js";
 
 function createGitTimelineNode(line: string): RefarmTimelineNode | null {
@@ -99,13 +101,14 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	}
 
 	if (opts.json) {
-		outputTreeJson({
+		const envelope: RefarmTimelineListEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
 			operation: "list",
 			nodes,
-		});
+		};
+		outputTreeJson(envelope);
 		return;
 	}
 
@@ -142,13 +145,14 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	}
 
 	if (opts.json) {
-		outputTreeJson({
+		const envelope: RefarmTimelineShowEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_GIT_SCOPE,
 			operation: "show",
 			node,
-		});
+		};
+		outputTreeJson(envelope);
 		return;
 	}
 

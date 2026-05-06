@@ -23,6 +23,28 @@ export interface RefarmTimelineNode {
 	};
 }
 
+export interface RefarmTimelineListEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "list";
+	nodes: RefarmTimelineNode[];
+}
+
+export interface RefarmTimelineShowEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "show";
+	node: RefarmTimelineNode;
+}
+
+export interface RefarmSessionTimelineShowEnvelope extends RefarmTimelineShowEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	entries: unknown[];
+	total: number;
+}
+
 export interface RefarmSessionTimelinePreviewPlan {
 	kind: "session-fork";
 	destructive: false;

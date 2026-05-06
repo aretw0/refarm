@@ -3,6 +3,8 @@ import {
 	outputTreeJson,
 	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
+	type RefarmSessionTimelineShowEnvelope,
+	type RefarmTimelineListEnvelope,
 	type RefarmTimelineNode,
 	type RefarmTimelinePreviewEnvelope,
 } from "./tree-model.js";
@@ -130,13 +132,14 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 		.map(createSessionTimelineNode);
 
 	if (opts.json) {
-		outputTreeJson({
+		const envelope: RefarmTimelineListEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
 			operation: "list",
 			nodes,
-		});
+		};
+		outputTreeJson(envelope);
 		return;
 	}
 
@@ -182,7 +185,7 @@ export async function showSessionTree(
 	const node = createSessionTimelineNode(history.session);
 
 	if (opts.json) {
-		outputTreeJson({
+		const envelope: RefarmSessionTimelineShowEnvelope = {
 			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
@@ -190,7 +193,8 @@ export async function showSessionTree(
 			node,
 			entries: history.entries,
 			total: history.total,
-		});
+		};
+		outputTreeJson(envelope);
 		return;
 	}
 
