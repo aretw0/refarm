@@ -201,6 +201,114 @@ If the target is already active, preview stays non-mutating and reports
 before writing. If read-back verification after writing does not match the target,
 execution fails closed.
 
+## Git preview/execution JSON contract examples
+
+Git fork preview stays non-mutating and, without `--name`, deliberately reports
+`readyToExecute: false` while still describing the future branch effect:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "git",
+  "operation": "preview",
+  "reason": "dry-run",
+  "plan": {
+    "action": "fork",
+    "destructive": false,
+    "readyToExecute": false,
+    "blockedReason": "Provide --name <branch-name> before executing tree fork.",
+    "recommendedCommand": "refarm tree fork --scope git abcdef123456 --name <branch-name>",
+    "effects": {
+      "activePointerChanged": false,
+      "branchCreated": true
+    },
+    "substrate": {
+      "kind": "git-branch",
+      "baseCommit": "abcdef1234567890abcdef1234567890abcdef12",
+      "branchName": "<branch-name>",
+      "worktreeSwitched": false
+    }
+  }
+}
+```
+
+Git switch preview describes active-pointer movement but never calls
+`git switch`. Dirty worktrees keep the preview successful while setting
+`readyToExecute: false` and a deterministic `blockedReason`:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "git",
+  "operation": "preview",
+  "reason": "dry-run",
+  "plan": {
+    "action": "switch",
+    "destructive": false,
+    "readyToExecute": true,
+    "recommendedCommand": "refarm tree switch --scope git safe/fork",
+    "effects": {
+      "activePointerChanged": true,
+      "branchCreated": false
+    },
+    "substrate": {
+      "kind": "git-switch",
+      "worktreeClean": true,
+      "currentRefBefore": "main",
+      "targetRefAfter": "safe/fork",
+      "targetCommit": "abcdef1234567890abcdef1234567890abcdef12",
+      "worktreeSwitched": true
+    }
+  }
+}
+```
+
+Executed git fork and switch envelopes report observed before/after refs. Fork is
+non-switching by contract; switch is the only git tree operation that moves the
+active worktree:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "git",
+  "operation": "fork",
+  "reason": "executed",
+  "result": {
+    "kind": "git-branch",
+    "destructive": false,
+    "worktreeSwitched": false,
+    "currentRefBefore": "main",
+    "currentRefAfter": "main",
+    "branchName": "safe/fork",
+    "baseCommit": "abcdef1234567890abcdef1234567890abcdef12",
+    "command": "git branch safe/fork abcdef123456"
+  }
+}
+```
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "git",
+  "operation": "switch",
+  "reason": "executed",
+  "result": {
+    "kind": "git-switch",
+    "destructive": false,
+    "worktreeSwitched": true,
+    "currentRefBefore": "main",
+    "currentRefAfter": "safe/fork",
+    "branchName": "safe/fork",
+    "targetCommit": "abcdef1234567890abcdef1234567890abcdef12",
+    "command": "git switch safe/fork"
+  }
+}
+```
+
 ## Primitive boundary: timeline vs execution plan
 
 This work is intentionally exposing two related primitives that should not stay
