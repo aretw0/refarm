@@ -367,6 +367,12 @@ async function main() {
 			"refarm tree fork currently supports --scope git only",
 		);
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork rejects unsafe names`);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--scope", "git", "--name", "unsafe..name"],
+			'Invalid branch name "unsafe..name"',
+		);
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
 		);
