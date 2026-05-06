@@ -14,6 +14,11 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import {
+	clearActiveSessionId,
+	readActiveSessionId,
+	writeActiveSessionId,
+} from "./session-lock.js";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -283,22 +288,7 @@ async function readEffortResultFile(
 	}
 }
 
-const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
 const DEFAULT_HISTORY_TURNS = 10;
-
-function readSessionId(): string | null {
-	try {
-		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
-		return content.length > 0 ? content : null;
-	} catch {
-		return null;
-	}
-}
-
-function writeSessionId(id: string): void {
-	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
-	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
-}
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -454,15 +444,11 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				if (opts.new) {
-					try {
-						fs.unlinkSync(SESSION_LOCK_PATH);
-					} catch {
-						// already absent — fine
-					}
+					clearActiveSessionId();
 				}
 
 				const explicitSession = opts.session?.trim();
-				let sessionId = readSessionId() ?? newSessionId();
+				let sessionId = readActiveSessionId() ?? newSessionId();
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
@@ -562,7 +548,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-							writeSessionId(sessionId);
+							writeActiveSessionId(sessionId);
 							return;
 						}
 
@@ -575,7 +561,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 						throw streamError;
 					}
 
-					writeSessionId(sessionId);
+					writeActiveSessionId(sessionId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);

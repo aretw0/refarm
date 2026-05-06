@@ -1,10 +1,12 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
 import chalk from "chalk";
 import { Command } from "commander";
 
-const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
+import {
+	clearActiveSessionId,
+	readActiveSessionId,
+	writeActiveSessionId,
+} from "./session-lock.js";
+
 const SIDECAR_URL = "http://127.0.0.1:42001";
 
 interface SessionNode {
@@ -27,20 +29,6 @@ interface SessionHistory {
 	session: SessionNode;
 	entries: HistoryEntry[];
 	total: number;
-}
-
-function readActiveSessionId(): string | null {
-	try {
-		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
-		return content.length > 0 ? content : null;
-	} catch {
-		return null;
-	}
-}
-
-function writeActiveSessionId(id: string): void {
-	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
-	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
 }
 
 function formatSessionId(id: string): string {
@@ -109,10 +97,9 @@ export function createSessionsCommand(): Command {
 			new Command("clear")
 				.description("Clear the active session (next ask starts fresh)")
 				.action(() => {
-					try {
-						fs.unlinkSync(SESSION_LOCK_PATH);
+					if (clearActiveSessionId()) {
 						console.log(chalk.green("✓  Active session cleared."));
-					} catch {
+					} else {
 						console.log(chalk.dim("No active session."));
 					}
 				}),
