@@ -1,11 +1,11 @@
 // Node-only deps (jco, fs, path) are loaded dynamically inside instantiate()
 // so this module can be safely imported in browser bundles without pulling in Node.js APIs.
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { PluginInstance } from "./instance-handle";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
-import type { TelemetryEvent } from "./telemetry";
-import type { TractorLogger } from "./types";
+import type { PluginInstance } from "./instance-handle.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
+import type { TelemetryEvent } from "./telemetry.js";
+import type { TractorLogger } from "./types.js";
 
 /**
  * Plugin runner for the main thread using JCO transpilation.

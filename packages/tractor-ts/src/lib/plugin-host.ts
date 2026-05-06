@@ -6,18 +6,18 @@ import {
   type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
-import { TelemetryEvent } from "./telemetry";
-import { TractorLogger, SecurityMode } from "./types";
-import { SovereignNode } from "./graph-normalizer";
-import { TrustManager, ExecutionProfile } from "./trust-manager";
-import type { PluginTrustGrant } from "./trust-manager";
-import { WasiImports } from "./wasi-imports";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginInstance, PluginState } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
-import { MainThreadRunner } from "./main-thread-runner";
-import { WorkerRunner } from "./worker-runner";
-import { getCachedPlugin } from "./opfs-plugin-cache";
+import { TelemetryEvent } from "./telemetry.js";
+import { TractorLogger, SecurityMode } from "./types.js";
+import { SovereignNode } from "./graph-normalizer.js";
+import { TrustManager, ExecutionProfile } from "./trust-manager.js";
+import type { PluginTrustGrant } from "./trust-manager.js";
+import { WasiImports } from "./wasi-imports.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginInstance, PluginState } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
+import { MainThreadRunner } from "./main-thread-runner.js";
+import { WorkerRunner } from "./worker-runner.js";
+import { getCachedPlugin } from "./opfs-plugin-cache.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 

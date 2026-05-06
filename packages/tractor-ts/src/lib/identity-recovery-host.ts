@@ -1,5 +1,5 @@
-import { CommandHost } from "./command-host";
-import { EventEmitter, TelemetryEvent } from "./telemetry";
+import { CommandHost } from "./command-host.js";
+import { EventEmitter, TelemetryEvent } from "./telemetry.js";
 
 export interface RecoveryRequest {
   providerId: string;

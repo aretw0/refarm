@@ -1,5 +1,5 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
+import { TelemetryEvent } from "./telemetry.js";
 
 export type PluginState = "idle" | "running" | "hot" | "throttled" | "error";
 

@@ -24,7 +24,7 @@ import {
 	getCachedPlugin,
 	getPluginCachePath,
 	getPluginRuntimeModuleCachePath,
-} from "./opfs-plugin-cache";
+} from "./opfs-plugin-cache.js";
 import {
 	buildGithubReleaseAssetUrl,
 	fetchRuntimeDescriptorRevocationList,
@@ -33,7 +33,7 @@ import {
 	type RuntimeDescriptorRevocationList,
 	type RuntimeDescriptorRevocationListReference,
 	resolveGithubRepoCoordinates,
-} from "./runtime-descriptor-revocation";
+} from "./runtime-descriptor-revocation.js";
 import {
 	dedupeRuntimeDescriptorRevocationConfigConflicts,
 	dedupeRuntimeDescriptorRevocationInvalidInputs,
@@ -42,7 +42,7 @@ import {
 	type RuntimeDescriptorRevocationProfile,
 	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
 	type RuntimeDescriptorRevocationUnavailablePolicy,
-} from "./runtime-descriptor-revocation-policy";
+} from "./runtime-descriptor-revocation-policy.js";
 
 const OPFS_CACHE_ADAPTER: PluginBinaryCacheAdapter = {
 	get: getCachedPlugin,

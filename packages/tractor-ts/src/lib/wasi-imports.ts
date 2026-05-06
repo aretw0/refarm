@@ -1,7 +1,7 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { TelemetryEvent } from "./telemetry";
-import type { ExecutionProfile } from "./trust-manager";
-import type { TractorLogger } from "./types";
+import type { TelemetryEvent } from "./telemetry.js";
+import type { ExecutionProfile } from "./trust-manager.js";
+import type { TractorLogger } from "./types.js";
 
 type SpawnSyncResult = {
 	error?: Error;

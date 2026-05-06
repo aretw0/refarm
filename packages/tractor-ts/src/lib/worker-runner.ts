@@ -1,8 +1,8 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginInstance, PluginState } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
+import { TelemetryEvent } from "./telemetry.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginInstance, PluginState } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
 
 /**
  * Plugin runner that instantiates WASM plugins inside a dedicated WebWorker.

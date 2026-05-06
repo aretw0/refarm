@@ -1,6 +1,6 @@
 import { transpile } from "@bytecodealliance/jco";
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { TelemetryEvent } from "../index";
+import type { TelemetryEvent } from "../index.js";
 
 /**
  * Interface for the Tractor host to provide to the plugin.

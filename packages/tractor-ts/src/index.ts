@@ -11,23 +11,23 @@ import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
-import { CommandHost } from "./lib/command-host";
+import { CommandHost } from "./lib/command-host.js";
 import {
   SovereignNode,
   SovereignSignature
-} from "./lib/graph-normalizer";
+} from "./lib/graph-normalizer.js";
 import {
   PluginHost, PluginState,
   PluginTrustGrant
-} from "./lib/plugin-host";
-import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
+} from "./lib/plugin-host.js";
+import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry.js";
 import {
   SecurityMode,
   TRACTOR_LOG_PRIORITY,
   TractorConfig,
   TractorLogLevel,
   isTractorLogLevel
-} from "./lib/types";
+} from "./lib/types.js";
 
 
 export * from "./lib/agent-response-stream.js";

@@ -9,19 +9,19 @@
  * See ADR-044: specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md
  */
 
-export * from "./lib/agent-response-stream";
-export * from "./lib/graph-normalizer";
-export * from "./lib/identity-recovery-host";
+export * from "./lib/agent-response-stream.js";
+export * from "./lib/graph-normalizer.js";
+export * from "./lib/identity-recovery-host.js";
 // Re-export types from plugin-host's dependencies directly (no Node deps)
-export type { PluginInstance, PluginState } from "./lib/instance-handle";
-export * from "./lib/l8n-host";
-export * from "./lib/secret-host";
-export * from "./lib/stream-chunk";
-export * from "./lib/stream-session";
-export * from "./lib/stream-view";
-export * from "./lib/telemetry";
-export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
-export * from "./lib/types";
+export type { PluginInstance, PluginState } from "./lib/instance-handle.js";
+export * from "./lib/l8n-host.js";
+export * from "./lib/secret-host.js";
+export * from "./lib/stream-chunk.js";
+export * from "./lib/stream-session.js";
+export * from "./lib/stream-view.js";
+export * from "./lib/telemetry.js";
+export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
+export * from "./lib/types.js";
 
 import {
 	assertEntryRuntimeCompatibility,
@@ -32,18 +32,18 @@ import {
 	type PluginManifest,
 	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
-import type { SovereignNode } from "./lib/graph-normalizer";
-import type { PluginInstance, PluginState } from "./lib/instance-handle";
+import type { SovereignNode } from "./lib/graph-normalizer.js";
+import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
 import {
 	getCachedPlugin,
 	getCachedPluginMetadata,
 	getCachedPluginRuntimeModule,
-} from "./lib/opfs-plugin-cache";
+} from "./lib/opfs-plugin-cache.js";
 import {
 	buildGithubReleaseAssetUrl,
 	fetchRuntimeDescriptorRevocationList,
 	isDescriptorHashRevoked,
-} from "./lib/runtime-descriptor-revocation";
+} from "./lib/runtime-descriptor-revocation.js";
 import {
 	dedupeRuntimeDescriptorRevocationConfigConflicts,
 	dedupeRuntimeDescriptorRevocationInvalidInputs,
@@ -51,10 +51,10 @@ import {
 	type RuntimeDescriptorRevocationUnavailablePolicy,
 	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
-} from "./lib/runtime-descriptor-revocation-policy";
-import type { TelemetryEvent } from "./lib/telemetry";
-import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
-import type { TractorLogger } from "./lib/types";
+} from "./lib/runtime-descriptor-revocation-policy.js";
+import type { TelemetryEvent } from "./lib/telemetry.js";
+import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
+import type { TractorLogger } from "./lib/types.js";
 
 const BROWSER_ERROR =
 	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
@@ -666,8 +666,8 @@ export type {
 	BrowserRuntimeModuleInstallInput,
 	InstallPluginOptions,
 	InstallPluginResult,
-} from "./lib/install-plugin";
-export { installPlugin } from "./lib/install-plugin";
+} from "./lib/install-plugin.js";
+export { installPlugin } from "./lib/install-plugin.js";
 export {
 	cachePlugin,
 	cachePluginRuntimeModule,
@@ -676,7 +676,7 @@ export {
 	getCachedPluginMetadata,
 	getCachedPluginRuntimeModule,
 	getPluginRuntimeModuleCachePath,
-} from "./lib/opfs-plugin-cache";
+} from "./lib/opfs-plugin-cache.js";
 
 /** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */
 export const TRACTOR_VERSION: string =
@@ -693,7 +693,7 @@ export class Tractor {
 	static readonly VERSION = TRACTOR_VERSION;
 
 	static async boot(config: any): Promise<any> {
-		const module = await import("./index");
+		const module = await import("./index.js");
 		return module.Tractor.boot(config);
 	}
 }

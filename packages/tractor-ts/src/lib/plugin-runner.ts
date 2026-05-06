@@ -1,6 +1,6 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
-import type { PluginInstance } from "./instance-handle";
+import { TelemetryEvent } from "./telemetry.js";
+import type { PluginInstance } from "./instance-handle.js";
 
 /**
  * Abstraction over plugin instantiation strategies.
