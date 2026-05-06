@@ -70,21 +70,5 @@ export interface RefarmTimelineForkEnvelope {
 }
 
 export function outputTreeJson(value: unknown): void {
-	if (
-		value &&
-		typeof value === "object" &&
-		"command" in value &&
-		value.command === "tree" &&
-		!("schemaVersion" in value)
-	) {
-		console.log(
-			JSON.stringify(
-				{ schemaVersion: REFARM_TREE_SCHEMA_VERSION, ...value },
-				null,
-				2,
-			),
-		);
-		return;
-	}
 	console.log(JSON.stringify(value, null, 2));
 }
