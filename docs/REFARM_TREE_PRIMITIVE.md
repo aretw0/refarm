@@ -169,6 +169,52 @@ are proven. "Rewind" is user language; the safe primitive is either:
 1. `preview` + `switch` to an existing branch/head; or
 2. `preview` + `fork` from a historical node.
 
+## All-scope list JSON contract example
+
+`scope: "all"` is a read-only aggregate list. It joins currently available
+session and git timeline nodes but does not create a composite mutation surface:
+
+```json
+{
+  "schemaVersion": 1,
+  "command": "tree",
+  "scope": "all",
+  "operation": "list",
+  "nodes": [
+    {
+      "timelineId": "git",
+      "nodeId": "abcdef1234567890abcdef1234567890abcdef12",
+      "parentNodeId": "1111111111111111111111111111111111111111",
+      "branchId": "HEAD -> main",
+      "kind": "git",
+      "label": "seed",
+      "timestamp": "2026-05-06T14:00:00+00:00",
+      "metadata": {
+        "shortId": "abcdef123456",
+        "refs": ["HEAD -> main"]
+      }
+    },
+    {
+      "timelineId": "session",
+      "nodeId": "urn:refarm:session:v1:abc123def456",
+      "branchId": "urn:refarm:session:v1:abc123def456",
+      "kind": "session",
+      "label": "auth-refactor",
+      "timestamp": "2023-11-14T22:13:20.000Z",
+      "metadata": {
+        "shortId": "abc123def456",
+        "leafEntryId": "entry-2",
+        "hasHistory": true
+      }
+    }
+  ]
+}
+```
+
+`show`, `preview`, `fork`, and `switch` still require an explicit substrate
+scope. This keeps all-scope inspection useful without implying coordinated
+multi-substrate execution.
+
 ## Session fork JSON contract examples
 
 Session fork preview is a non-mutating readiness envelope. Session fork execution
