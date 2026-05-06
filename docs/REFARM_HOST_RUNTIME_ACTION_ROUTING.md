@@ -51,6 +51,11 @@ Product apps own action meaning:
 - `apps/dev` uses diagnostics-only actions such as `studio:diagnostic-denied`.
 - `apps/me` uses product-facing actions such as `me:vault-open`.
 
+`apps/me` also proves the product-owned handler side of the shared envelope:
+`resolveRefarmMePersonalSurfaceActionRequest(...)` and
+`invokeRefarmMePersonalSurfaceAction(...)` construct and invoke the Homestead
+action request while keeping personal-vault semantics inside the app.
+
 The shell can detect and route a clicked surface action, but it must not decide what the action means.
 
 ### Status and diagnostics

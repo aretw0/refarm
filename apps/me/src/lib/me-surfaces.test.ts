@@ -1,12 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	createRefarmMePersonalSurfaceRenderRequest,
 	createRefarmMeSurfaceActionHandler,
 	createRefarmMeSurfaceContextProvider,
 	createRefarmMeSurfacePlugins,
+	invokeRefarmMePersonalSurfaceAction,
 	REFARM_ME_OPEN_VAULT_ACTION_ID,
 	REFARM_ME_PERSONAL_SURFACE_ID,
 	REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
 	renderRefarmMePersonalSurface,
+	resolveRefarmMePersonalSurfaceActionRequest,
 } from "./me-surfaces";
 
 describe("refarm.me Homestead surface", () => {
@@ -102,6 +105,68 @@ describe("refarm.me Homestead surface", () => {
 		);
 		expect((rendered as { html: string }).html).toContain("Me &lt;Root&gt;");
 		expect((rendered as { html: string }).html).toContain("Open &lt;vault&gt;");
+	});
+
+	it("creates a canonical personal surface render request", () => {
+		expect(createRefarmMePersonalSurfaceRenderRequest()).toEqual({
+			pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+			slotId: "main",
+			mountSource: "extension-surface",
+			surface: {
+				layer: "homestead",
+				kind: "panel",
+				id: REFARM_ME_PERSONAL_SURFACE_ID,
+				slot: "main",
+			},
+			locale: "en",
+		});
+	});
+
+	it("resolves personal surface action requests through Homestead envelope helpers", async () => {
+		await expect(
+			resolveRefarmMePersonalSurfaceActionRequest(
+				REFARM_ME_OPEN_VAULT_ACTION_ID,
+			),
+		).resolves.toMatchObject({
+			reason: "available",
+			request: {
+				pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+				slotId: "main",
+				action: {
+					id: REFARM_ME_OPEN_VAULT_ACTION_ID,
+					intent: "me:vault-open",
+				},
+				host: {
+					hostId: "apps/me",
+				},
+			},
+		});
+		await expect(
+			resolveRefarmMePersonalSurfaceActionRequest("missing-action"),
+		).resolves.toEqual({ reason: "missing-action" });
+	});
+
+	it("invokes personal surface actions through the shared Homestead envelope", async () => {
+		const observer = vi.fn();
+
+		await expect(
+			invokeRefarmMePersonalSurfaceAction(
+				REFARM_ME_OPEN_VAULT_ACTION_ID,
+				observer,
+			),
+		).resolves.toBe(true);
+		expect(observer).toHaveBeenCalledWith(
+			expect.objectContaining({
+				pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+				action: expect.objectContaining({
+					id: REFARM_ME_OPEN_VAULT_ACTION_ID,
+					intent: "me:vault-open",
+				}),
+			}),
+		);
+		await expect(
+			invokeRefarmMePersonalSurfaceAction("missing-action", observer),
+		).resolves.toBe(false);
 	});
 
 	it("scopes personal surface actions to the Refarm.me plugin", async () => {

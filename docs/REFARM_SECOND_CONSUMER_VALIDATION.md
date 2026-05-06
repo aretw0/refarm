@@ -16,7 +16,7 @@ Validate that promoted Homestead/design-system primitives are not only Studio-sp
 - **Renderer catalog**: advertises `refarm-me-web` through the shared host renderer descriptor.
 - **Surface**: registers an app-owned internal Homestead surface plugin, `refarm-me-personal-surface`, mounted into the shared `main` slot.
 - **Host context**: provides app-owned context via `createRefarmMeSurfaceContextProvider()`.
-- **Action**: exposes `open-personal-vault` and handles it through `createRefarmMeSurfaceActionHandler()` by emitting app-scoped telemetry.
+- **Action**: exposes `open-personal-vault`, resolves the Homestead action request envelope through app-owned helpers, and handles it through `createRefarmMeSurfaceActionHandler()` by emitting app-scoped telemetry.
 - **Runtime boundary**: moves the Astro page boot into `apps/me/src/lib/me-runtime.ts` so the page remains a thin product boundary and the runtime is unit-testable.
 
 ## Files
@@ -32,7 +32,8 @@ Validate that promoted Homestead/design-system primitives are not only Studio-sp
 1. Homestead's `Layout` and slot discovery are reusable by a product app without extracting a new package.
 2. The existing surface contract is sufficient for a second consumer to mount product-owned UI into shared slots.
 3. App-owned context/action helpers are the right seam for now; extracting them globally would be premature.
-4. `apps/dev` remains the richer diagnostics consumer, while `apps/me` validates product UX consumption.
+4. Product-owned handlers can consume the same Homestead action request envelope used by Web/headless/TUI readiness without moving product semantics into `packages/*`.
+5. `apps/dev` remains the richer diagnostics consumer, while `apps/me` validates product UX consumption.
 
 ## Atomic gaps before broader extraction
 

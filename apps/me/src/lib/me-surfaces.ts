@@ -1,11 +1,14 @@
 import type { PluginInstance } from "@refarm.dev/tractor";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
+	createHomesteadSurfaceRenderActionRequest,
 	createScopedHomesteadSurfaceContextProvider,
 	homesteadSurfaceRenderContextMatches,
+	invokeHomesteadSurfaceRenderAction,
 	type HomesteadSurfaceRenderActionHandler,
 	type HomesteadSurfaceRenderActionRequest,
 	type HomesteadSurfaceRenderContextProvider,
+	type HomesteadSurfaceRenderContextRequest,
 	type HomesteadSurfaceRenderRequest,
 	type HomesteadSurfaceRenderResult,
 } from "@refarm.dev/homestead/sdk/surface-renderer";
@@ -24,6 +27,11 @@ export type RefarmMeSurfaceTelemetry = (
 export type RefarmMeSurfaceActionObserver = (
 	request: HomesteadSurfaceRenderActionRequest,
 ) => void | Promise<void>;
+
+export interface RefarmMePersonalSurfaceActionResolution {
+	request?: HomesteadSurfaceRenderActionRequest;
+	reason: "available" | "missing-action";
+}
 
 export function createRefarmMeSurfacePlugins(
 	emitTelemetry: RefarmMeSurfaceTelemetry = () => {},
@@ -97,6 +105,53 @@ export function createRefarmMeSurfaceContextProvider(): HomesteadSurfaceRenderCo
 				},
 			],
 		}),
+	);
+}
+
+export function createRefarmMePersonalSurfaceRenderRequest(
+	locale = "en",
+): HomesteadSurfaceRenderContextRequest {
+	return {
+		pluginId: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,
+		slotId: "main",
+		mountSource: "extension-surface",
+		surface: {
+			layer: "homestead",
+			kind: "panel",
+			id: REFARM_ME_PERSONAL_SURFACE_ID,
+			slot: "main",
+		},
+		locale,
+	};
+}
+
+export async function resolveRefarmMePersonalSurfaceActionRequest(
+	actionId: string,
+): Promise<RefarmMePersonalSurfaceActionResolution> {
+	const renderRequest = createRefarmMePersonalSurfaceRenderRequest();
+	const host = await createRefarmMeSurfaceContextProvider()(renderRequest);
+	const request = createHomesteadSurfaceRenderActionRequest(
+		renderRequest,
+		host,
+		actionId,
+	);
+
+	return request
+		? { reason: "available", request }
+		: { reason: "missing-action" };
+}
+
+export async function invokeRefarmMePersonalSurfaceAction(
+	actionId: string,
+	onAction: RefarmMeSurfaceActionObserver = () => {},
+): Promise<boolean> {
+	const renderRequest = createRefarmMePersonalSurfaceRenderRequest();
+	const host = await createRefarmMeSurfaceContextProvider()(renderRequest);
+	return invokeHomesteadSurfaceRenderAction(
+		createRefarmMeSurfaceActionHandler(onAction),
+		renderRequest,
+		host,
+		actionId,
 	);
 }
 
