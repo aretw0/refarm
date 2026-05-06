@@ -223,6 +223,13 @@ function createGitSwitchPreviewEnvelope(
 			destructive: false,
 			worktreeSwitched: true,
 			worktreeClean,
+			readyToExecute: worktreeClean,
+			...(worktreeClean
+				? {}
+				: {
+						blockedReason:
+							"Git worktree must be clean before tree switch execution.",
+					}),
 			currentRefBefore,
 			targetRefAfter: name,
 			targetCommit: node.nodeId,

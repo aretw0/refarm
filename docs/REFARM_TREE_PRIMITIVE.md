@@ -71,7 +71,8 @@ for git fork timelines, or `refarm tree switch --scope git ...` for git switch
 plans, but does not fork, branch, check out, or switch. Git branch preview plans
 declare `worktreeSwitched: false`; git switch preview plans declare
 `worktreeSwitched: true`, include `currentRefBefore`/`targetRefAfter`, and report
-whether the worktree is currently clean. Session previews may target a historical entry with
+`worktreeClean`, `readyToExecute`, and a `blockedReason` when execution would be
+rejected by the switch guard. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
 without switching the active worktree (`worktreeSwitched: false`, plus matching

@@ -472,6 +472,7 @@ describe("refarm tree", () => {
 				destructive: false,
 				worktreeSwitched: true,
 				worktreeClean: true,
+				readyToExecute: true,
 				currentRefBefore: "main",
 				targetRefAfter: "safe/fork",
 				targetCommit: "abcdef1234567890abcdef1234567890abcdef12",
@@ -508,6 +509,9 @@ describe("refarm tree", () => {
 		expect(payload.plan).toMatchObject({
 			kind: "git-switch",
 			worktreeClean: false,
+			readyToExecute: false,
+			blockedReason:
+				"Git worktree must be clean before tree switch execution.",
 			currentRefBefore: "main",
 			targetRefAfter: "safe/fork",
 		});

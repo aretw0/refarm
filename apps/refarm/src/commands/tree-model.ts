@@ -105,6 +105,8 @@ export interface RefarmGitTimelineSwitchPreviewPlan {
 	destructive: false;
 	worktreeSwitched: true;
 	worktreeClean: boolean;
+	readyToExecute: boolean;
+	blockedReason?: string;
 	currentRefBefore: string;
 	targetRefAfter: string;
 	targetCommit: string;

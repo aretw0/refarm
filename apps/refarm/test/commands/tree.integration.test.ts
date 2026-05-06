@@ -106,6 +106,7 @@ describe("refarm tree git integration", () => {
 				kind: "git-switch",
 				worktreeSwitched: true,
 				worktreeClean: true,
+				readyToExecute: true,
 				currentRefBefore: "main",
 				targetRefAfter: "smoke/tree-fork",
 				recommendedCommand: "refarm tree switch --scope git smoke/tree-fork",
@@ -125,6 +126,9 @@ describe("refarm tree git integration", () => {
 		expect(dirtyPreviewPayload.plan).toMatchObject({
 			kind: "git-switch",
 			worktreeClean: false,
+			readyToExecute: false,
+			blockedReason:
+				"Git worktree must be clean before tree switch execution.",
 			currentRefBefore: "main",
 			targetRefAfter: "smoke/tree-fork",
 		});

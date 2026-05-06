@@ -218,6 +218,7 @@ async function main() {
 			switchPreviewJson?.reason !== "dry-run" ||
 			switchPreviewJson?.plan?.kind !== "git-switch" ||
 			switchPreviewJson?.plan?.worktreeClean !== true ||
+			switchPreviewJson?.plan?.readyToExecute !== true ||
 			switchPreviewJson?.plan?.currentRefBefore !== "main" ||
 			switchPreviewJson?.plan?.targetRefAfter !== "smoke/tree-fork"
 		) {
