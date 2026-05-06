@@ -50,8 +50,10 @@ function validateOptionalBranchName(
 function validateBranchName(name: string): string {
 	const hasSafeChars = /^[A-Za-z0-9._/-]+$/u.test(name);
 	const hasUnsafeShape =
+		name === "HEAD" ||
 		name.startsWith("-") ||
 		name.startsWith("/") ||
+		name.startsWith("refs/") ||
 		name.endsWith("/") ||
 		name.includes("..") ||
 		name.includes("//") ||

@@ -332,7 +332,9 @@ describe("refarm tree", () => {
 	it.each([
 		"unsafe..name",
 		"refs/foo.lock",
+		"refs/heads/foo",
 		"safe/.hidden",
+		"HEAD",
 	])("fails closed for unsafe branch shape %s", async (name) => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((

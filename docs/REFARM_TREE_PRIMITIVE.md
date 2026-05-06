@@ -75,8 +75,8 @@ entry selectors (`--at`). Session fork execution remains delegated to
 `refarm sessions fork` until active-session switching semantics are made explicit
 in the tree contract. Preview/fork branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
-and do not look like CLI options, hidden/empty path segments, `.lock` ref lock
-files, or parent traversal. Git list limits fail closed unless they are plain
+and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
+path segments, `.lock` ref lock files, or parent traversal. Git list limits fail closed unless they are plain
 integers from 1 to 200.
 
 `preview` is the safety boundary. It materializes what would change without
