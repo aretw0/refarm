@@ -5,7 +5,7 @@ package boundaries. The product-facing `refarm` CLI can live in `apps/`, while
 `packages/` continue to provide the reusable blocks that any distro can compose.
 
 This model is formally accepted in
-[`ADR-056`](../specs/ADRs/ADR-056-unified-refarm-host-boundary.md).
+[`ADR-056`](../specs/ADRs/ADR-056-unified-refarm-host-boundary.md). Runtime boot and action routing ownership is detailed in [Refarm Host Runtime and Action Routing](./REFARM_HOST_RUNTIME_ACTION_ROUTING.md).
 
 ## Decision
 

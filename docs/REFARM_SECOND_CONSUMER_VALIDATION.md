@@ -1,6 +1,6 @@
 # Refarm second consumer validation
 
-Status: local validation in progress  
+Status: local validation complete
 Consumer: `apps/me`  
 Baseline: `apps/dev` Studio dashboard and surface diagnostics
 

@@ -144,7 +144,7 @@ A future CLI distro should compose, not own, these blocks:
 - `@refarm.dev/homestead/sdk/host-renderer` for renderer descriptors;
 - `@refarm.dev/homestead/sdk/runtime` for browser/Web runtime boot where
   applicable;
-- Homestead surface/action/telemetry helpers for semantic diagnostics;
+- Homestead surface/action/telemetry helpers for semantic diagnostics, following the ownership boundary in [Refarm Host Runtime and Action Routing](./REFARM_HOST_RUNTIME_ACTION_ROUTING.md);
 - Tractor packages for plugin/runtime execution;
 - plugin-manifest/registry/trust packages for install and activation policy;
 - DS only through Web-facing distributions, not for headless output.
