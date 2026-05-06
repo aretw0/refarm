@@ -376,6 +376,11 @@ async function main() {
 				`Expected tree preview schemaVersion=1, got: ${JSON.stringify(treeGitPreview)}`,
 			);
 		}
+		if (treeGitPreview?.operation !== "preview") {
+			throw new Error(
+				`Expected tree preview operation=preview, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
 		if (treeGitPreview?.reason !== "dry-run") {
 			throw new Error(
 				`Expected tree preview reason=dry-run, got: ${JSON.stringify(treeGitPreview)}`,
@@ -391,9 +396,23 @@ async function main() {
 				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
+		if (
+			!treeGitPreview.plan?.recommendedCommand?.startsWith(
+				"refarm tree fork --scope git ",
+			)
+		) {
+			throw new Error(
+				`Expected git preview to recommend refarm tree fork, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
 		if (!treeGitPreview.plan?.recommendedCommand?.includes("smoke/tree-preview")) {
 			throw new Error(
 				`Expected named git preview command, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.recommendedCommand?.startsWith("git branch ")) {
+			throw new Error(
+				`Expected git preview not to recommend raw git branch, got: ${JSON.stringify(treeGitPreview?.plan)}`,
 			);
 		}
 
