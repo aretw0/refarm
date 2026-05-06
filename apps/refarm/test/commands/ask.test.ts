@@ -1,4 +1,3 @@
-import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
@@ -34,6 +33,10 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 					);
 				},
 			),
+		readEffortResult: vi.fn().mockResolvedValue(null),
+		readActiveSessionId: vi.fn().mockReturnValue(null),
+		clearActiveSessionId: vi.fn().mockReturnValue(true),
+		persistActiveSessionId: vi.fn(),
 		...overrides,
 	};
 }
@@ -151,9 +154,12 @@ describe("refarm ask", () => {
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);
 
-		await command.parseAsync(["hello", "--session", "urn:refarm:session:v1:test123"], {
-			from: "user",
-		});
+		await command.parseAsync(
+			["hello", "--session", "urn:refarm:session:v1:test123"],
+			{
+				from: "user",
+			},
+		);
 
 		expect(deps.submitEffort).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -204,33 +210,39 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
-	it("fails closed when active pointer verification reads back the wrong session", async () => {
-		const deps = makeDeps();
+	it("fails closed when active pointer verification rejects session persistence", async () => {
+		const deps = makeDeps({
+			persistActiveSessionId: vi.fn().mockImplementation(() => {
+				throw new Error(
+					'Session switch expected active session "urn:refarm:session:v1:target", got "urn:refarm:session:v1:other".',
+				);
+			}),
+		});
 		const command = createAskCommand(deps);
-		vi.spyOn(fs, "readFileSync")
-			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
-			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
-			.mockReturnValueOnce("urn:refarm:session:v1:other0000000");
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
-		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const outSpy = vi
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		await expect(
-			command.parseAsync(["hello", "--session", "urn:refarm:session:v1:target"], {
-				from: "user",
-			}),
+			command.parseAsync(
+				["hello", "--session", "urn:refarm:session:v1:target"],
+				{
+					from: "user",
+				},
+			),
 		).rejects.toThrow("exit:1");
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			"urn:refarm:session:v1:target",
+		);
 		expect(errSpy).toHaveBeenCalledWith(
 			expect.stringContaining("Session switch expected active session"),
 		);
@@ -246,15 +258,17 @@ describe("refarm ask", () => {
 		const deps = makeDeps({
 			resolveSessionIdPrefix: vi
 				.fn()
-				.mockRejectedValue(new Error('Ambiguous session prefix "abc" (2 matches)')),
+				.mockRejectedValue(
+					new Error('Ambiguous session prefix "abc" (2 matches)'),
+				),
 		});
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		await expect(
 			command.parseAsync(["hello", "--session", "abc"], {
@@ -276,16 +290,19 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		await expect(
-			command.parseAsync(["hello", "--new", "--session", "urn:refarm:session:v1:test123"], {
-				from: "user",
-			}),
+			command.parseAsync(
+				["hello", "--new", "--session", "urn:refarm:session:v1:test123"],
+				{
+					from: "user",
+				},
+			),
 		).rejects.toThrow("exit:1");
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();

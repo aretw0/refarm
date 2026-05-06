@@ -35,6 +35,9 @@ export interface AskDeps {
 		error?: string;
 	} | null>;
 	resolveSessionIdPrefix?(prefix: string): Promise<string>;
+	readActiveSessionId?(): string | null;
+	clearActiveSessionId?(): boolean;
+	persistActiveSessionId?(id: string): void;
 }
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -350,6 +353,9 @@ function defaultDeps(): AskDeps {
 				options,
 			),
 		readEffortResult: (effortId) => readEffortResultFile(resultsDir, effortId),
+		readActiveSessionId,
+		clearActiveSessionId,
+		persistActiveSessionId: writeActiveSessionIdAndVerify,
 	};
 }
 
@@ -428,11 +434,11 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				if (opts.new) {
-					clearActiveSessionId();
+					resolved.clearActiveSessionId?.();
 				}
 
 				const explicitSession = opts.session?.trim();
-				let sessionId = readActiveSessionId() ?? newSessionId();
+				let sessionId = resolved.readActiveSessionId?.() ?? newSessionId();
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
@@ -535,7 +541,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-							writeActiveSessionIdAndVerify(sessionId);
+							resolved.persistActiveSessionId?.(sessionId);
 							return;
 						}
 
@@ -548,7 +554,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 						throw streamError;
 					}
 
-					writeActiveSessionIdAndVerify(sessionId);
+					resolved.persistActiveSessionId?.(sessionId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);
