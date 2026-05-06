@@ -40,6 +40,19 @@ function runGit(args: string[]): string {
 	return result.stdout.trim();
 }
 
+function gitBranchExists(name: string): boolean {
+	const result = childProcess.spawnSync(
+		"git",
+		["show-ref", "--verify", "--quiet", `refs/heads/${name}`],
+		{ encoding: "utf8" },
+	);
+	if (result.status === 0) return true;
+	if (result.status === 1) return false;
+	const detail =
+		result.stderr || result.stdout || `git show-ref failed for ${name}`;
+	throw new Error(detail.trim());
+}
+
 function listGitTimelineNodes(limit: number): RefarmTimelineNode[] {
 	const output = runGit([
 		"log",
@@ -217,6 +230,9 @@ export function forkGitTree(
 	let node: RefarmTimelineNode;
 	try {
 		node = showGitTimelineNode(prefix);
+		if (gitBranchExists(opts.name)) {
+			throw new Error(`Git branch "${opts.name}" already exists.`);
+		}
 		runGit(["branch", opts.name, node.nodeId]);
 	} catch (err) {
 		exitForGitError(err);

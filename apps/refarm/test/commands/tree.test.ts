@@ -457,11 +457,14 @@ describe("refarm tree", () => {
 	});
 
 	it("creates a non-switching git branch from a tree fork", async () => {
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -476,6 +479,12 @@ describe("refarm tree", () => {
 
 		expect(spawnSyncMock).toHaveBeenNthCalledWith(
 			2,
+			"git",
+			["show-ref", "--verify", "--quiet", "refs/heads/safe/fork"],
+			{ encoding: "utf8" },
+		);
+		expect(spawnSyncMock).toHaveBeenNthCalledWith(
+			3,
 			"git",
 			["branch", "safe/fork", "abcdef1234567890abcdef1234567890abcdef12"],
 			{ encoding: "utf8" },
@@ -496,6 +505,37 @@ describe("refarm tree", () => {
 				command: "git branch safe/fork abcdef123456",
 			},
 		});
+	});
+
+	it("rejects git tree forks when the branch already exists", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "fork")!
+				.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('Git branch "safe/fork" already exists.'),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("rejects session tree forks until session execution is explicit", async () => {

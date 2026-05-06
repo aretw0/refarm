@@ -122,9 +122,9 @@ function parseCommandJsonOutput(label, runResult) {
 	}
 }
 
-async function assertCommandFailsWith(args, expectedSubstring) {
+async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 	try {
-		await runRefarmCommand(args);
+		await runRefarmCommand(args, options);
 		throw new Error(
 			`Expected command to fail with ${JSON.stringify(expectedSubstring)}, but it exited successfully.`,
 		);
@@ -459,6 +459,11 @@ async function main() {
 				`Expected git tree fork smoke to keep current branch main, got: ${JSON.stringify(currentBranchRun.stdout.trim())}`,
 			);
 		}
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--scope", "git", "--name", "smoke/tree-fork"],
+			'Git branch "smoke/tree-fork" already exists.',
+			{ cwd: isolatedGitRepoPath },
+		);
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
