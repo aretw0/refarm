@@ -340,9 +340,13 @@ async function main() {
 				`Expected tree schemaVersion=1 from JSON output, got: ${JSON.stringify(treeGitJson)}`,
 			);
 		}
-		if (treeGitJson?.command !== "tree" || treeGitJson?.scope !== "git") {
+		if (
+			treeGitJson?.command !== "tree" ||
+			treeGitJson?.scope !== "git" ||
+			treeGitJson?.operation !== "list"
+		) {
 			throw new Error(
-				`Expected tree command/scope from JSON output, got: ${JSON.stringify(treeGitJson)}`,
+				`Expected tree command/scope/operation from JSON output, got: ${JSON.stringify(treeGitJson)}`,
 			);
 		}
 		if (!Array.isArray(treeGitJson?.nodes) || treeGitJson.nodes.length < 1) {
@@ -353,6 +357,35 @@ async function main() {
 		if (treeGitJson.nodes[0]?.kind !== "git") {
 			throw new Error(
 				`Expected first tree node kind=git, got: ${JSON.stringify(treeGitJson.nodes[0])}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git show JSON`);
+		const treeGitShowRun = await runRefarmCommand([
+			"tree",
+			"show",
+			"HEAD",
+			"--scope",
+			"git",
+			"--json",
+		]);
+		const treeGitShow = parseCommandJsonOutput(
+			"tree show --scope git --json",
+			treeGitShowRun,
+		);
+		if (
+			treeGitShow?.schemaVersion !== 1 ||
+			treeGitShow?.command !== "tree" ||
+			treeGitShow?.scope !== "git" ||
+			treeGitShow?.operation !== "show"
+		) {
+			throw new Error(
+				`Expected tree show command/scope/operation from JSON output, got: ${JSON.stringify(treeGitShow)}`,
+			);
+		}
+		if (treeGitShow?.node?.kind !== "git") {
+			throw new Error(
+				`Expected tree show node kind=git, got: ${JSON.stringify(treeGitShow?.node)}`,
 			);
 		}
 
