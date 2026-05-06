@@ -49,6 +49,7 @@
 		"actions:budget": "node scripts/ci/actions-budget.mjs",
 		"actions:budget:json": "node scripts/ci/actions-budget.mjs --json",
 		"actions:budget:guard": "node scripts/ci/actions-budget-guard.mjs",
+		"actions:budget:guard:test": "node --test scripts/ci/test-actions-budget-guard.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",
 		"runtime-descriptor:revocation-report:test": "node --test scripts/ci/test-runtime-descriptor-revocation-report-lib.mjs",

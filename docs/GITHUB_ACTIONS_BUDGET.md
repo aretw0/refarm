@@ -50,6 +50,7 @@ npm run actions:budget:guard -- --repo aretw0/refarm
 npm run actions:budget:guard -- --fail-on-warn
 npm run actions:budget:json > /tmp/actions-budget.json
 npm run actions:budget:guard -- --input /tmp/actions-budget.json
+npm run actions:budget:guard:test
 ```
 
 ## Official billing source
