@@ -1114,6 +1114,48 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("fails closed when session switch verification reads the wrong pointer", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		vi.spyOn(fs, "readFileSync")
+			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
+			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "switch")!
+				.parseAsync(["abc123"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(writeSpy).toHaveBeenCalledWith(
+			expect.stringContaining(".refarm/session.lock"),
+			SESSION["@id"],
+			"utf-8",
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Session switch expected active session"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it("rejects already-active session tree switches before writing", async () => {
 		vi.stubGlobal(
 			"fetch",
