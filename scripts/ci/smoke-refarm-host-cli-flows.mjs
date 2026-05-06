@@ -409,6 +409,22 @@ async function main() {
 			'Invalid branch name "unsafe..name"',
 		);
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork rejects entry selectors`);
+		await assertCommandFailsWith(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"smoke/tree-fork",
+				"--at",
+				"entry-1",
+			],
+			"--at is only supported for session timelines",
+		);
+
 		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork creates branch in isolated repo`);
 		const isolatedGitRepoPath = await createIsolatedGitRepo(tempDir);
 		const treeGitForkRun = await runRefarmCommand(

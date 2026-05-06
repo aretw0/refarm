@@ -68,8 +68,9 @@ use `schemaVersion: 1` and an explicit `operation` discriminator (`list`,
 out, or switch. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
-without switching the active worktree (`worktreeSwitched: false` in JSON) and
-fails closed when the target branch already exists. Session fork execution remains delegated to
+without switching the active worktree (`worktreeSwitched: false` in JSON),
+fails closed when the target branch already exists, and rejects session-only
+entry selectors (`--at`). Session fork execution remains delegated to
 `refarm sessions fork` until active-session switching semantics are made explicit
 in the tree contract. Preview/fork branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
