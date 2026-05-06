@@ -404,7 +404,8 @@ function printAskError(message: string): void {
 export function createAskCommand(deps?: AskDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
-	const clearActiveSession = resolved.clearActiveSessionId ?? clearActiveSessionId;
+	const clearActiveSession =
+		resolved.clearActiveSessionId ?? clearActiveSessionId;
 	const persistActiveSession =
 		resolved.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
