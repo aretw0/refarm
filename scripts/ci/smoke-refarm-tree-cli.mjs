@@ -201,6 +201,42 @@ async function main() {
 			throw new Error(`Expected git fork envelope, got: ${JSON.stringify(forkJson)}`);
 		}
 
+		console.log(`${LOGGER_PREFIX} smoke: tree git fork preview blocks existing branch`);
+		const existingForkPreviewRun = await runRefarmCommand(
+			[
+				"tree",
+				"preview",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"smoke/tree-fork",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const existingForkPreviewJson = parseCommandJsonOutput(
+			"tree preview --scope git existing branch",
+			existingForkPreviewRun,
+		);
+		if (
+			existingForkPreviewJson?.operation !== "preview" ||
+			existingForkPreviewJson?.reason !== "dry-run" ||
+			existingForkPreviewJson?.plan?.action !== "fork" ||
+			existingForkPreviewJson?.plan?.readyToExecute !== false ||
+			existingForkPreviewJson?.plan?.blockedReason !==
+				'Git branch "smoke/tree-fork" already exists.' ||
+			existingForkPreviewJson?.plan?.effects?.activePointerChanged !== false ||
+			existingForkPreviewJson?.plan?.effects?.branchCreated !== true ||
+			existingForkPreviewJson?.plan?.substrate?.kind !== "git-branch" ||
+			existingForkPreviewJson?.plan?.substrate?.branchName !== "smoke/tree-fork" ||
+			existingForkPreviewJson?.plan?.substrate?.worktreeSwitched !== false
+		) {
+			throw new Error(
+				`Expected existing-branch git fork preview envelope, got: ${JSON.stringify(existingForkPreviewJson)}`,
+			);
+		}
+
 		console.log(`${LOGGER_PREFIX} smoke: tree git switch preview stays dry-run`);
 		const switchPreviewRun = await runRefarmCommand(
 			[
