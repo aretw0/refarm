@@ -47,6 +47,24 @@ export interface RefarmTimelinePreviewEnvelope {
 	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan;
 }
 
+export interface RefarmGitTimelineForkResult {
+	kind: "git-branch";
+	destructive: false;
+	branchName: string;
+	baseCommit: string;
+	command: string;
+}
+
+export interface RefarmTimelineForkEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "fork";
+	reason: "executed";
+	target: RefarmTimelineNode;
+	result: RefarmGitTimelineForkResult;
+}
+
 export function outputTreeJson(value: unknown): void {
 	if (
 		value &&

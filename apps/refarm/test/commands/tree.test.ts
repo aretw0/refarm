@@ -452,6 +452,69 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("creates a non-switching git branch from a tree fork", async () => {
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "fork")!
+			.parseAsync(
+				["abcdef", "--scope", "git", "--name", "safe/fork", "--json"],
+				{
+					from: "user",
+				},
+			);
+
+		expect(spawnSyncMock).toHaveBeenNthCalledWith(
+			2,
+			"git",
+			["branch", "safe/fork", "abcdef1234567890abcdef1234567890abcdef12"],
+			{ encoding: "utf8" },
+		);
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload).toMatchObject({
+			schemaVersion: 1,
+			command: "tree",
+			scope: "git",
+			operation: "fork",
+			reason: "executed",
+			result: {
+				kind: "git-branch",
+				destructive: false,
+				branchName: "safe/fork",
+				baseCommit: "abcdef1234567890abcdef1234567890abcdef12",
+				command: "git branch safe/fork abcdef123456",
+			},
+		});
+	});
+
+	it("rejects session tree forks until session execution is explicit", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "fork")!
+				.parseAsync(["abc123", "--name", "safe/fork"], { from: "user" }),
+		).rejects.toThrow("exit:1");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm tree fork currently supports --scope git only"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
+
 	it.each(["0", "201", "1abc"])(
 		"fails closed for invalid git list limit %s",
 		async (limit) => {

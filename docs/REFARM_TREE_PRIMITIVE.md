@@ -58,17 +58,22 @@ refarm tree show <session-id-or-prefix> [--json]
 refarm tree show --scope git <commit-ish> [--json]
 refarm tree preview <session-id-or-prefix> [--at <entry-id>] [--name <branch-name>] [--json]
 refarm tree preview --scope git <commit-ish> [--name <branch-name>] [--json]
+refarm tree fork --scope git <commit-ish> --name <branch-name> [--json]
 ```
 
 The first slices are intentionally read-only. Machine-readable tree envelopes
 use `schemaVersion: 1`. `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` or `git branch ...` but does not fork, branch, check
 out, or switch. Session previews may target a historical entry with
-`--at <entry-id>` and fail closed if the entry is not in that session. Preview
-branch names are optional and fail closed unless they contain only safe
-git-style segments made from letters, numbers, `.`, `_`, `/`, or `-` and do not
-look like CLI options, hidden segments, empty path segments, or parent traversal.
-Git list limits fail closed unless they are plain integers from 1 to 200.
+`--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
+explicit execution; the first executable slice is git-only and creates a branch
+without switching the active worktree. Session fork execution remains delegated to
+`refarm sessions fork` until active-session switching semantics are made explicit
+in the tree contract. Preview/fork branch names fail closed unless they contain
+only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
+and do not look like CLI options, hidden segments, empty path segments, or parent
+traversal. Git list limits fail closed unless they are plain integers from 1 to
+200.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must
@@ -80,8 +85,8 @@ be explainable as "the preview became explicit execution".
 | --- | --- | --- |
 | `list` | Read-only tree/branch rows | Never mutates active state |
 | `show` | Read-only node detail | Fails on ambiguous prefixes |
-| `preview` | Read-only restore/fork plan | Required before rewind-like UX |
-| `fork` | Creates a new branch pointer from an immutable node | Non-destructive default |
+| `preview` | Dry-run restore/fork plan | Emits `reason: "dry-run"`; never mutates active state |
+| `fork` | Creates a new branch pointer from an immutable node | Git-only first slice; creates a branch without switching |
 | `switch` | Moves active pointer to an existing branch/head | Requires exact or unambiguous target |
 
 Avoid a first-class `rewind` command until the preview + switch/fork semantics

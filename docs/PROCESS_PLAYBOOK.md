@@ -48,6 +48,7 @@ refarm tree preview <id>            # dry-run fork plan for a session node
 refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry
 refarm tree preview <id> --name <branch> # dry-run fork plan with explicit name
 refarm tree preview --scope git <commit> # dry-run branch plan for a commit
+refarm tree fork --scope git <commit> --name <branch> # create branch without switching
 ```
 
 ---

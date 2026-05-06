@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
-import { listGitTree, previewGitTree, showGitTree } from "./tree-git.js";
+import { forkGitTree, listGitTree, previewGitTree, showGitTree } from "./tree-git.js";
 import {
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SESSION_SCOPE,
@@ -23,6 +23,14 @@ function parseScope(scope: string | undefined): RefarmTimelineScope {
 		),
 	);
 	process.exit(1);
+}
+
+function requireBranchName(name: string | undefined): string {
+	if (!name) {
+		console.error(chalk.red("✗  refarm tree fork requires --name <branch-name>."));
+		process.exit(1);
+	}
+	return name;
 }
 
 function validateBranchName(name: string | undefined): string | undefined {
@@ -108,6 +116,27 @@ async function previewTree(
 	await previewSessionTree(prefix, { ...opts, name });
 }
 
+async function forkTree(
+	prefix: string,
+	opts: { json?: boolean; scope?: string; at?: string; name?: string },
+): Promise<void> {
+	const scope = parseScope(opts.scope);
+	const name = validateBranchName(requireBranchName(opts.name))!;
+	if (scope !== REFARM_TREE_GIT_SCOPE) {
+		console.error(
+			chalk.red(
+				"✗  refarm tree fork currently supports --scope git only; use refarm sessions fork for session timelines.",
+			),
+		);
+		process.exit(1);
+	}
+	if (opts.at) {
+		console.error(chalk.red("✗  --at is only supported for session timelines."));
+		process.exit(1);
+	}
+	forkGitTree(prefix, { ...opts, name });
+}
+
 export function createTreeCommand(): Command {
 	return new Command("tree")
 		.description("Inspect and preview substrate-agnostic Refarm timelines")
@@ -157,6 +186,28 @@ export function createTreeCommand(): Command {
 						},
 					) => {
 						await previewTree(prefix, opts);
+					},
+				),
+		)
+		.addCommand(
+			new Command("fork")
+				.description("Create an explicit non-switching fork from a timeline node")
+				.argument("<id>", "Timeline node ID or unique prefix")
+				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option("--at <entry-id>", "Session entry to use as the branch point")
+				.requiredOption("--name <branch-name>", "Branch/fork name to create")
+				.option("--json", "Print machine-readable JSON")
+				.action(
+					async (
+						prefix: string,
+						opts: {
+							scope?: string;
+							at?: string;
+							name?: string;
+							json?: boolean;
+						},
+					) => {
+						await forkTree(prefix, opts);
 					},
 				),
 		)

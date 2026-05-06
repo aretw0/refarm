@@ -4,6 +4,7 @@ import {
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SCHEMA_VERSION,
+	type RefarmTimelineForkEnvelope,
 	type RefarmTimelineNode,
 	type RefarmTimelinePreviewEnvelope,
 } from "./tree-model.js";
@@ -162,6 +163,27 @@ function createGitPreviewEnvelope(
 	};
 }
 
+function createGitForkEnvelope(
+	node: RefarmTimelineNode,
+	name: string,
+): RefarmTimelineForkEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "fork",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "git-branch",
+			destructive: false,
+			branchName: name,
+			baseCommit: node.nodeId,
+			command: `git branch ${name} ${node.metadata.shortId}`,
+		},
+	};
+}
+
 export function previewGitTree(
 	prefix: string,
 	opts: { json?: boolean; name?: string },
@@ -185,4 +207,30 @@ export function previewGitTree(
 	);
 	console.log("  Would:  create a non-destructive git branch");
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
+}
+
+export function forkGitTree(
+	prefix: string,
+	opts: { json?: boolean; name: string },
+): void {
+	let node: RefarmTimelineNode;
+	try {
+		node = showGitTimelineNode(prefix);
+		runGit(["branch", opts.name, node.nodeId]);
+	} catch (err) {
+		exitForGitError(err);
+	}
+	const envelope = createGitForkEnvelope(node, opts.name);
+
+	if (opts.json) {
+		outputTreeJson(envelope);
+		return;
+	}
+
+	console.log(
+		chalk.green(
+			`✓  Created git branch ${chalk.cyan(opts.name)} at ${chalk.cyan(node.metadata.shortId)}.`,
+		),
+	);
+	console.log(chalk.dim("   Active worktree was not switched."));
 }
