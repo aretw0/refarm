@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import {
 	outputTreeJson,
+	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmTimelineNode,
 	type RefarmTimelinePreviewEnvelope,
@@ -216,6 +217,7 @@ function createSessionPreviewEnvelope(
 	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
 	const branchName = name ?? "<branch-name>";
 	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 		command: "tree",
 		scope: REFARM_TREE_SESSION_SCOPE,
 		operation: "preview",

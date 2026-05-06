@@ -66,6 +66,7 @@ describe("refarm tree", () => {
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
+			schemaVersion: 1,
 			command: "tree",
 			scope: "session",
 			nodes: [
@@ -110,6 +111,7 @@ describe("refarm tree", () => {
 		);
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
+			schemaVersion: 1,
 			command: "tree",
 			scope: "git",
 			nodes: [
@@ -204,6 +206,7 @@ describe("refarm tree", () => {
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
+			schemaVersion: 1,
 			command: "tree",
 			scope: "session",
 			operation: "preview",
@@ -369,6 +372,7 @@ describe("refarm tree", () => {
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload).toMatchObject({
+			schemaVersion: 1,
 			command: "tree",
 			scope: "git",
 			operation: "preview",

@@ -3,6 +3,7 @@ import chalk from "chalk";
 import {
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
+	REFARM_TREE_SCHEMA_VERSION,
 	type RefarmTimelineNode,
 	type RefarmTimelinePreviewEnvelope,
 } from "./tree-model.js";
@@ -146,6 +147,7 @@ function createGitPreviewEnvelope(
 ): RefarmTimelinePreviewEnvelope {
 	const branchName = name ?? "<branch-name>";
 	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
 		command: "tree",
 		scope: REFARM_TREE_GIT_SCOPE,
 		operation: "preview",

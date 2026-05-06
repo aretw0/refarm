@@ -1,6 +1,7 @@
 const SESSION_SCOPE = "session";
 const GIT_SCOPE = "git";
 
+export const REFARM_TREE_SCHEMA_VERSION = 1;
 export const REFARM_TREE_SESSION_SCOPE = SESSION_SCOPE;
 export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
 
@@ -37,6 +38,7 @@ export interface RefarmGitTimelinePreviewPlan {
 }
 
 export interface RefarmTimelinePreviewEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
 	command: "tree";
 	scope: RefarmTimelineScope;
 	operation: "preview";
@@ -46,5 +48,21 @@ export interface RefarmTimelinePreviewEnvelope {
 }
 
 export function outputTreeJson(value: unknown): void {
+	if (
+		value &&
+		typeof value === "object" &&
+		"command" in value &&
+		value.command === "tree" &&
+		!("schemaVersion" in value)
+	) {
+		console.log(
+			JSON.stringify(
+				{ schemaVersion: REFARM_TREE_SCHEMA_VERSION, ...value },
+				null,
+				2,
+			),
+		);
+		return;
+	}
 	console.log(JSON.stringify(value, null, 2));
 }
