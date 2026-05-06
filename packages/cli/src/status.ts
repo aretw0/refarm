@@ -321,6 +321,7 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
     `- Runtime: ${json.runtime.ready ? "ready" : "not ready"} (${json.runtime.namespace})`,
     `- Trust: ${json.trust.profile} (warnings: ${json.trust.warnings}, critical: ${json.trust.critical})`,
     `- Plugins: ${json.plugins.installed} installed, ${json.plugins.active} active`,
+    `- Surfaces: ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
     `- Streams: ${json.streams.active} active, ${json.streams.terminal} terminal`,
     "",
     "## Diagnostics",
@@ -335,6 +336,7 @@ export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
     `Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
     `Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
     `Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
+    `Surfaces:  ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
     `Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
   ];
 

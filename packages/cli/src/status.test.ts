@@ -307,6 +307,7 @@ describe("formatRefarmStatusMarkdown", () => {
 		);
 		expect(report).toContain("# Refarm Status");
 		expect(report).toContain("- Schema: v1");
+		expect(report).toContain("- Surfaces: 0 rejected, 0 actions");
 		expect(report).toContain("## Diagnostics");
 		expect(report).toContain("- renderer:non-interactive");
 	});
@@ -336,6 +337,7 @@ describe("formatRefarmStatusSummary", () => {
 		const summary = formatRefarmStatusSummary(buildRefarmStatusJson(BASE_OPTIONS));
 		expect(summary).toContain("Host:      apps/refarm (headless)");
 		expect(summary).toContain("Renderer:  refarm-headless (headless)");
+		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
 		expect(summary).toContain("Diagnostics:");
 		expect(summary).toContain("  - runtime:not-ready");
 	});
