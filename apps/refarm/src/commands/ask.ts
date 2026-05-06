@@ -403,6 +403,10 @@ function printAskError(message: string): void {
 
 export function createAskCommand(deps?: AskDeps): Command {
 	const resolved = deps ?? defaultDeps();
+	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
+	const clearActiveSession = resolved.clearActiveSessionId ?? clearActiveSessionId;
+	const persistActiveSession =
+		resolved.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
 	return new Command("ask")
 		.description("Ask pi-agent with automatic project context")
@@ -434,11 +438,11 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				if (opts.new) {
-					resolved.clearActiveSessionId?.();
+					clearActiveSession();
 				}
 
 				const explicitSession = opts.session?.trim();
-				let sessionId = resolved.readActiveSessionId?.() ?? newSessionId();
+				let sessionId = readActiveSession() ?? newSessionId();
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
@@ -541,7 +545,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-							resolved.persistActiveSessionId?.(sessionId);
+							persistActiveSession(sessionId);
 							return;
 						}
 
@@ -554,7 +558,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 						throw streamError;
 					}
 
-					resolved.persistActiveSessionId?.(sessionId);
+					persistActiveSession(sessionId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);

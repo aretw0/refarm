@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
@@ -78,6 +79,52 @@ describe("refarm ask", () => {
 		expect(outSpy).toHaveBeenCalled();
 
 		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("falls back to production active-session helpers when deps omit pointer hooks", async () => {
+		const deps: AskDeps = {
+			submitEffort: vi.fn().mockResolvedValue("eff-1"),
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(makeChunk("ok", 0, true));
+					},
+				),
+		};
+		const command = createAskCommand(deps);
+		const readSpy = vi
+			.spyOn(fs, "readFileSync")
+			.mockReturnValue("urn:refarm:session:v1:active123");
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined as any);
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:active123",
+						}),
+					}),
+				],
+			}),
+		);
+		expect(writeSpy).toHaveBeenCalledWith(
+			expect.stringContaining(".refarm/session.lock"),
+			"urn:refarm:session:v1:active123",
+			"utf-8",
+		);
+		expect(readSpy).toHaveBeenCalled();
+
 		outSpy.mockRestore();
 	});
 
