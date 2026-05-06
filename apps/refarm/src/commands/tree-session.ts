@@ -359,6 +359,11 @@ export async function previewSessionTree(
 	if (substrate.kind === "session-fork" && substrate.branchPointEntryId) {
 		console.log(chalk.dim(`  Branch point: ${substrate.branchPointEntryId}`));
 	}
+	if (envelope.plan.blockedReason) {
+		console.log(chalk.yellow(`  Blocked: ${envelope.plan.blockedReason}`));
+	} else {
+		console.log(chalk.dim(`  Ready: ${envelope.plan.readyToExecute ? "yes" : "no"}`));
+	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }
 
@@ -444,6 +449,11 @@ export async function previewSessionSwitchTree(
 				`  Current: ${formatSessionId(substrate.activeSessionIdBefore)}`,
 			),
 		);
+	}
+	if (envelope.plan.blockedReason) {
+		console.log(chalk.yellow(`  Blocked: ${envelope.plan.blockedReason}`));
+	} else {
+		console.log(chalk.dim(`  Ready: ${envelope.plan.readyToExecute ? "yes" : "no"}`));
 	}
 	console.log(chalk.dim(`  Command: ${envelope.plan.recommendedCommand}\n`));
 }

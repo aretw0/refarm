@@ -686,6 +686,34 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
+	it("shows blocked session switch readiness in human preview output", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => HISTORY,
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abc123", "--switch"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain(
+			'Blocked: Session "abc123def456" is already active.',
+		);
+		expect(output).toContain("Command: refarm sessions use abc123def456");
+		expect(writeSpy).not.toHaveBeenCalled();
+	});
+
 	it("previews already-active session switches as blocked", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -785,6 +813,30 @@ describe("refarm tree", () => {
 				worktreeSwitched: false,
 			},
 		});
+	});
+
+	it("shows blocked git fork readiness in human preview output", async () => {
+		spawnSyncMock
+			.mockReturnValueOnce({
+				status: 0,
+				stdout: GIT_LINE,
+				stderr: "",
+			} as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "preview")!
+			.parseAsync(["abcdef", "--scope", "git", "--name", "safe/fork"], {
+				from: "user",
+			});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain('Blocked: Git branch "safe/fork" already exists.');
+		expect(output).toContain(
+			"Command: refarm tree fork --scope git abcdef123456 --name safe/fork",
+		);
 	});
 
 	it("previews existing git fork targets as blocked", async () => {
