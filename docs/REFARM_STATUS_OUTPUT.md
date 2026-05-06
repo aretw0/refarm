@@ -163,6 +163,14 @@ TUI action row dry-run:
 refarm tui --input status.json --actions
 ```
 
+A reusable local fixture is available at
+`apps/refarm/test/fixtures/status-with-actions.json` for exercising both paths:
+
+```bash
+refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
+refarm tui --input apps/refarm/test/fixtures/status-with-actions.json --actions
+```
+
 This command does not launch the TUI runtime. It formats
 `plugins.availableActions` as stable one-based rows such as
 `[1] Open node — open-node (node:open)` so a future interactive TUI can use the
