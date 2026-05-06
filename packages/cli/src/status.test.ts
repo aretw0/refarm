@@ -352,8 +352,28 @@ describe("formatRefarmStatusMarkdown", () => {
 		expect(report).toContain("# Refarm Status");
 		expect(report).toContain("- Schema: v1");
 		expect(report).toContain("- Surfaces: 0 rejected, 0 actions");
+		expect(report).toContain("## Available Actions\n- none");
 		expect(report).toContain("## Diagnostics");
 		expect(report).toContain("- renderer:non-interactive");
+	});
+
+	it("renders available action details in markdown reports", () => {
+		const report = formatRefarmStatusMarkdown(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				plugins: {
+					surfaces: {
+						availableActions: [
+							{ id: "open-node", label: "Open node", intent: "node:open" },
+						],
+					},
+				},
+			}),
+		);
+
+		expect(report).toContain(
+			"## Available Actions\n- open-node: Open node (node:open)",
+		);
 	});
 
 	it("prints '- none' when diagnostics are empty", () => {
@@ -384,6 +404,24 @@ describe("formatRefarmStatusSummary", () => {
 		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
 		expect(summary).toContain("Diagnostics:");
 		expect(summary).toContain("  - runtime:not-ready");
+	});
+
+	it("renders available action details in human summaries", () => {
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				plugins: {
+					surfaces: {
+						availableActions: [
+							{ id: "open-node", label: "Open node", intent: "node:open" },
+						],
+					},
+				},
+			}),
+		);
+
+		expect(summary).toContain("Available actions:");
+		expect(summary).toContain("  - open-node: Open node (node:open)");
 	});
 
 	it("omits diagnostics section when no diagnostics are present", () => {

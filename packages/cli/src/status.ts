@@ -282,6 +282,7 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
   const diagnostics = json.diagnostics.length > 0
     ? json.diagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n")
     : "- none";
+  const availableActions = formatRefarmStatusAvailableActionsMarkdown(json);
 
   const frontmatter = [
     "---",
@@ -336,6 +337,9 @@ export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
     `- Surfaces: ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
     `- Streams: ${json.streams.active} active, ${json.streams.terminal} terminal`,
     "",
+    "## Available Actions",
+    availableActions,
+    "",
     "## Diagnostics",
     diagnostics,
   ].join("\n");
@@ -352,6 +356,15 @@ export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
     `Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
   ];
 
+  if (json.plugins.availableActions?.length) {
+    lines.push("Available actions:");
+    for (const action of json.plugins.availableActions) {
+      lines.push(
+        `  - ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
+      );
+    }
+  }
+
   if (json.diagnostics.length > 0) {
     lines.push("Diagnostics:");
     for (const diagnostic of json.diagnostics) {
@@ -364,6 +377,18 @@ export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
 
 export function formatRefarmStatusJson(json: RefarmStatusJson): string {
   return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
+}
+
+function formatRefarmStatusAvailableActionsMarkdown(
+  json: RefarmStatusJson,
+): string {
+  if (!json.plugins.availableActions?.length) return "- none";
+  return json.plugins.availableActions
+    .map(
+      (action) =>
+        `- ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
+    )
+    .join("\n");
 }
 
 function statusAvailableSurfaceActions(
