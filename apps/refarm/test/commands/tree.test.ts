@@ -611,8 +611,8 @@ describe("refarm tree", () => {
 	it("switches the active git worktree with an explicit envelope", async () => {
 		spawnSyncMock
 			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
 			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
+			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
 			.mockReturnValueOnce({
 				status: 0,
 				stdout: GIT_LINE,
@@ -640,7 +640,7 @@ describe("refarm tree", () => {
 			{ encoding: "utf8" },
 		);
 		expect(spawnSyncMock).toHaveBeenNthCalledWith(
-			2,
+			3,
 			"git",
 			["status", "--porcelain"],
 			{ encoding: "utf8" },
@@ -697,6 +697,7 @@ describe("refarm tree", () => {
 	it("rejects git tree switches when the worktree is dirty", async () => {
 		spawnSyncMock
 			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
+			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
 			.mockReturnValueOnce({
 				status: 0,
 				stdout: " M apps/refarm/src/commands/tree.ts\n",
@@ -720,12 +721,11 @@ describe("refarm tree", () => {
 			expect.stringContaining("Git worktree must be clean before tree switch"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
-		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
+		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
 	});
 
 	it("rejects git tree switches when the target branch is already active", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
 			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
 			.mockReturnValueOnce({
 				status: 0,
@@ -750,7 +750,7 @@ describe("refarm tree", () => {
 			expect.stringContaining('Git branch "safe/fork" is already active.'),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
-		expect(spawnSyncMock).toHaveBeenCalledTimes(3);
+		expect(spawnSyncMock).toHaveBeenCalledTimes(2);
 	});
 
 	it("rejects session tree switches until active-session semantics are explicit", async () => {

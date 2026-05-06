@@ -333,11 +333,11 @@ export function switchGitTree(
 		if (!gitBranchExists(name)) {
 			throw new Error(`Git branch "${name}" does not exist.`);
 		}
-		assertCleanGitWorktree();
 		currentRefBefore = currentGitRef();
 		if (currentRefBefore === name) {
 			throw new Error(`Git branch "${name}" is already active.`);
 		}
+		assertCleanGitWorktree();
 		node = showGitTimelineNode(name);
 		runGit(["switch", name]);
 		currentRefAfter = currentGitRef();
