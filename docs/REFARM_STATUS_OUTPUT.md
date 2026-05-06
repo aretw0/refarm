@@ -203,8 +203,9 @@ status affordances. It always resolves a live status payload and rejects
 It resolves the selected `plugins.availableActions` entry by stable ID or
 one-based row index, creates the Homestead action request from the live status
 surface, invokes the status action handler, and emits deterministic JSON with
-`reason: "executed"`, `renderer: "status"`, `selection`, `actionRequest`,
-`handled`, and `availableActions`. It is intentionally separate from
+`reason: "executed"`, `renderer: "status"`, `statusSource: "live"`,
+`selection`, `actionRequest`, `handled`, and `availableActions`. It is
+intentionally separate from
 Web/TUI/headless dry-runs so operators and agents can distinguish readiness from
 execution.
 

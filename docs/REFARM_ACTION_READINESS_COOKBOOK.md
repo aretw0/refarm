@@ -75,8 +75,8 @@ This is the app-owned execution proof for the live status actions. The command:
 - creates the Homestead action request from the live `apps/refarm` status
   surface;
 - invokes the `apps/refarm` status action handler;
-- prints a deterministic JSON envelope with `selection`, `actionRequest`,
-  `handled`, and `availableActions`.
+- prints a deterministic JSON envelope with `statusSource: "live"`,
+  `selection`, `actionRequest`, `handled`, and `availableActions`.
 
 It is intentionally separate from Web/TUI/headless readiness commands so agents
 can keep non-destructive discovery/dry-runs distinct from explicit execution.

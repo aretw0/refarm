@@ -126,7 +126,7 @@ those live status actions: it resolves the selection from live
 `plugins.availableActions`, rejects `--input` artifacts so fixture/stale JSON
 cannot authorize product behavior, creates the Homestead request from the live
 status surface, invokes the app-owned handler, and prints a deterministic JSON
-envelope with `handled` status. Web/TUI/headless readiness commands remain
+envelope with `statusSource: "live"` and `handled` status. Web/TUI/headless readiness commands remain
 non-destructive dry-runs.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action

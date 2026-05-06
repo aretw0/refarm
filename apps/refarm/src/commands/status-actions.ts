@@ -35,6 +35,7 @@ export interface RefarmStatusSurfaceActionInvocationEnvelope {
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "executed";
 	renderer: "status";
+	statusSource: "live";
 	selection: RefarmActionAffordanceSelectionMetadata;
 	actionRequest: HomesteadSurfaceRenderActionRequest;
 	handled: boolean;
@@ -119,6 +120,7 @@ export function createRefarmStatusSurfaceActionInvocationEnvelope(
 		statusSchemaVersion: status.schemaVersion,
 		reason: "executed",
 		renderer: "status",
+		statusSource: "live",
 		selection,
 		actionRequest,
 		handled,

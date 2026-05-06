@@ -121,6 +121,7 @@ describe("Refarm status surface actions", () => {
 			statusSchemaVersion: 1,
 			reason: "executed",
 			renderer: "status",
+			statusSource: "live",
 			selection: {
 				requested: "2",
 				source: "index",

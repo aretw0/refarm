@@ -216,6 +216,7 @@ describe("statusCommand", () => {
 			statusSchemaVersion: 1,
 			reason: "executed",
 			renderer: "status",
+			statusSource: "live",
 			handled: true,
 			selection: {
 				requested: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
@@ -274,6 +275,7 @@ describe("statusCommand", () => {
 			resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
 			index: 2,
 		});
+		expect(envelope.statusSource).toBe("live");
 		expect(envelope.handled).toBe(true);
 		spy.mockRestore();
 	});

@@ -126,6 +126,11 @@ if (statusAction.renderer !== "status") {
 		`Expected renderer=status, received ${statusAction.renderer}`,
 	);
 }
+if (statusAction.statusSource !== "live") {
+	throw new Error(
+		`Expected statusSource=live, received ${statusAction.statusSource}`,
+	);
+}
 if (statusAction.handled !== true) {
 	throw new Error(`Expected handled=true, received ${statusAction.handled}`);
 }
