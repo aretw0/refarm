@@ -324,29 +324,30 @@ describe("refarm tree", () => {
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});
 
-	it.each(["unsafe..name", "refs/foo.lock", "safe/.hidden"])(
-		"fails closed for unsafe branch shape %s",
-		async (name) => {
-			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-			const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-				code?: string | number | null | undefined,
-			) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+	it.each([
+		"unsafe..name",
+		"refs/foo.lock",
+		"safe/.hidden",
+	])("fails closed for unsafe branch shape %s", async (name) => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
-			const command = createTreeCommand();
-			await expect(
-				command.commands
-					.find((c) => c.name() === "preview")!
-					.parseAsync(["abc123", "--name", name], { from: "user" }),
-			).rejects.toThrow("exit:1");
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "preview")!
+				.parseAsync(["abc123", "--name", name], { from: "user" }),
+		).rejects.toThrow("exit:1");
 
-			expect(errorSpy).toHaveBeenCalledWith(
-				expect.stringContaining(`Invalid branch name "${name}"`),
-			);
-			expect(exitSpy).toHaveBeenCalledWith(1);
-		},
-	);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(`Invalid branch name "${name}"`),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+	});
 
 	it("fails closed when a session preview entry is missing", async () => {
 		vi.stubGlobal(
@@ -512,38 +513,41 @@ describe("refarm tree", () => {
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("refarm tree fork currently supports --scope git only"),
+			expect.stringContaining(
+				"refarm tree fork currently supports --scope git only",
+			),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it.each(["0", "201", "1abc"])(
-		"fails closed for invalid git list limit %s",
-		async (limit) => {
-			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-			const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
-				code?: string | number | null | undefined,
-			) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+	it.each([
+		"0",
+		"201",
+		"1abc",
+	])("fails closed for invalid git list limit %s", async (limit) => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
-			const command = createTreeCommand();
-			await expect(
-				command.commands
-					.find((c) => c.name() === "list")!
-					.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
-						from: "user",
-					}),
-			).rejects.toThrow("exit:1");
+		const command = createTreeCommand();
+		await expect(
+			command.commands
+				.find((c) => c.name() === "list")!
+				.parseAsync(["--scope", "git", "--limit", limit, "--json"], {
+					from: "user",
+				}),
+		).rejects.toThrow("exit:1");
 
-			expect(errorSpy).toHaveBeenCalledWith(
-				expect.stringContaining(`Invalid --limit "${limit}"`),
-			);
-			expect(exitSpy).toHaveBeenCalledWith(1);
-			expect(spawnSyncMock).not.toHaveBeenCalled();
-		},
-	);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining(`Invalid --limit "${limit}"`),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(spawnSyncMock).not.toHaveBeenCalled();
+	});
 
 	it("fails closed for unsupported scopes", async () => {
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});

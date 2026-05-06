@@ -1,6 +1,11 @@
 import chalk from "chalk";
 import { Command } from "commander";
-import { forkGitTree, listGitTree, previewGitTree, showGitTree } from "./tree-git.js";
+import {
+	forkGitTree,
+	listGitTree,
+	previewGitTree,
+	showGitTree,
+} from "./tree-git.js";
 import {
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SESSION_SCOPE,
@@ -27,13 +32,17 @@ function parseScope(scope: string | undefined): RefarmTimelineScope {
 
 function requireBranchName(name: string | undefined): string {
 	if (!name) {
-		console.error(chalk.red("✗  refarm tree fork requires --name <branch-name>."));
+		console.error(
+			chalk.red("✗  refarm tree fork requires --name <branch-name>."),
+		);
 		process.exit(1);
 	}
 	return validateBranchName(name);
 }
 
-function validateOptionalBranchName(name: string | undefined): string | undefined {
+function validateOptionalBranchName(
+	name: string | undefined,
+): string | undefined {
 	if (!name) return undefined;
 	return validateBranchName(name);
 }
@@ -143,7 +152,9 @@ async function forkTree(
 		process.exit(1);
 	}
 	if (opts.at) {
-		console.error(chalk.red("✗  --at is only supported for session timelines."));
+		console.error(
+			chalk.red("✗  --at is only supported for session timelines."),
+		);
 		process.exit(1);
 	}
 	forkGitTree(prefix, { ...opts, name });
@@ -203,7 +214,9 @@ export function createTreeCommand(): Command {
 		)
 		.addCommand(
 			new Command("fork")
-				.description("Create an explicit non-switching fork from a timeline node")
+				.description(
+					"Create an explicit non-switching fork from a timeline node",
+				)
 				.argument("<id>", "Timeline node ID or unique prefix")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
