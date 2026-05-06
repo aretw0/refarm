@@ -114,6 +114,30 @@ export interface HomesteadHostRendererSnapshot {
 	diagnostics?: readonly string[];
 }
 
+export type HomesteadHostRendererDescriptorFactory = (
+	kind: HomesteadHostRendererKind,
+) => HomesteadHostRendererDescriptor;
+
+export type HomesteadHostRendererConformanceIssueCode =
+	| "renderer-kind-mismatch"
+	| "missing-required-capability";
+
+export interface HomesteadHostRendererConformanceIssue {
+	code: HomesteadHostRendererConformanceIssueCode;
+	message: string;
+	capability?: HomesteadHostRendererCapability;
+	expectedKind?: HomesteadHostRendererKind;
+	actualKind?: HomesteadHostRendererKind;
+}
+
+export interface HomesteadHostRendererConformanceReport {
+	passed: boolean;
+	renderer: HomesteadHostRendererDescriptor;
+	expectedKind: HomesteadHostRendererKind;
+	requiredCapabilities: readonly HomesteadHostRendererCapability[];
+	issues: readonly HomesteadHostRendererConformanceIssue[];
+}
+
 export function isHomesteadHostRendererKind(
 	value: unknown,
 ): value is HomesteadHostRendererKind {
@@ -153,6 +177,69 @@ export function missingHomesteadHostRendererCapabilities(
 ): HomesteadHostRendererCapability[] {
 	return requiredCapabilities.filter(
 		(capability) => !homesteadHostRendererCan(renderer, capability),
+	);
+}
+
+export function requiredHomesteadHostRendererCapabilities(
+	kind: HomesteadHostRendererKind,
+): readonly HomesteadHostRendererCapability[] {
+	return DEFAULT_HOMESTEAD_HOST_RENDERER_CAPABILITIES[kind];
+}
+
+export function checkHomesteadHostRendererConformance(
+	renderer: HomesteadHostRendererDescriptor,
+	expectedKind: HomesteadHostRendererKind = renderer.kind,
+	requiredCapabilities: readonly HomesteadHostRendererCapability[] = requiredHomesteadHostRendererCapabilities(
+		expectedKind,
+	),
+): HomesteadHostRendererConformanceReport {
+	const issues: HomesteadHostRendererConformanceIssue[] = [];
+	if (renderer.kind !== expectedKind) {
+		issues.push({
+			code: "renderer-kind-mismatch",
+			message: `Expected renderer kind ${expectedKind}, got ${renderer.kind}.`,
+			expectedKind,
+			actualKind: renderer.kind,
+		});
+	}
+
+	for (const capability of missingHomesteadHostRendererCapabilities(
+		renderer,
+		requiredCapabilities,
+	)) {
+		issues.push({
+			code: "missing-required-capability",
+			message: `Renderer ${renderer.id} is missing required capability ${capability}.`,
+			capability,
+			expectedKind,
+			actualKind: renderer.kind,
+		});
+	}
+
+	return {
+		passed: issues.length === 0,
+		renderer,
+		expectedKind,
+		requiredCapabilities,
+		issues,
+	};
+}
+
+export function runHostRendererConformance(
+	kind: HomesteadHostRendererKind,
+	descriptorFactory: HomesteadHostRendererDescriptorFactory,
+): HomesteadHostRendererConformanceReport {
+	return checkHomesteadHostRendererConformance(descriptorFactory(kind), kind);
+}
+
+export function assertHomesteadHostRendererConformance(
+	report: HomesteadHostRendererConformanceReport,
+): void {
+	if (report.passed) return;
+	throw new Error(
+		`Renderer ${report.renderer.id} failed ${report.expectedKind} conformance: ${report.issues
+			.map((issue) => issue.message)
+			.join(" ")}`,
 	);
 }
 

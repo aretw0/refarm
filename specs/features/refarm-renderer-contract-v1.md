@@ -78,11 +78,11 @@ Contract source of truth:
 
 ### Conformance profile by renderer kind
 
-| Kind | Required capabilities |
-| --- | --- |
-| `web` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`, `rich-html` |
-| `tui` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive` |
-| `headless` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics` |
+| Kind       | Required capabilities                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `web`      | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`, `rich-html` |
+| `tui`      | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`              |
+| `headless` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`                             |
 
 ---
 
@@ -112,7 +112,12 @@ export interface RefarmStatusJson {
   renderer: { id: string; kind: string; capabilities: readonly string[] };
   runtime: RuntimeSummary;
   trust: TrustSummary;
-  plugins: { installed: number; active: number; rejectedSurfaces: number; surfaceActions: number };
+  plugins: {
+    installed: number;
+    active: number;
+    rejectedSurfaces: number;
+    surfaceActions: number;
+  };
   streams: { active: number; terminal: number };
   diagnostics: string[];
 }
@@ -126,11 +131,12 @@ export interface RefarmStatusJson {
 
 - [x] `packages/cli/src/status.test.ts` verifies renderer-derived diagnostics
 - [x] `apps/refarm/test/commands/{web,tui,headless,status}*.test.ts` validate preflight/guard behavior
+- [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --renderer <kind>` forwards each descriptor and capability profile to status building
+- [x] `packages/homestead/src/sdk/host-renderer.test.ts` verifies required renderer capability profiles and `runHostRendererConformance(kind, descriptorFactory)`
+- [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
 
 **Next conformance additions (planned):**
 
-- [ ] Add `runHostRendererConformance(kind, descriptorFactory)` in Homestead SDK tests
-- [ ] Add fixture matrix for `web|tui|headless` required capability sets
 - [ ] Add CI smoke step asserting `refarm status --renderer <kind> --json` parity
 
 ---
@@ -144,12 +150,12 @@ export interface RefarmStatusJson {
 
 **TDD**
 
-- [ ] Add host-renderer conformance harness in `packages/homestead`
-- [ ] Add renderer parity tests in `apps/refarm` for all kinds
+- [x] Add host-renderer conformance harness in `packages/homestead`
+- [x] Add renderer parity tests in `apps/refarm` for all kinds
 
 **DDD**
 
-- [ ] Expose reusable conformance helper from Homestead SDK
+- [x] Expose reusable conformance helper from Homestead SDK
 - [ ] Wire conformance smoke to CI host lane
 
 ---
