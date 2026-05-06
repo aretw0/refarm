@@ -207,6 +207,14 @@ describe("refarm ask", () => {
 				],
 			}),
 		);
+		const effort = vi.mocked(deps.submitEffort).mock.calls[0][0] as {
+			tasks: Array<{ args: { session_id: string } }>;
+		};
+		const submittedSessionId = effort.tasks[0].args.session_id;
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			submittedSessionId,
+		);
+		expect(submittedSessionId).not.toBe("urn:refarm:session:v1:oldactive");
 
 		logSpy.mockRestore();
 		outSpy.mockRestore();
