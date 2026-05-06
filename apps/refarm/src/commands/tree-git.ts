@@ -53,6 +53,10 @@ function gitBranchExists(name: string): boolean {
 	throw new Error(detail.trim());
 }
 
+function currentGitRef(): string {
+	return runGit(["rev-parse", "--abbrev-ref", "HEAD"]);
+}
+
 function listGitTimelineNodes(limit: number): RefarmTimelineNode[] {
 	const output = runGit([
 		"log",
@@ -185,6 +189,8 @@ function createGitPreviewEnvelope(
 function createGitForkEnvelope(
 	node: RefarmTimelineNode,
 	name: string,
+	currentRefBefore: string,
+	currentRefAfter: string,
 ): RefarmTimelineForkEnvelope {
 	return {
 		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
@@ -197,6 +203,8 @@ function createGitForkEnvelope(
 			kind: "git-branch",
 			destructive: false,
 			worktreeSwitched: false,
+			currentRefBefore,
+			currentRefAfter,
 			branchName: name,
 			baseCommit: node.nodeId,
 			command: `git branch ${name} ${node.metadata.shortId}`,
@@ -234,16 +242,30 @@ export function forkGitTree(
 	opts: { json?: boolean; name: string },
 ): void {
 	let node: RefarmTimelineNode;
+	let currentRefBefore: string;
+	let currentRefAfter: string;
 	try {
 		node = showGitTimelineNode(prefix);
 		if (gitBranchExists(opts.name)) {
 			throw new Error(`Git branch "${opts.name}" already exists.`);
 		}
+		currentRefBefore = currentGitRef();
 		runGit(["branch", opts.name, node.nodeId]);
+		currentRefAfter = currentGitRef();
+		if (currentRefBefore !== currentRefAfter) {
+			throw new Error(
+				`Git worktree changed from "${currentRefBefore}" to "${currentRefAfter}" during tree fork.`,
+			);
+		}
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitForkEnvelope(node, opts.name);
+	const envelope = createGitForkEnvelope(
+		node,
+		opts.name,
+		currentRefBefore,
+		currentRefAfter,
+	);
 
 	if (opts.json) {
 		outputTreeJson(envelope);

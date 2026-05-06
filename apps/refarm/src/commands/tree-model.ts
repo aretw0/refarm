@@ -52,6 +52,8 @@ export interface RefarmGitTimelineForkResult {
 	kind: "git-branch";
 	destructive: false;
 	worktreeSwitched: false;
+	currentRefBefore: string;
+	currentRefAfter: string;
 	branchName: string;
 	baseCommit: string;
 	command: string;

@@ -534,6 +534,14 @@ async function main() {
 				`Expected tree fork worktreeSwitched=false, got: ${JSON.stringify(treeGitFork?.result)}`,
 			);
 		}
+		if (
+			treeGitFork?.result?.currentRefBefore !== "main" ||
+			treeGitFork?.result?.currentRefAfter !== "main"
+		) {
+			throw new Error(
+				`Expected tree fork current refs to stay main, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
 		const branchListRun = await runSubprocess(
 			"git",
 			["branch", "--list", "smoke/tree-fork"],

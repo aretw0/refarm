@@ -69,8 +69,8 @@ for git timelines, but does not fork, branch, check out, or switch; git preview
 plans also declare `worktreeSwitched: false`. Session previews may target a historical entry with
 `--at <entry-id>` and fail closed if the entry is not in that session. `fork` is
 explicit execution; the first executable slice is git-only and creates a branch
-without switching the active worktree (`worktreeSwitched: false` in JSON),
-fails closed when the target branch already exists, and rejects session-only
+without switching the active worktree (`worktreeSwitched: false`, plus matching
+`currentRefBefore`/`currentRefAfter` in JSON), fails closed when the target branch already exists, and rejects session-only
 entry selectors (`--at`). Session fork execution remains delegated to
 `refarm sessions fork` until active-session switching semantics are made explicit
 in the tree contract. Preview/fork branch names fail closed unless they contain
