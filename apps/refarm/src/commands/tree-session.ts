@@ -10,7 +10,10 @@ import {
 	type RefarmSessionTimelineSwitchEnvelope,
 } from "./tree-model.js";
 import { formatSessionId } from "./session-ids.js";
-import { readActiveSessionId, writeActiveSessionId } from "./session-lock.js";
+import {
+	readActiveSessionId,
+	writeActiveSessionIdAndVerify,
+} from "./session-lock.js";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
 
@@ -375,14 +378,15 @@ export async function switchSessionTree(
 		);
 		process.exit(1);
 	}
-	writeActiveSessionId(node.nodeId);
-	const currentSessionIdAfter = readActiveSessionId();
-	if (currentSessionIdAfter !== node.nodeId) {
-		console.error(
-			chalk.red(
-				`✗  Session switch expected active session "${node.nodeId}", got "${currentSessionIdAfter ?? "none"}".`,
-			),
-		);
+	let currentSessionIdAfter: string;
+	try {
+		currentSessionIdAfter = writeActiveSessionIdAndVerify(
+			node.nodeId,
+			currentSessionIdBefore,
+		).currentSessionIdAfter;
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err);
+		console.error(chalk.red(`✗  ${message}`));
 		process.exit(1);
 	}
 	const envelope = createSessionSwitchEnvelope(

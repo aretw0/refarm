@@ -17,9 +17,33 @@ export function readActiveSessionId(): string | null {
 	}
 }
 
+export interface ActiveSessionPointerWriteResult {
+	currentSessionIdBefore: string | null;
+	currentSessionIdAfter: string;
+	targetSessionId: string;
+}
+
 export function writeActiveSessionId(id: string): void {
 	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
 	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
+}
+
+export function writeActiveSessionIdAndVerify(
+	targetSessionId: string,
+	currentSessionIdBefore = readActiveSessionId(),
+): ActiveSessionPointerWriteResult {
+	writeActiveSessionId(targetSessionId);
+	const currentSessionIdAfter = readActiveSessionId();
+	if (currentSessionIdAfter !== targetSessionId) {
+		throw new Error(
+			`Session switch expected active session "${targetSessionId}", got "${currentSessionIdAfter ?? "none"}".`,
+		);
+	}
+	return {
+		currentSessionIdBefore,
+		currentSessionIdAfter,
+		targetSessionId,
+	};
 }
 
 export function clearActiveSessionId(): boolean {

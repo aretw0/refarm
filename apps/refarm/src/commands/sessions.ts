@@ -1,10 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
 
-import {
-	findSessionIdPrefixMatches,
-	formatSessionId,
-} from "./session-ids.js";
+import { findSessionIdPrefixMatches, formatSessionId } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,

@@ -14,10 +14,7 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
-import {
-	isFullSessionId,
-	resolveSessionIdPrefix,
-} from "./session-ids.js";
+import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
 	readActiveSessionId,

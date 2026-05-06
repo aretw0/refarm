@@ -5,6 +5,7 @@ import {
 	clearActiveSessionId,
 	readActiveSessionId,
 	writeActiveSessionId,
+	writeActiveSessionIdAndVerify,
 } from "../../src/commands/session-lock.js";
 
 describe("active session pointer helpers", () => {
@@ -49,6 +50,39 @@ describe("active session pointer helpers", () => {
 			SESSION_LOCK_PATH,
 			"urn:refarm:session:v1:abc123",
 			"utf-8",
+		);
+	});
+
+	it("writes and verifies active session IDs", () => {
+		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
+			"urn:refarm:session:v1:target",
+		);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+
+		expect(
+			writeActiveSessionIdAndVerify(
+				"urn:refarm:session:v1:target",
+				"urn:refarm:session:v1:before",
+			),
+		).toEqual({
+			currentSessionIdBefore: "urn:refarm:session:v1:before",
+			currentSessionIdAfter: "urn:refarm:session:v1:target",
+			targetSessionId: "urn:refarm:session:v1:target",
+		});
+	});
+
+	it("fails closed when active session ID verification reads back a different value", () => {
+		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
+			"urn:refarm:session:v1:other",
+		);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
+
+		expect(() =>
+			writeActiveSessionIdAndVerify("urn:refarm:session:v1:target", null),
+		).toThrow(
+			'Session switch expected active session "urn:refarm:session:v1:target", got "urn:refarm:session:v1:other".',
 		);
 	});
 
