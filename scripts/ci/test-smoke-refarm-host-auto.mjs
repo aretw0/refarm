@@ -94,6 +94,13 @@ test("routes mixed action and tree source deltas to dev lane", () => {
 	);
 });
 
+test("routes shared execution-plan helper changes to dev lane", () => {
+	assert.equal(
+		decideProfile(["apps/refarm/src/commands/execution-plan.ts"]).profile,
+		"dev",
+	);
+});
+
 test("routes generic host tests to quick lane", () => {
 	assert.equal(
 		decideProfile(["apps/refarm/test/commands/program.test.ts"]).profile,

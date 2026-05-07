@@ -145,7 +145,9 @@ npm run refarm:tree:verify
   operational notes. Non-doc action-readiness deltas route to
   `npm run refarm:actions:verify` and non-doc tree deltas route to
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
-  docs-only deltas still skip smoke.
+  docs-only deltas still skip smoke. Shared local helpers such as
+  `execution-plan.ts` stay on the `dev` lane because they feed more than one
+  host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 

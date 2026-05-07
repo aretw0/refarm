@@ -169,7 +169,6 @@ function isHostSmokeCliFlowFile(file) {
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
-		file === "apps/refarm/src/commands/execution-plan.ts" ||
 		file.startsWith("apps/refarm/src/commands/tree") ||
 		file === "apps/refarm/test/commands/execution-plan.test.ts" ||
 		file.startsWith("apps/refarm/test/commands/tree") ||
