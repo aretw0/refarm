@@ -52,6 +52,10 @@ function parseOnlyProfile(argv) {
 	return profile;
 }
 
+function parseSkipBuild(argv) {
+	return argv.includes("--skip-build");
+}
+
 function makeStatusPayload(mode, options = {}) {
 	const diagnostics = options.diagnostics ?? [];
 	const kind = mode;
@@ -260,7 +264,9 @@ async function createIsolatedGitRepo(tempDir) {
 }
 
 async function main() {
-	const onlyProfile = parseOnlyProfile(process.argv.slice(2));
+	const argv = process.argv.slice(2);
+	const onlyProfile = parseOnlyProfile(argv);
+	const skipBuild = parseSkipBuild(argv);
 	const keepArtifacts =
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "1" ||
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "true";
@@ -291,10 +297,16 @@ async function main() {
 			"utf8",
 		);
 
-		console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-		await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
-			env: process.env,
-		});
+		if (skipBuild) {
+			console.log(
+				`${LOGGER_PREFIX} skipping apps/refarm dist build (--skip-build)`,
+			);
+		} else {
+			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
+			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
+				env: process.env,
+			});
+		}
 
 		if (onlyProfile === "status-action") {
 			await assertStatusActionExecutedEnvelope();

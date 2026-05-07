@@ -293,6 +293,9 @@ npm run refarm:actions:smoke-dist
 npm run refarm:host:smoke:cli:action-seams
 npm run refarm:host:smoke:auto -- --profile action-seams
 
+# If apps/refarm was already built in the current iteration, skip the rebuild explicitly.
+node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build
+
 # Narrow built CLI proof for renderer-neutral action readiness only.
 npm run refarm:host:smoke:cli:actions-readiness
 
