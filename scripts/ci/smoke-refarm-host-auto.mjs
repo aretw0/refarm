@@ -13,6 +13,10 @@ const PROFILE_SCRIPT = {
 	ci: "refarm:host:smoke:ci",
 };
 
+export function resolveProfileScript(profile) {
+	return PROFILE_SCRIPT[profile];
+}
+
 function hasArg(flag) {
 	return process.argv.includes(flag);
 }
@@ -304,7 +308,7 @@ async function main() {
 	const changedFiles = changeSet.files;
 
 	const decision = decideProfile(changedFiles);
-	const command = PROFILE_SCRIPT[decision.profile];
+	const command = resolveProfileScript(decision.profile);
 
 	console.log(
 		`${LOGGER_PREFIX} profile=${decision.profile} files=${changedFiles.length}`,

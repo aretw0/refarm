@@ -4,6 +4,7 @@ import {
 	decideProfile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
+	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
 
 test("detects action-readiness files", () => {
@@ -35,6 +36,15 @@ test("detects tree timeline files", () => {
 		isRefarmTreeFile("apps/refarm/src/commands/action-affordances.ts"),
 		false,
 	);
+});
+
+test("maps profiles to npm scripts", () => {
+	assert.equal(resolveProfileScript("skip"), null);
+	assert.equal(resolveProfileScript("actions"), "refarm:actions:verify");
+	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
+	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
+	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
+	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
 });
 
 test("routes action-readiness-only deltas to focused actions lane", () => {
