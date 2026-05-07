@@ -18,8 +18,9 @@ composition model: apps make product choices; packages provide primitives.
 
 Make the host boundary concrete without prematurely building a full CLI or TUI.
 The current `refarm tree` session/git/all slice should be treated as stable only
-after `npm run refarm:tree:verify`; CRDT mutation, composite mutation, rewind,
-and execution-plan extraction stay deferred behind the proof gates in
+after `npm run refarm:tree:verify`; action-readiness envelope changes should pass
+`npm run refarm:actions:verify`. CRDT mutation, composite mutation, rewind, and
+execution-plan extraction stay deferred behind the proof gates in
 [Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
 
 1. Keep the shared renderer vocabulary healthy:

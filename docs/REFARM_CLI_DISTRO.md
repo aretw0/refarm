@@ -97,6 +97,7 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:actions:verify
 npm run refarm:tree:verify
 ```
 
@@ -118,6 +119,10 @@ npm run refarm:tree:verify
   `--launch`, `--json` + `--markdown`, `headless --markdown --summary`, and
   `status --action --input`) are rejected fail-closed, using fixture-backed
   status input.
+- `refarm:actions:verify` is the action-readiness closeout lane: focused
+  Web/TUI/headless/renderer-neutral action tests, `apps/refarm` type-check, and
+  built dist action-readiness smoke. Use it before declaring action-readiness
+  envelope or selection changes complete.
 - `refarm:tree:verify` is the tree-only closeout lane: mocked tree/execution-plan
   contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
   route test/type-check, and built tree CLI smoke. Use it before declaring a
