@@ -154,6 +154,36 @@ smoke, `apps/refarm` and `apps/farmhand` type-checks, the farmhand session route
 test, and the built tree CLI smoke so bounded session adapter behavior is checked
 through both unit and distro paths.
 
+## Current hardening slice
+
+The next high-ROI `tree` work is internal boundary hardening, not new behavior.
+Keep the observable JSON and human command contracts stable while making the
+module cluster easier to evolve.
+
+Preferred targets:
+
+- centralize tree envelope construction for `list`, `show`, `preview`, `fork`,
+  and `switch` producers;
+- keep generic readiness/effect fields substrate-neutral and push git/session
+  details under explicit substrate/result structures;
+- isolate substrate adapters from command UX decisions where possible;
+- preserve one definition of session identity, prefix resolution, and active
+  pointer writes via the existing `session-ids.ts` and `session-lock.ts` helpers;
+- add or move tests only at command/envelope boundaries, avoiding brittle tests
+  of internal helper trivia.
+
+Non-goals for this slice:
+
+- no CRDT mutation;
+- no composite mutation;
+- no first-class rewind command;
+- no session fork execution inside `refarm tree`;
+- no extraction of tree mechanics into `packages/*` until a second independent
+  consumer creates pressure.
+
+Closeout rule: use granular lanes while iterating and run
+`npm run refarm:tree:verify` before declaring the hardening slice complete.
+
 ## JSON envelope invariants
 
 Tree JSON envelopes are renderer contracts, not terminal transcripts. Keep these
