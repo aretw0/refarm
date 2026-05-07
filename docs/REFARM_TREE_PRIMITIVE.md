@@ -44,8 +44,8 @@ Initial product command family:
 ```bash
 refarm tree list [--scope session|crdt|git|all]
 refarm tree show <node-or-prefix>
-refarm tree preview <node-or-prefix>
-refarm tree fork <node-or-prefix> --name <branch-name>
+refarm tree preview <target>
+refarm tree fork --scope git <commit-ish> --name <branch-name>
 refarm tree switch <branch-or-node-prefix>
 ```
 
@@ -68,7 +68,7 @@ refarm tree switch --scope git <branch-name> [--json]
 
 The first slices are intentionally conservative. Machine-readable tree envelopes
 emit `schemaVersion: 1` directly at each producer and use explicit, scope-specific
-`operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `list --scope all` is read-only and combines currently supported session and git nodes into one envelope; `all` is intentionally unavailable for `show`, `preview`, `fork`, and `switch` until composite execution semantics are proven. All-scope list output is sorted by timestamp descending, applies `--limit` after combining adapter nodes, and uses deterministic tie-breakers (`kind`, `metadata.shortId`, then `nodeId`) so renderer snapshots do not flap when adapters report equal timestamps. `preview` emits a dry-run envelope that recommends
+`operation` discriminators and metadata shapes (`list`, `show`, `preview`, `fork`, or `switch`). `list --scope all` is read-only and combines currently supported session and git nodes into one envelope; `all` is intentionally unavailable for `show`, `preview`, `fork`, and `switch` until composite execution semantics are proven. Executing `refarm tree fork` is git-only in the current slice and intentionally keeps session forks behind `refarm sessions fork` until session tree mutation semantics are explicit. All-scope list output is sorted by timestamp descending, applies `--limit` after combining adapter nodes, and uses deterministic tie-breakers (`kind`, `metadata.shortId`, then `nodeId`) so renderer snapshots do not flap when adapters report equal timestamps. `preview` emits a dry-run envelope that recommends
 `refarm sessions fork ...` for session fork timelines,
 `refarm tree switch <session> ...` for session switch timelines,
 `refarm tree fork --scope git ...` for git fork timelines, or
