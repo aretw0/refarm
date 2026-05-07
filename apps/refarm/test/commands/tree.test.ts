@@ -324,6 +324,10 @@ describe("refarm tree", () => {
 			scope: "all",
 			operation: "list",
 		});
+		expect(payload).not.toHaveProperty("target");
+		expect(payload).not.toHaveProperty("plan");
+		expect(payload).not.toHaveProperty("result");
+		expect(payload).not.toHaveProperty("reason");
 		expect(payload.nodes).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ kind: "session", nodeId: SESSION["@id"] }),
