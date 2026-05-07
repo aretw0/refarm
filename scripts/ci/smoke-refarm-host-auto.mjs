@@ -13,6 +13,10 @@ const PROFILE_SCRIPT = {
 	ci: "refarm:host:smoke:ci",
 };
 
+export function isSmokeProfile(profile) {
+	return Object.hasOwn(PROFILE_SCRIPT, profile);
+}
+
 export function resolveProfileScript(profile) {
 	return PROFILE_SCRIPT[profile];
 }
@@ -308,6 +312,9 @@ async function main() {
 	const changedFiles = changeSet.files;
 
 	const decision = decideProfile(changedFiles);
+	if (!isSmokeProfile(decision.profile)) {
+		throw new Error(`Unknown smoke profile: ${decision.profile}`);
+	}
 	const command = resolveProfileScript(decision.profile);
 
 	console.log(

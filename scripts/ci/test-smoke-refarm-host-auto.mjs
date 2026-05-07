@@ -4,6 +4,7 @@ import {
 	decideProfile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
+	isSmokeProfile,
 	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
 
@@ -39,6 +40,10 @@ test("detects tree timeline files", () => {
 });
 
 test("maps profiles to npm scripts", () => {
+	assert.equal(isSmokeProfile("skip"), true);
+	assert.equal(isSmokeProfile("actions"), true);
+	assert.equal(isSmokeProfile("tree"), true);
+	assert.equal(isSmokeProfile("unknown"), false);
 	assert.equal(resolveProfileScript("skip"), null);
 	assert.equal(resolveProfileScript("actions"), "refarm:actions:verify");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
