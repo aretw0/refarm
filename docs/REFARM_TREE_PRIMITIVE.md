@@ -127,12 +127,19 @@ integration smoke against an isolated temp git repo, so it validates real
 Use the slower built CLI smoke only as a broader checkpoint. It now also
 boots a local session sidecar stub when `:42001` is free, validates
 `list --scope all`, proves `all` remains read-only, and switches a session under
-an isolated temporary `HOME` before checking already-active guards:
+an isolated temporary `HOME` before checking already-active guards. When closing
+a tree stabilization pass, run the aggregate local verification lane:
 
 ```bash
 npm run refarm:tree:smoke:cli
+npm run refarm:tree:verify
 npm run refarm:host:smoke:cli
 ```
+
+`refarm:tree:verify` composes the mocked tree contract suite, in-process tree
+smoke, `apps/refarm` type-check, farmhand session route test/type-check, and the
+built tree CLI smoke so bounded session adapter behavior is checked through both
+unit and distro paths.
 
 ## JSON envelope invariants
 
