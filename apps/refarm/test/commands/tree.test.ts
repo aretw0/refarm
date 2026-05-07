@@ -1924,7 +1924,9 @@ describe("refarm tree", () => {
 		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
-	it("fails closed for unsupported list scopes", async () => {
+	it("fails closed for unsupported list scopes before adapters", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -1945,6 +1947,8 @@ describe("refarm tree", () => {
 			expect.stringContaining("--scope session|git|all"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 
 	it.each([
@@ -1952,7 +1956,9 @@ describe("refarm tree", () => {
 		["preview", ["abc123", "--scope", "all"]],
 		["fork", ["abc123", "--scope", "all", "--name", "safe/fork"]],
 		["switch", ["abc123", "--scope", "all"]],
-	] as const)("rejects all scope outside read-only list for %s", async (commandName, args) => {
+	] as const)("rejects all scope outside read-only list before adapters for %s", async (commandName, args) => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -1971,5 +1977,7 @@ describe("refarm tree", () => {
 			expect.stringContaining("--scope session|git for this operation"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
+		expect(fetchMock).not.toHaveBeenCalled();
+		expect(spawnSyncMock).not.toHaveBeenCalled();
 	});
 });
