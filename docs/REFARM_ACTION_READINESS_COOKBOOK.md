@@ -291,6 +291,7 @@ npm run refarm:actions:smoke-dist
 
 # Narrow built CLI proof for both action seams after one build.
 npm run refarm:host:smoke:cli:action-seams
+npm run refarm:host:smoke:auto -- --profile action-seams
 
 # Narrow built CLI proof for renderer-neutral action readiness only.
 npm run refarm:host:smoke:cli:actions-readiness

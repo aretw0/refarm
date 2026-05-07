@@ -66,6 +66,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"actions-test",
 		"actions-type",
 		"actions-dist",
+		"action-seams",
 		"actions",
 		"tree-test",
 		"tree-smoke",
@@ -79,7 +80,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
 	);
 });
 
@@ -131,6 +132,10 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "actions-test", script: "refarm:actions:test" },
 			{ profile: "actions-type", script: "refarm:actions:type-check" },
 			{ profile: "actions-dist", script: "refarm:actions:smoke-dist" },
+			{
+				profile: "action-seams",
+				script: "refarm:host:smoke:cli:action-seams",
+			},
 			{ profile: "actions", script: "refarm:actions:verify" },
 			{ profile: "tree-test", script: "refarm:tree:test" },
 			{ profile: "tree-smoke", script: "refarm:tree:smoke" },
@@ -148,6 +153,7 @@ test("creates a profile-to-script list envelope", () => {
 test("maps profiles to npm scripts", () => {
 	assert.equal(isSmokeProfile("skip"), true);
 	assert.equal(isSmokeProfile("actions"), true);
+	assert.equal(isSmokeProfile("action-seams"), true);
 	assert.equal(isSmokeProfile("tree"), true);
 	assert.equal(isSmokeProfile("actions-headless"), true);
 	assert.equal(isSmokeProfile("tree-farmhand"), true);
@@ -169,6 +175,10 @@ test("maps profiles to npm scripts", () => {
 	assert.equal(
 		resolveProfileScript("actions-dist"),
 		"refarm:actions:smoke-dist",
+	);
+	assert.equal(
+		resolveProfileScript("action-seams"),
+		"refarm:host:smoke:cli:action-seams",
 	);
 	assert.equal(resolveProfileScript("actions"), "refarm:actions:verify");
 	assert.equal(resolveProfileScript("tree-test"), "refarm:tree:test");
@@ -281,6 +291,20 @@ test("explicit granular CLI profile maps to a narrow lane", () => {
 	assert.match(output, /profile=actions-headless files=0/);
 	assert.match(output, /source=explicit-profile/);
 	assert.match(output, /action=npm run refarm:actions:headless:test/);
+});
+
+test("explicit action-seams CLI profile maps to the combined action seam lane", () => {
+	const output = execFileSync(
+		process.execPath,
+		["scripts/ci/smoke-refarm-host-auto.mjs", "--profile", "action-seams"],
+		{ encoding: "utf8" },
+	);
+	assert.match(output, /profile=action-seams files=0/);
+	assert.match(output, /source=explicit-profile/);
+	assert.match(
+		output,
+		/action=npm run refarm:host:smoke:cli:action-seams/,
+	);
 });
 
 test("explicit CLI profile can print a JSON preview envelope", () => {

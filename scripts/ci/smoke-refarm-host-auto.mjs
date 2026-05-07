@@ -11,6 +11,7 @@ const PROFILE_SCRIPT = {
 	"actions-test": "refarm:actions:test",
 	"actions-type": "refarm:actions:type-check",
 	"actions-dist": "refarm:actions:smoke-dist",
+	"action-seams": "refarm:host:smoke:cli:action-seams",
 	actions: "refarm:actions:verify",
 	"tree-test": "refarm:tree:test",
 	"tree-smoke": "refarm:tree:smoke",
