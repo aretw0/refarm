@@ -2,6 +2,7 @@
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	parseJsonOutput,
 	runSubprocess,
@@ -28,13 +29,13 @@ const ACTION_AFFORDANCES = [
 	},
 	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
 ];
-const ONLY_PROFILES = new Set([
+export const ONLY_PROFILES = new Set([
 	"action-seams",
 	"actions-readiness",
 	"status-action",
 ]);
 
-function parseOnlyProfile(argv) {
+export function parseOnlyProfile(argv) {
 	const onlyIndex = argv.indexOf("--only");
 	if (onlyIndex === -1) return undefined;
 
@@ -52,34 +53,34 @@ function parseOnlyProfile(argv) {
 	return profile;
 }
 
-function parseSkipBuild(argv) {
+export function parseSkipBuild(argv) {
 	return argv.includes("--skip-build");
 }
 
-function hasListOnlyProfilesArg(argv) {
+export function hasListOnlyProfilesArg(argv) {
 	return argv.includes("--list-only-profiles");
 }
 
-function hasJsonArg(argv) {
+export function hasJsonArg(argv) {
 	return argv.includes("--json");
 }
 
-function hasHelpArg(argv) {
+export function hasHelpArg(argv) {
 	return argv.includes("--help") || argv.includes("-h");
 }
 
-function formatOnlyProfileList() {
+export function formatOnlyProfileList() {
 	return Array.from(ONLY_PROFILES).join(", ");
 }
 
-function createOnlyProfileListEnvelope() {
+export function createOnlyProfileListEnvelope() {
 	return {
 		schemaVersion: 1,
 		profiles: Array.from(ONLY_PROFILES).map((profile) => ({ profile })),
 	};
 }
 
-function formatHelp() {
+export function formatHelp() {
 	return [
 		`${LOGGER_PREFIX} usage:`,
 		"  node scripts/ci/smoke-refarm-host-cli-flows.mjs [--only <profile>] [--skip-build] [--list-only-profiles] [--json]",
@@ -937,8 +938,14 @@ async function main() {
 	}
 }
 
-main().catch((error) => {
-	const message = error instanceof Error ? error.message : String(error);
-	console.error(`${LOGGER_PREFIX} failed: ${message}`);
-	process.exit(1);
-});
+const isMain =
+	process.argv[1] &&
+	path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+	main().catch((error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`${LOGGER_PREFIX} failed: ${message}`);
+		process.exit(1);
+	});
+}

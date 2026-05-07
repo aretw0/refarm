@@ -58,6 +58,11 @@ async function main() {
 		env,
 	});
 
+	console.log(`${LOGGER_PREFIX} running focused CLI smoke option tests...`);
+	await runSubprocess("npm", ["run", "refarm:host:smoke:cli:test"], {
+		env,
+	});
+
 	if (!skipTypeCheck) {
 		console.log(`${LOGGER_PREFIX} running apps/refarm type-check...`);
 		await runSubprocess(

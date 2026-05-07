@@ -293,6 +293,7 @@ npm run refarm:actions:smoke-dist
 node scripts/ci/smoke-refarm-host-cli-flows.mjs --help
 npm run refarm:host:smoke:cli:profiles
 npm run refarm:host:smoke:cli:profiles:json
+npm run refarm:host:smoke:cli:test
 
 # Narrow built CLI proof for both action seams after one build.
 npm run refarm:host:smoke:cli:action-seams
