@@ -73,6 +73,46 @@ function runGuard(args) {
 	);
 }
 
+test("actions budget guard lists modes", () => {
+	const output = runGuard(["--list-modes"]);
+	assert.equal(output.status, 0, output.stderr);
+	assert.equal(output.stdout.trim(), "account, allocation");
+});
+
+test("actions budget guard lists mode metadata as json", () => {
+	const output = runGuard(["--list-modes", "--json"]);
+	assert.equal(output.status, 0, output.stderr);
+	assert.deepEqual(JSON.parse(output.stdout), {
+		schemaVersion: 1,
+		defaultMode: "account",
+		modes: [
+			{
+				mode: "account",
+				kind: "hard",
+				description:
+					"Account-month net billable posture against the quota baseline.",
+				npmScript: "actions:budget:guard:account",
+				jsonNpmScript: "actions:budget:guard:account:json",
+			},
+			{
+				mode: "allocation",
+				kind: "advisory",
+				description:
+					"Per-repo gross usage against the local 50/50 fairness split.",
+				npmScript: "actions:budget:guard:allocation",
+				jsonNpmScript: "actions:budget:guard:allocation:json",
+			},
+		],
+	});
+});
+
+test("actions budget guard fails unknown modes with available mode hints", () => {
+	const output = runGuard(["--mode", "unknown", "--input", "unused.json"]);
+	assert.notEqual(output.status, 0);
+	assert.match(output.stderr, /Unknown guard mode: unknown/);
+	assert.match(output.stderr, /Expected one of: account, allocation/);
+});
+
 test("actions budget guard passes discounted account-month posture by default", () => {
 	const { fixturePath, tempDir } = writeBudgetFixture();
 	try {

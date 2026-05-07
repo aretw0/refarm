@@ -69,6 +69,8 @@
 		"actions:budget:guard:account:json": "node scripts/ci/actions-budget-guard.mjs --mode account --json",
 		"actions:budget:guard:allocation": "node scripts/ci/actions-budget-guard.mjs --mode allocation --repo aretw0/refarm",
 		"actions:budget:guard:allocation:json": "node scripts/ci/actions-budget-guard.mjs --mode allocation --repo aretw0/refarm --json",
+		"actions:budget:guard:modes": "node scripts/ci/actions-budget-guard.mjs --list-modes",
+		"actions:budget:guard:modes:json": "node scripts/ci/actions-budget-guard.mjs --list-modes --json",
 		"actions:budget:guard:test": "node --test scripts/ci/test-actions-budget-guard.mjs",
 		"runtime-descriptor:revocation-report": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs",
 		"runtime-descriptor:revocation-report:sample": "node scripts/ci/generate-runtime-descriptor-revocation-report.mjs --input scripts/ci/fixtures/runtime-descriptor-revocation-telemetry.sample.json --out-dir .artifacts/runtime-descriptor-revocation-report",

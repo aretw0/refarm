@@ -5,6 +5,23 @@ import process from "node:process";
 
 const DEFAULT_REPO = "aretw0/refarm";
 
+const GUARD_MODES = [
+	{
+		mode: "account",
+		kind: "hard",
+		description: "Account-month net billable posture against the quota baseline.",
+		npmScript: "actions:budget:guard:account",
+		jsonNpmScript: "actions:budget:guard:account:json",
+	},
+	{
+		mode: "allocation",
+		kind: "advisory",
+		description: "Per-repo gross usage against the local 50/50 fairness split.",
+		npmScript: "actions:budget:guard:allocation",
+		jsonNpmScript: "actions:budget:guard:allocation:json",
+	},
+];
+
 function hasArg(flag) {
 	return process.argv.includes(flag);
 }
@@ -35,14 +52,36 @@ function numberOrZero(value) {
 	return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
 
+function listGuardModes() {
+	return GUARD_MODES.map((mode) => ({ ...mode }));
+}
+
+function formatGuardModeList() {
+	return listGuardModes()
+		.map((mode) => mode.mode)
+		.join(", ");
+}
+
+function createGuardModeListEnvelope() {
+	return {
+		schemaVersion: 1,
+		defaultMode: "account",
+		modes: listGuardModes(),
+	};
+}
+
+function isGuardMode(mode) {
+	return GUARD_MODES.some((candidate) => candidate.mode === mode);
+}
+
 function readGuardMode() {
 	const mode =
 		readArgValue("--mode") ??
 		process.env.GITHUB_ACTIONS_BUDGET_GUARD_MODE ??
 		"account";
-	if (mode !== "account" && mode !== "allocation") {
+	if (!isGuardMode(mode)) {
 		throw new Error(
-			`Unknown guard mode: ${mode}. Expected account or allocation.`,
+			`Unknown guard mode: ${mode}. Expected one of: ${formatGuardModeList()}.`,
 		);
 	}
 	return mode;
@@ -136,10 +175,19 @@ function loadBudgetReport(extraArgs, inputPath) {
 }
 
 function main() {
+	if (hasArg("--list-modes")) {
+		if (hasArg("--json")) {
+			console.log(JSON.stringify(createGuardModeListEnvelope(), null, 2));
+		} else {
+			console.log(formatGuardModeList());
+		}
+		return;
+	}
+
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log("GitHub Actions budget guard usage:");
 		console.log(
-			"  node scripts/ci/actions-budget-guard.mjs [--mode account|allocation] [--repo owner/repo] [--input report.json] [--fail-on-warn] [--json] [actions-budget args...]",
+			"  node scripts/ci/actions-budget-guard.mjs [--mode account|allocation] [--repo owner/repo] [--input report.json] [--fail-on-warn] [--json] [--list-modes] [actions-budget args...]",
 		);
 		console.log(
 			"  default mode: account (month-to-date account net billable posture)",
@@ -150,6 +198,8 @@ function main() {
 		console.log(
 			"  --json prints the guard decision envelope and preserves fail exit codes",
 		);
+		console.log("  --list-modes prints available guard modes; combine with --json for metadata");
+		console.log(`  modes: ${formatGuardModeList()}`);
 		console.log("  default repo for allocation mode: aretw0/refarm");
 		return;
 	}
@@ -180,6 +230,7 @@ function main() {
 		}
 		if (arg === "--fail-on-warn") continue;
 		if (arg === "--json") continue;
+		if (arg === "--list-modes") continue;
 		passthroughArgs.push(arg);
 	}
 
