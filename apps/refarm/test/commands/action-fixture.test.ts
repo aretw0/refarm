@@ -255,4 +255,67 @@ describe("status-with-actions fixture", () => {
 		);
 		logSpy.mockRestore();
 	});
+
+	it("drives blocked JSON readiness for missing fixture selections", async () => {
+		const scenarios = [
+			{
+				command: createActionsCommand(),
+				args: [
+					"--input",
+					STATUS_WITH_ACTIONS_FIXTURE,
+					"--select",
+					"missing",
+					"--json",
+				],
+				renderer: "headless",
+			},
+			{
+				command: createWebCommand(),
+				args: [
+					"--input",
+					STATUS_WITH_ACTIONS_FIXTURE,
+					"--actions",
+					"--select",
+					"missing",
+					"--json",
+				],
+				renderer: "web",
+			},
+			{
+				command: createTuiCommand(),
+				args: [
+					"--input",
+					STATUS_WITH_ACTIONS_FIXTURE,
+					"--actions",
+					"--select",
+					"missing",
+					"--json",
+				],
+				renderer: "tui",
+			},
+		];
+
+		for (const scenario of scenarios) {
+			const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+			await scenario.command.parseAsync(scenario.args, { from: "user" });
+
+			const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+			expect(output).toMatchObject({
+				reason: "dry-run",
+				renderer: scenario.renderer,
+				readiness: {
+					status: "blocked",
+					label: 'Blocked: host action "missing" is not available',
+				},
+				actionRows: [
+					{ id: "open-node", index: 1 },
+					{ id: "inspect-trust", index: 2 },
+				],
+			});
+			expect(output).not.toHaveProperty("selection");
+			expect(output).not.toHaveProperty("selectedAction");
+			logSpy.mockRestore();
+		}
+	});
 });
