@@ -65,10 +65,13 @@ The JSON form emits a stable guard decision envelope with `schemaVersion`,
 as the human form. Use it for dashboards and agent handoffs.
 
 Use allocation mode when you explicitly want the older per-repo split as an
-advisory/local discipline signal:
+advisory/local discipline signal. These commands may fail while account mode is
+OK; that means Refarm is over the local fairness split, not necessarily over the
+account's monthly billable quota:
 
 ```bash
-npm run actions:budget:guard -- --mode allocation --repo aretw0/refarm
+npm run actions:budget:guard:allocation
+npm run actions:budget:guard:allocation:json
 npm run actions:budget:guard -- --mode allocation --repo aretw0/refarm --fail-on-warn
 ```
 
