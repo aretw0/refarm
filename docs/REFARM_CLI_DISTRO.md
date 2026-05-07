@@ -128,10 +128,10 @@ npm run refarm:tree:verify
   contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
   route test/type-check, and built tree CLI smoke. Use it before declaring a
   `refarm tree` stabilization slice complete.
-- `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
-  wrappers under `scripts/ci/`, includes `apps/refarm` type-check by default,
-  and runs the built dist action-readiness smoke so dry-run vs live execution
-  guardrails are covered before/inside CI validation.
+- `refarm:host:smoke:ci` runs smoke auto routing tests, the command suite, CLI
+  flow smoke through CI wrappers under `scripts/ci/`, includes `apps/refarm`
+  type-check by default, and runs the built dist action-readiness smoke so
+  dry-run vs live execution guardrails are covered before/inside CI validation.
 - `refarm:host:smoke:quick` is the cheapest local lane (`--quick`): runs only
   `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a

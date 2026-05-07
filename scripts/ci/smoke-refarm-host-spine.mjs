@@ -52,6 +52,12 @@ async function main() {
 	console.log(
 		`${LOGGER_PREFIX} starting unified host smoke checks (profile=${profileLabel})...`,
 	);
+
+	console.log(`${LOGGER_PREFIX} running smoke auto routing tests...`);
+	await runSubprocess("npm", ["run", "refarm:host:smoke:auto:test"], {
+		env,
+	});
+
 	if (!skipTypeCheck) {
 		console.log(`${LOGGER_PREFIX} running apps/refarm type-check...`);
 		await runSubprocess(
