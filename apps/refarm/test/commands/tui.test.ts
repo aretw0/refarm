@@ -173,6 +173,7 @@ describe("tuiCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "tui",
 			actionRows: [{ index: 1, id: "open-node", label: "Open node" }],
 		});
@@ -263,6 +264,7 @@ describe("tuiCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "tui",
 			selection: {
 				requested: "2",

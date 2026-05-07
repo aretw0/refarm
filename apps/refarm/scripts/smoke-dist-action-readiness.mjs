@@ -84,6 +84,11 @@ if (hostActionReadiness.command !== "actions") {
 		`Expected actions command=actions, received ${hostActionReadiness.command}`,
 	);
 }
+if (hostActionReadiness.readiness?.status !== "ready") {
+	throw new Error(
+		`Expected actions readiness.status=ready, received ${hostActionReadiness.readiness?.status}`,
+	);
+}
 if (hostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 	throw new Error(
 		`Expected actions selection.resolvedId=inspect-trust, received ${hostActionReadiness.selection?.resolvedId}`,
@@ -92,6 +97,11 @@ if (hostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 if (artifactHostActionReadiness.reason !== "dry-run") {
 	throw new Error(
 		`Expected artifact actions reason=dry-run, received ${artifactHostActionReadiness.reason}`,
+	);
+}
+if (artifactHostActionReadiness.readiness?.status !== "ready") {
+	throw new Error(
+		`Expected artifact actions readiness.status=ready, received ${artifactHostActionReadiness.readiness?.status}`,
 	);
 }
 if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {

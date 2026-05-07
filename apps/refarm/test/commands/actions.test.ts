@@ -129,6 +129,7 @@ describe("host action readiness helpers", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			command: "actions",
 			renderer: "headless",
 			selection: {
@@ -202,6 +203,7 @@ describe("actionsCommand", () => {
 		expect(output).toMatchObject({
 			schemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			command: "actions",
 			renderer: "headless",
 			selection: {

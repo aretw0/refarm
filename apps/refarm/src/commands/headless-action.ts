@@ -13,6 +13,10 @@ import {
 	getRefarmStatusAvailableActions,
 	type RefarmActionAffordanceSelectionMetadata,
 } from "./action-affordances.js";
+import {
+	formatExecutionPlanReadinessLine,
+	type RefarmExecutionPlanReadinessLine,
+} from "./execution-plan.js";
 
 export type HeadlessSurfaceActionMountSource =
 	| "legacy-ui-slot"
@@ -59,6 +63,7 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 	schemaVersion: 1;
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
+	readiness: RefarmExecutionPlanReadinessLine;
 	selection: RefarmActionAffordanceSelectionMetadata;
 	actionRequest: HomesteadSurfaceRenderActionRequest;
 	availableActions: readonly HomesteadSurfaceRenderAction[];
@@ -108,6 +113,7 @@ export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 		schemaVersion: 1,
 		statusSchemaVersion: status.schemaVersion,
 		reason: "dry-run",
+		readiness: formatExecutionPlanReadinessLine({ readyToExecute: true }),
 		selection,
 		actionRequest: request,
 		availableActions,

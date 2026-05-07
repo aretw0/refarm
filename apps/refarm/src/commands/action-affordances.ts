@@ -2,6 +2,10 @@ import type {
 	RefarmStatusJson,
 	RefarmStatusSurfaceAction,
 } from "@refarm.dev/cli/status";
+import {
+	formatExecutionPlanReadinessLine,
+	type RefarmExecutionPlanReadinessLine,
+} from "./execution-plan.js";
 
 export interface RefarmActionAffordanceRow {
 	index: number;
@@ -36,6 +40,7 @@ export interface RefarmActionReadinessDryRunEnvelope {
 	schemaVersion: 1;
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
+	readiness: RefarmExecutionPlanReadinessLine;
 	command?: string;
 	renderer: string;
 	selection?: RefarmActionAffordanceSelectionMetadata;
@@ -117,6 +122,19 @@ export function formatRefarmActionAffordanceRows(
 	return [heading, ...rows.map((row) => `  ${row.display}`)].join("\n");
 }
 
+export function createRefarmActionReadinessLine(
+	status: RefarmStatusJson,
+	selection?: RefarmActionAffordanceSelectionResult,
+): RefarmExecutionPlanReadinessLine {
+	const rows = selection?.rows ?? createRefarmActionAffordanceRows(status);
+	return formatExecutionPlanReadinessLine({
+		readyToExecute: rows.length > 0,
+		...(rows.length > 0
+			? {}
+			: { blockedReason: "no host actions available" }),
+	});
+}
+
 export function createRefarmActionReadinessDryRunEnvelope(
 	status: RefarmStatusJson,
 	options: RefarmActionReadinessDryRunEnvelopeOptions,
@@ -125,6 +143,7 @@ export function createRefarmActionReadinessDryRunEnvelope(
 		schemaVersion: 1,
 		statusSchemaVersion: status.schemaVersion,
 		reason: "dry-run",
+		readiness: createRefarmActionReadinessLine(status, options.selection),
 		...(options.command ? { command: options.command } : {}),
 		renderer: options.renderer,
 		selection: options.selection?.selected

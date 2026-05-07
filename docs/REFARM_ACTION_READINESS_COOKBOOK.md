@@ -20,6 +20,8 @@ Renderer readiness commands are dry-runs:
 - they validate an action exists in `plugins.availableActions`;
 - they resolve stable IDs or one-based row indexes;
 - they emit deterministic human or JSON envelopes;
+- JSON dry-run envelopes include a shared `readiness` line (`ready` or
+  `blocked`) formatted by the app-local execution-plan helper;
 - they do **not** invoke product behavior;
 - they do **not** decide app-specific action meaning.
 
@@ -34,8 +36,11 @@ confirmation UX.
 Product semantics stay in `apps/*`. Generic action envelope mechanics stay in
 Homestead. The shared app-owned selection vocabulary currently lives in
 `apps/refarm/src/commands/action-affordances.ts` and should not move to
-`packages/*` until a second independent consumer proves the need. When a
-selection is unavailable, guardrail errors list deterministic choices as
+`packages/*` until a second independent consumer proves the need. Action
+readiness JSON now reuses the app-local execution-plan readiness formatter from
+`apps/refarm/src/commands/execution-plan.ts`, but that helper remains app-local;
+package extraction still waits for an independent consumer outside `apps/refarm`.
+When a selection is unavailable, guardrail errors list deterministic choices as
 `[row] id` pairs so operators can retry by stable ID or row index.
 
 ## Live status affordances
@@ -170,7 +175,9 @@ refarm web --input "$STATUS_FIXTURE" --actions --select 2 --json
 
 Use this path for agents that need structured Web readiness output without
 starting the browser renderer. The envelope contains the same row/selection
-shape as TUI with `renderer: "web"`.
+shape as TUI with `renderer: "web"` and a shared `readiness` line such as
+`{ "status": "ready", "label": "Ready: yes" }` when host actions are
+available.
 
 ### TUI readiness rows
 
@@ -209,6 +216,7 @@ contains:
 - `schemaVersion: 1`;
 - `statusSchemaVersion` from the input status payload;
 - `reason: "dry-run"`;
+- `readiness` from the app-local execution-plan readiness helper;
 - `renderer: "tui"`;
 - optional `selection` and `selectedAction` when `--select` is provided;
 - `actionRows` with stable one-based indexes.
@@ -226,6 +234,7 @@ shape. The envelope contains:
 - `schemaVersion: 1`;
 - `statusSchemaVersion` from the input status payload;
 - `reason: "dry-run"`;
+- `readiness` from the app-local execution-plan readiness helper;
 - `selection` metadata (`requested`, `source`, `resolvedId`, `index`);
 - `actionRequest`, the renderer-independent Homestead request;
 - `availableActions`, the status-derived affordance list.
@@ -244,7 +253,14 @@ ID for later execution.
 
 ## Local validation slice
 
-For action-readiness changes, prefer focused local validation:
+For action-readiness changes, prefer the aggregate local lane:
+
+```bash
+npm run refarm:actions:verify
+```
+
+For tighter iteration before the aggregate lane, use the underlying focused
+checks:
 
 ```bash
 git diff --check -- \

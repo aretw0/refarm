@@ -130,6 +130,7 @@ describe("headless surface action invocation", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			selection: {
 				requested: "1",
 				source: "index",

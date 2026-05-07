@@ -111,6 +111,7 @@ describe("headlessCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			selection: {
 				requested: "open-node",
 				source: "id",

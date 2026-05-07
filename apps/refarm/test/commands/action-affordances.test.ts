@@ -3,6 +3,7 @@ import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
 	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmActionReadinessLine,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	formatRefarmActionIds,
@@ -138,6 +139,7 @@ describe("Refarm action affordance helpers", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			command: "actions",
 			renderer: "headless",
 			selection: {
@@ -156,8 +158,28 @@ describe("Refarm action affordance helpers", () => {
 			}),
 		).toMatchObject({
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "web",
 			actionRows: [{ id: "open-node" }, { id: "inspect-trust" }],
+		});
+	});
+
+	it("shares execution-plan readiness formatting for empty action sets", () => {
+		expect(createRefarmActionReadinessLine(makeStatus([]))).toEqual({
+			status: "blocked",
+			label: "Blocked: no host actions available",
+		});
+		expect(
+			createRefarmActionReadinessDryRunEnvelope(makeStatus([]), {
+				renderer: "tui",
+			}),
+		).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: "Blocked: no host actions available",
+			},
+			actionRows: [],
 		});
 	});
 

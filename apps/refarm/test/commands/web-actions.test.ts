@@ -102,6 +102,7 @@ Available Web actions:
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
 			renderer: "web",
 			selection: {
 				requested: "2",

@@ -172,9 +172,9 @@ refarm actions --input status.json --select 1 --json
 
 This command lists or selects `plugins.availableActions` without choosing a
 Web/TUI/headless-specific row heading and without executing product behavior.
-JSON output is a dry-run envelope with `command: "actions"`, the status renderer
-kind used for context, optional `selection`, optional `selectedAction`, and
-`actionRows`.
+JSON output is a dry-run envelope with `command: "actions"`, a shared
+`readiness` line (`ready` or `blocked`), the status renderer kind used for
+context, optional `selection`, optional `selectedAction`, and `actionRows`.
 
 Headless action request dry-run:
 
@@ -187,8 +187,9 @@ This command does not execute product behavior. It validates that the selected
 ID or one-based row index resolves to an entry in `plugins.availableActions` and
 emits the deterministic Homestead action request envelope that a future product
 handler can consume. The JSON is produced by the app-owned headless dry-run
-envelope helper and also includes additive `selection` metadata: `requested`,
-`source` (`id` or `index`), `resolvedId`, and one-based `index`.
+envelope helper and also includes a shared `readiness` line plus additive
+`selection` metadata: `requested`, `source` (`id` or `index`), `resolvedId`, and
+one-based `index`.
 
 Live status action invocation:
 
