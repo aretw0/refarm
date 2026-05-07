@@ -2,7 +2,7 @@ import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
 import {
 	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmRendererActionDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	formatRefarmActionSelectionChoices,
@@ -66,11 +66,12 @@ export function createHostSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: HostSurfaceActionSelectionResult,
 ): HostSurfaceActionDryRunEnvelope {
-	return createRefarmActionReadinessDryRunEnvelope(status, {
-		command: "actions",
-		renderer: status.renderer.kind,
+	return createRefarmRendererActionDryRunEnvelope(
+		status,
+		status.renderer.kind,
 		selection,
-	}) as HostSurfaceActionDryRunEnvelope;
+		"actions",
+	) as HostSurfaceActionDryRunEnvelope;
 }
 
 export function formatHostSurfaceActionRows(

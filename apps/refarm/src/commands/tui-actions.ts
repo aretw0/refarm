@@ -1,7 +1,7 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmRendererActionDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	resolveRefarmActionAffordanceSelection,
@@ -44,10 +44,11 @@ export function createTuiSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: TuiSurfaceActionSelectionResult,
 ): TuiSurfaceActionDryRunEnvelope {
-	return createRefarmActionReadinessDryRunEnvelope(status, {
-		renderer: "tui",
+	return createRefarmRendererActionDryRunEnvelope(
+		status,
+		"tui",
 		selection,
-	}) as TuiSurfaceActionDryRunEnvelope;
+	) as TuiSurfaceActionDryRunEnvelope;
 }
 
 export function formatTuiSurfaceActionRows(

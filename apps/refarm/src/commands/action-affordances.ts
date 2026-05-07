@@ -162,6 +162,27 @@ export function createRefarmActionReadinessDryRunEnvelope(
 	};
 }
 
+export function createRefarmRendererActionDryRunEnvelope<
+	RendererKind extends string,
+>(
+	status: RefarmStatusJson,
+	renderer: RendererKind,
+	selection?: RefarmActionAffordanceSelectionResult,
+	command?: string,
+): RefarmActionReadinessDryRunEnvelope & {
+	renderer: RendererKind;
+	command?: string;
+} {
+	return createRefarmActionReadinessDryRunEnvelope(status, {
+		renderer,
+		selection,
+		...(command ? { command } : {}),
+	}) as RefarmActionReadinessDryRunEnvelope & {
+		renderer: RendererKind;
+		command?: string;
+	};
+}
+
 export function formatRefarmActionAffordanceSelection(
 	selected: RefarmActionAffordanceRow,
 	rows: readonly RefarmActionAffordanceRow[],

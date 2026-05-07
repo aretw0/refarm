@@ -1,7 +1,7 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
 	createRefarmActionAffordanceRows,
-	createRefarmActionReadinessDryRunEnvelope,
+	createRefarmRendererActionDryRunEnvelope,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
 	resolveRefarmActionAffordanceSelection,
@@ -44,10 +44,11 @@ export function createWebSurfaceActionDryRunEnvelope(
 	status: RefarmStatusJson,
 	selection?: WebSurfaceActionSelectionResult,
 ): WebSurfaceActionDryRunEnvelope {
-	return createRefarmActionReadinessDryRunEnvelope(status, {
-		renderer: "web",
+	return createRefarmRendererActionDryRunEnvelope(
+		status,
+		"web",
 		selection,
-	}) as WebSurfaceActionDryRunEnvelope;
+	) as WebSurfaceActionDryRunEnvelope;
 }
 
 export function formatWebSurfaceActionRows(
