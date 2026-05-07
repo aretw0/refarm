@@ -405,7 +405,7 @@ export function createTreeCommand(): Command {
 		.addCommand(
 			new Command("switch")
 				.description("Switch the active timeline pointer")
-				.argument("<branch>", "Existing branch name")
+				.argument("<target>", "Session ID/prefix or existing git branch")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
 				.option("--json", "Print machine-readable JSON")
 				.action(

@@ -63,6 +63,18 @@ describe("refarm tree", () => {
 		vi.unstubAllGlobals();
 	});
 
+	it("describes tree switch targets without assuming git-only branches", () => {
+		const command = createTreeCommand();
+		const switchHelp = command.commands
+			.find((c) => c.name() === "switch")!
+			.helpInformation();
+
+		expect(switchHelp).toContain("<target>");
+		expect(switchHelp).toContain(
+			"Session ID/prefix or existing git branch",
+		);
+	});
+
 	it("lists session timeline nodes as renderer-independent JSON", async () => {
 		vi.stubGlobal(
 			"fetch",
