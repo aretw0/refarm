@@ -137,6 +137,16 @@ async function emitHostActionRows(
 					options.select,
 				);
 				if (!selection.selected) {
+					if (options.json) {
+						console.log(
+							JSON.stringify(
+								createHostSurfaceActionDryRunEnvelope(json, selection),
+								null,
+								2,
+							),
+						);
+						return;
+					}
 					throw new Error(
 						`Host action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
 					);

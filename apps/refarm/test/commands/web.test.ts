@@ -236,6 +236,47 @@ describe("webCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints blocked Web action JSON for unavailable selections", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "missing", "--json"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+			renderer: "web",
+			actionRows: [{ id: "open-node", index: 1 }],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("selectedAction");
+		expect(launch).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
 	it("rejects Web action selection without --actions", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,

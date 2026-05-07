@@ -62,6 +62,25 @@ function assertBlockedNoActionsReadiness(envelope, label) {
 	}
 }
 
+function assertBlockedMissingSelectionReadiness(envelope, label) {
+	if (envelope.readiness?.status !== "blocked") {
+		throw new Error(
+			`Expected ${label} readiness.status=blocked, received ${envelope.readiness?.status}`,
+		);
+	}
+	if (envelope.readiness?.label !== 'Blocked: host action "missing" is not available') {
+		throw new Error(
+			`Expected ${label} missing-selection readiness label, received ${envelope.readiness?.label}`,
+		);
+	}
+	if ("selectedAction" in envelope) {
+		throw new Error(`${label} should not include selectedAction.`);
+	}
+	if ("selection" in envelope) {
+		throw new Error(`${label} should not include selection metadata.`);
+	}
+}
+
 const webActions = runRefarm(["web", "--actions"]);
 assertIncludes(webActions, "Available Web actions:", "web --actions");
 assertIncludes(
@@ -96,6 +115,38 @@ const webNoActionsReadiness = JSON.parse(
 );
 const tuiNoActionsReadiness = JSON.parse(
 	runRefarm(["tui", "--input", statusNoActionsFixture, "--actions", "--json"]),
+);
+const artifactMissingHostActionReadiness = JSON.parse(
+	runRefarm([
+		"actions",
+		"--input",
+		statusWithActionsFixture,
+		"--select",
+		"missing",
+		"--json",
+	]),
+);
+const artifactMissingWebActionReadiness = JSON.parse(
+	runRefarm([
+		"web",
+		"--input",
+		statusWithActionsFixture,
+		"--actions",
+		"--select",
+		"missing",
+		"--json",
+	]),
+);
+const artifactMissingTuiActionReadiness = JSON.parse(
+	runRefarm([
+		"tui",
+		"--input",
+		statusWithActionsFixture,
+		"--actions",
+		"--select",
+		"missing",
+		"--json",
+	]),
 );
 
 if (hostActionReadiness.schemaVersion !== 1) {
@@ -141,6 +192,18 @@ if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 assertBlockedNoActionsReadiness(artifactNoActionsReadiness, "actions");
 assertBlockedNoActionsReadiness(webNoActionsReadiness, "web actions");
 assertBlockedNoActionsReadiness(tuiNoActionsReadiness, "tui actions");
+assertBlockedMissingSelectionReadiness(
+	artifactMissingHostActionReadiness,
+	"actions missing selection",
+);
+assertBlockedMissingSelectionReadiness(
+	artifactMissingWebActionReadiness,
+	"web actions missing selection",
+);
+assertBlockedMissingSelectionReadiness(
+	artifactMissingTuiActionReadiness,
+	"tui actions missing selection",
+);
 
 assertRefarmFails(
 	["status", "--input", statusWithActionsFixture, "--action", "2"],

@@ -208,6 +208,16 @@ async function emitWebActionRows(
 					options.select,
 				);
 				if (!selection.selected) {
+					if (options.json) {
+						console.log(
+							JSON.stringify(
+								createWebSurfaceActionDryRunEnvelope(json, selection),
+								null,
+								2,
+							),
+						);
+						return;
+					}
 					throw new Error(
 						`Web action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
 					);

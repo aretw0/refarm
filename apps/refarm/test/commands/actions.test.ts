@@ -257,7 +257,33 @@ describe("actionsCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects unavailable host action selections", async () => {
+	it("prints blocked JSON readiness for unavailable host action selections", async () => {
+		const command = createActionsCommand({ resolveStatusPayload });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--select", "missing-action", "--json"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing-action" is not available',
+			},
+			command: "actions",
+			actionRows: [
+				{ id: "open-status-report", index: 1 },
+				{ id: "inspect-trust", index: 2 },
+			],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("selectedAction");
+		logSpy.mockRestore();
+	});
+
+	it("rejects unavailable host action selections in human output", async () => {
 		const command = createActionsCommand({ resolveStatusPayload });
 
 		await expect(

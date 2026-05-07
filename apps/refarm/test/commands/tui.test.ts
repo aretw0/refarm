@@ -280,7 +280,50 @@ describe("tuiCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --actions --select when the action is unavailable", async () => {
+	it("prints blocked TUI action JSON when the selected action is unavailable", async () => {
+		const shutdown = vi.fn().mockResolvedValue(undefined);
+		resolveStatusPayload.mockResolvedValueOnce({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			}),
+			shutdown,
+		});
+		const command = createTuiCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "missing", "--json"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+			renderer: "tui",
+			actionRows: [{ id: "open-node", index: 1 }],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("selectedAction");
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		expect(shutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("rejects --actions --select in human output when the action is unavailable", async () => {
 		resolveStatusPayload.mockResolvedValueOnce({
 			json: makeStatus({
 				plugins: {
