@@ -41,9 +41,80 @@ function readGuardMode() {
 		process.env.GITHUB_ACTIONS_BUDGET_GUARD_MODE ??
 		"account";
 	if (mode !== "account" && mode !== "allocation") {
-		throw new Error(`Unknown guard mode: ${mode}. Expected account or allocation.`);
+		throw new Error(
+			`Unknown guard mode: ${mode}. Expected account or allocation.`,
+		);
 	}
 	return mode;
+}
+
+function createAccountGuardDecision(report, { failOnWarn = false } = {}) {
+	if (!report.official?.available) {
+		throw new Error(
+			`GitHub Actions budget guard failed: official account billing unavailable (${report.official?.error ?? "unknown error"})`,
+		);
+	}
+	const usage = report.official.usage ?? {};
+	const billableMinutes = Math.max(0, numberOrZero(usage.netQuantity));
+	const burn = report.quota > 0 ? billableMinutes / report.quota : 0;
+	const quotaRemaining = report.quota - billableMinutes;
+	const status = statusForBurn(burn);
+	const summary = `account status=${status} billable=${formatMinutes(billableMinutes)} quotaRemaining=${formatMinutes(quotaRemaining)} burn=${formatPercent(burn)} gross=${formatMinutes(numberOrZero(usage.grossQuantity))} discounted=${formatMinutes(numberOrZero(usage.discountQuantity))}`;
+	return {
+		schemaVersion: 1,
+		mode: "account",
+		status,
+		shouldFail:
+			status === "OVER ALLOCATION" || (failOnWarn && status === "WARN"),
+		failOnWarn,
+		quota: report.quota,
+		billableMinutes,
+		quotaRemaining,
+		burn,
+		grossMinutes: numberOrZero(usage.grossQuantity),
+		discountedMinutes: numberOrZero(usage.discountQuantity),
+		summary,
+	};
+}
+
+function createAllocationGuardDecision(
+	report,
+	repo,
+	{ failOnWarn = false } = {},
+) {
+	const repoReport = report.repos?.find((candidate) => candidate.repo === repo);
+	if (!repoReport) {
+		throw new Error(`Budget report does not include repo ${repo}`);
+	}
+
+	if (!repoReport.official?.available) {
+		throw new Error(
+			`GitHub Actions budget guard failed for ${repo}: official billing unavailable (${repoReport.official?.error ?? "unknown error"})`,
+		);
+	}
+
+	const status = statusForBurn(repoReport.officialAllocationBurn);
+	const summary = `${repo} status=${status} allocationRemaining=${formatMinutes(repoReport.officialAllocationRemaining)} burn=${formatPercent(repoReport.officialAllocationBurn)}`;
+	return {
+		schemaVersion: 1,
+		mode: "allocation",
+		repo,
+		status,
+		shouldFail:
+			status === "OVER ALLOCATION" || (failOnWarn && status === "WARN"),
+		failOnWarn,
+		allocatedMinutes: repoReport.allocatedMinutes,
+		allocationRemaining: repoReport.officialAllocationRemaining,
+		burn: repoReport.officialAllocationBurn,
+		officialGrossMinutes: numberOrZero(
+			repoReport.official.usage?.grossQuantity,
+		),
+		officialNetBillableMinutes: Math.max(
+			0,
+			numberOrZero(repoReport.official.usage?.netQuantity),
+		),
+		summary,
+	};
 }
 
 function loadBudgetReport(extraArgs, inputPath) {
@@ -68,10 +139,17 @@ function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log("GitHub Actions budget guard usage:");
 		console.log(
-			"  node scripts/ci/actions-budget-guard.mjs [--mode account|allocation] [--repo owner/repo] [--input report.json] [--fail-on-warn] [actions-budget args...]",
+			"  node scripts/ci/actions-budget-guard.mjs [--mode account|allocation] [--repo owner/repo] [--input report.json] [--fail-on-warn] [--json] [actions-budget args...]",
 		);
-		console.log("  default mode: account (month-to-date account net billable posture)");
-		console.log("  allocation mode preserves the advisory 50/50 per-repo guard");
+		console.log(
+			"  default mode: account (month-to-date account net billable posture)",
+		);
+		console.log(
+			"  allocation mode preserves the advisory 50/50 per-repo guard",
+		);
+		console.log(
+			"  --json prints the guard decision envelope and preserves fail exit codes",
+		);
 		console.log("  default repo for allocation mode: aretw0/refarm");
 		return;
 	}
@@ -83,6 +161,7 @@ function main() {
 		DEFAULT_REPO;
 	const inputPath = readArgValue("--input");
 	const failOnWarn = hasArg("--fail-on-warn");
+	const json = hasArg("--json");
 	const passthroughArgs = [];
 
 	for (let i = 2; i < process.argv.length; i += 1) {
@@ -100,48 +179,27 @@ function main() {
 			continue;
 		}
 		if (arg === "--fail-on-warn") continue;
+		if (arg === "--json") continue;
 		passthroughArgs.push(arg);
 	}
 
 	const report = loadBudgetReport(passthroughArgs, inputPath);
+	const decision =
+		mode === "account"
+			? createAccountGuardDecision(report, { failOnWarn })
+			: createAllocationGuardDecision(report, repo, { failOnWarn });
 
-	if (mode === "account") {
-		if (!report.official?.available) {
-			throw new Error(
-				`GitHub Actions budget guard failed: official account billing unavailable (${report.official?.error ?? "unknown error"})`,
-			);
-		}
-		const usage = report.official.usage ?? {};
-		const billableMinutes = Math.max(0, numberOrZero(usage.netQuantity));
-		const burn = report.quota > 0 ? billableMinutes / report.quota : 0;
-		const remaining = report.quota - billableMinutes;
-		const status = statusForBurn(burn);
-		const summary = `account status=${status} billable=${formatMinutes(billableMinutes)} quotaRemaining=${formatMinutes(remaining)} burn=${formatPercent(burn)} gross=${formatMinutes(numberOrZero(usage.grossQuantity))} discounted=${formatMinutes(numberOrZero(usage.discountQuantity))}`;
-		if (status === "OVER ALLOCATION" || (failOnWarn && status === "WARN")) {
-			throw new Error(`GitHub Actions budget guard failed: ${summary}`);
-		}
-		console.log(`GitHub Actions budget guard passed: ${summary}`);
-		return;
+	if (json) {
+		console.log(JSON.stringify(decision, null, 2));
+	} else if (decision.shouldFail) {
+		throw new Error(`GitHub Actions budget guard failed: ${decision.summary}`);
+	} else {
+		console.log(`GitHub Actions budget guard passed: ${decision.summary}`);
 	}
 
-	const repoReport = report.repos?.find((candidate) => candidate.repo === repo);
-	if (!repoReport) {
-		throw new Error(`Budget report does not include repo ${repo}`);
+	if (decision.shouldFail) {
+		process.exitCode = 1;
 	}
-
-	if (!repoReport.official?.available) {
-		throw new Error(
-			`GitHub Actions budget guard failed for ${repo}: official billing unavailable (${repoReport.official?.error ?? "unknown error"})`,
-		);
-	}
-
-	const status = statusForBurn(repoReport.officialAllocationBurn);
-	const summary = `${repo} status=${status} allocationRemaining=${formatMinutes(repoReport.officialAllocationRemaining)} burn=${formatPercent(repoReport.officialAllocationBurn)}`;
-	if (status === "OVER ALLOCATION" || (failOnWarn && status === "WARN")) {
-		throw new Error(`GitHub Actions budget guard failed: ${summary}`);
-	}
-
-	console.log(`GitHub Actions budget guard passed: ${summary}`);
 }
 
 try {

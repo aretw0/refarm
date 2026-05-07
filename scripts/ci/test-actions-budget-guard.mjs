@@ -24,19 +24,31 @@ function writeBudgetFixture({ netQuantity = 0 } = {}) {
 				repos: [
 					{
 						repo: "aretw0/refarm",
-						official: { available: true },
+						official: {
+							available: true,
+							usage: { grossQuantity: 1010, netQuantity: 0 },
+						},
+						allocatedMinutes: 1000,
 						officialAllocationRemaining: -1,
 						officialAllocationBurn: 1.01,
 					},
 					{
 						repo: "aretw0/agents-lab",
-						official: { available: true },
+						official: {
+							available: true,
+							usage: { grossQuantity: 500, netQuantity: 0 },
+						},
+						allocatedMinutes: 1000,
 						officialAllocationRemaining: 200,
 						officialAllocationBurn: 0.5,
 					},
 					{
 						repo: "aretw0/warn",
-						official: { available: true },
+						official: {
+							available: true,
+							usage: { grossQuantity: 900, netQuantity: 0 },
+						},
+						allocatedMinutes: 1000,
 						officialAllocationRemaining: 10,
 						officialAllocationBurn: 0.9,
 					},
@@ -81,6 +93,63 @@ test("actions budget guard fails account-month posture when net billable exceeds
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /account status=OVER ALLOCATION/);
 		assert.match(result.stderr, /billable=2001 min/);
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("actions budget guard can print account decision json", () => {
+	const { fixturePath, tempDir } = writeBudgetFixture();
+	try {
+		const result = runGuard(["--input", fixturePath, "--json"]);
+		assert.equal(result.status, 0, result.stderr);
+		assert.deepEqual(JSON.parse(result.stdout), {
+			schemaVersion: 1,
+			mode: "account",
+			status: "OK",
+			shouldFail: false,
+			failOnWarn: false,
+			quota: 2000,
+			billableMinutes: 0,
+			quotaRemaining: 2000,
+			burn: 0,
+			grossMinutes: 5258,
+			discountedMinutes: 5258,
+			summary:
+				"account status=OK billable=0 min quotaRemaining=2000 min burn=0% gross=5258 min discounted=5258 min",
+		});
+	} finally {
+		rmSync(tempDir, { recursive: true, force: true });
+	}
+});
+
+test("actions budget guard json preserves failure exit codes", () => {
+	const { fixturePath, tempDir } = writeBudgetFixture();
+	try {
+		const result = runGuard([
+			"--input",
+			fixturePath,
+			"--mode",
+			"allocation",
+			"--json",
+		]);
+		assert.notEqual(result.status, 0);
+		assert.equal(result.stderr, "");
+		assert.deepEqual(JSON.parse(result.stdout), {
+			schemaVersion: 1,
+			mode: "allocation",
+			repo: "aretw0/refarm",
+			status: "OVER ALLOCATION",
+			shouldFail: true,
+			failOnWarn: false,
+			allocatedMinutes: 1000,
+			allocationRemaining: -1,
+			burn: 1.01,
+			officialGrossMinutes: 1010,
+			officialNetBillableMinutes: 0,
+			summary:
+				"aretw0/refarm status=OVER ALLOCATION allocationRemaining=-1 min burn=101%",
+		});
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}

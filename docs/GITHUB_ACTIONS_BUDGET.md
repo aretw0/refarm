@@ -52,11 +52,17 @@ are fully discounted. It can optionally fail on WARN:
 
 ```bash
 npm run actions:budget:guard
+npm run actions:budget:guard:json
 npm run actions:budget:guard -- --fail-on-warn
 npm run actions:budget:json > /tmp/actions-budget.json
 npm run actions:budget:guard -- --input /tmp/actions-budget.json
+npm run actions:budget:guard -- --input /tmp/actions-budget.json --json
 npm run actions:budget:guard:test
 ```
+
+The JSON form emits a stable guard decision envelope with `schemaVersion`,
+`mode`, `status`, `shouldFail`, quota/burn fields, and the same failure exit code
+as the human form. Use it for dashboards and agent handoffs.
 
 Use allocation mode when you explicitly want the older per-repo split as an
 advisory/local discipline signal:
