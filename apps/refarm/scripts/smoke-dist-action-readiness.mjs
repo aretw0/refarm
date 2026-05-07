@@ -44,6 +44,24 @@ function assertIncludes(value, expected, label) {
 	}
 }
 
+function assertBlockedNoActionsReadiness(envelope, label) {
+	if (envelope.readiness?.status !== "blocked") {
+		throw new Error(
+			`Expected ${label} readiness.status=blocked, received ${envelope.readiness?.status}`,
+		);
+	}
+	if (envelope.readiness?.label !== "Blocked: no host actions available") {
+		throw new Error(
+			`Expected ${label} no-actions readiness label, received ${envelope.readiness?.label}`,
+		);
+	}
+	if (envelope.actionRows?.length !== 0) {
+		throw new Error(
+			`Expected ${label} actionRows=[], received ${JSON.stringify(envelope.actionRows)}`,
+		);
+	}
+}
+
 const webActions = runRefarm(["web", "--actions"]);
 assertIncludes(webActions, "Available Web actions:", "web --actions");
 assertIncludes(
@@ -72,6 +90,12 @@ const artifactHostActionReadiness = JSON.parse(
 );
 const artifactNoActionsReadiness = JSON.parse(
 	runRefarm(["actions", "--input", statusNoActionsFixture, "--json"]),
+);
+const webNoActionsReadiness = JSON.parse(
+	runRefarm(["web", "--input", statusNoActionsFixture, "--actions", "--json"]),
+);
+const tuiNoActionsReadiness = JSON.parse(
+	runRefarm(["tui", "--input", statusNoActionsFixture, "--actions", "--json"]),
 );
 
 if (hostActionReadiness.schemaVersion !== 1) {
@@ -114,16 +138,9 @@ if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 		`Expected artifact actions selection.resolvedId=inspect-trust, received ${artifactHostActionReadiness.selection?.resolvedId}`,
 	);
 }
-if (artifactNoActionsReadiness.readiness?.status !== "blocked") {
-	throw new Error(
-		`Expected no-actions readiness.status=blocked, received ${artifactNoActionsReadiness.readiness?.status}`,
-	);
-}
-if (artifactNoActionsReadiness.actionRows?.length !== 0) {
-	throw new Error(
-		`Expected no-actions actionRows=[], received ${JSON.stringify(artifactNoActionsReadiness.actionRows)}`,
-	);
-}
+assertBlockedNoActionsReadiness(artifactNoActionsReadiness, "actions");
+assertBlockedNoActionsReadiness(webNoActionsReadiness, "web actions");
+assertBlockedNoActionsReadiness(tuiNoActionsReadiness, "tui actions");
 
 assertRefarmFails(
 	["status", "--input", statusWithActionsFixture, "--action", "2"],
