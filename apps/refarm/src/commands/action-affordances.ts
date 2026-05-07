@@ -127,12 +127,19 @@ export function createRefarmActionReadinessLine(
 	selection?: RefarmActionAffordanceSelectionResult,
 ): RefarmExecutionPlanReadinessLine {
 	const rows = selection?.rows ?? createRefarmActionAffordanceRows(status);
-	return formatExecutionPlanReadinessLine({
-		readyToExecute: rows.length > 0,
-		...(rows.length > 0
-			? {}
-			: { blockedReason: "no host actions available" }),
-	});
+	if (selection?.reason === "missing-action") {
+		return formatExecutionPlanReadinessLine({
+			readyToExecute: false,
+			blockedReason: `host action "${selection.selection.requested}" is not available`,
+		});
+	}
+	if (selection?.reason === "no-actions" || rows.length === 0) {
+		return formatExecutionPlanReadinessLine({
+			readyToExecute: false,
+			blockedReason: "no host actions available",
+		});
+	}
+	return formatExecutionPlanReadinessLine({ readyToExecute: true });
 }
 
 export function createRefarmActionReadinessDryRunEnvelope(

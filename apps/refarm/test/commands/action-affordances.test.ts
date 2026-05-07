@@ -164,10 +164,19 @@ describe("Refarm action affordance helpers", () => {
 		});
 	});
 
-	it("shares execution-plan readiness formatting for empty action sets", () => {
+	it("shares execution-plan readiness formatting for blocked action sets", () => {
 		expect(createRefarmActionReadinessLine(makeStatus([]))).toEqual({
 			status: "blocked",
 			label: "Blocked: no host actions available",
+		});
+		expect(
+			createRefarmActionReadinessLine(
+				makeStatus(),
+				resolveRefarmActionAffordanceSelection(makeStatus(), "missing"),
+			),
+		).toEqual({
+			status: "blocked",
+			label: 'Blocked: host action "missing" is not available',
 		});
 		expect(
 			createRefarmActionReadinessDryRunEnvelope(makeStatus([]), {
