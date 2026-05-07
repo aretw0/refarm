@@ -217,6 +217,30 @@ describe("actionsCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints blocked readiness when no host actions are available", async () => {
+		resolveStatusPayload.mockResolvedValueOnce({
+			json: makeStatus(),
+			shutdown,
+		});
+		const command = createActionsCommand({ resolveStatusPayload });
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--json"], { from: "user" });
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: "Blocked: no host actions available",
+			},
+			command: "actions",
+			actionRows: [],
+		});
+		logSpy.mockRestore();
+	});
+
 	it("passes renderer and input options to status resolution", async () => {
 		const command = createActionsCommand({ resolveStatusPayload });
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
