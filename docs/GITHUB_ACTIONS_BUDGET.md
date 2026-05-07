@@ -53,6 +53,8 @@ are fully discounted. It can optionally fail on WARN:
 ```bash
 npm run actions:budget:guard
 npm run actions:budget:guard:json
+npm run actions:budget:guard:account
+npm run actions:budget:guard:account:json
 npm run actions:budget:guard -- --fail-on-warn
 npm run actions:budget:json > /tmp/actions-budget.json
 npm run actions:budget:guard -- --input /tmp/actions-budget.json
@@ -60,9 +62,10 @@ npm run actions:budget:guard -- --input /tmp/actions-budget.json --json
 npm run actions:budget:guard:test
 ```
 
-The JSON form emits a stable guard decision envelope with `schemaVersion`,
-`mode`, `status`, `shouldFail`, quota/burn fields, and the same failure exit code
-as the human form. Use it for dashboards and agent handoffs.
+The `account` wrappers are explicit aliases for the default hard guard. The JSON
+form emits a stable guard decision envelope with `schemaVersion`, `mode`,
+`status`, `shouldFail`, quota/burn fields, and the same failure exit code as the
+human form. Use it for dashboards and agent handoffs.
 
 Use allocation mode when you explicitly want the older per-repo split as an
 advisory/local discipline signal. These commands may fail while account mode is
