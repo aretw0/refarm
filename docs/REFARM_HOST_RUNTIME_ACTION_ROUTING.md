@@ -126,8 +126,12 @@ those live status actions: it resolves the selection from live
 `plugins.availableActions`, rejects `--input` artifacts so fixture/stale JSON
 cannot authorize product behavior, creates the Homestead request from the live
 status surface, invokes the app-owned handler, and prints a deterministic JSON
-envelope with `statusSource: "live"` and `handled` status. Web/TUI/headless readiness commands remain
-non-destructive dry-runs.
+envelope with `statusSource: "live"` and `handled` status. The command remains
+thin: status action selection, request resolution, handler invocation, and the
+result envelope are owned together by `status-actions.ts` so future Web/TUI or
+headless consumers can reuse the app-owned seam without creating a generic
+host-wide executor. Web/TUI/headless readiness commands remain non-destructive
+dry-runs.
 
 `apps/refarm/src/commands/action-affordances.ts` owns the app-level action
 affordance vocabulary shared by renderer-neutral host, Web, headless, and TUI

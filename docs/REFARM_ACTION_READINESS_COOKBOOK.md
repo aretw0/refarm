@@ -83,6 +83,11 @@ This is the app-owned execution proof for the live status actions. The command:
 - prints a deterministic JSON envelope with `statusSource: "live"`,
   `selection`, `actionRequest`, `handled`, and `availableActions`.
 
+The selection-to-result orchestration lives in
+`apps/refarm/src/commands/status-actions.ts`; `status.ts` only performs command
+guarding and output. Keep this app-owned seam as the action-result proof until a
+second independent product needs the same execution envelope mechanics.
+
 It is intentionally separate from Web/TUI/headless readiness commands so agents
 can keep non-destructive discovery/dry-runs distinct from explicit execution.
 
