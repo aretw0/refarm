@@ -35,6 +35,10 @@ export function isSmokeProfile(profile) {
 	return Object.hasOwn(PROFILE_SCRIPT, profile);
 }
 
+export function formatUnknownSmokeProfileMessage(profile) {
+	return `Unknown smoke profile: ${profile}. Available profiles: ${formatSmokeProfileList()}`;
+}
+
 export function resolveProfileScript(profile) {
 	return PROFILE_SCRIPT[profile];
 }
@@ -323,7 +327,7 @@ async function main() {
 	const execute = hasArg("--execute");
 
 	if (explicitProfile && !isSmokeProfile(explicitProfile)) {
-		throw new Error(`Unknown smoke profile: ${explicitProfile}`);
+		throw new Error(formatUnknownSmokeProfileMessage(explicitProfile));
 	}
 
 	let changeSet;
@@ -352,7 +356,7 @@ async function main() {
 			}
 		: decideProfile(changedFiles);
 	if (!isSmokeProfile(decision.profile)) {
-		throw new Error(`Unknown smoke profile: ${decision.profile}`);
+		throw new Error(formatUnknownSmokeProfileMessage(decision.profile));
 	}
 	const command = resolveProfileScript(decision.profile);
 

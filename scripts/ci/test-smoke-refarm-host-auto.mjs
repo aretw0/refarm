@@ -4,6 +4,7 @@ import { execFileSync } from "node:child_process";
 import {
 	decideProfile,
 	formatSmokeProfileList,
+	formatUnknownSmokeProfileMessage,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
@@ -77,6 +78,13 @@ test("lists smoke profiles from the canonical profile map", () => {
 	assert.equal(
 		formatSmokeProfileList(),
 		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
+	);
+});
+
+test("formats unknown profile errors with available profile hints", () => {
+	assert.equal(
+		formatUnknownSmokeProfileMessage("unknown"),
+		`Unknown smoke profile: unknown. Available profiles: ${formatSmokeProfileList()}`,
 	);
 });
 
@@ -240,6 +248,8 @@ test("explicit CLI profile fails closed when unknown", () => {
 		(error) => {
 			assert.equal(error.status, 1);
 			assert.match(error.stderr, /Unknown smoke profile: unknown/);
+			assert.match(error.stderr, /Available profiles: skip, actions-headless/);
+			assert.match(error.stderr, /tree-farmhand/);
 			return true;
 		},
 	);
