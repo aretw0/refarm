@@ -320,11 +320,12 @@ Both wrappers build `apps/refarm`, run the emitted CLI, verify `refarm web --act
 verify `refarm actions --select 2 --json` returns a non-executing host dry-run
 envelope, verify fixture-backed `refarm actions --input ... --select 2 --json`
 stays dry-run, verify no-actions JSON readiness blocks consistently for
-`refarm actions`, `refarm web --actions`, and `refarm tui --actions`, verify
-missing-selection JSON readiness blocks consistently for `refarm actions`,
-`refarm web --actions`, `refarm headless --action-request`, and
-`refarm tui --actions`, verify `refarm status --action --input` is rejected, and
-verify `refarm status --action 2` returns a handled Homestead action invocation
+`refarm actions`, `refarm web --actions`, `refarm headless --action-request`,
+and `refarm tui --actions`, verify missing-selection JSON readiness blocks
+consistently for `refarm actions`, `refarm web --actions`,
+`refarm headless --action-request`, and `refarm tui --actions`, verify
+`refarm status --action --input` is rejected, and verify the live
+`refarm status --action 2` path returns a handled Homestead action invocation
 envelope. Keep this as local validation; CI wiring remains deferred while GitHub
 Actions budget is over allocation.
 

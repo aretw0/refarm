@@ -8,6 +8,9 @@ import { createWebCommand } from "../../src/commands/web.js";
 const STATUS_WITH_ACTIONS_FIXTURE = fileURLToPath(
 	new URL("../fixtures/status-with-actions.json", import.meta.url),
 );
+const STATUS_NO_ACTIONS_FIXTURE = fileURLToPath(
+	new URL("../fixtures/status-no-actions.json", import.meta.url),
+);
 
 describe("status-with-actions fixture", () => {
 	it("drives renderer-neutral host action JSON output from --input", async () => {
@@ -141,6 +144,28 @@ describe("status-with-actions fixture", () => {
 		});
 		expect(output).not.toHaveProperty("selection");
 		expect(output).not.toHaveProperty("actionRequest");
+		logSpy.mockRestore();
+	});
+
+	it("drives headless no-actions blocked action request readiness from --input", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await headlessCommand.parseAsync(
+			["--input", STATUS_NO_ACTIONS_FIXTURE, "--action-request", "missing"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toEqual({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: "Blocked: no host actions available",
+			},
+			availableActions: [],
+		});
 		logSpy.mockRestore();
 	});
 

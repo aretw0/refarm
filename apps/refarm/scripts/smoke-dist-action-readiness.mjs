@@ -55,9 +55,10 @@ function assertBlockedNoActionsReadiness(envelope, label) {
 			`Expected ${label} no-actions readiness label, received ${envelope.readiness?.label}`,
 		);
 	}
-	if (envelope.actionRows?.length !== 0) {
+	const rows = envelope.actionRows ?? envelope.availableActions;
+	if (rows?.length !== 0) {
 		throw new Error(
-			`Expected ${label} actionRows=[], received ${JSON.stringify(envelope.actionRows)}`,
+			`Expected ${label} action rows/actions=[], received ${JSON.stringify(rows)}`,
 		);
 	}
 }
@@ -121,6 +122,15 @@ const webNoActionsReadiness = JSON.parse(
 );
 const tuiNoActionsReadiness = JSON.parse(
 	runRefarm(["tui", "--input", statusNoActionsFixture, "--actions", "--json"]),
+);
+const headlessNoActionsReadiness = JSON.parse(
+	runRefarm([
+		"headless",
+		"--input",
+		statusNoActionsFixture,
+		"--action-request",
+		"missing",
+	]),
 );
 const artifactMissingHostActionReadiness = JSON.parse(
 	runRefarm([
@@ -207,6 +217,10 @@ if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 assertBlockedNoActionsReadiness(artifactNoActionsReadiness, "actions");
 assertBlockedNoActionsReadiness(webNoActionsReadiness, "web actions");
 assertBlockedNoActionsReadiness(tuiNoActionsReadiness, "tui actions");
+assertBlockedNoActionsReadiness(
+	headlessNoActionsReadiness,
+	"headless action request",
+);
 assertBlockedMissingSelectionReadiness(
 	artifactMissingHostActionReadiness,
 	"actions missing selection",

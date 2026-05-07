@@ -122,10 +122,9 @@ npm run refarm:tree:verify
   status input.
 - `refarm:actions:verify` is the action-readiness closeout lane: focused
   Web/TUI/headless/renderer-neutral action tests, `apps/refarm` type-check, and
-  built dist action-readiness smoke, including renderer-neutral/Web/TUI
-  no-actions blocked readiness and renderer-neutral/Web/headless/TUI
-  missing-selection blocked readiness. Use it before declaring action-readiness
-  envelope or selection changes complete.
+  built dist action-readiness smoke, including renderer-neutral/Web/headless/TUI
+  no-actions and missing-selection blocked readiness. Use it before declaring
+  action-readiness envelope or selection changes complete.
 - `refarm:tree:verify` is the tree-only closeout lane: mocked tree/execution-plan
   contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
   route test/type-check, and built tree CLI smoke. Use it before declaring a
