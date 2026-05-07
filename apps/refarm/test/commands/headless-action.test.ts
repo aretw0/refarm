@@ -131,6 +131,7 @@ describe("headless surface action invocation", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: { status: "ready", label: "Ready: yes" },
 			selection: {
 				requested: "1",
@@ -158,6 +159,7 @@ describe("headless surface action invocation", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: {
 				status: "blocked",
 				label: 'Blocked: host action "missing" is not available',

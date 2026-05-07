@@ -75,6 +75,7 @@ describe("status-with-actions fixture", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			selection: {
 				requested: "open-node",
 				source: "id",
@@ -133,6 +134,7 @@ describe("status-with-actions fixture", () => {
 		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
 		expect(output).toMatchObject({
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: {
 				status: "blocked",
 				label: 'Blocked: host action "missing" is not available',
@@ -160,6 +162,7 @@ describe("status-with-actions fixture", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: {
 				status: "blocked",
 				label: "Blocked: no host actions available",

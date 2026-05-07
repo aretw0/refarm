@@ -63,6 +63,14 @@ function assertBlockedNoActionsReadiness(envelope, label) {
 	}
 }
 
+function assertHeadlessRenderer(envelope, label) {
+	if (envelope.renderer !== "headless") {
+		throw new Error(
+			`Expected ${label} renderer=headless, received ${envelope.renderer}`,
+		);
+	}
+}
+
 function assertBlockedMissingSelectionReadiness(envelope, label) {
 	if (envelope.readiness?.status !== "blocked") {
 		throw new Error(
@@ -221,6 +229,7 @@ assertBlockedNoActionsReadiness(
 	headlessNoActionsReadiness,
 	"headless action request",
 );
+assertHeadlessRenderer(headlessNoActionsReadiness, "headless no-actions");
 assertBlockedMissingSelectionReadiness(
 	artifactMissingHostActionReadiness,
 	"actions missing selection",
@@ -232,6 +241,10 @@ assertBlockedMissingSelectionReadiness(
 assertBlockedMissingSelectionReadiness(
 	artifactMissingHeadlessActionReadiness,
 	"headless action request missing selection",
+);
+assertHeadlessRenderer(
+	artifactMissingHeadlessActionReadiness,
+	"headless missing selection",
 );
 assertBlockedMissingSelectionReadiness(
 	artifactMissingTuiActionReadiness,

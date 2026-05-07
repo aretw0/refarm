@@ -120,11 +120,14 @@ npm run refarm:tree:verify
   `--launch`, `--json` + `--markdown`, `headless --markdown --summary`, and
   `status --action --input`) are rejected fail-closed, using fixture-backed
   status input.
-- `refarm:actions:verify` is the action-readiness closeout lane: focused
-  Web/TUI/headless/renderer-neutral action tests, `apps/refarm` type-check, and
-  built dist action-readiness smoke, including renderer-neutral/Web/headless/TUI
-  no-actions and missing-selection blocked readiness. Use it before declaring
-  action-readiness envelope or selection changes complete.
+- `refarm:actions:test`, `refarm:actions:type-check`, and
+  `refarm:actions:smoke-dist` are the granular action-readiness lanes for fast
+  iteration: semantic Vitest contracts, TypeScript contracts, and built CLI
+  dist smoke respectively. `refarm:actions:verify` composes all three as the
+  closeout lane, including renderer-neutral/Web/headless/TUI no-actions and
+  missing-selection blocked readiness. Use the granular lane while iterating and
+  the composed lane before declaring action-readiness envelope or selection
+  changes complete.
 - `refarm:tree:verify` is the tree-only closeout lane: mocked tree/execution-plan
   contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
   route test/type-check, and built tree CLI smoke. Use it before declaring a

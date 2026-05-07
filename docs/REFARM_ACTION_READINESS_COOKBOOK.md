@@ -239,6 +239,8 @@ shape. The envelope contains:
 - `schemaVersion: 1`;
 - `statusSchemaVersion` from the input status payload;
 - `reason: "dry-run"`;
+- `renderer: "headless"`, matching the renderer contract vocabulary used by
+  Web/TUI/headless readiness envelopes;
 - `readiness` from the app-local execution-plan readiness helper;
 - `selection` metadata (`requested`, `source`, `resolvedId`, `index`);
 - `actionRequest`, the renderer-independent Homestead request;
@@ -263,14 +265,25 @@ ID for later execution.
 
 ## Local validation slice
 
-For action-readiness changes, prefer the aggregate local lane:
+For action-readiness changes, keep the feedback loop as small as the question
+being asked:
 
 ```bash
+# Fastest semantic contract loop: Vitest only, no TypeScript build, no dist smoke.
+npm run refarm:actions:test
+
+# Type contract loop: run after source/type-shape changes.
+npm run refarm:actions:type-check
+
+# Built CLI loop: run only when emitted dist/package behavior matters.
+npm run refarm:actions:smoke-dist
+
+# Closeout lane: test + type-check + built dist smoke.
 npm run refarm:actions:verify
 ```
 
-For tighter iteration before the aggregate lane, use the underlying focused
-checks:
+For tighter one-off iteration before the aggregate lane, use the underlying
+focused checks directly:
 
 ```bash
 git diff --check -- \

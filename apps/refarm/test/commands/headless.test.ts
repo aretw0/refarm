@@ -111,6 +111,7 @@ describe("headlessCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: { status: "ready", label: "Ready: yes" },
 			selection: {
 				requested: "open-node",
@@ -191,6 +192,7 @@ describe("headlessCommand", () => {
 			schemaVersion: 1,
 			statusSchemaVersion: 1,
 			reason: "dry-run",
+			renderer: "headless",
 			readiness: {
 				status: "blocked",
 				label: 'Blocked: host action "missing-action" is not available',
