@@ -103,7 +103,8 @@ The report keeps these signals separate:
   GitHub billing, including minutes that may later be discounted;
 - **official net billable billing**: the quantity left after GitHub discounts; this
   is the default hard guard signal because it tracks billable quota posture more
-  closely than gross public-repo minutes;
+  closely than gross public-repo minutes. The human and JSON reports expose its
+  quota burn and `officialBillableStatus` separately from gross observed usage;
 - **runner-time**: workflow/run duration by repository, useful for operational discipline
   even when public repositories are fully discounted.
 

@@ -322,6 +322,7 @@ function renderHuman(report) {
 		lines.push(
 			`  net billable quantity: ${round(billableQuantity(report.official.usage))} min`,
 		);
+		lines.push(`  billable status: ${report.officialBillableStatus}`);
 		lines.push(
 			`  billable quota remaining by baseline: ${round(report.officialBillableQuotaRemaining)} min`,
 		);
@@ -416,6 +417,9 @@ function main() {
 			: null,
 		officialBillableQuotaBurn: officialAccount.available
 			? officialAccountBillable / options.quota
+			: null,
+		officialBillableStatus: officialAccount.available
+			? repoStatus(officialAccountBillable / options.quota)
 			: null,
 		runnerTotalMinutes,
 		runnerQuotaBurn: runnerTotalMinutes / options.quota,
