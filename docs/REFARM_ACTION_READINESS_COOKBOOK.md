@@ -88,18 +88,22 @@ can keep non-destructive discovery/dry-runs distinct from explicit execution.
 
 ## Canonical fixture
 
-Use the local fixture when you need deterministic examples:
+Use the local fixtures when you need deterministic examples:
 
 ```bash
 STATUS_FIXTURE=apps/refarm/test/fixtures/status-with-actions.json
+NO_ACTIONS_FIXTURE=apps/refarm/test/fixtures/status-no-actions.json
 ```
 
-It contains two fixture actions:
+`status-with-actions.json` contains two fixture actions:
 
 | Row | ID              | Label         | Intent          |
 | --- | --------------- | ------------- | --------------- |
 | 1   | `open-node`     | Open node     | `node:open`     |
 | 2   | `inspect-trust` | Inspect trust | `trust:inspect` |
+
+`status-no-actions.json` has no `plugins.availableActions`; use it to verify
+blocked readiness envelopes such as `Blocked: no host actions available`.
 
 ## Discovery paths
 
@@ -109,6 +113,7 @@ It contains two fixture actions:
 refarm actions --input "$STATUS_FIXTURE"
 refarm actions --input "$STATUS_FIXTURE" --select 2
 refarm actions --input "$STATUS_FIXTURE" --select inspect-trust --json
+refarm actions --input "$NO_ACTIONS_FIXTURE" --json
 ```
 
 Use this command when an operator or agent wants the canonical host action

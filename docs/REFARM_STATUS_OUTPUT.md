@@ -253,12 +253,14 @@ It builds the CLI, runs `dist/index.js`, verifies Web action readiness, verifies
 renderer-neutral `refarm actions` dry-run output, and verifies live status action
 invocation through the emitted package graph.
 
-A reusable local fixture is also available at
-`apps/refarm/test/fixtures/status-with-actions.json` for deterministic fixture-backed examples:
+Reusable local fixtures are available at
+`apps/refarm/test/fixtures/status-with-actions.json` and
+`apps/refarm/test/fixtures/status-no-actions.json` for deterministic fixture-backed examples:
 
 ```bash
 refarm actions --input apps/refarm/test/fixtures/status-with-actions.json
 refarm actions --input apps/refarm/test/fixtures/status-with-actions.json --select 2 --json
+refarm actions --input apps/refarm/test/fixtures/status-no-actions.json --json
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request open-node
 refarm headless --input apps/refarm/test/fixtures/status-with-actions.json --action-request 1
 refarm web --input apps/refarm/test/fixtures/status-with-actions.json --actions

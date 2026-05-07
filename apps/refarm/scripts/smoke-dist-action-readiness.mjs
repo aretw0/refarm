@@ -6,6 +6,8 @@ const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
 const statusWithActionsFixture =
 	"apps/refarm/test/fixtures/status-with-actions.json";
+const statusNoActionsFixture =
+	"apps/refarm/test/fixtures/status-no-actions.json";
 
 function runRefarm(args) {
 	return execFileSync(process.execPath, [cliPath, ...args], {
@@ -68,6 +70,9 @@ const artifactHostActionReadiness = JSON.parse(
 		"--json",
 	]),
 );
+const artifactNoActionsReadiness = JSON.parse(
+	runRefarm(["actions", "--input", statusNoActionsFixture, "--json"]),
+);
 
 if (hostActionReadiness.schemaVersion !== 1) {
 	throw new Error(
@@ -107,6 +112,16 @@ if (artifactHostActionReadiness.readiness?.status !== "ready") {
 if (artifactHostActionReadiness.selection?.resolvedId !== "inspect-trust") {
 	throw new Error(
 		`Expected artifact actions selection.resolvedId=inspect-trust, received ${artifactHostActionReadiness.selection?.resolvedId}`,
+	);
+}
+if (artifactNoActionsReadiness.readiness?.status !== "blocked") {
+	throw new Error(
+		`Expected no-actions readiness.status=blocked, received ${artifactNoActionsReadiness.readiness?.status}`,
+	);
+}
+if (artifactNoActionsReadiness.actionRows?.length !== 0) {
+	throw new Error(
+		`Expected no-actions actionRows=[], received ${JSON.stringify(artifactNoActionsReadiness.actionRows)}`,
 	);
 }
 
