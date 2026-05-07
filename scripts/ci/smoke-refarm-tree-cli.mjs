@@ -241,6 +241,8 @@ async function main() {
 				sessionPreviewJson?.plan?.action !== "switch" ||
 				sessionPreviewJson?.plan?.readyToExecute !== true ||
 				sessionPreviewJson?.plan?.substrate?.kind !== "session-switch" ||
+				sessionPreviewJson?.plan?.recommendedCommand !==
+					"refarm tree switch 000treecli01" ||
 				sessionPreviewJson?.plan?.substrate?.targetSessionIdAfter !==
 					TREE_STUB_SESSION_ID
 			) {
@@ -262,6 +264,8 @@ async function main() {
 				sessionSwitchJson?.reason !== "executed" ||
 				sessionSwitchJson?.scope !== "session" ||
 				sessionSwitchJson?.result?.kind !== "session-switch" ||
+				sessionSwitchJson?.result?.command !==
+					"refarm tree switch 000treecli01" ||
 				sessionSwitchJson?.result?.currentSessionIdAfter !==
 					TREE_STUB_SESSION_ID
 			) {
