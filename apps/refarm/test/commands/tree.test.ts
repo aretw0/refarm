@@ -103,13 +103,28 @@ describe("refarm tree", () => {
 
 	it("describes non-list scopes without advertising all-scope mutation", () => {
 		const command = createTreeCommand();
-		for (const commandName of ["show", "preview", "fork", "switch"]) {
+		for (const commandName of ["show", "preview", "switch"]) {
 			const help = command.commands
 				.find((c) => c.name() === commandName)!
 				.helpInformation();
 			expect(help).toContain("Timeline scope: session or git");
 			expect(help).not.toContain("session, git, or all");
 		}
+	});
+
+	it("describes tree fork as git-only execution", () => {
+		const command = createTreeCommand();
+		const forkHelp = command.commands
+			.find((c) => c.name() === "fork")!
+			.helpInformation();
+
+		expect(forkHelp).toContain("Create an explicit non-switching git fork");
+		expect(forkHelp).toContain("<commit>");
+		expect(forkHelp).toContain("Git commit-ish to fork from");
+		expect(forkHelp).toContain("Timeline scope: git for tree fork");
+		expect(forkHelp).toContain("use refarm sessions");
+		expect(forkHelp).toContain("fork for sessions");
+		expect(forkHelp).not.toContain("session, git, or all");
 	});
 
 	it("lists session timeline nodes as renderer-independent JSON", async () => {

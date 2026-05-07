@@ -396,12 +396,12 @@ export function createTreeCommand(): Command {
 		.addCommand(
 			new Command("fork")
 				.description(
-					"Create an explicit non-switching fork from a timeline node",
+					"Create an explicit non-switching git fork from a timeline node",
 				)
-				.argument("<id>", "Timeline node ID or unique prefix")
+				.argument("<commit>", "Git commit-ish to fork from")
 				.option(
 					"--scope <scope>",
-					"Timeline scope: session or git",
+					"Timeline scope: git for tree fork; use refarm sessions fork for sessions",
 					REFARM_TREE_SESSION_SCOPE,
 				)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
