@@ -10,6 +10,34 @@ import { createTreeCommand } from "../../src/commands/tree.js";
 
 const spawnSyncMock = vi.mocked(spawnSync);
 
+function expectPreviewPlanSubstrateFactsNested(
+	plan: Record<string, unknown>,
+): void {
+	expect(plan).toHaveProperty("action");
+	expect(plan).toHaveProperty("destructive");
+	expect(plan).toHaveProperty("readyToExecute");
+	expect(plan).toHaveProperty("recommendedCommand");
+	expect(plan).toHaveProperty("effects");
+	expect(plan).toHaveProperty("substrate");
+
+	for (const substrateOnlyKey of [
+		"kind",
+		"branchName",
+		"branchPointEntryId",
+		"activeSessionIdBefore",
+		"targetSessionIdAfter",
+		"activeSessionWillSwitch",
+		"baseCommit",
+		"currentRefBefore",
+		"targetRefAfter",
+		"targetCommit",
+		"worktreeClean",
+		"worktreeSwitched",
+	]) {
+		expect(plan).not.toHaveProperty(substrateOnlyKey);
+	}
+}
+
 const SESSION = {
 	"@id": "urn:refarm:session:v1:abc123def456",
 	"@type": "Session",
@@ -552,6 +580,7 @@ describe("refarm tree", () => {
 			});
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expectPreviewPlanSubstrateFactsNested(payload.plan);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -797,6 +826,7 @@ describe("refarm tree", () => {
 			.parseAsync(["abcdef", "--scope", "git", "--json"], { from: "user" });
 
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expectPreviewPlanSubstrateFactsNested(payload.plan);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
