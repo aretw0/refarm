@@ -330,7 +330,11 @@ export function createTreeCommand(): Command {
 		.addCommand(
 			new Command("list")
 				.description("List timeline nodes")
-				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option(
+					"--scope <scope>",
+					"Timeline scope: session, git, or all",
+					REFARM_TREE_SESSION_SCOPE,
+				)
 				.option("--limit <count>", "Maximum timeline nodes to list", "20")
 				.option("--json", "Print machine-readable JSON")
 				.action(
@@ -343,7 +347,11 @@ export function createTreeCommand(): Command {
 			new Command("show")
 				.description("Show a timeline node by ID prefix")
 				.argument("<id>", "Timeline node ID or unique prefix")
-				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option(
+					"--scope <scope>",
+					"Timeline scope: session or git",
+					REFARM_TREE_SESSION_SCOPE,
+				)
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (prefix: string, opts: { scope?: string; json?: boolean }) => {
@@ -355,7 +363,11 @@ export function createTreeCommand(): Command {
 			new Command("preview")
 				.description("Preview a safe fork or switch plan for a timeline node")
 				.argument("<id>", "Timeline node ID or unique prefix")
-				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option(
+					"--scope <scope>",
+					"Timeline scope: session or git",
+					REFARM_TREE_SESSION_SCOPE,
+				)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
 				.option(
 					"--name <branch-name>",
@@ -387,7 +399,11 @@ export function createTreeCommand(): Command {
 					"Create an explicit non-switching fork from a timeline node",
 				)
 				.argument("<id>", "Timeline node ID or unique prefix")
-				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option(
+					"--scope <scope>",
+					"Timeline scope: session or git",
+					REFARM_TREE_SESSION_SCOPE,
+				)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
 				.requiredOption("--name <branch-name>", "Branch/fork name to create")
 				.option("--json", "Print machine-readable JSON")
@@ -409,7 +425,11 @@ export function createTreeCommand(): Command {
 			new Command("switch")
 				.description("Switch the active timeline pointer")
 				.argument("<target>", "Session ID/prefix or existing git branch")
-				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
+				.option(
+					"--scope <scope>",
+					"Timeline scope: session or git",
+					REFARM_TREE_SESSION_SCOPE,
+				)
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (target: string, opts: { scope?: string; json?: boolean }) => {

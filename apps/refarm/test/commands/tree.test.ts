@@ -85,15 +85,27 @@ describe("refarm tree", () => {
 		);
 	});
 
-	it("describes list limits without assuming git-only nodes", () => {
+	it("describes list scope and limits without assuming git-only nodes", () => {
 		const command = createTreeCommand();
 		const listHelp = command.commands
 			.find((c) => c.name() === "list")!
 			.helpInformation();
 
+		expect(listHelp).toContain("Timeline scope: session, git, or all");
 		expect(listHelp).toContain("--limit <count>");
 		expect(listHelp).toContain("Maximum timeline nodes to list");
 		expect(listHelp).not.toContain("Maximum git commits");
+	});
+
+	it("describes non-list scopes without advertising all-scope mutation", () => {
+		const command = createTreeCommand();
+		for (const commandName of ["show", "preview", "fork", "switch"]) {
+			const help = command.commands
+				.find((c) => c.name() === commandName)!
+				.helpInformation();
+			expect(help).toContain("Timeline scope: session or git");
+			expect(help).not.toContain("session, git, or all");
+		}
 	});
 
 	it("lists session timeline nodes as renderer-independent JSON", async () => {
