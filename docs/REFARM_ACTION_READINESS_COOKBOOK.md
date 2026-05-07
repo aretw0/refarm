@@ -289,7 +289,8 @@ npm run refarm:actions:type-check
 # Built CLI loop: run only when emitted dist/package behavior matters.
 npm run refarm:actions:smoke-dist
 
-# Discover built CLI smoke-only profiles.
+# Discover built CLI smoke-only profiles and options.
+node scripts/ci/smoke-refarm-host-cli-flows.mjs --help
 npm run refarm:host:smoke:cli:profiles
 npm run refarm:host:smoke:cli:profiles:json
 

@@ -64,6 +64,10 @@ function hasJsonArg(argv) {
 	return argv.includes("--json");
 }
 
+function hasHelpArg(argv) {
+	return argv.includes("--help") || argv.includes("-h");
+}
+
 function formatOnlyProfileList() {
 	return Array.from(ONLY_PROFILES).join(", ");
 }
@@ -73,6 +77,17 @@ function createOnlyProfileListEnvelope() {
 		schemaVersion: 1,
 		profiles: Array.from(ONLY_PROFILES).map((profile) => ({ profile })),
 	};
+}
+
+function formatHelp() {
+	return [
+		`${LOGGER_PREFIX} usage:`,
+		"  node scripts/ci/smoke-refarm-host-cli-flows.mjs [--only <profile>] [--skip-build] [--list-only-profiles] [--json]",
+		`  focused profiles: ${formatOnlyProfileList()}`,
+		"  --only <profile> runs a focused built-CLI smoke profile instead of the full flow.",
+		"  --skip-build reuses an existing apps/refarm/dist build; default behavior builds before smoking.",
+		"  --list-only-profiles prints focused profile names; add --json for a machine-readable envelope.",
+	].join("\n");
 }
 
 function makeStatusPayload(mode, options = {}) {
@@ -284,6 +299,11 @@ async function createIsolatedGitRepo(tempDir) {
 
 async function main() {
 	const argv = process.argv.slice(2);
+	if (hasHelpArg(argv)) {
+		console.log(formatHelp());
+		return;
+	}
+
 	if (hasListOnlyProfilesArg(argv)) {
 		if (hasJsonArg(argv)) {
 			console.log(JSON.stringify(createOnlyProfileListEnvelope(), null, 2));
