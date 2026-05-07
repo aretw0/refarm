@@ -68,7 +68,10 @@ function assertBlockedMissingSelectionReadiness(envelope, label) {
 			`Expected ${label} readiness.status=blocked, received ${envelope.readiness?.status}`,
 		);
 	}
-	if (envelope.readiness?.label !== 'Blocked: host action "missing" is not available') {
+	if (
+		envelope.readiness?.label !==
+		'Blocked: host action "missing" is not available'
+	) {
 		throw new Error(
 			`Expected ${label} missing-selection readiness label, received ${envelope.readiness?.label}`,
 		);
