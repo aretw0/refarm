@@ -157,6 +157,8 @@ npm run refarm:tree:verify
 - **Preview decision only:** `npm run refarm:host:smoke:auto:plan`
 - **Explicit pre-push range preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --from origin/develop --to HEAD`
+- **Explicit profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile tree`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
 - **Manual override pre-push:** `npm run refarm:host:smoke:dev`
 - **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`

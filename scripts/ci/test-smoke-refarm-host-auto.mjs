@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import {
 	decideProfile,
 	isRefarmActionReadinessFile,
@@ -134,4 +135,15 @@ test("routes generic host tests to quick lane", () => {
 		decideProfile(["apps/refarm/test/commands/program.test.ts"]).profile,
 		"quick",
 	);
+});
+
+test("explicit CLI profile bypasses diff detection", () => {
+	const output = execFileSync(
+		process.execPath,
+		["scripts/ci/smoke-refarm-host-auto.mjs", "--profile", "tree"],
+		{ encoding: "utf8" },
+	);
+	assert.match(output, /profile=tree files=0/);
+	assert.match(output, /source=explicit-profile/);
+	assert.match(output, /action=npm run refarm:tree:verify/);
 });

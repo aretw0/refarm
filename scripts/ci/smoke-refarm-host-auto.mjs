@@ -286,20 +286,34 @@ async function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log(`${LOGGER_PREFIX} usage:`);
 		console.log(
-			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>]",
+			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <skip|actions|tree|quick|dev|ci>]",
 		);
 		console.log(
 			"  default mode inspects upstream..HEAD when the branch is ahead, plus local working tree/staged/untracked files, and prints a recommendation.",
+		);
+		console.log(
+			"  --profile bypasses diff detection and previews or executes the requested lane explicitly.",
 		);
 		return;
 	}
 
 	const fromRef = readArgValue("--from");
 	const toRef = readArgValue("--to") ?? "HEAD";
+	const explicitProfile = readArgValue("--profile");
 	const execute = hasArg("--execute");
 
+	if (explicitProfile && !isSmokeProfile(explicitProfile)) {
+		throw new Error(`Unknown smoke profile: ${explicitProfile}`);
+	}
+
 	let changeSet;
-	if (fromRef) {
+	if (explicitProfile) {
+		changeSet = {
+			ahead: undefined,
+			files: [],
+			source: "explicit-profile",
+		};
+	} else if (fromRef) {
 		changeSet = {
 			ahead: undefined,
 			files: await gitChangedFilesForRange(fromRef, toRef),
@@ -311,7 +325,12 @@ async function main() {
 	}
 	const changedFiles = changeSet.files;
 
-	const decision = decideProfile(changedFiles);
+	const decision = explicitProfile
+		? {
+				profile: explicitProfile,
+				reason: `Explicit smoke profile requested: ${explicitProfile}.`,
+			}
+		: decideProfile(changedFiles);
 	if (!isSmokeProfile(decision.profile)) {
 		throw new Error(`Unknown smoke profile: ${decision.profile}`);
 	}
