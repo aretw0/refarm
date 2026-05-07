@@ -154,9 +154,12 @@ npm run refarm:tree:verify
   operational notes. Non-doc action-readiness deltas route to
   `npm run refarm:actions:verify` and non-doc tree deltas route to
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
-  docs-only deltas still skip smoke. Shared local helpers such as
-  `execution-plan.ts` stay on the `dev` lane because they feed more than one
-  host contract.
+  docs-only deltas still skip smoke. Manual `--profile` overrides also accept
+  granular lane names such as `actions-headless`, `actions-renderers`,
+  `actions-test`, `actions-type`, `actions-dist`, `tree-test`, `tree-smoke`,
+  `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
+  previews/execution. Shared local helpers such as `execution-plan.ts` stay on
+  the `dev` lane because they feed more than one host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 
@@ -168,6 +171,8 @@ npm run refarm:tree:verify
   `node scripts/ci/smoke-refarm-host-auto.mjs --from origin/develop --to HEAD`
 - **Explicit profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile tree`
+- **Explicit granular profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
 - **Manual override pre-push:** `npm run refarm:host:smoke:dev`
 - **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`

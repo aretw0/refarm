@@ -6,7 +6,17 @@ const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
 
 const PROFILE_SCRIPT = {
 	skip: null,
+	"actions-headless": "refarm:actions:headless:test",
+	"actions-renderers": "refarm:actions:renderers:test",
+	"actions-test": "refarm:actions:test",
+	"actions-type": "refarm:actions:type-check",
+	"actions-dist": "refarm:actions:smoke-dist",
 	actions: "refarm:actions:verify",
+	"tree-test": "refarm:tree:test",
+	"tree-smoke": "refarm:tree:smoke",
+	"tree-type": "refarm:tree:type-check",
+	"tree-farmhand": "refarm:tree:farmhand:test",
+	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
@@ -287,7 +297,10 @@ async function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log(`${LOGGER_PREFIX} usage:`);
 		console.log(
-			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <skip|actions|tree|quick|dev|ci>]",
+			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>]",
+		);
+		console.log(
+			"  profiles: skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
 		);
 		console.log(
 			"  default mode inspects upstream..HEAD when the branch is ahead, plus local working tree/staged/untracked files, and prints a recommendation.",

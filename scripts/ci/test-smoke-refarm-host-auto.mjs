@@ -57,9 +57,36 @@ test("maps profiles to npm scripts", () => {
 	assert.equal(isSmokeProfile("skip"), true);
 	assert.equal(isSmokeProfile("actions"), true);
 	assert.equal(isSmokeProfile("tree"), true);
+	assert.equal(isSmokeProfile("actions-headless"), true);
+	assert.equal(isSmokeProfile("tree-farmhand"), true);
 	assert.equal(isSmokeProfile("unknown"), false);
 	assert.equal(resolveProfileScript("skip"), null);
+	assert.equal(
+		resolveProfileScript("actions-headless"),
+		"refarm:actions:headless:test",
+	);
+	assert.equal(
+		resolveProfileScript("actions-renderers"),
+		"refarm:actions:renderers:test",
+	);
+	assert.equal(resolveProfileScript("actions-test"), "refarm:actions:test");
+	assert.equal(
+		resolveProfileScript("actions-type"),
+		"refarm:actions:type-check",
+	);
+	assert.equal(
+		resolveProfileScript("actions-dist"),
+		"refarm:actions:smoke-dist",
+	);
 	assert.equal(resolveProfileScript("actions"), "refarm:actions:verify");
+	assert.equal(resolveProfileScript("tree-test"), "refarm:tree:test");
+	assert.equal(resolveProfileScript("tree-smoke"), "refarm:tree:smoke");
+	assert.equal(resolveProfileScript("tree-type"), "refarm:tree:type-check");
+	assert.equal(
+		resolveProfileScript("tree-farmhand"),
+		"refarm:tree:farmhand:test",
+	);
+	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
@@ -147,6 +174,21 @@ test("explicit CLI profile bypasses diff detection", () => {
 	assert.match(output, /profile=tree files=0/);
 	assert.match(output, /source=explicit-profile/);
 	assert.match(output, /action=npm run refarm:tree:verify/);
+});
+
+test("explicit granular CLI profile maps to a narrow lane", () => {
+	const output = execFileSync(
+		process.execPath,
+		[
+			"scripts/ci/smoke-refarm-host-auto.mjs",
+			"--profile",
+			"actions-headless",
+		],
+		{ encoding: "utf8" },
+	);
+	assert.match(output, /profile=actions-headless files=0/);
+	assert.match(output, /source=explicit-profile/);
+	assert.match(output, /action=npm run refarm:actions:headless:test/);
 });
 
 test("explicit CLI profile fails closed when unknown", () => {
