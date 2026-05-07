@@ -56,6 +56,14 @@ function parseSkipBuild(argv) {
 	return argv.includes("--skip-build");
 }
 
+function hasListOnlyProfilesArg(argv) {
+	return argv.includes("--list-only-profiles");
+}
+
+function formatOnlyProfileList() {
+	return Array.from(ONLY_PROFILES).join(", ");
+}
+
 function makeStatusPayload(mode, options = {}) {
 	const diagnostics = options.diagnostics ?? [];
 	const kind = mode;
@@ -265,6 +273,11 @@ async function createIsolatedGitRepo(tempDir) {
 
 async function main() {
 	const argv = process.argv.slice(2);
+	if (hasListOnlyProfilesArg(argv)) {
+		console.log(formatOnlyProfileList());
+		return;
+	}
+
 	const onlyProfile = parseOnlyProfile(argv);
 	const skipBuild = parseSkipBuild(argv);
 	const keepArtifacts =

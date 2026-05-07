@@ -289,6 +289,9 @@ npm run refarm:actions:type-check
 # Built CLI loop: run only when emitted dist/package behavior matters.
 npm run refarm:actions:smoke-dist
 
+# Discover built CLI smoke-only profiles.
+npm run refarm:host:smoke:cli:profiles
+
 # Narrow built CLI proof for both action seams after one build.
 npm run refarm:host:smoke:cli:action-seams
 npm run refarm:host:smoke:auto -- --profile action-seams
