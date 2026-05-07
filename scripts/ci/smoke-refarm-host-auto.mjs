@@ -306,10 +306,15 @@ export function decideProfile(inputFiles) {
 }
 
 async function main() {
+	if (hasArg("--list-profiles")) {
+		console.log(formatSmokeProfileList());
+		return;
+	}
+
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log(`${LOGGER_PREFIX} usage:`);
 		console.log(
-			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>]",
+			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>] [--list-profiles]",
 		);
 		console.log(`  profiles: ${formatSmokeProfileList()}`);
 		console.log(
@@ -318,6 +323,7 @@ async function main() {
 		console.log(
 			"  --profile bypasses diff detection and previews or executes the requested lane explicitly.",
 		);
+		console.log("  --list-profiles prints only the comma-separated profile list.");
 		return;
 	}
 

@@ -235,6 +235,16 @@ test("help output lists profiles from the canonical profile map", () => {
 	assert.match(output, /profiles: skip, actions-headless/);
 	assert.match(output, /tree-farmhand/);
 	assert.match(output, /quick, dev, ci/);
+	assert.match(output, /--list-profiles prints only/);
+});
+
+test("list-profiles prints only the canonical profile list", () => {
+	const output = execFileSync(
+		process.execPath,
+		["scripts/ci/smoke-refarm-host-auto.mjs", "--list-profiles"],
+		{ encoding: "utf8" },
+	);
+	assert.equal(output.trim(), formatSmokeProfileList());
 });
 
 test("explicit CLI profile fails closed when unknown", () => {
