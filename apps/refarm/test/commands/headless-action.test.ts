@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import {
+	createHeadlessStatusSurfaceActionBlockedDryRunEnvelope,
 	createHeadlessStatusSurfaceActionDryRunEnvelope,
 	createHeadlessStatusSurfaceHostContext,
 	createHeadlessStatusSurfaceRenderRequest,
@@ -143,6 +144,25 @@ describe("headless surface action invocation", () => {
 				action: { id: "open-node" },
 			},
 			availableActions: [expect.objectContaining({ id: "open-node" })],
+		});
+	});
+
+	it("creates blocked dry-run envelopes for unavailable action requests", () => {
+		const envelope = createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
+			makeStatus(),
+			'host action "missing" is not available',
+			[{ id: "open-node", label: "Open node" }],
+		);
+
+		expect(envelope).toEqual({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+			availableActions: [{ id: "open-node", label: "Open node" }],
 		});
 	});
 

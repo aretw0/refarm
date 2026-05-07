@@ -64,8 +64,8 @@ export interface HeadlessSurfaceActionDryRunEnvelope {
 	statusSchemaVersion: RefarmStatusJson["schemaVersion"];
 	reason: "dry-run";
 	readiness: RefarmExecutionPlanReadinessLine;
-	selection: RefarmActionAffordanceSelectionMetadata;
-	actionRequest: HomesteadSurfaceRenderActionRequest;
+	selection?: RefarmActionAffordanceSelectionMetadata;
+	actionRequest?: HomesteadSurfaceRenderActionRequest;
 	availableActions: readonly HomesteadSurfaceRenderAction[];
 }
 
@@ -116,6 +116,23 @@ export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 		readiness: formatExecutionPlanReadinessLine({ readyToExecute: true }),
 		selection,
 		actionRequest: request,
+		availableActions,
+	};
+}
+
+export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
+	status: RefarmStatusJson,
+	blockedReason: string,
+	availableActions: readonly HomesteadSurfaceRenderAction[],
+): HeadlessSurfaceActionDryRunEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "dry-run",
+		readiness: formatExecutionPlanReadinessLine({
+			readyToExecute: false,
+			blockedReason,
+		}),
 		availableActions,
 	};
 }

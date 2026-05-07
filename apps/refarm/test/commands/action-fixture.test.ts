@@ -119,6 +119,31 @@ describe("status-with-actions fixture", () => {
 		logSpy.mockRestore();
 	});
 
+	it("drives headless blocked action request readiness from --input", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await headlessCommand.parseAsync(
+			["--input", STATUS_WITH_ACTIONS_FIXTURE, "--action-request", "missing"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+			availableActions: [
+				{ id: "open-node", label: "Open node" },
+				{ id: "inspect-trust", label: "Inspect trust" },
+			],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("actionRequest");
+		logSpy.mockRestore();
+	});
+
 	it("drives Web selected action JSON output from --input", async () => {
 		const command = createWebCommand();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});

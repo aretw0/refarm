@@ -252,9 +252,10 @@ Selection is shared by `refarm actions`, Web, headless, and TUI readiness paths:
 2. A decimal integer resolves as a one-based row index.
 3. Invalid selections fail closed:
    - human output rejects with deterministic `[row] id` choices;
-   - JSON readiness output for `refarm actions`, `refarm web --actions`, and
-     `refarm tui --actions` emits a blocked dry-run envelope instead of
-     executing or inventing fallback behavior.
+   - JSON readiness output for `refarm actions`, `refarm web --actions`,
+     `refarm tui --actions`, and `refarm headless --action-request` emits a
+     blocked dry-run envelope instead of executing or inventing fallback
+     behavior.
 4. `selection.source` records whether the request came from `id` or `index`.
 
 This lets a human choose `[2]` while an agent can preserve the resolved stable
@@ -318,8 +319,10 @@ npm run refarm:host:smoke:dist-actions
 Both wrappers build `apps/refarm`, run the emitted CLI, verify `refarm web --actions`,
 verify `refarm actions --select 2 --json` returns a non-executing host dry-run
 envelope, verify fixture-backed `refarm actions --input ... --select 2 --json`
-stays dry-run, verify no-actions and missing-selection JSON readiness block
-consistently for `refarm actions`, `refarm web --actions`, and
+stays dry-run, verify no-actions JSON readiness blocks consistently for
+`refarm actions`, `refarm web --actions`, and `refarm tui --actions`, verify
+missing-selection JSON readiness blocks consistently for `refarm actions`,
+`refarm web --actions`, `refarm headless --action-request`, and
 `refarm tui --actions`, verify `refarm status --action --input` is rejected, and
 verify `refarm status --action 2` returns a handled Homestead action invocation
 envelope. Keep this as local validation; CI wiring remains deferred while GitHub

@@ -4,6 +4,7 @@ import {
 	resolveRefarmActionAffordanceSelection,
 } from "./action-affordances.js";
 import {
+	createHeadlessStatusSurfaceActionBlockedDryRunEnvelope,
 	createHeadlessStatusSurfaceActionDryRunEnvelope,
 	resolveHeadlessStatusSurfaceActionRequest,
 } from "./headless-action.js";
@@ -85,9 +86,20 @@ async function emitHeadlessActionRequest(
 			);
 
 			if (!selectedAction.selected) {
-				throw new Error(
-					`Action "${actionSelection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+				console.log(
+					JSON.stringify(
+						createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
+							json,
+							selectedAction.reason === "no-actions"
+								? "no host actions available"
+								: `host action "${selectedAction.selection.requested}" is not available`,
+							selectedAction.rows,
+						),
+						null,
+						2,
+					),
 				);
+				return;
 			}
 
 			const resolution = resolveHeadlessStatusSurfaceActionRequest({

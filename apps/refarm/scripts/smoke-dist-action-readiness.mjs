@@ -82,6 +82,9 @@ function assertBlockedMissingSelectionReadiness(envelope, label) {
 	if ("selection" in envelope) {
 		throw new Error(`${label} should not include selection metadata.`);
 	}
+	if ("actionRequest" in envelope) {
+		throw new Error(`${label} should not include actionRequest.`);
+	}
 }
 
 const webActions = runRefarm(["web", "--actions"]);
@@ -138,6 +141,15 @@ const artifactMissingWebActionReadiness = JSON.parse(
 		"--select",
 		"missing",
 		"--json",
+	]),
+);
+const artifactMissingHeadlessActionReadiness = JSON.parse(
+	runRefarm([
+		"headless",
+		"--input",
+		statusWithActionsFixture,
+		"--action-request",
+		"missing",
 	]),
 );
 const artifactMissingTuiActionReadiness = JSON.parse(
@@ -202,6 +214,10 @@ assertBlockedMissingSelectionReadiness(
 assertBlockedMissingSelectionReadiness(
 	artifactMissingWebActionReadiness,
 	"web actions missing selection",
+);
+assertBlockedMissingSelectionReadiness(
+	artifactMissingHeadlessActionReadiness,
+	"headless action request missing selection",
 );
 assertBlockedMissingSelectionReadiness(
 	artifactMissingTuiActionReadiness,

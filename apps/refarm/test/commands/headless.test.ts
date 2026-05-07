@@ -166,7 +166,7 @@ describe("headlessCommand", () => {
 		logSpy.mockRestore();
 	});
 
-	it("rejects --action-request when the action is unavailable", async () => {
+	it("emits blocked dry-run readiness when the action is unavailable", async () => {
 		mockResolveStatusPayload.mockResolvedValueOnce({
 			json: {
 				...makeStatus(),
@@ -180,13 +180,27 @@ describe("headlessCommand", () => {
 			},
 			shutdown: mockShutdown,
 		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-		await expect(
-			headlessCommand.parseAsync(["--action-request", "missing-action"], {
-				from: "user",
-			}),
-		).rejects.toThrow(/Available selections: \[1\] open-node/);
+		await headlessCommand.parseAsync(["--action-request", "missing-action"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing-action" is not available',
+			},
+			availableActions: [{ id: "open-node" }],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("actionRequest");
 		expect(mockShutdown).toHaveBeenCalled();
+		logSpy.mockRestore();
 	});
 
 	it("rejects --action-request with human output flags", async () => {
