@@ -125,6 +125,7 @@ describe("refarm tree", () => {
 		expect(forkHelp).toContain("use refarm sessions");
 		expect(forkHelp).toContain("fork for sessions");
 		expect(forkHelp).not.toContain("session, git, or all");
+		expect(forkHelp).not.toContain('(default: "session")');
 	});
 
 	it("lists session timeline nodes as renderer-independent JSON", async () => {

@@ -402,7 +402,6 @@ export function createTreeCommand(): Command {
 				.option(
 					"--scope <scope>",
 					"Timeline scope: git for tree fork; use refarm sessions fork for sessions",
-					REFARM_TREE_SESSION_SCOPE,
 				)
 				.option("--at <entry-id>", "Session entry to use as the branch point")
 				.requiredOption("--name <branch-name>", "Branch/fork name to create")
