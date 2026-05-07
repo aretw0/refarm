@@ -208,10 +208,29 @@ async function main() {
 			allListJson?.operation !== "list" ||
 			allListJson?.scope !== "all" ||
 			!Array.isArray(allListJson?.nodes) ||
-			!allListJson.nodes.some((node) => node?.kind === "git")
+			allListJson.nodes.length !== 1 ||
+			allListJson.nodes[0]?.kind !== "git"
 		) {
 			throw new Error(
-				`Expected all-scope list envelope with git node, got: ${JSON.stringify(allListJson)}`,
+				`Expected all-scope list envelope capped to one git node, got: ${JSON.stringify(allListJson)}`,
+			);
+		}
+		const allListTwoRun = await runRefarmCommand(
+			["tree", "list", "--scope", "all", "--limit", "2", "--json"],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const allListTwoJson = parseCommandJsonOutput(
+			"tree list --scope all limit 2",
+			allListTwoRun,
+		);
+		if (
+			!Array.isArray(allListTwoJson?.nodes) ||
+			allListTwoJson.nodes.length !== 2 ||
+			!allListTwoJson.nodes.some((node) => node?.kind === "git") ||
+			!allListTwoJson.nodes.some((node) => node?.kind === "session")
+		) {
+			throw new Error(
+				`Expected all-scope list envelope with git and session nodes, got: ${JSON.stringify(allListTwoJson)}`,
 			);
 		}
 
