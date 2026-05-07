@@ -15,6 +15,19 @@
 ![Full CI Pipeline](./ci-pipeline.svg)
 <!-- {/ci-full} -->
 
+The full view includes the preferred **local/operator preflight** before a push:
+
+```bash
+npm run actions:budget:guard:account
+npm run refarm:host:smoke:auto:plan
+```
+
+`actions:budget:guard:account` is the hard monthly billable quota signal. The
+old repo-allocation guard remains useful as an advisory fairness check, but it
+should not block a push when the account billable posture is healthy. The smoke
+auto plan keeps local validation proportional to the diff and routes Refarm host
+changes to narrow action/tree lanes when possible.
+
 ---
 
 ## Stage 1 — Change Detection
