@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
 	decideProfile,
 	isRefarmActionReadinessFile,
+	isRefarmTreeFile,
 } from "./smoke-refarm-host-auto.mjs";
 
 test("detects action-readiness files", () => {
@@ -24,6 +25,18 @@ test("detects action-readiness files", () => {
 	);
 });
 
+test("detects tree timeline files", () => {
+	assert.equal(isRefarmTreeFile("apps/refarm/src/commands/tree.ts"), true);
+	assert.equal(
+		isRefarmTreeFile("apps/farmhand/src/transports/sessions.test.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmTreeFile("apps/refarm/src/commands/action-affordances.ts"),
+		false,
+	);
+});
+
 test("routes action-readiness-only deltas to focused actions lane", () => {
 	assert.equal(
 		decideProfile([
@@ -32,6 +45,18 @@ test("routes action-readiness-only deltas to focused actions lane", () => {
 			"docs/REFARM_ACTION_READINESS_COOKBOOK.md",
 		]).profile,
 		"actions",
+	);
+});
+
+test("routes tree-only deltas to focused tree lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/tree.ts",
+			"apps/refarm/test/commands/tree.test.ts",
+			"apps/farmhand/src/transports/sessions.test.ts",
+			"docs/REFARM_TREE_PRIMITIVE.md",
+		]).profile,
+		"tree",
 	);
 });
 

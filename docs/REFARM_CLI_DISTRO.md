@@ -139,11 +139,13 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:test` runs the pure routing regression tests for the
   diff-based auto lane.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
-  operational notes. Action-readiness-only deltas route to
-  `npm run refarm:actions:verify` instead of the broader host smoke lanes.
+  operational notes. Non-doc action-readiness deltas route to
+  `npm run refarm:actions:verify` and non-doc tree deltas route to
+  `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
+  docs-only deltas still skip smoke.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 

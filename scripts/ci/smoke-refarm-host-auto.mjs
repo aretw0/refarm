@@ -7,6 +7,7 @@ const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
 const PROFILE_SCRIPT = {
 	skip: null,
 	actions: "refarm:actions:verify",
+	tree: "refarm:tree:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -165,6 +166,19 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+export function isRefarmTreeFile(file) {
+	return (
+		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
+		file === "apps/refarm/src/commands/execution-plan.ts" ||
+		file.startsWith("apps/refarm/src/commands/tree") ||
+		file === "apps/refarm/test/commands/execution-plan.test.ts" ||
+		file.startsWith("apps/refarm/test/commands/tree") ||
+		file === "apps/farmhand/src/transports/sessions.ts" ||
+		file === "apps/farmhand/src/transports/sessions.test.ts" ||
+		file === "docs/REFARM_TREE_PRIMITIVE.md"
+	);
+}
+
 export function isRefarmActionReadinessFile(file) {
 	return (
 		file === "apps/refarm/scripts/smoke-dist-action-readiness.mjs" ||
@@ -215,6 +229,14 @@ export function decideProfile(files) {
 			profile: "actions",
 			reason:
 				"Action-readiness delta; run focused action envelope tests, type-check, and dist smoke.",
+		};
+	}
+
+	if (files.every((file) => isRefarmTreeFile(file) || isDocsOnlyFile(file))) {
+		return {
+			profile: "tree",
+			reason:
+				"Tree timeline delta; run focused tree contract, type-check, farmhand, and CLI smoke lane.",
 		};
 	}
 
