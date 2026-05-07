@@ -17,6 +17,10 @@ composition model: apps make product choices; packages provide primitives.
 ## Short-term focus
 
 Make the host boundary concrete without prematurely building a full CLI or TUI.
+The current `refarm tree` session/git/all slice should be treated as stable only
+after `npm run refarm:tree:verify`; CRDT mutation, composite mutation, rewind,
+and execution-plan extraction stay deferred behind the proof gates in
+[Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
 
 1. Keep the shared renderer vocabulary healthy:
    - `@refarm.dev/homestead/sdk/host-renderer` owns renderer kinds,
