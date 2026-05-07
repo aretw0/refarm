@@ -266,7 +266,7 @@ describe("refarm tree", () => {
 
 		expect(spawnSyncMock).toHaveBeenCalledWith(
 			"git",
-			expect.arrayContaining(["log"]),
+			expect.arrayContaining(["log", "--max-count=1"]),
 			{
 				encoding: "utf8",
 			},
@@ -362,6 +362,13 @@ describe("refarm tree", () => {
 				from: "user",
 			});
 
+		expect(spawnSyncMock).toHaveBeenCalledWith(
+			"git",
+			expect.arrayContaining(["log", "--max-count=1"]),
+			{
+				encoding: "utf8",
+			},
+		);
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.nodes).toHaveLength(1);
 		expect(payload.nodes[0]).toMatchObject({
