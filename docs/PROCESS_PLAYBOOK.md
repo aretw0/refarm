@@ -51,6 +51,7 @@ refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry
 refarm tree preview <id> --name <branch> # dry-run fork plan with explicit name
 refarm tree preview --scope git <commit> # dry-run branch plan for a commit
 refarm tree fork --scope git <commit> --name <branch> # create branch without switching
+npm run refarm:tree:verify # closeout lane for tree stabilization changes
 ```
 
 ---
@@ -240,7 +241,8 @@ refarm tree switch --scope git experiment/refactor
 Preview commands are non-mutating. Blocked-but-resolvable previews should return
 operator-readable readiness (`Blocked: ...`) and, for JSON output,
 `readyToExecute: false`. Execution remains explicit via `tree fork` or
-`tree switch`.
+`tree switch`. After changing tree contracts or adapter boundaries, run
+`npm run refarm:tree:verify` before considering the tree slice closed.
 
 ### Scenario 4 — Port conflict at startup
 
