@@ -88,7 +88,7 @@ describe("refarm tree git integration", () => {
 		);
 		await command.commands
 			.find((c) => c.name() === "list")!
-			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+			.parseAsync(["--scope", "all", "--limit", "2", "--json"], {
 				from: "user",
 			});
 		const allPayload = JSON.parse(logSpy.mock.calls.at(-1)?.[0] as string);

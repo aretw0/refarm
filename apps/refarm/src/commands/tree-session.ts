@@ -123,16 +123,20 @@ function exitForSidecarError(err: unknown): never {
 	process.exit(1);
 }
 
-export async function getSessionTimelineNodes(): Promise<
-	RefarmSessionTimelineNode[]
-> {
+export async function getSessionTimelineNodes(
+	limit?: number,
+): Promise<RefarmSessionTimelineNode[]> {
 	const sessions = await fetchSessions();
-	return [...sessions]
+	const nodes = [...sessions]
 		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
 		.map(createSessionTimelineNode);
+	return typeof limit === "number" ? nodes.slice(0, limit) : nodes;
 }
 
-export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
+export async function listSessionTree(opts: {
+	json?: boolean;
+	limit?: number;
+}): Promise<void> {
 	let sessions: SessionNode[];
 	try {
 		sessions = await fetchSessions();
@@ -143,6 +147,8 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 	const nodes = [...sessions]
 		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
 		.map(createSessionTimelineNode);
+	const visibleNodes =
+		typeof opts.limit === "number" ? nodes.slice(0, opts.limit) : nodes;
 
 	if (opts.json) {
 		const envelope: RefarmSessionTimelineListEnvelope = {
@@ -150,13 +156,13 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 			command: "tree",
 			scope: REFARM_TREE_SESSION_SCOPE,
 			operation: "list",
-			nodes,
+			nodes: visibleNodes,
 		};
 		outputTreeJson(envelope);
 		return;
 	}
 
-	if (nodes.length === 0) {
+	if (visibleNodes.length === 0) {
 		console.log(
 			chalk.dim(
 				"No session timeline nodes yet. Start one with: refarm ask <query>",
@@ -168,7 +174,7 @@ export async function listSessionTree(opts: { json?: boolean }): Promise<void> {
 	console.log(
 		chalk.bold(`\n  Tree timeline  (${REFARM_TREE_SESSION_SCOPE} scope)\n`),
 	);
-	for (const node of nodes) {
+	for (const node of visibleNodes) {
 		const createdAtNs = sessions.find(
 			(session) => session["@id"] === node.nodeId,
 		)?.created_at_ns;

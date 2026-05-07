@@ -44,6 +44,7 @@ refarm sessions fork <id>   # branch from an existing session
 refarm sessions use <id>    # session helper to switch active session
 refarm tree switch <id>     # timeline-first active-session switch
 refarm tree list --json             # read-only session timeline nodes
+refarm tree list --limit 5 --json   # bounded session timeline nodes
 refarm tree list --scope git --json # read-only git timeline nodes
 refarm tree preview <id>            # dry-run fork plan for a session node
 refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry

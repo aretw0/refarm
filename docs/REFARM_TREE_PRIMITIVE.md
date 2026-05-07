@@ -52,7 +52,7 @@ refarm tree switch <branch-or-node-prefix>
 Implemented first slice:
 
 ```bash
-refarm tree list --scope session [--json]
+refarm tree list --scope session [--limit <count>] [--json]
 refarm tree list --scope git [--limit <count>] [--json]
 refarm tree list --scope all [--limit <count>] [--json]
 refarm tree show <session-id-or-prefix> [--json]
@@ -105,7 +105,7 @@ Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
 path segments, `.lock` ref lock files, or parent traversal. Git list limits fail closed unless they are plain
-integers from 1 to 200.
+integers from 1 to 200 and apply to session, git, and combined all-scope list output.
 
 `preview` is the safety boundary. It materializes what would change without
 moving the active pointer. Any future destructive or state-moving operation must

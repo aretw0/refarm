@@ -19,6 +19,14 @@ const SESSION = {
 	parent_session_id: "urn:refarm:session:v1:parent00000001",
 };
 
+const OLDER_SESSION = {
+	"@id": "urn:refarm:session:v1:older00000001",
+	"@type": "Session",
+	name: "older-branch",
+	created_at_ns: 1_600_000_000_000_000_000,
+	leaf_entry_id: "entry-old",
+};
+
 const HISTORY = {
 	session: SESSION,
 	entries: [
@@ -94,6 +102,30 @@ describe("refarm tree", () => {
 					},
 				},
 			],
+		});
+	});
+
+	it("applies session list limits after sorting sessions", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [OLDER_SESSION, SESSION] }),
+			}) as any,
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--limit", "1", "--json"], { from: "user" });
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.nodes).toHaveLength(1);
+		expect(payload.nodes[0]).toMatchObject({
+			kind: "session",
+			nodeId: SESSION["@id"],
 		});
 	});
 

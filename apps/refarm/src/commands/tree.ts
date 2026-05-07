@@ -215,7 +215,7 @@ async function listTree(opts: {
 		listGitTree({ json: opts.json, limit: parseLimit(opts.limit) });
 		return;
 	}
-	await listSessionTree(opts);
+	await listSessionTree({ json: opts.json, limit: parseLimit(opts.limit) });
 }
 
 async function showTree(
@@ -331,7 +331,7 @@ export function createTreeCommand(): Command {
 			new Command("list")
 				.description("List timeline nodes")
 				.option("--scope <scope>", "Timeline scope", REFARM_TREE_SESSION_SCOPE)
-				.option("--limit <count>", "Maximum git commits to list", "20")
+				.option("--limit <count>", "Maximum timeline nodes to list", "20")
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (opts: { scope?: string; limit?: string; json?: boolean }) => {
