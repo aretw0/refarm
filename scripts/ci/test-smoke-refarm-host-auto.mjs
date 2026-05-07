@@ -67,6 +67,20 @@ test("keeps smoke governance changes on ci lane", () => {
 	);
 });
 
+test("skips docs-only deltas", () => {
+	assert.equal(decideProfile(["docs/REFARM_CLI_DISTRO.md"]).profile, "skip");
+});
+
+test("routes mixed action and tree source deltas to dev lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/action-affordances.ts",
+			"apps/refarm/src/commands/tree.ts",
+		]).profile,
+		"dev",
+	);
+});
+
 test("routes generic host tests to quick lane", () => {
 	assert.equal(
 		decideProfile(["apps/refarm/test/commands/program.test.ts"]).profile,
