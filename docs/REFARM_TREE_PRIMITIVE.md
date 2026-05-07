@@ -124,7 +124,10 @@ npm run refarm:tree:smoke
 execution-plan readiness helper tests. `refarm:tree:smoke` runs a fast in-process
 integration smoke against an isolated temp git repo, so it validates real
 `git branch`/`git switch` behavior without exercising the entire host CLI flow.
-Use the slower built CLI smoke only as a broader checkpoint:
+Use the slower built CLI smoke only as a broader checkpoint. It now also
+boots a local session sidecar stub when `:42001` is free, validates
+`list --scope all`, proves `all` remains read-only, and switches a session under
+an isolated temporary `HOME` before checking already-active guards:
 
 ```bash
 npm run refarm:tree:smoke:cli
