@@ -164,7 +164,8 @@
 	},
 	"overrides": {
 		"flatted": "3.4.2",
-		"basic-ftp": "5.3.0",
+		"basic-ftp": "6.0.1",
+		"ip-address": "10.2.0",
 		"astro": "6.1.8",
 		"dompurify": "3.4.2",
 		"postcss": "8.5.10",
