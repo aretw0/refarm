@@ -20,6 +20,12 @@ function expectPreviewPlanSubstrateFactsNested(
 	expect(plan).toHaveProperty("effects");
 	expect(plan).toHaveProperty("substrate");
 
+	const effects = plan.effects as Record<string, unknown>;
+	expect(Object.keys(effects).sort()).toEqual([
+		"activePointerChanged",
+		"branchCreated",
+	]);
+
 	for (const substrateOnlyKey of [
 		"kind",
 		"branchName",
