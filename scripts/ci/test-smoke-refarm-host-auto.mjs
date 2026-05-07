@@ -147,3 +147,19 @@ test("explicit CLI profile bypasses diff detection", () => {
 	assert.match(output, /source=explicit-profile/);
 	assert.match(output, /action=npm run refarm:tree:verify/);
 });
+
+test("explicit CLI profile fails closed when unknown", () => {
+	assert.throws(
+		() =>
+			execFileSync(
+				process.execPath,
+				["scripts/ci/smoke-refarm-host-auto.mjs", "--profile", "unknown"],
+				{ encoding: "utf8", stdio: "pipe" },
+			),
+		(error) => {
+			assert.equal(error.status, 1);
+			assert.match(error.stderr, /Unknown smoke profile: unknown/);
+			return true;
+		},
+	);
+});
