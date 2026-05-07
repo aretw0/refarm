@@ -65,10 +65,23 @@ test("keeps smoke governance changes on ci lane", () => {
 		decideProfile(["scripts/ci/smoke-refarm-host-auto.mjs"]).profile,
 		"ci",
 	);
+	assert.equal(decideProfile(["package.json"]).profile, "ci");
 });
 
-test("skips docs-only deltas", () => {
+test("skips empty or docs-only deltas", () => {
+	assert.equal(decideProfile([]).profile, "skip");
 	assert.equal(decideProfile(["docs/REFARM_CLI_DISTRO.md"]).profile, "skip");
+});
+
+test("routes host source and CLI flow deltas to dev lane", () => {
+	assert.equal(
+		decideProfile(["apps/refarm/src/commands/status.ts"]).profile,
+		"dev",
+	);
+	assert.equal(
+		decideProfile(["scripts/ci/smoke-refarm-host-cli-flows.mjs"]).profile,
+		"dev",
+	);
 });
 
 test("routes mixed action and tree source deltas to dev lane", () => {
