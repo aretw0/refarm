@@ -126,6 +126,13 @@ Available Web actions:
 		expect(
 			formatWebSurfaceActionRows(createWebSurfaceActionRows(makeStatus([]))),
 		).toBe("Available Web actions:\n  none");
+		expect(createWebSurfaceActionDryRunEnvelope(makeStatus([]))).toMatchObject({
+			readiness: {
+				status: "blocked",
+				label: "Blocked: no host actions available",
+			},
+			actionRows: [],
+		});
 	});
 
 	it("resolves selections by row index or stable action id", () => {
@@ -142,9 +149,19 @@ Available Web actions:
 	});
 
 	it("reports missing selections without inventing fallback behavior", () => {
+		const missingSelection = resolveWebSurfaceActionSelection(
+			makeStatus(),
+			"missing",
+		);
+		expect(missingSelection).toMatchObject({ reason: "missing-action" });
 		expect(
-			resolveWebSurfaceActionSelection(makeStatus(), "missing"),
-		).toMatchObject({ reason: "missing-action" });
+			createWebSurfaceActionDryRunEnvelope(makeStatus(), missingSelection),
+		).toMatchObject({
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+		});
 		expect(resolveWebSurfaceActionSelection(makeStatus([]), "1")).toMatchObject(
 			{ reason: "no-actions" },
 		);

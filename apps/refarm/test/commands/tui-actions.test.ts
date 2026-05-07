@@ -126,6 +126,13 @@ Available TUI actions:
 		expect(
 			formatTuiSurfaceActionRows(createTuiSurfaceActionRows(makeStatus([]))),
 		).toBe("Available TUI actions:\n  none");
+		expect(createTuiSurfaceActionDryRunEnvelope(makeStatus([]))).toMatchObject({
+			readiness: {
+				status: "blocked",
+				label: "Blocked: no host actions available",
+			},
+			actionRows: [],
+		});
 	});
 
 	it("resolves selections by row index or stable action id", () => {
@@ -142,9 +149,19 @@ Available TUI actions:
 	});
 
 	it("reports missing selections without inventing fallback behavior", () => {
+		const missingSelection = resolveTuiSurfaceActionSelection(
+			makeStatus(),
+			"missing",
+		);
+		expect(missingSelection).toMatchObject({ reason: "missing-action" });
 		expect(
-			resolveTuiSurfaceActionSelection(makeStatus(), "missing"),
-		).toMatchObject({ reason: "missing-action" });
+			createTuiSurfaceActionDryRunEnvelope(makeStatus(), missingSelection),
+		).toMatchObject({
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+		});
 		expect(resolveTuiSurfaceActionSelection(makeStatus([]), "1")).toMatchObject(
 			{ reason: "no-actions" },
 		);
