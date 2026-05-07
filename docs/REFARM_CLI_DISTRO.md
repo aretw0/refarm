@@ -128,10 +128,13 @@ npm run refarm:tree:verify
   missing-selection blocked readiness. Use the granular lane while iterating and
   the composed lane before declaring action-readiness envelope or selection
   changes complete.
-- `refarm:tree:verify` is the tree-only closeout lane: mocked tree/execution-plan
-  contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
-  route test/type-check, and built tree CLI smoke. Use it before declaring a
-  `refarm tree` stabilization slice complete.
+- `refarm:tree:test`, `refarm:tree:smoke`, `refarm:tree:type-check`,
+  `refarm:tree:farmhand:test`, and `refarm:tree:smoke:cli` are the granular
+  tree lanes for mocked contracts, in-process git smoke, TypeScript contracts,
+  farmhand session routing, and built CLI behavior respectively.
+  `refarm:tree:verify` composes those granular lanes as the tree-only closeout
+  lane. Use the granular lane while iterating and the composed lane before
+  declaring a `refarm tree` stabilization slice complete.
 - `refarm:host:smoke:ci` runs smoke auto routing tests, the command suite, CLI
   flow smoke through CI wrappers under `scripts/ci/`, includes `apps/refarm`
   type-check by default, and runs the built dist action-readiness smoke so

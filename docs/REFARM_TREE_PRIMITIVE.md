@@ -116,8 +116,23 @@ be explainable as "the preview became explicit execution".
 Use the cheapest tree-specific signal during iteration:
 
 ```bash
+# Mocked command contracts + shared execution-plan readiness helper tests.
 npm run refarm:tree:test
+
+# In-process integration smoke against an isolated temp git repo.
 npm run refarm:tree:smoke
+
+# Type contracts for the two packages touched by tree/session routing.
+npm run refarm:tree:type-check
+
+# Farmhand session route regression only.
+npm run refarm:tree:farmhand:test
+
+# Built CLI tree smoke; slower, use when emitted dist behavior matters.
+npm run refarm:tree:smoke:cli
+
+# Closeout lane: composes all tree-specific signals above.
+npm run refarm:tree:verify
 ```
 
 `refarm:tree:test` runs the mocked command contract suite plus the shared
@@ -128,18 +143,16 @@ Use the slower built CLI smoke only as a broader checkpoint. It now also
 boots a local session sidecar stub when `:42001` is free, validates
 `list --scope all`, proves `all` remains read-only, and switches a session under
 an isolated temporary `HOME` before checking already-active guards. When closing
-a tree stabilization pass, run the aggregate local verification lane:
+a larger host checkpoint, add the broader CLI-flow lane:
 
 ```bash
-npm run refarm:tree:smoke:cli
-npm run refarm:tree:verify
 npm run refarm:host:smoke:cli
 ```
 
 `refarm:tree:verify` composes the mocked tree contract suite, in-process tree
-smoke, `apps/refarm` type-check, farmhand session route test/type-check, and the
-built tree CLI smoke so bounded session adapter behavior is checked through both
-unit and distro paths.
+smoke, `apps/refarm` and `apps/farmhand` type-checks, the farmhand session route
+test, and the built tree CLI smoke so bounded session adapter behavior is checked
+through both unit and distro paths.
 
 ## JSON envelope invariants
 
