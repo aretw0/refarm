@@ -362,7 +362,7 @@ export function createTreeCommand(): Command {
 		.addCommand(
 			new Command("preview")
 				.description("Preview a safe fork or switch plan for a timeline node")
-				.argument("<id>", "Timeline node ID or unique prefix")
+				.argument("<target>", "Session ID/prefix, git commit, or git branch")
 				.option(
 					"--scope <scope>",
 					"Timeline scope: session or git",

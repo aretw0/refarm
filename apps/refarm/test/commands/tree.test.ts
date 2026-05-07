@@ -79,6 +79,10 @@ describe("refarm tree", () => {
 			.find((c) => c.name() === "preview")!
 			.helpInformation();
 
+		expect(previewHelp).toContain("<target>");
+		expect(previewHelp).toContain(
+			"Session ID/prefix, git commit, or git branch",
+		);
 		expect(previewHelp).toContain("--switch");
 		expect(previewHelp).toContain(
 			"Preview switching to an existing session or git branch",
