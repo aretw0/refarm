@@ -359,3 +359,31 @@ owning app handler only after the app has a clear confirmation/safety model.
 Keep the handler in the owning app (`apps/dev`, `apps/me`, or `apps/refarm`),
 consume the existing Homestead action request envelope, and retain the dry-run
 commands for agent-safe verification.
+
+## Current hardening slice
+
+The current high-ROI action-readiness work is internal boundary hardening, not
+broader action execution. Preserve the dry-run/readiness-first contract while
+making renderer action rows easier to evolve.
+
+Preferred targets:
+
+- keep action selection, missing-selection, and no-actions readiness centralized
+  in `action-affordances.ts`;
+- keep Web/TUI/renderer-neutral wrappers as stable product-facing APIs, but let
+  them delegate shared dry-run envelope and row-output mechanics;
+- keep headless Homestead action-request semantics explicit: ready/blocked
+  helpers may share envelope construction, but action requests should remain
+  visible at the headless boundary;
+- keep `status --action` as the explicit app-owned execution seam.
+
+Non-goals for this slice:
+
+- no generic host-wide action executor;
+- no movement of product semantics into `packages/*`;
+- no TUI-specific runtime policy fork;
+- no package extraction of `execution-plan.ts` until another independent
+  consumer creates pressure.
+
+Closeout rule: use granular lanes while iterating and run
+`npm run refarm:actions:verify` before declaring the hardening slice complete.
