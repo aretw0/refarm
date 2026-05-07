@@ -97,6 +97,7 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:tree:verify
 ```
 
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
@@ -117,6 +118,10 @@ npm run refarm:host:smoke:auto
   `--launch`, `--json` + `--markdown`, `headless --markdown --summary`, and
   `status --action --input`) are rejected fail-closed, using fixture-backed
   status input.
+- `refarm:tree:verify` is the tree-only closeout lane: mocked tree/execution-plan
+  contracts, in-process tree smoke, `apps/refarm` type-check, farmhand session
+  route test/type-check, and built tree CLI smoke. Use it before declaring a
+  `refarm tree` stabilization slice complete.
 - `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
   wrappers under `scripts/ci/`, includes `apps/refarm` type-check by default,
   and runs the built dist action-readiness smoke so dry-run vs live execution
