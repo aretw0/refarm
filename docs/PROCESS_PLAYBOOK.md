@@ -41,7 +41,7 @@ npm run disk:check         # disk usage: target dirs, node_modules, volumes
 refarm sessions list        # list known sessions
 refarm sessions new         # create and switch active session
 refarm sessions fork <id>   # branch from an existing session
-refarm sessions use <id>    # legacy/session helper to switch active session
+refarm sessions use <id>    # session helper to switch active session
 refarm tree switch <id>     # timeline-first active-session switch
 refarm tree list --json             # read-only session timeline nodes
 refarm tree list --scope git --json # read-only git timeline nodes
