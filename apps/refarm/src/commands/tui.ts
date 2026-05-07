@@ -1,6 +1,6 @@
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionSelectionChoices } from "./action-affordances.js";
+import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
 import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { launchAvailabilityMessage } from "./launch-feedback.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
@@ -14,14 +14,6 @@ import {
 	resolveStatusPayload,
 } from "./status.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
-import {
-	createTuiSurfaceActionDryRunEnvelope,
-	createTuiSurfaceActionRows,
-	formatTuiSurfaceActionRows,
-	formatTuiSurfaceActionSelection,
-	resolveTuiSurfaceActionSelection,
-} from "./tui-actions.js";
-
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
 export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
@@ -160,57 +152,16 @@ async function emitTuiActionRows(
 			input: options.input,
 		},
 		run: (json) => {
-			if (options.select) {
-				const selection = resolveTuiSurfaceActionSelection(
-					json,
-					options.select,
-				);
-				if (!selection.selected) {
-					if (options.json) {
-						console.log(
-							JSON.stringify(
-								createTuiSurfaceActionDryRunEnvelope(json, selection),
-								null,
-								2,
-							),
-						);
-						return;
-					}
-					throw new Error(
-						`TUI action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
-					);
-				}
-
-				if (options.json) {
-					console.log(
-						JSON.stringify(
-							createTuiSurfaceActionDryRunEnvelope(json, selection),
-							null,
-							2,
-						),
-					);
-					return;
-				}
-
-				console.log(
-					formatTuiSurfaceActionSelection(
-						selection.selected,
-						selection.rows,
-						selection.selection,
-					),
-				);
-				return;
-			}
-
-			const rows = createTuiSurfaceActionRows(json);
-			if (options.json) {
-				console.log(
-					JSON.stringify(createTuiSurfaceActionDryRunEnvelope(json), null, 2),
-				);
-				return;
-			}
-
-			console.log(formatTuiSurfaceActionRows(rows));
+			console.log(
+				formatRefarmActionReadinessOutput(json, {
+					renderer: "tui",
+					json: options.json,
+					select: options.select,
+					unavailableSubject: "TUI action",
+					rowsHeading: "Available TUI actions:",
+					selectedHeading: "Selected TUI action:",
+				}),
+			);
 		},
 	});
 }

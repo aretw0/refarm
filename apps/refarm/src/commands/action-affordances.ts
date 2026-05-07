@@ -60,6 +60,18 @@ export interface RefarmActionAffordanceSelectionFormatOptions {
 	selection?: RefarmActionAffordanceSelectionMetadata;
 }
 
+export interface RefarmActionReadinessOutputOptions<
+	RendererKind extends string,
+> {
+	renderer: RendererKind;
+	command?: string;
+	json?: boolean;
+	select?: string;
+	unavailableSubject: string;
+	rowsHeading: string;
+	selectedHeading: string;
+}
+
 export function getRefarmStatusAvailableActions(
 	status: RefarmStatusJson,
 ): readonly RefarmStatusSurfaceAction[] {
@@ -181,6 +193,73 @@ export function createRefarmRendererActionDryRunEnvelope<
 		renderer: RendererKind;
 		command?: string;
 	};
+}
+
+export function formatRefarmActionReadinessOutput<
+	RendererKind extends string,
+>(status: RefarmStatusJson, options: RefarmActionReadinessOutputOptions<RendererKind>): string {
+	if (options.select) {
+		const selection = resolveRefarmActionAffordanceSelection(
+			status,
+			options.select,
+		);
+		if (!selection.selected) {
+			if (options.json) {
+				return JSON.stringify(
+					createRefarmRendererActionDryRunEnvelope(
+						status,
+						options.renderer,
+						selection,
+						options.command,
+					),
+					null,
+					2,
+				);
+			}
+			throw new Error(
+				`${options.unavailableSubject} "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
+			);
+		}
+
+		if (options.json) {
+			return JSON.stringify(
+				createRefarmRendererActionDryRunEnvelope(
+					status,
+					options.renderer,
+					selection,
+					options.command,
+				),
+				null,
+				2,
+			);
+		}
+
+		return formatRefarmActionAffordanceSelection(
+			selection.selected,
+			selection.rows,
+			{
+				selectedHeading: options.selectedHeading,
+				availableHeading: options.rowsHeading,
+				selection: selection.selection,
+			},
+		);
+	}
+
+	const rows = createRefarmActionAffordanceRows(status);
+	if (options.json) {
+		return JSON.stringify(
+			createRefarmRendererActionDryRunEnvelope(
+				status,
+				options.renderer,
+				undefined,
+				options.command,
+			),
+			null,
+			2,
+		);
+	}
+
+	return formatRefarmActionAffordanceRows(rows, options.rowsHeading);
 }
 
 export function formatRefarmActionAffordanceSelection(

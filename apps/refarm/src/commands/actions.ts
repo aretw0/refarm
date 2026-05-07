@@ -3,9 +3,9 @@ import { Command } from "commander";
 import {
 	createRefarmActionAffordanceRows,
 	createRefarmRendererActionDryRunEnvelope,
+	formatRefarmActionReadinessOutput,
 	formatRefarmActionAffordanceRows,
 	formatRefarmActionAffordanceSelection,
-	formatRefarmActionSelectionChoices,
 	resolveRefarmActionAffordanceSelection,
 	type RefarmActionAffordanceRow,
 	type RefarmActionAffordanceSelectionMetadata,
@@ -132,57 +132,17 @@ async function emitHostActionRows(
 			input: options.input,
 		},
 		run: (json) => {
-			if (options.select) {
-				const selection = resolveHostSurfaceActionSelection(
-					json,
-					options.select,
-				);
-				if (!selection.selected) {
-					if (options.json) {
-						console.log(
-							JSON.stringify(
-								createHostSurfaceActionDryRunEnvelope(json, selection),
-								null,
-								2,
-							),
-						);
-						return;
-					}
-					throw new Error(
-						`Host action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
-					);
-				}
-
-				if (options.json) {
-					console.log(
-						JSON.stringify(
-							createHostSurfaceActionDryRunEnvelope(json, selection),
-							null,
-							2,
-						),
-					);
-					return;
-				}
-
-				console.log(
-					formatHostSurfaceActionSelection(
-						selection.selected,
-						selection.rows,
-						selection.selection,
-					),
-				);
-				return;
-			}
-
-			const rows = createHostSurfaceActionRows(json);
-			if (options.json) {
-				console.log(
-					JSON.stringify(createHostSurfaceActionDryRunEnvelope(json), null, 2),
-				);
-				return;
-			}
-
-			console.log(formatHostSurfaceActionRows(rows));
+			console.log(
+				formatRefarmActionReadinessOutput(json, {
+					renderer: json.renderer.kind,
+					command: "actions",
+					json: options.json,
+					select: options.select,
+					unavailableSubject: "Host action",
+					rowsHeading: "Available host actions:",
+					selectedHeading: "Selected host action:",
+				}),
+			);
 		},
 	});
 }

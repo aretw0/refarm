@@ -5,7 +5,7 @@ import {
 } from "@refarm.dev/cli/browser-open";
 import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import { formatRefarmActionSelectionChoices } from "./action-affordances.js";
+import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -24,14 +24,6 @@ import {
 	resolveStatusPayload,
 } from "./status.js";
 import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
-import {
-	createWebSurfaceActionDryRunEnvelope,
-	createWebSurfaceActionRows,
-	formatWebSurfaceActionRows,
-	formatWebSurfaceActionSelection,
-	resolveWebSurfaceActionSelection,
-} from "./web-actions.js";
-
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
@@ -202,57 +194,16 @@ async function emitWebActionRows(
 			input: options.input,
 		},
 		run: (json) => {
-			if (options.select) {
-				const selection = resolveWebSurfaceActionSelection(
-					json,
-					options.select,
-				);
-				if (!selection.selected) {
-					if (options.json) {
-						console.log(
-							JSON.stringify(
-								createWebSurfaceActionDryRunEnvelope(json, selection),
-								null,
-								2,
-							),
-						);
-						return;
-					}
-					throw new Error(
-						`Web action "${options.select}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selection.rows)}.`,
-					);
-				}
-
-				if (options.json) {
-					console.log(
-						JSON.stringify(
-							createWebSurfaceActionDryRunEnvelope(json, selection),
-							null,
-							2,
-						),
-					);
-					return;
-				}
-
-				console.log(
-					formatWebSurfaceActionSelection(
-						selection.selected,
-						selection.rows,
-						selection.selection,
-					),
-				);
-				return;
-			}
-
-			const rows = createWebSurfaceActionRows(json);
-			if (options.json) {
-				console.log(
-					JSON.stringify(createWebSurfaceActionDryRunEnvelope(json), null, 2),
-				);
-				return;
-			}
-
-			console.log(formatWebSurfaceActionRows(rows));
+			console.log(
+				formatRefarmActionReadinessOutput(json, {
+					renderer: "web",
+					json: options.json,
+					select: options.select,
+					unavailableSubject: "Web action",
+					rowsHeading: "Available Web actions:",
+					selectedHeading: "Selected Web action:",
+				}),
+			);
 		},
 	});
 }
