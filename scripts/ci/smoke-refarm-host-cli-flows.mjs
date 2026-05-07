@@ -28,6 +28,25 @@ const ACTION_AFFORDANCES = [
 	},
 	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
 ];
+const ONLY_PROFILES = new Set(["status-action"]);
+
+function parseOnlyProfile(argv) {
+	const onlyIndex = argv.indexOf("--only");
+	if (onlyIndex === -1) return undefined;
+
+	const profile = argv[onlyIndex + 1];
+	if (!profile) {
+		throw new Error(
+			`Missing value for --only. Available profiles: ${Array.from(ONLY_PROFILES).join(", ")}.`,
+		);
+	}
+	if (!ONLY_PROFILES.has(profile)) {
+		throw new Error(
+			`Unknown --only profile "${profile}". Available profiles: ${Array.from(ONLY_PROFILES).join(", ")}.`,
+		);
+	}
+	return profile;
+}
 
 function makeStatusPayload(mode, options = {}) {
 	const diagnostics = options.diagnostics ?? [];
@@ -122,6 +141,40 @@ function parseCommandJsonOutput(label, runResult) {
 	}
 }
 
+async function assertStatusActionExecutedEnvelope() {
+	console.log(`${LOGGER_PREFIX} smoke: refarm status --action executed JSON`);
+	const statusActionRun = await runRefarmCommand(["status", "--action", "2"]);
+	const statusActionJson = parseCommandJsonOutput(
+		"status --action",
+		statusActionRun,
+	);
+	if (
+		statusActionJson?.schemaVersion !== 1 ||
+		statusActionJson?.reason !== "executed" ||
+		statusActionJson?.renderer !== "status" ||
+		statusActionJson?.statusSource !== "live"
+	) {
+		throw new Error(
+			`Expected executed status action envelope, got: ${JSON.stringify(statusActionJson)}`,
+		);
+	}
+	if (statusActionJson?.handled !== true) {
+		throw new Error(
+			`Expected status action handled=true, got: ${JSON.stringify(statusActionJson)}`,
+		);
+	}
+	if (statusActionJson?.selection?.resolvedId !== "inspect-trust") {
+		throw new Error(
+			`Expected status action selection.resolvedId=inspect-trust, got: ${JSON.stringify(statusActionJson?.selection)}`,
+		);
+	}
+	if (statusActionJson?.actionRequest?.action?.intent !== "trust:inspect") {
+		throw new Error(
+			`Expected status action request intent=trust:inspect, got: ${JSON.stringify(statusActionJson?.actionRequest?.action)}`,
+		);
+	}
+}
+
 async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 	try {
 		await runRefarmCommand(args, options);
@@ -167,6 +220,7 @@ async function createIsolatedGitRepo(tempDir) {
 }
 
 async function main() {
+	const onlyProfile = parseOnlyProfile(process.argv.slice(2));
 	const keepArtifacts =
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "1" ||
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "true";
@@ -201,6 +255,12 @@ async function main() {
 		await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
 			env: process.env,
 		});
+
+		if (onlyProfile === "status-action") {
+			await assertStatusActionExecutedEnvelope();
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm web --input preflight hint`);
 		const webPreflightRun = await runRefarmCommand([
@@ -633,6 +693,8 @@ async function main() {
 			["status", "--input", webStatusPath, "--action", "2"],
 			"--action cannot be combined with --input",
 		);
+
+		await assertStatusActionExecutedEnvelope();
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm status --json --input`);
 		const statusJsonRun = await runRefarmCommand([
