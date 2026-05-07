@@ -31,6 +31,13 @@ const TREE_STUB_SESSION = {
 	created_at_ns: 1_700_000_000_000_000_000,
 	leaf_entry_id: "entry-cli-1",
 };
+const TREE_OLDER_STUB_SESSION = {
+	"@id": "urn:refarm:session:v1:oldertree01",
+	"@type": "Session",
+	name: "older-tree-cli-smoke-session",
+	created_at_ns: 1_600_000_000_000_000_000,
+	leaf_entry_id: "entry-old-1",
+};
 
 function buildRefarmCommandArgs(args) {
 	return [...REFARM_NODE_ARGS_PREFIX, ...args];
@@ -86,7 +93,11 @@ async function startTreeSidecarStub() {
 	const server = createServer((request, response) => {
 		if (request.url === "/sessions") {
 			response.writeHead(200, { "content-type": "application/json" });
-			response.end(JSON.stringify({ sessions: [TREE_STUB_SESSION] }));
+			response.end(
+				JSON.stringify({
+					sessions: [TREE_OLDER_STUB_SESSION, TREE_STUB_SESSION],
+				}),
+			);
 			return;
 		}
 		if (request.url?.startsWith("/sessions/") && request.url.endsWith("/history")) {
@@ -242,6 +253,26 @@ async function main() {
 		);
 
 		if (sidecarStub.started) {
+			console.log(`${LOGGER_PREFIX} smoke: tree session list limit JSON`);
+			const sessionListRun = await runRefarmCommand(
+				["tree", "list", "--limit", "1", "--json"],
+				{ cwd: isolatedGitRepoPath },
+			);
+			const sessionListJson = parseCommandJsonOutput(
+				"tree list --limit session",
+				sessionListRun,
+			);
+			if (
+				sessionListJson?.scope !== "session" ||
+				!Array.isArray(sessionListJson?.nodes) ||
+				sessionListJson.nodes.length !== 1 ||
+				sessionListJson.nodes[0]?.nodeId !== TREE_STUB_SESSION_ID
+			) {
+				throw new Error(
+					`Expected session list envelope capped to newest session, got: ${JSON.stringify(sessionListJson)}`,
+				);
+			}
+
 			console.log(`${LOGGER_PREFIX} smoke: tree session switch isolated HOME`);
 			const sessionEnv = { HOME: tempDir };
 			const sessionPrefix = "000treecli01";

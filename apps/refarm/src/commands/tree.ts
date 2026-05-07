@@ -157,7 +157,7 @@ async function listAllTree(opts: {
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
 	try {
 		const [sessionNodes, gitNodes] = await Promise.all([
-			getSessionTimelineNodes(),
+			getSessionTimelineNodes(limit),
 			Promise.resolve(getGitTimelineNodes(limit)),
 		]);
 		nodes = [...sessionNodes, ...gitNodes]
