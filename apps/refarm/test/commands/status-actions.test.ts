@@ -4,6 +4,7 @@ import {
 	createRefarmStatusSurfaceActionInvocationEnvelope,
 	createRefarmStatusSurfaceRenderRequest,
 	invokeRefarmStatusSurfaceAction,
+	invokeRefarmStatusSurfaceActionSelection,
 	REFARM_STATUS_SURFACE_ID,
 	REFARM_STATUS_SURFACE_PLUGIN_ID,
 	REFARM_STATUS_SURFACE_SLOT_ID,
@@ -74,6 +75,67 @@ describe("Refarm status surface actions", () => {
 		await expect(
 			invokeRefarmStatusSurfaceAction("missing-action", observer),
 		).resolves.toBe(false);
+	});
+
+	it("invokes selected live status actions as deterministic result envelopes", async () => {
+		const observer = vi.fn();
+		const envelope = await invokeRefarmStatusSurfaceActionSelection({
+			status: {
+				schemaVersion: 1,
+				plugins: {
+					availableActions: [
+						{
+							id: REFARM_STATUS_OPEN_REPORT_ACTION_ID,
+							label: "Open status report",
+							intent: "refarm:status-open",
+						},
+						{
+							id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+							label: "Inspect trust",
+							intent: "trust:inspect",
+						},
+					],
+				},
+			} as any,
+			selection: "2",
+			onAction: observer,
+		});
+
+		expect(envelope).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "executed",
+			renderer: "status",
+			statusSource: "live",
+			selection: {
+				requested: "2",
+				source: "index",
+				resolvedId: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				index: 2,
+			},
+			actionRequest: {
+				action: { id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID },
+			},
+			handled: true,
+		});
+		expect(observer).toHaveBeenCalledWith(
+			expect.objectContaining({
+				action: expect.objectContaining({
+					id: REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
+				}),
+			}),
+		);
+	});
+
+	it("fails selected live status invocation closed for unavailable selections", async () => {
+		await expect(
+			invokeRefarmStatusSurfaceActionSelection({
+				status: { schemaVersion: 1, plugins: { availableActions: [] } } as any,
+				selection: "missing-action",
+			}),
+		).rejects.toThrow(
+			'Status action "missing-action" is not available. Available selections: none.',
+		);
 	});
 
 	it("rejects actions outside the status action vocabulary", async () => {

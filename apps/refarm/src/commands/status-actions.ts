@@ -10,7 +10,12 @@ import type {
 	RefarmStatusJson,
 	RefarmStatusSurfaceAction,
 } from "@refarm.dev/cli/status";
-import type { RefarmActionAffordanceSelectionMetadata } from "./action-affordances.js";
+import {
+	formatRefarmActionSelectionChoices,
+	getRefarmStatusAvailableActions,
+	resolveRefarmActionAffordanceSelection,
+	type RefarmActionAffordanceSelectionMetadata,
+} from "./action-affordances.js";
 import {
 	createRefarmStatusHostSurfaceState,
 	REFARM_STATUS_INSPECT_TRUST_ACTION_ID,
@@ -40,6 +45,12 @@ export interface RefarmStatusSurfaceActionInvocationEnvelope {
 	actionRequest: HomesteadSurfaceRenderActionRequest;
 	handled: boolean;
 	availableActions: readonly RefarmStatusSurfaceAction[];
+}
+
+export interface InvokeRefarmStatusSurfaceActionSelectionOptions {
+	status: RefarmStatusJson;
+	selection: string;
+	onAction?: RefarmStatusSurfaceActionObserver;
 }
 
 export function createRefarmStatusSurfaceRenderRequest(
@@ -105,6 +116,44 @@ export async function invokeRefarmStatusSurfaceAction(
 		renderRequest,
 		host,
 		actionId,
+	);
+}
+
+export async function invokeRefarmStatusSurfaceActionSelection(
+	options: InvokeRefarmStatusSurfaceActionSelectionOptions,
+): Promise<RefarmStatusSurfaceActionInvocationEnvelope> {
+	const selectedAction = resolveRefarmActionAffordanceSelection(
+		options.status,
+		options.selection,
+	);
+
+	if (!selectedAction.selected) {
+		throw new Error(
+			`Status action "${options.selection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+		);
+	}
+
+	const resolution = resolveRefarmStatusSurfaceActionRequest(
+		selectedAction.selected.id,
+	);
+
+	if (!resolution.request) {
+		throw new Error(
+			`Status action "${selectedAction.selected.id}" has no live handler. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
+		);
+	}
+
+	const handled = await invokeRefarmStatusSurfaceAction(
+		selectedAction.selected.id,
+		options.onAction,
+	);
+
+	return createRefarmStatusSurfaceActionInvocationEnvelope(
+		options.status,
+		selectedAction.selection,
+		resolution.request,
+		handled,
+		getRefarmStatusAvailableActions(options.status),
 	);
 }
 

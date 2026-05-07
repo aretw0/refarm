@@ -13,16 +13,9 @@ import { Tractor } from "@refarm.dev/tractor";
 import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
-import {
-	formatRefarmActionSelectionChoices,
-	getRefarmStatusAvailableActions,
-	resolveRefarmActionAffordanceSelection,
-} from "./action-affordances.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
 import {
-	createRefarmStatusSurfaceActionInvocationEnvelope,
-	invokeRefarmStatusSurfaceAction,
-	resolveRefarmStatusSurfaceActionRequest,
+	invokeRefarmStatusSurfaceActionSelection,
 } from "./status-actions.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
@@ -174,40 +167,12 @@ async function emitStatusActionInvocation(options: {
 				throw new Error("Missing --action action ID or row index.");
 			}
 
-			const selectedAction = resolveRefarmActionAffordanceSelection(
-				json,
-				actionSelection,
-			);
-
-			if (!selectedAction.selected) {
-				throw new Error(
-					`Status action "${actionSelection}" is not available. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
-				);
-			}
-
-			const resolution = resolveRefarmStatusSurfaceActionRequest(
-				selectedAction.selected.id,
-			);
-
-			if (!resolution.request) {
-				throw new Error(
-					`Status action "${selectedAction.selected.id}" has no live handler. Available selections: ${formatRefarmActionSelectionChoices(selectedAction.rows)}.`,
-				);
-			}
-
-			const handled = await invokeRefarmStatusSurfaceAction(
-				selectedAction.selected.id,
-			);
-
 			console.log(
 				JSON.stringify(
-					createRefarmStatusSurfaceActionInvocationEnvelope(
-						json,
-						selectedAction.selection,
-						resolution.request,
-						handled,
-						getRefarmStatusAvailableActions(json),
-					),
+					await invokeRefarmStatusSurfaceActionSelection({
+						status: json,
+						selection: actionSelection,
+					}),
 					null,
 					2,
 				),
