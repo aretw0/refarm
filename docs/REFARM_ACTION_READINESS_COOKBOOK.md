@@ -290,6 +290,7 @@ npm run refarm:actions:type-check
 npm run refarm:actions:smoke-dist
 
 # Discover built CLI smoke-only profiles and options.
+# The JSON form includes executable command strings for automation.
 node scripts/ci/smoke-refarm-host-cli-flows.mjs --help
 npm run refarm:host:smoke:cli:profiles
 npm run refarm:host:smoke:cli:profiles:json

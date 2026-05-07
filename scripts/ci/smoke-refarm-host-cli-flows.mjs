@@ -73,10 +73,18 @@ export function formatOnlyProfileList() {
 	return Array.from(ONLY_PROFILES).join(", ");
 }
 
+export function resolveOnlyProfileCommand(profile) {
+	if (!ONLY_PROFILES.has(profile)) return undefined;
+	return `node scripts/ci/smoke-refarm-host-cli-flows.mjs --only ${profile}`;
+}
+
 export function createOnlyProfileListEnvelope() {
 	return {
 		schemaVersion: 1,
-		profiles: Array.from(ONLY_PROFILES).map((profile) => ({ profile })),
+		profiles: Array.from(ONLY_PROFILES).map((profile) => ({
+			profile,
+			command: resolveOnlyProfileCommand(profile),
+		})),
 	};
 }
 

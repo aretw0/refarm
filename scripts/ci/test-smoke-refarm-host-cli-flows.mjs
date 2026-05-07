@@ -9,6 +9,7 @@ import {
 	hasListOnlyProfilesArg,
 	parseOnlyProfile,
 	parseSkipBuild,
+	resolveOnlyProfileCommand,
 } from "./smoke-refarm-host-cli-flows.mjs";
 
 test("lists focused CLI smoke profiles deterministically", () => {
@@ -19,11 +20,28 @@ test("lists focused CLI smoke profiles deterministically", () => {
 	assert.deepEqual(createOnlyProfileListEnvelope(), {
 		schemaVersion: 1,
 		profiles: [
-			{ profile: "action-seams" },
-			{ profile: "actions-readiness" },
-			{ profile: "status-action" },
+			{
+				profile: "action-seams",
+				command:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
+			},
+			{
+				profile: "actions-readiness",
+				command:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness",
+			},
+			{
+				profile: "status-action",
+				command:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action",
+			},
 		],
 	});
+	assert.equal(
+		resolveOnlyProfileCommand("action-seams"),
+		"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
+	);
+	assert.equal(resolveOnlyProfileCommand("missing"), undefined);
 });
 
 test("parses focused CLI smoke flags", () => {
