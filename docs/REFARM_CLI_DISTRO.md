@@ -120,14 +120,16 @@ npm run refarm:tree:verify
   `--launch`, `--json` + `--markdown`, `headless --markdown --summary`, and
   `status --action --input`) are rejected fail-closed, using fixture-backed
   status input.
-- `refarm:actions:test`, `refarm:actions:type-check`, and
+- `refarm:actions:headless:test`, `refarm:actions:renderers:test`,
+  `refarm:actions:test`, `refarm:actions:type-check`, and
   `refarm:actions:smoke-dist` are the granular action-readiness lanes for fast
-  iteration: semantic Vitest contracts, TypeScript contracts, and built CLI
-  dist smoke respectively. `refarm:actions:verify` composes all three as the
-  closeout lane, including renderer-neutral/Web/headless/TUI no-actions and
-  missing-selection blocked readiness. Use the granular lane while iterating and
-  the composed lane before declaring action-readiness envelope or selection
-  changes complete.
+  iteration: headless action-request contracts, renderer-neutral/Web/TUI
+  contracts, full semantic Vitest contracts, TypeScript contracts, and built CLI
+  dist smoke respectively. `refarm:actions:verify` composes the full semantic,
+  type, and dist lanes as the closeout lane, including
+  renderer-neutral/Web/headless/TUI no-actions and missing-selection blocked
+  readiness. Use the narrow granular lane while iterating and the composed lane
+  before declaring action-readiness envelope or selection changes complete.
 - `refarm:tree:test`, `refarm:tree:smoke`, `refarm:tree:type-check`,
   `refarm:tree:farmhand:test`, and `refarm:tree:smoke:cli` are the granular
   tree lanes for mocked contracts, in-process git smoke, TypeScript contracts,

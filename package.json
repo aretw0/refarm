@@ -38,6 +38,8 @@
 		"refarm:host:smoke": "npm --prefix apps/refarm run test:host-smoke",
 		"refarm:host:smoke:dist-actions": "npm --prefix apps/refarm run smoke:dist-actions",
 		"refarm:actions:test": "npm --prefix apps/refarm run test -- test/commands/action-affordances.test.ts test/commands/action-fixture.test.ts test/commands/headless.test.ts test/commands/headless-action.test.ts test/commands/actions.test.ts test/commands/web.test.ts test/commands/web-actions.test.ts test/commands/tui.test.ts test/commands/tui-actions.test.ts --pool=threads",
+		"refarm:actions:headless:test": "npm --prefix apps/refarm run test -- test/commands/action-fixture.test.ts test/commands/headless.test.ts test/commands/headless-action.test.ts --pool=threads",
+		"refarm:actions:renderers:test": "npm --prefix apps/refarm run test -- test/commands/action-affordances.test.ts test/commands/actions.test.ts test/commands/web.test.ts test/commands/web-actions.test.ts test/commands/tui.test.ts test/commands/tui-actions.test.ts --pool=threads",
 		"refarm:actions:type-check": "npm --prefix apps/refarm run type-check",
 		"refarm:actions:smoke-dist": "npm run refarm:host:smoke:dist-actions",
 		"refarm:actions:verify": "npm run refarm:actions:test && npm run refarm:actions:type-check && npm run refarm:actions:smoke-dist",

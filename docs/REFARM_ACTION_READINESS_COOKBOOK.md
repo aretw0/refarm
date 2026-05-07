@@ -269,7 +269,13 @@ For action-readiness changes, keep the feedback loop as small as the question
 being asked:
 
 ```bash
-# Fastest semantic contract loop: Vitest only, no TypeScript build, no dist smoke.
+# Narrow headless action-request loop.
+npm run refarm:actions:headless:test
+
+# Narrow renderer-neutral/Web/TUI readiness loop.
+npm run refarm:actions:renderers:test
+
+# Full semantic contract loop: Vitest only, no TypeScript build, no dist smoke.
 npm run refarm:actions:test
 
 # Type contract loop: run after source/type-shape changes.
