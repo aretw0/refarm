@@ -284,6 +284,10 @@ function round(value) {
 	return Math.round(value * 10) / 10;
 }
 
+function billableQuantity(usage) {
+	return Math.max(0, numberOrZero(usage?.netQuantity));
+}
+
 function formatPercent(value) {
 	return `${round(value * 100)}%`;
 }
@@ -313,13 +317,16 @@ function renderHuman(report) {
 			`  gross used: ${round(report.official.usage.grossQuantity)} min`,
 		);
 		lines.push(
-			`  quota remaining by baseline: ${round(report.officialQuotaRemaining)} min`,
-		);
-		lines.push(
 			`  discounted/included: ${round(report.official.usage.discountQuantity)} min`,
 		);
 		lines.push(
-			`  net billable quantity: ${round(report.official.usage.netQuantity)} min`,
+			`  net billable quantity: ${round(billableQuantity(report.official.usage))} min`,
+		);
+		lines.push(
+			`  billable quota remaining by baseline: ${round(report.officialBillableQuotaRemaining)} min`,
+		);
+		lines.push(
+			`  gross observed remaining by baseline: ${round(report.officialQuotaRemaining)} min`,
 		);
 		lines.push(`  gross amount: $${round(report.official.usage.grossAmount)}`);
 		lines.push(`  net amount: $${round(report.official.usage.netAmount)}`);
@@ -335,7 +342,7 @@ function renderHuman(report) {
 				`  official gross: ${round(repo.official.usage.grossQuantity)} min`,
 			);
 			lines.push(
-				`  official net billable quantity: ${round(repo.official.usage.netQuantity)} min`,
+				`  official net billable quantity: ${round(billableQuantity(repo.official.usage))} min`,
 			);
 			lines.push(
 				`  official share: ${formatPercent(repo.officialShareOfAccount)}`,
@@ -386,6 +393,9 @@ function main() {
 	const officialAccountGross = officialAccount.available
 		? officialAccount.usage.grossQuantity
 		: 0;
+	const officialAccountBillable = officialAccount.available
+		? billableQuantity(officialAccount.usage)
+		: 0;
 
 	const report = {
 		generatedAt: new Date().toISOString(),
@@ -400,6 +410,12 @@ function main() {
 		official: officialAccount,
 		officialQuotaRemaining: officialAccount.available
 			? options.quota - officialAccount.usage.grossQuantity
+			: null,
+		officialBillableQuotaRemaining: officialAccount.available
+			? options.quota - officialAccountBillable
+			: null,
+		officialBillableQuotaBurn: officialAccount.available
+			? officialAccountBillable / options.quota
 			: null,
 		runnerTotalMinutes,
 		runnerQuotaBurn: runnerTotalMinutes / options.quota,
