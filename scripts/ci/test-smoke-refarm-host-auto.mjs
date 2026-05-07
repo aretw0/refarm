@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+	createSmokeProfileDecisionEnvelope,
 	createSmokeProfileListEnvelope,
 	decideProfile,
 	formatSmokeProfileList,
@@ -86,6 +87,37 @@ test("formats unknown profile errors with available profile hints", () => {
 	assert.equal(
 		formatUnknownSmokeProfileMessage("unknown"),
 		`Unknown smoke profile: unknown. Available profiles: ${formatSmokeProfileList()}`,
+	);
+});
+
+test("creates a smoke profile decision envelope", () => {
+	assert.deepEqual(
+		createSmokeProfileDecisionEnvelope({
+			changeSet: {
+				ahead: undefined,
+				files: [],
+				source: "explicit-profile",
+			},
+			changedFiles: [],
+			command: "refarm:actions:headless:test",
+			decision: {
+				profile: "actions-headless",
+				reason: "Explicit smoke profile requested: actions-headless.",
+			},
+		}),
+		{
+			schemaVersion: 1,
+			profile: "actions-headless",
+			reason: "Explicit smoke profile requested: actions-headless.",
+			action: "run",
+			script: "refarm:actions:headless:test",
+			changeSet: {
+				source: "explicit-profile",
+				upstreamRef: undefined,
+				ahead: undefined,
+			},
+			files: [],
+		},
 	);
 });
 
@@ -249,6 +281,30 @@ test("explicit granular CLI profile maps to a narrow lane", () => {
 	assert.match(output, /profile=actions-headless files=0/);
 	assert.match(output, /source=explicit-profile/);
 	assert.match(output, /action=npm run refarm:actions:headless:test/);
+});
+
+test("explicit CLI profile can print a JSON preview envelope", () => {
+	const output = execFileSync(
+		process.execPath,
+		[
+			"scripts/ci/smoke-refarm-host-auto.mjs",
+			"--profile",
+			"actions-headless",
+			"--json",
+		],
+		{ encoding: "utf8" },
+	);
+	assert.deepEqual(JSON.parse(output), {
+		schemaVersion: 1,
+		profile: "actions-headless",
+		reason: "Explicit smoke profile requested: actions-headless.",
+		action: "run",
+		script: "refarm:actions:headless:test",
+		changeSet: {
+			source: "explicit-profile",
+		},
+		files: [],
+	});
 });
 
 test("help output lists profiles from the canonical profile map", () => {

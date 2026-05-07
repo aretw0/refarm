@@ -179,6 +179,8 @@ npm run refarm:tree:verify
   `npm run refarm:host:smoke:auto:profiles:json`
 - **Explicit granular profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
+- **Machine-readable profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless --json`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
 - **Manual override pre-push:** `npm run refarm:host:smoke:dev`
 - **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`

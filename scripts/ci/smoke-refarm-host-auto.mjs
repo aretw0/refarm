@@ -53,6 +53,27 @@ export function resolveProfileScript(profile) {
 	return PROFILE_SCRIPT[profile];
 }
 
+export function createSmokeProfileDecisionEnvelope({
+	changeSet,
+	changedFiles,
+	command,
+	decision,
+}) {
+	return {
+		schemaVersion: 1,
+		profile: decision.profile,
+		reason: decision.reason,
+		action: command ? "run" : "skip",
+		script: command,
+		changeSet: {
+			source: changeSet.source,
+			upstreamRef: changeSet.upstreamRef,
+			ahead: changeSet.ahead,
+		},
+		files: changedFiles,
+	};
+}
+
 function hasArg(flag) {
 	return process.argv.includes(flag);
 }
@@ -328,7 +349,7 @@ async function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log(`${LOGGER_PREFIX} usage:`);
 		console.log(
-			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>] [--list-profiles]",
+			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>] [--list-profiles] [--json]",
 		);
 		console.log(`  profiles: ${formatSmokeProfileList()}`);
 		console.log(
@@ -337,6 +358,7 @@ async function main() {
 		console.log(
 			"  --profile bypasses diff detection and previews or executes the requested lane explicitly.",
 		);
+		console.log("  --json prints machine-readable plan/profile envelopes for preview modes.");
 		console.log("  --list-profiles prints only the comma-separated profile list.");
 		console.log("  --list-profiles --json prints profile-to-script mappings.");
 		return;
@@ -380,6 +402,17 @@ async function main() {
 		throw new Error(formatUnknownSmokeProfileMessage(decision.profile));
 	}
 	const command = resolveProfileScript(decision.profile);
+	const planEnvelope = createSmokeProfileDecisionEnvelope({
+		changeSet,
+		changedFiles,
+		command,
+		decision,
+	});
+
+	if (hasArg("--json") && !execute) {
+		console.log(JSON.stringify(planEnvelope, null, 2));
+		return;
+	}
 
 	console.log(
 		`${LOGGER_PREFIX} profile=${decision.profile} files=${changedFiles.length}`,
