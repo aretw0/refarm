@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
+	createSmokeProfileListEnvelope,
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
@@ -86,6 +87,30 @@ test("formats unknown profile errors with available profile hints", () => {
 		formatUnknownSmokeProfileMessage("unknown"),
 		`Unknown smoke profile: unknown. Available profiles: ${formatSmokeProfileList()}`,
 	);
+});
+
+test("creates a profile-to-script list envelope", () => {
+	assert.deepEqual(createSmokeProfileListEnvelope(), {
+		schemaVersion: 1,
+		profiles: [
+			{ profile: "skip", script: null },
+			{ profile: "actions-headless", script: "refarm:actions:headless:test" },
+			{ profile: "actions-renderers", script: "refarm:actions:renderers:test" },
+			{ profile: "actions-test", script: "refarm:actions:test" },
+			{ profile: "actions-type", script: "refarm:actions:type-check" },
+			{ profile: "actions-dist", script: "refarm:actions:smoke-dist" },
+			{ profile: "actions", script: "refarm:actions:verify" },
+			{ profile: "tree-test", script: "refarm:tree:test" },
+			{ profile: "tree-smoke", script: "refarm:tree:smoke" },
+			{ profile: "tree-type", script: "refarm:tree:type-check" },
+			{ profile: "tree-farmhand", script: "refarm:tree:farmhand:test" },
+			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
+			{ profile: "tree", script: "refarm:tree:verify" },
+			{ profile: "quick", script: "refarm:host:smoke:quick" },
+			{ profile: "dev", script: "refarm:host:smoke:dev" },
+			{ profile: "ci", script: "refarm:host:smoke:ci" },
+		],
+	});
 });
 
 test("maps profiles to npm scripts", () => {
@@ -245,6 +270,15 @@ test("list-profiles prints only the canonical profile list", () => {
 		{ encoding: "utf8" },
 	);
 	assert.equal(output.trim(), formatSmokeProfileList());
+});
+
+test("list-profiles json prints profile-to-script mappings", () => {
+	const output = execFileSync(
+		process.execPath,
+		["scripts/ci/smoke-refarm-host-auto.mjs", "--list-profiles", "--json"],
+		{ encoding: "utf8" },
+	);
+	assert.deepEqual(JSON.parse(output), createSmokeProfileListEnvelope());
 });
 
 test("explicit CLI profile fails closed when unknown", () => {

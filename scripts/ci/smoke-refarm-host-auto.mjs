@@ -31,6 +31,16 @@ export function formatSmokeProfileList() {
 	return listSmokeProfiles().join(", ");
 }
 
+export function createSmokeProfileListEnvelope() {
+	return {
+		schemaVersion: 1,
+		profiles: listSmokeProfiles().map((profile) => ({
+			profile,
+			script: resolveProfileScript(profile),
+		})),
+	};
+}
+
 export function isSmokeProfile(profile) {
 	return Object.hasOwn(PROFILE_SCRIPT, profile);
 }
@@ -307,7 +317,11 @@ export function decideProfile(inputFiles) {
 
 async function main() {
 	if (hasArg("--list-profiles")) {
-		console.log(formatSmokeProfileList());
+		if (hasArg("--json")) {
+			console.log(JSON.stringify(createSmokeProfileListEnvelope(), null, 2));
+		} else {
+			console.log(formatSmokeProfileList());
+		}
 		return;
 	}
 
@@ -324,6 +338,7 @@ async function main() {
 			"  --profile bypasses diff detection and previews or executes the requested lane explicitly.",
 		);
 		console.log("  --list-profiles prints only the comma-separated profile list.");
+		console.log("  --list-profiles --json prints profile-to-script mappings.");
 		return;
 	}
 
