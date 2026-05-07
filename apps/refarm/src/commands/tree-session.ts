@@ -1,14 +1,14 @@
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
+	buildSessionForkPreviewEnvelope,
+	buildSessionSwitchEnvelope,
+	buildSessionSwitchPreviewEnvelope,
 	buildSessionTimelineListEnvelope,
 	buildSessionTimelineShowEnvelope,
 	outputTreeJson,
-	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
-	type RefarmSessionTimelinePreviewEnvelope,
 	type RefarmSessionTimelineNode,
-	type RefarmSessionTimelineSwitchEnvelope,
 } from "./tree-model.js";
 import { formatSessionId } from "./session-ids.js";
 import {
@@ -228,105 +228,6 @@ export async function showSessionTree(
 	console.log();
 }
 
-function createSessionForkPreviewEnvelope(
-	node: RefarmSessionTimelineNode,
-	branchPointEntryId: string | null,
-	name: string | undefined,
-): RefarmSessionTimelinePreviewEnvelope {
-	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
-	const branchName = name ?? "<branch-name>";
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_SESSION_SCOPE,
-		operation: "preview",
-		reason: "dry-run",
-		target: node,
-		plan: {
-			action: "fork",
-			destructive: false,
-			readyToExecute: Boolean(name),
-			...(name
-				? {}
-				: {
-						blockedReason:
-							"Provide --name <branch-name> before executing session fork.",
-					}),
-			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`,
-			effects: {
-				activePointerChanged: true,
-				branchCreated: true,
-			},
-			substrate: {
-				kind: "session-fork",
-				branchPointEntryId,
-				branchName,
-				activeSessionWillSwitch: true,
-			},
-		},
-	};
-}
-
-function createSessionSwitchEnvelope(
-	node: RefarmSessionTimelineNode,
-	currentSessionIdBefore: string | null,
-	currentSessionIdAfter: string,
-): RefarmSessionTimelineSwitchEnvelope {
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_SESSION_SCOPE,
-		operation: "switch",
-		reason: "executed",
-		target: node,
-		result: {
-			kind: "session-switch",
-			destructive: false,
-			activePointerChanged: true,
-			currentSessionIdBefore,
-			currentSessionIdAfter,
-			targetSessionId: node.nodeId,
-			command: `refarm tree switch ${node.metadata.shortId}`,
-		},
-	};
-}
-
-function createSessionSwitchPreviewEnvelope(
-	node: RefarmSessionTimelineNode,
-	activeSessionIdBefore: string | null,
-): RefarmSessionTimelinePreviewEnvelope {
-	const alreadyActive = activeSessionIdBefore === node.nodeId;
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_SESSION_SCOPE,
-		operation: "preview",
-		reason: "dry-run",
-		target: node,
-		plan: {
-			action: "switch",
-			destructive: false,
-			readyToExecute: !alreadyActive,
-			...(alreadyActive
-				? {
-						blockedReason: `Session "${node.metadata.shortId}" is already active.`,
-					}
-				: {}),
-			recommendedCommand: `refarm tree switch ${node.metadata.shortId}`,
-			effects: {
-				activePointerChanged: true,
-				branchCreated: false,
-			},
-			substrate: {
-				kind: "session-switch",
-				activeSessionIdBefore,
-				targetSessionIdAfter: node.nodeId,
-				activeSessionWillSwitch: true,
-			},
-		},
-	};
-}
-
 export async function previewSessionTree(
 	prefix: string,
 	opts: { json?: boolean; at?: string; name?: string },
@@ -346,11 +247,11 @@ export async function previewSessionTree(
 		);
 		process.exit(1);
 	}
-	const envelope = createSessionForkPreviewEnvelope(
-		createSessionTimelineNode(history.session),
+	const envelope = buildSessionForkPreviewEnvelope({
+		node: createSessionTimelineNode(history.session),
 		branchPointEntryId,
-		opts.name,
-	);
+		name: opts.name,
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
@@ -404,11 +305,11 @@ export async function switchSessionTree(
 		console.error(chalk.red(`✗  ${message}`));
 		process.exit(1);
 	}
-	const envelope = createSessionSwitchEnvelope(
+	const envelope = buildSessionSwitchEnvelope({
 		node,
 		currentSessionIdBefore,
 		currentSessionIdAfter,
-	);
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
@@ -432,10 +333,10 @@ export async function previewSessionSwitchTree(
 	} catch (err) {
 		exitForSidecarError(err);
 	}
-	const envelope = createSessionSwitchPreviewEnvelope(
-		createSessionTimelineNode(history.session),
-		readActiveSessionId(),
-	);
+	const envelope = buildSessionSwitchPreviewEnvelope({
+		node: createSessionTimelineNode(history.session),
+		activeSessionIdBefore: readActiveSessionId(),
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);

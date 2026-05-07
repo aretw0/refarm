@@ -2,15 +2,15 @@ import * as childProcess from "node:child_process";
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
+	buildGitBranchPreviewEnvelope,
+	buildGitForkEnvelope,
+	buildGitSwitchEnvelope,
+	buildGitSwitchPreviewEnvelope,
 	buildGitTimelineListEnvelope,
 	buildGitTimelineShowEnvelope,
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
-	REFARM_TREE_SCHEMA_VERSION,
-	type RefarmGitTimelineForkEnvelope,
-	type RefarmGitTimelinePreviewEnvelope,
 	type RefarmGitTimelineNode,
-	type RefarmGitTimelineSwitchEnvelope,
 } from "./tree-model.js";
 
 function createGitTimelineNode(line: string): RefarmGitTimelineNode | null {
@@ -173,140 +173,6 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	console.log();
 }
 
-function createGitPreviewEnvelope(
-	node: RefarmGitTimelineNode,
-	name: string | undefined,
-	branchAlreadyExists: boolean | undefined,
-): RefarmGitTimelinePreviewEnvelope {
-	const branchName = name ?? "<branch-name>";
-	const readyToExecute = Boolean(name) && branchAlreadyExists === false;
-	const blockedReason = !name
-		? "Provide --name <branch-name> before executing tree fork."
-		: branchAlreadyExists
-			? `Git branch "${name}" already exists.`
-			: undefined;
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_GIT_SCOPE,
-		operation: "preview",
-		reason: "dry-run",
-		target: node,
-		plan: {
-			action: "fork",
-			destructive: false,
-			readyToExecute,
-			...(blockedReason ? { blockedReason } : {}),
-			recommendedCommand: `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`,
-			effects: {
-				activePointerChanged: false,
-				branchCreated: true,
-			},
-			substrate: {
-				kind: "git-branch",
-				baseCommit: node.nodeId,
-				branchName,
-				worktreeSwitched: false,
-			},
-		},
-	};
-}
-
-function createGitSwitchPreviewEnvelope(
-	node: RefarmGitTimelineNode,
-	name: string,
-	currentRefBefore: string,
-	worktreeClean: boolean,
-	blockedReason?: string,
-): RefarmGitTimelinePreviewEnvelope {
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_GIT_SCOPE,
-		operation: "preview",
-		reason: "dry-run",
-		target: node,
-		plan: {
-			action: "switch",
-			destructive: false,
-			readyToExecute: !blockedReason && worktreeClean,
-			...(blockedReason
-				? { blockedReason }
-				: worktreeClean
-					? {}
-					: {
-							blockedReason:
-								"Git worktree must be clean before tree switch execution.",
-						}),
-			recommendedCommand: `refarm tree switch --scope git ${name}`,
-			effects: {
-				activePointerChanged: true,
-				branchCreated: false,
-			},
-			substrate: {
-				kind: "git-switch",
-				currentRefBefore,
-				targetRefAfter: name,
-				targetCommit: node.nodeId,
-				worktreeClean,
-				worktreeSwitched: true,
-			},
-		},
-	};
-}
-
-function createGitForkEnvelope(
-	node: RefarmGitTimelineNode,
-	name: string,
-	currentRefBefore: string,
-	currentRefAfter: string,
-): RefarmGitTimelineForkEnvelope {
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_GIT_SCOPE,
-		operation: "fork",
-		reason: "executed",
-		target: node,
-		result: {
-			kind: "git-branch",
-			destructive: false,
-			worktreeSwitched: false,
-			currentRefBefore,
-			currentRefAfter,
-			branchName: name,
-			baseCommit: node.nodeId,
-			command: `git branch ${name} ${node.metadata.shortId}`,
-		},
-	};
-}
-
-function createGitSwitchEnvelope(
-	node: RefarmGitTimelineNode,
-	name: string,
-	currentRefBefore: string,
-	currentRefAfter: string,
-): RefarmGitTimelineSwitchEnvelope {
-	return {
-		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-		command: "tree",
-		scope: REFARM_TREE_GIT_SCOPE,
-		operation: "switch",
-		reason: "executed",
-		target: node,
-		result: {
-			kind: "git-switch",
-			destructive: false,
-			worktreeSwitched: true,
-			currentRefBefore,
-			currentRefAfter,
-			branchName: name,
-			targetCommit: node.nodeId,
-			command: `git switch ${name}`,
-		},
-	};
-}
-
 export function previewGitTree(
 	prefix: string,
 	opts: { json?: boolean; name?: string },
@@ -319,11 +185,11 @@ export function previewGitTree(
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitPreviewEnvelope(
+	const envelope = buildGitBranchPreviewEnvelope({
 		node,
-		opts.name,
+		name: opts.name,
 		branchAlreadyExists,
-	);
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
@@ -361,15 +227,16 @@ export function previewGitSwitchTree(
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitSwitchPreviewEnvelope(
+	const envelope = buildGitSwitchPreviewEnvelope({
 		node,
 		name,
 		currentRefBefore,
 		worktreeClean,
-		currentRefBefore === name
-			? `Git branch "${name}" is already active.`
-			: undefined,
-	);
+		blockedReason:
+			currentRefBefore === name
+				? `Git branch "${name}" is already active.`
+				: undefined,
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
@@ -423,12 +290,12 @@ export function forkGitTree(
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitForkEnvelope(
+	const envelope = buildGitForkEnvelope({
 		node,
-		opts.name,
+		name: opts.name,
 		currentRefBefore,
 		currentRefAfter,
-	);
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
@@ -467,12 +334,12 @@ export function switchGitTree(name: string, opts: { json?: boolean }): void {
 	} catch (err) {
 		exitForGitError(err);
 	}
-	const envelope = createGitSwitchEnvelope(
+	const envelope = buildGitSwitchEnvelope({
 		node,
 		name,
 		currentRefBefore,
 		currentRefAfter,
-	);
+	});
 
 	if (opts.json) {
 		outputTreeJson(envelope);
