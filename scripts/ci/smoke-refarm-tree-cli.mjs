@@ -90,8 +90,10 @@ async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 }
 
 async function startTreeSidecarStub() {
+	const sessionListRequests = [];
 	const server = createServer((request, response) => {
 		if (request.url === "/sessions" || request.url?.startsWith("/sessions?")) {
+			sessionListRequests.push(request.url);
 			response.writeHead(200, { "content-type": "application/json" });
 			response.end(
 				JSON.stringify({
@@ -125,7 +127,11 @@ async function startTreeSidecarStub() {
 	return new Promise((resolve, reject) => {
 		server.once("error", (error) => {
 			if (error && error.code === "EADDRINUSE") {
-				resolve({ started: false, close: async () => {} });
+				resolve({
+					started: false,
+					sessionListRequests,
+					close: async () => {},
+				});
 				return;
 			}
 			reject(error);
@@ -133,6 +139,7 @@ async function startTreeSidecarStub() {
 		server.listen(42001, "127.0.0.1", () => {
 			resolve({
 				started: true,
+				sessionListRequests,
 				close: () => new Promise((closeResolve) => server.close(closeResolve)),
 			});
 		});
@@ -271,6 +278,16 @@ async function main() {
 				throw new Error(
 					`Expected session list envelope capped to newest session, got: ${JSON.stringify(sessionListJson)}`,
 				);
+			}
+			for (const expectedRequest of [
+				"/sessions?limit=1",
+				"/sessions?limit=2",
+			]) {
+				if (!sidecarStub.sessionListRequests.includes(expectedRequest)) {
+					throw new Error(
+						`Expected bounded session sidecar request ${expectedRequest}, got: ${JSON.stringify(sidecarStub.sessionListRequests)}`,
+					);
+				}
 			}
 
 			console.log(`${LOGGER_PREFIX} smoke: tree session switch isolated HOME`);
