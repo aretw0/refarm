@@ -176,7 +176,7 @@ npm run refarm:tree:verify
 - **List explicit profiles:**
   `npm run refarm:host:smoke:auto:profiles`
 - **List explicit profile mappings:**
-  `node scripts/ci/smoke-refarm-host-auto.mjs --list-profiles --json`
+  `npm run refarm:host:smoke:auto:profiles:json`
 - **Explicit granular profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
