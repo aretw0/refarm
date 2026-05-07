@@ -23,6 +23,14 @@ const PROFILE_SCRIPT = {
 	ci: "refarm:host:smoke:ci",
 };
 
+export function listSmokeProfiles() {
+	return Object.keys(PROFILE_SCRIPT);
+}
+
+export function formatSmokeProfileList() {
+	return listSmokeProfiles().join(", ");
+}
+
 export function isSmokeProfile(profile) {
 	return Object.hasOwn(PROFILE_SCRIPT, profile);
 }
@@ -299,9 +307,7 @@ async function main() {
 		console.log(
 			"  node scripts/ci/smoke-refarm-host-auto.mjs [--execute] [--from <rev>] [--to <rev>] [--profile <profile>]",
 		);
-		console.log(
-			"  profiles: skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
-		);
+		console.log(`  profiles: ${formatSmokeProfileList()}`);
 		console.log(
 			"  default mode inspects upstream..HEAD when the branch is ahead, plus local working tree/staged/untracked files, and prints a recommendation.",
 		);

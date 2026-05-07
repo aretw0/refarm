@@ -3,9 +3,11 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import {
 	decideProfile,
+	formatSmokeProfileList,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
+	listSmokeProfiles,
 	normalizeChangedFiles,
 	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
@@ -50,6 +52,31 @@ test("detects tree timeline files", () => {
 	assert.equal(
 		isRefarmTreeFile("apps/refarm/src/commands/action-affordances.ts"),
 		false,
+	);
+});
+
+test("lists smoke profiles from the canonical profile map", () => {
+	assert.deepEqual(listSmokeProfiles(), [
+		"skip",
+		"actions-headless",
+		"actions-renderers",
+		"actions-test",
+		"actions-type",
+		"actions-dist",
+		"actions",
+		"tree-test",
+		"tree-smoke",
+		"tree-type",
+		"tree-farmhand",
+		"tree-dist",
+		"tree",
+		"quick",
+		"dev",
+		"ci",
+	]);
+	assert.equal(
+		formatSmokeProfileList(),
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
 	);
 });
 
@@ -189,6 +216,17 @@ test("explicit granular CLI profile maps to a narrow lane", () => {
 	assert.match(output, /profile=actions-headless files=0/);
 	assert.match(output, /source=explicit-profile/);
 	assert.match(output, /action=npm run refarm:actions:headless:test/);
+});
+
+test("help output lists profiles from the canonical profile map", () => {
+	const output = execFileSync(
+		process.execPath,
+		["scripts/ci/smoke-refarm-host-auto.mjs", "--help"],
+		{ encoding: "utf8" },
+	);
+	assert.match(output, /profiles: skip, actions-headless/);
+	assert.match(output, /tree-farmhand/);
+	assert.match(output, /quick, dev, ci/);
 });
 
 test("explicit CLI profile fails closed when unknown", () => {
