@@ -85,6 +85,17 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("describes list limits without assuming git-only nodes", () => {
+		const command = createTreeCommand();
+		const listHelp = command.commands
+			.find((c) => c.name() === "list")!
+			.helpInformation();
+
+		expect(listHelp).toContain("--limit <count>");
+		expect(listHelp).toContain("Maximum timeline nodes to list");
+		expect(listHelp).not.toContain("Maximum git commits");
+	});
+
 	it("lists session timeline nodes as renderer-independent JSON", async () => {
 		vi.stubGlobal(
 			"fetch",
