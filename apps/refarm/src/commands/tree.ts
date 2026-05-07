@@ -10,10 +10,10 @@ import {
 	switchGitTree,
 } from "./tree-git.js";
 import {
+	buildAllTimelineListEnvelope,
 	outputTreeJson,
 	REFARM_TREE_ALL_SCOPE,
 	REFARM_TREE_GIT_SCOPE,
-	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
 	type RefarmAllTimelineListEnvelope,
 	type RefarmTimelineScope,
@@ -168,14 +168,7 @@ async function listAllTree(opts: {
 	}
 
 	if (opts.json) {
-		const envelope: RefarmAllTimelineListEnvelope = {
-			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-			command: "tree",
-			scope: REFARM_TREE_ALL_SCOPE,
-			operation: "list",
-			nodes,
-		};
-		outputTreeJson(envelope);
+		outputTreeJson(buildAllTimelineListEnvelope(nodes));
 		return;
 	}
 

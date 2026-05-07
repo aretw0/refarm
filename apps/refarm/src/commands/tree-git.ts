@@ -2,14 +2,14 @@ import * as childProcess from "node:child_process";
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
+	buildGitTimelineListEnvelope,
+	buildGitTimelineShowEnvelope,
 	outputTreeJson,
 	REFARM_TREE_GIT_SCOPE,
 	REFARM_TREE_SCHEMA_VERSION,
 	type RefarmGitTimelineForkEnvelope,
-	type RefarmGitTimelineListEnvelope,
 	type RefarmGitTimelinePreviewEnvelope,
 	type RefarmGitTimelineNode,
-	type RefarmGitTimelineShowEnvelope,
 	type RefarmGitTimelineSwitchEnvelope,
 } from "./tree-model.js";
 
@@ -115,14 +115,7 @@ export function listGitTree(opts: { json?: boolean; limit?: number }): void {
 	}
 
 	if (opts.json) {
-		const envelope: RefarmGitTimelineListEnvelope = {
-			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-			command: "tree",
-			scope: REFARM_TREE_GIT_SCOPE,
-			operation: "list",
-			nodes,
-		};
-		outputTreeJson(envelope);
+		outputTreeJson(buildGitTimelineListEnvelope(nodes));
 		return;
 	}
 
@@ -162,14 +155,7 @@ export function showGitTree(prefix: string, opts: { json?: boolean }): void {
 	}
 
 	if (opts.json) {
-		const envelope: RefarmGitTimelineShowEnvelope = {
-			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-			command: "tree",
-			scope: REFARM_TREE_GIT_SCOPE,
-			operation: "show",
-			node,
-		};
-		outputTreeJson(envelope);
+		outputTreeJson(buildGitTimelineShowEnvelope(node));
 		return;
 	}
 

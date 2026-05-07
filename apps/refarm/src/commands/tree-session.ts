@@ -1,13 +1,13 @@
 import chalk from "chalk";
 import { formatExecutionPlanReadinessLine } from "./execution-plan.js";
 import {
+	buildSessionTimelineListEnvelope,
+	buildSessionTimelineShowEnvelope,
 	outputTreeJson,
 	REFARM_TREE_SCHEMA_VERSION,
 	REFARM_TREE_SESSION_SCOPE,
-	type RefarmSessionTimelineListEnvelope,
 	type RefarmSessionTimelinePreviewEnvelope,
 	type RefarmSessionTimelineNode,
-	type RefarmSessionTimelineShowEnvelope,
 	type RefarmSessionTimelineSwitchEnvelope,
 } from "./tree-model.js";
 import { formatSessionId } from "./session-ids.js";
@@ -152,14 +152,7 @@ export async function listSessionTree(opts: {
 		typeof opts.limit === "number" ? nodes.slice(0, opts.limit) : nodes;
 
 	if (opts.json) {
-		const envelope: RefarmSessionTimelineListEnvelope = {
-			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-			command: "tree",
-			scope: REFARM_TREE_SESSION_SCOPE,
-			operation: "list",
-			nodes: visibleNodes,
-		};
-		outputTreeJson(envelope);
+		outputTreeJson(buildSessionTimelineListEnvelope(visibleNodes));
 		return;
 	}
 
@@ -207,16 +200,13 @@ export async function showSessionTree(
 	const node = createSessionTimelineNode(history.session);
 
 	if (opts.json) {
-		const envelope: RefarmSessionTimelineShowEnvelope = {
-			schemaVersion: REFARM_TREE_SCHEMA_VERSION,
-			command: "tree",
-			scope: REFARM_TREE_SESSION_SCOPE,
-			operation: "show",
-			node,
-			entries: history.entries,
-			total: history.total,
-		};
-		outputTreeJson(envelope);
+		outputTreeJson(
+			buildSessionTimelineShowEnvelope({
+				node,
+				entries: history.entries,
+				total: history.total,
+			}),
+		);
 		return;
 	}
 

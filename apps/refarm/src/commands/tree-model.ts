@@ -269,6 +269,66 @@ export type RefarmTreeJsonEnvelope =
 	| RefarmSessionTimelineSwitchEnvelope
 	| RefarmGitTimelineSwitchEnvelope;
 
+export function buildSessionTimelineListEnvelope(
+	nodes: RefarmSessionTimelineNode[],
+): RefarmSessionTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildGitTimelineListEnvelope(
+	nodes: RefarmGitTimelineNode[],
+): RefarmGitTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildAllTimelineListEnvelope(
+	nodes: RefarmAllTimelineListEnvelope["nodes"],
+): RefarmAllTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_ALL_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildSessionTimelineShowEnvelope(
+	args: Pick<RefarmSessionTimelineShowEnvelope, "node" | "entries" | "total">,
+): RefarmSessionTimelineShowEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "show",
+		...args,
+	};
+}
+
+export function buildGitTimelineShowEnvelope(
+	node: RefarmGitTimelineNode,
+): RefarmGitTimelineShowEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "show",
+		node,
+	};
+}
+
 export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {
 	console.log(JSON.stringify(value, null, 2));
 }
