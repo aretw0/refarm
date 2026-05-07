@@ -10,6 +10,7 @@ import {
 	parseOnlyProfile,
 	parseSkipBuild,
 	resolveOnlyProfileCommand,
+	resolveOnlyProfileSkipBuildCommand,
 } from "./smoke-refarm-host-cli-flows.mjs";
 
 test("lists focused CLI smoke profiles deterministically", () => {
@@ -24,16 +25,22 @@ test("lists focused CLI smoke profiles deterministically", () => {
 				profile: "action-seams",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
+				skipBuildCommand:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build",
 			},
 			{
 				profile: "actions-readiness",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness",
+				skipBuildCommand:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness --skip-build",
 			},
 			{
 				profile: "status-action",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action",
+				skipBuildCommand:
+					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action --skip-build",
 			},
 		],
 	});
@@ -41,7 +48,12 @@ test("lists focused CLI smoke profiles deterministically", () => {
 		resolveOnlyProfileCommand("action-seams"),
 		"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
 	);
+	assert.equal(
+		resolveOnlyProfileSkipBuildCommand("action-seams"),
+		"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build",
+	);
 	assert.equal(resolveOnlyProfileCommand("missing"), undefined);
+	assert.equal(resolveOnlyProfileSkipBuildCommand("missing"), undefined);
 });
 
 test("parses focused CLI smoke flags", () => {

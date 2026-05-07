@@ -78,12 +78,18 @@ export function resolveOnlyProfileCommand(profile) {
 	return `node scripts/ci/smoke-refarm-host-cli-flows.mjs --only ${profile}`;
 }
 
+export function resolveOnlyProfileSkipBuildCommand(profile) {
+	const command = resolveOnlyProfileCommand(profile);
+	return command ? `${command} --skip-build` : undefined;
+}
+
 export function createOnlyProfileListEnvelope() {
 	return {
 		schemaVersion: 1,
 		profiles: Array.from(ONLY_PROFILES).map((profile) => ({
 			profile,
 			command: resolveOnlyProfileCommand(profile),
+			skipBuildCommand: resolveOnlyProfileSkipBuildCommand(profile),
 		})),
 	};
 }
