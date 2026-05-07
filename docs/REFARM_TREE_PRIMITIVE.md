@@ -527,6 +527,22 @@ Acceptance criteria for the read-only CRDT/composite slice:
 4. Existing session/git JSON envelopes remain backward-compatible at
    `schemaVersion: 1`.
 
+## Deferred mutation and extraction queue
+
+The current stabilization pass intentionally does **not** implement the following
+items yet, but they are the next prepared orbit once the current session/git/all
+contracts are stable:
+
+| Deferred item | Earliest safe entry point | Required proof before execution |
+| --- | --- | --- |
+| CRDT mutation | After CRDT frontiers/checkpoints are visible as read-only tree nodes | Deterministic node IDs, ancestry, preview envelopes, and rollback/abort behavior for failed writes |
+| Composite mutation | After session/git/CRDT nodes can be joined read-only | Coordinated plan envelope, selected substrate nodes, partial-failure semantics, and no hidden cross-substrate writes |
+| Rewind | After `preview + switch/fork` semantics have covered real recovery workflows | Non-destructive preview that identifies whether rewind is a switch to an existing pointer or a fork from a historical node |
+| `execution-plan` extraction | After a second real consumer outside `refarm tree` needs the same plan/readiness contract | Shared generic fields remain substrate-free and product-specific facts stay under adapter/substrate details |
+
+Until those proofs exist, `tree` should continue to prefer read-only inspection,
+blocked readiness envelopes, or explicit single-substrate execution.
+
 ## Fail-closed rules
 
 - Ambiguous prefixes fail with deterministic retry choices.
@@ -554,8 +570,9 @@ Acceptance criteria for the read-only CRDT/composite slice:
 7. ✅ Add explicit git `switch` execution with clean-worktree and before/after
    active-ref verification; add dry-run and explicit execution for session
    active-session pointer switching.
-8. Defer CRDT and composite mutation until Loro frontiers/checkpoints are first
-   exposed as read-only timeline nodes.
+8. ✅ Defer CRDT mutation, composite mutation, rewind, and execution-plan
+   extraction behind the explicit proof gates above; keep the current tree slice
+   focused on stable session/git/all timeline contracts.
 
 ## Non-goals
 
