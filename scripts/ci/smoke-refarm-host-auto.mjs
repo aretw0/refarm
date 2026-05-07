@@ -211,7 +211,8 @@ export function isRefarmActionReadinessFile(file) {
 	);
 }
 
-export function decideProfile(files) {
+export function decideProfile(inputFiles) {
+	const files = normalizeChangedFiles(inputFiles);
 	if (files.length === 0) {
 		return {
 			profile: "skip",

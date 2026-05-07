@@ -97,8 +97,9 @@ test("keeps smoke governance changes on ci lane", () => {
 	assert.equal(decideProfile(["package.json"]).profile, "ci");
 });
 
-test("skips empty or docs-only deltas", () => {
+test("skips empty, operational-note-only, or docs-only deltas", () => {
 	assert.equal(decideProfile([]).profile, "skip");
+	assert.equal(decideProfile([".pi/todos/d777f597.md"]).profile, "skip");
 	assert.equal(decideProfile(["docs/REFARM_CLI_DISTRO.md"]).profile, "skip");
 });
 
