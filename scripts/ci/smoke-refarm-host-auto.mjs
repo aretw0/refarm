@@ -38,7 +38,7 @@ function parseChangedFileList(output) {
 		.filter(Boolean);
 }
 
-function uniqueSortedFiles(files) {
+export function normalizeChangedFiles(files) {
 	return Array.from(
 		new Set(files.filter((file) => !isPiTodoFile(file))),
 	).sort();
@@ -51,7 +51,7 @@ async function gitChangedFilesForRange(fromRef, toRef) {
 		["diff", "--name-only", "--relative", range],
 		{ env: process.env, captureOutput: true },
 	);
-	return uniqueSortedFiles(parseChangedFileList(stdout));
+	return normalizeChangedFiles(parseChangedFileList(stdout));
 }
 
 async function gitChangedFilesForWorkingTree() {
@@ -77,7 +77,7 @@ async function gitChangedFilesForWorkingTree() {
 		}
 	}
 
-	return uniqueSortedFiles(Array.from(files));
+	return normalizeChangedFiles(Array.from(files));
 }
 
 async function gitUpstreamRef() {
@@ -130,7 +130,7 @@ async function gitDefaultChangeSet() {
 	const committedFiles = await gitChangedFilesForRange(upstreamRef, "HEAD");
 	return {
 		ahead,
-		files: uniqueSortedFiles([...committedFiles, ...workingTreeFiles]),
+		files: normalizeChangedFiles([...committedFiles, ...workingTreeFiles]),
 		source: "upstream-range+working-tree",
 		upstreamRef,
 	};

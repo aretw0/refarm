@@ -5,8 +5,21 @@ import {
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
+	normalizeChangedFiles,
 	resolveProfileScript,
 } from "./smoke-refarm-host-auto.mjs";
+
+test("normalizes changed files before routing", () => {
+	assert.deepEqual(
+		normalizeChangedFiles([
+			"docs/REFARM_CLI_DISTRO.md",
+			".pi/todos/d777f597.md",
+			"apps/refarm/src/commands/status.ts",
+			"docs/REFARM_CLI_DISTRO.md",
+		]),
+		["apps/refarm/src/commands/status.ts", "docs/REFARM_CLI_DISTRO.md"],
+	);
+});
 
 test("detects action-readiness files", () => {
 	assert.equal(
