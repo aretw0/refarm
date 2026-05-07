@@ -153,14 +153,16 @@ async function listAllTree(opts: {
 	json?: boolean;
 	limit?: string;
 }): Promise<void> {
-	const gitLimit = parseLimit(opts.limit);
+	const limit = parseLimit(opts.limit);
 	let nodes: RefarmAllTimelineListEnvelope["nodes"];
 	try {
 		const [sessionNodes, gitNodes] = await Promise.all([
 			getSessionTimelineNodes(),
-			Promise.resolve(getGitTimelineNodes(gitLimit)),
+			Promise.resolve(getGitTimelineNodes(limit)),
 		]);
-		nodes = [...sessionNodes, ...gitNodes].sort(compareAllTimelineNodes);
+		nodes = [...sessionNodes, ...gitNodes]
+			.sort(compareAllTimelineNodes)
+			.slice(0, limit);
 	} catch (err) {
 		exitForAllListError(err);
 	}

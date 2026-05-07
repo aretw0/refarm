@@ -182,7 +182,7 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "list")!
-			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+			.parseAsync(["--scope", "all", "--limit", "2", "--json"], {
 				from: "user",
 			});
 
@@ -204,6 +204,37 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("applies all-scope limit after combining timeline nodes", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue({
+				ok: true,
+				status: 200,
+				json: async () => ({ sessions: [SESSION] }),
+			}) as any,
+		);
+		spawnSyncMock.mockReturnValue({
+			status: 0,
+			stdout: GIT_LINE,
+			stderr: "",
+		} as any);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTreeCommand();
+		await command.commands
+			.find((c) => c.name() === "list")!
+			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+				from: "user",
+			});
+
+		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		expect(payload.nodes).toHaveLength(1);
+		expect(payload.nodes[0]).toMatchObject({
+			kind: "git",
+			nodeId: "abcdef1234567890abcdef1234567890abcdef12",
+		});
+	});
+
 	it("orders all-scope timeline ties deterministically", async () => {
 		vi.stubGlobal(
 			"fetch",
@@ -223,7 +254,7 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "list")!
-			.parseAsync(["--scope", "all", "--limit", "1", "--json"], {
+			.parseAsync(["--scope", "all", "--limit", "2", "--json"], {
 				from: "user",
 			});
 
@@ -253,7 +284,7 @@ describe("refarm tree", () => {
 		const command = createTreeCommand();
 		await command.commands
 			.find((c) => c.name() === "list")!
-			.parseAsync(["--scope", "all", "--limit", "1"], { from: "user" });
+			.parseAsync(["--scope", "all", "--limit", "2"], { from: "user" });
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("Tree timeline  (all scope)");
