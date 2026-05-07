@@ -104,7 +104,7 @@ share exact-match precedence, ambiguity errors, and short-ID formatting.
 Preview/fork/switch branch names fail closed unless they contain
 only safe git-style segments made from letters, numbers, `.`, `_`, `/`, or `-`
 and do not look like CLI options, reserved refs (`HEAD`/`refs/...`), hidden/empty
-path segments, `.lock` ref lock files, or parent traversal. Git list limits fail closed unless they are plain
+path segments, `.lock` ref lock files, or parent traversal. Tree list limits fail closed unless they are plain
 integers from 1 to 200 and apply to session, git, and combined all-scope list output.
 
 `preview` is the safety boundary. It materializes what would change without
@@ -175,7 +175,10 @@ are proven. "Rewind" is user language; the safe primitive is either:
 ## All-scope list JSON contract example
 
 `scope: "all"` is a read-only aggregate list. It joins currently available
-session and git timeline nodes but does not create a composite mutation surface:
+session and git timeline nodes but does not create a composite mutation surface.
+When `--limit <n>` is provided, each adapter is requested with a bounded read
+(`/sessions?limit=<n>` for sessions and `git log --max-count=<n>` for git)
+before the combined timeline is sorted and sliced to the final limit:
 
 ```json
 {
