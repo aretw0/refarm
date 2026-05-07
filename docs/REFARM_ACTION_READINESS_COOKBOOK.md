@@ -291,6 +291,7 @@ npm run refarm:actions:smoke-dist
 
 # Discover built CLI smoke-only profiles.
 npm run refarm:host:smoke:cli:profiles
+npm run refarm:host:smoke:cli:profiles:json
 
 # Narrow built CLI proof for both action seams after one build.
 npm run refarm:host:smoke:cli:action-seams

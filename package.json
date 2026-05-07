@@ -45,6 +45,7 @@
 		"refarm:actions:verify": "npm run refarm:actions:test && npm run refarm:actions:type-check && npm run refarm:actions:smoke-dist",
 		"refarm:host:smoke:cli": "node scripts/ci/smoke-refarm-host-cli-flows.mjs",
 		"refarm:host:smoke:cli:profiles": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --list-only-profiles",
+		"refarm:host:smoke:cli:profiles:json": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --list-only-profiles --json",
 		"refarm:host:smoke:cli:action-seams": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
 		"refarm:host:smoke:cli:action-seams:skip-build": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build",
 		"refarm:host:smoke:cli:actions-readiness": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness",

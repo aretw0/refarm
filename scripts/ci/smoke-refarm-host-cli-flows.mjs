@@ -60,8 +60,19 @@ function hasListOnlyProfilesArg(argv) {
 	return argv.includes("--list-only-profiles");
 }
 
+function hasJsonArg(argv) {
+	return argv.includes("--json");
+}
+
 function formatOnlyProfileList() {
 	return Array.from(ONLY_PROFILES).join(", ");
+}
+
+function createOnlyProfileListEnvelope() {
+	return {
+		schemaVersion: 1,
+		profiles: Array.from(ONLY_PROFILES).map((profile) => ({ profile })),
+	};
 }
 
 function makeStatusPayload(mode, options = {}) {
@@ -274,7 +285,11 @@ async function createIsolatedGitRepo(tempDir) {
 async function main() {
 	const argv = process.argv.slice(2);
 	if (hasListOnlyProfilesArg(argv)) {
-		console.log(formatOnlyProfileList());
+		if (hasJsonArg(argv)) {
+			console.log(JSON.stringify(createOnlyProfileListEnvelope(), null, 2));
+		} else {
+			console.log(formatOnlyProfileList());
+		}
 		return;
 	}
 
