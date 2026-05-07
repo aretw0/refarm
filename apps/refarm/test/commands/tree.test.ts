@@ -75,6 +75,18 @@ describe("refarm tree", () => {
 		);
 	});
 
+	it("describes switch previews across session and git substrates", () => {
+		const command = createTreeCommand();
+		const previewHelp = command.commands
+			.find((c) => c.name() === "preview")!
+			.helpInformation();
+
+		expect(previewHelp).toContain("--switch");
+		expect(previewHelp).toContain(
+			"Preview switching to an existing session or git branch",
+		);
+	});
+
 	it("lists session timeline nodes as renderer-independent JSON", async () => {
 		vi.stubGlobal(
 			"fetch",

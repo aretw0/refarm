@@ -361,7 +361,7 @@ export function createTreeCommand(): Command {
 					"--name <branch-name>",
 					"Branch/fork name to include in the dry-run plan",
 				)
-				.option("--switch", "Preview switching to an existing git branch")
+				.option("--switch", "Preview switching to an existing session or git branch")
 				.option("--json", "Print machine-readable JSON")
 				.action(
 					async (
