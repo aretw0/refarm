@@ -76,8 +76,9 @@ function createSessionTimelineNode(
 	};
 }
 
-async function fetchSessions(): Promise<SessionNode[]> {
-	const response = await fetch(`${SIDECAR_URL}/sessions`);
+async function fetchSessions(limit?: number): Promise<SessionNode[]> {
+	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
+	const response = await fetch(`${SIDECAR_URL}/sessions${suffix}`);
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -126,7 +127,7 @@ function exitForSidecarError(err: unknown): never {
 export async function getSessionTimelineNodes(
 	limit?: number,
 ): Promise<RefarmSessionTimelineNode[]> {
-	const sessions = await fetchSessions();
+	const sessions = await fetchSessions(limit);
 	const nodes = [...sessions]
 		.sort((a, b) => (b.created_at_ns ?? 0) - (a.created_at_ns ?? 0))
 		.map(createSessionTimelineNode);
@@ -139,7 +140,7 @@ export async function listSessionTree(opts: {
 }): Promise<void> {
 	let sessions: SessionNode[];
 	try {
-		sessions = await fetchSessions();
+		sessions = await fetchSessions(opts.limit);
 	} catch (err) {
 		exitForSidecarError(err);
 	}

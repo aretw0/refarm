@@ -143,6 +143,38 @@ describe("sessions route handler", () => {
 		]);
 	});
 
+	it("GET /sessions applies bounded list limits", async () => {
+		store.queryNodes.mockResolvedValueOnce([
+			{
+				"@type": "Session",
+				"@id": "urn:refarm:session:v1:older",
+				name: "older",
+				created_at_ns: 1,
+			},
+			{
+				"@type": "Session",
+				"@id": "urn:refarm:session:v1:newer",
+				name: "newer",
+				created_at_ns: 2,
+			},
+		]);
+
+		const { status, body } = await request(PORT, "GET", "/sessions?limit=1");
+		expect(status).toBe(200);
+		expect((body as any).sessions).toEqual([
+			expect.objectContaining({
+				"@id": "urn:refarm:session:v1:newer",
+			}),
+		]);
+	});
+
+	it("GET /sessions rejects invalid list limits", async () => {
+		const { status, body } = await request(PORT, "GET", "/sessions?limit=0");
+		expect(status).toBe(400);
+		expect((body as any).error).toBe("invalid limit");
+		expect(store.queryNodes).not.toHaveBeenCalled();
+	});
+
 	it("POST /sessions creates and stores a session node", async () => {
 		store.storeNode.mockResolvedValueOnce(undefined);
 

@@ -205,14 +205,12 @@ describe("refarm tree", () => {
 	});
 
 	it("applies session list limits after sorting sessions", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [OLDER_SESSION, SESSION] }),
-			}) as any,
-		);
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ sessions: [OLDER_SESSION, SESSION] }),
+		}) as any;
+		vi.stubGlobal("fetch", fetchMock);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -220,6 +218,9 @@ describe("refarm tree", () => {
 			.find((c) => c.name() === "list")!
 			.parseAsync(["--limit", "1", "--json"], { from: "user" });
 
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://127.0.0.1:42001/sessions?limit=1",
+		);
 		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
 		expect(payload.nodes).toHaveLength(1);
 		expect(payload.nodes[0]).toMatchObject({
@@ -340,14 +341,12 @@ describe("refarm tree", () => {
 	});
 
 	it("applies all-scope limit after combining timeline nodes", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
+		const fetchMock = vi.fn().mockResolvedValue({
+			ok: true,
+			status: 200,
+			json: async () => ({ sessions: [SESSION] }),
+		}) as any;
+		vi.stubGlobal("fetch", fetchMock);
 		spawnSyncMock.mockReturnValue({
 			status: 0,
 			stdout: GIT_LINE,
@@ -362,6 +361,9 @@ describe("refarm tree", () => {
 				from: "user",
 			});
 
+		expect(fetchMock).toHaveBeenCalledWith(
+			"http://127.0.0.1:42001/sessions?limit=1",
+		);
 		expect(spawnSyncMock).toHaveBeenCalledWith(
 			"git",
 			expect.arrayContaining(["log", "--max-count=1"]),

@@ -91,7 +91,7 @@ async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 
 async function startTreeSidecarStub() {
 	const server = createServer((request, response) => {
-		if (request.url === "/sessions") {
+		if (request.url === "/sessions" || request.url?.startsWith("/sessions?")) {
 			response.writeHead(200, { "content-type": "application/json" });
 			response.end(
 				JSON.stringify({
