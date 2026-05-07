@@ -289,6 +289,9 @@ npm run refarm:actions:type-check
 # Built CLI loop: run only when emitted dist/package behavior matters.
 npm run refarm:actions:smoke-dist
 
+# Narrow built CLI proof for renderer-neutral action readiness.
+npm run refarm:host:smoke:cli:actions-readiness
+
 # Narrow built CLI proof for only the live status action-result seam.
 npm run refarm:host:smoke:cli:status-action
 

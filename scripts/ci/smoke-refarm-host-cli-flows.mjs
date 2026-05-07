@@ -28,7 +28,7 @@ const ACTION_AFFORDANCES = [
 	},
 	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
 ];
-const ONLY_PROFILES = new Set(["status-action"]);
+const ONLY_PROFILES = new Set(["actions-readiness", "status-action"]);
 
 function parseOnlyProfile(argv) {
 	const onlyIndex = argv.indexOf("--only");
@@ -175,6 +175,42 @@ async function assertStatusActionExecutedEnvelope() {
 	}
 }
 
+async function assertActionsReadinessEnvelope(webStatusPath) {
+	console.log(`${LOGGER_PREFIX} smoke: refarm actions --input selected JSON`);
+	const actionsJsonRun = await runRefarmCommand([
+		"actions",
+		"--input",
+		webStatusPath,
+		"--select",
+		"2",
+		"--json",
+	]);
+	const actionsJson = parseCommandJsonOutput(
+		"actions --select --json",
+		actionsJsonRun,
+	);
+	if (actionsJson?.command !== "actions") {
+		throw new Error(
+			`Expected actions command=actions from JSON output, got: ${JSON.stringify(actionsJson)}`,
+		);
+	}
+	if (actionsJson?.reason !== "dry-run") {
+		throw new Error(
+			`Expected actions reason=dry-run from JSON output, got: ${JSON.stringify(actionsJson)}`,
+		);
+	}
+	if (actionsJson?.readiness?.status !== "ready") {
+		throw new Error(
+			`Expected actions readiness.status=ready, got: ${JSON.stringify(actionsJson?.readiness)}`,
+		);
+	}
+	if (actionsJson?.selection?.resolvedId !== "inspect-trust") {
+		throw new Error(
+			`Expected actions selection.resolvedId=inspect-trust, got: ${JSON.stringify(actionsJson?.selection)}`,
+		);
+	}
+}
+
 async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 	try {
 		await runRefarmCommand(args, options);
@@ -258,6 +294,11 @@ async function main() {
 
 		if (onlyProfile === "status-action") {
 			await assertStatusActionExecutedEnvelope();
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
+		if (onlyProfile === "actions-readiness") {
+			await assertActionsReadinessEnvelope(webStatusPath);
 			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
 			return;
 		}
@@ -352,34 +393,7 @@ async function main() {
 			);
 		}
 
-		console.log(`${LOGGER_PREFIX} smoke: refarm actions --input selected JSON`);
-		const actionsJsonRun = await runRefarmCommand([
-			"actions",
-			"--input",
-			webStatusPath,
-			"--select",
-			"2",
-			"--json",
-		]);
-		const actionsJson = parseCommandJsonOutput(
-			"actions --select --json",
-			actionsJsonRun,
-		);
-		if (actionsJson?.command !== "actions") {
-			throw new Error(
-				`Expected actions command=actions from JSON output, got: ${JSON.stringify(actionsJson)}`,
-			);
-		}
-		if (actionsJson?.reason !== "dry-run") {
-			throw new Error(
-				`Expected actions reason=dry-run from JSON output, got: ${JSON.stringify(actionsJson)}`,
-			);
-		}
-		if (actionsJson?.selection?.resolvedId !== "inspect-trust") {
-			throw new Error(
-				`Expected actions selection.resolvedId=inspect-trust, got: ${JSON.stringify(actionsJson?.selection)}`,
-			);
-		}
+		await assertActionsReadinessEnvelope(webStatusPath);
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm tree --scope git JSON`);
 		const treeGitJsonRun = await runRefarmCommand([
