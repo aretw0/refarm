@@ -110,16 +110,12 @@ export function createHeadlessStatusSurfaceActionDryRunEnvelope(
 	request: HomesteadSurfaceRenderActionRequest,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
 ): HeadlessSurfaceActionDryRunEnvelope {
-	return {
-		schemaVersion: 1,
-		statusSchemaVersion: status.schemaVersion,
-		reason: "dry-run",
-		renderer: "headless",
+	return createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(status, {
 		readiness: formatExecutionPlanReadinessLine({ readyToExecute: true }),
 		selection,
 		actionRequest: request,
 		availableActions,
-	};
+	});
 }
 
 export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
@@ -127,16 +123,33 @@ export function createHeadlessStatusSurfaceActionBlockedDryRunEnvelope(
 	blockedReason: string,
 	availableActions: readonly HomesteadSurfaceRenderAction[],
 ): HeadlessSurfaceActionDryRunEnvelope {
-	return {
-		schemaVersion: 1,
-		statusSchemaVersion: status.schemaVersion,
-		reason: "dry-run",
-		renderer: "headless",
+	return createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(status, {
 		readiness: formatExecutionPlanReadinessLine({
 			readyToExecute: false,
 			blockedReason,
 		}),
 		availableActions,
+	});
+}
+
+function createHeadlessStatusSurfaceActionReadinessDryRunEnvelope(
+	status: RefarmStatusJson,
+	options: {
+		readiness: RefarmExecutionPlanReadinessLine;
+		availableActions: readonly HomesteadSurfaceRenderAction[];
+		selection?: RefarmActionAffordanceSelectionMetadata;
+		actionRequest?: HomesteadSurfaceRenderActionRequest;
+	},
+): HeadlessSurfaceActionDryRunEnvelope {
+	return {
+		schemaVersion: 1,
+		statusSchemaVersion: status.schemaVersion,
+		reason: "dry-run",
+		renderer: "headless",
+		readiness: options.readiness,
+		...(options.selection ? { selection: options.selection } : {}),
+		...(options.actionRequest ? { actionRequest: options.actionRequest } : {}),
+		availableActions: options.availableActions,
 	};
 }
 
