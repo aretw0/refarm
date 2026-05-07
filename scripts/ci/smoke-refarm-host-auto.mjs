@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { pathToFileURL } from "node:url";
 import { runSubprocess } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
@@ -130,7 +131,7 @@ function isPiTodoFile(file) {
 	return file.startsWith(".pi/todos/");
 }
 
-function isDocsOnlyFile(file) {
+export function isDocsOnlyFile(file) {
 	return (
 		file.startsWith("docs/") ||
 		file.startsWith("specs/") ||
@@ -164,7 +165,7 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
-function isRefarmActionReadinessFile(file) {
+export function isRefarmActionReadinessFile(file) {
 	return (
 		file === "apps/refarm/scripts/smoke-dist-action-readiness.mjs" ||
 		file === "apps/refarm/src/commands/action-affordances.ts" ||
@@ -189,7 +190,7 @@ function isRefarmActionReadinessFile(file) {
 	);
 }
 
-function decideProfile(files) {
+export function decideProfile(files) {
 	if (files.length === 0) {
 		return {
 			profile: "skip",
@@ -319,8 +320,10 @@ async function main() {
 	await runSubprocess("npm", ["run", command], { env: process.env });
 }
 
-main().catch((error) => {
-	const message = error instanceof Error ? error.message : String(error);
-	console.error(`${LOGGER_PREFIX} failed: ${message}`);
-	process.exit(1);
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	main().catch((error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`${LOGGER_PREFIX} failed: ${message}`);
+		process.exit(1);
+	});
+}

@@ -48,6 +48,7 @@
 		"refarm:host:smoke:ci": "node scripts/ci/smoke-refarm-host-spine.mjs",
 		"refarm:host:smoke:auto": "node scripts/ci/smoke-refarm-host-auto.mjs --execute",
 		"refarm:host:smoke:auto:plan": "node scripts/ci/smoke-refarm-host-auto.mjs",
+		"refarm:host:smoke:auto:test": "node --test scripts/ci/test-smoke-refarm-host-auto.mjs",
 		"refarm:telemetry:gate": "node scripts/ci/refarm-telemetry-gate.mjs",
 		"refarm:telemetry:gate:ci": "node scripts/ci/refarm-telemetry-gate.mjs --profile balanced",
 		"refarm:telemetry:gate:strict-all": "node scripts/ci/refarm-telemetry-gate.mjs --profile balanced --strict-all",

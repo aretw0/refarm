@@ -97,6 +97,7 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:host:smoke:auto:test
 npm run refarm:actions:verify
 npm run refarm:tree:verify
 ```
@@ -135,6 +136,8 @@ npm run refarm:tree:verify
   `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
+- `refarm:host:smoke:auto:test` runs the pure routing regression tests for the
+  diff-based auto lane.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
