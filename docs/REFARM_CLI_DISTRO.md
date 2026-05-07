@@ -136,10 +136,11 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
-  operational notes.
+  operational notes. Action-readiness-only deltas route to
+  `npm run refarm:actions:verify` instead of the broader host smoke lanes.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 

@@ -5,6 +5,7 @@ const LOGGER_PREFIX = "[refarm-host-smoke:auto]";
 
 const PROFILE_SCRIPT = {
 	skip: null,
+	actions: "refarm:actions:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -163,6 +164,31 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+function isRefarmActionReadinessFile(file) {
+	return (
+		file === "apps/refarm/scripts/smoke-dist-action-readiness.mjs" ||
+		file === "apps/refarm/src/commands/action-affordances.ts" ||
+		file === "apps/refarm/src/commands/actions.ts" ||
+		file === "apps/refarm/src/commands/headless-action.ts" ||
+		file === "apps/refarm/src/commands/headless.ts" ||
+		file === "apps/refarm/src/commands/tui-actions.ts" ||
+		file === "apps/refarm/src/commands/tui.ts" ||
+		file === "apps/refarm/src/commands/web-actions.ts" ||
+		file === "apps/refarm/src/commands/web.ts" ||
+		file.startsWith("apps/refarm/test/commands/action-") ||
+		file === "apps/refarm/test/commands/actions.test.ts" ||
+		file === "apps/refarm/test/commands/headless-action.test.ts" ||
+		file === "apps/refarm/test/commands/headless.test.ts" ||
+		file === "apps/refarm/test/commands/tui-actions.test.ts" ||
+		file === "apps/refarm/test/commands/tui.test.ts" ||
+		file === "apps/refarm/test/commands/web-actions.test.ts" ||
+		file === "apps/refarm/test/commands/web.test.ts" ||
+		file.startsWith("apps/refarm/test/fixtures/status-") ||
+		file === "docs/REFARM_ACTION_READINESS_COOKBOOK.md" ||
+		file === "docs/REFARM_STATUS_OUTPUT.md"
+	);
+}
+
 function decideProfile(files) {
 	if (files.length === 0) {
 		return {
@@ -176,6 +202,18 @@ function decideProfile(files) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.every(
+			(file) => isRefarmActionReadinessFile(file) || isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "actions",
+			reason:
+				"Action-readiness delta; run focused action envelope tests, type-check, and dist smoke.",
 		};
 	}
 
