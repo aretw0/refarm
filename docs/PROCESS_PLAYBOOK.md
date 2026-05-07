@@ -36,6 +36,9 @@ npm run agent:stop         # stop tractor
 npm run farmhand:daemon    # start farmhand in background
 npm run farmhand:stop      # stop farmhand
 npm run disk:check         # disk usage: target dirs, node_modules, volumes
+npm run actions:budget:guard:account      # hard Actions guard: monthly net billable quota
+npm run actions:budget:guard:allocation   # advisory Actions guard: Refarm fairness split
+npm run actions:budget:guard:modes:json   # discover hard/advisory guard metadata
 
 # Session memory helpers (host-owned)
 refarm sessions list        # list known sessions

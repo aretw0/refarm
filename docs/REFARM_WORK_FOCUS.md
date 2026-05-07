@@ -88,6 +88,9 @@ for Refarm work.
 - Source is truth; do not edit generated artifacts.
 - Work in atomic slices with local validation.
 - Do not push/watch CI after every small slice; batch meaningful work.
+- Before push/PR, use the account Actions guard for the hard monthly quota signal:
+  `npm run actions:budget:guard:account`. Use allocation mode only as advisory
+  fairness pressure: `npm run actions:budget:guard:allocation`.
 - Disk is constrained; clean only when necessary.
 - Avoid broad Rust rebuilds unless Rust is touched.
 - Avoid broad markdown autoformat churn in large docs.
