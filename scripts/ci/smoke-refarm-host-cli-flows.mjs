@@ -28,7 +28,11 @@ const ACTION_AFFORDANCES = [
 	},
 	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
 ];
-const ONLY_PROFILES = new Set(["actions-readiness", "status-action"]);
+const ONLY_PROFILES = new Set([
+	"action-seams",
+	"actions-readiness",
+	"status-action",
+]);
 
 function parseOnlyProfile(argv) {
 	const onlyIndex = argv.indexOf("--only");
@@ -299,6 +303,12 @@ async function main() {
 		}
 		if (onlyProfile === "actions-readiness") {
 			await assertActionsReadinessEnvelope(webStatusPath);
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
+		if (onlyProfile === "action-seams") {
+			await assertActionsReadinessEnvelope(webStatusPath);
+			await assertStatusActionExecutedEnvelope();
 			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
 			return;
 		}
