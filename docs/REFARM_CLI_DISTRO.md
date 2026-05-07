@@ -147,6 +147,8 @@ npm run refarm:tree:verify
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
 - `refarm:host:smoke:auto:test` runs the pure routing regression tests for the
   diff-based auto lane.
+- `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
+  for manual narrow-lane previews/execution.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
   recommended lane (`skip | actions | tree | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
@@ -172,7 +174,7 @@ npm run refarm:tree:verify
 - **Explicit profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile tree`
 - **List explicit profiles:**
-  `node scripts/ci/smoke-refarm-host-auto.mjs --list-profiles`
+  `npm run refarm:host:smoke:auto:profiles`
 - **Explicit granular profile preview:**
   `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
