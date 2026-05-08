@@ -10,7 +10,8 @@
   },
   "scripts": {
     "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
-    "deploy": "wrangler deploy --config src/worker/wrangler.toml"
+    "deploy": "wrangler deploy --config src/worker/wrangler.toml",
+    "test": "vitest run"
   },
   "dependencies": {
     "@refarm.dev/infra-cloudflare": "*"
@@ -18,7 +19,8 @@
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241106.0",
     "@refarm.dev/tsconfig": "*",
-    "typescript": "^5.7.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4",
     "wrangler": "^3.91.0"
   }
 }

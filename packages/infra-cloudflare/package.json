@@ -11,11 +11,8 @@
   "scripts": {
     "type-check": "tsc --noEmit"
   },
-  "dependencies": {
-    "@refarm.dev/silo": "*"
-  },
   "devDependencies": {
     "@refarm.dev/tsconfig": "*",
-    "typescript": "^5.7.0"
+    "typescript": "^6.0.3"
   }
 }
