@@ -14,6 +14,7 @@ import { migrateCommand } from "./commands/migrate.js";
 import { openUrlCommand } from "./commands/open-url.js";
 import { pluginCommand } from "./commands/plugin.js";
 import { sowCommand } from "./commands/sow.js";
+import { provisionCommand } from "./commands/provision.js";
 import { statusCommand } from "./commands/status.js";
 import { taskCommand } from "./commands/task.js";
 import { tasksCommand } from "./commands/tasks.js";
@@ -31,6 +32,7 @@ program
 
 program.addCommand(initCommand);
 program.addCommand(sowCommand);
+program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(healthCommand);
 program.addCommand(webCommand);

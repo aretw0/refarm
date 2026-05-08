@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@refarm.dev/cli": "*",
+    "@refarm.dev/infra-cloudflare": "*",
     "@refarm.dev/config": "*",
     "@refarm.dev/context-provider-v1": "*",
     "@refarm.dev/effort-contract-v1": "*",
