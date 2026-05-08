@@ -22,7 +22,7 @@ interface RefarmMeHerald {
 	announce(): void;
 }
 
-type RefarmMeFirefly = Record<string, never>;
+type RefarmMeFirefly = object;
 
 export interface RefarmMePluginConstructors {
 	HeraldPlugin: new (tractor: RefarmMeTractor) => RefarmMeHerald;

@@ -99,7 +99,7 @@ describe("refarm.me runtime", () => {
 			shellOptions.surfaceAction({
 				...request,
 				host,
-				action: host.actions[0],
+				action: (host as { actions: unknown[] }).actions[0]!,
 			}),
 		).resolves.toBe(true);
 		expect(tractor.emitTelemetry).toHaveBeenCalledWith({
