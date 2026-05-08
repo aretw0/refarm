@@ -306,9 +306,11 @@ node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build
 
 # Narrow built CLI proof for renderer-neutral action readiness only.
 npm run refarm:host:smoke:cli:actions-readiness
+npm run refarm:host:smoke:cli:actions-readiness:skip-build
 
 # Narrow built CLI proof for only the live status action-result seam.
 npm run refarm:host:smoke:cli:status-action
+npm run refarm:host:smoke:cli:status-action:skip-build
 
 # Closeout lane: test + type-check + built dist smoke.
 npm run refarm:actions:verify

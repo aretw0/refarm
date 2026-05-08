@@ -10,7 +10,11 @@ import {
 	parseOnlyProfile,
 	parseSkipBuild,
 	resolveOnlyProfileCommand,
+	resolveOnlyProfileNpmCommand,
+	resolveOnlyProfileNpmScript,
 	resolveOnlyProfileSkipBuildCommand,
+	resolveOnlyProfileSkipBuildNpmCommand,
+	resolveOnlyProfileSkipBuildNpmScript,
 } from "./smoke-refarm-host-cli-flows.mjs";
 
 test("lists focused CLI smoke profiles deterministically", () => {
@@ -23,36 +27,74 @@ test("lists focused CLI smoke profiles deterministically", () => {
 		profiles: [
 			{
 				profile: "action-seams",
+				npmScript: "refarm:host:smoke:cli:action-seams",
+				npmCommand: "npm run refarm:host:smoke:cli:action-seams",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
+				skipBuildNpmScript:
+					"refarm:host:smoke:cli:action-seams:skip-build",
+				skipBuildNpmCommand:
+					"npm run refarm:host:smoke:cli:action-seams:skip-build",
 				skipBuildCommand:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build",
 			},
 			{
 				profile: "actions-readiness",
+				npmScript: "refarm:host:smoke:cli:actions-readiness",
+				npmCommand: "npm run refarm:host:smoke:cli:actions-readiness",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness",
+				skipBuildNpmScript:
+					"refarm:host:smoke:cli:actions-readiness:skip-build",
+				skipBuildNpmCommand:
+					"npm run refarm:host:smoke:cli:actions-readiness:skip-build",
 				skipBuildCommand:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only actions-readiness --skip-build",
 			},
 			{
 				profile: "status-action",
+				npmScript: "refarm:host:smoke:cli:status-action",
+				npmCommand: "npm run refarm:host:smoke:cli:status-action",
 				command:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action",
+				skipBuildNpmScript:
+					"refarm:host:smoke:cli:status-action:skip-build",
+				skipBuildNpmCommand:
+					"npm run refarm:host:smoke:cli:status-action:skip-build",
 				skipBuildCommand:
 					"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action --skip-build",
 			},
 		],
 	});
 	assert.equal(
+		resolveOnlyProfileNpmScript("action-seams"),
+		"refarm:host:smoke:cli:action-seams",
+	);
+	assert.equal(
+		resolveOnlyProfileNpmCommand("action-seams"),
+		"npm run refarm:host:smoke:cli:action-seams",
+	);
+	assert.equal(
 		resolveOnlyProfileCommand("action-seams"),
 		"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams",
+	);
+	assert.equal(
+		resolveOnlyProfileSkipBuildNpmScript("action-seams"),
+		"refarm:host:smoke:cli:action-seams:skip-build",
+	);
+	assert.equal(
+		resolveOnlyProfileSkipBuildNpmCommand("action-seams"),
+		"npm run refarm:host:smoke:cli:action-seams:skip-build",
 	);
 	assert.equal(
 		resolveOnlyProfileSkipBuildCommand("action-seams"),
 		"node scripts/ci/smoke-refarm-host-cli-flows.mjs --only action-seams --skip-build",
 	);
+	assert.equal(resolveOnlyProfileNpmScript("missing"), undefined);
+	assert.equal(resolveOnlyProfileNpmCommand("missing"), undefined);
 	assert.equal(resolveOnlyProfileCommand("missing"), undefined);
+	assert.equal(resolveOnlyProfileSkipBuildNpmScript("missing"), undefined);
+	assert.equal(resolveOnlyProfileSkipBuildNpmCommand("missing"), undefined);
 	assert.equal(resolveOnlyProfileSkipBuildCommand("missing"), undefined);
 });
 

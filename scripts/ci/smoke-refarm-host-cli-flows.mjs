@@ -35,6 +35,21 @@ export const ONLY_PROFILES = new Set([
 	"status-action",
 ]);
 
+const ONLY_PROFILE_NPM_SCRIPTS = new Map([
+	["action-seams", "refarm:host:smoke:cli:action-seams"],
+	["actions-readiness", "refarm:host:smoke:cli:actions-readiness"],
+	["status-action", "refarm:host:smoke:cli:status-action"],
+]);
+
+const ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS = new Map([
+	["action-seams", "refarm:host:smoke:cli:action-seams:skip-build"],
+	[
+		"actions-readiness",
+		"refarm:host:smoke:cli:actions-readiness:skip-build",
+	],
+	["status-action", "refarm:host:smoke:cli:status-action:skip-build"],
+]);
+
 export function parseOnlyProfile(argv) {
 	const onlyIndex = argv.indexOf("--only");
 	if (onlyIndex === -1) return undefined;
@@ -83,12 +98,34 @@ export function resolveOnlyProfileSkipBuildCommand(profile) {
 	return command ? `${command} --skip-build` : undefined;
 }
 
+export function resolveOnlyProfileNpmScript(profile) {
+	return ONLY_PROFILE_NPM_SCRIPTS.get(profile);
+}
+
+export function resolveOnlyProfileNpmCommand(profile) {
+	const script = resolveOnlyProfileNpmScript(profile);
+	return script ? `npm run ${script}` : undefined;
+}
+
+export function resolveOnlyProfileSkipBuildNpmScript(profile) {
+	return ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS.get(profile);
+}
+
+export function resolveOnlyProfileSkipBuildNpmCommand(profile) {
+	const script = resolveOnlyProfileSkipBuildNpmScript(profile);
+	return script ? `npm run ${script}` : undefined;
+}
+
 export function createOnlyProfileListEnvelope() {
 	return {
 		schemaVersion: 1,
 		profiles: Array.from(ONLY_PROFILES).map((profile) => ({
 			profile,
+			npmScript: resolveOnlyProfileNpmScript(profile),
+			npmCommand: resolveOnlyProfileNpmCommand(profile),
 			command: resolveOnlyProfileCommand(profile),
+			skipBuildNpmScript: resolveOnlyProfileSkipBuildNpmScript(profile),
+			skipBuildNpmCommand: resolveOnlyProfileSkipBuildNpmCommand(profile),
 			skipBuildCommand: resolveOnlyProfileSkipBuildCommand(profile),
 		})),
 	};
