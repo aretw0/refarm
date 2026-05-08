@@ -12,7 +12,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "test": "npx vitest run src/index.test.ts --root . --environment node"
+    "test": "npx vitest run src/index.test.ts --root . --environment node",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/plugin-manifest": "0.1.0",
@@ -21,5 +22,8 @@
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/cli",
   "version": "0.1.0",
-  "description": "Refarm CLI library — status builder and shared types.",
+  "description": "Refarm CLI library \u2014 status builder and shared types.",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +22,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },
@@ -34,5 +34,8 @@
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }

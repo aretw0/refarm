@@ -11,12 +11,14 @@
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "npm run type-check && vitest run"
+    "test": "npm run type-check && vitest run",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/tractor": "*"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*"
   }
 }

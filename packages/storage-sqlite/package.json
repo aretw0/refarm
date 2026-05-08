@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/storage-sqlite",
   "version": "0.1.0",
-  "description": "Sovereign SQLite/OPFS storage primitive — usable independently of Refarm",
+  "description": "Sovereign SQLite/OPFS storage primitive \u2014 usable independently of Refarm",
   "type": "module",
   "repository": {
     "type": "git",
@@ -27,7 +27,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test:conformance": "vitest run src/storage-v1.conformance.test.ts src/task-v1.conformance.test.ts src/session-v1.conformance.test.ts",
@@ -45,5 +45,8 @@
     "@refarm.dev/storage-contract-v1": "*",
     "@refarm.dev/task-contract-v1": "*",
     "@refarm.dev/session-contract-v1": "*"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }
