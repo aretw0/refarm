@@ -122,7 +122,7 @@ function followStreamFile(
 					for (let index = offset; index < lines.length; index++) {
 						let chunk: StreamChunk;
 						try {
-							chunk = JSON.parse(lines[index]) as StreamChunk;
+							chunk = JSON.parse(lines[index]!) as StreamChunk;
 						} catch {
 							continue;
 						}
@@ -305,7 +305,7 @@ function detectConfiguredProvider(): string | null {
 	if (fs.existsSync(envFile)) {
 		const content = fs.readFileSync(envFile, "utf-8");
 		const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
-		if (match) return match[1];
+		if (match) return match[1]!;
 		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
 		return "ollama";
 	}

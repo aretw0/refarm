@@ -56,7 +56,7 @@ describe("refarm tree switch and guards", () => {
 			["switch", "safe/fork"],
 			{ encoding: "utf8" },
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -176,7 +176,7 @@ describe("refarm tree switch and guards", () => {
 			SESSION["@id"],
 			"utf-8",
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",

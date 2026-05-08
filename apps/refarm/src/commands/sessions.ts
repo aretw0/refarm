@@ -269,9 +269,9 @@ async function useSession(prefix: string): Promise<void> {
 		process.exit(1);
 	}
 
-	writeActiveSessionOrExit(matches[0]["@id"]);
+	writeActiveSessionOrExit(matches[0]!["@id"]);
 	console.log(
-		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]["@id"])}`),
+		chalk.green(`✓  Switched to session ${formatSessionId(matches[0]!["@id"])}`),
 	);
 }
 

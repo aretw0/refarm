@@ -205,10 +205,10 @@ describe("refarm ask", () => {
 				],
 			}),
 		);
-		const effort = vi.mocked(deps.submitEffort).mock.calls[0][0] as {
+		const effort = vi.mocked(deps.submitEffort).mock.calls[0]![0] as {
 			tasks: Array<{ args: { session_id: string } }>;
 		};
-		const submittedSessionId = effort.tasks[0].args.session_id;
+		const submittedSessionId = effort.tasks[0]!.args.session_id;
 		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
 			submittedSessionId,
 		);

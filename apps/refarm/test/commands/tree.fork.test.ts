@@ -63,7 +63,7 @@ describe("refarm tree fork", () => {
 			["rev-parse", "--abbrev-ref", "HEAD"],
 			{ encoding: "utf8" },
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",

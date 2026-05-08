@@ -103,7 +103,7 @@ describe("refarm tree list", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -140,7 +140,7 @@ describe("refarm tree list", () => {
 		expect(fetchMock).toHaveBeenCalledWith(
 			"http://127.0.0.1:42001/sessions?limit=1",
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes).toHaveLength(1);
 		expect(payload.nodes[0]).toMatchObject({
 			kind: "session",
@@ -180,7 +180,7 @@ describe("refarm tree list", () => {
 				encoding: "utf8",
 			},
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -215,7 +215,7 @@ describe("refarm tree list", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -260,7 +260,7 @@ describe("refarm tree list", () => {
 				encoding: "utf8",
 			},
 		);
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes).toHaveLength(1);
 		expect(payload.nodes[0]).toMatchObject({
 			kind: "git",
@@ -280,7 +280,7 @@ describe("refarm tree list", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes.map((node: { kind: string }) => node.kind)).toEqual([
 			"git",
 			"session",
@@ -393,7 +393,7 @@ describe("refarm tree list", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes[0]).toMatchObject({
 			nodeId: "deadbeef1234567890deadbeef1234567890dead",
 			kind: "git",
@@ -421,7 +421,7 @@ describe("refarm tree list", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.nodes).toHaveLength(2);
 		expect(payload.nodes[0]).toMatchObject({ kind: "git" });
 		expect(payload.nodes[1]).toMatchObject({ kind: "session" });

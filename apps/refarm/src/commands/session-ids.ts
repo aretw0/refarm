@@ -40,5 +40,5 @@ export function resolveSessionIdPrefix<T extends SessionIdNode>(
 			`Ambiguous session prefix "${prefix}" (${matches.length} matches)`,
 		);
 	}
-	return matches[0]["@id"];
+	return matches[0]!["@id"];
 }

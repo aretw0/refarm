@@ -39,7 +39,7 @@ describe("refarm tree preview", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expectPreviewPlanSubstrateFactsNested(payload.plan);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
@@ -80,7 +80,7 @@ describe("refarm tree preview", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -121,7 +121,7 @@ describe("refarm tree preview", () => {
 				},
 			);
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "fork",
 			readyToExecute: true,
@@ -260,7 +260,7 @@ describe("refarm tree preview", () => {
 			.find((c) => c.name() === "preview")!
 			.parseAsync(["abcdef", "--scope", "git", "--json"], { from: "user" });
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expectPreviewPlanSubstrateFactsNested(payload.plan);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
@@ -305,7 +305,7 @@ describe("refarm tree preview", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -349,7 +349,7 @@ describe("refarm tree preview", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "switch",
 			readyToExecute: false,
@@ -381,7 +381,7 @@ describe("refarm tree preview", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "switch",
 			readyToExecute: false,
@@ -433,7 +433,7 @@ describe("refarm tree preview", () => {
 			.find((c) => c.name() === "preview")!
 			.parseAsync(["abc123", "--switch", "--json"], { from: "user" });
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -493,7 +493,7 @@ describe("refarm tree preview", () => {
 			.find((c) => c.name() === "preview")!
 			.parseAsync(["abc123", "--switch", "--json"], { from: "user" });
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "switch",
 			readyToExecute: false,
@@ -552,7 +552,7 @@ describe("refarm tree preview", () => {
 				},
 			);
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "fork",
 			readyToExecute: true,
@@ -606,7 +606,7 @@ describe("refarm tree preview", () => {
 				},
 			);
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload.plan).toMatchObject({
 			action: "fork",
 			readyToExecute: false,

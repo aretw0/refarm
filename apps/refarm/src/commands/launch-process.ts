@@ -26,7 +26,7 @@ export function splitLaunchCommand(command: string): {
 	}
 
 	return {
-		command: parts[0],
+		command: parts[0]!,
 		args: parts.slice(1),
 	};
 }

@@ -31,7 +31,7 @@ describe("refarm tree show", () => {
 				from: "user",
 			});
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",
@@ -52,7 +52,7 @@ describe("refarm tree show", () => {
 			.find((c) => c.name() === "show")!
 			.parseAsync(["abcdef", "--scope", "git", "--json"], { from: "user" });
 
-		const payload = JSON.parse(logSpy.mock.calls[0][0] as string);
+		const payload = JSON.parse(logSpy.mock.calls[0]![0] as string);
 		expect(payload).toMatchObject({
 			schemaVersion: 1,
 			command: "tree",

@@ -42,7 +42,7 @@ describe("guideCommand", () => {
 
   it("reflects token presence in the generated content", async () => {
     await guideCommand.parseAsync([], { from: "user" });
-    const content = mockWriteFileSync.mock.calls[0][1] as string;
+    const content = mockWriteFileSync.mock.calls[0]![1] as string;
     expect(content).toContain("GITHUB_TOKEN");
   });
 });

@@ -41,15 +41,15 @@ export const sowCommand = new Command("sow")
     
     console.log(chalk.blue("\n📡 Windmill: Verifying infrastructure connectivity..."));
 
-    if (results.github.ok) {
+    if (results["github"]!.ok) {
         console.log(chalk.green(`  - GitHub connection: OK`));
-        console.log(chalk.gray(`    Verified access to ${results.github.count} repositories.`));
+        console.log(chalk.gray(`    Verified access to ${results["github"]!.count} repositories.`));
     } else {
         console.log(chalk.red(`  - GitHub connection: FAILED`));
-        console.log(chalk.gray(`    Error: ${results.github.error}`));
+        console.log(chalk.gray(`    Error: ${results["github"]!.error}`));
     }
 
-    if (results.cloudflare.ok) {
+    if (results["cloudflare"]!.ok) {
         console.log(chalk.green("  - Cloudflare connection: OK"));
         console.log(chalk.gray("    API Token verified and stored."));
     } else {

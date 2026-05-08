@@ -5,9 +5,17 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@refarm.dev/context-provider-v1": ["../../packages/context-provider-v1/dist/index.d.ts"],
-      "@refarm.dev/stream-contract-v1": ["../../packages/stream-contract-v1/dist/index.d.ts"]
-    }
+      "@refarm.dev/context-provider-v1": [
+        "../../packages/context-provider-v1/dist/index.d.ts"
+      ],
+      "@refarm.dev/stream-contract-v1": [
+        "../../packages/stream-contract-v1/dist/index.d.ts"
+      ]
+    },
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ]
 }
