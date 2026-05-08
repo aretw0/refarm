@@ -6,8 +6,14 @@
     "declaration": false,
     "declarationMap": false,
     "outDir": "./dist",
-    "baseUrl": "../.."
+    "baseUrl": "../..",
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

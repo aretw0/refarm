@@ -20,7 +20,7 @@ describe("storeNoveltyNode", () => {
     await new Promise((r) => setTimeout(r, 20));
 
     expect(stored.length).toBe(1);
-    const node = JSON.parse(stored[0]);
+    const node = JSON.parse(stored[0]!);
     expect(node["@type"]).toBe("refarm:TemMemory");
     expect(node["refarm:triggerEvent"]).toBe("system:test");
     expect(typeof node["refarm:noveltyScore"]).toBe("number");

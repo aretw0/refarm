@@ -84,7 +84,7 @@ export class TEMInference {
   createState(): TEMState {
     return {
       g: this.nG.map((n) => new Float32Array(n)),
-      hiddens: this.weights.rnn[0].map((m) => new Float32Array(m.hiddenSize)),
+      hiddens: this.weights.rnn[0]!.map((m) => new Float32Array(m.hiddenSize)),
       M: createHebbianMemory(this.sumP),
     };
   }
@@ -154,9 +154,9 @@ export class TEMInference {
     const rnnWeights = this.weights.rnn[actionIdx] ?? this.weights.rnn[0];
 
     for (let f = 0; f < this.nG.length; f++) {
-      const w = rnnWeights[f];
-      const g = state.g[f];
-      const h = state.hiddens[f];
+      const w = rnnWeights![f]!;
+      const g = state.g[f]!;
+      const h = state.hiddens[f]!;
 
       // Concatenate g[f] and action as input
       const input = new Float32Array(w.inputSize);
@@ -166,22 +166,22 @@ export class TEMInference {
       // Vanilla RNN: h_new = tanh(W_ih * input + b_ih + W_hh * h + b_hh)
       const hNew = new Float32Array(w.hiddenSize);
       for (let out = 0; out < w.hiddenSize; out++) {
-        let acc = w.b_ih[out] + w.b_hh[out];
+        let acc = w.b_ih[out]! + w.b_hh[out]!;
         for (let inp = 0; inp < w.inputSize; inp++) {
-          acc += w.W_ih[out * w.inputSize + inp] * input[inp];
+          acc += w.W_ih[out * w.inputSize + inp]! * input[inp]!;
         }
         for (let hIdx = 0; hIdx < w.hiddenSize; hIdx++) {
-          acc += w.W_hh[out * w.hiddenSize + hIdx] * h[hIdx];
+          acc += w.W_hh[out * w.hiddenSize + hIdx]! * h[hIdx]!;
         }
         hNew[out] = Math.tanh(acc);
       }
 
       // Update hidden state and abstract location
-      state.hiddens[f].set(hNew);
+      state.hiddens[f]!.set(hNew);
       // g[f] is a projection of h[f] onto n_g[f] dims (slice or use W_out if available)
       // For this implementation: use first n_g[f] dims of h as abstract location
       const gNew = hNew.slice(0, g.length);
-      state.g[f].set(gNew);
+      state.g[f]!.set(gNew);
     }
   }
 
@@ -205,7 +205,7 @@ export class TEMInference {
     // Element-wise product of the two projections (Hadamard / conjunction binding)
     const p = new Float32Array(this.sumP);
     for (let i = 0; i < this.sumP; i++) {
-      p[i] = Math.tanh(pTile[i] * pRep[i]);
+      p[i]! = Math.tanh(pTile[i]! * pRep[i]!);
     }
     return p;
   }
@@ -239,7 +239,7 @@ function matMulVec(
   for (let i = 0; i < outDim; i++) {
     let acc = 0;
     for (let j = 0; j < inDim; j++) {
-      acc += W[i * inDim + j] * x[j];
+      acc += W[i * inDim + j]! * x[j]!;
     }
     out[i] = acc;
   }
@@ -249,12 +249,12 @@ function matMulVec(
 function mlpForward(layers: LinearLayerWeights[], x: Float32Array): Float32Array {
   let h = x;
   for (let i = 0; i < layers.length; i++) {
-    const { W, b, outFeatures, inFeatures } = layers[i];
+    const { W, b, outFeatures, inFeatures } = layers[i]!;
     const out = new Float32Array(outFeatures);
     for (let j = 0; j < outFeatures; j++) {
-      let acc = b[j];
+      let acc = b[j]!;
       for (let k = 0; k < inFeatures; k++) {
-        acc += W[j * inFeatures + k] * h[k];
+        acc += W[j * inFeatures + k]! * h[k]!;
       }
       // ReLU for hidden layers, identity for last layer
       out[j] = i < layers.length - 1 ? Math.max(0, acc) : acc;
@@ -267,7 +267,7 @@ function mlpForward(layers: LinearLayerWeights[], x: Float32Array): Float32Array
 function euclideanDistance(a: Float32Array, b: Float32Array): number {
   let sum = 0;
   for (let i = 0; i < a.length; i++) {
-    const d = a[i] - b[i];
+    const d = a[i]! - b[i]!;
     sum += d * d;
   }
   return Math.sqrt(sum);
@@ -275,10 +275,10 @@ function euclideanDistance(a: Float32Array, b: Float32Array): number {
 
 function argmax(v: Float32Array): number {
   let maxIdx = 0;
-  let maxVal = v[0];
+  let maxVal = v[0]!;
   for (let i = 1; i < v.length; i++) {
-    if (v[i] > maxVal) {
-      maxVal = v[i];
+    if (v[i]! > maxVal) {
+      maxVal = v[i]!;
       maxIdx = i;
     }
   }
