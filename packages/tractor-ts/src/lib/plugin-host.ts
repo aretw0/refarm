@@ -116,7 +116,7 @@ export class PluginHost {
     return btoa(binary);
   }
 
-  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+  private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
     try {
       const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
       return this.normalizeJavaScriptModule(moduleNamespace);
@@ -217,7 +217,7 @@ export class PluginHost {
         pluginId,
         manifest.name,
         manifest,
-        moduleNamespace,
+        moduleNamespace as Record<string, unknown> | null,
         this.emit,
         (id) => {
           this._instances.delete(id);

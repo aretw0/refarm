@@ -27,6 +27,13 @@ export interface SecretAuthPrompt {
 
 export type AuthResponse = { success: boolean; key?: CryptoKey };
 
+export interface SovereignSecret {
+  "@type": "SovereignSecret";
+  tier: SecretAuthTier;
+  jwe: { ciphertext: string; tag: string };
+  timestamp: string;
+}
+
 export interface SecretHostLogger {
   info(...args: unknown[]): void;
   warn(...args: unknown[]): void;
@@ -141,7 +148,7 @@ export class SecretHost {
   /**
    * Anchors a new secret to the hardware enclave or password.
    */
-  async createSecret(value: string, tier: "gold" | "silver"): Promise<any> {
+  async createSecret(value: string, tier: "gold" | "silver"): Promise<SovereignSecret> {
     // 1. Request a key (from Hardware or Password)
     const response = await this.onAuthRequest({
       title: `Create Sovereign Secret`,

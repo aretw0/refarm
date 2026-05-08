@@ -31,7 +31,7 @@ export class WorkerRunner implements PluginRunner {
   async instantiate(
     manifest: PluginManifest,
     _wasmBuffer: ArrayBuffer,
-    _imports: Record<string, any>,
+    _imports: Record<string, unknown>,
     emit: (data: TelemetryEvent) => void,
     onTerminate: (id: string) => void,
   ): Promise<PluginInstance> {

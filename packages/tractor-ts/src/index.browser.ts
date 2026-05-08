@@ -167,7 +167,7 @@ export class PluginHost {
 		return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
 	}
 
-	private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+	private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
 		try {
 			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
 			return this.normalizeJavaScriptModule(moduleNamespace);
@@ -230,7 +230,7 @@ export class PluginHost {
 	private async loadComponentRuntimeModuleFromCache(
 		pluginId: string,
 		runtimeModule: BrowserRuntimeModuleMetadata | undefined,
-	): Promise<any> {
+	): Promise<unknown> {
 		if (!runtimeModule) {
 			throw new Error(
 				`[tractor] Browser WASM component ${pluginId} requires browserRuntimeModule metadata. Reinstall the plugin.`,
@@ -520,7 +520,7 @@ export class PluginHost {
 		const entryFormat = detectEntryFormat(manifest.entry);
 
 		let wasmArtifactKind: "module" | "component" | null = null;
-		const moduleNamespace =
+		const moduleNamespaceRaw: unknown =
 			entryFormat === "wasm"
 				? (assertEntryRuntimeCompatibility(manifest.entry, "browser", {
 						allowBrowserWasmFromCache: true,
@@ -531,6 +531,7 @@ export class PluginHost {
 					}))
 				: (assertEntryRuntimeCompatibility(manifest.entry, "browser"),
 					await this.loadJavaScriptModule(manifest.entry));
+		const moduleNamespace = moduleNamespaceRaw as Record<string, unknown>;
 
 		const pluginId = manifest.id;
 
@@ -541,13 +542,11 @@ export class PluginHost {
 			state: "running",
 			call: async (fn: string, args?: unknown): Promise<unknown> => {
 				let result = null;
-				if (
-					moduleNamespace.integration &&
-					typeof moduleNamespace.integration[fn] === "function"
-				) {
-					result = await moduleNamespace.integration[fn](args);
+				const integration = moduleNamespace.integration as Record<string, unknown> | undefined;
+				if (integration && typeof integration[fn] === "function") {
+					result = await (integration[fn] as (a: unknown) => Promise<unknown>)(args);
 				} else if (typeof moduleNamespace[fn] === "function") {
-					result = await moduleNamespace[fn](args);
+					result = await (moduleNamespace[fn] as (a: unknown) => Promise<unknown>)(args);
 				}
 
 				this.emit({

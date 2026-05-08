@@ -82,8 +82,6 @@ export class PluginInstanceHandle implements PluginInstance {
 
   async call(fn: string, args?: unknown): Promise<unknown> {
     const callStart = performance.now();
-    let result: unknown;
-
     if (!this.componentInstance) {
       const error = new Error(
         `Plugin \"${this.id}\" is not instantiated (component instance unavailable)`,
@@ -119,7 +117,7 @@ export class PluginInstanceHandle implements PluginInstance {
       throw error;
     }
 
-    result = await callable(args);
+    const result = await callable(args);
 
     this.emit({
       event: "api:call",

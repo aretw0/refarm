@@ -164,11 +164,14 @@
 		"@vitest/coverage-v8": "^4.1.4",
 		"@vitest/ui": "^4.1.4",
 		"chokidar": "^5.0.0",
+		"eslint": "^10.3.0",
+		"globals": "^17.6.0",
 		"jest": "^30.3.0",
 		"jsdom": "^29.0.2",
 		"npm-check-updates": "^21.0.2",
 		"turbo": "^2.9.6",
 		"typescript": "^6.0.3",
+		"typescript-eslint": "^8.59.2",
 		"vitest": "^4.1.4"
 	},
 	"overrides": {

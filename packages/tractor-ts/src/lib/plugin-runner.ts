@@ -33,7 +33,7 @@ export interface PluginRunner {
   instantiate(
     manifest: PluginManifest,
     wasmBuffer: ArrayBuffer,
-    imports: Record<string, any>,
+    imports: Record<string, unknown>,
     emit: (data: TelemetryEvent) => void,
     onTerminate: (id: string) => void,
   ): Promise<PluginInstance>;
