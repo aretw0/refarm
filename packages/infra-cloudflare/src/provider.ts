@@ -22,7 +22,11 @@ export class CloudflareProvider {
 	readonly accountId: string;
 	readonly wranglerBin: string;
 
-	private constructor(apiToken: string, accountId: string, wranglerBin: string) {
+	private constructor(
+		apiToken: string,
+		accountId: string,
+		wranglerBin: string,
+	) {
 		this.apiToken = apiToken;
 		this.accountId = accountId;
 		this.wranglerBin = wranglerBin;
@@ -49,7 +53,11 @@ export class CloudflareProvider {
 	}
 
 	// For commands that require piping a secret to stdin (wrangler secret put).
-	execWithStdin(args: string[], input: string, cwd: string): Promise<ExecResult> {
+	execWithStdin(
+		args: string[],
+		input: string,
+		cwd: string,
+	): Promise<ExecResult> {
 		return new Promise((resolve, reject) => {
 			const proc = spawn(this.wranglerBin, args, {
 				cwd,
@@ -70,7 +78,10 @@ export class CloudflareProvider {
 
 			proc.on("close", (code) => {
 				if (code === 0) resolve({ stdout, stderr });
-				else reject(new Error(`wrangler ${args[0] ?? ""} exited ${code}\n${stderr}`));
+				else
+					reject(
+						new Error(`wrangler ${args[0] ?? ""} exited ${code}\n${stderr}`),
+					);
 			});
 			proc.on("error", reject);
 		});
@@ -78,9 +89,12 @@ export class CloudflareProvider {
 }
 
 async function resolveAccountId(apiToken: string): Promise<string> {
-	const res = await fetch("https://api.cloudflare.com/client/v4/accounts?per_page=1", {
-		headers: { Authorization: `Bearer ${apiToken}` },
-	});
+	const res = await fetch(
+		"https://api.cloudflare.com/client/v4/accounts?per_page=1",
+		{
+			headers: { Authorization: `Bearer ${apiToken}` },
+		},
+	);
 	if (!res.ok) {
 		throw new Error(`Cloudflare API error ${res.status}: ${await res.text()}`);
 	}

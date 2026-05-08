@@ -2,7 +2,7 @@
 
 **Status:** Proposed  
 **Date:** 2026-05-08  
-**Author:** Arthur Silva  
+**Author:** Arthur Silva
 
 ## Context
 
@@ -47,11 +47,11 @@ packages/infra-turbo-cache/
 
 Cada adaptador dentro de `packages/infra-cloudflare/src/services/<name>/` expõe:
 
-| Arquivo | Papel |
-|---|---|
-| `worker/index.ts` | ExportedHandler — código que roda na Cloudflare edge, quando aplicável |
-| `worker/wrangler.toml` | Configuração wrangler do Worker, quando aplicável |
-| `provision.ts` | `Cloudflare<Service>Provisioner` — idempotente, usa `CloudflareProvider` |
+| Arquivo                | Papel                                                                    |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `worker/index.ts`      | ExportedHandler — código que roda na Cloudflare edge, quando aplicável   |
+| `worker/wrangler.toml` | Configuração wrangler do Worker, quando aplicável                        |
+| `provision.ts`         | `Cloudflare<Service>Provisioner` — idempotente, usa `CloudflareProvider` |
 
 ## Alternativas consideradas
 

@@ -54,7 +54,8 @@ export function createCloudflareTurboCacheProvisionPlan(
 				kind: "worker",
 				action: "deploy",
 				name: workerName,
-				description: "Cloudflare Worker implementing Turborepo Remote Cache API v8",
+				description:
+					"Cloudflare Worker implementing Turborepo Remote Cache API v8",
 			},
 		],
 		ciSecrets: turboCacheManifest.ciSecrets,

@@ -28,5 +28,7 @@ import {
 
 const provider = await CloudflareProvider.create({ apiToken });
 const provisioner = new CloudflareTurboCacheProvisioner(provider);
-const output = await provisioner.provision({ bucketName: "refarm-turbo-cache" });
+const output = await provisioner.provision({
+  bucketName: "refarm-turbo-cache",
+});
 ```

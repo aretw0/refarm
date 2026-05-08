@@ -40,14 +40,21 @@ const cloudflareCommand = new Command("cloudflare")
 	.addCommand(
 		new Command("turbo-cache")
 			.description(turboCacheManifest.description)
-			.option("--dry-run", "Show what would be provisioned without creating resources")
+			.option(
+				"--dry-run",
+				"Show what would be provisioned without creating resources",
+			)
 			.option("--team <slug>", "Team slug for cache key namespacing", "refarm")
 			.option("--bucket <name>", "R2 bucket name", "refarm-turbo-cache")
 			.action(async (opts: TurboCacheCommandOptions) => {
-				console.log(chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`));
+				console.log(
+					chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`),
+				);
 
 				if (opts.dryRun) {
-					console.log(chalk.yellow("  (dry-run — no resources will be created)\n"));
+					console.log(
+						chalk.yellow("  (dry-run — no resources will be created)\n"),
+					);
 					renderCloudflarePlan(opts);
 					return;
 				}
@@ -58,7 +65,9 @@ const cloudflareCommand = new Command("cloudflare")
 				} | null;
 
 				if (!tokens?.cloudflareToken) {
-					console.error(chalk.red("No Cloudflare token found. Run `refarm sow` first."));
+					console.error(
+						chalk.red("No Cloudflare token found. Run `refarm sow` first."),
+					);
 					process.exit(1);
 				}
 
@@ -68,7 +77,9 @@ const cloudflareCommand = new Command("cloudflare")
 						apiToken: tokens.cloudflareToken,
 					});
 				} catch (err) {
-					console.error(chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`));
+					console.error(
+						chalk.red(`  Failed to connect to Cloudflare: ${String(err)}`),
+					);
 					process.exit(1);
 				}
 
@@ -91,9 +102,15 @@ const cloudflareCommand = new Command("cloudflare")
 				console.log(chalk.green("  ✔ AUTH_TOKEN secret set"));
 				console.log(chalk.green(`  ✔ Worker deployed → ${result.workerUrl}\n`));
 
-				console.log(chalk.bold("Add these secrets to your GitHub repository:\n"));
-				console.log(`  ${chalk.cyan("TURBO_CACHE_API_URL")} = ${result.workerUrl}`);
-				console.log(`  ${chalk.cyan("TURBO_CACHE_TOKEN")}   = ${result.authToken}\n`);
+				console.log(
+					chalk.bold("Add these secrets to your GitHub repository:\n"),
+				);
+				console.log(
+					`  ${chalk.cyan("TURBO_CACHE_API_URL")} = ${result.workerUrl}`,
+				);
+				console.log(
+					`  ${chalk.cyan("TURBO_CACHE_TOKEN")}   = ${result.authToken}\n`,
+				);
 				console.log(
 					chalk.gray(
 						"  gh secret set TURBO_CACHE_API_URL --body " +
@@ -106,7 +123,7 @@ const cloudflareCommand = new Command("cloudflare")
 							JSON.stringify(result.authToken),
 					),
 				);
-			})
+			}),
 	);
 
 export const provisionCommand = new Command("provision")

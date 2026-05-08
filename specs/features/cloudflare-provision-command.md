@@ -42,13 +42,13 @@ refarm provision cloudflare turbo-cache
 refarm provision <provider> [service] [options]
 ```
 
-| Argumento | Descrição |
-|---|---|
-| `provider` | Nome do provedor (`cloudflare`, futuramente `aws`, `vercel`) |
-| `service` | Serviço do provedor (`turbo-cache`, `kv`, …). Omitir = todos |
-| `--dry-run` | Mostra o que seria feito sem executar |
-| `--force` | Recria recursos existentes |
-| `--team <slug>` | Team slug para namespacing (default: `refarm`) |
+| Argumento       | Descrição                                                    |
+| --------------- | ------------------------------------------------------------ |
+| `provider`      | Nome do provedor (`cloudflare`, futuramente `aws`, `vercel`) |
+| `service`       | Serviço do provedor (`turbo-cache`, `kv`, …). Omitir = todos |
+| `--dry-run`     | Mostra o que seria feito sem executar                        |
+| `--force`       | Recria recursos existentes                                   |
+| `--team <slug>` | Team slug para namespacing (default: `refarm`)               |
 
 ### Saída esperada
 
@@ -74,18 +74,23 @@ Próximos passos — adicione estes secrets no seu repositório GitHub:
 
 ```ts
 export interface CloudflareProviderOptions {
-  apiToken: string;        // do identity store (SowerCore)
-  accountId?: string;      // opcional; descoberto via GET /accounts se ausente
+  apiToken: string; // do identity store (SowerCore)
+  accountId?: string; // opcional; descoberto via GET /accounts se ausente
 }
 
 export class CloudflareProvider {
   readonly apiToken: string;
   readonly accountId: string;
 
-  static async create(opts: CloudflareProviderOptions): Promise<CloudflareProvider>
+  static async create(
+    opts: CloudflareProviderOptions
+  ): Promise<CloudflareProvider>;
 
   // usa execFileNoThrow internamente — nunca exec() com interpolação de string
-  exec(args: string[], cwd: string): Promise<{ stdout: string; stderr: string }>
+  exec(
+    args: string[],
+    cwd: string
+  ): Promise<{ stdout: string; stderr: string }>;
 }
 ```
 
@@ -95,22 +100,24 @@ export class CloudflareProvider {
 
 ```ts
 export interface CloudflareTurboCacheProvisionInput {
-  bucketName: string;   // default: "refarm-turbo-cache"
-  workerName: string;   // default: "refarm-turbo-cache"
-  team: string;         // default: "refarm"
-  authToken?: string;   // gerado com crypto.randomBytes(32) se ausente
+  bucketName: string; // default: "refarm-turbo-cache"
+  workerName: string; // default: "refarm-turbo-cache"
+  team: string; // default: "refarm"
+  authToken?: string; // gerado com crypto.randomBytes(32) se ausente
 }
 
 export interface CloudflareTurboCacheProvisionOutput {
   workerUrl: string;
-  authToken: string;    // valor gerado (para o usuário configurar no CI)
+  authToken: string; // valor gerado (para o usuário configurar no CI)
   bucketName: string;
 }
 
 export class CloudflareTurboCacheProvisioner {
   constructor(private provider: CloudflareProvider) {}
 
-  async provision(input: CloudflareTurboCacheProvisionInput): Promise<CloudflareTurboCacheProvisionOutput>
+  async provision(
+    input: CloudflareTurboCacheProvisionInput
+  ): Promise<CloudflareTurboCacheProvisionOutput>;
 }
 ```
 
@@ -131,7 +138,7 @@ export const turboCacheManifest = {
   displayName: "Turborepo Remote Cache",
   description: "Provider-neutral Turborepo Remote Cache service block",
   ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
-}
+};
 ```
 
 O manifesto do bloco semântico vive em `infra-turbo-cache` e não importa Cloudflare. O adaptador Cloudflare em `infra-cloudflare` referencia esse manifesto e expõe `CloudflareTurboCacheProvisioner`.
