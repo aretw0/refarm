@@ -4,6 +4,7 @@ import type {
 	Effort,
 	EffortLogEntry,
 	EffortResult,
+	EffortStatus,
 	EffortSummary,
 	EffortTransportAdapter,
 	Task,
@@ -16,7 +17,7 @@ export type TaskExecutorFn = (
 ) => Promise<{ status: "ok" | "error"; result?: unknown; error?: string }>;
 
 const DEFAULT_MAX_ATTEMPTS = 2;
-const TERMINAL_STATUSES = new Set(["done", "failed", "cancelled"] as const);
+const TERMINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
 
 export interface RuntimeTelemetrySnapshot extends EffortSummary {
 	queueDepth: number;
@@ -163,7 +164,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		if (!fs.existsSync(this.effortPath(effortId))) return false;
 
 		const current = this.readEffortResult(effortId);
-		if (current && TERMINAL_STATUSES.has(current.status as any)) return false;
+		if (current && TERMINAL_STATUSES.has(current.status)) return false;
 
 		this.cancelRequests.add(effortId);
 		this.appendLog(effortId, {
@@ -421,7 +422,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		if (
 			current &&
 			!options.force &&
-			TERMINAL_STATUSES.has(current.status as any)
+			TERMINAL_STATUSES.has(current.status)
 		) {
 			return;
 		}
@@ -647,7 +648,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			this.inFlightEfforts.delete(effort.id);
 			if (
 				TERMINAL_STATUSES.has(
-					(this.readEffortResult(effort.id)?.status ?? "pending") as any,
+					this.readEffortResult(effort.id)?.status ?? "pending",
 				)
 			) {
 				this.cancelRequests.delete(effort.id);
