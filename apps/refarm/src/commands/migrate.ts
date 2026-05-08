@@ -6,6 +6,11 @@ import { SiloCore } from "@refarm.dev/silo";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
+interface MigrateConfig {
+	brand?: { slug?: string; urls?: { repository?: string } };
+	infrastructure?: { gitHost?: string };
+}
+
 export const migrateCommand = new Command("migrate")
   .description("Activate the Escape Hatch: Mirror your project to a sovereign target")
   .option("--target <url>", "Target Git URL for mirroring")
@@ -37,9 +42,9 @@ export const migrateCommand = new Command("migrate")
 
     // Load config from current directory
     const configPath = path.join(process.cwd(), "refarm.config.json");
-    let config: any = {};
+    let config: MigrateConfig = {};
     if (fs.existsSync(configPath)) {
-        config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+        config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as MigrateConfig;
     } else {
         console.warn(chalk.gray("No refarm.config.json found in current directory. Using default context."));
         config = {

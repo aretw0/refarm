@@ -1,4 +1,5 @@
-import { expect } from "vitest";
+import type { SpawnSyncReturns } from "node:child_process";
+import { expect, vi } from "vitest";
 
 export const SESSION = {
 	"@id": "urn:refarm:session:v1:abc123def456",
@@ -32,7 +33,7 @@ export const GIT_LINE = [
 	"HEAD -> develop, origin/develop",
 	"2026-05-06T14:00:00+00:00",
 	"feat(refarm): grow timeline tree",
-].join("");
+].join("\x1f");
 
 export const SAME_TIMESTAMP_GIT_LINE = [
 	"abcdef1234567890abcdef1234567890abcdef12",
@@ -40,7 +41,22 @@ export const SAME_TIMESTAMP_GIT_LINE = [
 	"HEAD -> develop, origin/develop",
 	"2023-11-14T22:13:20.000Z",
 	"feat(refarm): grow timeline tree",
-].join("");
+].join("\x1f");
+
+// spawnSync with encoding:"utf8" returns strings, not Buffers. This factory
+// provides string-typed stdout/stderr matching that call convention; the single
+// internal cast bridges the Buffer overload that vi.mocked(spawnSync) exposes.
+export function makeSpawnResult(status: number, stdout = "", stderr = "") {
+	return { pid: 0, output: [], stdout, stderr, status, signal: null } as unknown as SpawnSyncReturns<string>;
+}
+
+export function makeJsonFetch(data: unknown, status = 200) {
+	return vi.fn().mockResolvedValue({
+		ok: status >= 200 && status < 300,
+		status,
+		json: async () => data,
+	});
+}
 
 export function expectPreviewPlanSubstrateFactsNested(
 	plan: Record<string, unknown>,

@@ -11,6 +11,8 @@ import {
 	expectPreviewPlanSubstrateFactsNested,
 	GIT_LINE,
 	HISTORY,
+	makeJsonFetch,
+	makeSpawnResult,
 	SESSION,
 } from "./tree.fixtures.js";
 
@@ -27,14 +29,7 @@ describe("refarm tree preview", () => {
 		vi.unstubAllGlobals();
 	});
 	it("previews a non-destructive session fork plan", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -75,14 +70,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("previews a non-destructive session fork plan at a historical entry", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -120,14 +108,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("includes explicit branch names in session preview plans", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -224,14 +205,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("fails closed when a session preview entry is missing", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -278,11 +252,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("previews a non-destructive git branch plan", async () => {
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -322,14 +292,10 @@ describe("refarm tree preview", () => {
 
 	it("previews git switches without moving the worktree", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -370,18 +336,10 @@ describe("refarm tree preview", () => {
 
 	it("previews already-active git switches as blocked", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: "safe/fork\n",
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -408,18 +366,12 @@ describe("refarm tree preview", () => {
 
 	it("previews git switches against dirty worktrees without failing", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: " M apps/refarm/src/commands/tree.ts\n",
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(
+				makeSpawnResult(0, " M apps/refarm/src/commands/tree.ts\n"),
+			)
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -470,14 +422,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("previews session switches without validating git branch-name shape", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockImplementation(() => {
 			throw new Error("no active session");
@@ -515,14 +460,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("shows blocked session switch readiness in human preview output", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
 		const writeSpy = vi
@@ -543,14 +481,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("previews already-active session switches as blocked", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
 		const writeSpy = vi
@@ -588,7 +519,7 @@ describe("refarm tree preview", () => {
 			throw new Error(`exit:${code ?? 0}`);
 		}) as never);
 		const fetchMock = vi.fn();
-		vi.stubGlobal("fetch", fetchMock as any);
+		vi.stubGlobal("fetch", fetchMock);
 
 		const command = createTreeCommand();
 		await expect(
@@ -607,12 +538,8 @@ describe("refarm tree preview", () => {
 
 	it("includes explicit branch names in executable git preview plans", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(1));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -645,12 +572,8 @@ describe("refarm tree preview", () => {
 
 	it("shows blocked git fork readiness in human preview output", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(0));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -669,12 +592,8 @@ describe("refarm tree preview", () => {
 
 	it("previews existing git fork targets as blocked", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(0));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -700,14 +619,7 @@ describe("refarm tree preview", () => {
 	});
 
 	it("shows ready session switch preview in human output", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(fs, "readFileSync").mockImplementation(() => {
 			throw new Error("no active session");

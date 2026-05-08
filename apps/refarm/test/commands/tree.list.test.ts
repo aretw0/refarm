@@ -8,6 +8,8 @@ import { spawnSync } from "node:child_process";
 import { createTreeCommand } from "../../src/commands/tree.js";
 import {
 	GIT_LINE,
+	makeJsonFetch,
+	makeSpawnResult,
 	OLDER_SESSION,
 	SAME_TIMESTAMP_GIT_LINE,
 	SESSION,
@@ -91,14 +93,7 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists session timeline nodes as renderer-independent JSON", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -133,11 +128,7 @@ describe("refarm tree list", () => {
 	});
 
 	it("applies session list limits after sorting sessions", async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			json: async () => ({ sessions: [OLDER_SESSION, SESSION] }),
-		}) as any;
+		const fetchMock = makeJsonFetch({ sessions: [OLDER_SESSION, SESSION] });
 		vi.stubGlobal("fetch", fetchMock);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -158,14 +149,7 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists session timeline switch affordances in human output", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -179,11 +163,7 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists git commits as timeline nodes", async () => {
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -224,19 +204,8 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists all timeline nodes as a read-only combined envelope", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -269,17 +238,9 @@ describe("refarm tree list", () => {
 	});
 
 	it("applies all-scope limit after combining timeline nodes", async () => {
-		const fetchMock = vi.fn().mockResolvedValue({
-			ok: true,
-			status: 200,
-			json: async () => ({ sessions: [SESSION] }),
-		}) as any;
+		const fetchMock = makeJsonFetch({ sessions: [SESSION] });
 		vi.stubGlobal("fetch", fetchMock);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -308,19 +269,8 @@ describe("refarm tree list", () => {
 	});
 
 	it("orders all-scope timeline ties deterministically", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: SAME_TIMESTAMP_GIT_LINE,
-			stderr: "",
-		} as any);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, SAME_TIMESTAMP_GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -338,19 +288,8 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists all timeline nodes in human output", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [SESSION] }),
-			}) as any,
-		);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [SESSION] }));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -366,15 +305,8 @@ describe("refarm tree list", () => {
 	});
 
 	it("prints empty all-scope human output without mutating state", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [] }),
-			}) as any,
-		);
-		spawnSyncMock.mockReturnValue({ status: 0, stdout: "", stderr: "" } as any);
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [] }));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -397,11 +329,7 @@ describe("refarm tree list", () => {
 			"fetch",
 			vi.fn().mockRejectedValue(new Error("fetch failed")),
 		);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -426,11 +354,7 @@ describe("refarm tree list", () => {
 	});
 
 	it("lists git tree execution affordances in human output", async () => {
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: GIT_LINE,
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, GIT_LINE));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -458,12 +382,8 @@ describe("refarm tree list", () => {
 			"HEAD -> main",
 			"2026-01-01T00:00:00Z",
 			"initial commit",
-		].join("");
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: rootCommitLine,
-			stderr: "",
-		} as any);
+		].join("\x1f");
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, rootCommitLine));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -489,20 +409,9 @@ describe("refarm tree list", () => {
 			"HEAD -> main",
 			"2026-05-08T00:00:00Z",
 			"newer commit",
-		].join("");
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [OLDER_SESSION] }),
-			}) as any,
-		);
-		spawnSyncMock.mockReturnValue({
-			status: 0,
-			stdout: newerGitLine,
-			stderr: "",
-		} as any);
+		].join("\x1f");
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [OLDER_SESSION] }));
+		spawnSyncMock.mockReturnValue(makeSpawnResult(0, newerGitLine));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -519,19 +428,10 @@ describe("refarm tree list", () => {
 	});
 
 	it("shows git error without sidecar guidance for all-scope git failures", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => ({ sessions: [] }),
-			}) as any,
+		vi.stubGlobal("fetch", makeJsonFetch({ sessions: [] }));
+		spawnSyncMock.mockReturnValue(
+			makeSpawnResult(128, "", "fatal: not a git repository"),
 		);
-		spawnSyncMock.mockReturnValue({
-			status: 128,
-			stdout: "",
-			stderr: "fatal: not a git repository",
-		} as any);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,

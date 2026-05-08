@@ -7,7 +7,7 @@ vi.mock("node:child_process", () => ({
 
 import { spawnSync } from "node:child_process";
 import { createTreeCommand } from "../../src/commands/tree.js";
-import { GIT_LINE, HISTORY, SESSION } from "./tree.fixtures.js";
+import { GIT_LINE, HISTORY, makeJsonFetch, makeSpawnResult, SESSION } from "./tree.fixtures.js";
 
 const spawnSyncMock = vi.mocked(spawnSync);
 
@@ -23,20 +23,12 @@ describe("refarm tree switch and guards", () => {
 	});
 	it("switches the active git worktree with an explicit envelope", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: "safe/fork\n",
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -85,11 +77,7 @@ describe("refarm tree switch and guards", () => {
 	});
 
 	it("rejects git tree switches when the branch is missing", async () => {
-		spawnSyncMock.mockReturnValueOnce({
-			status: 1,
-			stdout: "",
-			stderr: "",
-		} as any);
+		spawnSyncMock.mockReturnValueOnce(makeSpawnResult(1));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -113,13 +101,11 @@ describe("refarm tree switch and guards", () => {
 
 	it("rejects git tree switches when the worktree is dirty", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: " M apps/refarm/src/commands/tree.ts\n",
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(
+				makeSpawnResult(0, " M apps/refarm/src/commands/tree.ts\n"),
+			);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -143,12 +129,8 @@ describe("refarm tree switch and guards", () => {
 
 	it("rejects git tree switches when the target branch is already active", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: "safe/fork\n",
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -171,20 +153,13 @@ describe("refarm tree switch and guards", () => {
 	});
 
 	it("switches active session pointers explicitly", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync")
 			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
 			.mockReturnValueOnce(SESSION["@id"]);
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
@@ -222,21 +197,16 @@ describe("refarm tree switch and guards", () => {
 	});
 
 	it("fails closed when session switch verification reads the wrong pointer", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync")
 			.mockReturnValueOnce("urn:refarm:session:v1:previous0001")
 			.mockReturnValueOnce("urn:refarm:session:v1:other00000001");
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(
+			() => undefined as string | undefined,
+		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -264,14 +234,7 @@ describe("refarm tree switch and guards", () => {
 	});
 
 	it("rejects already-active session tree switches before writing", async () => {
-		vi.stubGlobal(
-			"fetch",
-			vi.fn().mockResolvedValue({
-				ok: true,
-				status: 200,
-				json: async () => HISTORY,
-			}) as any,
-		);
+		vi.stubGlobal("fetch", makeJsonFetch(HISTORY));
 		vi.spyOn(fs, "readFileSync").mockReturnValue(SESSION["@id"]);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")

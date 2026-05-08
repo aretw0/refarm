@@ -44,7 +44,7 @@ export const initCommand = new Command("init")
       // 2. Bootstrap Real Identity via Silo (SOVEREIGN IMPROVEMENT)
       console.log(chalk.blue("🔑 Silo: Generating your Sovereign Master Key..."));
       const silo = new SiloCore();
-      const identity = await silo.bootstrapIdentity() as any;
+      const identity = await silo.bootstrapIdentity();
 
 
       // 3. Write Identity Metadata (Security Transparency - Public)

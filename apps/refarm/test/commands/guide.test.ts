@@ -19,11 +19,11 @@ vi.mock("@refarm.dev/silo", () => ({
 }));
 
 vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = await importOriginal<typeof import("node:fs")>();
   return {
     ...actual,
     writeFileSync: mockWriteFileSync,
-    default: { ...actual.default, writeFileSync: mockWriteFileSync },
+    default: { ...actual, writeFileSync: mockWriteFileSync },
   };
 });
 

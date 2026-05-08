@@ -1,3 +1,4 @@
+import type { RefarmStatusOptions } from "@refarm.dev/cli/status";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "node:fs";
 import {
@@ -46,7 +47,7 @@ import {
 describe("statusCommand", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockBuildRefarmStatusJson.mockImplementation((input: any) => ({
+		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,
@@ -176,7 +177,7 @@ describe("statusCommand", () => {
 	});
 
 	it("invokes a live status action by ID", async () => {
-		mockBuildRefarmStatusJson.mockImplementation((input: any) => ({
+		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,
@@ -237,7 +238,7 @@ describe("statusCommand", () => {
 	});
 
 	it("invokes a live status action by row index", async () => {
-		mockBuildRefarmStatusJson.mockImplementation((input: any) => ({
+		mockBuildRefarmStatusJson.mockImplementation((input: RefarmStatusOptions) => ({
 			schemaVersion: 1,
 			host: input.host,
 			renderer: input.renderer,

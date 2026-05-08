@@ -84,7 +84,7 @@ describe("refarm tree git integration", () => {
 						},
 					],
 				}),
-			}) as any,
+			}),
 		);
 		await command.commands
 			.find((c) => c.name() === "list")!

@@ -6,7 +6,7 @@ vi.mock("node:child_process", () => ({
 
 import { spawnSync } from "node:child_process";
 import { createTreeCommand } from "../../src/commands/tree.js";
-import { GIT_LINE } from "./tree.fixtures.js";
+import { GIT_LINE, makeSpawnResult } from "./tree.fixtures.js";
 
 const spawnSyncMock = vi.mocked(spawnSync);
 
@@ -22,15 +22,11 @@ describe("refarm tree fork", () => {
 	});
 	it("creates a non-switching git branch from a tree fork", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(1))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"));
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		const command = createTreeCommand();
@@ -89,19 +85,11 @@ describe("refarm tree fork", () => {
 
 	it("fails closed if a git tree fork changes the current ref", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "main\n", stderr: "" } as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: "safe/fork\n",
-				stderr: "",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(1))
+			.mockReturnValueOnce(makeSpawnResult(0, "main\n"))
+			.mockReturnValueOnce(makeSpawnResult(0))
+			.mockReturnValueOnce(makeSpawnResult(0, "safe/fork\n"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -128,17 +116,9 @@ describe("refarm tree fork", () => {
 
 	it("fails closed before branch creation when current ref cannot be read", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 1, stdout: "", stderr: "" } as any)
-			.mockReturnValueOnce({
-				status: 128,
-				stdout: "",
-				stderr: "fatal: ambiguous HEAD",
-			} as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(1))
+			.mockReturnValueOnce(makeSpawnResult(128, "", "fatal: ambiguous HEAD"));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,
@@ -164,12 +144,8 @@ describe("refarm tree fork", () => {
 
 	it("rejects git tree forks when the branch already exists", async () => {
 		spawnSyncMock
-			.mockReturnValueOnce({
-				status: 0,
-				stdout: GIT_LINE,
-				stderr: "",
-			} as any)
-			.mockReturnValueOnce({ status: 0, stdout: "", stderr: "" } as any);
+			.mockReturnValueOnce(makeSpawnResult(0, GIT_LINE))
+			.mockReturnValueOnce(makeSpawnResult(0));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
 			code?: string | number | null | undefined,

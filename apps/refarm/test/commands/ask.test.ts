@@ -101,10 +101,10 @@ describe("refarm ask", () => {
 		const readSpy = vi
 			.spyOn(fs, "readFileSync")
 			.mockReturnValue("urn:refarm:session:v1:active123");
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined);
 		const outSpy = vi
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);

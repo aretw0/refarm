@@ -25,14 +25,14 @@ describe("refarm sessions", () => {
 				},
 			}),
 		});
-		vi.stubGlobal("fetch", fetchMock as any);
+		vi.stubGlobal("fetch", fetchMock);
 
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined);
 		vi.spyOn(fs, "readFileSync").mockReturnValue(
 			"urn:refarm:session:v1:abc123def456",
 		);
@@ -72,15 +72,15 @@ describe("refarm sessions", () => {
 						},
 					],
 				}),
-			}) as any,
+			}),
 		);
 		vi.spyOn(fs, "readFileSync")
 			.mockReturnValueOnce("urn:refarm:session:v1:before000000")
 			.mockReturnValueOnce("urn:refarm:session:v1:other0000000");
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi
 			.spyOn(process, "exit")
@@ -107,7 +107,7 @@ describe("refarm sessions", () => {
 	});
 
 	it("sessions new exits with actionable message when sidecar is down", async () => {
-		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")) as any);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("fetch failed")));
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi
 			.spyOn(process, "exit")
@@ -135,7 +135,7 @@ describe("refarm sessions", () => {
 				ok: false,
 				status: 404,
 				json: async () => ({}),
-			}) as any,
+			}),
 		);
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		const exitSpy = vi

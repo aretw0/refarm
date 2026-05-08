@@ -36,7 +36,7 @@ describe("active session pointer helpers", () => {
 	it("writes active session IDs through the canonical lock path", () => {
 		const mkdirSpy = vi
 			.spyOn(fs, "mkdirSync")
-			.mockImplementation(() => undefined as any);
+			.mockImplementation(() => undefined as string | undefined);
 		const writeSpy = vi
 			.spyOn(fs, "writeFileSync")
 			.mockImplementation(() => undefined);
@@ -57,7 +57,7 @@ describe("active session pointer helpers", () => {
 		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
 			"urn:refarm:session:v1:target",
 		);
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 
 		expect(
@@ -76,7 +76,7 @@ describe("active session pointer helpers", () => {
 		vi.spyOn(fs, "readFileSync").mockReturnValueOnce(
 			"urn:refarm:session:v1:other",
 		);
-		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as any);
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
 		vi.spyOn(fs, "writeFileSync").mockImplementation(() => undefined);
 
 		expect(() =>
