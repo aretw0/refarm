@@ -84,9 +84,9 @@ describe("StreamSession accumulator", () => {
 			{ status: "orphan", chunk_count: 9 },
 		]);
 
-		expect(states["stream-a"].status).toBe("completed");
-		expect(states["stream-a"].chunkCount).toBe(2);
-		expect(states["stream-b"].status).toBe("completed");
+		expect(states["stream-a"]!.status).toBe("completed");
+		expect(states["stream-a"]!.chunkCount).toBe(2);
+		expect(states["stream-b"]!.status).toBe("completed");
 		expect(states[UNKNOWN_STREAM_SESSION_REF]).toEqual({
 			streamRef: null,
 			streamKind: null,

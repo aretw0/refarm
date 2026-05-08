@@ -31,7 +31,7 @@ describe("WasiImports — HTTP outgoing-handler", () => {
 
   it("trusted-fast profile: all requests are allowed and fetch is called", async () => {
     const { imports } = makeImports("trusted-fast");
-    const result = await imports["wasi:http/outgoing-handler"].handle("https://example.com");
+    const result = await imports["wasi:http/outgoing-handler"]!.handle!("https://example.com");
     expect(result).toBeDefined();
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalled();
   });
@@ -39,34 +39,34 @@ describe("WasiImports — HTTP outgoing-handler", () => {
   it("strict profile, no allowedOrigins: blocks request and throws", async () => {
     const { imports } = makeImports("strict", []);
     await expect(
-      imports["wasi:http/outgoing-handler"].handle("https://example.com"),
+      imports["wasi:http/outgoing-handler"]!.handle!("https://example.com"),
     ).rejects.toThrow("HTTP request not permitted by capabilities");
     expect(vi.mocked(globalThis.fetch)).not.toHaveBeenCalled();
   });
 
   it("strict profile, matching allowedOrigin: allows and calls fetch", async () => {
     const { imports } = makeImports("strict", ["https://example.com"]);
-    await imports["wasi:http/outgoing-handler"].handle("https://example.com/path");
+    await imports["wasi:http/outgoing-handler"]!.handle!("https://example.com/path");
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledWith("https://example.com/path");
   });
 
   it("strict profile, non-matching origin: blocks and throws", async () => {
     const { imports } = makeImports("strict", ["https://allowed.com"]);
     await expect(
-      imports["wasi:http/outgoing-handler"].handle("https://blocked.com/data"),
+      imports["wasi:http/outgoing-handler"]!.handle!("https://blocked.com/data"),
     ).rejects.toThrow("HTTP request not permitted");
   });
 
   it("request is an object with url property: url is extracted correctly", async () => {
     const { imports } = makeImports("strict", ["https://api.example.com"]);
-    await imports["wasi:http/outgoing-handler"].handle({ url: "https://api.example.com/v1" });
+    await imports["wasi:http/outgoing-handler"]!.handle!({ url: "https://api.example.com/v1" });
     expect(vi.mocked(globalThis.fetch)).toHaveBeenCalled();
   });
 
   it("request object has no url: blocks request", async () => {
     const { imports } = makeImports("strict", ["https://example.com"]);
     await expect(
-      imports["wasi:http/outgoing-handler"].handle({ url: undefined }),
+      imports["wasi:http/outgoing-handler"]!.handle!({ url: undefined }),
     ).rejects.toThrow("HTTP request not permitted");
   });
 });
@@ -77,7 +77,7 @@ describe("WasiImports — HTTP outgoing-handler", () => {
 describe("WasiImports — tractor-bridge", () => {
   it("store-node: calls storeNode callback and returns 'ok'", async () => {
     const { imports, storeNode } = makeImports("strict");
-    const result = await imports["refarm:plugin/tractor-bridge"]["store-node"]('{"@id":"urn:x:1"}');
+    const result = await imports["refarm:plugin/tractor-bridge"]!["store-node"]!('{"@id":"urn:x:1"}');
     expect(storeNode).toHaveBeenCalledWith('{"@id":"urn:x:1"}');
     expect(result).toBe("ok");
   });
@@ -89,13 +89,13 @@ describe("WasiImports — tractor-bridge", () => {
     const wasi = new WasiImports("p", logger, emit); // no storeNode
     const imports = wasi.generate(manifest, "strict") as unknown as TestImports;
 
-    const result = await imports["refarm:plugin/tractor-bridge"]["store-node"]("{}");
+    const result = await imports["refarm:plugin/tractor-bridge"]!["store-node"]!("{}");
     expect(result).toBe("ok");
   });
 
   it("request-permission: always returns true", async () => {
     const { imports } = makeImports("strict");
-    const ok = await imports["refarm:plugin/tractor-bridge"]["request-permission"](
+    const ok = await imports["refarm:plugin/tractor-bridge"]!["request-permission"]!(
       "read:storage",
       "needs data",
     );
@@ -109,7 +109,7 @@ describe("WasiImports — tractor-bridge", () => {
 describe("WasiImports — wasi:logging", () => {
   it("strict profile: calls logger.debug AND emits plugin:log", () => {
     const { imports, emit, logger } = makeImports("strict");
-    imports["wasi:logging/logging"].log("info", "ctx", "hello");
+    imports["wasi:logging/logging"]!.log!("info", "ctx", "hello");
 
     expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining("hello"));
     expect(emit).toHaveBeenCalledWith({
@@ -121,7 +121,7 @@ describe("WasiImports — wasi:logging", () => {
 
   it("trusted-fast profile: skips logger.debug but still emits plugin:log", () => {
     const { imports, emit, logger } = makeImports("trusted-fast");
-    imports["wasi:logging/logging"].log("warn", "ctx", "fast message");
+    imports["wasi:logging/logging"]!.log!("warn", "ctx", "fast message");
 
     expect(logger.debug).not.toHaveBeenCalled();
     expect(emit).toHaveBeenCalledWith({
@@ -133,7 +133,7 @@ describe("WasiImports — wasi:logging", () => {
 
   it("versioned alias wasi:logging/logging@0.1.0-draft also works", () => {
     const { imports, emit } = makeImports("strict");
-    imports["wasi:logging/logging@0.1.0-draft"].log("debug", "", "versioned");
+    imports["wasi:logging/logging@0.1.0-draft"]!.log!("debug", "", "versioned");
     expect(emit).toHaveBeenCalledWith(
       expect.objectContaining({ event: "plugin:log", payload: expect.objectContaining({ message: "versioned" }) }),
     );
@@ -146,17 +146,17 @@ describe("WasiImports — wasi:logging", () => {
 describe("WasiImports — wasi:cli/environment stubs", () => {
   it("getEnvironment returns empty array", () => {
     const { imports } = makeImports("strict");
-    expect(imports["wasi:cli/environment"].getEnvironment()).toEqual([]);
+    expect(imports["wasi:cli/environment"]!.getEnvironment!()).toEqual([]);
   });
 
   it("getArguments returns empty array", () => {
     const { imports } = makeImports("strict");
-    expect(imports["wasi:cli/environment"].getArguments()).toEqual([]);
+    expect(imports["wasi:cli/environment"]!.getArguments!()).toEqual([]);
   });
 
   it("initialDirectory returns undefined", () => {
     const { imports } = makeImports("strict");
-    expect(imports["wasi:cli/environment"].initialDirectory()).toBeUndefined();
+    expect(imports["wasi:cli/environment"]!.initialDirectory!()).toBeUndefined();
   });
 
   it("versioned key wasi:cli/environment@0.2.0 is also present", () => {
@@ -172,8 +172,8 @@ describe("WasiImports — wasi:cli/environment stubs", () => {
 describe("WasiImports — wasi:io/streams stubs", () => {
   it("read() returns [empty Uint8Array, true]", async () => {
     const { imports } = makeImports("strict");
-    const streams = imports["wasi:io/streams"];
-    const [bytes, done] = await streams.read() as unknown as [Uint8Array, boolean];
+    const streams = imports["wasi:io/streams"]!;
+    const [bytes, done] = await streams.read!() as unknown as [Uint8Array, boolean];
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBe(0);
     expect(done).toBe(true);
@@ -181,29 +181,29 @@ describe("WasiImports — wasi:io/streams stubs", () => {
 
   it("write() returns 0n", async () => {
     const { imports } = makeImports("strict");
-    expect(await imports["wasi:io/streams"].write()).toBe(0n);
+    expect(await imports["wasi:io/streams"]!.write!()).toBe(0n);
   });
 
   it("blockingRead() returns [empty Uint8Array, true]", async () => {
     const { imports } = makeImports("strict");
-    const [bytes, done] = await imports["wasi:io/streams"].blockingRead() as unknown as [Uint8Array, boolean];
+    const [bytes, done] = await imports["wasi:io/streams"]!.blockingRead!() as unknown as [Uint8Array, boolean];
     expect(bytes.length).toBe(0);
     expect(done).toBe(true);
   });
 
   it("blockingWrite() returns 0n", async () => {
     const { imports } = makeImports("strict");
-    expect(await imports["wasi:io/streams"].blockingWrite()).toBe(0n);
+    expect(await imports["wasi:io/streams"]!.blockingWrite!()).toBe(0n);
   });
 
   it("subscribe() returns 0n", () => {
     const { imports } = makeImports("strict");
-    expect(imports["wasi:io/streams"].subscribe()).toBe(0n);
+    expect(imports["wasi:io/streams"]!.subscribe!()).toBe(0n);
   });
 
   it("drop() is callable without throwing", () => {
     const { imports } = makeImports("strict");
-    expect(() => imports["wasi:io/streams"].drop()).not.toThrow();
+    expect(() => imports["wasi:io/streams"]!.drop!()).not.toThrow();
   });
 });
 
@@ -213,14 +213,14 @@ describe("WasiImports — wasi:io/streams stubs", () => {
 describe("WasiImports — wasi:clocks/wall-clock", () => {
   it("now() returns an object with a bigint seconds field", () => {
     const { imports } = makeImports("strict");
-    const { seconds } = imports["wasi:clocks/wall-clock"].now() as { seconds: bigint; nanoseconds: number };
+    const { seconds } = imports["wasi:clocks/wall-clock"]!.now!() as { seconds: bigint; nanoseconds: number };
     expect(typeof seconds).toBe("bigint");
     expect(seconds).toBeGreaterThan(0n);
   });
 
   it("resolution() returns { seconds: 1n, nanoseconds: 0 }", () => {
     const { imports } = makeImports("strict");
-    const res = imports["wasi:clocks/wall-clock"].resolution();
+    const res = imports["wasi:clocks/wall-clock"]!.resolution!();
     expect(res).toEqual({ seconds: 1n, nanoseconds: 0 });
   });
 });
@@ -231,14 +231,14 @@ describe("WasiImports — wasi:clocks/wall-clock", () => {
 describe("WasiImports — wasi:random/random", () => {
   it("getRandomBytes(n) returns Uint8Array of length n", () => {
     const { imports } = makeImports("strict");
-    const bytes = imports["wasi:random/random"].getRandomBytes(8n) as Uint8Array;
+    const bytes = imports["wasi:random/random"]!.getRandomBytes!(8n) as Uint8Array;
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBe(8);
   });
 
   it("getRandomU64() returns 0n", () => {
     const { imports } = makeImports("strict");
-    expect(imports["wasi:random/random"].getRandomU64()).toBe(0n);
+    expect(imports["wasi:random/random"]!.getRandomU64!()).toBe(0n);
   });
 });
 
@@ -270,10 +270,10 @@ describe("WasiImports — refarm:plugin/llm-bridge", () => {
 
   it("fails closed when non-ollama provider has no credentials", () => {
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"];
+    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
 
     expect(() =>
-      llmBridge["complete-http"](
+      llmBridge["complete-http"]!(
         "openai",
         "https://api.openai.com",
         "/v1/chat/completions",
@@ -291,9 +291,9 @@ describe("WasiImports — refarm:plugin/llm-bridge", () => {
     });
 
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"];
+    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
 
-    const bytes = llmBridge["complete-http"](
+    const bytes = llmBridge["complete-http"]!(
       "openai",
       "https://api.openai.com",
       "/v1/chat/completions",
@@ -302,6 +302,6 @@ describe("WasiImports — refarm:plugin/llm-bridge", () => {
     ) as Uint8Array;
 
     const parsed = JSON.parse(Buffer.from(bytes).toString("utf-8"));
-    expect(parsed.choices[0].message.content).toBe("mocked from env");
+    expect(parsed.choices[0]!.message.content).toBe("mocked from env");
   });
 });

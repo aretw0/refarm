@@ -96,7 +96,7 @@ export class SecretHost {
     const emojis: string[] = [];
     for (let i = 0; i < count; i++) {
       const idx = Math.floor(Math.random() * SAS_EMOJIS.length);
-      emojis.push(SAS_EMOJIS[idx]);
+      emojis.push(SAS_EMOJIS[idx]!);
     }
     return emojis;
   }

@@ -8,8 +8,18 @@
     "outDir": "./dist",
     "baseUrl": "../..",
     "rootDir": "..",
-    "types": ["node", "vitest"]
+    "types": [
+      "node",
+      "vitest"
+    ],
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*", "test/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

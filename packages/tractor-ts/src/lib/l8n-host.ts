@@ -74,13 +74,13 @@ export class L8nHost {
 
     if (key.includes(':')) {
       const parts = key.split(':');
-      ns = parts[0];
-      k = parts[1];
+      ns = parts[0]!;
+      k = parts[1]!;
     } else if (key.includes('/')) {
       // Support "refarm:core/save" or "plugin/key"
       const parts = key.split('/');
-      ns = parts[0];
-      k = parts[1];
+      ns = parts[0]!;
+      k = parts[1]!;
     }
 
     // Special case for "refarm:core" as it contains a colon

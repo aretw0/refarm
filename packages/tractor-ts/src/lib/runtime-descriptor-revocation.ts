@@ -59,8 +59,8 @@ export function resolveGithubRepoCoordinates(
 		if (segments.length < 2) return null;
 
 		return {
-			owner: segments[0],
-			repo: stripGitSuffix(segments[1]),
+			owner: segments[0]!,
+			repo: stripGitSuffix(segments[1]!),
 		};
 	} catch {
 		return null;

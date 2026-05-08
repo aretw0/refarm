@@ -447,7 +447,7 @@ export class TelemetryRingBuffer {
 		let current = this.tail;
 
 		for (let i = 0; i < this.count; i++) {
-			const ev = this.buffer[current];
+			const ev = this.buffer[current]!;
 			result[i] = {
 				...ev,
 				payload: this.sanitizePayload(ev.payload),

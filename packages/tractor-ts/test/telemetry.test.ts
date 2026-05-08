@@ -144,9 +144,9 @@ describe("TelemetryRingBuffer", () => {
     const dumped = ring.dump();
     expect(dumped.length).toBe(3);
     // event_1 should be evicted
-    expect(dumped[0].event).toBe("event_2");
-    expect(dumped[1].event).toBe("event_3");
-    expect(dumped[2].event).toBe("event_4");
+    expect(dumped[0]!.event).toBe("event_2");
+    expect(dumped[1]!.event).toBe("event_3");
+    expect(dumped[2]!.event).toBe("event_4");
   });
 
   it("should sanitize strict sensitive keys during dump", () => {
@@ -163,7 +163,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload as Record<string, unknown>;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.secret).toBe("[REDACTED]");
     expect(payload.password).toBe("[REDACTED]");
@@ -180,7 +180,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload as Record<string, unknown>;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.short).toBe("abc");
     expect(payload.long).toBe("this_is_a_... [TRUNCATED]");
@@ -199,7 +199,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload as Record<string, unknown>;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.bytes).toBe("[Uint8Array(2048)]");
     expect(payload.bigArray).toBe("[Array(100)]");
