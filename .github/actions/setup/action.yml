@@ -14,6 +14,18 @@ inputs:
     description: "Rust targets install (e.g. wasm32-wasip1). Multiple targets can be separated by commas."
     required: false
     default: "wasm32-wasip1,x86_64-unknown-linux-gnu"
+  turbo-cache-api:
+    description: "Turbo remote cache API URL (TURBO_API). When set, remote cache is used instead of local GHA cache."
+    required: false
+    default: ""
+  turbo-cache-token:
+    description: "Turbo remote cache Bearer token (TURBO_TOKEN)."
+    required: false
+    default: ""
+  turbo-cache-team:
+    description: "Turbo team slug for cache key namespacing (TURBO_TEAM)."
+    required: false
+    default: "refarm"
 
 runs:
   using: "composite"
@@ -24,13 +36,24 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: "npm"
 
-    - name: Cache Turbo
+    - name: Cache Turbo (local fallback)
+      if: ${{ inputs.turbo-cache-api == '' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
         key: ${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}
         restore-keys: |
           ${{ runner.os }}-turbo-
+
+    - name: Configure Turbo remote cache
+      if: ${{ inputs.turbo-cache-api != '' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        echo "TURBO_API=${{ inputs.turbo-cache-api }}" >> "$GITHUB_ENV"
+        echo "TURBO_TOKEN=${{ inputs.turbo-cache-token }}" >> "$GITHUB_ENV"
+        echo "TURBO_TEAM=${{ inputs.turbo-cache-team }}" >> "$GITHUB_ENV"
+        echo "Remote Turbo cache configured (api=${{ inputs.turbo-cache-api }} team=${{ inputs.turbo-cache-team }})"
 
     - name: Install dependencies
       shell: bash
