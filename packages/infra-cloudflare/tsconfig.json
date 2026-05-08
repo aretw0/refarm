@@ -4,5 +4,6 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/services/*/worker/**/*"]
 }

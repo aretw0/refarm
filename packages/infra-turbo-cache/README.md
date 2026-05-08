@@ -1,64 +1,28 @@
 # @refarm.dev/infra-turbo-cache
 
-Turborepo Remote Cache — Cloudflare Worker + R2.
+Provider-neutral Turborepo Remote Cache service block.
 
-Implements the [Turborepo Remote Cache API v8](https://turbo.build/repo/docs/core-concepts/remote-caching),
-deployed as a Cloudflare Worker backed by R2 storage.
+This package defines the semantic service contract for Refarm-managed remote
+cache, not a provider implementation. It intentionally does **not** depend on
+Cloudflare, `wrangler`, Workers, R2, AWS, Vercel, or any other provider SDK.
 
-**Provider layer:** uses `@refarm.dev/infra-cloudflare` for all Cloudflare
-primitives (account resolution, wrangler exec, R2 bucket management).
+## Boundary
 
-## Architecture
+- This package owns the service identity and manifest (`turbo-cache`).
+- Provider packages own concrete resources and execution adapters.
+- The Cloudflare adapter currently lives in `@refarm.dev/infra-cloudflare` and
+  implements this block with a Cloudflare Worker + R2 bucket.
 
-```
-CI runner
-  └─ turbo run ... (TURBO_API / TURBO_TOKEN / TURBO_TEAM)
-       └─ Worker (src/worker/index.ts)
-            └─ R2 bucket  (artifact storage)
-```
+This keeps the remote-cache primitive reusable for future providers.
 
-Provisioning is handled by `TurboCacheProvisioner`, driven by
-`refarm provision cloudflare turbo-cache`.
+## Current implementation
 
-## Deploy via CLI
-
-```sh
-refarm sow                                    # store Cloudflare API token once
-refarm provision cloudflare turbo-cache       # create R2 bucket, set secret, deploy Worker
+```ts
+import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 ```
 
-The command prints the `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` values
-ready to paste into GitHub repository secrets.
+Cloudflare provisioning is exposed separately:
 
-## Manual deploy (without refarm CLI)
-
-```sh
-# 1. Create R2 bucket
-wrangler r2 bucket create refarm-turbo-cache
-
-# 2. Generate and set auth token
-openssl rand -hex 32   # copy output
-wrangler secret put AUTH_TOKEN --config src/worker/wrangler.toml
-
-# 3. Deploy Worker
-wrangler deploy --config src/worker/wrangler.toml
+```ts
+import { CloudflareTurboCacheProvisioner } from "@refarm.dev/infra-cloudflare";
 ```
-
-## CI integration
-
-The `.github/actions/setup` composite action reads these secrets when provided:
-
-```yaml
-- uses: ./.github/actions/setup
-  with:
-    turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
-    turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
-```
-
-When the secret is empty (e.g. fork PRs), the action falls back to a local
-`.turbo` GHA cache automatically.
-
-## Team namespacing
-
-Cache keys are namespaced by team slug (`TURBO_TEAM`, default `refarm`) inside
-the R2 bucket, so one bucket can safely serve multiple projects.

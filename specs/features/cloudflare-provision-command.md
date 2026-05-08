@@ -94,23 +94,23 @@ export class CloudflareProvider {
 ### 2. `packages/infra-cloudflare/src/services/turbo-cache/provision.ts`
 
 ```ts
-export interface TurboCacheProvisionInput {
+export interface CloudflareTurboCacheProvisionInput {
   bucketName: string;   // default: "refarm-turbo-cache"
   workerName: string;   // default: "refarm-turbo-cache"
   team: string;         // default: "refarm"
   authToken?: string;   // gerado com crypto.randomBytes(32) se ausente
 }
 
-export interface TurboCacheProvisionOutput {
+export interface CloudflareTurboCacheProvisionOutput {
   workerUrl: string;
   authToken: string;    // valor gerado (para o usuário configurar no CI)
   bucketName: string;
 }
 
-export class TurboCacheProvisioner {
+export class CloudflareTurboCacheProvisioner {
   constructor(private provider: CloudflareProvider) {}
 
-  async provision(input: TurboCacheProvisionInput): Promise<TurboCacheProvisionOutput>
+  async provision(input: CloudflareTurboCacheProvisionInput): Promise<CloudflareTurboCacheProvisionOutput>
 }
 ```
 
@@ -123,19 +123,18 @@ export class TurboCacheProvisioner {
 5. Parseia URL do Worker da stdout do deploy
 6. Retorna `TurboCacheProvisionOutput`
 
-### 3. `packages/infra-cloudflare/src/services/turbo-cache/manifest.ts`
+### 3. `packages/infra-turbo-cache/src/manifest.ts`
 
 ```ts
-export const turboCacheManifest: ServiceManifest = {
+export const turboCacheManifest = {
   id: "turbo-cache",
   displayName: "Turborepo Remote Cache",
-  description: "Cloudflare Worker + R2 implementando Turborepo Remote Cache API v8",
-  provisioner: TurboCacheProvisioner,
+  description: "Provider-neutral Turborepo Remote Cache service block",
   ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
 }
 ```
 
-O tipo `ServiceManifest` é definido em `packages/infra-cloudflare/src/index.ts` e permite que o CLI descubra e liste serviços disponíveis dinamicamente.
+O manifesto do bloco semântico vive em `infra-turbo-cache` e não importa Cloudflare. O adaptador Cloudflare em `infra-cloudflare` referencia esse manifesto e expõe `CloudflareTurboCacheProvisioner`.
 
 ### 4. `apps/refarm/src/commands/provision.ts`
 

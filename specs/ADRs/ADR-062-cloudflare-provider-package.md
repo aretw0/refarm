@@ -6,7 +6,7 @@
 
 ## Context
 
-`packages/infra-turbo-cache` foi criado como o primeiro serviço Cloudflare da plataforma — um Cloudflare Worker + R2 que implementa o Turborepo Remote Cache API v8. O deploy é hoje manual (wrangler CLI ad-hoc). O `sow` command já coleta e armazena o Cloudflare API Token via `SowerCore`, mas esse token não é aproveitado para provisionamento automatizado de recursos.
+`packages/infra-turbo-cache` começou como implementação Cloudflare da plataforma — um Cloudflare Worker + R2 que implementa o Turborepo Remote Cache API v8. A fronteira foi refinada: `turbo-cache` é o bloco semântico provider-neutral, enquanto Cloudflare Worker + R2 é apenas o primeiro adaptador. O deploy é hoje manual (wrangler CLI ad-hoc). O `sow` command já coleta e armazena o Cloudflare API Token via `SowerCore`, mas esse token não é aproveitado para provisionamento automatizado de recursos.
 
 Dois problemas se revelam:
 
@@ -17,11 +17,11 @@ Dois problemas se revelam:
 
 Criar `packages/infra-cloudflare/` como envelope canônico do provedor Cloudflare, com três responsabilidades:
 
-1. **Worker code** por serviço (ex.: turbo-cache) — código que roda na edge  
-2. **Provisioning code** por serviço — lógica idempotente de setup (bucket, secret, deploy)  
-3. **Provider context** compartilhado — account ID, token, utilitários wrangler, tipos comuns
+1. **Provider context** compartilhado — account ID, token, resolução/execução de `wrangler`, tipos comuns
+2. **Provider adapters** por bloco semântico (ex.: turbo-cache em Cloudflare Worker + R2)
+3. **Service blocks provider-neutral** permanecem em pacotes próprios (ex.: `packages/infra-turbo-cache`) para permitir AWS/Vercel/etc. no futuro
 
-`packages/infra-turbo-cache/` é movido para dentro de `packages/infra-cloudflare/` como primeiro serviço.
+`packages/infra-cloudflare/` implementa o adaptador Cloudflare para o bloco `packages/infra-turbo-cache/`; o bloco semântico não depende de Cloudflare nem de `wrangler`.
 
 ### Estrutura resultante
 
@@ -33,22 +33,25 @@ packages/infra-cloudflare/
       turbo-cache/
         worker/index.ts      ← Worker code (Turborepo Remote Cache API v8) — inalterado
         worker/wrangler.toml ← wrangler config do serviço
-        provision.ts         ← TurboCacheProvisioner (bucket create, secret put, deploy)
-        manifest.ts          ← ServiceManifest: inputs, outputs, pré-requisitos
-    index.ts                 ← re-exports: CloudflareProvider, TurboCacheProvisioner
+        provision.ts         ← CloudflareTurboCacheProvisioner (bucket create, secret put, deploy)
+    index.ts                 ← re-exports: CloudflareProvider, CloudflareTurboCacheProvisioner
   package.json               ← @refarm.dev/infra-cloudflare
+
+packages/infra-turbo-cache/
+  src/
+    manifest.ts              ← identidade e contrato provider-neutral do bloco turbo-cache
+    index.ts                 ← re-exporta o manifesto sem importar Cloudflare
 ```
 
-### Convenção para novos serviços
+### Convenção para novos adaptadores Cloudflare
 
-Cada serviço dentro de `packages/infra-cloudflare/src/services/<name>/` expõe:
+Cada adaptador dentro de `packages/infra-cloudflare/src/services/<name>/` expõe:
 
 | Arquivo | Papel |
 |---|---|
-| `worker/index.ts` | ExportedHandler — código que roda na Cloudflare edge |
-| `worker/wrangler.toml` | Configuração wrangler do Worker |
-| `provision.ts` | `<Service>Provisioner` — idempotente, usa `CloudflareProvider` |
-| `manifest.ts` | `ServiceManifest` — nome, inputs, outputs, pré-requisitos |
+| `worker/index.ts` | ExportedHandler — código que roda na Cloudflare edge, quando aplicável |
+| `worker/wrangler.toml` | Configuração wrangler do Worker, quando aplicável |
+| `provision.ts` | `Cloudflare<Service>Provisioner` — idempotente, usa `CloudflareProvider` |
 
 ## Alternativas consideradas
 
@@ -63,7 +66,7 @@ Um pacote `infra-cloudflare` agrupa todos os serviços do provedor. Compartilha 
 
 ## Consequências
 
-- `packages/infra-turbo-cache` passa a ser `packages/infra-cloudflare` (migração necessária)
-- `packages/infra-cloudflare` passa a ser a dependência referenciada em `apps/refarm` para o provision command
-- Novos serviços Cloudflare (KV, Workers AI, Pages) entram como sub-serviços sem criar novos pacotes
-- A convenção `ServiceManifest` abre caminho para um registry de serviços que o CLI pode descobrir dinamicamente
+- `packages/infra-turbo-cache` permanece como bloco semântico provider-neutral
+- `packages/infra-cloudflare` passa a ser a dependência referenciada em `apps/refarm` para execução Cloudflare do provision command
+- Novos adaptadores Cloudflare (KV, Workers AI, Pages, turbo-cache) entram como sub-serviços sem criar novos pacotes
+- A convenção de manifesto abre caminho para um registry de blocos que o CLI pode descobrir dinamicamente

@@ -2,17 +2,24 @@
   "name": "@refarm.dev/infra-cloudflare",
   "version": "0.1.0",
   "private": true,
-  "description": "Cloudflare provider — agnostic primitives for deploying and managing Cloudflare resources",
+  "description": "Cloudflare provider — agnostic primitives and provider adapters for managing Cloudflare resources",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@refarm.dev/infra-turbo-cache": "*"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
     "@refarm.dev/tsconfig": "*",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4",
+    "wrangler": "^4.90.0"
   }
 }

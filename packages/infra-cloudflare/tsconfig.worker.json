@@ -9,5 +9,5 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true
   },
-  "include": ["src/worker/index.ts"]
+  "include": ["src/services/*/worker/index.ts"]
 }

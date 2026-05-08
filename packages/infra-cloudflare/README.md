@@ -1,27 +1,32 @@
 # @refarm.dev/infra-cloudflare
 
-Cloudflare provider primitives for Refarm — agnostic of any specific service.
+Cloudflare provider primitives for Refarm.
 
-Exposes `CloudflareProvider` and the `ServiceManifest` convention used by
-service packages (`@refarm.dev/infra-turbo-cache`, and future services).
+This package owns Cloudflare-specific concerns:
 
-## What lives here
+- Cloudflare account/token context (`CloudflareProvider`)
+- `wrangler` binary resolution and execution
+- Cloudflare resource plans (`R2`, Worker, secrets)
+- Cloudflare adapters for provider-neutral service blocks, starting with
+  `@refarm.dev/infra-turbo-cache`
 
-| Export | Purpose |
-|---|---|
-| `CloudflareProvider` | Resolves account ID, executes wrangler with token in env |
-| `ServiceManifest` | Convention type for declaring a Cloudflare-backed service |
+## Boundary
 
-## What does NOT live here
+`@refarm.dev/infra-cloudflare` may depend on provider-neutral service blocks.
+Provider-neutral service blocks must not depend on Cloudflare or `wrangler`.
 
-Business-level services (Turborepo cache, KV stores, Pages deployments) live
-in their own packages and import `CloudflareProvider` from here.
+That keeps services like `turbo-cache` reusable for future providers while this
+package remains the Cloudflare implementation adapter.
 
 ## Usage
 
 ```ts
-import { CloudflareProvider } from "@refarm.dev/infra-cloudflare";
+import {
+  CloudflareProvider,
+  CloudflareTurboCacheProvisioner,
+} from "@refarm.dev/infra-cloudflare";
 
 const provider = await CloudflareProvider.create({ apiToken });
-await provider.exec(["r2", "bucket", "list"], process.cwd());
+const provisioner = new CloudflareTurboCacheProvisioner(provider);
+const output = await provisioner.provision({ bucketName: "refarm-turbo-cache" });
 ```

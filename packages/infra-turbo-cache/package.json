@@ -2,25 +2,17 @@
   "name": "@refarm.dev/infra-turbo-cache",
   "version": "0.1.0",
   "private": true,
-  "description": "Turborepo Remote Cache — Cloudflare Worker + R2 provisioning",
+  "description": "Provider-neutral Turborepo Remote Cache service block",
   "type": "module",
   "main": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
-    "deploy": "wrangler deploy --config src/worker/wrangler.toml",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@refarm.dev/infra-cloudflare": "*"
+    "type-check": "tsc --noEmit"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241106.0",
     "@refarm.dev/tsconfig": "*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4",
-    "wrangler": "^4.90.0"
+    "typescript": "^6.0.3"
   }
 }
