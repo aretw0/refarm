@@ -9,6 +9,21 @@ import * as path from "node:path";
  * Designed to be runtime-neutral (CLI, Browser, or Server).
  */
 
+export interface SowerScaffoldConfig {
+  mode: string;
+  storage: string;
+  brand: { name: string; slug: string };
+  type?: string;
+  engine?: string;
+}
+
+export interface SowerScaffoldResult {
+  tier: "citizen";
+  template: string;
+  config: SowerScaffoldConfig;
+  identity: { hostingPath: string };
+}
+
 export class SowerCore {
   /**
    * Returns the onboarding steps/intentions as a data-driven structure.
@@ -66,23 +81,24 @@ export class SowerCore {
   /**
    * Scaffolds a new Refarm configuration or project structure.
    */
-  async scaffold(templateId: string, options: any = {}) {
+  async scaffold(templateId: string, options: Record<string, unknown> = {}): Promise<SowerScaffoldResult> {
     console.log(`[sower-core] Scaffolding template: ${templateId}`, options);
-    
-    // In Phase 3, we default to "citizen" tier for everything
-    const config: any = {
+
+    const name = (options["name"] as string | undefined) || "My Sovereign Farm";
+    const config: SowerScaffoldConfig = {
       mode: "persistent",
       storage: "opfs",
       brand: {
-          name: options.name || "My Sovereign Farm",
-          slug: (options.name || "my-sovereign-farm").toLowerCase().replace(/\s+/g, "-")
-      }
+          name,
+          slug: name.toLowerCase().replace(/\s+/g, "-"),
+      },
     };
 
     // Hydration tokens
+    const brand = config.brand;
     const tokens: Record<string, string> = {
-      "REFARM_NAME": config.brand.name,
-      "REFARM_SLUG": config.brand.slug
+      "REFARM_NAME": brand.name,
+      "REFARM_SLUG": brand.slug,
     };
 
     // Template specific adjustments
@@ -96,12 +112,13 @@ export class SowerCore {
     }
 
     // Hydrate files if targetDir is provided
-    if (options.targetDir) {
+    if (options["targetDir"]) {
         const templatePath = path.resolve(__dirname, "../../../templates", templateId, templateSubPath);
         
         if (fs.existsSync(templatePath)) {
-            console.log(`[sower-core] Hydrating from ${templatePath} to ${options.targetDir}...`);
-            this._copyRecursive(templatePath, options.targetDir, tokens);
+            const targetDir = options["targetDir"] as string;
+            console.log(`[sower-core] Hydrating from ${templatePath} to ${targetDir}...`);
+            this._copyRecursive(templatePath, targetDir, tokens);
         } else {
             console.warn(`[sower-core] Template path not found: ${templatePath}`);
         }
@@ -135,16 +152,16 @@ export class SowerCore {
       infrastructure: { gitHost: "github" }
     });
 
-    const results: any = {
+    const results: Record<string, { ok: boolean; count?: number; error?: string }> = {
         github: { ok: false },
-        cloudflare: { ok: true } // Cloudflare is Token-based, simple check for now
+        cloudflare: { ok: true },
     };
 
     try {
         const repos = await windmill.github.listRepos();
         results.github = { ok: true, count: repos.length };
-    } catch (e: any) {
-        results.github = { ok: false, error: e.message };
+    } catch (e) {
+        results.github = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
 
     return results;
@@ -168,8 +185,8 @@ export class SowerCore {
               config: node["refarm:config"] || {},
               plugins: node["refarm:recommendedPlugins"] || []
           };
-      } catch (e: any) {
-          throw new Error(`Remote hydration failed: ${e.message}`);
+      } catch (e) {
+          throw new Error(`Remote hydration failed: ${e instanceof Error ? e.message : String(e)}`);
       }
   }
 }

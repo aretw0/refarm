@@ -45,7 +45,7 @@ export class SowerCore {
     };
   }
 
-  async scaffold(_templateId: string, _options: any = {}): Promise<never> {
+  async scaffold(_templateId: string, _options: Record<string, unknown> = {}): Promise<never> {
     throw new Error(NODE_ERROR);
   }
 
@@ -91,8 +91,9 @@ export class SowerPlugin {
     // This will throw in the browser via SowerCore.scaffold
     const result = await this.core.scaffold(intent);
     
-    if (result && (result as any).tier) {
-      await this.tractor.switchTier((result as any).tier as any);
+    const scaffoldResult = result as unknown as { tier?: string };
+    if (scaffoldResult.tier) {
+      await this.tractor.switchTier(scaffoldResult.tier);
     }
   }
 
