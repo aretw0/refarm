@@ -18,7 +18,6 @@ vi.mock("@refarm.dev/heartwood", () => {
     default: mock
   };
 });
-import { Buffer } from "node:buffer";
 
 describe("SovereignRegistry", () => {
     let registry: SovereignRegistry;

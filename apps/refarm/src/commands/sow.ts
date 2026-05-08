@@ -2,8 +2,6 @@ import { Command } from "commander";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import { SowerCore } from "@refarm.dev/sower";
-import { SiloCore } from "@refarm.dev/silo";
-import { Windmill } from "@refarm.dev/windmill";
 
 
 export const sowCommand = new Command("sow")

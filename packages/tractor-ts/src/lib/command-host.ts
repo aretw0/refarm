@@ -92,6 +92,6 @@ export class CommandHost {
    * List all registered commands (for the palette).
    */
   getCommands(): CommandMetadata[] {
-    return Array.from(this.commands.values()).map(({ handler, ...metadata }) => metadata);
+    return Array.from(this.commands.values()).map(({ handler: _handler, ...metadata }) => metadata);
   }
 }

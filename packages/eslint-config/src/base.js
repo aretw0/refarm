@@ -26,8 +26,7 @@ export const base = tseslint.config(
       // Naming conventions: ban implicit `any` parameters.
       '@typescript-eslint/no-implicit-any-catch': 'off',   // not in v8; covered by useUnknownInCatchVariables tsconfig option
 
-      // Unused variables: warn rather than error to avoid blocking builds during dev.
-      '@typescript-eslint/no-unused-vars': ['warn', {
+      '@typescript-eslint/no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
         caughtErrorsIgnorePattern: '^_',

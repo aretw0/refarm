@@ -64,7 +64,7 @@ export const migrateCommand = new Command("migrate")
                 config.brand.urls = config.brand.urls || {};
                 config.brand.urls.repository = remoteMatch[1].trim();
             }
-        } catch (e) {
+        } catch (_e) {
             // Ignore
         }
     }

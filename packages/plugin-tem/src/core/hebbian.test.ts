@@ -37,7 +37,7 @@ describe("hebbianUpdate", () => {
     const n = 4;
     const M = createHebbianMemory(n);
     M.fill(0.5);
-    const zero = new Float32Array(n);
+    const _zero = new Float32Array(n);
 
     // With identical pInf and pGen, outer product difference is zero → pure decay
     const sig = new Float32Array([0.5, 0.5, 0.5, 0.5]);

@@ -41,7 +41,7 @@ export function getPluginRuntimeModuleCachePath(pluginId: string): string {
 	return `/${OPFS_ROOT_SEGMENT}/${OPFS_BARN_SEGMENT}/${OPFS_IMPLEMENTS_SEGMENT}/${getPluginCacheKey(pluginId)}.mjs`;
 }
 
-function getPluginMetadataPath(pluginId: string): string {
+function _getPluginMetadataPath(pluginId: string): string {
 	return `/${OPFS_ROOT_SEGMENT}/${OPFS_BARN_SEGMENT}/${OPFS_METADATA_SEGMENT}/${getPluginCacheKey(pluginId)}.json`;
 }
 
