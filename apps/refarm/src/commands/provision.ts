@@ -1,7 +1,8 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import { SiloCore } from "@refarm.dev/silo";
-import { CloudflareProvider, TurboCacheProvisioner, turboCacheManifest } from "@refarm.dev/infra-cloudflare";
+import { CloudflareProvider } from "@refarm.dev/infra-cloudflare";
+import { TurboCacheProvisioner, turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 
 const cloudflareCommand = new Command("cloudflare")
   .description("Provision Cloudflare services for Refarm")

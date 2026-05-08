@@ -1,4 +1,4 @@
-import type { ServiceManifest } from "../../types.js";
+import type { ServiceManifest } from "@refarm.dev/infra-cloudflare";
 
 export const turboCacheManifest: ServiceManifest = {
   id: "turbo-cache",

@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CloudflareProvider } from "../../provider.js";
+import type { CloudflareProvider } from "@refarm.dev/infra-cloudflare";
 
 const WORKER_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "worker");
 

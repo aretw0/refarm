@@ -4,11 +4,5 @@
     "noEmit": true,
     "noUncheckedIndexedAccess": true
   },
-  "include": [
-    "src/index.ts",
-    "src/provider.ts",
-    "src/types.ts",
-    "src/services/*/provision.ts",
-    "src/services/*/manifest.ts"
-  ]
+  "include": ["src/**/*"]
 }
