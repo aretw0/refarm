@@ -1,3 +1,4 @@
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { SovereignRegistry } from "./index.js";
 import { KeyManager } from "../../silo/src/key-manager.js";
@@ -50,7 +51,7 @@ describe("SovereignRegistry", () => {
     });
 
     it("should fail to register a plugin without ID", async () => {
-        const manifest = { version: "1.0.0" } as any;
+        const manifest = { version: "1.0.0" } as unknown as PluginManifest;
         await expect(registry.register(manifest)).rejects.toThrow("Plugin must have a unique identifier");
     });
 
@@ -77,7 +78,7 @@ describe("SovereignRegistry", () => {
     it("should manage plugin lifecycle (activate/deactivate)", async () => {
         const keyManager = new KeyManager();
         const keypair = await keyManager.generateMasterKey();
-        const manifest = { id: "lifecycle-plugin", version: "1" } as any;
+        const manifest = { id: "lifecycle-plugin", version: "1" } as unknown as PluginManifest;
         
         await registry.register(manifest);
         
@@ -105,7 +106,7 @@ describe("SovereignRegistry", () => {
         const manifest = {
             id: "io.refarm.secure-plugin",
             version: "1.0.0"
-        } as any;
+        } as unknown as PluginManifest;
         
         await registry.register(manifest);
         

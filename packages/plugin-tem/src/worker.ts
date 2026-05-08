@@ -24,15 +24,15 @@ const API: Record<string, (...args: any[]) => unknown> = {
     setStoreNodeFn(async (nodeJson: string): Promise<void> => {
       const id = `bridge:${Date.now()}`;
       await new Promise<void>((resolve, reject) => {
-        const onMsg = (ev: MessageEvent) => {
-          const m = ev.data as any;
+        const onMsg = (ev: MessageEvent<{ type: string; id: string; message?: string }>) => {
+          const m = ev.data;
           if ((m.type === "bridge-result" || m.type === "bridge-error") && m.id === id) {
-            self.removeEventListener("message", onMsg as any);
+            self.removeEventListener("message", onMsg as EventListener);
             if (m.type === "bridge-result") resolve();
             else reject(new Error(m.message));
           }
         };
-        self.addEventListener("message", onMsg as any);
+        self.addEventListener("message", onMsg as EventListener);
         self.postMessage({ type: "bridge-call", id, fn: "store-node", args: nodeJson });
       });
     });
@@ -92,8 +92,8 @@ if (typeof self !== "undefined") {
       try {
         const result = await handler(msg.args);
         self.postMessage({ type: "result", id: msg.id, result });
-      } catch (e: any) {
-        self.postMessage({ type: "error", id: msg.id, message: e?.message ?? String(e) });
+      } catch (e) {
+        self.postMessage({ type: "error", id: msg.id, message: e instanceof Error ? e.message : String(e) });
       }
     }
   });

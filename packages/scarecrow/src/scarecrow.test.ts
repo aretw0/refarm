@@ -1,14 +1,15 @@
+import type Tractor from "@refarm.dev/tractor";
 import { createTractorMock } from "@refarm.dev/tractor/test/test-utils";
 import { beforeEach, describe, expect, it } from "vitest";
 import { ScarecrowPlugin } from "./index";
 
 describe("ScarecrowPlugin", () => {
-  let tractor: any;
+  let tractor: ReturnType<typeof createTractorMock>;
   let scarecrow: ScarecrowPlugin;
 
   beforeEach(() => {
     tractor = createTractorMock();
-    scarecrow = new ScarecrowPlugin(tractor as any);
+    scarecrow = new ScarecrowPlugin(tractor as unknown as Tractor);
   });
 
   it("should monitor update velocity and transition state if too high", () => {
