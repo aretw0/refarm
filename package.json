@@ -53,7 +53,7 @@
 		"refarm:host:smoke:cli:status-action": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action",
 		"refarm:host:smoke:cli:status-action:skip-build": "node scripts/ci/smoke-refarm-host-cli-flows.mjs --only status-action --skip-build",
 		"refarm:host:smoke:cli:test": "node --test scripts/ci/test-smoke-refarm-host-cli-flows.mjs",
-		"refarm:tree:test": "npm --prefix apps/refarm run test -- test/commands/tree.test.ts test/commands/execution-plan.test.ts --pool=threads",
+		"refarm:tree:test": "npm --prefix apps/refarm run test -- test/commands/tree.list.test.ts test/commands/tree.show.test.ts test/commands/tree.preview.test.ts test/commands/tree.fork.test.ts test/commands/tree.switch.test.ts test/commands/execution-plan.test.ts --pool=threads",
 		"refarm:tree:smoke": "npm --prefix apps/refarm run test -- test/commands/tree.integration.test.ts --pool=forks",
 		"refarm:tree:type-check": "npm --prefix apps/refarm run type-check && npm --prefix apps/farmhand run type-check",
 		"refarm:tree:farmhand:test": "npm --prefix apps/farmhand run test -- src/transports/sessions.test.ts",
