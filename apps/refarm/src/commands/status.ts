@@ -14,9 +14,7 @@ import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
-import {
-	invokeRefarmStatusSurfaceActionSelection,
-} from "./status-actions.js";
+import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 import { runStatusPreflight } from "./status-preflight.js";
