@@ -1,10 +1,20 @@
 /** @vitest-environment jsdom */
+import type Tractor from "@refarm.dev/tractor";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { setupStudioShell, StudioShell } from "../src/sdk/Shell";
 
+interface MockTractor {
+    plugins: { getAllPlugins: ReturnType<typeof vi.fn>; get: ReturnType<typeof vi.fn> };
+    getPluginApi: ReturnType<typeof vi.fn>;
+    observe: ReturnType<typeof vi.fn>;
+    onNode: ReturnType<typeof vi.fn>;
+    emitTelemetry: ReturnType<typeof vi.fn>;
+    getHelpNodes: ReturnType<typeof vi.fn>;
+}
+
 describe("StudioShell Orchestrator", () => {
-    let tractorMock: any;
-    let nodeHandlers: Record<string, (node: any) => Promise<void>>;
+    let tractorMock: MockTractor;
+    let nodeHandlers: Record<string, (node: unknown) => Promise<void>>;
 
     beforeEach(() => {
         // Setup JSDOM environment
@@ -32,7 +42,7 @@ describe("StudioShell Orchestrator", () => {
             },
             getPluginApi: vi.fn().mockResolvedValue("mock-api"),
             observe: vi.fn(),
-            onNode: vi.fn((type: string, handler: (node: any) => Promise<void>) => {
+            onNode: vi.fn((type: string, handler: (node: unknown) => Promise<void>) => {
                 nodeHandlers[type] = handler;
                 return vi.fn();
             }),
@@ -42,16 +52,16 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should discover all available slots in the DOM", () => {
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         // Accessing private map for verification (via cast)
-        const slots = (shell as any).slots;
+        const slots = (shell as unknown as { slots: Map<string, Element> }).slots;
         expect(slots.has("header")).toBe(true);
         expect(slots.has("main")).toBe(true);
         expect(slots.has("statusbar")).toBe(true);
     });
 
     it("should set up and return the shell through the shared helper", async () => {
-        const shell = await setupStudioShell(tractorMock as any);
+        const shell = await setupStudioShell(tractorMock as unknown as Tractor);
 
         expect(shell).toBeInstanceOf(StudioShell);
         expect(tractorMock.observe).toHaveBeenCalledTimes(1);
@@ -61,7 +71,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should inject a plugin into its preferred slot", async () => {
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const statusbar = document.getElementById("refarm-slot-statusbar");
@@ -100,7 +110,7 @@ describe("StudioShell Orchestrator", () => {
             },
         ]);
 
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -152,7 +162,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -225,7 +235,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as any, { surfaceContext });
+        const shell = new StudioShell(tractorMock as unknown as Tractor, { surfaceContext });
         await shell.setup();
 
         expect(surfaceContext).toHaveBeenCalledWith({
@@ -295,7 +305,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as any, {
+        const shell = new StudioShell(tractorMock as unknown as Tractor, {
             surfaceContext,
             surfaceAction,
         });
@@ -369,7 +379,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const main = document.getElementById("refarm-slot-main");
@@ -428,7 +438,7 @@ describe("StudioShell Orchestrator", () => {
             },
         ]);
 
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         expect(tractorMock.emitTelemetry).toHaveBeenCalledWith({
@@ -509,7 +519,7 @@ describe("StudioShell Orchestrator", () => {
         tractorMock.plugins.getAllPlugins.mockReturnValue([plugin]);
         tractorMock.plugins.get.mockReturnValue(plugin);
 
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const streams = document.getElementById("refarm-slot-streams");
@@ -537,7 +547,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should update system status during orchestration", async () => {
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         const statusEl = document.getElementById("system-status");
@@ -546,7 +556,7 @@ describe("StudioShell Orchestrator", () => {
     });
 
     it("should render live stream observations from typed node subscribers", async () => {
-        const shell = new StudioShell(tractorMock as any);
+        const shell = new StudioShell(tractorMock as unknown as Tractor);
         await shell.setup();
 
         await nodeHandlers.StreamSession({

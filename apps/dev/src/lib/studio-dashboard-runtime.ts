@@ -205,7 +205,7 @@ function registerStudioDashboardPlugins(
 		createPluginHandle({
 			id: "sower",
 			name: "O Semeador",
-			manifest: { capabilities: { providersApi: ["onboarding"] } } as any,
+			manifest: { capabilities: { providersApi: ["onboarding"] } } as unknown as Parameters<typeof createPluginHandle>[0]["manifest"],
 			call: async (fn, args: unknown) => {
 				if (fn === "get-help-nodes") {
 					return [JSON.stringify(await sower.getOnboardingNode())];
@@ -236,10 +236,11 @@ function registerStudioDashboardPlugins(
 		createPluginHandle({
 			id: "firefly",
 			name: "O Vagalume",
-			call: async (fn, args: any) => {
+			call: async (fn, args: unknown) => {
+				const a = args as { message?: string; actionable?: boolean; targetId?: string } | undefined;
 				if (fn === "show-toast")
-					firefly.showToast(args.message, args.actionable);
-				if (fn === "spotlight") firefly.spotlight(args.targetId, args.message);
+					firefly.showToast(a?.message ?? "", a?.actionable);
+				if (fn === "spotlight") firefly.spotlight(a?.targetId ?? "", a?.message ?? "");
 				return null;
 			},
 			emitTelemetry: (event, payload) =>
