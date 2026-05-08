@@ -1,0 +1,16 @@
+{
+  "name": "@refarm.dev/infra-turbo-cache",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sovereign Turborepo remote cache — Cloudflare Worker + R2",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.91.0"
+  }
+}
