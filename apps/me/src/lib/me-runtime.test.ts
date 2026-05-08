@@ -76,8 +76,8 @@ describe("refarm.me runtime", () => {
 		});
 
 		const shellOptions = setupShellMock.mock.calls[0]?.[1] as unknown as {
-			surfaceContext: Function;
-			surfaceAction: Function;
+			surfaceContext: (...args: unknown[]) => unknown;
+			surfaceAction: (...args: unknown[]) => unknown;
 		};
 		const surface = {
 			layer: "homestead" as const,

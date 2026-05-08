@@ -80,11 +80,11 @@ export class RestStorageAdapter implements StorageAdapter {
     await this._post(this.nodesPath, { id, type, context, payload, sourcePlugin });
   }
 
-  async queryNodes(type: string): Promise<any[]> {
+  async queryNodes(type: string): Promise<unknown[]> {
     const queryPath =
       (this.nodesPath) +
       "?type=" + encodeURIComponent(type);
-    return this._get(queryPath);
+    return this._get(queryPath) as Promise<unknown[]>;
   }
 
   async execute(sql: string, args?: unknown): Promise<unknown> {
@@ -109,7 +109,7 @@ export class RestStorageAdapter implements StorageAdapter {
 
   // ── HTTP helpers ────────────────────────────────────────────────────────
 
-  private async _get(path: string): Promise<any> {
+  private async _get(path: string): Promise<unknown> {
     const res = await fetch(this.baseUrl + path, {
       headers: this.headers,
     });
@@ -119,7 +119,7 @@ export class RestStorageAdapter implements StorageAdapter {
     return res.json();
   }
 
-  private async _post(path: string, body: unknown): Promise<any> {
+  private async _post(path: string, body: unknown): Promise<unknown> {
     const res = await fetch(this.baseUrl + path, {
       method: "POST",
       headers: { "Content-Type": "application/json", ...this.headers },

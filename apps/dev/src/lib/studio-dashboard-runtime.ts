@@ -63,11 +63,9 @@ export interface StudioDashboardWorkbench {
 	inspector?: StudioSurfaceInspectorController;
 }
 
-export interface StudioDashboardLocalStorage
-	extends Pick<Storage, "getItem" | "setItem" | "removeItem"> {}
+export type StudioDashboardLocalStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
 
-export interface StudioDashboardSessionStorage
-	extends Pick<Storage, "getItem"> {}
+export type StudioDashboardSessionStorage = Pick<Storage, "getItem">;
 
 export interface StudioDashboardRuntimeOptions {
 	document?: Document;

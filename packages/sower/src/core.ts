@@ -199,7 +199,7 @@ export class SowerCore {
 	/**
 	 * Hydrates a configuration from a remote Sovereign Graph node.
 	 */
-	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<any> {
+	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<unknown> {
 		console.log(
 			`[sower-core] Hydrating from remote graph node: ${nodeId} via ${gatewayUrl}`,
 		);

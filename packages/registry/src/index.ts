@@ -21,10 +21,10 @@ export interface RegistryEntry {
  */
 export class SovereignRegistry {
     private plugins: Map<string, RegistryEntry>;
-    private config: Record<string, any>;
+    private config: Record<string, unknown>;
     private _persistPath?: string;
 
-    constructor(config: Record<string, any> = {}, persistence?: RegistryPersistenceOptions) {
+    constructor(config: Record<string, unknown> = {}, persistence?: RegistryPersistenceOptions) {
         this.plugins = new Map();
         this.config = config;
         this._persistPath = persistence?.path;
