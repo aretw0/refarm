@@ -6,21 +6,49 @@
     "rootDir": "src",
     "baseUrl": ".",
     "paths": {
-      "@refarm.dev/config": ["../config/index.d.ts"],
-      "@refarm.dev/silo": ["../silo/dist/index.d.ts"],
-      "@refarm.dev/windmill": ["../windmill/dist/index.d.ts"],
-      "@refarm.dev/fence": ["../fence/dist/index.d.ts"],
-      "@refarm.dev/thresher": ["../thresher/dist/index.d.ts"],
-      "@refarm.dev/health": ["../health/dist/index.d.ts"],
-      "@refarm.dev/sower": ["../sower/dist/index.d.ts"],
-      "@refarm.dev/tractor": ["../tractor/dist/index.d.ts"],
-      "@refarm.dev/homestead/sdk/host-renderer": ["../homestead/dist/sdk/host-renderer.d.ts"],
-      "@refarm.dev/trust": ["../trust/dist/index.d.ts"],
-      "@refarm.dev/runtime": ["../runtime/dist/index.d.ts"]
+      "@refarm.dev/config": [
+        "../config/index.d.ts"
+      ],
+      "@refarm.dev/silo": [
+        "../silo/dist/index.d.ts"
+      ],
+      "@refarm.dev/windmill": [
+        "../windmill/dist/index.d.ts"
+      ],
+      "@refarm.dev/fence": [
+        "../fence/dist/index.d.ts"
+      ],
+      "@refarm.dev/thresher": [
+        "../thresher/dist/index.d.ts"
+      ],
+      "@refarm.dev/health": [
+        "../health/dist/index.d.ts"
+      ],
+      "@refarm.dev/sower": [
+        "../sower/dist/index.d.ts"
+      ],
+      "@refarm.dev/tractor": [
+        "../tractor/dist/index.d.ts"
+      ],
+      "@refarm.dev/homestead/sdk/host-renderer": [
+        "../homestead/dist/sdk/host-renderer.d.ts"
+      ],
+      "@refarm.dev/trust": [
+        "../trust/dist/index.d.ts"
+      ],
+      "@refarm.dev/runtime": [
+        "../runtime/dist/index.d.ts"
+      ]
     },
     "allowJs": true,
-    "maxNodeModuleJsDepth": 2
+    "maxNodeModuleJsDepth": 2,
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

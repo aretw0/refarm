@@ -9,9 +9,16 @@
     "outDir": "dist",
     "baseUrl": "../..",
     "paths": {
-      "@refarm.dev/file-stream-transport": ["./packages/file-stream-transport/dist/index.d.ts"],
-      "@refarm.dev/stream-contract-v1": ["./packages/stream-contract-v1/dist/index.d.ts"]
-    }
+      "@refarm.dev/file-stream-transport": [
+        "./packages/file-stream-transport/dist/index.d.ts"
+      ],
+      "@refarm.dev/stream-contract-v1": [
+        "./packages/stream-contract-v1/dist/index.d.ts"
+      ]
+    },
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ]
 }

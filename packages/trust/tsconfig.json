@@ -2,7 +2,11 @@
   "extends": "@refarm.dev/tsconfig/node.json",
   "compilerOptions": {
     "noEmit": true,
-    "outDir": "dist"
+    "outDir": "dist",
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*", "test/**/*"]
+  "include": [
+    "src/**/*",
+    "test/**/*"
+  ]
 }
