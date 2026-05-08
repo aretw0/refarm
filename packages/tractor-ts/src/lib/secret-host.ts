@@ -74,12 +74,13 @@ export class SecretHost {
       id: "system:security:confirm-sas",
       title: "Confirm Security Code",
       category: "Security",
-      handler: async (args: { confirmed: boolean }) => {
+      handler: async (args?: unknown) => {
+        const { confirmed } = args as { confirmed: boolean };
         this.emit?.({
           event: "security:verification_result",
-          payload: { method: "sas", success: args.confirmed },
+          payload: { method: "sas", success: confirmed },
         });
-        return { success: args.confirmed };
+        return { success: confirmed };
       },
     });
   }

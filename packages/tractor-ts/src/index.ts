@@ -68,7 +68,7 @@ export class Tractor {
   readonly namespace: string;
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
-  readonly registry: any; // Using any for registry to avoid circular dependency or deep import issues in this sweep
+  readonly registry: SovereignRegistry;
   readonly plugins: PluginHost;
   readonly envMetadata: Record<string, string>;
   readonly commands: CommandHost;
@@ -151,9 +151,10 @@ export class Tractor {
       title: "Trust Plugin Binary",
       category: "Security",
       description: "Grant trusted-fast execution for a plugin fingerprint.",
-      handler: (args: { pluginId: string; wasmHash: string; leaseMs?: number }) => {
-        if (!args?.pluginId || !args?.wasmHash) throw new Error("pluginId and wasmHash are required");
-        return this.trustPlugin(args.pluginId, args.wasmHash, args.leaseMs);
+      handler: (args?: unknown) => {
+        const { pluginId, wasmHash, leaseMs } = args as { pluginId: string; wasmHash: string; leaseMs?: number };
+        if (!pluginId || !wasmHash) throw new Error("pluginId and wasmHash are required");
+        return this.trustPlugin(pluginId, wasmHash, leaseMs);
       },
     });
 
@@ -162,13 +163,11 @@ export class Tractor {
       title: "Trust Plugin Manifest (Once)",
       category: "Security",
       description: "Temporarily trust a plugin manifest for fast execution.",
-      handler: (args: { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean }) => {
-        if (!args?.acknowledgeRisk) throw new Error("Risk acknowledgment is required");
-        const grant = this.trustPluginManifestOnce(args.manifest, args.wasmHash);
-        return {
-          warning: "✨ Trusted-fast enabled for this session.",
-          grant,
-        };
+      handler: (args?: unknown) => {
+        const { manifest, wasmHash, acknowledgeRisk } = args as { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean };
+        if (!acknowledgeRisk) throw new Error("Risk acknowledgment is required");
+        const grant = this.trustPluginManifestOnce(manifest, wasmHash);
+        return { warning: "✨ Trusted-fast enabled for this session.", grant };
       },
     });
 
@@ -177,9 +176,10 @@ export class Tractor {
         title: "Revoke Plugin Trust",
         category: "Security",
         description: "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
-        handler: (args: { pluginId: string; wasmHash?: string }) => {
-          if (!args?.pluginId) throw new Error("pluginId is required");
-          this.revokePluginTrust(args.pluginId, args.wasmHash);
+        handler: (args?: unknown) => {
+          const { pluginId, wasmHash } = args as { pluginId: string; wasmHash?: string };
+          if (!pluginId) throw new Error("pluginId is required");
+          this.revokePluginTrust(pluginId, wasmHash);
           return { ok: true };
         },
       });
@@ -414,7 +414,7 @@ export class Tractor {
   async queryNodes<T extends SovereignNode = SovereignNode>(type: string): Promise<T[]> {
     const rows = await this.storage.queryNodes(type);
     this.events.emit({ event: "storage:io", payload: { type, action: "query" } });
-    return rows.map((r: { payload: string }) => JSON.parse(r.payload) as T);
+    return rows.map((r) => JSON.parse((r as { payload: string }).payload) as T);
   }
 
   async signNode(node: SovereignNode): Promise<SovereignNode> {

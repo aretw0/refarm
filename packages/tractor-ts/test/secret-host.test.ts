@@ -24,16 +24,16 @@ describe("SecretHost", () => {
 
   it("handles verify-device command and generates SAS emojis", async () => {
     const command = mockCommandHost.get("system:security:verify-device");
-    const result = await command?.handler();
-    
+    const result = await command?.handler() as { sas: unknown[] };
+
     expect(result.sas).toHaveLength(7);
     expect(Array.isArray(result.sas)).toBe(true);
   });
 
   it("handles confirm-sas command", async () => {
     const command = mockCommandHost.get("system:security:confirm-sas");
-    const result = await command?.handler({ confirmed: true });
-    
+    const result = await command?.handler({ confirmed: true }) as { success: boolean };
+
     expect(result.success).toBe(true);
   });
 

@@ -17,7 +17,7 @@
 import { integration, temApi, setStoreNodeFn } from "./plugin";
 import { codegenApi } from "./codegen/plugin";
 
-const API: Record<string, (...args: any[]) => unknown> = {
+const API: Record<string, (args?: unknown) => unknown | Promise<unknown>> = {
   // WIT integration interface
   setup: (_args: unknown) => {
     // Wire tractor-bridge store-node via bridge-call round-trip protocol

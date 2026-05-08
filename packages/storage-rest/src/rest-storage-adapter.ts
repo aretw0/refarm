@@ -87,12 +87,12 @@ export class RestStorageAdapter implements StorageAdapter {
     return this._get(queryPath);
   }
 
-  async execute(sql: string, args?: any): Promise<any> {
+  async execute(sql: string, args?: unknown): Promise<unknown> {
     if (!this.enableSql) return [];
     return this._post(this.sqlPath, { sql, args });
   }
 
-  async query<T = any>(sql: string, args?: any): Promise<T[]> {
+  async query<T = unknown>(sql: string, args?: unknown): Promise<T[]> {
     return this.execute(sql, args) as Promise<T[]>;
   }
 

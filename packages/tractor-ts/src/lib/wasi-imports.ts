@@ -36,7 +36,7 @@ export class WasiImports {
 		private storeNode?: (nodeJson: string) => Promise<void>,
 	) {}
 
-	generate(manifest: PluginManifest, profile: ExecutionProfile): any {
+	generate(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
 		const allowedOrigins = manifest.capabilities.allowedOrigins ?? [];
 		const isTrustedFast = profile === "trusted-fast";
 
@@ -391,22 +391,22 @@ export class WasiImports {
 			return new Uint8Array(out);
 		};
 
-		const imports: any = {
+		const imports: Record<string, unknown> = {
 			"wasi:logging/logging": wasiLogging,
 			"wasi:logging/logging@0.1.0-draft": wasiLogging,
 			"wasi:cli/environment": wasiEnvironment,
 			"wasi:cli/environment@0.2.0": wasiEnvironment,
 			"wasi:cli/environment@0.2.3": wasiEnvironment,
 			"wasi:http/outgoing-handler": {
-				handle: async (request: any) => {
+				handle: async (request: unknown) => {
 					if (!isAllowedRequest(request)) {
-						const url = typeof request === "string" ? request : request?.url;
+						const url = typeof request === "string" ? request : (request as { url?: string })?.url;
 						console.warn(
 							`[tractor] Blocked unauthorized fetch to ${url || "<unknown>"} by ${this.pluginId}`,
 						);
 						throw new Error("HTTP request not permitted by capabilities");
 					}
-					return fetch(request);
+					return fetch(request as RequestInfo | URL);
 				},
 			},
 			"refarm:plugin/tractor-bridge": tractorBridge,

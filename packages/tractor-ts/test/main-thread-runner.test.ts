@@ -39,7 +39,7 @@ describe("MainThreadRunner", () => {
     fsMock = await import("node:fs/promises");
     vi.mocked(fsMock.mkdir).mockResolvedValue(undefined);
     vi.mocked(fsMock.writeFile).mockResolvedValue(undefined);
-    vi.mocked(fsMock.readdir).mockResolvedValue([] as any);
+    vi.mocked(fsMock.readdir).mockResolvedValue([] as unknown as Awaited<ReturnType<typeof fsMock.readdir>>);
   });
 
   afterEach(() => {
@@ -91,9 +91,9 @@ describe("MainThreadRunner", () => {
     // Return files with keys that don't match the jcoName
     vi.mocked(jco.transpile).mockResolvedValueOnce({
       files: { "other_plugin.core.wasm": new Uint8Array([0]) },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof jco.transpile>>);
     // readdir also returns empty so there's no fallback
-    vi.mocked(fsMock.readdir).mockResolvedValueOnce([] as any);
+    vi.mocked(fsMock.readdir).mockResolvedValueOnce([] as unknown as Awaited<ReturnType<typeof fsMock.readdir>>);
 
     const runner = new MainThreadRunner("/tmp/test-dist", logger);
     const instance = await runner.instantiate(manifest, wasmBuffer, {}, vi.fn(), vi.fn());
@@ -109,9 +109,9 @@ describe("MainThreadRunner", () => {
     // Return a WASM file only — jcoName.js is absent, so we fall to readdir
     vi.mocked(jco.transpile).mockResolvedValueOnce({
       files: { "test_plugin.core.wasm": new Uint8Array([0]) },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof jco.transpile>>);
     // readdir returns a .js file as the fallback
-    vi.mocked(fsMock.readdir).mockResolvedValueOnce(["test_plugin.js"] as any);
+    vi.mocked(fsMock.readdir).mockResolvedValueOnce(["test_plugin.js"] as unknown as Awaited<ReturnType<typeof fsMock.readdir>>);
 
     const runner = new MainThreadRunner("/tmp/test-dist", logger);
     const instance = await runner.instantiate(manifest, wasmBuffer, {}, vi.fn(), vi.fn());
@@ -130,7 +130,7 @@ describe("MainThreadRunner", () => {
         "test_plugin.js": Buffer.from("export default {}"),
         "test_plugin.core.wasm": new Uint8Array([0]),
       },
-    } as any);
+    } as unknown as Awaited<ReturnType<typeof jco.transpile>>);
 
     const runner = new MainThreadRunner("/tmp/test-dist", logger);
     const instance = await runner.instantiate(manifest, wasmBuffer, {}, vi.fn(), vi.fn());

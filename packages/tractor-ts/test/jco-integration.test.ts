@@ -41,7 +41,7 @@ describe("JCO Integration", () => {
 
   afterEach(() => {
     // Cleanup
-    wasmBuffer = null as any;
+    wasmBuffer = null as unknown as Buffer;
   });
 
   it("should have JCO library available", () => {

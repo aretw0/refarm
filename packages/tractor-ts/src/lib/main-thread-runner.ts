@@ -32,12 +32,12 @@ export class MainThreadRunner implements PluginRunner {
 	async instantiate(
 		manifest: PluginManifest,
 		wasmBuffer: ArrayBuffer,
-		imports: Record<string, any>,
+		imports: Record<string, unknown>,
 		emit: (data: TelemetryEvent) => void,
 		onTerminate: (id: string) => void,
 	): Promise<PluginInstance> {
 		const pluginId = manifest.id;
-		let componentInstance: any = null;
+		let componentInstance: unknown = null;
 
 		try {
 			const [jco, fs, path] = await Promise.all([
@@ -102,7 +102,7 @@ export class MainThreadRunner implements PluginRunner {
 			pluginId,
 			manifest.name,
 			manifest,
-			componentInstance,
+			componentInstance as Record<string, unknown> | null,
 			emit,
 			onTerminate,
 		);

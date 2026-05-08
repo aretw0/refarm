@@ -95,17 +95,13 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
-  private normalizeJavaScriptModule(moduleNamespace: any): any {
-    if (!moduleNamespace) return moduleNamespace;
-
-    const defaultExport = moduleNamespace.default;
+  private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
+    if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
+    const ns = moduleNamespace as Record<string, unknown>;
+    const defaultExport = ns["default"];
     if (defaultExport && typeof defaultExport === "object") {
-      return {
-        ...defaultExport,
-        ...moduleNamespace,
-      };
+      return { ...(defaultExport as Record<string, unknown>), ...ns };
     }
-
     return moduleNamespace;
   }
 
@@ -289,7 +285,7 @@ export class PluginHost {
     return instance;
   }
 
-  getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): any {
+  getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
     const wasi = new WasiImports(manifest.id, this.logger, this.emit);
     return wasi.generate(manifest, profile);
   }

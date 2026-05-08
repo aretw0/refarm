@@ -29,7 +29,7 @@ export class PluginInstanceHandle implements PluginInstance {
     }
 
     const namespaces: Record<string, unknown>[] = [];
-    const integration = (this.componentInstance as Record<string, unknown>)["integration"];
+    const integration = this.componentInstance["integration"];
     if (integration && typeof integration === "object") {
       namespaces.push(integration as Record<string, unknown>);
     }
@@ -75,7 +75,7 @@ export class PluginInstanceHandle implements PluginInstance {
     public id: string,
     public name: string,
     public manifest: PluginManifest,
-    private componentInstance: any,
+    private componentInstance: Record<string, unknown> | null,
     private emit: (data: TelemetryEvent) => void,
     private onTerminate: (id: string) => void
   ) {}

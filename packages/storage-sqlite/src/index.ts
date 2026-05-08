@@ -173,7 +173,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   private _createMemoryStub() {
     // Fallback for tests if real wa-sqlite is not injected
     return {
-      exec: async (sql: string, options: any = {}) => {
+      exec: async (_sql: string, _options: Record<string, unknown> = {}) => {
         return [];
       },
       close: async () => {}

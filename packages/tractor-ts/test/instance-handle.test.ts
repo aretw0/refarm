@@ -5,7 +5,7 @@ import { createMockManifest } from "@refarm.dev/plugin-manifest";
 // ---------------------------------------------------------------------------
 // Helper
 // ---------------------------------------------------------------------------
-function makeHandle(componentInstance: any) {
+function makeHandle(componentInstance: Record<string, unknown> | null) {
   const emit = vi.fn();
   const onTerminate = vi.fn();
   const manifest = createMockManifest({ id: "handle-plugin", name: "Handle Plugin" });

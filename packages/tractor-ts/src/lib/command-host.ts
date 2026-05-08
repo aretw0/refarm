@@ -21,7 +21,7 @@ export interface CommandMetadata {
   sourcePlugin?: string;
 }
 
-export type CommandHandler = (args?: any) => Promise<any> | any;
+export type CommandHandler = (args?: unknown) => Promise<unknown> | unknown;
 
 export interface RegisteredCommand extends CommandMetadata {
   handler: CommandHandler;
@@ -61,7 +61,7 @@ export class CommandHost {
   /**
    * Execute a command by ID.
    */
-  async execute(id: string, args?: any): Promise<any> {
+  async execute(id: string, args?: unknown): Promise<unknown> {
     const cmd = this.commands.get(id);
     if (!cmd) {
       throw new Error(`[commands] Command not found: ${id}`);

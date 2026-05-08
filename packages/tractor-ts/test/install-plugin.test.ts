@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { installPlugin } from "../src/lib/install-plugin";
 import { clearRuntimeDescriptorRevocationListCache } from "../src/lib/runtime-descriptor-revocation";
+import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
 
 // Mock OPFS cache module
 vi.mock("../src/lib/opfs-plugin-cache", () => ({
@@ -64,19 +71,21 @@ async function computeDescriptorIntegrity(
 	);
 }
 
+const mockFetchWith = (impl: (url: string) => unknown) =>
+	vi.mocked(global.fetch).mockImplementation(impl as unknown as typeof global.fetch);
+
 describe("installPlugin", () => {
 	const mockBuffer = new ArrayBuffer(1024);
-	let manifestWithIntegrity: any;
+	let manifestWithIntegrity: PluginManifest;
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		clearRuntimeDescriptorRevocationListCache();
-		delete (globalThis as any)
-			.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-		delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
-		delete (globalThis as any).__REFARM_ENVIRONMENT__;
-		(getCachedPlugin as any).mockResolvedValue(null);
-		(cachePlugin as any).mockResolvedValue(undefined);
+		delete (globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+		delete (globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+		delete (globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__;
+		vi.mocked(getCachedPlugin).mockResolvedValue(null);
+		vi.mocked(cachePlugin).mockResolvedValue(undefined);
 
 		global.fetch = vi.fn().mockResolvedValue({
 			ok: true,
@@ -122,7 +131,7 @@ describe("installPlugin", () => {
 
 	it("returns cached version without fetching when already cached", async () => {
 		const cachedBuffer = mockBuffer;
-		(getCachedPlugin as any).mockResolvedValue(cachedBuffer);
+		vi.mocked(getCachedPlugin).mockResolvedValue(cachedBuffer);
 
 		const result = await installPlugin(
 			manifestWithIntegrity,
@@ -137,7 +146,7 @@ describe("installPlugin", () => {
 
 	it("evicts and re-fetches when cached artifact fails integrity", async () => {
 		const tamperedCache = new ArrayBuffer(512);
-		(getCachedPlugin as any).mockResolvedValue(tamperedCache);
+		vi.mocked(getCachedPlugin).mockResolvedValue(tamperedCache);
 
 		const result = await installPlugin(
 			manifestWithIntegrity,
@@ -152,7 +161,7 @@ describe("installPlugin", () => {
 
 	it("bypasses cache when force: true", async () => {
 		const cachedBuffer = new ArrayBuffer(512);
-		(getCachedPlugin as any).mockResolvedValue(cachedBuffer);
+		vi.mocked(getCachedPlugin).mockResolvedValue(cachedBuffer);
 
 		const result = await installPlugin(
 			manifestWithIntegrity,
@@ -170,7 +179,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("runtime-descriptor-revocations.json")) {
 				return {
 					ok: true,
@@ -232,7 +241,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("runtime-descriptor-revocations.json")) {
 				return {
 					ok: true,
@@ -311,7 +320,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".runtime-descriptor.json")) {
 				return {
 					ok: true,
@@ -375,7 +384,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (
 				url ===
 				"https://github.com/aretw0/refarm/releases/download/test-plugin%400.1.0/runtime-descriptor-manifest.json"
@@ -477,7 +486,7 @@ describe("installPlugin", () => {
 			await computeSRIFromText(runtimeModuleSource);
 		let descriptorHash = "";
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("runtime-descriptor-manifest.json")) {
 				const descriptorWithoutIntegrity = {
 					schemaVersion: 1,
@@ -558,7 +567,7 @@ describe("installPlugin", () => {
 	});
 
 	it("fails when auto-resolved release asset has malformed bundle manifest", async () => {
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("runtime-descriptor-manifest.json")) {
 				return {
 					ok: true,
@@ -583,7 +592,7 @@ describe("installPlugin", () => {
 	});
 
 	it("fails when auto-resolved bundle manifest has no descriptor for plugin/version", async () => {
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("runtime-descriptor-manifest.json")) {
 				return {
 					ok: true,
@@ -640,7 +649,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url === "https://cdn.example/explicit.runtime-descriptor.json") {
 				const descriptorWithoutIntegrity = {
 					schemaVersion: 1,
@@ -777,7 +786,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -836,7 +845,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -907,7 +916,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -973,7 +982,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1012,7 +1021,7 @@ describe("installPlugin", () => {
 	});
 
 	it("uses environment revocation profile when install options omit explicit policy", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"dev";
 
 		const runtimeModuleSource =
@@ -1042,7 +1051,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1080,7 +1089,7 @@ describe("installPlugin", () => {
 	});
 
 	it("derives fail-open from generic runtime environment when dedicated revocation profile is absent", async () => {
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "development";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "development";
 
 		const runtimeModuleSource =
 			"export default { async ping(){ return 'x'; } }";
@@ -1109,7 +1118,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1147,7 +1156,7 @@ describe("installPlugin", () => {
 	});
 
 	it("derives fail-closed from generic runtime environment=production when dedicated profile is absent", async () => {
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "production";
 
 		const runtimeModuleSource =
 			"export default { async ping(){ return 'x'; } }";
@@ -1176,7 +1185,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1214,9 +1223,9 @@ describe("installPlugin", () => {
 	});
 
 	it("keeps dedicated environment profile precedence over conflicting generic environment and warns", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"dev";
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "production";
 
 		const runtimeModuleSource =
 			"export default { async ping(){ return 'x'; } }";
@@ -1245,7 +1254,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1321,7 +1330,7 @@ describe("installPlugin", () => {
 				descriptorWithoutIntegrity,
 			);
 
-			(global.fetch as any).mockImplementation(async (url: string) => {
+			mockFetchWith(async (url: string) => {
 				if (url.endsWith(".mjs")) {
 					return {
 						ok: true,
@@ -1389,7 +1398,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1456,7 +1465,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1491,7 +1500,7 @@ describe("installPlugin", () => {
 				descriptorRevocationList: {
 					url: "https://revocation.example/runtime-revocations.json",
 				},
-				descriptorRevocationUnavailablePolicy: "invalid-policy" as any,
+				descriptorRevocationUnavailablePolicy: "invalid-policy" as unknown as "fail-closed",
 				descriptorRevocationProfile: "dev",
 			}),
 		).resolves.toBeTruthy();
@@ -1503,9 +1512,9 @@ describe("installPlugin", () => {
 	});
 
 	it("ignores invalid environment profile and falls back to fail-closed", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"invalid-profile";
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "invalid-env";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "invalid-env";
 
 		const runtimeModuleSource =
 			"export default { async ping(){ return 'x'; } }";
@@ -1534,7 +1543,7 @@ describe("installPlugin", () => {
 			descriptorWithoutIntegrity,
 		);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1607,7 +1616,7 @@ describe("installPlugin", () => {
 		);
 
 		let revocationRequestCount = 0;
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1710,7 +1719,7 @@ describe("installPlugin", () => {
 		);
 
 		let revocationRequestCount = 0;
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -1802,7 +1811,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("external.runtime-descriptor.json")) {
 				return {
 					ok: true,
@@ -1880,7 +1889,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.includes("external.runtime-descriptor.json")) {
 				return {
 					ok: true,
@@ -1966,7 +1975,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".runtime-descriptor.json")) {
 				return {
 					ok: true,
@@ -2051,7 +2060,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".runtime-descriptor.json")) {
 				return {
 					ok: true,
@@ -2156,7 +2165,7 @@ describe("installPlugin", () => {
 						commitSha: "short-sha",
 						buildId: "",
 					},
-				} as any,
+				},
 			}),
 		).rejects.toThrow("requires provenance buildId + full commitSha");
 	});
@@ -2167,7 +2176,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -2213,7 +2222,7 @@ describe("installPlugin", () => {
 		const runtimeModuleIntegrity =
 			await computeSRIFromText(runtimeModuleSource);
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,
@@ -2256,7 +2265,7 @@ describe("installPlugin", () => {
 	it("fails when browser runtime module integrity is invalid", async () => {
 		const runtimeModuleSource = "export const x = 1";
 
-		(global.fetch as any).mockImplementation(async (url: string) => {
+		mockFetchWith(async (url: string) => {
 			if (url.endsWith(".mjs")) {
 				return {
 					ok: true,

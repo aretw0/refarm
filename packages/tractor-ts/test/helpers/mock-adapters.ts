@@ -86,13 +86,13 @@ export class MockStorageAdapter implements StorageAdapter {
       .map((r) => ({ payload: r.payload }));
   }
 
-  async execute(_sql: string, _args?: any): Promise<any> {
+  async execute(_sql: string, _args?: unknown): Promise<unknown> {
     this.stats.execute++;
     if (this._latency.executeMs > 0) await sleep(this._latency.executeMs);
     return 0;
   }
 
-  async query<T = any>(_sql: string, _args?: any): Promise<T[]> {
+  async query<T = unknown>(_sql: string, _args?: unknown): Promise<T[]> {
     this.stats.query++;
     return [] as T[];
   }

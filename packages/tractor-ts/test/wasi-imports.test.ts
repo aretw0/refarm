@@ -5,6 +5,8 @@ import { createMockManifest } from "@refarm.dev/plugin-manifest";
 // ---------------------------------------------------------------------------
 // Factory
 // ---------------------------------------------------------------------------
+type TestImports = Record<string, Record<string, (...args: unknown[]) => unknown>>;
+
 function makeImports(
   profile: "strict" | "trusted-fast",
   allowedOrigins: string[] = [],
@@ -14,9 +16,9 @@ function makeImports(
   const storeNode = vi.fn().mockResolvedValue(undefined);
   const manifest = createMockManifest({
     capabilities: { allowedOrigins, provides: [], requires: [] },
-  } as any);
+  } as unknown as Partial<import("@refarm.dev/plugin-manifest").PluginManifest>);
   const wasi = new WasiImports("test-plugin", logger, emit, storeNode);
-  return { imports: wasi.generate(manifest, profile), emit, logger, storeNode };
+  return { imports: wasi.generate(manifest, profile) as unknown as TestImports, emit, logger, storeNode };
 }
 
 // ---------------------------------------------------------------------------
@@ -85,7 +87,7 @@ describe("WasiImports — tractor-bridge", () => {
     const logger = { debug: vi.fn(), warn: vi.fn(), info: vi.fn(), error: vi.fn() };
     const manifest = createMockManifest();
     const wasi = new WasiImports("p", logger, emit); // no storeNode
-    const imports = wasi.generate(manifest, "strict");
+    const imports = wasi.generate(manifest, "strict") as unknown as TestImports;
 
     const result = await imports["refarm:plugin/tractor-bridge"]["store-node"]("{}");
     expect(result).toBe("ok");
@@ -171,7 +173,7 @@ describe("WasiImports — wasi:io/streams stubs", () => {
   it("read() returns [empty Uint8Array, true]", async () => {
     const { imports } = makeImports("strict");
     const streams = imports["wasi:io/streams"];
-    const [bytes, done] = await streams.read();
+    const [bytes, done] = await streams.read() as unknown as [Uint8Array, boolean];
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBe(0);
     expect(done).toBe(true);
@@ -184,7 +186,7 @@ describe("WasiImports — wasi:io/streams stubs", () => {
 
   it("blockingRead() returns [empty Uint8Array, true]", async () => {
     const { imports } = makeImports("strict");
-    const [bytes, done] = await imports["wasi:io/streams"].blockingRead();
+    const [bytes, done] = await imports["wasi:io/streams"].blockingRead() as unknown as [Uint8Array, boolean];
     expect(bytes.length).toBe(0);
     expect(done).toBe(true);
   });
@@ -211,7 +213,7 @@ describe("WasiImports — wasi:io/streams stubs", () => {
 describe("WasiImports — wasi:clocks/wall-clock", () => {
   it("now() returns an object with a bigint seconds field", () => {
     const { imports } = makeImports("strict");
-    const { seconds } = imports["wasi:clocks/wall-clock"].now();
+    const { seconds } = imports["wasi:clocks/wall-clock"].now() as { seconds: bigint; nanoseconds: number };
     expect(typeof seconds).toBe("bigint");
     expect(seconds).toBeGreaterThan(0n);
   });
@@ -229,7 +231,7 @@ describe("WasiImports — wasi:clocks/wall-clock", () => {
 describe("WasiImports — wasi:random/random", () => {
   it("getRandomBytes(n) returns Uint8Array of length n", () => {
     const { imports } = makeImports("strict");
-    const bytes = imports["wasi:random/random"].getRandomBytes(8n);
+    const bytes = imports["wasi:random/random"].getRandomBytes(8n) as Uint8Array;
     expect(bytes).toBeInstanceOf(Uint8Array);
     expect(bytes.length).toBe(8);
   });

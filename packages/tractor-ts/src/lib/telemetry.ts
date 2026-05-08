@@ -10,7 +10,7 @@ export interface TelemetryEvent {
 	event: string;
 	pluginId?: string;
 	durationMs?: number;
-	payload?: any;
+	payload?: unknown;
 }
 
 export const RUNTIME_DESCRIPTOR_REVOCATION_EVENTS = [
@@ -544,10 +544,10 @@ export class TelemetryHost {
 			category: "System",
 			description:
 				"Summarizes runtime descriptor revocation telemetry events from the ring buffer.",
-			handler: (args?: RuntimeDescriptorRevocationTelemetrySummaryOptions) => {
+			handler: (args?: unknown) => {
 				const events = this.dump();
 				return {
-					summary: summarizeRuntimeDescriptorRevocationTelemetry(events, args),
+					summary: summarizeRuntimeDescriptorRevocationTelemetry(events, args as RuntimeDescriptorRevocationTelemetrySummaryOptions),
 				};
 			},
 		});
@@ -558,23 +558,21 @@ export class TelemetryHost {
 			category: "System",
 			description:
 				"Builds revocation telemetry diagnostics with severity-ranked alerts for incident triage.",
-			handler: (
-				args?: RuntimeDescriptorRevocationTelemetrySummaryOptions &
-					RuntimeDescriptorRevocationAlertThresholds,
-			) => {
+			handler: (args?: unknown) => {
+				const a = args as (RuntimeDescriptorRevocationTelemetrySummaryOptions & RuntimeDescriptorRevocationAlertThresholds) | undefined;
 				const events = this.dump();
 				return buildRuntimeDescriptorRevocationDiagnostics(events, {
 					summary: {
-						pluginId: args?.pluginId,
-						policy: args?.policy,
-						profile: args?.profile,
-						limit: args?.limit,
+						pluginId: a?.pluginId,
+						policy: a?.policy,
+						profile: a?.profile,
+						limit: a?.limit,
 					},
 					thresholds: {
-						unavailableWarnAt: args?.unavailableWarnAt,
-						unavailableCriticalAt: args?.unavailableCriticalAt,
-						configDriftWarnAt: args?.configDriftWarnAt,
-						staleCacheWarnAt: args?.staleCacheWarnAt,
+						unavailableWarnAt: a?.unavailableWarnAt,
+						unavailableCriticalAt: a?.unavailableCriticalAt,
+						configDriftWarnAt: a?.configDriftWarnAt,
+						staleCacheWarnAt: a?.staleCacheWarnAt,
 					},
 				});
 			},
