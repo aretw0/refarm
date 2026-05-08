@@ -30,7 +30,7 @@ export interface RegisteredCommand extends CommandMetadata {
 export class CommandHost {
   private commands: Map<string, RegisteredCommand> = new Map();
 
-  constructor(private emitTelemetry: (event: string, payload?: any) => void) {}
+  constructor(private emitTelemetry: (event: string, payload?: unknown) => void) {}
 
   /**
    * Register a new command in the system.
@@ -78,10 +78,10 @@ export class CommandHost {
       });
 
       return result;
-    } catch (error: any) {
+    } catch (error) {
       this.emitTelemetry("system:command_failed", {
         id,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         success: false
       });
       throw error;

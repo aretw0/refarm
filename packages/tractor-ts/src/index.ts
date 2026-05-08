@@ -43,12 +43,15 @@ export * from "./lib/telemetry.js";
 export * from "./lib/types.js";
 
 /** Sovereign engine version — also accessible from the browser entry as TRACTOR_VERSION. */
-export const TRACTOR_VERSION: string = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
+export const TRACTOR_VERSION: string = (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
   if (configLevel) return configLevel;
 
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   const envLevel = env?.REFARM_LOG_LEVEL;
   if (isTractorLogLevel(envLevel)) return envLevel;
 
@@ -60,7 +63,7 @@ function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel 
 }
 
 export class Tractor {
-  static readonly VERSION = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+  static readonly VERSION = (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
   readonly storage: StorageAdapter;
   readonly namespace: string;
   identity: IdentityAdapter;
@@ -107,7 +110,7 @@ export class Tractor {
     );
 
     this.telemetry = new TelemetryHost({ capacity: 1000 });
-    this.commands = new CommandHost((event: string, payload: any) =>
+    this.commands = new CommandHost((event: string, payload: unknown) =>
       this.events.emit({ event, payload }),
     );
 
@@ -238,8 +241,9 @@ export class Tractor {
   static async boot(config: TractorConfig): Promise<Tractor> {
     if (!config.storage) throw new Error("[tractor] A Storage Adapter is required to boot.");
     if (!config.identity) throw new Error("[tractor] An Identity Adapter is required to boot.");
-    if ((config.storage as any).open) {
-      config.storage = await (config.storage as any).open(config.namespace);
+    type OpenableStorage = StorageAdapter & { open(ns: string): Promise<StorageAdapter> };
+    if ((config.storage as Partial<OpenableStorage>).open) {
+      config.storage = await (config.storage as OpenableStorage).open(config.namespace);
     }
     await config.storage.ensureSchema();
     if (config.sync) await config.sync.start();
@@ -364,7 +368,7 @@ export class Tractor {
     const securityMode = mode ?? this.defaultSecurityMode;
     let signedNode = node;
     if (securityMode !== "none") {
-      const timestamp = (node as any).timestamp;
+      const timestamp = (node as SovereignNode & { timestamp?: string }).timestamp;
       if (timestamp) {
         const CLOCK_SKEW_GRACE_MS = 10_000;
         if (new Date(timestamp).getTime() > Date.now() + CLOCK_SKEW_GRACE_MS) {

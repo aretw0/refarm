@@ -10,8 +10,11 @@ type SpawnSyncResult = {
 	stdout?: Buffer;
 };
 
+type NodeProcess = { getBuiltinModule?: (m: string) => unknown };
+type NodeEnvGlobal = typeof globalThis & { process?: NodeProcess };
+
 function spawnSync(command: string, args: string[], options: { input: Buffer; maxBuffer: number }): SpawnSyncResult {
-	const getBuiltinModule = (globalThis as any).process?.getBuiltinModule;
+	const getBuiltinModule = (globalThis as NodeEnvGlobal).process?.getBuiltinModule;
 	const childProcess =
 		typeof getBuiltinModule === "function"
 			? getBuiltinModule("node:child_process")
@@ -361,7 +364,7 @@ export class WasiImports {
 			const reqBody =
 				body instanceof Uint8Array
 					? Buffer.from(body)
-					: Buffer.from(body as any);
+					: Buffer.from(body as unknown as string);
 			const resp = spawnSync("curl", curlArgs, {
 				input: reqBody,
 				maxBuffer: 2 * 1024 * 1024 + 64 * 1024,

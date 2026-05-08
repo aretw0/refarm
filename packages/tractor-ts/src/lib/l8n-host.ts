@@ -9,8 +9,10 @@ export interface L8nHostLogger {
   info(...args: unknown[]): void;
 }
 
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
 function resolveDefaultLogger(): L8nHostLogger {
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
     return { info: () => {} };
   }

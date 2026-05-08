@@ -139,7 +139,7 @@ export async function fetchRuntimeDescriptorRevocationList(
 			list: normalized,
 		});
 		return normalized;
-	} catch (error: any) {
+	} catch (error) {
 		if (options.allowStaleOnError && cached) {
 			options.onStaleFallback?.({
 				url,
@@ -149,7 +149,7 @@ export async function fetchRuntimeDescriptorRevocationList(
 			return cached.list;
 		}
 		throw new Error(
-			`Failed to resolve runtime descriptor revocation list ${url}: ${error?.message ?? error}`,
+			`Failed to resolve runtime descriptor revocation list ${url}: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 }

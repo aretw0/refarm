@@ -17,10 +17,12 @@ const SAS_EMOJIS = [
  * - Silver: Password-derived keys (E2EE)
  * - Bronze: Pure Session (In-Memory Only)
  */
+export type SecretAuthTier = "gold" | "silver" | "bronze";
+
 export interface SecretAuthPrompt {
   title: string;
   hint?: string;
-  tier: "gold" | "silver" | "bronze";
+  tier: SecretAuthTier;
 }
 
 export type AuthResponse = { success: boolean; key?: CryptoKey };
@@ -31,8 +33,10 @@ export interface SecretHostLogger {
   debug(...args: unknown[]): void;
 }
 
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
 function resolveDefaultLogger(): SecretHostLogger {
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
     return { info: () => {}, warn: () => {}, debug: () => {} };
   }
@@ -103,8 +107,13 @@ export class SecretHost {
   /**
    * Unlocks a SovereignSecret node using the appropriate fallback tier.
    */
-  async decryptSecret(encryptedBlob: any): Promise<string | null> {
-    const { tier, hint } = encryptedBlob;
+  async decryptSecret(encryptedBlob: unknown): Promise<string | null> {
+    const { tier: rawTier, hint } = encryptedBlob && typeof encryptedBlob === "object"
+      ? (encryptedBlob as { tier?: string; hint?: string })
+      : {};
+    const tier: SecretAuthTier = rawTier === "gold" || rawTier === "silver" || rawTier === "bronze"
+      ? rawTier
+      : "bronze";
 
     this.logger.info(`[secret-host] Requesting unlock for tier: ${tier}`);
 

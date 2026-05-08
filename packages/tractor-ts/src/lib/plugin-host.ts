@@ -179,7 +179,7 @@ export class PluginHost {
     assertEntryRuntimeCompatibility(wasmUrl, "node");
 
     const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
-    const trust = (manifest as any).trust;
+    const trust = (manifest as PluginManifest & { trust?: { profile?: string } }).trust;
 
     if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
       throw new Error(
@@ -320,8 +320,8 @@ export class PluginHost {
     const allHelp: SovereignNode[] = [];
     for (const plugin of this._instances.values()) {
       try {
-        const nodes = (await plugin.call("get-help-nodes")) as any[];
-        if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n)));
+        const nodes = (await plugin.call("get-help-nodes")) as unknown[];
+        if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n as string)));
       } catch {}
     }
     return allHelp;

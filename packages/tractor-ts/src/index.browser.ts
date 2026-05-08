@@ -33,6 +33,7 @@ import {
 	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
 import type { SovereignNode } from "./lib/graph-normalizer.js";
+import type { TractorConfig } from "./lib/types.js";
 import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
 import {
 	getCachedPlugin,
@@ -56,6 +57,14 @@ import type { TelemetryEvent } from "./lib/telemetry.js";
 import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
 import type { TractorLogger } from "./lib/types.js";
 
+type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
+const refarmGlobals = globalThis as RefarmGlobals;
+
 const BROWSER_ERROR =
 	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
 	"Use installPlugin() to cache the transpiled module to OPFS first. See ADR-044.";
@@ -67,12 +76,10 @@ const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY: RuntimeDescriptorRevocation
 	"stale-allowed";
 
 function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
-	const runtimePolicyOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-	const runtimeProfileOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
-	const runtimeEnvironmentOverride = (globalThis as any).__REFARM_ENVIRONMENT__;
-	const env = (import.meta as any).env;
+	const runtimePolicyOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimeProfileOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const runtimeEnvironmentOverride = refarmGlobals.__REFARM_ENVIRONMENT__;
+	const env = (import.meta as ViteImportMeta).env;
 
 	const environmentProfileResolution =
 		resolveRuntimeDescriptorRevocationEnvironmentProfile({
@@ -129,19 +136,20 @@ export class PluginHost {
 	constructor(
 		private readonly emit: (data: TelemetryEvent) => void,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		_registry: any,
+		_registry: unknown,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_logger?: TractorLogger,
 	) {}
 
-	private normalizeJavaScriptModule(moduleNamespace: any): any {
-		if (!moduleNamespace) return moduleNamespace;
+	private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
+		if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
 
-		const defaultExport = moduleNamespace.default;
+		const ns = moduleNamespace as Record<string, unknown>;
+		const defaultExport = ns["default"];
 		if (defaultExport && typeof defaultExport === "object") {
 			return {
-				...defaultExport,
-				...moduleNamespace,
+				...(defaultExport as Record<string, unknown>),
+				...ns,
 			};
 		}
 
@@ -179,7 +187,7 @@ export class PluginHost {
 
 	private async loadWasmModuleFromCache(
 		manifest: PluginManifest,
-	): Promise<{ moduleNamespace: any; artifactKind: "module" | "component" }> {
+	): Promise<{ moduleNamespace: unknown; artifactKind: "module" | "component" }> {
 		const pluginId = manifest.id;
 		const cached = await getCachedPlugin(pluginId);
 		const metadata = await getCachedPluginMetadata(pluginId);
@@ -211,10 +219,10 @@ export class PluginHost {
 				moduleNamespace: instantiated.instance.exports,
 				artifactKind,
 			};
-		} catch (error: any) {
+		} catch (error) {
 			throw new Error(
 				`[tractor] Failed to instantiate cached browser WASM for ${pluginId}. ` +
-					`Current browser path expects cache-backed runtime-compatible exports (${error?.message ?? "unknown error"}).`,
+					`Current browser path expects cache-backed runtime-compatible exports (${error instanceof Error ? error.message : "unknown error"}).`,
 			);
 		}
 	}
@@ -448,13 +456,13 @@ export class PluginHost {
 								policySource: policyResolution.source,
 								profile: policyResolution.profile,
 								cacheAgeMs: info.cacheAgeMs,
-								error: (info.error as any)?.message ?? String(info.error),
+								error: (info.error instanceof Error ? info.error.message : null) ?? String(info.error),
 							},
 						});
 					},
 				},
 			);
-		} catch (error: any) {
+		} catch (error) {
 			if (unavailablePolicy === "fail-open") {
 				this.emit({
 					event: "system:descriptor_revocation_unavailable",
@@ -463,14 +471,14 @@ export class PluginHost {
 						policy: unavailablePolicy,
 						policySource: policyResolution.source,
 						profile: policyResolution.profile,
-						error: error?.message ?? String(error),
+						error: error instanceof Error ? error.message : String(error),
 					},
 				});
 				return;
 			}
 
 			throw new Error(
-				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error?.message ?? error}`,
+				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 
@@ -554,7 +562,7 @@ export class PluginHost {
 				this.instances.delete(pluginId);
 				this.emit({ event: "plugin:terminate", pluginId });
 			},
-			emitTelemetry: (event: string, payload?: any) => {
+			emitTelemetry: (event: string, payload?: unknown) => {
 				this.emit({ event, pluginId, payload });
 			},
 		};
@@ -623,8 +631,8 @@ export class PluginHost {
 		const nodes: SovereignNode[] = [];
 		for (const plugin of this.instances.values()) {
 			try {
-				const pluginNodes = (await plugin.call("get-help-nodes")) as any[];
-				if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n)));
+				const pluginNodes = (await plugin.call("get-help-nodes")) as unknown[];
+				if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n as string)));
 			} catch {
 				// ignore invalid help providers in browser path
 			}
@@ -680,7 +688,7 @@ export {
 
 /** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */
 export const TRACTOR_VERSION: string =
-	(import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+	(import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
 /**
  * Browser-safe Tractor proxy.
@@ -692,7 +700,7 @@ export const TRACTOR_VERSION: string =
 export class Tractor {
 	static readonly VERSION = TRACTOR_VERSION;
 
-	static async boot(config: any): Promise<any> {
+	static async boot(config: TractorConfig): Promise<unknown> {
 		const module = await import("./index.js");
 		return module.Tractor.boot(config);
 	}

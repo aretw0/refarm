@@ -90,7 +90,8 @@ export async function cachePlugin(
 	const fileHandle = await implementsDir.getFileHandle(`${key}.wasm`, {
 		create: true,
 	});
-	const writable = await (fileHandle as any).createWritable();
+	type WritableHandle = { createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }> };
+	const writable = await (fileHandle as unknown as WritableHandle).createWritable();
 	await writable.write(buffer);
 	await writable.close();
 
@@ -99,7 +100,7 @@ export async function cachePlugin(
 		const metadataHandle = await metadataDir.getFileHandle(`${key}.json`, {
 			create: true,
 		});
-		const metadataWritable = await (metadataHandle as any).createWritable();
+		const metadataWritable = await (metadataHandle as unknown as WritableHandle).createWritable();
 		await metadataWritable.write(JSON.stringify(metadata, null, 2));
 		await metadataWritable.close();
 	}
@@ -127,7 +128,8 @@ export async function cachePluginRuntimeModule(
 	const moduleHandle = await implementsDir.getFileHandle(`${key}.mjs`, {
 		create: true,
 	});
-	const writable = await (moduleHandle as any).createWritable();
+	type WritableHandle = { createWritable(): Promise<{ write(d: unknown): Promise<void>; close(): Promise<void> }> };
+	const writable = await (moduleHandle as unknown as WritableHandle).createWritable();
 	await writable.write(source);
 	await writable.close();
 }
