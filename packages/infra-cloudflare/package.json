@@ -1,0 +1,24 @@
+{
+  "name": "@refarm.dev/infra-cloudflare",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare provider — Worker services and idempotent provisioning for Refarm",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
+    "deploy:turbo-cache": "wrangler deploy --config src/services/turbo-cache/worker/wrangler.toml"
+  },
+  "dependencies": {
+    "@refarm.dev/silo": "*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241106.0",
+    "@refarm.dev/tsconfig": "*",
+    "typescript": "^5.7.0",
+    "wrangler": "^3.91.0"
+  }
+}
