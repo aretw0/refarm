@@ -48,9 +48,10 @@ export class ScarecrowPlugin {
   }
 
   private setupObserver() {
-    this.tractor.observe((data: { event?: string; pluginId?: string; payload?: Record<string, unknown> }) => {
+    this.tractor.observe((data) => {
+      const payload = data.payload as Record<string, unknown> | undefined;
       // 1. Monitor Performance
-      const updateVelocity = data.payload?.updateVelocity as number | undefined;
+      const updateVelocity = payload?.updateVelocity as number | undefined;
       if (data.event === "ui:performance" && updateVelocity !== undefined && updateVelocity > this._config.maxUpdateVelocity) {
         const pluginId = data.pluginId || "unknown";
         this.emitAlert(pluginId, `Excessive DOM updates (${updateVelocity}/sec, threshold: ${this._config.maxUpdateVelocity})`);
@@ -64,7 +65,7 @@ export class ScarecrowPlugin {
       }
 
       // 2. Monitor A11y (if reported)
-      const a11yScore = data.payload?.a11yScore as number | undefined;
+      const a11yScore = payload?.a11yScore as number | undefined;
       if (data.event === "ui:a11y_audit" && a11yScore !== undefined && a11yScore < this._config.minA11yScore) {
         this.emitAlert(data.pluginId || "unknown", `Low Accessibility Score (${a11yScore}, threshold: ${this._config.minA11yScore})`);
       }
@@ -75,8 +76,8 @@ export class ScarecrowPlugin {
       }
 
       // 4. Configuration Update Event (Seamless/Real-time)
-      if (data.event === "system:config_updated" && data.payload?.["pluginId"] === "scarecrow") {
-         this._config = { ...this._config, ...(data.payload["config"] as Partial<typeof this._config>) };
+      if (data.event === "system:config_updated" && payload?.["pluginId"] === "scarecrow") {
+         this._config = { ...this._config, ...(payload["config"] as Partial<ScarecrowConfig>) };
          console.info("[scarecrow] Real-time threshold update:", this._config);
       }
     });

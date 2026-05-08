@@ -23,7 +23,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("good content").buffer,
-		});
+		} as unknown as Response);
 
 		const plugin = await barn.installPlugin(url, integrity);
 
@@ -42,7 +42,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("bad content").buffer,
-		});
+		} as unknown as Response);
 
 		await expect(barn.installPlugin(url, integrity)).rejects.toThrow(
 			"Integrity check failed",
@@ -68,13 +68,13 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("good content").buffer,
-		});
+		} as unknown as Response);
 
 		await barn.installPlugin(url, integrity);
 		const plugins = await barn.listPlugins();
 
 		expect(plugins.length).toBeGreaterThan(0);
-		expect(plugins[0].url).toBe(url);
+		expect(plugins[0]!.url).toBe(url);
 	});
 
 	it("should uninstall a plugin and cleanup resources", async () => {
@@ -85,7 +85,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("temp").buffer,
-		});
+		} as unknown as Response);
 
 		const plugin = await barn.installPlugin(url, integrity);
 		await barn.uninstallPlugin(plugin.id);
@@ -103,7 +103,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			statusText: "OK",
 			arrayBuffer: async () =>
 				new TextEncoder().encode("cached content").buffer,
-		});
+		} as unknown as Response);
 
 		const first = await barn.installPlugin(url, integrity);
 		const second = await barn.installPlugin(url, integrity);
@@ -123,7 +123,7 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 			statusText: "OK",
 			arrayBuffer: async () =>
 				new TextEncoder().encode("cached content").buffer,
-		});
+		} as unknown as Response);
 
 		await barn.installPlugin(url, installedIntegrity);
 

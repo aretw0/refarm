@@ -14,7 +14,7 @@ describe("ScarecrowPlugin", () => {
 
   it("should monitor update velocity and transition state if too high", () => {
     // Simulate telemetry callback
-    const callback = tractor.observe.mock.calls[0][0];
+    const callback = tractor.observe.mock.calls[0]![0];
 
     callback({
       event: "ui:performance",
@@ -30,7 +30,7 @@ describe("ScarecrowPlugin", () => {
   });
 
   it("should monitor a11yScore and alert if too low", () => {
-    const callback = tractor.observe.mock.calls[0][0];
+    const callback = tractor.observe.mock.calls[0]![0];
 
     callback({
       event: "ui:a11y_audit",

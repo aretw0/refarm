@@ -293,6 +293,7 @@ export class StudioShell {
 			helpNodes.find(
 				(n: SovereignNode) => n["refarm:renderType"] === "landing",
 			) || helpNodes[0];
+		if (!seedNode) return;
 
 		if (seedNode["refarm:renderType"] === "landing") {
 			mainSlot.innerHTML = `

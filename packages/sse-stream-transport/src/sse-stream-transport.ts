@@ -62,7 +62,7 @@ export class SseStreamTransport implements StreamTransportAdapter {
 		return (req, res) => {
 			const match = req.url?.match(/^\/stream\/(.+)$/);
 			if (!match || req.method !== "GET") return false;
-			const stream_ref = decodeURIComponent(match[1]);
+			const stream_ref = decodeURIComponent(match[1]!);
 
 			res.writeHead(200, {
 				"Content-Type": "text/event-stream",

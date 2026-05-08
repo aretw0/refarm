@@ -7,7 +7,10 @@
     "declarationMap": false,
     "outDir": "dist",
     "baseUrl": "../..",
-    "rootDir": ".."
+    "rootDir": "..",
+    "noUncheckedIndexedAccess": true
   },
-  "include": ["src/**/*"]
+  "include": [
+    "src/**/*"
+  ]
 }

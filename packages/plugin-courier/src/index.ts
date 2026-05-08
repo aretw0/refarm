@@ -29,7 +29,7 @@ export class AntennaPlugin {
       const nodes = await this.tractor.queryNodes(`SELECT * WHERE url = '${path}'`);
       if (!nodes || nodes.length === 0) return new Response("404 - Not Found", { status: 404 });
       
-      const html = await this.materializeHtml(nodes[0]);
+      const html = await this.materializeHtml(nodes[0]!);
       const headers = new Headers({ "Content-Type": "text/html" });
       if (this.options.enableEasterEggs) headers.set("X-Broadcasted-By", "Refarm Antenna (The Sovereign Signal)");
 
