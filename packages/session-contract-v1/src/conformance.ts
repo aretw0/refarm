@@ -86,7 +86,7 @@ export async function runSessionV1Conformance(
 				failures.push("entries(sessionId, limit) did not respect limit");
 			}
 			for (let i = 1; i < list.length; i++) {
-				if (list[i].timestamp_ns < list[i - 1].timestamp_ns) {
+				if (list[i]!.timestamp_ns < list[i - 1]!.timestamp_ns) {
 					failures.push("entries() not in chronological order");
 				}
 			}

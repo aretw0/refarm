@@ -254,7 +254,7 @@ export async function runMigrations(
   for (let i = 0; i < migrations.length; i++) {
     if (!appliedIds.has(i)) {
       await adapter.transaction(async () => {
-        await adapter.execute(migrations[i]);
+        await adapter.execute(migrations[i]!);
         await adapter.execute("INSERT INTO _migrations (id) VALUES (?)", {
           params: [i],
         });
