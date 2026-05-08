@@ -1,7 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
+import {
+	createTurboCacheServicePlan,
+	turboCacheManifest,
+} from "@refarm.dev/infra-turbo-cache";
+import type { TurboCacheServicePlan } from "@refarm.dev/infra-turbo-cache";
 import type { CloudflareProvider } from "../../provider.js";
 import type { CloudflareProvisionPlan } from "../../types.js";
 
@@ -18,16 +22,21 @@ export interface CloudflareTurboCacheProvisionInput {
 	dryRun?: boolean;
 }
 
+export interface CloudflareTurboCacheProvisionPlan
+	extends CloudflareProvisionPlan {
+	readonly servicePlan: TurboCacheServicePlan;
+}
+
 export interface CloudflareTurboCacheProvisionOutput {
 	workerUrl: string;
 	authToken: string;
 	bucketName: string;
-	plan: CloudflareProvisionPlan;
+	plan: CloudflareTurboCacheProvisionPlan;
 }
 
 export function createCloudflareTurboCacheProvisionPlan(
 	input: CloudflareTurboCacheProvisionInput = {},
-): CloudflareProvisionPlan {
+): CloudflareTurboCacheProvisionPlan {
 	const bucketName = input.bucketName ?? DEFAULT_BUCKET_NAME;
 	const workerName = input.workerName ?? DEFAULT_WORKER_NAME;
 	const team = input.team ?? DEFAULT_TEAM;
@@ -36,6 +45,7 @@ export function createCloudflareTurboCacheProvisionPlan(
 		provider: "cloudflare",
 		serviceId: turboCacheManifest.id,
 		displayName: turboCacheManifest.displayName,
+		servicePlan: createTurboCacheServicePlan({ team }),
 		resources: [
 			{
 				kind: "r2-bucket",

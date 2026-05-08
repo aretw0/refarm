@@ -130,7 +130,7 @@ export class CloudflareTurboCacheProvisioner {
 5. Parseia URL do Worker da stdout do deploy
 6. Retorna `TurboCacheProvisionOutput`
 
-### 3. `packages/infra-turbo-cache/src/manifest.ts`
+### 3. `packages/infra-turbo-cache/src/manifest.ts` e `plan.ts`
 
 ```ts
 export const turboCacheManifest = {
@@ -139,9 +139,11 @@ export const turboCacheManifest = {
   description: "Provider-neutral Turborepo Remote Cache service block",
   ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
 };
+
+export const plan = createTurboCacheServicePlan({ team: "refarm" });
 ```
 
-O manifesto do bloco semântico vive em `infra-turbo-cache` e não importa Cloudflare. O adaptador Cloudflare em `infra-cloudflare` referencia esse manifesto e expõe `CloudflareTurboCacheProvisioner`.
+O manifesto e o plano do bloco semântico vivem em `infra-turbo-cache` e não importam Cloudflare. O plano declara requisitos provider-neutral (storage de artefatos, endpoint HTTP, bearer auth e secrets CI). O adaptador Cloudflare em `infra-cloudflare` referencia esse plano e o materializa como R2 bucket, Worker e secret `AUTH_TOKEN`.
 
 ### 4. `apps/refarm/src/commands/provision.ts`
 

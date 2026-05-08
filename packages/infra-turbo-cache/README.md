@@ -18,8 +18,17 @@ This keeps the remote-cache primitive reusable for future providers.
 ## Current implementation
 
 ```ts
-import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
+import {
+  createTurboCacheServicePlan,
+  turboCacheManifest,
+} from "@refarm.dev/infra-turbo-cache";
+
+const plan = createTurboCacheServicePlan({ team: "refarm" });
 ```
+
+The service plan declares provider-neutral requirements: durable artifact
+storage, an HTTP cache endpoint, bearer authentication, and the CI secrets a
+provider adapter must produce.
 
 Cloudflare provisioning is exposed separately:
 

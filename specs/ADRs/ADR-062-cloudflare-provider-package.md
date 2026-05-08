@@ -39,8 +39,9 @@ packages/infra-cloudflare/
 
 packages/infra-turbo-cache/
   src/
-    manifest.ts              ← identidade e contrato provider-neutral do bloco turbo-cache
-    index.ts                 ← re-exporta o manifesto sem importar Cloudflare
+    manifest.ts              ← identidade provider-neutral do bloco turbo-cache
+    plan.ts                  ← requisitos provider-neutral: storage, endpoint, auth, CI secrets
+    index.ts                 ← re-exporta manifesto/plano sem importar Cloudflare
 ```
 
 ### Convenção para novos adaptadores Cloudflare
