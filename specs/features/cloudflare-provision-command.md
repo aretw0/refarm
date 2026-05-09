@@ -143,7 +143,7 @@ export const turboCacheManifest = {
 export const plan = createTurboCacheServicePlan({ team: "refarm" });
 ```
 
-O manifesto e o plano do bloco semântico vivem em `infra-turbo-cache` e não importam Cloudflare. O plano declara requisitos provider-neutral (storage de artefatos, endpoint HTTP, bearer auth e secrets CI). O adaptador Cloudflare em `infra-cloudflare` referencia esse plano e o materializa como R2 bucket, Worker e secret `AUTH_TOKEN`.
+O manifesto e o plano do bloco semântico vivem em `infra-turbo-cache` e não importam Cloudflare. As formas genéricas (`ManagedServicePlan`, `ProviderProvisionPlan`) vivem em `infra-contract-v1`. O plano declara requisitos provider-neutral (storage de artefatos, endpoint HTTP, bearer auth e secrets CI). O adaptador Cloudflare em `infra-cloudflare` referencia esse plano e o materializa como R2 bucket, Worker e secret `AUTH_TOKEN`.
 
 ### 4. `apps/refarm/src/commands/provision.ts`
 

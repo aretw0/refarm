@@ -8,7 +8,9 @@ Cloudflare, `wrangler`, Workers, R2, AWS, Vercel, or any other provider SDK.
 
 ## Boundary
 
-- This package owns the service identity and manifest (`turbo-cache`).
+- This package owns the service identity, manifest, and `ManagedServicePlan`
+  (`turbo-cache`).
+- Shared plan shapes come from `@refarm.dev/infra-contract-v1`.
 - Provider packages own concrete resources and execution adapters.
 - The Cloudflare adapter currently lives in `@refarm.dev/infra-cloudflare` and
   implements this block with a Cloudflare Worker + R2 bucket.

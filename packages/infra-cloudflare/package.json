@@ -13,6 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@refarm.dev/infra-contract-v1": "*",
     "@refarm.dev/infra-turbo-cache": "*"
   },
   "devDependencies": {

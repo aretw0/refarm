@@ -17,15 +17,20 @@ Dois problemas se revelam:
 
 Criar `packages/infra-cloudflare/` como envelope canônico do provedor Cloudflare, com três responsabilidades:
 
-1. **Provider context** compartilhado — account ID, token, resolução/execução de `wrangler`, tipos comuns
-2. **Provider adapters** por bloco semântico (ex.: turbo-cache em Cloudflare Worker + R2)
-3. **Service blocks provider-neutral** permanecem em pacotes próprios (ex.: `packages/infra-turbo-cache`) para permitir AWS/Vercel/etc. no futuro
+1. **Contratos provider-neutral** compartilhados — `ManagedServicePlan`, requisitos e materialização por provedor em `packages/infra-contract-v1`
+2. **Provider context** compartilhado — account ID, token, resolução/execução de `wrangler`, tipos comuns
+3. **Provider adapters** por bloco semântico (ex.: turbo-cache em Cloudflare Worker + R2)
+4. **Service blocks provider-neutral** permanecem em pacotes próprios (ex.: `packages/infra-turbo-cache`) para permitir AWS/Vercel/etc. no futuro
 
-`packages/infra-cloudflare/` implementa o adaptador Cloudflare para o bloco `packages/infra-turbo-cache/`; o bloco semântico não depende de Cloudflare nem de `wrangler`.
+`packages/infra-cloudflare/` implementa o adaptador Cloudflare para o bloco `packages/infra-turbo-cache/`; o bloco semântico depende apenas dos contratos provider-neutral e não depende de Cloudflare nem de `wrangler`.
 
 ### Estrutura resultante
 
 ```
+packages/infra-contract-v1/
+  src/
+    index.ts                 ← ManagedServicePlan + ProviderProvisionPlan genéricos
+
 packages/infra-cloudflare/
   src/
     provider.ts              ← CloudflareProvider: resolve token + account ID do identity store

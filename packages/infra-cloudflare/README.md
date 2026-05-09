@@ -13,8 +13,9 @@ This package owns Cloudflare-specific concerns:
 
 ## Boundary
 
-`@refarm.dev/infra-cloudflare` may depend on provider-neutral service blocks.
-Provider-neutral service blocks must not depend on Cloudflare or `wrangler`.
+`@refarm.dev/infra-cloudflare` may depend on `@refarm.dev/infra-contract-v1`
+and provider-neutral service blocks. Provider-neutral service blocks must not
+depend on Cloudflare or `wrangler`.
 
 That keeps services like `turbo-cache` reusable for future providers while this
 package remains the Cloudflare implementation adapter.

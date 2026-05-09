@@ -23,9 +23,7 @@ export interface CloudflareTurboCacheProvisionInput {
 }
 
 export interface CloudflareTurboCacheProvisionPlan
-	extends CloudflareProvisionPlan {
-	readonly servicePlan: TurboCacheServicePlan;
-}
+	extends CloudflareProvisionPlan<TurboCacheServicePlan> {}
 
 export interface CloudflareTurboCacheProvisionOutput {
 	workerUrl: string;

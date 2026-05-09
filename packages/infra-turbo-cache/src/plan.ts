@@ -1,3 +1,7 @@
+import type {
+	ManagedResourceRequirement,
+	ManagedServicePlan,
+} from "@refarm.dev/infra-contract-v1";
 import { turboCacheManifest } from "./manifest.js";
 
 export type TurboCacheRequirementKind =
@@ -5,18 +9,16 @@ export type TurboCacheRequirementKind =
 	| "http-endpoint"
 	| "bearer-auth";
 
-export interface TurboCacheRequirement {
-	readonly kind: TurboCacheRequirementKind;
-	readonly name: string;
-	readonly description: string;
-	readonly secret?: boolean;
-}
+export interface TurboCacheRequirement
+	extends ManagedResourceRequirement<TurboCacheRequirementKind> {}
 
-export interface TurboCacheServicePlan {
-	readonly serviceId: "turbo-cache";
-	readonly displayName: string;
+export interface TurboCacheServicePlan
+	extends ManagedServicePlan<
+		"turbo-cache",
+		TurboCacheRequirement,
+		(typeof turboCacheManifest.ciSecrets)[number]
+	> {
 	readonly team: string;
-	readonly requirements: readonly TurboCacheRequirement[];
 	readonly ciSecrets: typeof turboCacheManifest.ciSecrets;
 }
 
