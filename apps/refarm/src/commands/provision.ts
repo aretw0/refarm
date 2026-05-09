@@ -14,6 +14,26 @@ interface TurboCacheCommandOptions {
 	bucket: string;
 }
 
+interface CloudflareCommandOptions {
+	dryRun?: boolean;
+}
+
+function renderProvisionCatalog(): void {
+	console.log(chalk.bold("Provisionable services:"));
+	console.log(
+		`  - cloudflare turbo-cache ${chalk.gray(turboCacheManifest.description)}`,
+	);
+	console.log("");
+	console.log(chalk.gray("Try: refarm provision cloudflare turbo-cache --dry-run"));
+}
+
+function renderCloudflareCatalog(): void {
+	console.log(chalk.bold("Cloudflare services:"));
+	console.log(
+		`  - turbo-cache ${chalk.gray("Worker + R2 materialization")}`,
+	);
+}
+
 function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
 	const plan = createCloudflareTurboCacheProvisionPlan({
 		bucketName: input.bucket,
@@ -37,6 +57,20 @@ function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
 
 const cloudflareCommand = new Command("cloudflare")
 	.description("Provision Cloudflare services for Refarm")
+	.option(
+		"--dry-run",
+		"Show provider-level provisioning plan without creating resources",
+	)
+	.action((opts: CloudflareCommandOptions) => {
+		console.log(chalk.cyan("\nCloudflare provisioner\n"));
+		renderCloudflareCatalog();
+
+		if (opts.dryRun) {
+			console.log("");
+			console.log(chalk.yellow("  (dry-run — no resources will be created)\n"));
+			renderCloudflarePlan({ bucket: "refarm-turbo-cache", team: "refarm" });
+		}
+	})
 	.addCommand(
 		new Command("turbo-cache")
 			.description(turboCacheManifest.description)
@@ -47,11 +81,15 @@ const cloudflareCommand = new Command("cloudflare")
 			.option("--team <slug>", "Team slug for cache key namespacing", "refarm")
 			.option("--bucket <name>", "R2 bucket name", "refarm-turbo-cache")
 			.action(async (opts: TurboCacheCommandOptions) => {
+				const shouldDryRun =
+					opts.dryRun === true ||
+					cloudflareCommand.opts<CloudflareCommandOptions>().dryRun === true;
+
 				console.log(
 					chalk.cyan(`\nCloudflare · ${turboCacheManifest.displayName}\n`),
 				);
 
-				if (opts.dryRun) {
+				if (shouldDryRun) {
 					console.log(
 						chalk.yellow("  (dry-run — no resources will be created)\n"),
 					);
@@ -128,4 +166,9 @@ const cloudflareCommand = new Command("cloudflare")
 
 export const provisionCommand = new Command("provision")
 	.description("Provision infrastructure for your Sovereign Farm")
+	.addCommand(
+		new Command("list")
+			.description("List provisionable providers and services")
+			.action(renderProvisionCatalog),
+	)
 	.addCommand(cloudflareCommand);

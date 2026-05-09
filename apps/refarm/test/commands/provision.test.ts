@@ -69,6 +69,9 @@ import { provisionCommand } from "../../src/commands/provision.js";
 describe("provision command", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		provisionCommand.commands
+			.find((command) => command.name() === "cloudflare")
+			?.setOptionValue("dryRun", undefined);
 		process.exitCode = undefined;
 	});
 
@@ -112,6 +115,56 @@ describe("provision command", () => {
 		);
 		expect(logSpy).toHaveBeenCalledWith(
 			expect.stringContaining("TURBO_CACHE_API_URL"),
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("lists provisionable providers and services without loading tokens", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(["list"], { from: "user" });
+
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(mockTurboCacheProvisioner).not.toHaveBeenCalled();
+		expect(mockProvision).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Provisionable services"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("cloudflare turbo-cache"),
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
+	it("renders a provider-level Cloudflare dry-run without loading tokens", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(["cloudflare", "--dry-run"], {
+			from: "user",
+		});
+
+		expect(mockCreateCloudflareTurboCacheProvisionPlan).toHaveBeenCalledWith({
+			bucketName: "refarm-turbo-cache",
+			team: "refarm",
+		});
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(mockTurboCacheProvisioner).not.toHaveBeenCalled();
+		expect(mockProvision).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Cloudflare services"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("dry-run — no resources will be created"),
 		);
 
 		logSpy.mockRestore();
