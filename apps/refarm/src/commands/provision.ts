@@ -24,14 +24,14 @@ function renderProvisionCatalog(): void {
 		`  - cloudflare turbo-cache ${chalk.gray(turboCacheManifest.description)}`,
 	);
 	console.log("");
-	console.log(chalk.gray("Try: refarm provision cloudflare turbo-cache --dry-run"));
+	console.log(
+		chalk.gray("Try: refarm provision cloudflare turbo-cache --dry-run"),
+	);
 }
 
 function renderCloudflareCatalog(): void {
 	console.log(chalk.bold("Cloudflare services:"));
-	console.log(
-		`  - turbo-cache ${chalk.gray("Worker + R2 materialization")}`,
-	);
+	console.log(`  - turbo-cache ${chalk.gray("Worker + R2 materialization")}`);
 }
 
 function renderCloudflarePlan(input: TurboCacheCommandOptions): void {

@@ -4,7 +4,11 @@ import type { ManagedServicePlan, ProviderProvisionPlan } from "./index.js";
 interface ExampleServicePlan
 	extends ManagedServicePlan<
 		"example-service",
-		{ readonly kind: "artifact-storage"; readonly name: string; readonly description: string },
+		{
+			readonly kind: "artifact-storage";
+			readonly name: string;
+			readonly description: string;
+		},
 		"EXAMPLE_URL"
 	> {
 	readonly team: string;

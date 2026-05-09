@@ -246,7 +246,9 @@ describe("provision command", () => {
 
 	it("fails offline when Cloudflare provider creation fails", async () => {
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });
-		mockCreateCloudflareProvider.mockRejectedValue(new Error("bad credentials"));
+		mockCreateCloudflareProvider.mockRejectedValue(
+			new Error("bad credentials"),
+		);
 		const exitSpy = mockProcessExit();
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
