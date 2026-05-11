@@ -11,10 +11,9 @@
 
 Refarm is composed of multiple packages with different responsibilities:
 
-- **Apps**: `kernel` (orchestration), `studio` (UI/IDE)
-- **Packages**: `storage-sqlite`, `sync-crdt`, `identity-nostr` (independent primitives)
-- **Examples**: `matrix-bridge` (plugin demonstration)
-- **Shared**: `wit/refarm-sdk.wit`, `schemas/`, `docs/`, `specs/`
+- **Apps**: `refarm` (sovereign CLI — daily driver), `farmhand` (task execution host), `dev`/`me` (web surfaces)
+- **Packages**: independent service blocks and provider adapters (infra, contracts, runtime, UI primitives)
+- **Shared**: `wit/`, `schemas/`, `docs/`, `specs/`
 
 **Key requirements**:
 
@@ -41,26 +40,18 @@ refarm/
 ├── tsconfig.json             # Base TypeScript config
 │
 ├── apps/                     # Applications (depend on packages)
-│   ├── kernel/               # Core orchestration (@refarm.dev/kernel)
-│   │   ├── package.json      # deps: storage, sync (v0.1), identity (v0.2+)
-│   │   └── src/index.ts
-│   └── studio/               # Management UI (@refarm.dev/studio)
-│       ├── package.json      # deps: kernel
-│       └── src/
+│   ├── refarm/               # Sovereign CLI — daily driver (@refarm.dev/refarm)
+│   ├── farmhand/             # Task execution host (@refarm.dev/farmhand)
+│   ├── dev/                  # Developer web surface
+│   └── me/                   # Identity web surface
 │
 ├── packages/                 # Independent primitives (NO app dependencies)
-│   ├── storage-sqlite/       # @refarm.dev/storage-sqlite
-│   │   ├── package.json      # ZERO refarm dependencies
-│   │   └── src/index.ts
-│   ├── sync-crdt/            # @refarm.dev/sync-crdt
-│   │   ├── package.json      # deps: yjs ONLY
-│   │   └── src/index.ts
-│   └── identity-nostr/       # @refarm.dev/identity-nostr
-│       ├── package.json      # deps: nostr-tools ONLY
-│       └── src/index.ts
-│
-├── examples/                 # Plugin demonstrations (NOT published to npm)
-│   └── matrix-bridge/        # Example WIT plugin
+│   ├── infra-contract-v1/    # Provider-neutral provisioning contracts
+│   ├── infra-cloudflare/     # Cloudflare provider adapter
+│   ├── infra-turbo-cache/    # Turbo Remote Cache service block
+│   ├── tractor/              # Authoritative kernel — Rust WASM runtime (see ADR-059)
+│   ├── tractor-ts/           # Conformance harness only — TS reach where Rust isn't yet; not for critical logic
+│   └── …                     # Storage, runtime, stream, context packages
 │
 ├── wit/
 │   └── refarm-sdk.wit        # Shared WIT interface (versioned)
@@ -76,9 +67,14 @@ refarm/
 | Layer | Can Depend On | Cannot Depend On |
 |-------|---------------|------------------|
 | **apps/** | packages/, wit/, schemas/ | other apps/ |
-| **packages/** | External libraries ONLY | apps/, other packages/, wit/ |
-| **examples/** | packages/, wit/ | apps/ |
+| **packages/** | External libraries, other packages/ | apps/ |
 | **Shared** (wit/, schemas/) | Nothing | Everything |
+
+### apps/refarm as the convergence point
+
+`apps/refarm` is the sovereign CLI and the daily driver — the surface through which the user interacts with everything Refarm builds. Packages are building blocks; `apps/refarm` is where those blocks become user-facing commands.
+
+**Implication for new work:** when a package (infra provider, service block, CI tool, runtime primitive) reaches a level of maturity that a user would want to invoke it directly, the expected destination is a command in `apps/refarm`. Design packages with that surface in mind, even if the command comes later than the package itself.
 
 ### Workspace Configuration
 
