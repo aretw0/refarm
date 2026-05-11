@@ -260,7 +260,7 @@ describe("CloudflareTurboCacheProvisioner", () => {
 });
 
 describe("enrichCloudflareError", () => {
-	it("returns the original error when no code is present", () => {
+	it("returns the original error when no code or pattern matches", () => {
 		const original = new Error("something generic");
 		expect(enrichCloudflareError(original)).toBe(original);
 	});
@@ -270,9 +270,26 @@ describe("enrichCloudflareError", () => {
 		expect(enrichCloudflareError(original)).toBe(original);
 	});
 
-	it("returns an enriched error with summary and URL for code 10042", () => {
+	it("enriches code 10042 with R2 enable link", () => {
 		const err = enrichCloudflareError(new Error("failed [code: 10042]"));
 		expect(err.message).toContain("R2 is not enabled");
+		expect(err.message).toContain("dash.cloudflare.com");
+	});
+
+	it("enriches workers.dev subdomain error with onboarding link from wrangler output", () => {
+		const wranglerOutput = [
+			"Command failed: wrangler deploy",
+			"You need to register a workers.dev subdomain before publishing",
+			"https://dash.cloudflare.com/abc123/workers/onboarding",
+		].join("\n");
+		const err = enrichCloudflareError(new Error(wranglerOutput));
+		expect(err.message).toContain("workers.dev subdomain must be registered");
+		expect(err.message).toContain("abc123/workers/onboarding");
+	});
+
+	it("falls back to generic onboarding URL when none is embedded in output", () => {
+		const err = enrichCloudflareError(new Error("workers.dev subdomain not registered"));
+		expect(err.message).toContain("workers.dev subdomain must be registered");
 		expect(err.message).toContain("dash.cloudflare.com");
 	});
 });

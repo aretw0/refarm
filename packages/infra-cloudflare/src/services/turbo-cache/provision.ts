@@ -120,21 +120,58 @@ function isAlreadyExists(err: unknown): boolean {
 }
 
 // Known Cloudflare API error codes with actionable guidance.
-// code: 10042 → R2 not enabled on the account.
-const KNOWN_CF_ERRORS: Record<number, { summary: string; url: string }> = {
+const KNOWN_CF_CODES: Record<number, { summary: string; url: string }> = {
+	// R2 not enabled on the account.
 	10042: {
 		summary: "R2 is not enabled on this Cloudflare account.",
 		url: "https://dash.cloudflare.com/?to=/:account/r2/overview",
 	},
 };
 
+// Text patterns for errors that do not carry a numeric code.
+// Each entry: [substring to match, summary, URL extractor].
+// URL extractor receives the full error message so it can surface
+// account-specific URLs that wrangler already embeds in its output.
+type PatternEntry = {
+	pattern: string;
+	summary: string;
+	extractUrl: (msg: string) => string;
+};
+
+const KNOWN_CF_PATTERNS: PatternEntry[] = [
+	{
+		pattern: "workers.dev subdomain",
+		summary: "A workers.dev subdomain must be registered before deploying a Worker.",
+		// wrangler embeds the exact onboarding URL in its error output — reuse it.
+		extractUrl: (msg) =>
+			msg.match(/https:\/\/dash\.cloudflare\.com\/[^\s]+\/workers\/onboarding/)?.[0] ??
+			"https://dash.cloudflare.com/?to=/:account/workers/onboarding",
+	},
+];
+
 export function enrichCloudflareError(err: unknown): Error {
 	const msg = err instanceof Error ? err.message : String(err);
+
+	// Try numeric code first.
 	const codeMatch = msg.match(/\[code:\s*(\d+)\]/);
-	if (!codeMatch) return err instanceof Error ? err : new Error(msg);
-	const known = KNOWN_CF_ERRORS[Number(codeMatch[1])];
-	if (!known) return err instanceof Error ? err : new Error(msg);
-	const enriched = new Error(`${known.summary}\n  → ${known.url}`);
-	enriched.cause = err;
-	return enriched;
+	if (codeMatch) {
+		const known = KNOWN_CF_CODES[Number(codeMatch[1])];
+		if (known) {
+			const enriched = new Error(`${known.summary}\n  → ${known.url}`);
+			enriched.cause = err;
+			return enriched;
+		}
+	}
+
+	// Try text patterns.
+	for (const entry of KNOWN_CF_PATTERNS) {
+		if (msg.includes(entry.pattern)) {
+			const url = entry.extractUrl(msg);
+			const enriched = new Error(`${entry.summary}\n  → ${url}`);
+			enriched.cause = err;
+			return enriched;
+		}
+	}
+
+	return err instanceof Error ? err : new Error(msg);
 }
