@@ -1,63 +1,116 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import inquirer from "inquirer";
+import { ExitPromptError } from "@inquirer/core";
+import { execFile } from "node:child_process";
 import { SowerCore } from "@refarm.dev/sower";
 
+function tryOpenUrl(url: string): void {
+	const [bin, ...args] =
+		process.platform === "darwin"
+			? ["open", url]
+			: process.platform === "win32"
+				? ["cmd", "/c", "start", "", url]
+				: ["xdg-open", url];
+	if (!bin) return;
+	execFile(bin, args, () => {
+		// best-effort — ignore errors, caller already printed the URL
+	});
+}
+
+function providerHeader(name: string, description: string, url: string): void {
+	console.log(chalk.bold(`\n  ${name}`));
+	console.log(chalk.gray(`  ${description}`));
+	console.log(chalk.cyan(`  → ${url}\n`));
+	tryOpenUrl(url);
+}
 
 export const sowCommand = new Command("sow")
-  .description("Provision your farm with initial tokens and context")
-  .action(async () => {
-    console.log(chalk.yellow("🌾 Silo: Preparing to collect nutrients (tokens)..."));
+	.description("Collect provider credentials into your local Silo")
+	.action(async () => {
+		console.log(chalk.yellow("Silo: Preparing to collect."));
 
-    const answers = await inquirer.prompt([
-      {
-        type: "input",
-        name: "owner",
-        message: "Your GitHub username/org:",
-        default: "refarm-dev"
-      },
-      {
-        type: "password",
-        name: "githubToken",
-        message: "Your GitHub Personal Access Token (PAT):",
-        mask: "*"
-      },
-      {
-        type: "password",
-        name: "cloudflareToken",
-        message: "Your Cloudflare API Token:",
-        mask: "*"
-      }
-    ]);
+		try {
+			const { owner } = await inquirer.prompt([
+				{
+					type: "input",
+					name: "owner",
+					message: "Your GitHub username or org:",
+					default: "refarm-dev",
+				},
+			]);
 
-    const sower = new SowerCore();
-    const results = await sower.sow({
-      githubToken: answers.githubToken,
-      cloudflareToken: answers.cloudflareToken
-    }, { owner: answers.owner });
+			providerHeader(
+				"GitHub",
+				"Create a Personal Access Token with repo and read:org scopes.",
+				"https://github.com/settings/tokens/new?scopes=repo%2Cread%3Aorg&description=refarm",
+			);
+			const { githubToken } = await inquirer.prompt([
+				{
+					type: "password",
+					name: "githubToken",
+					message: "Paste the value:",
+					mask: "*",
+				},
+			]);
 
-    console.log(chalk.green(`\n✅ Silo: Harvested tokens and provisioned to your Sovereign Silo.`));
-    console.log(chalk.gray(`   Stored in: ${results.storagePath || "~/.refarm/identity.json"}`));
-    
-    console.log(chalk.blue("\n📡 Windmill: Verifying infrastructure connectivity..."));
+			providerHeader(
+				"Cloudflare",
+				"Create an API Token with Workers Scripts:Edit and R2:Edit permissions.",
+				"https://dash.cloudflare.com/profile/api-tokens",
+			);
+			const { cloudflareToken } = await inquirer.prompt([
+				{
+					type: "password",
+					name: "cloudflareToken",
+					message: "Paste the value:",
+					mask: "*",
+				},
+			]);
 
-    if (results["github"]!.ok) {
-        console.log(chalk.green(`  - GitHub connection: OK`));
-        console.log(chalk.gray(`    Verified access to ${results["github"]!.count} repositories.`));
-    } else {
-        console.log(chalk.red(`  - GitHub connection: FAILED`));
-        console.log(chalk.gray(`    Error: ${results["github"]!.error}`));
-    }
+			const sower = new SowerCore();
+			const results = await sower.sow(
+				{ githubToken, cloudflareToken },
+				{ owner },
+			);
 
-    if (results["cloudflare"]!.ok) {
-        console.log(chalk.green("  - Cloudflare connection: OK"));
-        console.log(chalk.gray("    API Token verified and stored."));
-    } else {
-        console.log(chalk.red("  - Cloudflare connection: FAILED"));
-    }
+			console.log(
+				chalk.green(
+					`\n  Silo: Credentials stored at ${results.storagePath ?? "~/.refarm/identity.json"}`,
+				),
+			);
 
-    console.log(chalk.bold.yellow("\n🚀 Your Sovereign Farm is now alive and seeded."));
-    console.log(chalk.gray("You can now run 'refarm health' to audit your soil."));
-  });
+			console.log();
+			const githubResult = results["github"];
+			if (githubResult?.ok) {
+				console.log(
+					chalk.green(
+						`  ✓ GitHub  — ${githubResult.count} repositories visible`,
+					),
+				);
+			} else {
+				console.log(
+					chalk.red(
+						`  ✗ GitHub  — ${githubResult?.error ?? "connection failed"}`,
+					),
+				);
+			}
 
+			const cfResult = results["cloudflare"];
+			if (cfResult?.ok) {
+				console.log(chalk.green("  ✓ Cloudflare — API token verified"));
+			} else {
+				console.log(
+					chalk.red("  ✗ Cloudflare — API token could not be verified"),
+				);
+			}
 
+			console.log(
+				chalk.gray("\n  Run 'refarm health' to audit connectivity at any time."),
+			);
+		} catch (error) {
+			if (!(error instanceof ExitPromptError)) throw error;
+			console.log(chalk.gray("\n  Cancelled."));
+			process.exit(0);
+		}
+	});
