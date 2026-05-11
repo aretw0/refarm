@@ -1,18 +1,30 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockSow, mockInquirerPrompt, mockSecretInput } = vi.hoisted(() => ({
-	mockSow: vi.fn().mockResolvedValue({
-		storagePath: "/home/user/.refarm/identity.json",
-		github: { ok: true, count: 3 },
-		cloudflare: { ok: true },
-	}),
-	mockInquirerPrompt: vi.fn(),
-	mockSecretInput: vi.fn(),
-}));
+const { mockSow, mockInquirerPrompt, mockGithubCollect, mockCloudflareCollect } =
+	vi.hoisted(() => ({
+		mockSow: vi.fn().mockResolvedValue({
+			storagePath: "/home/user/.refarm/identity.json",
+			github: { ok: true, count: 3 },
+			cloudflare: { ok: true },
+		}),
+		mockInquirerPrompt: vi.fn(),
+		mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
+		mockCloudflareCollect: vi.fn().mockResolvedValue("cf_test_cloudflare"),
+	}));
 
 vi.mock("inquirer", () => ({ default: { prompt: mockInquirerPrompt } }));
-vi.mock("../../src/prompts/secret-input.js", () => ({
-	secretInput: mockSecretInput,
+
+vi.mock("../../src/credentials/index.js", () => ({
+	githubCredentialProvider: {
+		id: "github",
+		label: "GitHub",
+		collect: mockGithubCollect,
+	},
+	cloudflareCredentialProvider: {
+		id: "cloudflare",
+		label: "Cloudflare",
+		collect: mockCloudflareCollect,
+	},
 }));
 
 vi.mock("@refarm.dev/sower", () => ({
@@ -26,37 +38,35 @@ import { sowCommand } from "../../src/commands/sow.js";
 describe("sowCommand", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// owner prompt via inquirer, then two secretInput calls
 		mockInquirerPrompt.mockResolvedValueOnce({ owner: "refarm-dev" });
-		mockSecretInput
-			.mockResolvedValueOnce("ghp_test")
-			.mockResolvedValueOnce("cf_test");
+		mockGithubCollect.mockResolvedValue("gho_test_github");
+		mockCloudflareCollect.mockResolvedValue("cf_test_cloudflare");
 	});
 
-	it("calls sower.sow with tokens from prompts", async () => {
+	it("calls sower.sow with tokens collected from each provider", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockSow).toHaveBeenCalledWith(
 			expect.objectContaining({
-				githubToken: "ghp_test",
-				cloudflareToken: "cf_test",
+				githubToken: "gho_test_github",
+				cloudflareToken: "cf_test_cloudflare",
 			}),
 			expect.objectContaining({ owner: "refarm-dev" }),
 		);
 	});
 
-	it("prompts for owner via inquirer and credentials via secretInput", async () => {
+	it("collects credentials from each provider in order", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(mockInquirerPrompt).toHaveBeenCalledWith(
-			expect.arrayContaining([expect.objectContaining({ name: "owner" })]),
+		expect(mockGithubCollect).toHaveBeenCalledOnce();
+		expect(mockCloudflareCollect).toHaveBeenCalledOnce();
+	});
+
+	it("passes tryOpenUrl context to each provider", async () => {
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockGithubCollect).toHaveBeenCalledWith(
+			expect.objectContaining({ tryOpenUrl: expect.any(Function) }),
 		);
-		expect(mockSecretInput).toHaveBeenCalledTimes(2);
-		expect(mockSecretInput).toHaveBeenNthCalledWith(
-			1,
-			expect.objectContaining({ message: "Paste the value:" }),
-		);
-		expect(mockSecretInput).toHaveBeenNthCalledWith(
-			2,
-			expect.objectContaining({ message: "Paste the value:" }),
+		expect(mockCloudflareCollect).toHaveBeenCalledWith(
+			expect.objectContaining({ tryOpenUrl: expect.any(Function) }),
 		);
 	});
 
