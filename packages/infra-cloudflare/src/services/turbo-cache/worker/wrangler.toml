@@ -12,3 +12,15 @@ binding = "TURBO_CACHE"
 bucket_name = "refarm-turbo-cache"
 # Preview bucket for local wrangler dev:
 # preview_bucket_name = "refarm-turbo-cache-preview"
+
+# Quota controls — safe defaults for the Cloudflare free tier.
+# Override in a paid account by setting these vars in the Cloudflare dashboard
+# or via: wrangler deploy --var MAX_ARTIFACT_BYTES:524288000 --var ARTIFACT_TTL_SECONDS:2592000
+[vars]
+# 50 MB per artifact (free tier: 10 GB R2 storage total)
+# Raise to e.g. 524288000 (500 MB) for paid accounts with larger storage.
+MAX_ARTIFACT_BYTES = "52428800"
+# 30 days TTL — artifacts older than this are considered stale.
+# Turbo re-uploads on next build; stale entries are cleaned by the lifecycle rule.
+# Raise to 7776000 (90 days) or 0 (no TTL) for paid accounts.
+ARTIFACT_TTL_SECONDS = "2592000"
