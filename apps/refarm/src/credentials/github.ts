@@ -1,12 +1,14 @@
 import chalk from "chalk";
+import { loadConfig } from "@refarm.dev/config";
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { startSpinner } from "../utils/spinner.js";
 
-// Public client_id for the refarm GitHub OAuth App.
+// Default client_id for the refarm GitHub OAuth App.
+// Override in refarm.config.json: { "providers": { "github": { "clientId": "..." } } }
+// or via env:                      REFARM_PROVIDER_GITHUB_CLIENT_ID=...
 // Device flow does not use a client_secret — this value is safe to commit.
-// When the project migrates to refarm-dev org, update this constant.
-const CLIENT_ID = "Ov23lier7kyBcgIUQsih";
-const SCOPES = "repo read:org";
+const DEFAULT_CLIENT_ID = "Ov23lier7kyBcgIUQsih";
+const DEFAULT_SCOPES = "repo read:org";
 const DEVICE_CODE_URL = "https://github.com/login/device/code";
 const TOKEN_URL = "https://github.com/login/oauth/access_token";
 const GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
@@ -25,16 +27,20 @@ interface TokenResponse {
 	error?: string;
 }
 
-async function requestDeviceCode(): Promise<DeviceCodeResponse> {
+async function requestDeviceCode(
+	clientId: string,
+	scopes: string,
+): Promise<DeviceCodeResponse> {
 	const res = await fetch(DEVICE_CODE_URL, {
 		method: "POST",
 		headers: { Accept: "application/json", "Content-Type": "application/json" },
-		body: JSON.stringify({ client_id: CLIENT_ID, scope: SCOPES }),
+		body: JSON.stringify({ client_id: clientId, scope: scopes }),
 	});
 	return res.json() as Promise<DeviceCodeResponse>;
 }
 
 async function pollForToken(
+	clientId: string,
 	deviceCode: string,
 	intervalSec: number,
 ): Promise<string> {
@@ -45,7 +51,7 @@ async function pollForToken(
 			method: "POST",
 			headers: { Accept: "application/json", "Content-Type": "application/json" },
 			body: JSON.stringify({
-				client_id: CLIENT_ID,
+				client_id: clientId,
 				device_code: deviceCode,
 				grant_type: GRANT_TYPE,
 			}),
@@ -75,10 +81,14 @@ export const githubCredentialProvider: CredentialProvider = {
 	label: "GitHub",
 
 	async collect(ctx: CollectContext): Promise<string> {
+		const cfg = loadConfig() as { providers?: { github?: { clientId?: string; scopes?: string } } };
+		const clientId = cfg.providers?.github?.clientId ?? DEFAULT_CLIENT_ID;
+		const scopes = cfg.providers?.github?.scopes ?? DEFAULT_SCOPES;
+
 		console.log(chalk.bold("\n  GitHub"));
 		console.log(chalk.gray("  Authorize refarm to access your repositories.\n"));
 
-		const device = await requestDeviceCode();
+		const device = await requestDeviceCode(clientId, scopes);
 		if (device.error) throw new Error(`GitHub: ${device.error}`);
 
 		console.log(
@@ -89,7 +99,7 @@ export const githubCredentialProvider: CredentialProvider = {
 
 		const stop = startSpinner("Waiting for authorization…");
 		try {
-			const token = await pollForToken(device.device_code, device.interval);
+			const token = await pollForToken(clientId, device.device_code, device.interval);
 			stop();
 			const login = await resolveUsername(token);
 			console.log(chalk.green(`  ✓ GitHub — authorized as ${login}`));
