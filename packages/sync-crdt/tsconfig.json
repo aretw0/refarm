@@ -1,13 +1,12 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "declaration": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "noUncheckedIndexedAccess": true
-  },
-  "include": [
-    "src/**/*"
-  ]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"declaration": true,
+		"rootDir": "src",
+		"outDir": "dist"
+	},
+	"include": [
+		"src/**/*"
+	]
 }

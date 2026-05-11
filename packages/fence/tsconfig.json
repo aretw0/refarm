@@ -1,16 +1,15 @@
 {
-  "extends": "../tsconfig/node.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "rootDir": "src",
-    "allowJs": true,
-    "noUncheckedIndexedAccess": true
-  },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules",
-    "dist"
-  ]
+	"extends": "../tsconfig/node.json",
+	"compilerOptions": {
+		"outDir": "dist",
+		"rootDir": "src",
+		"allowJs": true
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }

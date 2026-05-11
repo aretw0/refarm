@@ -1,18 +1,17 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "rootDir": "src",
-    "outDir": "dist",
-    "baseUrl": "../..",
-    "paths": {
-      "@refarm.dev/identity-contract-v1": [
-        "./packages/identity-contract-v1/dist/index.d.ts"
-      ]
-    },
-    "noUncheckedIndexedAccess": true
-  },
-  "include": [
-    "src/**/*"
-  ]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": "src",
+		"outDir": "dist",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/identity-contract-v1": [
+				"./packages/identity-contract-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
 }

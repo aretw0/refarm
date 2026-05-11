@@ -1,21 +1,20 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "outDir": "dist",
-    "baseUrl": "../..",
-    "paths": {
-      "@refarm.dev/stream-contract-v1": [
-        "./packages/stream-contract-v1/dist/index.d.ts"
-      ]
-    },
-    "noUncheckedIndexedAccess": true
-  },
-  "include": [
-    "src/**/*"
-  ]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": false,
+		"emitDeclarationOnly": true,
+		"composite": true,
+		"declaration": true,
+		"declarationMap": true,
+		"outDir": "dist",
+		"baseUrl": "../..",
+		"paths": {
+			"@refarm.dev/stream-contract-v1": [
+				"./packages/stream-contract-v1/dist/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	]
 }

@@ -1,11 +1,14 @@
 {
-  "extends": "@refarm.dev/tsconfig/node.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "noUncheckedIndexedAccess": true
-  },
-  "include": ["src/**/*.ts"],
-  "exclude": ["src/services/*/worker/**/*"]
+	"extends": "@refarm.dev/tsconfig/node.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"outDir": "dist",
+		"rootDir": "src"
+	},
+	"include": [
+		"src/**/*.ts"
+	],
+	"exclude": [
+		"src/services/*/worker/**/*"
+	]
 }

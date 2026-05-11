@@ -7,9 +7,13 @@
 		"declarationMap": false,
 		"outDir": "./dist",
 		"baseUrl": "../..",
-		"rootDir": "..",
-		"noUncheckedIndexedAccess": true
+		"rootDir": ".."
 	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }
