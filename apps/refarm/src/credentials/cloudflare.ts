@@ -12,9 +12,11 @@ export const cloudflareCredentialProvider: CredentialProvider = {
 		console.log(chalk.bold("\n  Cloudflare"));
 		console.log(
 			chalk.gray(
-				"  Create an API Token with Workers Scripts:Edit and R2:Edit permissions.",
+				"  Create an API Token with two permissions:",
 			),
 		);
+		console.log(chalk.gray("    · Workers Scripts:Edit  (deploy Worker, manage secrets)"));
+		console.log(chalk.gray("    · Workers R2 Storage:Edit  (create bucket, bind to Worker)"));
 		console.log(chalk.cyan(`  → ${TOKEN_URL}\n`));
 		ctx.tryOpenUrl(TOKEN_URL);
 
