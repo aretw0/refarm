@@ -95,7 +95,7 @@ export class CloudflareTurboCacheProvisioner {
 		try {
 			await this.provider.exec(["r2", "bucket", "create", name], WORKER_DIR);
 		} catch (err) {
-			if (!isAlreadyExists(err)) throw err;
+			if (!isAlreadyExists(err)) throw enrichCloudflareError(err);
 		}
 	}
 
@@ -117,4 +117,24 @@ export class CloudflareTurboCacheProvisioner {
 function isAlreadyExists(err: unknown): boolean {
 	const msg = err instanceof Error ? err.message : String(err);
 	return msg.includes("already exists");
+}
+
+// Known Cloudflare API error codes with actionable guidance.
+// code: 10042 → R2 not enabled on the account.
+const KNOWN_CF_ERRORS: Record<number, { summary: string; url: string }> = {
+	10042: {
+		summary: "R2 is not enabled on this Cloudflare account.",
+		url: "https://dash.cloudflare.com/?to=/:account/r2/overview",
+	},
+};
+
+export function enrichCloudflareError(err: unknown): Error {
+	const msg = err instanceof Error ? err.message : String(err);
+	const codeMatch = msg.match(/\[code:\s*(\d+)\]/);
+	if (!codeMatch) return err instanceof Error ? err : new Error(msg);
+	const known = KNOWN_CF_ERRORS[Number(codeMatch[1])];
+	if (!known) return err instanceof Error ? err : new Error(msg);
+	const enriched = new Error(`${known.summary}\n  → ${known.url}`);
+	enriched.cause = err;
+	return enriched;
 }

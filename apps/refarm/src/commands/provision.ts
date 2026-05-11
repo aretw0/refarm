@@ -5,6 +5,7 @@ import {
 	CloudflareProvider,
 	CloudflareTurboCacheProvisioner,
 	createCloudflareTurboCacheProvisionPlan,
+	enrichCloudflareError,
 } from "@refarm.dev/infra-cloudflare";
 import { turboCacheManifest } from "@refarm.dev/infra-turbo-cache";
 
@@ -132,7 +133,8 @@ const cloudflareCommand = new Command("cloudflare")
 						team: opts.team,
 					});
 				} catch (err) {
-					console.error(chalk.red(`  Provisioning failed: ${String(err)}`));
+					const enriched = enrichCloudflareError(err);
+					console.error(chalk.red(`  Provisioning failed: ${enriched.message}`));
 					process.exit(1);
 				}
 
