@@ -4,6 +4,7 @@ import inquirer from "inquirer";
 import { ExitPromptError } from "@inquirer/core";
 import { execFile } from "node:child_process";
 import { SowerCore } from "@refarm.dev/sower";
+import { secretInput } from "../prompts/secret-input.js";
 
 function tryOpenUrl(url: string): void {
 	const [bin, ...args] =
@@ -45,28 +46,14 @@ export const sowCommand = new Command("sow")
 				"Create a Personal Access Token with repo and read:org scopes.",
 				"https://github.com/settings/tokens/new?scopes=repo%2Cread%3Aorg&description=refarm",
 			);
-			const { githubToken } = await inquirer.prompt([
-				{
-					type: "password",
-					name: "githubToken",
-					message: "Paste the value:",
-					mask: "*",
-				},
-			]);
+			const githubToken = await secretInput({ message: "Paste the value:" });
 
 			providerHeader(
 				"Cloudflare",
 				"Create an API Token with Workers Scripts:Edit and R2:Edit permissions.",
 				"https://dash.cloudflare.com/profile/api-tokens",
 			);
-			const { cloudflareToken } = await inquirer.prompt([
-				{
-					type: "password",
-					name: "cloudflareToken",
-					message: "Paste the value:",
-					mask: "*",
-				},
-			]);
+			const cloudflareToken = await secretInput({ message: "Paste the value:" });
 
 			const sower = new SowerCore();
 			const results = await sower.sow(

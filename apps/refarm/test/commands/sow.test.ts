@@ -1,31 +1,23 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockSow, mockInquirerPrompt } = vi.hoisted(() => ({
+const { mockSow, mockInquirerPrompt, mockSecretInput } = vi.hoisted(() => ({
 	mockSow: vi.fn().mockResolvedValue({
 		storagePath: "/home/user/.refarm/identity.json",
 		github: { ok: true, count: 3 },
 		cloudflare: { ok: true },
 	}),
 	mockInquirerPrompt: vi.fn(),
+	mockSecretInput: vi.fn(),
 }));
 
 vi.mock("inquirer", () => ({ default: { prompt: mockInquirerPrompt } }));
+vi.mock("../../src/prompts/secret-input.js", () => ({
+	secretInput: mockSecretInput,
+}));
 
 vi.mock("@refarm.dev/sower", () => ({
 	SowerCore: vi.fn().mockImplementation(function () {
 		return { sow: mockSow };
-	}),
-}));
-
-vi.mock("@refarm.dev/silo", () => ({
-	SiloCore: vi.fn().mockImplementation(function () {
-		return {};
-	}),
-}));
-
-vi.mock("@refarm.dev/windmill", () => ({
-	Windmill: vi.fn().mockImplementation(function () {
-		return {};
 	}),
 }));
 
@@ -34,11 +26,11 @@ import { sowCommand } from "../../src/commands/sow.js";
 describe("sowCommand", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		// Three separate prompt calls: owner, githubToken, cloudflareToken
-		mockInquirerPrompt
-			.mockResolvedValueOnce({ owner: "refarm-dev" })
-			.mockResolvedValueOnce({ githubToken: "ghp_test" })
-			.mockResolvedValueOnce({ cloudflareToken: "cf_test" });
+		// owner prompt via inquirer, then two secretInput calls
+		mockInquirerPrompt.mockResolvedValueOnce({ owner: "refarm-dev" });
+		mockSecretInput
+			.mockResolvedValueOnce("ghp_test")
+			.mockResolvedValueOnce("cf_test");
 	});
 
 	it("calls sower.sow with tokens from prompts", async () => {
@@ -52,22 +44,19 @@ describe("sowCommand", () => {
 		);
 	});
 
-	it("prompts for github token, cloudflare token, and owner separately", async () => {
+	it("prompts for owner via inquirer and credentials via secretInput", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(mockInquirerPrompt).toHaveBeenCalledTimes(3);
-		expect(mockInquirerPrompt).toHaveBeenNthCalledWith(
-			1,
+		expect(mockInquirerPrompt).toHaveBeenCalledWith(
 			expect.arrayContaining([expect.objectContaining({ name: "owner" })]),
 		);
-		expect(mockInquirerPrompt).toHaveBeenNthCalledWith(
-			2,
-			expect.arrayContaining([expect.objectContaining({ name: "githubToken" })]),
+		expect(mockSecretInput).toHaveBeenCalledTimes(2);
+		expect(mockSecretInput).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({ message: "Paste the value:" }),
 		);
-		expect(mockInquirerPrompt).toHaveBeenNthCalledWith(
-			3,
-			expect.arrayContaining([
-				expect.objectContaining({ name: "cloudflareToken" }),
-			]),
+		expect(mockSecretInput).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ message: "Paste the value:" }),
 		);
 	});
 
