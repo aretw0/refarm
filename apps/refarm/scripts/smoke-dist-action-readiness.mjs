@@ -1,9 +1,21 @@
 #!/usr/bin/env node
 import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const repoRoot = fileURLToPath(new URL("../../..", import.meta.url));
 const cliPath = fileURLToPath(new URL("../dist/index.js", import.meta.url));
+
+const requiredDistEntries = [
+	fileURLToPath(new URL("../dist/index.js", import.meta.url)),
+	fileURLToPath(new URL("../../../packages/infra-cloudflare/dist/index.js", import.meta.url)),
+	fileURLToPath(new URL("../../../packages/infra-turbo-cache/dist/index.js", import.meta.url)),
+];
+for (const entry of requiredDistEntries) {
+	if (!existsSync(entry)) {
+		throw new Error(`Missing dist entry — run \`npx turbo run build\` first:\n  ${entry}`);
+	}
+}
 const statusWithActionsFixture =
 	"apps/refarm/test/fixtures/status-with-actions.json";
 const statusNoActionsFixture =
