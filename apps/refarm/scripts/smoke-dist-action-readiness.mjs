@@ -10,6 +10,9 @@ const requiredDistEntries = [
 	fileURLToPath(new URL("../dist/index.js", import.meta.url)),
 	fileURLToPath(new URL("../../../packages/infra-cloudflare/dist/index.js", import.meta.url)),
 	fileURLToPath(new URL("../../../packages/infra-turbo-cache/dist/index.js", import.meta.url)),
+	// Worker source files must be copied to dist — wrangler bundles them at deploy time
+	fileURLToPath(new URL("../../../packages/infra-cloudflare/dist/services/turbo-cache/worker/wrangler.toml", import.meta.url)),
+	fileURLToPath(new URL("../../../packages/infra-cloudflare/dist/services/turbo-cache/worker/index.ts", import.meta.url)),
 ];
 for (const entry of requiredDistEntries) {
 	if (!existsSync(entry)) {

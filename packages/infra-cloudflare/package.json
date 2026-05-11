@@ -13,7 +13,7 @@
     }
   },
   "scripts": {
-    "build": "tsc --project tsconfig.build.json",
+    "build": "tsc --project tsconfig.build.json && cp -r src/services/turbo-cache/worker dist/services/turbo-cache/",
     "clean": "rm -rf dist",
     "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
     "test": "vitest run"

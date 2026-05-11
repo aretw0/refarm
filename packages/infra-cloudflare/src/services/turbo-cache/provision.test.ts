@@ -1,8 +1,10 @@
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { CloudflareProvider, ExecResult } from "../../provider.js";
 import {
 	CloudflareTurboCacheProvisioner,
 	createCloudflareTurboCacheProvisionPlan,
+	enrichCloudflareError,
 } from "./provision.js";
 
 interface ProviderCall {
@@ -109,6 +111,25 @@ describe("createCloudflareTurboCacheProvisionPlan", () => {
 });
 
 describe("CloudflareTurboCacheProvisioner", () => {
+	it("worker directory exists on disk at the cwd used by the provider", async () => {
+		// This test catches the vitest-vs-compiled gap: WORKER_DIR resolves relative
+		// to import.meta.url. In source it points to src/…/worker (exists); in compiled
+		// dist it must point to dist/…/worker (only exists if the build script copies it).
+		// A mock would miss this — we verify the filesystem directly.
+		const { provider, calls } = createProvider({
+			execResults: [
+				{ stdout: "", stderr: "" },
+				{ stdout: "https://x.workers.dev", stderr: "" },
+			],
+		});
+		const provisioner = new CloudflareTurboCacheProvisioner(provider);
+		await provisioner.provision({ bucketName: "b", authToken: "t" });
+
+		const workerCwd = calls[0]!.cwd;
+		expect(existsSync(workerCwd), `WORKER_DIR not found on disk: ${workerCwd}`).toBe(true);
+		expect(existsSync(`${workerCwd}/wrangler.toml`), "wrangler.toml missing from WORKER_DIR").toBe(true);
+	});
+
 	it("returns a dry-run envelope without calling Cloudflare", async () => {
 		const { provider, calls } = createProvider();
 		const provisioner = new CloudflareTurboCacheProvisioner(provider);
@@ -217,5 +238,41 @@ describe("CloudflareTurboCacheProvisioner", () => {
 				authToken: "provided-token",
 			}),
 		).rejects.toThrow("permission denied");
+	});
+
+	it("enriches code 10042 with a link to enable R2", async () => {
+		const { provider } = createProvider({
+			execErrors: {
+				"r2 bucket create refarm-cache-test": new Error(
+					"A request to the Cloudflare API failed. [code: 10042]",
+				),
+			},
+		});
+		const provisioner = new CloudflareTurboCacheProvisioner(provider);
+
+		await expect(
+			provisioner.provision({
+				bucketName: "refarm-cache-test",
+				authToken: "provided-token",
+			}),
+		).rejects.toThrow("R2 is not enabled");
+	});
+});
+
+describe("enrichCloudflareError", () => {
+	it("returns the original error when no code is present", () => {
+		const original = new Error("something generic");
+		expect(enrichCloudflareError(original)).toBe(original);
+	});
+
+	it("returns the original error for an unknown code", () => {
+		const original = new Error("failed [code: 9999]");
+		expect(enrichCloudflareError(original)).toBe(original);
+	});
+
+	it("returns an enriched error with summary and URL for code 10042", () => {
+		const err = enrichCloudflareError(new Error("failed [code: 10042]"));
+		expect(err.message).toContain("R2 is not enabled");
+		expect(err.message).toContain("dash.cloudflare.com");
 	});
 });
