@@ -10,63 +10,63 @@ interface HealthIssue {
 }
 
 export const healthCommand = new Command("health")
-  .description("Run deterministic diagnostics on the Sovereign Project")
+  .description("Run deterministic diagnostics on the project")
   .action(async () => {
-    console.log(chalk.blue("🔍 Running Sovereign Health Audit...\n"));
+    console.log(chalk.blue("🔍 Running health audit...\n"));
 
     const health = new HealthCore();
     health.register(new FileSystemAuditor());
     health.register(new RefarmProjectAuditor());
-    
+
     const results = await health.audit() as { git: HealthIssue[], builds: HealthIssue[], alignment: HealthIssue[] };
-    const resonance = await health.checkResolutionStatus() as { package: string, mode: string }[];
+    const resolution = await health.checkResolutionStatus() as { package: string, mode: string }[];
 
     let issueCount = 0;
 
-    // 0. Sovereign Resonance (Resolution Status)
-    console.log(chalk.bold("Sovereign Resonance (Resolution Mode)"));
-    resonance.forEach(item => {
-      const modeColor = item.mode.includes("LOCAL") ? chalk.yellow : chalk.green;
+    // 0. Resolution status
+    console.log(chalk.bold("Package Resolution"));
+    resolution.forEach(item => {
+      const modeColor = item.mode.includes("LOCAL (src)") ? chalk.yellow : chalk.green;
       console.log(`   - ${chalk.bold(item.package.padEnd(25))} : ${modeColor(item.mode)}`);
     });
     console.log("");
 
-    // 1. Git Ignore Audit
+    // 1. Git visibility
     console.log(chalk.bold("1. Git Source Visibility"));
     if (results.git.length === 0) {
-      console.log(chalk.green("   ✅ All source files are visible to Git."));
+      console.log(chalk.green("   ✅ All source files are tracked by Git."));
     } else {
       results.git.forEach((issue: HealthIssue) => {
-        console.log(chalk.red(`   ❌ ${issue.file} is incorrectly ignored.`));
+        console.log(chalk.yellow(`   ⚠️  ${issue.file} is a source file but is git-ignored.`));
         issueCount++;
       });
     }
 
-    // 2. Build Config Audit
-    console.log(chalk.bold("\n2. Build Pipeline Alignment"));
+    // 2. Build config
+    console.log(chalk.bold("\n2. Build Pipeline"));
     if (results.builds.length === 0) {
-      console.log(chalk.green("   ✅ All packages have tsconfig.build.json."));
+      console.log(chalk.green("   ✅ All TypeScript packages have tsconfig.build.json."));
     } else {
       results.builds.forEach((issue: HealthIssue) => {
-        console.log(chalk.yellow(`   ⚠️  Package ${issue.package} is missing tsconfig.build.json.`));
+        console.log(chalk.yellow(`   ⚠️  ${issue.package} is missing tsconfig.build.json.`));
         issueCount++;
       });
     }
 
-    // 3. Package Entrypoints Audit
-    console.log(chalk.bold("\n3. Package Distribution Alignment"));
+    // 3. Entrypoints
+    console.log(chalk.bold("\n3. Package Entrypoints"));
     if (results.alignment.length === 0) {
-      console.log(chalk.green("   ✅ All package entrypoints are dist-aligned."));
+      console.log(chalk.green("   ✅ All TypeScript package entrypoints point to dist/."));
     } else {
       results.alignment.forEach((issue: HealthIssue) => {
-        console.log(chalk.yellow(`   ⚠️  Package ${issue.package} main points to ${issue.entry} instead of dist/.`));
+        console.log(chalk.yellow(`   ⚠️  ${issue.package} main points to ${issue.entry} instead of dist/.`));
         issueCount++;
       });
     }
 
     if (issueCount === 0) {
-      console.log(chalk.bold.green("\n✨ Project health is excellent. Soil is rich."));
+      console.log(chalk.bold.green("\n✨ All checks passed."));
     } else {
-      console.log(chalk.bold.yellow(`\n⚠️ Found ${issueCount} health issues. Please review and reconcile.`));
+      console.log(chalk.bold.yellow(`\n⚠️  ${issueCount} issue${issueCount === 1 ? "" : "s"} found. Review and reconcile.`));
     }
   });
