@@ -277,19 +277,11 @@ function fetchOfficial(options, repo) {
 }
 
 function fetchActionsQuota(options) {
+	// The /settings/billing/actions endpoint was discontinued (HTTP 410) for free-plan users.
+	// GitHub moved quota tracking to Enterprise Cloud budgets API, which is not available here.
+	// Runner-time is the authoritative actionable metric for free-plan accounts.
 	if (!options.official) return { available: false, error: "disabled" };
-	const result = ghApiOptional(
-		`users/${options.billingUser}/settings/billing/actions`,
-	);
-	if (result.error) return { available: false, error: result.error };
-	const data = result.data;
-	return {
-		available: true,
-		totalMinutesUsed: numberOrZero(data.total_minutes_used),
-		totalPaidMinutesUsed: numberOrZero(data.total_paid_minutes_used),
-		includedMinutes: numberOrZero(data.included_minutes),
-		breakdown: data.minutes_used_breakdown ?? {},
-	};
+	return { available: false, error: "endpoint discontinued (410) — use runner-time data" };
 }
 
 function numberOrZero(value) {
@@ -327,73 +319,34 @@ function renderHuman(report) {
 	);
 	lines.push("");
 
-	if (report.quota.available) {
-		const q = report.quota;
-		const burn = q.includedMinutes > 0 ? q.totalMinutesUsed / q.includedMinutes : 0;
-		lines.push("Quota (GitHub billing/actions)");
-		lines.push(`  included: ${round(q.includedMinutes)} min`);
-		lines.push(`  used: ${round(q.totalMinutesUsed)} min`);
-		lines.push(`  remaining: ${round(q.includedMinutes - q.totalMinutesUsed)} min`);
-		lines.push(`  burn: ${round(burn * 100)}%`);
-		if (q.totalPaidMinutesUsed > 0) {
-			lines.push(`  paid overage: ${round(q.totalPaidMinutesUsed)} min`);
-		}
-		const bk = q.breakdown;
-		if (Object.keys(bk).length > 0) {
-			lines.push(
-				`  breakdown: ${Object.entries(bk)
-					.map(([os, min]) => `${os}=${round(numberOrZero(min))}`)
-					.join(" ")}`,
-			);
-		}
-	} else {
-		lines.push(`Quota unavailable: ${report.quota.error}`);
-	}
-	lines.push("");
-
 	if (report.official.available) {
-		lines.push("Cost tracking (usage/summary — all repos, all skus)");
-		lines.push(
-			`  gross: ${round(report.official.usage.grossQuantity)} min`,
-		);
-		lines.push(
-			`  discounted: ${round(report.official.usage.discountQuantity)} min`,
-		);
-		lines.push(
-			`  net billable: ${round(billableQuantity(report.official.usage))} min  ($${round(report.official.usage.netAmount)})`,
-		);
+		const net = billableQuantity(report.official.usage);
+		lines.push("Cost tracking (billing/usage — all repos, billing period)");
+		lines.push(`  gross: ${round(report.official.usage.grossQuantity)} min`);
+		lines.push(`  discounted: ${round(report.official.usage.discountQuantity)} min`);
+		lines.push(`  net billable: ${round(net)} min  ($${round(report.official.usage.netAmount)})`);
 	} else {
 		lines.push(`Cost tracking unavailable: ${report.official.error}`);
 	}
 	lines.push("");
 
+	lines.push(`Runner-time by repo (${report.days}d window)`);
 	for (const repo of report.repos) {
-		lines.push(`${repo.repo}`);
-		lines.push(
-			`  runner-time (${report.days}d window): ${round(repo.runner.totalMinutes)} min — ${repo.runner.runs} runs (${repo.runner.completedRuns} done, ${repo.runner.inProgressRuns} active)`,
-		);
-		if (report.quota.available && report.quota.totalMinutesUsed > 0) {
-			lines.push(
-				`  runner-time share of account quota: ${formatPercent(repo.runner.totalMinutes / report.quota.totalMinutesUsed)}`,
-			);
-		}
+		const pct = report.runnerTotalMinutes > 0
+			? ` (${round((repo.runner.totalMinutes / report.runnerTotalMinutes) * 100)}% of total)`
+			: "";
+		lines.push(`  ${repo.repo}: ${round(repo.runner.totalMinutes)} min — ${repo.runner.runs} runs${pct}`);
 		if (repo.official.available) {
-			lines.push(
-				`  billing gross (all skus): ${round(repo.official.usage.grossQuantity)} min`,
-			);
+			lines.push(`    billing gross: ${round(repo.official.usage.grossQuantity)} min`);
 		}
-		lines.push("  top workflows by runner-time:");
+		lines.push("    top workflows:");
 		for (const workflow of repo.runner.workflows.slice(0, 5)) {
-			lines.push(`    - ${workflow.name}: ${round(workflow.minutes)} min`);
+			lines.push(`      - ${workflow.name}: ${round(workflow.minutes)} min`);
 		}
-		lines.push("");
 	}
-
-	const quotaLabel = report.quota.available
-		? `${round(report.quota.includedMinutes)} min included`
-		: `${report.quotaBaseline} min baseline`;
+	lines.push("");
 	lines.push(
-		`Observed runner-time total: ${round(report.runnerTotalMinutes)} min (${formatPercent(report.runnerQuotaBurn)} of ${quotaLabel})`,
+		`Runner-time total: ${round(report.runnerTotalMinutes)} min  |  baseline: ${report.quotaBaseline} min  |  burn: ${formatPercent(report.runnerQuotaBurn)}`,
 	);
 	return lines.join("\n");
 }
