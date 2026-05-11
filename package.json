@@ -34,6 +34,7 @@
 		"runtime-descriptor:release-assets:dry": "node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha local --tags @refarm.dev/plugin-manifest@0.1.0 --dry-run",
 		"runtime-descriptor:release-smoke": "node scripts/ci/smoke-runtime-descriptor-release-path.mjs --sha local",
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
+		"task:build-order:check": "node -e \"import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })\"",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"refarm:host:smoke": "npm --prefix apps/refarm run test:host-smoke",
 		"refarm:host:smoke:dist-actions": "npm --prefix apps/refarm run smoke:dist-actions",
