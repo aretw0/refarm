@@ -4,7 +4,6 @@
     "noEmit": true,
     "outDir": "./dist",
     "baseUrl": "../..",
-    "ignoreDeprecations": "5.0",
     "rootDir": "..",
     "lib": [
       "ESNext",

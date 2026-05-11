@@ -2,7 +2,6 @@
   "extends": "@refarm.dev/tsconfig/node.json",
   "compilerOptions": {
     "noEmit": true,
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
       "@refarm.dev/context-provider-v1": [
