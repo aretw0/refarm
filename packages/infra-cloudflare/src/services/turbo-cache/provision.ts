@@ -142,10 +142,14 @@ const KNOWN_CF_PATTERNS: PatternEntry[] = [
 	{
 		pattern: "workers.dev subdomain",
 		summary: "A workers.dev subdomain must be registered before deploying a Worker.",
-		// wrangler embeds the exact onboarding URL in its error output — reuse it.
-		extractUrl: (msg) =>
-			msg.match(/https:\/\/dash\.cloudflare\.com\/[^\s]+\/workers\/onboarding/)?.[0] ??
-			"https://dash.cloudflare.com/?to=/:account/workers/onboarding",
+		// Extract the account ID from wrangler's embedded URL, then build the correct
+		// Workers & Pages URL (wrangler's /workers/onboarding path returns 404).
+		extractUrl: (msg) => {
+			const accountId = msg.match(/dash\.cloudflare\.com\/([a-f0-9]{32})/)?.[1];
+			return accountId
+				? `https://dash.cloudflare.com/${accountId}/workers-and-pages`
+				: "https://dash.cloudflare.com/?to=/:account/workers-and-pages";
+		},
 	},
 ];
 

@@ -62,6 +62,8 @@ vi.mock("@refarm.dev/infra-cloudflare", () => ({
 	CloudflareTurboCacheProvisioner: mockTurboCacheProvisioner,
 	createCloudflareTurboCacheProvisionPlan:
 		mockCreateCloudflareTurboCacheProvisionPlan,
+	// Pass-through: tests assert on the original error message, enrichment is unit-tested separately.
+	enrichCloudflareError: (err: unknown) => err instanceof Error ? err : new Error(String(err)),
 }));
 
 import { provisionCommand } from "../../src/commands/provision.js";

@@ -276,15 +276,18 @@ describe("enrichCloudflareError", () => {
 		expect(err.message).toContain("dash.cloudflare.com");
 	});
 
-	it("enriches workers.dev subdomain error with onboarding link from wrangler output", () => {
+	it("enriches workers.dev subdomain error, builds workers-and-pages URL from account ID", () => {
+		const accountId = "a".repeat(32);
 		const wranglerOutput = [
 			"Command failed: wrangler deploy",
 			"You need to register a workers.dev subdomain before publishing",
-			"https://dash.cloudflare.com/abc123/workers/onboarding",
+			`https://dash.cloudflare.com/${accountId}/workers/onboarding`,
 		].join("\n");
 		const err = enrichCloudflareError(new Error(wranglerOutput));
 		expect(err.message).toContain("workers.dev subdomain must be registered");
-		expect(err.message).toContain("abc123/workers/onboarding");
+		// Must use the correct route, not the stale /workers/onboarding path
+		expect(err.message).toContain(`${accountId}/workers-and-pages`);
+		expect(err.message).not.toContain("/workers/onboarding");
 	});
 
 	it("falls back to generic onboarding URL when none is embedded in output", () => {
