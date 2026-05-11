@@ -301,4 +301,21 @@ if (statusAction.actionRequest?.action?.intent !== "trust:inspect") {
 	);
 }
 
+const provisionDryRun = runRefarm([
+	"provision",
+	"cloudflare",
+	"turbo-cache",
+	"--dry-run",
+]);
+assertIncludes(
+	provisionDryRun,
+	"Cloudflare · Turborepo Remote Cache",
+	"provision cloudflare turbo-cache --dry-run",
+);
+assertIncludes(
+	provisionDryRun,
+	"(dry-run — no resources will be created)",
+	"provision cloudflare turbo-cache --dry-run",
+);
+
 console.log("dist action readiness smoke passed");

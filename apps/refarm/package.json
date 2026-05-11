@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",

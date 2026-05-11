@@ -4,11 +4,17 @@
   "private": true,
   "description": "Provider-neutral Turborepo Remote Cache service block",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
     "type-check": "tsc --noEmit",
     "test": "vitest run"
   },

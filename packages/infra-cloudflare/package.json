@@ -4,11 +4,17 @@
   "private": true,
   "description": "Cloudflare provider — agnostic primitives and provider adapters for managing Cloudflare resources",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
     "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
     "test": "vitest run"
   },
