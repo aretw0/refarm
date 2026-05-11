@@ -29,6 +29,9 @@ function createProvider(
 		accountId: "test-account",
 		wranglerBin: "wrangler",
 		env: () => ({ CLOUDFLARE_API_TOKEN: "test-token" }),
+		// Subdomain already registered — no auto-registration needed in unit tests.
+		getWorkersSubdomain: async () => "test-subdomain",
+		registerWorkersSubdomain: async (sub: string) => sub,
 		exec: async (args: string[], cwd: string) => {
 			calls.push({ kind: "exec", args, cwd });
 			const key = args.join(" ");

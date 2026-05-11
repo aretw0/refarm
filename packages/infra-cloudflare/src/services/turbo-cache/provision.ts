@@ -107,7 +107,27 @@ export class CloudflareTurboCacheProvisioner {
 		);
 	}
 
+	private async ensureWorkersSubdomain(): Promise<void> {
+		const existing = await this.provider.getWorkersSubdomain();
+		if (existing) return;
+
+		// Derive a candidate from the account ID — always unique since the account
+		// ID itself is unique. Cloudflare accepts alphanumeric + hyphens, max 63 chars.
+		const candidate = `cf-${this.provider.accountId.slice(0, 20)}`;
+		try {
+			await this.provider.registerWorkersSubdomain(candidate);
+		} catch (err) {
+			// Name conflict (already taken globally) — ask the operator to pick one.
+			const url = `https://dash.cloudflare.com/${this.provider.accountId}/workers-and-pages`;
+			throw new Error(
+				`Could not auto-register a workers.dev subdomain (name conflict).\n` +
+				`Choose a subdomain at: ${url}`,
+			);
+		}
+	}
+
 	private async deploy(): Promise<string> {
+		await this.ensureWorkersSubdomain();
 		const { stdout } = await this.provider.exec(["deploy"], WORKER_DIR);
 		const match = stdout.match(/https:\/\/[^\s]+\.workers\.dev/);
 		return match?.[0] ?? "<url-not-found>";

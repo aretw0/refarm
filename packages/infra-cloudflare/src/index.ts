@@ -1,4 +1,8 @@
-export { CloudflareProvider } from "./provider.js";
+export {
+	CloudflareProvider,
+	getWorkersSubdomain,
+	registerWorkersSubdomain,
+} from "./provider.js";
 export type { CloudflareProviderOptions, ExecResult } from "./provider.js";
 export {
 	CloudflareTurboCacheProvisioner,
