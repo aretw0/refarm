@@ -20,11 +20,11 @@
     "build-storybook": "storybook build"
   },
   "devDependencies": {
-    "storybook": "^10.3.5",
-    "@storybook/html": "^10.3.5",
-    "@storybook/html-vite": "^10.3.5",
-    "@storybook/addon-links": "^10.3.5",
-    "@storybook/addon-a11y": "^10.3.5"
+    "storybook": "^10.3.6",
+    "@storybook/html": "^10.3.6",
+    "@storybook/html-vite": "^10.3.6",
+    "@storybook/addon-links": "^10.3.6",
+    "@storybook/addon-a11y": "^10.3.6"
   },
   "license": "MIT"
 }
