@@ -88,17 +88,47 @@ function readGuardMode() {
 }
 
 function createAccountGuardDecision(report, { failOnWarn = false } = {}) {
+	// Prefer the billing/actions quota API (matches GitHub UI) over the cost-based usage/summary.
+	const quotaData = report.quota;
+	if (quotaData?.available) {
+		const usedMinutes = quotaData.totalMinutesUsed;
+		const includedMinutes = quotaData.includedMinutes;
+		const paidMinutes = quotaData.totalPaidMinutesUsed;
+		const burn = includedMinutes > 0 ? usedMinutes / includedMinutes : 0;
+		const quotaRemaining = includedMinutes - usedMinutes;
+		const status = statusForBurn(burn);
+		const usage = report.official?.usage ?? {};
+		const summary = `account status=${status} used=${formatMinutes(usedMinutes)} quotaRemaining=${formatMinutes(quotaRemaining)} burn=${formatPercent(burn)} paid=${formatMinutes(paidMinutes)} gross=${formatMinutes(numberOrZero(usage.grossQuantity))}`;
+		return {
+			schemaVersion: 1,
+			mode: "account",
+			status,
+			shouldFail:
+				status === "OVER ALLOCATION" || (failOnWarn && status === "WARN"),
+			failOnWarn,
+			includedMinutes,
+			usedMinutes,
+			paidMinutes,
+			quotaRemaining,
+			burn,
+			grossMinutes: numberOrZero(usage.grossQuantity),
+			summary,
+		};
+	}
+
+	// Fallback: cost-based guard (works for paid plans where netQuantity > 0).
 	if (!report.official?.available) {
 		throw new Error(
-			`GitHub Actions budget guard failed: official account billing unavailable (${report.official?.error ?? "unknown error"})`,
+			`GitHub Actions budget guard failed: quota and billing data both unavailable`,
 		);
 	}
 	const usage = report.official.usage ?? {};
 	const billableMinutes = Math.max(0, numberOrZero(usage.netQuantity));
-	const burn = report.quota > 0 ? billableMinutes / report.quota : 0;
-	const quotaRemaining = report.quota - billableMinutes;
+	const quotaBaseline = report.quotaBaseline ?? 2000;
+	const burn = quotaBaseline > 0 ? billableMinutes / quotaBaseline : 0;
+	const quotaRemaining = quotaBaseline - billableMinutes;
 	const status = statusForBurn(burn);
-	const summary = `account status=${status} billable=${formatMinutes(billableMinutes)} quotaRemaining=${formatMinutes(quotaRemaining)} burn=${formatPercent(burn)} gross=${formatMinutes(numberOrZero(usage.grossQuantity))} discounted=${formatMinutes(numberOrZero(usage.discountQuantity))}`;
+	const summary = `account status=${status} billable=${formatMinutes(billableMinutes)} quotaRemaining=${formatMinutes(quotaRemaining)} burn=${formatPercent(burn)} gross=${formatMinutes(numberOrZero(usage.grossQuantity))}`;
 	return {
 		schemaVersion: 1,
 		mode: "account",
@@ -106,15 +136,16 @@ function createAccountGuardDecision(report, { failOnWarn = false } = {}) {
 		shouldFail:
 			status === "OVER ALLOCATION" || (failOnWarn && status === "WARN"),
 		failOnWarn,
-		quota: report.quota,
+		quotaBaseline,
 		billableMinutes,
 		quotaRemaining,
 		burn,
 		grossMinutes: numberOrZero(usage.grossQuantity),
-		discountedMinutes: numberOrZero(usage.discountQuantity),
 		summary,
 	};
 }
+
+const DEFAULT_ALLOCATION_SHARE = { "aretw0/refarm": 0.5, "aretw0/agents-lab": 0.5 };
 
 function createAllocationGuardDecision(
 	report,
@@ -126,14 +157,21 @@ function createAllocationGuardDecision(
 		throw new Error(`Budget report does not include repo ${repo}`);
 	}
 
-	if (!repoReport.official?.available) {
-		throw new Error(
-			`GitHub Actions budget guard failed for ${repo}: official billing unavailable (${repoReport.official?.error ?? "unknown error"})`,
-		);
-	}
+	const quotaData = report.quota;
+	const effectiveQuota = quotaData?.available
+		? quotaData.includedMinutes
+		: (report.quotaBaseline ?? 2000);
+	const allocationShare =
+		DEFAULT_ALLOCATION_SHARE[repo] ?? 1 / (report.repos?.length ?? 1);
+	const allocatedMinutes = effectiveQuota * allocationShare;
 
-	const status = statusForBurn(repoReport.officialAllocationBurn);
-	const summary = `${repo} status=${status} allocationRemaining=${formatMinutes(repoReport.officialAllocationRemaining)} burn=${formatPercent(repoReport.officialAllocationBurn)}`;
+	// Use runner-time as the per-repo proxy (official billing doesn't break down by repo for free plans).
+	const repoMinutes = repoReport.runner?.totalMinutes ?? 0;
+	const burn = allocatedMinutes > 0 ? repoMinutes / allocatedMinutes : 0;
+	const allocationRemaining = allocatedMinutes - repoMinutes;
+	const status = statusForBurn(burn);
+	const summary = `${repo} status=${status} runner-time=${formatMinutes(repoMinutes)} allocationRemaining=${formatMinutes(allocationRemaining)} burn=${formatPercent(burn)}`;
+
 	return {
 		schemaVersion: 1,
 		mode: "allocation",
@@ -142,16 +180,11 @@ function createAllocationGuardDecision(
 		shouldFail:
 			status === "OVER ALLOCATION" || (failOnWarn && status === "WARN"),
 		failOnWarn,
-		allocatedMinutes: repoReport.allocatedMinutes,
-		allocationRemaining: repoReport.officialAllocationRemaining,
-		burn: repoReport.officialAllocationBurn,
-		officialGrossMinutes: numberOrZero(
-			repoReport.official.usage?.grossQuantity,
-		),
-		officialNetBillableMinutes: Math.max(
-			0,
-			numberOrZero(repoReport.official.usage?.netQuantity),
-		),
+		allocatedMinutes,
+		allocationRemaining,
+		burn,
+		runnerMinutes: repoMinutes,
+		officialGrossMinutes: numberOrZero(repoReport.official?.usage?.grossQuantity),
 		summary,
 	};
 }

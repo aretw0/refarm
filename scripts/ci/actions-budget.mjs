@@ -276,6 +276,22 @@ function fetchOfficial(options, repo) {
 	};
 }
 
+function fetchActionsQuota(options) {
+	if (!options.official) return { available: false, error: "disabled" };
+	const result = ghApiOptional(
+		`users/${options.billingUser}/settings/billing/actions`,
+	);
+	if (result.error) return { available: false, error: result.error };
+	const data = result.data;
+	return {
+		available: true,
+		totalMinutesUsed: numberOrZero(data.total_minutes_used),
+		totalPaidMinutesUsed: numberOrZero(data.total_paid_minutes_used),
+		includedMinutes: numberOrZero(data.included_minutes),
+		breakdown: data.minutes_used_breakdown ?? {},
+	};
+}
+
 function numberOrZero(value) {
 	return typeof value === "number" && Number.isFinite(value) ? value : 0;
 }
@@ -305,68 +321,67 @@ function renderHuman(report) {
 		`Official billing period: ${report.billing.year}-${String(report.billing.month).padStart(2, "0")}`,
 	);
 	lines.push(`Runner-time window: ${report.days} day(s)`);
-	lines.push(`Quota baseline: ${report.quota} min`);
+	lines.push(`Quota baseline: ${report.quotaBaseline} min`);
 	lines.push(
 		`Runner-time estimator: ${report.includeJobs ? "job duration sum" : "workflow wall-clock"}`,
 	);
 	lines.push("");
 
-	if (report.official.available) {
-		lines.push("Official billing (Actions Linux minutes)");
-		lines.push(
-			`  gross used: ${round(report.official.usage.grossQuantity)} min`,
-		);
-		lines.push(
-			`  discounted/included: ${round(report.official.usage.discountQuantity)} min`,
-		);
-		lines.push(
-			`  net billable quantity: ${round(billableQuantity(report.official.usage))} min`,
-		);
-		lines.push(`  billable status: ${report.officialBillableStatus}`);
-		lines.push(
-			`  billable quota remaining by baseline: ${round(report.officialBillableQuotaRemaining)} min`,
-		);
-		lines.push(
-			`  gross observed remaining by baseline: ${round(report.officialQuotaRemaining)} min`,
-		);
-		lines.push(`  gross amount: $${round(report.official.usage.grossAmount)}`);
-		lines.push(`  net amount: $${round(report.official.usage.netAmount)}`);
+	if (report.quota.available) {
+		const q = report.quota;
+		const burn = q.includedMinutes > 0 ? q.totalMinutesUsed / q.includedMinutes : 0;
+		lines.push("Quota (GitHub billing/actions)");
+		lines.push(`  included: ${round(q.includedMinutes)} min`);
+		lines.push(`  used: ${round(q.totalMinutesUsed)} min`);
+		lines.push(`  remaining: ${round(q.includedMinutes - q.totalMinutesUsed)} min`);
+		lines.push(`  burn: ${round(burn * 100)}%`);
+		if (q.totalPaidMinutesUsed > 0) {
+			lines.push(`  paid overage: ${round(q.totalPaidMinutesUsed)} min`);
+		}
+		const bk = q.breakdown;
+		if (Object.keys(bk).length > 0) {
+			lines.push(
+				`  breakdown: ${Object.entries(bk)
+					.map(([os, min]) => `${os}=${round(numberOrZero(min))}`)
+					.join(" ")}`,
+			);
+		}
 	} else {
-		lines.push(`Official billing unavailable: ${report.official.error}`);
+		lines.push(`Quota unavailable: ${report.quota.error}`);
+	}
+	lines.push("");
+
+	if (report.official.available) {
+		lines.push("Cost tracking (usage/summary — all repos, all skus)");
+		lines.push(
+			`  gross: ${round(report.official.usage.grossQuantity)} min`,
+		);
+		lines.push(
+			`  discounted: ${round(report.official.usage.discountQuantity)} min`,
+		);
+		lines.push(
+			`  net billable: ${round(billableQuantity(report.official.usage))} min  ($${round(report.official.usage.netAmount)})`,
+		);
+	} else {
+		lines.push(`Cost tracking unavailable: ${report.official.error}`);
 	}
 	lines.push("");
 
 	for (const repo of report.repos) {
 		lines.push(`${repo.repo}`);
+		lines.push(
+			`  runner-time (${report.days}d window): ${round(repo.runner.totalMinutes)} min — ${repo.runner.runs} runs (${repo.runner.completedRuns} done, ${repo.runner.inProgressRuns} active)`,
+		);
+		if (report.quota.available && report.quota.totalMinutesUsed > 0) {
+			lines.push(
+				`  runner-time share of account quota: ${formatPercent(repo.runner.totalMinutes / report.quota.totalMinutesUsed)}`,
+			);
+		}
 		if (repo.official.available) {
 			lines.push(
-				`  official gross: ${round(repo.official.usage.grossQuantity)} min`,
+				`  billing gross (all skus): ${round(repo.official.usage.grossQuantity)} min`,
 			);
-			lines.push(
-				`  official net billable quantity: ${round(billableQuantity(repo.official.usage))} min`,
-			);
-			lines.push(
-				`  official share: ${formatPercent(repo.officialShareOfAccount)}`,
-			);
-			lines.push(
-				`  allocation: ${round(repo.allocatedMinutes)} min (${formatPercent(repo.allocationShare)})`,
-			);
-			lines.push(
-				`  allocation remaining: ${round(repo.officialAllocationRemaining)} min`,
-			);
-			lines.push(
-				`  official allocation burn: ${formatPercent(repo.officialAllocationBurn)}`,
-			);
-			lines.push(`  status: ${repoStatus(repo.officialAllocationBurn)}`);
-		} else {
-			lines.push(`  official: unavailable (${repo.official.error})`);
 		}
-		lines.push(
-			`  runner-time runs: ${repo.runner.runs} (${repo.runner.completedRuns} completed, ${repo.runner.inProgressRuns} active)`,
-		);
-		lines.push(
-			`  runner-time observed: ${round(repo.runner.totalMinutes)} min`,
-		);
 		lines.push("  top workflows by runner-time:");
 		for (const workflow of repo.runner.workflows.slice(0, 5)) {
 			lines.push(`    - ${workflow.name}: ${round(workflow.minutes)} min`);
@@ -374,8 +389,11 @@ function renderHuman(report) {
 		lines.push("");
 	}
 
+	const quotaLabel = report.quota.available
+		? `${round(report.quota.includedMinutes)} min included`
+		: `${report.quotaBaseline} min baseline`;
 	lines.push(
-		`Observed runner-time total: ${round(report.runnerTotalMinutes)} min (${formatPercent(report.runnerQuotaBurn)} of quota baseline)`,
+		`Observed runner-time total: ${round(report.runnerTotalMinutes)} min (${formatPercent(report.runnerQuotaBurn)} of ${quotaLabel})`,
 	);
 	return lines.join("\n");
 }
@@ -384,6 +402,7 @@ function main() {
 	const options = parseArgs(process.argv.slice(2));
 	const cutoff = usageWindow(options.days);
 	const officialAccount = fetchOfficial(options);
+	const actionsQuota = fetchActionsQuota(options);
 	const runnerSummaries = options.repos.map((repo) =>
 		summarizeRunnerTime(repo, cutoff, options.includeJobs),
 	);
@@ -391,46 +410,31 @@ function main() {
 		(total, repo) => total + repo.totalMinutes,
 		0,
 	);
-	const officialAccountGross = officialAccount.available
-		? officialAccount.usage.grossQuantity
-		: 0;
 	const officialAccountBillable = officialAccount.available
 		? billableQuantity(officialAccount.usage)
 		: 0;
 
+	const effectiveQuota = actionsQuota.available
+		? actionsQuota.includedMinutes
+		: options.quota;
+
 	const report = {
 		generatedAt: new Date().toISOString(),
 		days: options.days,
-		quota: options.quota,
+		quotaBaseline: options.quota,
 		includeJobs: options.includeJobs,
 		billing: {
 			user: options.billingUser,
 			year: options.year,
 			month: options.month,
 		},
+		quota: actionsQuota,
 		official: officialAccount,
-		officialQuotaRemaining: officialAccount.available
-			? options.quota - officialAccount.usage.grossQuantity
-			: null,
-		officialBillableQuotaRemaining: officialAccount.available
-			? options.quota - officialAccountBillable
-			: null,
-		officialBillableQuotaBurn: officialAccount.available
-			? officialAccountBillable / options.quota
-			: null,
-		officialBillableStatus: officialAccount.available
-			? repoStatus(officialAccountBillable / options.quota)
-			: null,
 		runnerTotalMinutes,
-		runnerQuotaBurn: runnerTotalMinutes / options.quota,
+		runnerQuotaBurn: effectiveQuota > 0 ? runnerTotalMinutes / effectiveQuota : 0,
 		repos: options.repos.map((repo) => {
 			const runner = runnerSummaries.find((summary) => summary.repo === repo);
 			const official = fetchOfficial(options, repo);
-			const allocationShare = DEFAULT_SHARE[repo] ?? 1 / options.repos.length;
-			const allocatedMinutes = options.quota * allocationShare;
-			const officialGross = official.available
-				? official.usage.grossQuantity
-				: 0;
 			return {
 				repo,
 				runner: {
@@ -438,13 +442,6 @@ function main() {
 					totalMinutes: round(runner.totalMinutes),
 				},
 				official,
-				officialShareOfAccount:
-					officialAccountGross > 0 ? officialGross / officialAccountGross : 0,
-				allocationShare,
-				allocatedMinutes,
-				officialAllocationRemaining: allocatedMinutes - officialGross,
-				officialAllocationBurn:
-					allocatedMinutes > 0 ? officialGross / allocatedMinutes : 0,
 			};
 		}),
 	};

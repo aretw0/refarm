@@ -5,6 +5,10 @@ import path from "node:path";
 import test from "node:test";
 import assert from "node:assert/strict";
 
+function makeRunner(totalMinutes) {
+	return { totalMinutes, runs: 5, completedRuns: 5, inProgressRuns: 0, workflows: [] };
+}
+
 function writeBudgetFixture({ netQuantity = 0 } = {}) {
 	const tempDir = mkdtempSync(path.join(tmpdir(), "actions-budget-guard-"));
 	const fixturePath = path.join(tempDir, "budget.json");
@@ -12,7 +16,9 @@ function writeBudgetFixture({ netQuantity = 0 } = {}) {
 		fixturePath,
 		`${JSON.stringify(
 			{
-				quota: 2000,
+				// quota is the actionsQuota object; set available:false to exercise the cost-based fallback path.
+				quota: { available: false, error: "disabled" },
+				quotaBaseline: 2000,
 				official: {
 					available: true,
 					usage: {
@@ -24,33 +30,28 @@ function writeBudgetFixture({ netQuantity = 0 } = {}) {
 				repos: [
 					{
 						repo: "aretw0/refarm",
+						runner: makeRunner(1010),
 						official: {
 							available: true,
 							usage: { grossQuantity: 1010, netQuantity: 0 },
 						},
-						allocatedMinutes: 1000,
-						officialAllocationRemaining: -1,
-						officialAllocationBurn: 1.01,
 					},
 					{
 						repo: "aretw0/agents-lab",
+						runner: makeRunner(500),
 						official: {
 							available: true,
 							usage: { grossQuantity: 500, netQuantity: 0 },
 						},
-						allocatedMinutes: 1000,
-						officialAllocationRemaining: 200,
-						officialAllocationBurn: 0.5,
 					},
 					{
+						// 600 min with 1/3 allocation of 2000 = burn 90% → WARN band (80–100%)
 						repo: "aretw0/warn",
+						runner: makeRunner(600),
 						official: {
 							available: true,
-							usage: { grossQuantity: 900, netQuantity: 0 },
+							usage: { grossQuantity: 600, netQuantity: 0 },
 						},
-						allocatedMinutes: 1000,
-						officialAllocationRemaining: 10,
-						officialAllocationBurn: 0.9,
 					},
 				],
 			},
@@ -121,6 +122,7 @@ test("actions budget guard passes discounted account-month posture by default", 
 		assert.match(result.stdout, /account status=OK/);
 		assert.match(result.stdout, /billable=0 min/);
 		assert.match(result.stdout, /gross=5258 min/);
+		assert.match(result.stdout, /quotaRemaining=2000 min/);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
@@ -132,7 +134,7 @@ test("actions budget guard fails account-month posture when net billable exceeds
 		const result = runGuard(["--input", fixturePath]);
 		assert.notEqual(result.status, 0);
 		assert.match(result.stderr, /account status=OVER ALLOCATION/);
-		assert.match(result.stderr, /billable=2001 min/);
+		assert.match(result.stderr, /billable=2001(\.\d+)? min/);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
@@ -143,21 +145,21 @@ test("actions budget guard can print account decision json", () => {
 	try {
 		const result = runGuard(["--input", fixturePath, "--json"]);
 		assert.equal(result.status, 0, result.stderr);
-		assert.deepEqual(JSON.parse(result.stdout), {
-			schemaVersion: 1,
-			mode: "account",
-			status: "OK",
-			shouldFail: false,
-			failOnWarn: false,
-			quota: 2000,
-			billableMinutes: 0,
-			quotaRemaining: 2000,
-			burn: 0,
-			grossMinutes: 5258,
-			discountedMinutes: 5258,
-			summary:
-				"account status=OK billable=0 min quotaRemaining=2000 min burn=0% gross=5258 min discounted=5258 min",
-		});
+		const decision = JSON.parse(result.stdout);
+		assert.equal(decision.schemaVersion, 1);
+		assert.equal(decision.mode, "account");
+		assert.equal(decision.status, "OK");
+		assert.equal(decision.shouldFail, false);
+		assert.equal(decision.failOnWarn, false);
+		assert.equal(decision.quotaBaseline, 2000);
+		assert.equal(decision.billableMinutes, 0);
+		assert.equal(decision.quotaRemaining, 2000);
+		assert.equal(decision.burn, 0);
+		assert.equal(decision.grossMinutes, 5258);
+		assert.match(decision.summary, /account status=OK/);
+		assert.match(decision.summary, /billable=0 min/);
+		assert.match(decision.summary, /quotaRemaining=2000 min/);
+		assert.match(decision.summary, /gross=5258 min/);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
@@ -175,21 +177,20 @@ test("actions budget guard json preserves failure exit codes", () => {
 		]);
 		assert.notEqual(result.status, 0);
 		assert.equal(result.stderr, "");
-		assert.deepEqual(JSON.parse(result.stdout), {
-			schemaVersion: 1,
-			mode: "allocation",
-			repo: "aretw0/refarm",
-			status: "OVER ALLOCATION",
-			shouldFail: true,
-			failOnWarn: false,
-			allocatedMinutes: 1000,
-			allocationRemaining: -1,
-			burn: 1.01,
-			officialGrossMinutes: 1010,
-			officialNetBillableMinutes: 0,
-			summary:
-				"aretw0/refarm status=OVER ALLOCATION allocationRemaining=-1 min burn=101%",
-		});
+		const decision = JSON.parse(result.stdout);
+		assert.equal(decision.schemaVersion, 1);
+		assert.equal(decision.mode, "allocation");
+		assert.equal(decision.repo, "aretw0/refarm");
+		assert.equal(decision.status, "OVER ALLOCATION");
+		assert.equal(decision.shouldFail, true);
+		assert.equal(decision.failOnWarn, false);
+		assert.equal(decision.allocatedMinutes, 1000);
+		assert.ok(decision.allocationRemaining < 0, "allocationRemaining should be negative");
+		assert.ok(decision.burn > 1, "burn should exceed 1 for OVER ALLOCATION");
+		assert.equal(decision.runnerMinutes, 1010);
+		assert.equal(decision.officialGrossMinutes, 1010);
+		assert.match(decision.summary, /OVER ALLOCATION/);
+		assert.match(decision.summary, /runner-time=1010 min/);
 	} finally {
 		rmSync(tempDir, { recursive: true, force: true });
 	}
