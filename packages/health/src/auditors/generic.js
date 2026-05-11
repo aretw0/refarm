@@ -24,28 +24,38 @@ export class FileSystemAuditor {
         };
     }
 
+    // Source file extensions that should never be git-ignored
+    static #SOURCE_EXTENSIONS = new Set([
+        ".ts", ".tsx", ".js", ".mjs", ".cjs", ".jsx",
+        ".rs", ".toml", ".json", ".md",
+    ]);
+
     /**
-     * Crawls and checks if files are ignored by Git.
+     * Checks that source files (code, config, docs) are not accidentally git-ignored.
+     * Build artifacts, generated files, and binaries are expected to be ignored.
      */
     async checkGitVisibility(rootDir, targetPath) {
         const issues = [];
         try {
             const git = (await import("isomorphic-git")).default;
             const allFiles = this.#getAllFiles(targetPath);
-            
+
             for (const file of allFiles) {
+                const ext = path.extname(file);
+                if (!FileSystemAuditor.#SOURCE_EXTENSIONS.has(ext)) continue;
+
                 const relativePath = path.relative(rootDir, file);
-                const ignored = await git.isIgnored({ 
-                    fs, 
-                    dir: rootDir, 
-                    filepath: relativePath 
+                const ignored = await git.isIgnored({
+                    fs,
+                    dir: rootDir,
+                    filepath: relativePath
                 });
 
                 if (ignored) {
-                    issues.push({ 
-                        file: relativePath, 
+                    issues.push({
+                        file: relativePath,
                         type: "git_ignored",
-                        path: file 
+                        path: file
                     });
                 }
             }
@@ -67,11 +77,20 @@ export class FileSystemAuditor {
         };
     }
 
+    // Directories that are never hand-written source and should not be scanned.
+    // Hidden directories (leading dot) are also skipped — they hold runtime state.
+    static #SKIP_DIRS = new Set([
+        "node_modules", "dist", "target", "coverage", "build", "tmp",
+        // Generated output directories
+        "pkg", "generated", "test-results", "benchmarks",
+    ]);
+
     #getAllFiles(dirPath, arrayOfFiles = []) {
         if (!fs.existsSync(dirPath)) return arrayOfFiles;
-        const stats = fs.statSync(dirPath);
-        
-        if (!stats.isDirectory()) {
+        // lstatSync to avoid following symlinks that may point to non-existent targets
+        const stats = fs.lstatSync(dirPath);
+
+        if (stats.isSymbolicLink() || !stats.isDirectory()) {
             arrayOfFiles.push(dirPath);
             return arrayOfFiles;
         }
@@ -79,8 +98,10 @@ export class FileSystemAuditor {
         const files = fs.readdirSync(dirPath);
         files.forEach((file) => {
             const childPath = path.join(dirPath, file);
-            if (fs.statSync(childPath).isDirectory()) {
-                if (file !== "node_modules" && file !== ".git" && file !== "dist") {
+            const childStats = fs.lstatSync(childPath);
+            if (!childStats.isSymbolicLink() && childStats.isDirectory()) {
+                // Skip named exclusions and all hidden directories (dotdirs = runtime state)
+                if (!FileSystemAuditor.#SKIP_DIRS.has(file) && !file.startsWith(".")) {
                     this.#getAllFiles(childPath, arrayOfFiles);
                 }
             } else {
