@@ -314,11 +314,11 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			const cancelMatch = filename.match(/^(.+)\.cancel\.json$/);
 			try {
 				if (retryMatch) {
-					void this.retry(retryMatch[1]);
+					void this.retry(retryMatch[1]!);
 					return;
 				}
 				if (cancelMatch) {
-					void this.cancel(cancelMatch[1]);
+					void this.cancel(cancelMatch[1]!);
 					return;
 				}
 			} finally {
@@ -459,8 +459,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		});
 
 		try {
-			for (let index = 0; index < effort.tasks.length; index += 1) {
-				const task = effort.tasks[index];
+			for (const task of effort.tasks) {
 				const existingTaskResult = resultByTaskId.get(task.id);
 				if (existingTaskResult && !options.force) {
 					finalResults.push(existingTaskResult);
