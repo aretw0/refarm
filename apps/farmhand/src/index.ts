@@ -169,8 +169,8 @@ const LLM_ENV_KEY: Record<string, string> = {
 async function injectSiloLlmEnv(): Promise<void> {
 	try {
 		const tokens = (await new SiloCore().loadTokens()) as Record<string, string | undefined>;
-		const provider = tokens.llmProvider;
-		const apiKey = tokens.llmApiKey;
+		const provider = tokens.modelProvider;
+		const apiKey = tokens.modelApiKey;
 
 		if (provider && !process.env.LLM_PROVIDER) {
 			process.env.LLM_PROVIDER = provider;

@@ -7,19 +7,19 @@ import { tryOpenUrl } from "../utils/open-url.js";
 import {
 	githubCredentialProvider,
 	cloudflareCredentialProvider,
-	llmCredentialProvider,
+	modelCredentialProvider,
 } from "../credentials/index.js";
 
 interface SowOptions {
-	llm?: boolean;
+	model?: boolean;
 	github?: boolean;
 	cloudflare?: boolean;
 	all?: boolean;
 }
 
 export const sowCommand = new Command("sow")
-	.description("Configure refarm credentials (default: LLM provider only)")
-	.option("--llm", "Reconfigure the LLM provider")
+	.description("Configure refarm credentials (default: model provider only)")
+	.option("--model", "Reconfigure the model provider")
 	.option("--github", "Configure GitHub credentials")
 	.option("--cloudflare", "Configure Cloudflare credentials")
 	.option("--all", "Configure or reconfigure all credentials")
@@ -29,30 +29,30 @@ export const sowCommand = new Command("sow")
 			const stored = (await silo.loadTokens()) as Record<string, string | undefined>;
 			const ctx = { tryOpenUrl };
 
-			const needsLlm = !stored.llmProvider;
-			const configureLlm = needsLlm || Boolean(opts.llm) || Boolean(opts.all);
+			const needsModel = !stored.modelProvider;
+			const configureModel = needsModel || Boolean(opts.model) || Boolean(opts.all);
 			const configureGithub = Boolean(opts.github) || Boolean(opts.all);
 			const configureCloudflare = Boolean(opts.cloudflare) || Boolean(opts.all);
 
-			if (!configureLlm && !configureGithub && !configureCloudflare) {
+			if (!configureModel && !configureGithub && !configureCloudflare) {
 				console.log(chalk.green("✓  All credentials already configured.\n"));
 				console.log(
-					chalk.dim("   Use --llm, --github, --cloudflare, or --all to reconfigure."),
+					chalk.dim("   Use --model, --github, --cloudflare, or --all to reconfigure."),
 				);
 				return;
 			}
 
-			if (configureLlm) {
-				if (!needsLlm) {
-					console.log(chalk.dim(`  LLM: reconfiguring (was: ${stored.llmProvider})`));
+			if (configureModel) {
+				if (!needsModel) {
+					console.log(chalk.dim(`  Model: reconfiguring (was: ${stored.modelProvider})`));
 				}
-				const llm = await llmCredentialProvider.collectLlm(ctx);
+				const credential = await modelCredentialProvider.collectModel(ctx);
 				await silo.saveTokens({
-					llmProvider: llm.provider,
-					...(llm.apiKey ? { llmApiKey: llm.apiKey } : {}),
+					modelProvider: credential.provider,
+					...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
 				});
 			} else {
-				console.log(chalk.dim(`  LLM: already configured (${stored.llmProvider}) — skipped`));
+				console.log(chalk.dim(`  Model: already configured (${stored.modelProvider}) — skipped`));
 			}
 
 			if (configureGithub) {
