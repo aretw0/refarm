@@ -281,34 +281,10 @@
   },
   {
     "id": "DEC-036",
-    "decision": "PENDENTE: arquitetura do TUI renderer — processo único com farmhand embedded vs. cliente HTTP do sidecar já rodando.",
-    "rationale": "Processo único é mais simples para dailydriver solo, mas cliente do sidecar permite múltiplos consumidores simultâneos (TUI + web + scripts). Farmhand já tem sidecar HTTP estável em :42001.",
-    "status": "pending",
-    "phase": 35,
-    "context": "Próxima decisão crítica antes de implementar refarm tui. Deve ser resolvida com spec em specs/features/tui-daily-driver.md antes de scaffoldar código."
-  },
-  {
-    "id": "DEC-034",
-    "decision": "Artefatos WASM produzidos por pacotes Rust devem ser copiados para dist/ dentro do pacote durante o build, alem do CARGO_TARGET_DIR.",
-    "rationale": "Turbo cache opera com caminhos relativos ao pacote (dist/**). CARGO_TARGET_DIR e .cargo/config.toml redirecionam saidas para caminhos absolutos fora do pacote. Sem a copia para dist/, cache hits do Turbo restauram um diretorio vazio e testes que dependem do .wasm falham.",
+    "decision": "refarm chat é um cliente REPL do sidecar farmhand HTTP em :42001 (Opção B). Não embeda farmhand. Reutiliza AskDeps (submitEffort + followStream). Novo comando 'refarm chat' — distinto do 'refarm tui' que é launcher do renderer Rust.",
+    "rationale": "ask.ts já usa este padrão. addRouteHandler é o ponto de extensão limpo para POST /plugins/reload sem tocar o núcleo. Múltiplos consumidores (chat + web + scripts) coexistem sem restart. Processo único exigiria boot duplicado do farmhand.",
     "status": "decided",
-    "phase": 35,
-    "context": "Fix aplicado em heartwood e hello-world-plugin. Padrao: todo pacote Rust WASM deve ter 'mkdir -p dist && cp <artifact> dist/' no final do script build:wasm."
-  },
-  {
-    "id": "DEC-035",
-    "decision": "refarm provision <provider> <service> cria recursos cloud e para. refarm configure <target> (nao construido) le do silo e aplica credenciais a CI/CD targets.",
-    "rationale": "Provision e configure tem auth diferente, failure modes diferentes e audiencias diferentes. O silo e o ponto de integracao entre os dois comandos.",
-    "status": "decided",
-    "phase": 35,
-    "context": "Provision Cloudflare turbo-cache completo (PR #22). Usuarios rodam gh secret set manualmente a partir do output — intencional, transparente e auditavel."
-  },
-  {
-    "id": "DEC-036",
-    "decision": "PENDENTE: arquitetura do TUI renderer — processo unico com farmhand embedded vs. cliente HTTP do sidecar ja rodando.",
-    "rationale": "Processo unico e mais simples para dailydriver solo, mas cliente do sidecar permite multiplos consumidores simultaneos. Farmhand ja tem sidecar HTTP estavel em :42001.",
-    "status": "pending",
-    "phase": 35,
-    "context": "Proxima decisao critica antes de implementar refarm tui. Resolver com spec em specs/features/tui-daily-driver.md antes de scaffoldar codigo."
+    "phase": 36,
+    "context": "Spec completa em specs/features/tui-daily-driver.md. Implementação em sequência: POST /plugins/reload no farmhand → chat-repl.ts (puro) → chat.ts (Commander). DEC-036 resolvido 2026-05-12."
   }
 ]

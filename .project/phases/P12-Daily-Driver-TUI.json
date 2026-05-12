@@ -1,8 +1,8 @@
 {
   "number": 12,
   "name": "Daily-Driver-TUI",
-  "intent": "Implementar TUI interativa no apps/refarm que permita ao usuário largar Pi e Claude Code como ferramentas primárias, usando refarm como daily driver agêntico com loop de conversa persistente e hot-reload de plugins.",
-  "status": "planned",
+  "intent": "Implementar REPL conversacional no apps/refarm que permita ao usuário largar Pi e Claude Code como ferramentas primárias, usando refarm como daily driver agêntico com loop de conversa persistente e hot-reload de plugins.",
+  "status": "in_progress",
   "prerequisites": [
     "Farmhand sidecar estável (HTTP :42001) — concluído",
     "Tractor plugin engine com hot-reload plumbing — concluído",
@@ -11,41 +11,44 @@
   ],
   "success_criteria": [
     {
-      "criterion": "refarm tui abre REPL interativo com streaming output do farmhand",
-      "verify_method": "manual"
+      "criterion": "refarm chat abre REPL interativo com streaming output do farmhand",
+      "verify_method": "manual",
+      "status": "implemented — aguardando teste end-to-end com farmhand rodando"
     },
     {
-      "criterion": "Comando reload dentro do TUI recarrega plugin sem reiniciar daemon",
-      "verify_method": "test"
+      "criterion": "Comando /reload dentro do chat recarrega plugins sem reiniciar daemon",
+      "verify_method": "test",
+      "status": "implemented — POST /plugins/reload + tests passing"
     },
     {
-      "criterion": "Histórico de sessão persistido entre invocações",
-      "verify_method": "test"
+      "criterion": "Histórico de sessão persistido entre invocações via session-lock",
+      "verify_method": "test",
+      "status": "implemented — reutiliza mecanismo existente de ask.ts"
     },
     {
-      "criterion": "Usuário consegue completar tarefa de código end-to-end sem sair do refarm tui",
-      "verify_method": "manual"
+      "criterion": "Usuário consegue completar tarefa de código end-to-end sem sair do refarm chat",
+      "verify_method": "manual",
+      "status": "pending — requer teste real com LLM provider configurado"
     }
   ],
   "outputs": [
-    "refarm tui command em apps/refarm",
-    "packages/tui ou renderer TUI integrado ao farmhand",
-    "ADR sobre arquitetura do TUI renderer",
-    "Spec em specs/features/tui-daily-driver.md"
+    "specs/features/tui-daily-driver.md — spec completa com DEC-036 resolvido",
+    "apps/farmhand/src/transports/plugins.ts — POST /plugins/reload route handler",
+    "apps/refarm/src/commands/chat-repl.ts — parsing puro de comandos REPL",
+    "apps/refarm/src/commands/session-launch.ts — política de readiness (pure, testable)",
+    "apps/refarm/src/commands/chat.ts — runSessionRepl() extraído e exportado",
+    "apps/refarm/src/commands/session.ts — runSessionLaunchFlow() convergência dos caminhos",
+    "apps/refarm/src/program.ts — refarm (bare) + refarm session + refarm chat registrados"
   ],
-  "gap_analysis": {
-    "have": [
-      "Farmhand sidecar HTTP com SSE streaming",
-      "apps/refarm commands: ask, task, tasks",
-      "effort-contract-v1 (agent protocol)",
-      "stream-contract-v1 (streaming contracts)",
-      "tractor plugin hot-reload plumbing"
-    ],
-    "missing": [
-      "TUI renderer (input line, output pager, status bar)",
-      "Session persistence between invocations",
-      "reload command wiring to tractor hot-reload",
-      "refarm configure github (reads silo → gh secret set)"
-    ]
-  }
+  "architecture": {
+    "dec_036": "DECIDED — Option B: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand. ChatDeps interface análoga a AskDeps.",
+    "command_name": "refarm chat (não refarm tui — tui já é launcher do renderer Rust)",
+    "reload_protocol": "POST /plugins/reload → farmhand chama loadInstalledPlugins() → retorna { reloaded, skipped }",
+    "session_persistence": "Reutiliza session-lock.ts existente — mesmo mecanismo do ask"
+  },
+  "remaining": [
+    "Teste manual end-to-end com farmhand rodando e LLM configurado",
+    "refarm configure github (lê silo → gh secret set) — próximo milestone",
+    "Coverage baselines: storage-sqlite, context-provider-v1 (sem testes ainda)"
+  ]
 }

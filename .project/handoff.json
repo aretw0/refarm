@@ -1,42 +1,39 @@
 {
-  "context": "Checkpoint 2026-05-12 após merge develop→main (PR #22). Ciclo de provisionamento Cloudflare concluído, CI estabilizado, branches limpas. Develop e main estão iguais. Próximo ciclo: TUI interativa para diário driver (substituir Pi + Claude Code).",
-  "timestamp": "2026-05-12T01:20:00.000Z",
-  "current_phase": 35,
+  "context": "Checkpoint 2026-05-12 (sessão 3). P12 Daily-Driver-TUI implementado: refarm chat/session/bare refarm funcionam como REPL, POST /plugins/reload no farmhand, onboarding e readiness check, init idempotente com --force. ADR-064 escrito (TokenAuthError contract). Foco atual: gaps de confiança para migração diária.",
+  "timestamp": "2026-05-12T14:30:00.000Z",
+  "current_phase": 12,
   "current_tasks": [
-    "PR #22 merged: 342 commits (develop→main). refarm provision cloudflare turbo-cache funciona end-to-end.",
-    "Remote Turborepo cache ativo: TURBO_API + TURBO_TOKEN setados como GitHub secrets. Worker Cloudflare deployed em aretw0.workers.dev.",
-    "CI hardening: TASK_SMOKE_TS_BUILD_ORDER inclui infra-turbo-cache + infra-cloudflare; integrity check wired no pre-push hook (blocking em develop/main).",
-    "WASM turbo cache fix: todos os pacotes Rust WASM agora copiam artefato para dist/ durante build (heartwood, hello-world). Tests referenciam dist/ em vez de CARGO_TARGET_DIR.",
-    "mermaid CVE resolvido: @mermaid-js/mermaid-cli 11.14.0. npm audit = 0 vulnerabilidades.",
-    "Issues #19, #21 fechadas; PR #20 (deps automático) fechado com nota de deferimento.",
-    "Branches limpas: apenas develop e main (local e remoto).",
-    "Qualidade: health auditor sem falsos positivos, branding neutro, provision/configure split documentado."
+    "refarm chat / refarm session / bare refarm → runSessionLaunchFlow() convergência implementada.",
+    "POST /plugins/reload no farmhand via addRouteHandler — tests passing.",
+    "Onboarding first-run + readiness check (providerConfigured, farmhandRunning) implementados.",
+    "init idempotente: guard existsSync(configPath || identityPath) + --force flag. Tests cobrindo re-run e --force.",
+    "Branding cleanup: 'sovereign' removido de logs/CLI, mantido em ADRs/docs com parcimônia.",
+    "ADR-064: TokenAuthError contract — erro de credencial deve carregar provider + reason + rotationUrl para qualquer superfície renderizar graciosamente.",
+    "packages/pi-agent (Rust): 16 ferramentas definidas (read_file, write_file, edit_file, bash, search_files, list_dir, read_structured, write_structured, LSP, sessões). packages/agent-tools: WASM component executando as ferramentas."
   ],
   "blockers": [],
   "next_actions": [
-    "Próximo ciclo: refarm tui — REPL interativo com loop persistente e comando reload para iterar sem reiniciar daemon.",
-    "Mapear o que já existe: apps/refarm (commands: ask, task, tasks), packages/farmhand (sidecar HTTP :42001), packages/runtime. Onde o TUI se encaixa?",
-    "Decisão de arquitetura pendente (DEC-036): TUI como renderer de apps/refarm via farmhand HTTP, ou TUI embedded no mesmo processo?",
-    "Tarefas de manutenção desbloqueadas: coverage para storage-sqlite e context-provider-v1 (sem testes); exactOptionalPropertyTypes.",
-    "refarm configure github — próximo comando após TUI (lê silo, roda gh secret set)."
+    "[CRÍTICO] Verificar se farmhand→LLM funciona end-to-end: npm run farmhand:daemon + refarm ask 'hello'. O caminho effort→tractor plugin→LLM→stream nunca foi confirmado ao vivo.",
+    "Spinner durante geração no REPL — readline fica mudo enquanto LLM processa.",
+    "Histórico de input (↑) no readline — historySize não configurado.",
+    "Verificar continuidade de sessão LLM: session-lock preserva ID mas o histórico de mensagens pode não recarregar.",
+    "TokenAuthError: implementar a classe no layer de credenciais (ADR-064 escrito, não codificado).",
+    "Coverage baselines: storage-sqlite e context-provider-v1 sem testes (target 50%)."
   ],
   "open_questions": [
-    "TUI: processo único com farmhand embedded, ou processo separado apontando para sidecar já rodando?",
-    "reload: recarrega plugin sem reiniciar daemon (tractor hot-reload plumbing existe), ou reseta sessão completa?",
-    "Qual o mínimo de TUI para largar o Pi no dia-a-dia: input line, streaming output, histórico de sessão, reload?",
-    "refarm configure github: ler silo e rodar gh secret set — deve ser próximo após TUI ou pode ser feito antes?"
+    "refarm configure github: escopo redefinido — não é gh secret set automático, é diagnóstico de saúde de tokens (expiração Cloudflare via API, GitHub detectável só no 401). ADR-064 cobre o contrato.",
+    "Spinner UX: simples setInterval com chalk, ou integrar com o stream NDJSON para saber quando o LLM começou a responder?"
   ],
   "key_decisions_active": [
     "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
     "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
-    "DEC-033: planejar CLI refarm docs-first antes de scaffoldar código executável (em andamento).",
-    "DEC-034 (novo): artefatos WASM Rust devem ser copiados para dist/ durante build para que turbo cache funcione corretamente.",
-    "DEC-035 (novo): provision para, configure ainda não existe — silo é o ponto de integração entre os dois.",
-    "DEC-036 (pendente): arquitetura do TUI renderer — processo único embedded vs. cliente do sidecar."
+    "DEC-034: artefatos WASM Rust devem ser copiados para dist/ durante build.",
+    "DEC-035: provision para, configure ainda não existe — silo é o ponto de integração.",
+    "DEC-036 [DECIDED]: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand.",
+    "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície."
   ],
   "files_in_flux": [
     ".project/handoff.json",
-    ".project/decisions.json",
     ".project/phases/P12-Daily-Driver-TUI.json"
   ]
 }
