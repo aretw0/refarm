@@ -1,13 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockSow, mockSaveTokens, mockInquirerPrompt, mockGithubCollect, mockCloudflareCollect, mockLlmCollect } =
+const { mockSaveTokens, mockLoadTokens, mockInquirerPrompt, mockGithubCollect, mockCloudflareCollect, mockLlmCollect } =
 	vi.hoisted(() => ({
-		mockSow: vi.fn().mockResolvedValue({
-			storagePath: "/home/user/.refarm/identity.json",
-			github: { ok: true, count: 3 },
-			cloudflare: { ok: true },
-		}),
 		mockSaveTokens: vi.fn().mockResolvedValue({}),
+		mockLoadTokens: vi.fn().mockResolvedValue({}),
 		mockInquirerPrompt: vi.fn(),
 		mockGithubCollect: vi.fn().mockResolvedValue("gho_test_github"),
 		mockCloudflareCollect: vi.fn().mockResolvedValue("cf_test_cloudflare"),
@@ -35,41 +31,27 @@ vi.mock("../../src/credentials/index.js", () => ({
 	},
 }));
 
-vi.mock("@refarm.dev/sower", () => ({
-	SowerCore: vi.fn().mockImplementation(function () {
-		return { sow: mockSow };
-	}),
-}));
-
 vi.mock("@refarm.dev/silo", () => ({
 	SiloCore: vi.fn().mockImplementation(function () {
-		return { saveTokens: mockSaveTokens };
+		return { saveTokens: mockSaveTokens, loadTokens: mockLoadTokens };
 	}),
 }));
 
 import { sowCommand } from "../../src/commands/sow.js";
 
-describe("sowCommand", () => {
+describe("sowCommand — default (no flags)", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
-		mockInquirerPrompt.mockResolvedValueOnce({ owner: "refarm-dev" });
-		mockGithubCollect.mockResolvedValue("gho_test_github");
-		mockCloudflareCollect.mockResolvedValue("cf_test_cloudflare");
+		mockLoadTokens.mockResolvedValue({});
 		mockLlmCollect.mockResolvedValue({ provider: "anthropic", apiKey: "sk-ant-test" });
 	});
 
-	it("calls sower.sow with tokens collected from each provider", async () => {
+	it("prompts for LLM when not yet configured", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
-		expect(mockSow).toHaveBeenCalledWith(
-			expect.objectContaining({
-				githubToken: "gho_test_github",
-				cloudflareToken: "cf_test_cloudflare",
-			}),
-			expect.objectContaining({ owner: "refarm-dev" }),
-		);
+		expect(mockLlmCollect).toHaveBeenCalledOnce();
 	});
 
-	it("saves LLM provider and api key to silo", async () => {
+	it("saves LLM provider and api key", async () => {
 		await sowCommand.parseAsync([], { from: "user" });
 		expect(mockSaveTokens).toHaveBeenCalledWith(
 			expect.objectContaining({ llmProvider: "anthropic", llmApiKey: "sk-ant-test" }),
@@ -82,27 +64,88 @@ describe("sowCommand", () => {
 		expect(mockSaveTokens).toHaveBeenCalledWith({ llmProvider: "ollama" });
 	});
 
-	it("collects credentials from each provider in order", async () => {
+	it("skips LLM prompt and exits cleanly when already configured", async () => {
+		mockLoadTokens.mockResolvedValue({ llmProvider: "anthropic" });
 		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockLlmCollect).not.toHaveBeenCalled();
+		expect(mockSaveTokens).not.toHaveBeenCalled();
+	});
+
+	it("does not prompt for GitHub or Cloudflare by default", async () => {
+		await sowCommand.parseAsync([], { from: "user" });
+		expect(mockGithubCollect).not.toHaveBeenCalled();
+		expect(mockCloudflareCollect).not.toHaveBeenCalled();
+	});
+});
+
+describe("sowCommand — --github flag", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockLoadTokens.mockResolvedValue({ llmProvider: "anthropic" });
+		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
+	});
+
+	it("prompts for GitHub when --github is passed", async () => {
+		await sowCommand.parseAsync(["--github"], { from: "user" });
 		expect(mockGithubCollect).toHaveBeenCalledOnce();
+	});
+
+	it("saves githubToken and githubOwner", async () => {
+		await sowCommand.parseAsync(["--github"], { from: "user" });
+		expect(mockSaveTokens).toHaveBeenCalledWith(
+			expect.objectContaining({ githubToken: "gho_test_github", githubOwner: "my-org" }),
+		);
+	});
+
+	it("does not prompt for LLM when already configured", async () => {
+		await sowCommand.parseAsync(["--github"], { from: "user" });
+		expect(mockLlmCollect).not.toHaveBeenCalled();
+	});
+});
+
+describe("sowCommand — --cloudflare flag", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockLoadTokens.mockResolvedValue({ llmProvider: "anthropic" });
+	});
+
+	it("prompts for Cloudflare when --cloudflare is passed", async () => {
+		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
 		expect(mockCloudflareCollect).toHaveBeenCalledOnce();
+	});
+
+	it("saves cloudflareToken", async () => {
+		await sowCommand.parseAsync(["--cloudflare"], { from: "user" });
+		expect(mockSaveTokens).toHaveBeenCalledWith({ cloudflareToken: "cf_test_cloudflare" });
+	});
+});
+
+describe("sowCommand — --all flag", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockLoadTokens.mockResolvedValue({ llmProvider: "anthropic" });
+		mockInquirerPrompt.mockResolvedValue({ owner: "my-org" });
+		mockLlmCollect.mockResolvedValue({ provider: "openai", apiKey: "sk-openai-test" });
+	});
+
+	it("reconfigures LLM even if already set", async () => {
+		await sowCommand.parseAsync(["--all"], { from: "user" });
 		expect(mockLlmCollect).toHaveBeenCalledOnce();
 	});
 
-	it("passes tryOpenUrl context to each provider", async () => {
-		await sowCommand.parseAsync([], { from: "user" });
-		expect(mockGithubCollect).toHaveBeenCalledWith(
-			expect.objectContaining({ tryOpenUrl: expect.any(Function) }),
-		);
-		expect(mockCloudflareCollect).toHaveBeenCalledWith(
-			expect.objectContaining({ tryOpenUrl: expect.any(Function) }),
-		);
+	it("collects GitHub and Cloudflare", async () => {
+		await sowCommand.parseAsync(["--all"], { from: "user" });
+		expect(mockGithubCollect).toHaveBeenCalledOnce();
+		expect(mockCloudflareCollect).toHaveBeenCalledOnce();
 	});
+});
 
-	it("exits gracefully on SIGINT (ExitPromptError)", async () => {
+describe("sowCommand — SIGINT handling", () => {
+	it("exits gracefully on ExitPromptError", async () => {
+		vi.clearAllMocks();
+		mockLoadTokens.mockResolvedValue({});
 		const { ExitPromptError } = await import("@inquirer/core");
-		mockInquirerPrompt.mockReset();
-		mockInquirerPrompt.mockRejectedValueOnce(
+		mockLlmCollect.mockRejectedValueOnce(
 			new ExitPromptError("User force closed the prompt with SIGINT"),
 		);
 		const exitSpy = vi
