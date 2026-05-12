@@ -241,6 +241,23 @@ export function defaultChatDeps(): ChatDeps {
 	};
 }
 
+const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
+
+function startThinkingSpinner(): () => void {
+	if (!process.stdout.isTTY) return () => {};
+	let frame = 0;
+	const timer = setInterval(() => {
+		process.stdout.write(
+			`\r${chalk.dim(SPINNER_FRAMES[frame % SPINNER_FRAMES.length])}  ${chalk.dim("Thinking…")}`,
+		);
+		frame++;
+	}, 80);
+	return () => {
+		clearInterval(timer);
+		process.stdout.write("\r\x1b[2K");
+	};
+}
+
 function usageLine(metadata: Record<string, unknown>): string {
 	const model = metadata.model ?? "unknown";
 	const tokensIn = metadata.tokens_in ?? 0;
@@ -303,10 +320,20 @@ async function runTurn(
 	const submittedAtMs = Date.now();
 	const effortId = await deps.submitEffort(effort);
 
+	const stopSpinner = startThinkingSpinner();
+	let spinnerCleared = false;
+	function clearSpinner() {
+		if (!spinnerCleared) {
+			stopSpinner();
+			spinnerCleared = true;
+		}
+	}
+
 	try {
 		await deps.followStream(
 			effortId,
 			(chunk) => {
+				clearSpinner();
 				process.stdout.write(chunk.content);
 				if (chunk.is_final) {
 					process.stdout.write("\n");
@@ -320,6 +347,7 @@ async function runTurn(
 			{ submittedAtMs },
 		);
 	} catch (streamError) {
+		clearSpinner();
 		const fallback = await deps.readEffortResult?.(effortId);
 		if (fallback?.status === "ok" && typeof fallback.content === "string") {
 			process.stdout.write(`${fallback.content}\n`);
@@ -362,6 +390,7 @@ export async function runSessionRepl(
 			output: process.stdout,
 			prompt: chalk.cyan("› "),
 			terminal: true,
+			historySize: 1000,
 		});
 
 		rl.prompt();
