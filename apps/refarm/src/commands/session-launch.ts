@@ -21,10 +21,11 @@ export function isSessionReady(r: SessionReadiness): boolean {
 }
 
 export function isFirstRun(): boolean {
-	const base = path.join(os.homedir(), ".refarm");
-	const hasEnv = fs.existsSync(path.join(base, ".env"));
-	const hasConfig = fs.existsSync(path.join(base, "config.json"));
-	return !hasEnv && !hasConfig;
+	for (const base of refarmSearchDirs()) {
+		if (fs.existsSync(path.join(base, ".env"))) return false;
+		if (fs.existsSync(path.join(base, "config.json"))) return false;
+	}
+	return true;
 }
 
 export async function checkSessionReadiness(): Promise<SessionReadiness> {
@@ -33,21 +34,31 @@ export async function checkSessionReadiness(): Promise<SessionReadiness> {
 	return { providerConfigured, farmhandRunning };
 }
 
+// Exported for tests — returns dirs to search for .refarm config, home first.
+export function refarmSearchDirs(): string[] {
+	return [
+		path.join(os.homedir(), ".refarm"),
+		path.join(process.cwd(), ".refarm"),
+	];
+}
+
 function detectProvider(): boolean {
 	if (process.env.LLM_PROVIDER) return true;
 
-	const base = path.join(os.homedir(), ".refarm");
-	if (fs.existsSync(path.join(base, ".env"))) return true;
+	for (const base of refarmSearchDirs()) {
+		if (fs.existsSync(path.join(base, ".env"))) return true;
 
-	const configFile = path.join(base, "config.json");
-	if (fs.existsSync(configFile)) {
-		try {
-			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
-				provider?: string;
-			};
-			return Boolean(config.provider);
-		} catch {
-			return false;
+		const configFile = path.join(base, "config.json");
+		if (fs.existsSync(configFile)) {
+			try {
+				const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
+					provider?: string;
+					default_provider?: string;
+				};
+				if (config.provider ?? config.default_provider) return true;
+			} catch {
+				// continue to next dir
+			}
 		}
 	}
 
