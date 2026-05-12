@@ -28,18 +28,14 @@ export const sowCommand = new Command("sow")
 
 			const ctx = { tryOpenUrl };
 
-			// ── Infrastructure credentials ────────────────────────────────────
+			// ── Collect all credentials before any network calls ──────────────
 			const githubToken = await githubCredentialProvider.collect(ctx);
 			const cloudflareToken = await cloudflareCredentialProvider.collect(ctx);
-
-			const sower = new SowerCore();
-			const results = await sower.sow(
-				{ githubToken, cloudflareToken },
-				{ owner },
-			);
-
-			// ── LLM provider ──────────────────────────────────────────────────
 			const llm = await llmCredentialProvider.collectLlm(ctx);
+
+			// ── Persist ───────────────────────────────────────────────────────
+			const sower = new SowerCore();
+			await sower.sow({ githubToken, cloudflareToken }, { owner });
 
 			const silo = new SiloCore();
 			await silo.saveTokens({
@@ -47,11 +43,7 @@ export const sowCommand = new Command("sow")
 				...(llm.apiKey ? { llmApiKey: llm.apiKey } : {}),
 			});
 
-			console.log(
-				chalk.gray(
-					`\n  Silo: Credentials stored at ${results.storagePath ?? "~/.refarm/identity.json"}`,
-				),
-			);
+			console.log(chalk.gray("\n  Silo: Credentials stored at ~/.refarm/identity.json"));
 			console.log(chalk.gray("  Run 'refarm health' to audit connectivity at any time."));
 		} catch (error) {
 			if (!(error instanceof ExitPromptError)) throw error;
