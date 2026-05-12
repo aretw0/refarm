@@ -1,5 +1,13 @@
 flowchart TD
+  subgraph LocalPreflight["local/operator preflight — before push"]
+    LP1["actions:budget:guard:account\nhard monthly billable quota"]
+    LP2["refarm:host:smoke:auto:plan\ndiff-based lane preview"]
+    LP3["granular local lane\nactions/tree/quick/dev/ci"]
+    LP1 --> LP2 --> LP3
+  end
+
   Trigger["push·develop / PR→main·develop\n(or weekly schedule)"] --> Changes
+  LP3 -.-> Trigger
 
   subgraph Changes["changes job — smart filter"]
     C1["detect changed areas\n(ci / code / tractor_gates / e2e / task_smoke / audit)"]
@@ -103,8 +111,10 @@ flowchart TD
   classDef tractor fill:#fef3c7,stroke:#92400e,stroke-width:1px;
   classDef infra fill:#fee2e2,stroke:#991b1b,stroke-width:1px;
   classDef phase fill:#ede9fe,stroke:#5b21b6,stroke-width:1px;
+  classDef local fill:#f0fdf4,stroke:#15803d,stroke-width:1px,stroke-dasharray: 5 5;
 
   class Trigger,Changes,Summary,Metrics gate;
+  class LP1,LP2,LP3 local;
   class Quality,QCache,Q0,QHit,QVerify,E0,EHit quality;
   class TractorGates,TG1,TG2,TG3,TG4,TG5,TG6,TG7,TG8 tractor;
   class E2E,AuditModerate,DeepRegression,GranularMatrix infra;

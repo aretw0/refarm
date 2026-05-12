@@ -30,8 +30,8 @@ describe("CommandHost Registry & Governance", () => {
 
     const commands = host.getCommands();
     expect(commands).toHaveLength(2);
-    expect(commands[0].id).toBe("cmd:1");
-    expect(commands[1].category).toBe("Test");
+    expect(commands[0]!.id).toBe("cmd:1");
+    expect(commands[1]!.category).toBe("Test");
   });
 
   it("should throw error for non-existent commands", async () => {

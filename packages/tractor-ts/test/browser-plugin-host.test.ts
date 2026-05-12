@@ -1,6 +1,12 @@
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PluginHost } from "../src/index.browser";
+
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
 import {
 	cachePlugin,
 	cachePluginRuntimeModule,
@@ -59,10 +65,9 @@ afterEach(async () => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 	clearRuntimeDescriptorRevocationListCache();
-	delete (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-	delete (globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
-	delete (globalThis as any).__REFARM_ENVIRONMENT__;
+	delete (globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	delete (globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	delete (globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__;
 	await evictPlugin("@acme/wasm-plugin");
 	await evictPlugin("@acme/component-plugin");
 });
@@ -158,7 +163,7 @@ describe("browser PluginHost runtime paths", () => {
 					ping: vi.fn().mockResolvedValue("pong-wasm"),
 				},
 			},
-		} as any);
+		} as unknown as WebAssembly.Instance);
 
 		const manifest = createMockManifest({
 			id: "@acme/wasm-plugin",
@@ -416,9 +421,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("allows cached component load when revocation list is unavailable under fail-open runtime policy", async () => {
-		(
-			globalThis as any
-		).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ = "fail-open";
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ = "fail-open";
 
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
@@ -485,7 +488,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("derives fail-open from runtime revocation profile=dev", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"dev";
 
 		const emit = vi.fn();
@@ -555,7 +558,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("derives fail-closed from runtime revocation profile=production-sensitive", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"production-sensitive";
 
 		const host = new PluginHost(vi.fn(), {});
@@ -614,7 +617,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("derives runtime revocation policy from generic environment=development", async () => {
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "development";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "development";
 
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
@@ -680,7 +683,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("derives runtime revocation policy from generic environment=production", async () => {
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "production";
 
 		const host = new PluginHost(vi.fn(), {});
 		mockRevocationListUnavailableFetch();
@@ -735,8 +738,8 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("emits config-conflict telemetry when dedicated revocation profile conflicts with generic environment", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ = "dev";
-		(globalThis as any).__REFARM_ENVIRONMENT__ = "production";
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ = "dev";
+		(globalThis as RefarmGlobals).__REFARM_ENVIRONMENT__ = "production";
 
 		const emit = vi.fn();
 		const host = new PluginHost(emit, {});
@@ -814,11 +817,9 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("emits config-invalid telemetry when runtime policy/profile overrides are invalid", async () => {
-		(
-			globalThis as any
-		).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__ =
 			"invalid-policy";
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"dev";
 
 		const emit = vi.fn();
@@ -895,7 +896,7 @@ describe("browser PluginHost runtime paths", () => {
 	});
 
 	it("emits config-invalid telemetry and fails closed when only invalid profile is provided", async () => {
-		(globalThis as any).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
+		(globalThis as RefarmGlobals).__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__ =
 			"unknown-profile";
 
 		const emit = vi.fn();

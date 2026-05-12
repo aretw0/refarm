@@ -118,6 +118,193 @@ describe("webCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints Web action rows without launching", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions"], { from: "user" });
+
+		expect(resolveStatusPayload).toHaveBeenCalledWith(
+			expect.objectContaining({ renderer: "web" }),
+		);
+		expect(logSpy).toHaveBeenCalledWith(`Available Web actions:
+  [1] Open node — open-node (node:open)`);
+		expect(printStatusSummary).not.toHaveBeenCalled();
+		expect(launch).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("prints selected Web action dry-run metadata", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				plugins: {
+					installed: 2,
+					active: 2,
+					rejectedSurfaces: 0,
+					surfaceActions: 2,
+					availableActions: [
+						{ id: "open-node", label: "Open node" },
+						{ id: "inspect-trust", label: "Inspect trust" },
+					],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "2"], {
+			from: "user",
+		});
+
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Selected Web action:"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("source: index"),
+		);
+		expect(launch).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("prints Web action readiness JSON envelopes", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "open-node", "--json"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			schemaVersion: 1,
+			statusSchemaVersion: 1,
+			reason: "dry-run",
+			readiness: { status: "ready", label: "Ready: yes" },
+			renderer: "web",
+			selection: {
+				requested: "open-node",
+				source: "id",
+				resolvedId: "open-node",
+				index: 1,
+			},
+			selectedAction: { id: "open-node", index: 1 },
+			actionRows: [{ id: "open-node", index: 1 }],
+		});
+		expect(launch).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("prints blocked Web action JSON for unavailable selections", async () => {
+		resolveStatusPayload.mockResolvedValue({
+			json: makeStatus({
+				plugins: {
+					installed: 1,
+					active: 1,
+					rejectedSurfaces: 0,
+					surfaceActions: 1,
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			}),
+			shutdown: vi.fn().mockResolvedValue(undefined),
+		});
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["--actions", "--select", "missing", "--json"], {
+			from: "user",
+		});
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toMatchObject({
+			reason: "dry-run",
+			readiness: {
+				status: "blocked",
+				label: 'Blocked: host action "missing" is not available',
+			},
+			renderer: "web",
+			actionRows: [{ id: "open-node", index: 1 }],
+		});
+		expect(output).not.toHaveProperty("selection");
+		expect(output).not.toHaveProperty("selectedAction");
+		expect(launch).not.toHaveBeenCalled();
+		logSpy.mockRestore();
+	});
+
+	it("rejects Web action selection without --actions", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await expect(
+			command.parseAsync(["--select", "open-node"], { from: "user" }),
+		).rejects.toThrow(/--select requires --actions/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
+	it("rejects Web action rows with launch-only flags", async () => {
+		const command = createWebCommand({
+			resolveStatusPayload,
+			printStatusSummary,
+			launch,
+			open,
+		});
+
+		await expect(
+			command.parseAsync(["--actions", "--launch"], { from: "user" }),
+		).rejects.toThrow(/--actions cannot be combined/);
+		expect(resolveStatusPayload).not.toHaveBeenCalled();
+	});
+
 	it("launches dev mode when --launch is requested", async () => {
 		const command = createWebCommand({
 			resolveStatusPayload,

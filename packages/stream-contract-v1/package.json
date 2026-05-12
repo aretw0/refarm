@@ -14,13 +14,19 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["plugin", "capability", "stream", "contract", "conformance"],
+  "keywords": [
+    "plugin",
+    "capability",
+    "stream",
+    "contract",
+    "conformance"
+  ],
   "author": "Refarm Contributors",
   "license": "MIT",
   "repository": {
@@ -28,9 +34,15 @@
     "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/stream-contract-v1"
   },
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*"
   }
 }

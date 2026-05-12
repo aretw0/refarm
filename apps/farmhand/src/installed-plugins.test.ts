@@ -39,7 +39,7 @@ describe("loadInstalledPlugins", () => {
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
 
-		const summary = await loadInstalledPlugins(tractor as any, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
 
 		expect(summary).toEqual({ loaded: 0, skipped: 0 });
 		expect(tractor.registry.register).not.toHaveBeenCalled();
@@ -73,7 +73,7 @@ describe("loadInstalledPlugins", () => {
 
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
-		const summary = await loadInstalledPlugins(tractor as any, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
 
 		expect(summary.loaded).toBe(1);
 		expect(summary.skipped).toBe(1);
@@ -112,7 +112,7 @@ describe("loadInstalledPlugins", () => {
 		const tractor = createTractorStub();
 		const logger = { info: vi.fn(), warn: vi.fn() };
 
-		const summary = await loadInstalledPlugins(tractor as any, baseDir, logger);
+		const summary = await loadInstalledPlugins(tractor, baseDir, logger);
 
 		expect(summary).toEqual({ loaded: 1, skipped: 0 });
 		expect(tractor.registry.register).toHaveBeenCalledWith(

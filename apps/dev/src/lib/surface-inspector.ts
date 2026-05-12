@@ -83,11 +83,10 @@ export interface StudioSurfaceInspectorMountOptions {
 
 export const STUDIO_SURFACE_INSPECTOR_ELEMENT_NAME = "refarm-surface-inspector";
 
-export interface StudioSurfaceInspectorElement
-	extends HomesteadReactiveElement<
-		StudioSurfaceInspectorMountOptions | undefined,
-		StudioSurfaceInspectorController
-	> {}
+export type StudioSurfaceInspectorElement = HomesteadReactiveElement<
+	StudioSurfaceInspectorMountOptions | undefined,
+	StudioSurfaceInspectorController
+>;
 
 export function mountReactiveStudioSurfaceInspector(
 	container: HTMLElement,

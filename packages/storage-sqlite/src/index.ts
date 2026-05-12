@@ -52,14 +52,18 @@ export const PHYSICAL_SCHEMA_V1 = [
  * Browser-side SQLite adapter using the Origin Private File System or Memory.
  * Implements Multi-Vault (Namespace) isolation.
  */
-export class OPFSSQLiteAdapter implements StorageAdapter {
-  private _db: any = null;
-  private _namespace: string = "default";
-  private _sqlite: any = null;
+type SqliteDbOpts = { bind?: unknown[]; returnValue?: string; rowMode?: string };
+type SqliteDbHandle = { exec(sql: string, opts?: SqliteDbOpts): Promise<unknown>; close(): Promise<void> };
+type SqliteEngineHandle = { open(path: string): Promise<SqliteDbHandle> };
 
-  constructor(sqlite?: any) {
+export class OPFSSQLiteAdapter implements StorageAdapter {
+  private _db: SqliteDbHandle | null = null;
+  private _namespace: string = "default";
+  private _sqlite: SqliteEngineHandle | null = null;
+
+  constructor(sqlite?: SqliteEngineHandle | null) {
     // In a real browser environment, sqlite would be imported or injected
-    this._sqlite = sqlite;
+    this._sqlite = sqlite ?? null;
   }
 
   /**
@@ -78,7 +82,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     // 2. Initialize Engine
     if (!scoped._sqlite) {
       console.warn("[storage-sqlite] No SQLite engine provided, falling back to memory stub");
-      scoped._db = scoped._createMemoryStub();
+      scoped._db = scoped._createMemoryStub() as SqliteDbHandle;
     } else {
       scoped._db = await scoped._sqlite.open(dbPath);
     }
@@ -115,31 +119,31 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
     });
   }
 
-  async getLogForNode(nodeId: string): Promise<any[]> {
+  async getLogForNode(nodeId: string): Promise<unknown[]> {
     return this.query("SELECT * FROM crdt_log WHERE node_id = ? ORDER BY hlc_time ASC", { params: [nodeId] });
   }
 
-  async queryNodes(type: string): Promise<any[]> {
+  async queryNodes(type: string): Promise<unknown[]> {
     return this.query(
       "SELECT payload FROM nodes WHERE type = ? ORDER BY updated_at DESC",
       { params: [type] },
     );
   }
 
-  async execute(sql: string, args: any = {}): Promise<any> {
+  async execute(sql: string, args: { params?: unknown[] } | unknown[] = {}): Promise<unknown> {
     this._assertOpen();
-    const params = args?.params || args;
-    return await this._db.exec(sql, { bind: params });
+    const params = (args as { params?: unknown[] })?.params ?? args;
+    return await this._db!.exec(sql, { bind: params as unknown[] });
   }
 
-  async query<T = any>(sql: string, args: any = {}): Promise<T[]> {
+  async query<T = unknown>(sql: string, args: { params?: unknown[] } | unknown[] = {}): Promise<T[]> {
     this._assertOpen();
-    const params = args?.params || args;
-    return await this._db.exec(sql, { 
-      bind: params, 
-      returnValue: 'resultRows', 
-      rowMode: 'object' 
-    });
+    const params = (args as { params?: unknown[] })?.params ?? args;
+    return await this._db!.exec(sql, {
+      bind: params as unknown[],
+      returnValue: 'resultRows',
+      rowMode: 'object'
+    }) as T[];
   }
 
   async transaction<T>(fn: () => Promise<T>): Promise<T> {
@@ -158,8 +162,8 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   async close(): Promise<void> {
     if (this._db) {
       await this._db.close();
+      this._db = null;
     }
-    this._db = null;
   }
 
   private _assertOpen(): void {
@@ -169,7 +173,7 @@ export class OPFSSQLiteAdapter implements StorageAdapter {
   private _createMemoryStub() {
     // Fallback for tests if real wa-sqlite is not injected
     return {
-      exec: async (sql: string, options: any = {}) => {
+      exec: async (_sql: string, _options: Record<string, unknown> = {}) => {
         return [];
       },
       close: async () => {}
@@ -250,7 +254,7 @@ export async function runMigrations(
   for (let i = 0; i < migrations.length; i++) {
     if (!appliedIds.has(i)) {
       await adapter.transaction(async () => {
-        await adapter.execute(migrations[i]);
+        await adapter.execute(migrations[i]!);
         await adapter.execute("INSERT INTO _migrations (id) VALUES (?)", {
           params: [i],
         });

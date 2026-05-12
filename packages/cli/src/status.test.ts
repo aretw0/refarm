@@ -92,6 +92,38 @@ describe("buildRefarmStatusJson", () => {
 		expect(result.plugins.surfaceActions).toBe(2);
 	});
 
+	it("prefers available surface actions over historical action telemetry", () => {
+		const result = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{
+							id: "open-node",
+							label: "Open node",
+							intent: "node:open",
+						},
+					],
+					actions: [
+						{
+							actionId: "historical-open-node",
+							status: "requested",
+						},
+						{
+							actionId: "historical-close-node",
+							status: "failed",
+						},
+					],
+				},
+			},
+		});
+
+		expect(result.plugins.surfaceActions).toBe(1);
+		expect(result.plugins.availableActions).toEqual([
+			{ id: "open-node", label: "Open node", intent: "node:open" },
+		]);
+	});
+
 	it("defaults streams to zero when not provided", () => {
 		expect(buildRefarmStatusJson(BASE_OPTIONS).streams).toEqual({
 			active: 0,
@@ -112,6 +144,19 @@ describe("buildRefarmStatusJson", () => {
 		expect(diagnostics).toContain("renderer:non-interactive");
 		expect(diagnostics).toContain("renderer:no-rich-html");
 		expect(diagnostics).toContain("runtime:not-ready");
+	});
+
+	it("adds an informational diagnostic when surface actions are available", () => {
+		const diagnostics = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [{ id: "open-node", label: "Open node" }],
+				},
+			},
+		}).diagnostics;
+
+		expect(diagnostics).toContain("plugins:surface-actions-available");
 	});
 
 	it("emits no renderer diagnostics for web renderer", () => {
@@ -172,6 +217,30 @@ describe("status contract validation", () => {
 		expect(() => assertRefarmStatusJson(invalid)).toThrow(
 			/Unsupported Refarm status schemaVersion=2/,
 		);
+	});
+
+	it("validates optional available action details", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			},
+		});
+
+		expect(isRefarmStatusJson(json)).toBe(true);
+		expect(
+			isRefarmStatusJson({
+				...json,
+				plugins: {
+					...json.plugins,
+					availableActions: [{ id: "open-node" }],
+				},
+			}),
+		).toBe(false);
 	});
 
 	it("rejects payloads with malformed renderer capabilities", () => {
@@ -238,6 +307,7 @@ describe("classifyRefarmStatusDiagnostics", () => {
 				plugins: {
 					surfaces: {
 						rejected: [{ reason: "untrusted-plugin", pluginId: "plugin-a" }],
+						availableActions: [{ id: "open-node", label: "Open node" }],
 						actions: [],
 					},
 				},
@@ -250,6 +320,9 @@ describe("classifyRefarmStatusDiagnostics", () => {
 		expect(summary.warnings).toContain("plugins:rejected-surfaces-present");
 		expect(summary.warnings).toContain("streams:active-present");
 		expect(summary.informational).toContain("renderer:non-interactive");
+		expect(summary.informational).toContain(
+			"plugins:surface-actions-available",
+		);
 		expect(summary.hasFailure).toBe(true);
 	});
 
@@ -278,8 +351,29 @@ describe("formatRefarmStatusMarkdown", () => {
 		);
 		expect(report).toContain("# Refarm Status");
 		expect(report).toContain("- Schema: v1");
+		expect(report).toContain("- Surfaces: 0 rejected, 0 actions");
+		expect(report).toContain("## Available Actions\n- none");
 		expect(report).toContain("## Diagnostics");
 		expect(report).toContain("- renderer:non-interactive");
+	});
+
+	it("renders available action details in markdown reports", () => {
+		const report = formatRefarmStatusMarkdown(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				plugins: {
+					surfaces: {
+						availableActions: [
+							{ id: "open-node", label: "Open node", intent: "node:open" },
+						],
+					},
+				},
+			}),
+		);
+
+		expect(report).toContain(
+			"## Available Actions\n- open-node: Open node (node:open)",
+		);
 	});
 
 	it("prints '- none' when diagnostics are empty", () => {
@@ -304,20 +398,48 @@ describe("formatRefarmStatusMarkdown", () => {
 
 describe("formatRefarmStatusSummary", () => {
 	it("renders a deterministic human summary", () => {
-		const summary = formatRefarmStatusSummary(buildRefarmStatusJson(BASE_OPTIONS));
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson(BASE_OPTIONS),
+		);
 		expect(summary).toContain("Host:      apps/refarm (headless)");
 		expect(summary).toContain("Renderer:  refarm-headless (headless)");
+		expect(summary).toContain("Surfaces:  0 rejected, 0 actions");
 		expect(summary).toContain("Diagnostics:");
 		expect(summary).toContain("  - runtime:not-ready");
 	});
 
+	it("renders available action details in human summaries", () => {
+		const summary = formatRefarmStatusSummary(
+			buildRefarmStatusJson({
+				...BASE_OPTIONS,
+				plugins: {
+					surfaces: {
+						availableActions: [
+							{ id: "open-node", label: "Open node", intent: "node:open" },
+						],
+					},
+				},
+			}),
+		);
+
+		expect(summary).toContain("Available actions:");
+		expect(summary).toContain("  - open-node: Open node (node:open)");
+	});
+
 	it("omits diagnostics section when no diagnostics are present", () => {
-		const webRenderer = createHomesteadHostRendererDescriptor("refarm-web", "web");
+		const webRenderer = createHomesteadHostRendererDescriptor(
+			"refarm-web",
+			"web",
+		);
 		const summary = formatRefarmStatusSummary(
 			buildRefarmStatusJson({
 				...BASE_OPTIONS,
 				renderer: webRenderer,
-				runtime: { ready: true, databaseName: "refarm-main", namespace: "refarm-main" },
+				runtime: {
+					ready: true,
+					databaseName: "refarm-main",
+					namespace: "refarm-main",
+				},
 			}),
 		);
 		expect(summary).not.toContain("Diagnostics:");
@@ -328,6 +450,28 @@ describe("formatRefarmStatusJson", () => {
 	it("matches the schema v1 golden snapshot", () => {
 		const json = buildRefarmStatusJson(BASE_OPTIONS);
 		expect(formatRefarmStatusJson(json)).toBe(STATUS_JSON_GOLDEN);
+	});
+
+	it("preserves optional available action details in canonical JSON", () => {
+		const json = buildRefarmStatusJson({
+			...BASE_OPTIONS,
+			plugins: {
+				surfaces: {
+					availableActions: [
+						{ id: "open-node", label: "Open node", intent: "node:open" },
+					],
+				},
+			},
+		});
+
+		expect(formatRefarmStatusJson(json)).toContain('"availableActions": [');
+		expect(parseRefarmStatusJson(formatRefarmStatusJson(json))).toMatchObject({
+			plugins: {
+				availableActions: [
+					{ id: "open-node", label: "Open node", intent: "node:open" },
+				],
+			},
+		});
 	});
 
 	it("normalizes key ordering for equivalent payloads", () => {

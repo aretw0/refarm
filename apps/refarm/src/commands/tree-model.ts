@@ -1,0 +1,574 @@
+import type { RefarmExecutionPlanBase } from "./execution-plan.js";
+
+const SESSION_SCOPE = "session";
+const GIT_SCOPE = "git";
+const ALL_SCOPE = "all";
+
+export const REFARM_TREE_SCHEMA_VERSION = 1;
+export const REFARM_TREE_SESSION_SCOPE = SESSION_SCOPE;
+export const REFARM_TREE_GIT_SCOPE = GIT_SCOPE;
+export const REFARM_TREE_ALL_SCOPE = ALL_SCOPE;
+
+export type RefarmTimelineScope = typeof SESSION_SCOPE | typeof GIT_SCOPE;
+export type RefarmTimelineEnvelopeScope =
+	| RefarmTimelineScope
+	| typeof ALL_SCOPE;
+
+export interface RefarmTimelineMetadata {
+	shortId: string;
+}
+
+export interface RefarmSessionTimelineMetadata extends RefarmTimelineMetadata {
+	leafEntryId: string | null;
+	hasHistory: boolean;
+}
+
+export interface RefarmGitTimelineMetadata extends RefarmTimelineMetadata {
+	refs: string[];
+}
+
+export interface RefarmTimelineNode {
+	timelineId: RefarmTimelineScope;
+	nodeId: string;
+	parentNodeId?: string;
+	branchId?: string;
+	kind: RefarmTimelineScope;
+	label: string;
+	timestamp: string;
+	metadata: RefarmTimelineMetadata;
+}
+
+export interface RefarmSessionTimelineNode extends RefarmTimelineNode {
+	timelineId: typeof REFARM_TREE_SESSION_SCOPE;
+	kind: typeof REFARM_TREE_SESSION_SCOPE;
+	metadata: RefarmSessionTimelineMetadata;
+}
+
+export interface RefarmGitTimelineNode extends RefarmTimelineNode {
+	timelineId: typeof REFARM_TREE_GIT_SCOPE;
+	kind: typeof REFARM_TREE_GIT_SCOPE;
+	metadata: RefarmGitTimelineMetadata;
+}
+
+export interface RefarmTimelineListEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineEnvelopeScope;
+	operation: "list";
+	nodes: RefarmTimelineNode[];
+}
+
+export interface RefarmSessionTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	nodes: RefarmSessionTimelineNode[];
+}
+
+export interface RefarmGitTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	nodes: RefarmGitTimelineNode[];
+}
+
+export interface RefarmAllTimelineListEnvelope
+	extends RefarmTimelineListEnvelope {
+	scope: typeof REFARM_TREE_ALL_SCOPE;
+	nodes: Array<RefarmSessionTimelineNode | RefarmGitTimelineNode>;
+}
+
+export interface RefarmTimelineShowEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "show";
+	node: RefarmTimelineNode;
+}
+
+export interface RefarmGitTimelineShowEnvelope
+	extends RefarmTimelineShowEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	node: RefarmGitTimelineNode;
+}
+
+export interface RefarmSessionTimelineShowEnvelope
+	extends RefarmTimelineShowEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	node: RefarmSessionTimelineNode;
+	entries: unknown[];
+	total: number;
+}
+
+export type RefarmSessionTimelineForkPreviewPlan = RefarmExecutionPlanBase<
+	"fork",
+	{
+		activePointerChanged: true;
+		branchCreated: true;
+	},
+	{
+		kind: "session-fork";
+		branchPointEntryId: string | null;
+		branchName: string;
+		activeSessionWillSwitch: true;
+	}
+>;
+
+export type RefarmSessionTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+	"switch",
+	{
+		activePointerChanged: true;
+		branchCreated: false;
+	},
+	{
+		kind: "session-switch";
+		activeSessionIdBefore: string | null;
+		targetSessionIdAfter: string;
+		activeSessionWillSwitch: true;
+	}
+>;
+
+export type RefarmSessionTimelinePreviewPlan =
+	| RefarmSessionTimelineForkPreviewPlan
+	| RefarmSessionTimelineSwitchPreviewPlan;
+
+export type RefarmGitTimelineBranchPreviewPlan = RefarmExecutionPlanBase<
+	"fork",
+	{
+		activePointerChanged: false;
+		branchCreated: true;
+	},
+	{
+		kind: "git-branch";
+		baseCommit: string;
+		branchName: string;
+		worktreeSwitched: false;
+	}
+>;
+
+export type RefarmGitTimelineSwitchPreviewPlan = RefarmExecutionPlanBase<
+	"switch",
+	{
+		activePointerChanged: true;
+		branchCreated: false;
+	},
+	{
+		kind: "git-switch";
+		currentRefBefore: string;
+		targetRefAfter: string;
+		targetCommit: string;
+		worktreeClean: boolean;
+		worktreeSwitched: true;
+	}
+>;
+
+export type RefarmGitTimelinePreviewPlan =
+	| RefarmGitTimelineBranchPreviewPlan
+	| RefarmGitTimelineSwitchPreviewPlan;
+
+export interface RefarmTimelinePreviewEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "preview";
+	reason: "dry-run";
+	target: RefarmTimelineNode;
+	plan: RefarmSessionTimelinePreviewPlan | RefarmGitTimelinePreviewPlan;
+}
+
+export interface RefarmSessionTimelinePreviewEnvelope
+	extends RefarmTimelinePreviewEnvelope {
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	target: RefarmSessionTimelineNode;
+	plan: RefarmSessionTimelinePreviewPlan;
+}
+
+export interface RefarmGitTimelinePreviewEnvelope
+	extends RefarmTimelinePreviewEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	target: RefarmGitTimelineNode;
+	plan: RefarmGitTimelinePreviewPlan;
+}
+
+export interface RefarmGitTimelineForkResult {
+	kind: "git-branch";
+	destructive: false;
+	worktreeSwitched: false;
+	currentRefBefore: string;
+	currentRefAfter: string;
+	branchName: string;
+	baseCommit: string;
+	command: string;
+}
+
+export interface RefarmGitTimelineSwitchResult {
+	kind: "git-switch";
+	destructive: false;
+	worktreeSwitched: true;
+	currentRefBefore: string;
+	currentRefAfter: string;
+	branchName: string;
+	targetCommit: string;
+	command: string;
+}
+
+export interface RefarmSessionTimelineSwitchResult {
+	kind: "session-switch";
+	destructive: false;
+	activePointerChanged: true;
+	currentSessionIdBefore: string | null;
+	currentSessionIdAfter: string;
+	targetSessionId: string;
+	command: string;
+}
+
+export interface RefarmTimelineForkEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: RefarmTimelineScope;
+	operation: "fork";
+	reason: "executed";
+	target: RefarmTimelineNode;
+	result: RefarmGitTimelineForkResult;
+}
+
+export interface RefarmGitTimelineForkEnvelope
+	extends RefarmTimelineForkEnvelope {
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	target: RefarmGitTimelineNode;
+	result: RefarmGitTimelineForkResult;
+}
+
+export interface RefarmGitTimelineSwitchEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: typeof REFARM_TREE_GIT_SCOPE;
+	operation: "switch";
+	reason: "executed";
+	target: RefarmGitTimelineNode;
+	result: RefarmGitTimelineSwitchResult;
+}
+
+export interface RefarmSessionTimelineSwitchEnvelope {
+	schemaVersion: typeof REFARM_TREE_SCHEMA_VERSION;
+	command: "tree";
+	scope: typeof REFARM_TREE_SESSION_SCOPE;
+	operation: "switch";
+	reason: "executed";
+	target: RefarmSessionTimelineNode;
+	result: RefarmSessionTimelineSwitchResult;
+}
+
+export type RefarmTreeJsonEnvelope =
+	| RefarmSessionTimelineListEnvelope
+	| RefarmGitTimelineListEnvelope
+	| RefarmAllTimelineListEnvelope
+	| RefarmSessionTimelineShowEnvelope
+	| RefarmGitTimelineShowEnvelope
+	| RefarmSessionTimelinePreviewEnvelope
+	| RefarmGitTimelinePreviewEnvelope
+	| RefarmGitTimelineForkEnvelope
+	| RefarmSessionTimelineSwitchEnvelope
+	| RefarmGitTimelineSwitchEnvelope;
+
+export function buildSessionTimelineListEnvelope(
+	nodes: RefarmSessionTimelineNode[],
+): RefarmSessionTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildGitTimelineListEnvelope(
+	nodes: RefarmGitTimelineNode[],
+): RefarmGitTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildAllTimelineListEnvelope(
+	nodes: RefarmAllTimelineListEnvelope["nodes"],
+): RefarmAllTimelineListEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_ALL_SCOPE,
+		operation: "list",
+		nodes,
+	};
+}
+
+export function buildSessionTimelineShowEnvelope(
+	args: Pick<RefarmSessionTimelineShowEnvelope, "node" | "entries" | "total">,
+): RefarmSessionTimelineShowEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "show",
+		...args,
+	};
+}
+
+export function buildGitTimelineShowEnvelope(
+	node: RefarmGitTimelineNode,
+): RefarmGitTimelineShowEnvelope {
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "show",
+		node,
+	};
+}
+
+export function buildSessionForkPreviewEnvelope(args: {
+	node: RefarmSessionTimelineNode;
+	branchPointEntryId: string | null;
+	name?: string;
+}): RefarmSessionTimelinePreviewEnvelope {
+	const { node, branchPointEntryId, name } = args;
+	const atArg = branchPointEntryId ? ` --at ${branchPointEntryId}` : "";
+	const branchName = name ?? "<branch-name>";
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			action: "fork",
+			destructive: false,
+			readyToExecute: Boolean(name),
+			...(name
+				? {}
+				: {
+						blockedReason:
+							"Provide --name <branch-name> before executing session fork.",
+					}),
+			recommendedCommand: `refarm sessions fork ${node.metadata.shortId}${atArg} --name ${branchName}`,
+			effects: {
+				activePointerChanged: true,
+				branchCreated: true,
+			},
+			substrate: {
+				kind: "session-fork",
+				branchPointEntryId,
+				branchName,
+				activeSessionWillSwitch: true,
+			},
+		},
+	};
+}
+
+export function buildSessionSwitchPreviewEnvelope(args: {
+	node: RefarmSessionTimelineNode;
+	activeSessionIdBefore: string | null;
+}): RefarmSessionTimelinePreviewEnvelope {
+	const { node, activeSessionIdBefore } = args;
+	const alreadyActive = activeSessionIdBefore === node.nodeId;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			action: "switch",
+			destructive: false,
+			readyToExecute: !alreadyActive,
+			...(alreadyActive
+				? {
+						blockedReason: `Session "${node.metadata.shortId}" is already active.`,
+					}
+				: {}),
+			recommendedCommand: `refarm tree switch ${node.metadata.shortId}`,
+			effects: {
+				activePointerChanged: true,
+				branchCreated: false,
+			},
+			substrate: {
+				kind: "session-switch",
+				activeSessionIdBefore,
+				targetSessionIdAfter: node.nodeId,
+				activeSessionWillSwitch: true,
+			},
+		},
+	};
+}
+
+export function buildSessionSwitchEnvelope(args: {
+	node: RefarmSessionTimelineNode;
+	currentSessionIdBefore: string | null;
+	currentSessionIdAfter: string;
+}): RefarmSessionTimelineSwitchEnvelope {
+	const { node, currentSessionIdBefore, currentSessionIdAfter } = args;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_SESSION_SCOPE,
+		operation: "switch",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "session-switch",
+			destructive: false,
+			activePointerChanged: true,
+			currentSessionIdBefore,
+			currentSessionIdAfter,
+			targetSessionId: node.nodeId,
+			command: `refarm tree switch ${node.metadata.shortId}`,
+		},
+	};
+}
+
+export function buildGitBranchPreviewEnvelope(args: {
+	node: RefarmGitTimelineNode;
+	name?: string;
+	branchAlreadyExists?: boolean;
+}): RefarmGitTimelinePreviewEnvelope {
+	const { node, name, branchAlreadyExists } = args;
+	const branchName = name ?? "<branch-name>";
+	const readyToExecute = Boolean(name) && branchAlreadyExists === false;
+	const blockedReason = !name
+		? "Provide --name <branch-name> before executing tree fork."
+		: branchAlreadyExists
+			? `Git branch "${name}" already exists.`
+			: undefined;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			action: "fork",
+			destructive: false,
+			readyToExecute,
+			...(blockedReason ? { blockedReason } : {}),
+			recommendedCommand: `refarm tree fork --scope git ${node.metadata.shortId} --name ${branchName}`,
+			effects: {
+				activePointerChanged: false,
+				branchCreated: true,
+			},
+			substrate: {
+				kind: "git-branch",
+				baseCommit: node.nodeId,
+				branchName,
+				worktreeSwitched: false,
+			},
+		},
+	};
+}
+
+export function buildGitSwitchPreviewEnvelope(args: {
+	node: RefarmGitTimelineNode;
+	name: string;
+	currentRefBefore: string;
+	worktreeClean: boolean;
+	blockedReason?: string;
+}): RefarmGitTimelinePreviewEnvelope {
+	const { node, name, currentRefBefore, worktreeClean, blockedReason } = args;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "preview",
+		reason: "dry-run",
+		target: node,
+		plan: {
+			action: "switch",
+			destructive: false,
+			readyToExecute: !blockedReason && worktreeClean,
+			...(blockedReason
+				? { blockedReason }
+				: worktreeClean
+					? {}
+					: {
+							blockedReason:
+								"Git worktree must be clean before tree switch execution.",
+						}),
+			recommendedCommand: `refarm tree switch --scope git ${name}`,
+			effects: {
+				activePointerChanged: true,
+				branchCreated: false,
+			},
+			substrate: {
+				kind: "git-switch",
+				currentRefBefore,
+				targetRefAfter: name,
+				targetCommit: node.nodeId,
+				worktreeClean,
+				worktreeSwitched: true,
+			},
+		},
+	};
+}
+
+export function buildGitForkEnvelope(args: {
+	node: RefarmGitTimelineNode;
+	name: string;
+	currentRefBefore: string;
+	currentRefAfter: string;
+}): RefarmGitTimelineForkEnvelope {
+	const { node, name, currentRefBefore, currentRefAfter } = args;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "fork",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "git-branch",
+			destructive: false,
+			worktreeSwitched: false,
+			currentRefBefore,
+			currentRefAfter,
+			branchName: name,
+			baseCommit: node.nodeId,
+			command: `git branch ${name} ${node.metadata.shortId}`,
+		},
+	};
+}
+
+export function buildGitSwitchEnvelope(args: {
+	node: RefarmGitTimelineNode;
+	name: string;
+	currentRefBefore: string;
+	currentRefAfter: string;
+}): RefarmGitTimelineSwitchEnvelope {
+	const { node, name, currentRefBefore, currentRefAfter } = args;
+	return {
+		schemaVersion: REFARM_TREE_SCHEMA_VERSION,
+		command: "tree",
+		scope: REFARM_TREE_GIT_SCOPE,
+		operation: "switch",
+		reason: "executed",
+		target: node,
+		result: {
+			kind: "git-switch",
+			destructive: false,
+			worktreeSwitched: true,
+			currentRefBefore,
+			currentRefAfter,
+			branchName: name,
+			targetCommit: node.nodeId,
+			command: `git switch ${name}`,
+		},
+	};
+}
+
+export function outputTreeJson(value: RefarmTreeJsonEnvelope): void {
+	console.log(JSON.stringify(value, null, 2));
+}

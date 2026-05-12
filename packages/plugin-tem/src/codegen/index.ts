@@ -21,8 +21,8 @@ import type { WeightsBundle } from "../core/weights";
 function parseArgs(argv: string[]): { weights: string; out: string } {
   const args: Record<string, string> = {};
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i].startsWith("--")) {
-      args[argv[i].slice(2)] = argv[i + 1] ?? "";
+    if (argv[i]!.startsWith("--")) {
+      args[argv[i]!.slice(2)] = argv[i + 1] ?? "";
       i++;
     }
   }

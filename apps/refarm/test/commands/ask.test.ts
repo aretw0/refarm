@@ -1,5 +1,6 @@
+import fs from "node:fs";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
 
@@ -33,6 +34,10 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 					);
 				},
 			),
+		readEffortResult: vi.fn().mockResolvedValue(null),
+		readActiveSessionId: vi.fn().mockReturnValue(null),
+		clearActiveSessionId: vi.fn().mockReturnValue(true),
+		persistActiveSessionId: vi.fn(),
 		...overrides,
 	};
 }
@@ -41,6 +46,10 @@ describe("refarm ask", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
 	});
 
 	it("submits effort with pi-agent respond payload", async () => {
@@ -74,6 +83,52 @@ describe("refarm ask", () => {
 		expect(outSpy).toHaveBeenCalled();
 
 		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("falls back to production active-session helpers when deps omit pointer hooks", async () => {
+		const deps: AskDeps = {
+			submitEffort: vi.fn().mockResolvedValue("eff-1"),
+			followStream: vi
+				.fn()
+				.mockImplementation(
+					async (_effortId: string, onChunk: (chunk: StreamChunk) => void) => {
+						onChunk(makeChunk("ok", 0, true));
+					},
+				),
+		};
+		const command = createAskCommand(deps);
+		const readSpy = vi
+			.spyOn(fs, "readFileSync")
+			.mockReturnValue("urn:refarm:session:v1:active123");
+		vi.spyOn(fs, "mkdirSync").mockImplementation(() => undefined as string | undefined);
+		const writeSpy = vi
+			.spyOn(fs, "writeFileSync")
+			.mockImplementation(() => undefined);
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:active123",
+						}),
+					}),
+				],
+			}),
+		);
+		expect(writeSpy).toHaveBeenCalledWith(
+			expect.stringContaining(".refarm/session.lock"),
+			"urn:refarm:session:v1:active123",
+			"utf-8",
+		);
+		expect(readSpy).toHaveBeenCalled();
+
 		outSpy.mockRestore();
 	});
 
@@ -113,8 +168,61 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("starts a fresh session for --new even when an old active pointer exists", async () => {
+		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:oldactive"),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["fresh please", "--new"], { from: "user" });
+
+		expect(deps.clearActiveSessionId).toHaveBeenCalledOnce();
+		expect(deps.submitEffort).toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: expect.stringMatching(/^urn:refarm:session:v1:/),
+						}),
+					}),
+				],
+			}),
+		);
+		expect(deps.submitEffort).not.toHaveBeenCalledWith(
+			expect.objectContaining({
+				tasks: [
+					expect.objectContaining({
+						args: expect.objectContaining({
+							session_id: "urn:refarm:session:v1:oldactive",
+						}),
+					}),
+				],
+			}),
+		);
+		const effort = vi.mocked(deps.submitEffort).mock.calls[0]![0] as {
+			tasks: Array<{ args: { session_id: string } }>;
+		};
+		const submittedSessionId = effort.tasks[0]!.args.session_id;
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			submittedSessionId,
+		);
+		expect(submittedSessionId).not.toBe("urn:refarm:session:v1:oldactive");
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
 	it("falls back to effort result file payload when stream times out", async () => {
 		const deps = makeDeps({
+			readActiveSessionId: vi
+				.fn()
+				.mockReturnValue("urn:refarm:session:v1:activefallback"),
 			followStream: vi.fn().mockRejectedValue(new Error("stream timeout")),
 			readEffortResult: vi.fn().mockResolvedValue({
 				status: "ok",
@@ -132,6 +240,9 @@ describe("refarm ask", () => {
 
 		expect(deps.followStream).toHaveBeenCalledOnce();
 		expect(deps.readEffortResult).toHaveBeenCalledWith("eff-1");
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			"urn:refarm:session:v1:activefallback",
+		);
 		expect(outSpy).toHaveBeenCalledWith("fallback response\n");
 
 		const allLogs = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
@@ -150,9 +261,12 @@ describe("refarm ask", () => {
 			.spyOn(process.stdout, "write")
 			.mockImplementation(() => true);
 
-		await command.parseAsync(["hello", "--session", "urn:refarm:session:v1:test123"], {
-			from: "user",
-		});
+		await command.parseAsync(
+			["hello", "--session", "urn:refarm:session:v1:test123"],
+			{
+				from: "user",
+			},
+		);
 
 		expect(deps.submitEffort).toHaveBeenCalledWith(
 			expect.objectContaining({
@@ -203,19 +317,65 @@ describe("refarm ask", () => {
 		outSpy.mockRestore();
 	});
 
+	it("fails closed when active pointer verification rejects session persistence", async () => {
+		const deps = makeDeps({
+			persistActiveSessionId: vi.fn().mockImplementation(() => {
+				throw new Error(
+					'Session switch expected active session "urn:refarm:session:v1:target", got "urn:refarm:session:v1:other".',
+				);
+			}),
+		});
+		const command = createAskCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
+
+		await expect(
+			command.parseAsync(
+				["hello", "--session", "urn:refarm:session:v1:target"],
+				{
+					from: "user",
+				},
+			),
+		).rejects.toThrow("exit:1");
+
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		expect(deps.persistActiveSessionId).toHaveBeenCalledWith(
+			"urn:refarm:session:v1:target",
+		);
+		expect(errSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Session switch expected active session"),
+		);
+		expect(exitSpy).toHaveBeenCalledWith(1);
+
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+		errSpy.mockRestore();
+		exitSpy.mockRestore();
+	});
+
 	it("fails when --session prefix is ambiguous", async () => {
 		const deps = makeDeps({
 			resolveSessionIdPrefix: vi
 				.fn()
-				.mockRejectedValue(new Error('Ambiguous session prefix "abc" (2 matches)')),
+				.mockRejectedValue(
+					new Error('Ambiguous session prefix "abc" (2 matches)'),
+				),
 		});
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		await expect(
 			command.parseAsync(["hello", "--session", "abc"], {
@@ -237,16 +397,19 @@ describe("refarm ask", () => {
 		const deps = makeDeps();
 		const command = createAskCommand(deps);
 		const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-		const exitSpy = vi
-			.spyOn(process, "exit")
-			.mockImplementation(((code?: string | number | null | undefined) => {
-				throw new Error(`exit:${code ?? 0}`);
-			}) as never);
+		const exitSpy = vi.spyOn(process, "exit").mockImplementation(((
+			code?: string | number | null | undefined,
+		) => {
+			throw new Error(`exit:${code ?? 0}`);
+		}) as never);
 
 		await expect(
-			command.parseAsync(["hello", "--new", "--session", "urn:refarm:session:v1:test123"], {
-				from: "user",
-			}),
+			command.parseAsync(
+				["hello", "--new", "--session", "urn:refarm:session:v1:test123"],
+				{
+					from: "user",
+				},
+			),
 		).rejects.toThrow("exit:1");
 
 		expect(deps.submitEffort).not.toHaveBeenCalled();

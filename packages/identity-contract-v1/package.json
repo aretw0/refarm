@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test:unit": "vitest run --passWithNoTests",
@@ -46,6 +46,7 @@
     "access": "public"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*"
   }
 }

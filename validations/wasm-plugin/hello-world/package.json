@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "build": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release",
+    "build": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release && mkdir -p dist && cp $(node ../../../scripts/ci/cargo-artifact-path.mjs wasm32-wasip1/release/refarm_hello_world_plugin.wasm) dist/refarm_hello_world_plugin.wasm",
     "test": "RUSTUP_TOOLCHAIN=stable cargo test",
     "lint": "RUSTUP_TOOLCHAIN=stable cargo clippy",
     "test:unit": "echo 'Skipping: No tests configured for hello-world plugin'",

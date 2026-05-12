@@ -16,10 +16,10 @@ async function main() {
 	if (hasArg("--help") || hasArg("-h")) {
 		console.log(`${LOGGER_PREFIX} usage:`);
 		console.log(
-			`  node scripts/ci/smoke-refarm-host-spine.mjs [--quick] [--skip-type-check] [--skip-cli-flows]`,
+			`  node scripts/ci/smoke-refarm-host-spine.mjs [--quick] [--skip-type-check] [--skip-cli-flows] [--skip-dist-actions]`,
 		);
 		console.log(
-			`  env: REFARM_HOST_SMOKE_SKIP_TYPECHECK=1 REFARM_HOST_SMOKE_SKIP_CLI_FLOWS=1`,
+			`  env: REFARM_HOST_SMOKE_SKIP_TYPECHECK=1 REFARM_HOST_SMOKE_SKIP_CLI_FLOWS=1 REFARM_HOST_SMOKE_SKIP_DIST_ACTIONS=1`,
 		);
 		return;
 	}
@@ -33,6 +33,10 @@ async function main() {
 		quick ||
 		hasArg("--skip-cli-flows") ||
 		envFlag("REFARM_HOST_SMOKE_SKIP_CLI_FLOWS");
+	const skipDistActions =
+		quick ||
+		hasArg("--skip-dist-actions") ||
+		envFlag("REFARM_HOST_SMOKE_SKIP_DIST_ACTIONS");
 	const env = process.env;
 
 	const profileLabel = quick
@@ -48,6 +52,17 @@ async function main() {
 	console.log(
 		`${LOGGER_PREFIX} starting unified host smoke checks (profile=${profileLabel})...`,
 	);
+
+	console.log(`${LOGGER_PREFIX} running smoke auto routing tests...`);
+	await runSubprocess("npm", ["run", "refarm:host:smoke:auto:test"], {
+		env,
+	});
+
+	console.log(`${LOGGER_PREFIX} running focused CLI smoke option tests...`);
+	await runSubprocess("npm", ["run", "refarm:host:smoke:cli:test"], {
+		env,
+	});
+
 	if (!skipTypeCheck) {
 		console.log(`${LOGGER_PREFIX} running apps/refarm type-check...`);
 		await runSubprocess(
@@ -72,6 +87,17 @@ async function main() {
 	} else {
 		console.log(
 			`${LOGGER_PREFIX} skipping CLI flow smoke checks (REFARM_HOST_SMOKE_SKIP_CLI_FLOWS=1)`,
+		);
+	}
+
+	if (!skipDistActions) {
+		console.log(`${LOGGER_PREFIX} running dist action readiness smoke...`);
+		await runSubprocess("npm", ["run", "refarm:host:smoke:dist-actions"], {
+			env,
+		});
+	} else {
+		console.log(
+			`${LOGGER_PREFIX} skipping dist action readiness smoke (REFARM_HOST_SMOKE_SKIP_DIST_ACTIONS=1)`,
 		);
 	}
 

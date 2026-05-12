@@ -31,6 +31,53 @@
     align-items: center;
 }
 
+.refarm-scroll-region,
+[data-refarm-scroll-region] {
+    min-height: 0;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+}
+
+.refarm-scroll-region-y,
+[data-refarm-scroll-region="y"] {
+    min-height: 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    scrollbar-gutter: stable;
+}
+
+.refarm-scroll-region-x,
+[data-refarm-scroll-region="x"] {
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+}
+
+.refarm-scroll-region::-webkit-scrollbar,
+[data-refarm-scroll-region]::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+.refarm-scroll-region::-webkit-scrollbar-track,
+[data-refarm-scroll-region]::-webkit-scrollbar-track {
+    background: var(--refarm-bg-primary);
+}
+
+.refarm-scroll-region::-webkit-scrollbar-thumb,
+[data-refarm-scroll-region]::-webkit-scrollbar-thumb {
+    background: var(--refarm-border-default);
+    border-radius: 4px;
+}
+
+.refarm-scroll-region::-webkit-scrollbar-thumb:hover,
+[data-refarm-scroll-region]::-webkit-scrollbar-thumb:hover {
+    background: var(--refarm-text-muted);
+}
+
 /* Glassmorphism Surface */
 .refarm-glass {
     background: var(--refarm-glass-bg);
@@ -240,8 +287,8 @@
     --refarm-surface-shadow: var(--refarm-shadow-lg);
     padding: clamp(1.25rem, 3vw, 2.5rem);
     background:
-        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.18), transparent 34rem),
-        linear-gradient(135deg, rgba(255, 255, 255, 0.72), rgba(35, 134, 54, 0.06));
+        radial-gradient(circle at 15% 10%, rgba(35, 134, 54, 0.22), transparent 34rem),
+        linear-gradient(135deg, rgba(22, 27, 34, 0.96), rgba(13, 17, 23, 0.92));
 }
 
 .refarm-workbench-grid {

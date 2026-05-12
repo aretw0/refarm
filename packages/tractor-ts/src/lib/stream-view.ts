@@ -6,7 +6,7 @@ import {
 	streamChunkProjection,
 	streamChunkPromptRef,
 	streamChunkProviderFamily,
-} from "./stream-chunk";
+} from "./stream-chunk.js";
 import {
 	isActiveStreamSession,
 	isTerminalStreamSession,
@@ -19,7 +19,7 @@ import {
 	streamSessionProjection,
 	streamSessionPromptRef,
 	streamSessionProviderFamily,
-} from "./stream-session";
+} from "./stream-session.js";
 
 export interface StreamObservationViewInput {
 	streamRef?: string | null;

@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/homestead",
   "version": "0.1.0",
-  "description": "Refarm Homestead — Shared Shell SDK and UI Primitives",
+  "description": "Refarm Homestead \u2014 Shared Shell SDK and UI Primitives",
   "type": "module",
   "exports": {
     "./sdk": {
@@ -46,7 +46,8 @@
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/ds": "*",
@@ -58,6 +59,7 @@
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*"
   },
   "license": "MIT"

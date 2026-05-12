@@ -9,19 +9,19 @@
  * See ADR-044: specs/ADRs/ADR-044-wasm-plugin-loading-browser-strategy.md
  */
 
-export * from "./lib/agent-response-stream";
-export * from "./lib/graph-normalizer";
-export * from "./lib/identity-recovery-host";
+export * from "./lib/agent-response-stream.js";
+export * from "./lib/graph-normalizer.js";
+export * from "./lib/identity-recovery-host.js";
 // Re-export types from plugin-host's dependencies directly (no Node deps)
-export type { PluginInstance, PluginState } from "./lib/instance-handle";
-export * from "./lib/l8n-host";
-export * from "./lib/secret-host";
-export * from "./lib/stream-chunk";
-export * from "./lib/stream-session";
-export * from "./lib/stream-view";
-export * from "./lib/telemetry";
-export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
-export * from "./lib/types";
+export type { PluginInstance, PluginState } from "./lib/instance-handle.js";
+export * from "./lib/l8n-host.js";
+export * from "./lib/secret-host.js";
+export * from "./lib/stream-chunk.js";
+export * from "./lib/stream-session.js";
+export * from "./lib/stream-view.js";
+export * from "./lib/telemetry.js";
+export type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
+export * from "./lib/types.js";
 
 import {
 	assertEntryRuntimeCompatibility,
@@ -32,18 +32,19 @@ import {
 	type PluginManifest,
 	verifyBufferIntegrity,
 } from "@refarm.dev/plugin-manifest";
-import type { SovereignNode } from "./lib/graph-normalizer";
-import type { PluginInstance, PluginState } from "./lib/instance-handle";
+import type { SovereignNode } from "./lib/graph-normalizer.js";
+import type { TractorConfig } from "./lib/types.js";
+import type { PluginInstance, PluginState } from "./lib/instance-handle.js";
 import {
 	getCachedPlugin,
 	getCachedPluginMetadata,
 	getCachedPluginRuntimeModule,
-} from "./lib/opfs-plugin-cache";
+} from "./lib/opfs-plugin-cache.js";
 import {
 	buildGithubReleaseAssetUrl,
 	fetchRuntimeDescriptorRevocationList,
 	isDescriptorHashRevoked,
-} from "./lib/runtime-descriptor-revocation";
+} from "./lib/runtime-descriptor-revocation.js";
 import {
 	dedupeRuntimeDescriptorRevocationConfigConflicts,
 	dedupeRuntimeDescriptorRevocationInvalidInputs,
@@ -51,10 +52,18 @@ import {
 	type RuntimeDescriptorRevocationUnavailablePolicy,
 	resolveRuntimeDescriptorRevocationEnvironmentProfile,
 	resolveRuntimeDescriptorRevocationUnavailablePolicy,
-} from "./lib/runtime-descriptor-revocation-policy";
-import type { TelemetryEvent } from "./lib/telemetry";
-import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager";
-import type { TractorLogger } from "./lib/types";
+} from "./lib/runtime-descriptor-revocation-policy.js";
+import type { TelemetryEvent } from "./lib/telemetry.js";
+import type { ExecutionProfile, PluginTrustGrant } from "./lib/trust-manager.js";
+import type { TractorLogger } from "./lib/types.js";
+
+type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
+const refarmGlobals = globalThis as RefarmGlobals;
 
 const BROWSER_ERROR =
 	"[tractor] PluginHost requires the Node.js runtime or a pre-installed WASM cache. " +
@@ -67,12 +76,10 @@ const DEFAULT_RUNTIME_REVOCATION_UNAVAILABLE_POLICY: RuntimeDescriptorRevocation
 	"stale-allowed";
 
 function resolveRuntimeRevocationUnavailablePolicy(): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
-	const runtimePolicyOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-	const runtimeProfileOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
-	const runtimeEnvironmentOverride = (globalThis as any).__REFARM_ENVIRONMENT__;
-	const env = (import.meta as any).env;
+	const runtimePolicyOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimeProfileOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const runtimeEnvironmentOverride = refarmGlobals.__REFARM_ENVIRONMENT__;
+	const env = (import.meta as ViteImportMeta).env;
 
 	const environmentProfileResolution =
 		resolveRuntimeDescriptorRevocationEnvironmentProfile({
@@ -129,19 +136,20 @@ export class PluginHost {
 	constructor(
 		private readonly emit: (data: TelemetryEvent) => void,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
-		_registry: any,
+		_registry: unknown,
 		// eslint-disable-next-line @typescript-eslint/no-unused-vars
 		_logger?: TractorLogger,
 	) {}
 
-	private normalizeJavaScriptModule(moduleNamespace: any): any {
-		if (!moduleNamespace) return moduleNamespace;
+	private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
+		if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
 
-		const defaultExport = moduleNamespace.default;
+		const ns = moduleNamespace as Record<string, unknown>;
+		const defaultExport = ns["default"];
 		if (defaultExport && typeof defaultExport === "object") {
 			return {
-				...defaultExport,
-				...moduleNamespace,
+				...(defaultExport as Record<string, unknown>),
+				...ns,
 			};
 		}
 
@@ -159,7 +167,7 @@ export class PluginHost {
 		return typeof value === "string" && /^[a-f0-9]{40}$/i.test(value.trim());
 	}
 
-	private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+	private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
 		try {
 			const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
 			return this.normalizeJavaScriptModule(moduleNamespace);
@@ -179,7 +187,7 @@ export class PluginHost {
 
 	private async loadWasmModuleFromCache(
 		manifest: PluginManifest,
-	): Promise<{ moduleNamespace: any; artifactKind: "module" | "component" }> {
+	): Promise<{ moduleNamespace: unknown; artifactKind: "module" | "component" }> {
 		const pluginId = manifest.id;
 		const cached = await getCachedPlugin(pluginId);
 		const metadata = await getCachedPluginMetadata(pluginId);
@@ -211,10 +219,10 @@ export class PluginHost {
 				moduleNamespace: instantiated.instance.exports,
 				artifactKind,
 			};
-		} catch (error: any) {
+		} catch (error) {
 			throw new Error(
 				`[tractor] Failed to instantiate cached browser WASM for ${pluginId}. ` +
-					`Current browser path expects cache-backed runtime-compatible exports (${error?.message ?? "unknown error"}).`,
+					`Current browser path expects cache-backed runtime-compatible exports (${error instanceof Error ? error.message : "unknown error"}).`,
 			);
 		}
 	}
@@ -222,7 +230,7 @@ export class PluginHost {
 	private async loadComponentRuntimeModuleFromCache(
 		pluginId: string,
 		runtimeModule: BrowserRuntimeModuleMetadata | undefined,
-	): Promise<any> {
+	): Promise<unknown> {
 		if (!runtimeModule) {
 			throw new Error(
 				`[tractor] Browser WASM component ${pluginId} requires browserRuntimeModule metadata. Reinstall the plugin.`,
@@ -448,13 +456,13 @@ export class PluginHost {
 								policySource: policyResolution.source,
 								profile: policyResolution.profile,
 								cacheAgeMs: info.cacheAgeMs,
-								error: (info.error as any)?.message ?? String(info.error),
+								error: (info.error instanceof Error ? info.error.message : null) ?? String(info.error),
 							},
 						});
 					},
 				},
 			);
-		} catch (error: any) {
+		} catch (error) {
 			if (unavailablePolicy === "fail-open") {
 				this.emit({
 					event: "system:descriptor_revocation_unavailable",
@@ -463,14 +471,14 @@ export class PluginHost {
 						policy: unavailablePolicy,
 						policySource: policyResolution.source,
 						profile: policyResolution.profile,
-						error: error?.message ?? String(error),
+						error: error instanceof Error ? error.message : String(error),
 					},
 				});
 				return;
 			}
 
 			throw new Error(
-				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error?.message ?? error}`,
+				`[tractor] Unable to verify runtime descriptor revocation status for ${manifest.id}: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 
@@ -512,7 +520,7 @@ export class PluginHost {
 		const entryFormat = detectEntryFormat(manifest.entry);
 
 		let wasmArtifactKind: "module" | "component" | null = null;
-		const moduleNamespace =
+		const moduleNamespaceRaw: unknown =
 			entryFormat === "wasm"
 				? (assertEntryRuntimeCompatibility(manifest.entry, "browser", {
 						allowBrowserWasmFromCache: true,
@@ -523,6 +531,7 @@ export class PluginHost {
 					}))
 				: (assertEntryRuntimeCompatibility(manifest.entry, "browser"),
 					await this.loadJavaScriptModule(manifest.entry));
+		const moduleNamespace = moduleNamespaceRaw as Record<string, unknown>;
 
 		const pluginId = manifest.id;
 
@@ -533,13 +542,11 @@ export class PluginHost {
 			state: "running",
 			call: async (fn: string, args?: unknown): Promise<unknown> => {
 				let result = null;
-				if (
-					moduleNamespace.integration &&
-					typeof moduleNamespace.integration[fn] === "function"
-				) {
-					result = await moduleNamespace.integration[fn](args);
+				const integration = moduleNamespace.integration as Record<string, unknown> | undefined;
+				if (integration && typeof integration[fn] === "function") {
+					result = await (integration[fn] as (a: unknown) => Promise<unknown>)(args);
 				} else if (typeof moduleNamespace[fn] === "function") {
-					result = await moduleNamespace[fn](args);
+					result = await (moduleNamespace[fn] as (a: unknown) => Promise<unknown>)(args);
 				}
 
 				this.emit({
@@ -554,7 +561,7 @@ export class PluginHost {
 				this.instances.delete(pluginId);
 				this.emit({ event: "plugin:terminate", pluginId });
 			},
-			emitTelemetry: (event: string, payload?: any) => {
+			emitTelemetry: (event: string, payload?: unknown) => {
 				this.emit({ event, pluginId, payload });
 			},
 		};
@@ -623,8 +630,8 @@ export class PluginHost {
 		const nodes: SovereignNode[] = [];
 		for (const plugin of this.instances.values()) {
 			try {
-				const pluginNodes = (await plugin.call("get-help-nodes")) as any[];
-				if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n)));
+				const pluginNodes = (await plugin.call("get-help-nodes")) as unknown[];
+				if (pluginNodes) nodes.push(...pluginNodes.map((n) => JSON.parse(n as string)));
 			} catch {
 				// ignore invalid help providers in browser path
 			}
@@ -666,8 +673,8 @@ export type {
 	BrowserRuntimeModuleInstallInput,
 	InstallPluginOptions,
 	InstallPluginResult,
-} from "./lib/install-plugin";
-export { installPlugin } from "./lib/install-plugin";
+} from "./lib/install-plugin.js";
+export { installPlugin } from "./lib/install-plugin.js";
 export {
 	cachePlugin,
 	cachePluginRuntimeModule,
@@ -676,11 +683,11 @@ export {
 	getCachedPluginMetadata,
 	getCachedPluginRuntimeModule,
 	getPluginRuntimeModuleCachePath,
-} from "./lib/opfs-plugin-cache";
+} from "./lib/opfs-plugin-cache.js";
 
 /** Sovereign engine version — mirrors Tractor.VERSION for browser consumers. */
 export const TRACTOR_VERSION: string =
-	(import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+	(import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
 /**
  * Browser-safe Tractor proxy.
@@ -692,8 +699,8 @@ export const TRACTOR_VERSION: string =
 export class Tractor {
 	static readonly VERSION = TRACTOR_VERSION;
 
-	static async boot(config: any): Promise<any> {
-		const module = await import("./index");
+	static async boot(config: TractorConfig): Promise<unknown> {
+		const module = await import("./index.js");
 		return module.Tractor.boot(config);
 	}
 }

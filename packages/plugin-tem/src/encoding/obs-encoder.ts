@@ -91,11 +91,11 @@ export class StructAwareEncoder implements ObsEncoder {
   private encodeType(vec: Float32Array, type?: string | string[]): void {
     const { offset, width } = SLOTS.type;
     const typeName = Array.isArray(type) ? type[0] : type;
-    const idx = typeName ? (TYPE_VOCAB[typeName] ?? TYPE_VOCAB["unknown"]) : 0;
+    const idx = typeName ? (TYPE_VOCAB[typeName] ?? TYPE_VOCAB["unknown"]!) : 0;
     // Spread type index across width dims as fractional one-hot
     const normalised = idx / TYPE_VOCAB_MAX;
     for (let i = 0; i < width; i++) {
-      vec[offset + i] = i === idx % width ? normalised : 0;
+      vec[offset + i]! = i === idx! % width ? normalised : 0;
     }
   }
 

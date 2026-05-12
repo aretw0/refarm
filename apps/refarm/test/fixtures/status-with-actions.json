@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "host": {
+    "app": "apps/refarm",
+    "command": "refarm",
+    "profile": "dev",
+    "mode": "headless"
+  },
+  "renderer": {
+    "id": "refarm-headless",
+    "kind": "headless",
+    "capabilities": [
+      "surfaces",
+      "surface-actions",
+      "host-context",
+      "streams",
+      "telemetry",
+      "diagnostics"
+    ]
+  },
+  "runtime": {
+    "ready": true,
+    "namespace": "refarm-main",
+    "databaseName": "refarm-main"
+  },
+  "plugins": {
+    "installed": 1,
+    "active": 1,
+    "rejectedSurfaces": 0,
+    "surfaceActions": 2,
+    "availableActions": [
+      {
+        "id": "open-node",
+        "label": "Open node",
+        "intent": "node:open"
+      },
+      {
+        "id": "inspect-trust",
+        "label": "Inspect trust",
+        "intent": "trust:inspect"
+      }
+    ]
+  },
+  "trust": {
+    "profile": "dev",
+    "warnings": 0,
+    "critical": 0
+  },
+  "streams": {
+    "active": 0,
+    "terminal": 0
+  },
+  "diagnostics": [
+    "plugins:surface-actions-available"
+  ]
+}

@@ -50,9 +50,9 @@ export interface StorageAdapter {
     payload: string,
     sourcePlugin: string | null,
   ): Promise<void>;
-  queryNodes(type: string): Promise<any[]>;
-  execute(sql: string, args?: any): Promise<any>;
-  query<T = any>(sql: string, args?: any): Promise<T[]>;
+  queryNodes(type: string): Promise<unknown[]>;
+  execute(sql: string, args?: unknown): Promise<unknown>;
+  query<T = unknown>(sql: string, args?: unknown): Promise<T[]>;
   transaction<T>(fn: () => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }

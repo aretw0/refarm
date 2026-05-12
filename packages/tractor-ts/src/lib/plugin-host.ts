@@ -6,18 +6,18 @@ import {
   type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
-import { TelemetryEvent } from "./telemetry";
-import { TractorLogger, SecurityMode } from "./types";
-import { SovereignNode } from "./graph-normalizer";
-import { TrustManager, ExecutionProfile } from "./trust-manager";
-import type { PluginTrustGrant } from "./trust-manager";
-import { WasiImports } from "./wasi-imports";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginInstance, PluginState } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
-import { MainThreadRunner } from "./main-thread-runner";
-import { WorkerRunner } from "./worker-runner";
-import { getCachedPlugin } from "./opfs-plugin-cache";
+import { TelemetryEvent } from "./telemetry.js";
+import { TractorLogger, SecurityMode } from "./types.js";
+import { SovereignNode } from "./graph-normalizer.js";
+import { TrustManager, ExecutionProfile } from "./trust-manager.js";
+import type { PluginTrustGrant } from "./trust-manager.js";
+import { WasiImports } from "./wasi-imports.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginInstance, PluginState } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
+import { MainThreadRunner } from "./main-thread-runner.js";
+import { WorkerRunner } from "./worker-runner.js";
+import { getCachedPlugin } from "./opfs-plugin-cache.js";
 
 export type { PluginInstance, PluginState, PluginTrustGrant };
 
@@ -95,17 +95,13 @@ export class PluginHost {
     this.trustManager.revokeTrust(pluginId, wasmHash);
   }
 
-  private normalizeJavaScriptModule(moduleNamespace: any): any {
-    if (!moduleNamespace) return moduleNamespace;
-
-    const defaultExport = moduleNamespace.default;
+  private normalizeJavaScriptModule(moduleNamespace: unknown): unknown {
+    if (!moduleNamespace || typeof moduleNamespace !== "object") return moduleNamespace;
+    const ns = moduleNamespace as Record<string, unknown>;
+    const defaultExport = ns["default"];
     if (defaultExport && typeof defaultExport === "object") {
-      return {
-        ...defaultExport,
-        ...moduleNamespace,
-      };
+      return { ...(defaultExport as Record<string, unknown>), ...ns };
     }
-
     return moduleNamespace;
   }
 
@@ -120,7 +116,7 @@ export class PluginHost {
     return btoa(binary);
   }
 
-  private async loadJavaScriptModule(entryUrl: string): Promise<any> {
+  private async loadJavaScriptModule(entryUrl: string): Promise<unknown> {
     try {
       const moduleNamespace = await import(/* @vite-ignore */ entryUrl);
       return this.normalizeJavaScriptModule(moduleNamespace);
@@ -179,7 +175,7 @@ export class PluginHost {
     assertEntryRuntimeCompatibility(wasmUrl, "node");
 
     const profile = this.trustManager.resolveExecutionProfile(manifest, wasmHash);
-    const trust = (manifest as any).trust;
+    const trust = (manifest as PluginManifest & { trust?: { profile?: string } }).trust;
 
     if (trust?.profile === "trusted-fast" && entryFormat !== "wasm") {
       throw new Error(
@@ -221,7 +217,7 @@ export class PluginHost {
         pluginId,
         manifest.name,
         manifest,
-        moduleNamespace,
+        moduleNamespace as Record<string, unknown> | null,
         this.emit,
         (id) => {
           this._instances.delete(id);
@@ -289,7 +285,7 @@ export class PluginHost {
     return instance;
   }
 
-  getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): any {
+  getWasiImports(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
     const wasi = new WasiImports(manifest.id, this.logger, this.emit);
     return wasi.generate(manifest, profile);
   }
@@ -320,8 +316,8 @@ export class PluginHost {
     const allHelp: SovereignNode[] = [];
     for (const plugin of this._instances.values()) {
       try {
-        const nodes = (await plugin.call("get-help-nodes")) as any[];
-        if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n)));
+        const nodes = (await plugin.call("get-help-nodes")) as unknown[];
+        if (nodes) allHelp.push(...nodes.map((n) => JSON.parse(n as string)));
       } catch {}
     }
     return allHelp;

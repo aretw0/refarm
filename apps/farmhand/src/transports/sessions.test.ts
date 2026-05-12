@@ -114,7 +114,7 @@ describe("sessions route handler", () => {
 	beforeEach(async () => {
 		vi.clearAllMocks();
 		sidecar = new HttpSidecar(PORT, adapter);
-		sidecar.addRouteHandler(createSessionsRouteHandler(store as any));
+		sidecar.addRouteHandler(createSessionsRouteHandler(store));
 		await sidecar.start();
 	});
 
@@ -135,12 +135,44 @@ describe("sessions route handler", () => {
 		const { status, body } = await request(PORT, "GET", "/sessions");
 		expect(status).toBe(200);
 		expect(store.queryNodes).toHaveBeenCalledWith("Session");
-		expect((body as any).sessions).toEqual([
+		expect((body as Record<string, unknown>).sessions).toEqual([
 			expect.objectContaining({
 				"@id": "urn:refarm:session:v1:abc",
 				name: "alpha",
 			}),
 		]);
+	});
+
+	it("GET /sessions applies bounded list limits", async () => {
+		store.queryNodes.mockResolvedValueOnce([
+			{
+				"@type": "Session",
+				"@id": "urn:refarm:session:v1:older",
+				name: "older",
+				created_at_ns: 1,
+			},
+			{
+				"@type": "Session",
+				"@id": "urn:refarm:session:v1:newer",
+				name: "newer",
+				created_at_ns: 2,
+			},
+		]);
+
+		const { status, body } = await request(PORT, "GET", "/sessions?limit=1");
+		expect(status).toBe(200);
+		expect((body as Record<string, unknown>).sessions).toEqual([
+			expect.objectContaining({
+				"@id": "urn:refarm:session:v1:newer",
+			}),
+		]);
+	});
+
+	it("GET /sessions rejects invalid list limits", async () => {
+		const { status, body } = await request(PORT, "GET", "/sessions?limit=0");
+		expect(status).toBe(400);
+		expect((body as Record<string, unknown>).error).toBe("invalid limit");
+		expect(store.queryNodes).not.toHaveBeenCalled();
 	});
 
 	it("POST /sessions creates and stores a session node", async () => {
@@ -150,8 +182,9 @@ describe("sessions route handler", () => {
 			name: "auth-refactor",
 		});
 		expect(status).toBe(200);
-		expect((body as any).session?.name).toBe("auth-refactor");
-		expect((body as any).session?.["@id"]).toMatch(
+		const session = (body as Record<string, unknown>).session as Record<string, unknown> | undefined;
+		expect(session?.name).toBe("auth-refactor");
+		expect(session?.["@id"]).toMatch(
 			/^urn:refarm:session:v1:[a-f0-9]+$/,
 		);
 		expect(store.storeNode).toHaveBeenCalledWith(

@@ -4,16 +4,16 @@ import { describe, expect, it, vi } from "vitest";
 import { Tractor } from "../src/index";
 
 describe("Tractor Plugin States", () => {
-  const mockStorage: StorageAdapter = {
+  const mockStorage = {
     ensureSchema: vi.fn(),
     storeNode: vi.fn(),
     queryNodes: vi.fn().mockResolvedValue([]),
     close: vi.fn(),
-  } as any;
+  } as unknown as StorageAdapter;
 
-  const mockIdentity: IdentityAdapter = {
+  const mockIdentity = {
     getSigningPublicKey: vi.fn().mockResolvedValue("pubkey"),
-  } as any;
+  } as unknown as IdentityAdapter;
 
   it("should initialize internal plugins with 'running' state", async () => {
     const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-states" });
@@ -21,11 +21,12 @@ describe("Tractor Plugin States", () => {
     tractor.plugins.registerInternal({
       id: "my-plugin",
       name: "My Plugin",
-      manifest: { id: "my-plugin" } as any,
+      manifest: { id: "my-plugin" } as unknown as import("@refarm.dev/plugin-manifest").PluginManifest,
+      state: "running" as const,
       call: async () => null,
       terminate: () => {},
       emitTelemetry: () => {},
-    } as any);
+    });
 
     const plugin = tractor.plugins.get("my-plugin");
     expect(plugin?.state).toBe("running");
@@ -39,11 +40,12 @@ describe("Tractor Plugin States", () => {
     tractor.plugins.registerInternal({
       id: "my-plugin",
       name: "My Plugin",
-      manifest: { id: "my-plugin" } as any,
+      manifest: { id: "my-plugin" } as unknown as import("@refarm.dev/plugin-manifest").PluginManifest,
+      state: "running" as const,
       call: async () => null,
       terminate: () => {},
       emitTelemetry: () => {},
-    } as any);
+    });
 
     tractor.setPluginState("my-plugin", "hot");
 

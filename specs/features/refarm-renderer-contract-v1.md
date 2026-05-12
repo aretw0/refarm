@@ -53,6 +53,14 @@ with explicit conformance expectations.
    **When** incompatible flags are provided  
    **Then** guardrail errors are deterministic and mode-agnostic.
 
+5. **Given** status exposes `plugins.availableActions`
+   **When** renderer-neutral host, Web, headless, or TUI action-readiness views are requested
+   **Then** they use stable action IDs and one-based row selections from the status contract rather than DOM selectors or product-private payloads.
+
+6. **Given** a live `apps/refarm` status action is selected explicitly
+   **When** `refarm status --action <id-or-index>` is executed
+   **Then** the command resolves the same live status affordance vocabulary, rejects `--input` artifact authorization, invokes the app-owned handler through the Homestead action envelope, and reports deterministic `statusSource: "live"` plus handled/unhandled metadata.
+
 ---
 
 ## Technical Approach
@@ -78,11 +86,11 @@ Contract source of truth:
 
 ### Conformance profile by renderer kind
 
-| Kind | Required capabilities |
-| --- | --- |
-| `web` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`, `rich-html` |
-| `tui` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive` |
-| `headless` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics` |
+| Kind       | Required capabilities                                                                                            |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| `web`      | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`, `rich-html` |
+| `tui`      | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`, `interactive`              |
+| `headless` | `surfaces`, `surface-actions`, `host-context`, `streams`, `telemetry`, `diagnostics`                             |
 
 ---
 
@@ -112,7 +120,17 @@ export interface RefarmStatusJson {
   renderer: { id: string; kind: string; capabilities: readonly string[] };
   runtime: RuntimeSummary;
   trust: TrustSummary;
-  plugins: { installed: number; active: number; rejectedSurfaces: number; surfaceActions: number };
+  plugins: {
+    installed: number;
+    active: number;
+    rejectedSurfaces: number;
+    surfaceActions: number;
+    availableActions?: readonly {
+      id: string;
+      label: string;
+      intent?: string;
+    }[];
+  };
   streams: { active: number; terminal: number };
   diagnostics: string[];
 }
@@ -126,12 +144,23 @@ export interface RefarmStatusJson {
 
 - [x] `packages/cli/src/status.test.ts` verifies renderer-derived diagnostics
 - [x] `apps/refarm/test/commands/{web,tui,headless,status}*.test.ts` validate preflight/guard behavior
+- [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --renderer <kind>` forwards each descriptor/capability profile and app-owned live status affordances to status building
+- [x] `packages/homestead/src/sdk/host-renderer.test.ts` verifies required renderer capability profiles and `runHostRendererConformance(kind, descriptorFactory)`
+- [x] `apps/refarm/test/commands/renderers.test.ts` verifies the distro renderer catalog conforms to Homestead profiles
+- [x] `apps/refarm/test/commands/headless-action.test.ts` verifies headless action request envelopes use the shared Homestead action helper path
+- [x] `apps/refarm/test/commands/status-surfaces.test.ts` verifies live `apps/refarm` status affordances are exposed as a Homestead surface-state snapshot
+- [x] `apps/refarm/test/commands/status-actions.test.ts` verifies live `apps/refarm` status actions resolve, invoke, and emit deterministic invocation envelopes through the shared Homestead action envelope
+- [x] `apps/refarm/test/commands/status.test.ts` verifies `refarm status --action <id-or-index>` invokes live status actions by ID and row index
+- [x] `apps/refarm/test/commands/action-affordances.test.ts` verifies the app-owned shared action affordance vocabulary, selected-row formatting, and dry-run envelope construction used by renderer-neutral host, Web/headless/TUI readiness paths
+- [x] `apps/refarm/test/commands/actions.test.ts` verifies `refarm actions` exposes non-executing host action rows, selected-row metadata, and JSON dry-run envelopes over `plugins.availableActions`
+- [x] `apps/refarm/test/commands/web-actions.test.ts` verifies Web action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
+- [x] `apps/refarm/test/commands/tui-actions.test.ts` verifies TUI action rows, selected-row output, and JSON dry-run envelopes are derived from `plugins.availableActions`
+- [x] `apps/refarm/test/commands/action-fixture.test.ts` verifies one status fixture drives renderer-neutral host action rows/JSON, headless action envelopes, indexed selection, Web/TUI action rows, selected Web/TUI rows, and Web/TUI JSON dry-run envelopes through `--input`
+- [x] `npm run refarm:host:smoke:dist-actions` verifies the emitted `apps/refarm/dist/index.js` can discover Web actions, emit renderer-neutral `refarm actions` dry-run output, and execute a live status action through the built package graph
 
 **Next conformance additions (planned):**
 
-- [ ] Add `runHostRendererConformance(kind, descriptorFactory)` in Homestead SDK tests
-- [ ] Add fixture matrix for `web|tui|headless` required capability sets
-- [ ] Add CI smoke step asserting `refarm status --renderer <kind> --json` parity
+- [ ] Add CI smoke step asserting `refarm status --renderer <kind> --json` parity after Actions budget recovers
 
 ---
 
@@ -144,12 +173,13 @@ export interface RefarmStatusJson {
 
 **TDD**
 
-- [ ] Add host-renderer conformance harness in `packages/homestead`
-- [ ] Add renderer parity tests in `apps/refarm` for all kinds
+- [x] Add host-renderer conformance harness in `packages/homestead`
+- [x] Add renderer parity tests in `apps/refarm` for all kinds
 
 **DDD**
 
-- [ ] Expose reusable conformance helper from Homestead SDK
+- [x] Expose reusable conformance helper from Homestead SDK
+- [x] Expose local renderer-neutral host/Web/headless/TUI action-readiness views over `plugins.availableActions`
 - [ ] Wire conformance smoke to CI host lane
 
 ---
@@ -160,5 +190,6 @@ export interface RefarmStatusJson {
 - [Refarm Host Model](../../docs/REFARM_HOST_MODEL.md)
 - [Refarm CLI Distro Plan](../../docs/REFARM_CLI_DISTRO.md)
 - [Refarm Status Output](../../docs/REFARM_STATUS_OUTPUT.md)
+- [Refarm Action Readiness Cookbook](../../docs/REFARM_ACTION_READINESS_COOKBOOK.md)
 - [packages/homestead/src/sdk/host-renderer.ts](../../packages/homestead/src/sdk/host-renderer.ts)
 - [packages/cli/src/status.ts](../../packages/cli/src/status.ts)

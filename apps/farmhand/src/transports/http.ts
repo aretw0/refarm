@@ -110,7 +110,7 @@ export class HttpSidecar {
 
 			const logsMatch = pathname.match(/^\/efforts\/([^/]+)\/logs$/);
 			if (req.method === "GET" && logsMatch) {
-				const logs = await this.adapter.logs(logsMatch[1]);
+				const logs = await this.adapter.logs(logsMatch[1]!);
 				if (!logs) {
 					json(res, 404, { error: "not found" });
 					return;
@@ -121,7 +121,7 @@ export class HttpSidecar {
 
 			const retryMatch = pathname.match(/^\/efforts\/([^/]+)\/retry$/);
 			if (req.method === "POST" && retryMatch) {
-				const accepted = await this.adapter.retry(retryMatch[1]);
+				const accepted = await this.adapter.retry(retryMatch[1]!);
 				if (!accepted) {
 					json(res, 409, { error: "retry not allowed" });
 					return;
@@ -132,7 +132,7 @@ export class HttpSidecar {
 
 			const cancelMatch = pathname.match(/^\/efforts\/([^/]+)\/cancel$/);
 			if (req.method === "POST" && cancelMatch) {
-				const accepted = await this.adapter.cancel(cancelMatch[1]);
+				const accepted = await this.adapter.cancel(cancelMatch[1]!);
 				if (!accepted) {
 					json(res, 409, { error: "cancel not allowed" });
 					return;
@@ -143,7 +143,7 @@ export class HttpSidecar {
 
 			const getMatch = pathname.match(/^\/efforts\/([^/]+)$/);
 			if (req.method === "GET" && getMatch) {
-				const result = await this.adapter.query(getMatch[1]);
+				const result = await this.adapter.query(getMatch[1]!);
 				if (!result) {
 					json(res, 404, { error: "not found" });
 					return;

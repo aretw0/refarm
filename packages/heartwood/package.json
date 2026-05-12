@@ -11,8 +11,8 @@
   "module": "./pkg/heartwood.js",
   "types": "./pkg/heartwood.js",
   "scripts": {
-    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release",
-    "build:transpile": "jco transpile $(node ../../scripts/ci/cargo-artifact-path.mjs wasm32-wasip1/release/refarm_heartwood.wasm) -o pkg --name heartwood",
+    "build:wasm": "RUSTUP_TOOLCHAIN=stable cargo component build --target wasm32-wasip1 --release && mkdir -p dist && cp $(node ../../scripts/ci/cargo-artifact-path.mjs wasm32-wasip1/release/refarm_heartwood.wasm) dist/refarm_heartwood.wasm",
+    "build:transpile": "jco transpile dist/refarm_heartwood.wasm -o pkg --name heartwood",
     "build": "npm run build:wasm && npm run build:transpile",
     "test": "RUSTUP_TOOLCHAIN=stable cargo test -- --test-threads=1",
     "test:unit": "npm run test",

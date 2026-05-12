@@ -29,12 +29,12 @@ function makeBundle(): WeightsBundle {
     weights: {
       rnn: Array.from({ length: CONFIG.nActions }, () =>
         Array.from({ length: N_MODULES }, (_, f) => ({
-          W_ih: zeros(HIDDEN_SIZE * (CONFIG.nG[f] + CONFIG.nActions)),
+          W_ih: zeros(HIDDEN_SIZE * (CONFIG.nG[f]! + CONFIG.nActions)),
           W_hh: zeros(HIDDEN_SIZE * HIDDEN_SIZE),
           b_ih: zeros(HIDDEN_SIZE),
           b_hh: zeros(HIDDEN_SIZE),
           hiddenSize: HIDDEN_SIZE,
-          inputSize: CONFIG.nG[f] + CONFIG.nActions,
+          inputSize: CONFIG.nG[f]! + CONFIG.nActions,
         })),
       ),
       conjunction: {
@@ -61,7 +61,7 @@ describe("validateBundleShapes", () => {
 
   it("throws when RNN W_ih has wrong size", () => {
     const bundle = makeBundle();
-    bundle.weights.rnn[0][0].W_ih = [1, 2]; // wrong size
+    bundle.weights.rnn[0]![0]!.W_ih = [1, 2]; // wrong size
     expect(() => validateBundleShapes(bundle)).toThrow(/W_ih/);
   });
 
@@ -95,7 +95,7 @@ describe("bundleToTypeScript", () => {
     // Extract the JSON literal between first `{` and last `}` after the assignment
     const match = src.match(/= (\{[\s\S]+\}) satisfies WeightsBundle/);
     expect(match).not.toBeNull();
-    expect(() => JSON.parse(match![1])).not.toThrow();
+    expect(() => JSON.parse(match![1]!)).not.toThrow();
   });
 });
 
@@ -105,9 +105,9 @@ describe("loadWeightsFromBundle roundtrip", () => {
     const weights = loadWeightsFromBundle(bundle);
 
     expect(weights.rnn.length).toBe(CONFIG.nActions);
-    expect(weights.rnn[0].length).toBe(N_MODULES);
-    expect(weights.rnn[0][0].W_ih.length).toBe(HIDDEN_SIZE * (CONFIG.nG[0] + CONFIG.nActions));
-    expect(weights.rnn[0][0].W_hh.length).toBe(HIDDEN_SIZE * HIDDEN_SIZE);
+    expect(weights.rnn[0]!.length).toBe(N_MODULES);
+    expect(weights.rnn[0]![0]!.W_ih.length).toBe(HIDDEN_SIZE * (CONFIG.nG[0]! + CONFIG.nActions));
+    expect(weights.rnn[0]![0]!.W_hh.length).toBe(HIDDEN_SIZE * HIDDEN_SIZE);
   });
 
   it("recovers correct conjunction tensor shapes", () => {
@@ -122,9 +122,9 @@ describe("loadWeightsFromBundle roundtrip", () => {
     const bundle = makeBundle();
     const weights = loadWeightsFromBundle(bundle);
 
-    expect(weights.rnn[0][0].W_ih).toBeInstanceOf(Float32Array);
+    expect(weights.rnn[0]![0]!.W_ih).toBeInstanceOf(Float32Array);
     expect(weights.conjunction.W_tile).toBeInstanceOf(Float32Array);
-    expect(weights.placeGenerator[0].W).toBeInstanceOf(Float32Array);
-    expect(weights.sensoryDecoder[0].W).toBeInstanceOf(Float32Array);
+    expect(weights.placeGenerator[0]!.W).toBeInstanceOf(Float32Array);
+    expect(weights.sensoryDecoder[0]!.W).toBeInstanceOf(Float32Array);
   });
 });

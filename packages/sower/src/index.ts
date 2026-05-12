@@ -34,7 +34,7 @@ export class SowerPlugin {
     const result = await this.core.scaffold(intent);
     
     if (result && result.tier) {
-      await this.tractor.switchTier(result.tier as any);
+      await this.tractor.switchTier(result.tier);
     }
   }
 

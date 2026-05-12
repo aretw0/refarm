@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/sower",
   "version": "0.1.0",
-  "description": "The Sower (O Semeador) — Initial Seed & Onboarding Plugin",
+  "description": "The Sower (O Semeador) \u2014 Initial Seed & Onboarding Plugin",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run"
@@ -34,5 +34,8 @@
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }

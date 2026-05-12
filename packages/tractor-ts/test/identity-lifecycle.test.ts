@@ -105,7 +105,7 @@ describe("Tractor Identity Lifecycle & Mandatory Signing", () => {
 
     // 6. Verify signing with permanent identity
     const allNotes = await storage.queryNodes("Note");
-    const permanentNote = JSON.parse(allNotes.find((n: any) => n.id === "urn:refarm:test:3").payload);
+    const permanentNote = JSON.parse(((allNotes as { id: string; payload: string }[]).find((n) => n.id === "urn:refarm:test:3") as { payload: string }).payload);
     
     expect(permanentNote["refarm:signature"]).toBeDefined();
     expect(permanentNote["refarm:signature"].pubkey).toBe("did:nostr:pubkey_permanent_123");

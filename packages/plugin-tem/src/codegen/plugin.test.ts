@@ -24,12 +24,12 @@ function makeValidBundle() {
     weights: {
       rnn: Array.from({ length: CONFIG.nActions }, () =>
         Array.from({ length: CONFIG.nG.length }, (_, f) => ({
-          W_ih: zeros(HIDDEN_SIZE * (CONFIG.nG[f] + CONFIG.nActions)),
+          W_ih: zeros(HIDDEN_SIZE * (CONFIG.nG[f]! + CONFIG.nActions)),
           W_hh: zeros(HIDDEN_SIZE * HIDDEN_SIZE),
           b_ih: zeros(HIDDEN_SIZE),
           b_hh: zeros(HIDDEN_SIZE),
           hiddenSize: HIDDEN_SIZE,
-          inputSize: CONFIG.nG[f] + CONFIG.nActions,
+          inputSize: CONFIG.nG[f]! + CONFIG.nActions,
         })),
       ),
       conjunction: {
@@ -63,7 +63,7 @@ describe("codegenApi.validateBundle", () => {
 
   it("returns err for a bundle with wrong W_ih shape", () => {
     const bundle = makeValidBundle();
-    bundle.weights.rnn[0][0].W_ih = [1, 2]; // wrong size
+    bundle.weights.rnn[0]![0]!.W_ih = [1, 2]; // wrong size
     const result = codegenApi.validateBundle(JSON.stringify(bundle));
 
     expect(result.tag).toBe("err");

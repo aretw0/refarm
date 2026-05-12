@@ -1,5 +1,5 @@
-import { CommandHost } from "./command-host";
-import { EventEmitter, TelemetryEvent } from "./telemetry";
+import { CommandHost } from "./command-host.js";
+import { EventEmitter, TelemetryEvent } from "./telemetry.js";
 
 const SAS_EMOJIS = [
   "🐶", "🐱", "🦁", "🐯", "🦒", "🦊", "🦝", "🐮", "🐷", "🐭",
@@ -17,13 +17,22 @@ const SAS_EMOJIS = [
  * - Silver: Password-derived keys (E2EE)
  * - Bronze: Pure Session (In-Memory Only)
  */
+export type SecretAuthTier = "gold" | "silver" | "bronze";
+
 export interface SecretAuthPrompt {
   title: string;
   hint?: string;
-  tier: "gold" | "silver" | "bronze";
+  tier: SecretAuthTier;
 }
 
 export type AuthResponse = { success: boolean; key?: CryptoKey };
+
+export interface SovereignSecret {
+  "@type": "SovereignSecret";
+  tier: SecretAuthTier;
+  jwe: { ciphertext: string; tag: string };
+  timestamp: string;
+}
 
 export interface SecretHostLogger {
   info(...args: unknown[]): void;
@@ -31,8 +40,10 @@ export interface SecretHostLogger {
   debug(...args: unknown[]): void;
 }
 
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
 function resolveDefaultLogger(): SecretHostLogger {
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
     return { info: () => {}, warn: () => {}, debug: () => {} };
   }
@@ -70,12 +81,13 @@ export class SecretHost {
       id: "system:security:confirm-sas",
       title: "Confirm Security Code",
       category: "Security",
-      handler: async (args: { confirmed: boolean }) => {
+      handler: async (args?: unknown) => {
+        const { confirmed } = args as { confirmed: boolean };
         this.emit?.({
           event: "security:verification_result",
-          payload: { method: "sas", success: args.confirmed },
+          payload: { method: "sas", success: confirmed },
         });
-        return { success: args.confirmed };
+        return { success: confirmed };
       },
     });
   }
@@ -84,7 +96,7 @@ export class SecretHost {
     const emojis: string[] = [];
     for (let i = 0; i < count; i++) {
       const idx = Math.floor(Math.random() * SAS_EMOJIS.length);
-      emojis.push(SAS_EMOJIS[idx]);
+      emojis.push(SAS_EMOJIS[idx]!);
     }
     return emojis;
   }
@@ -103,8 +115,13 @@ export class SecretHost {
   /**
    * Unlocks a SovereignSecret node using the appropriate fallback tier.
    */
-  async decryptSecret(encryptedBlob: any): Promise<string | null> {
-    const { tier, hint } = encryptedBlob;
+  async decryptSecret(encryptedBlob: unknown): Promise<string | null> {
+    const { tier: rawTier, hint } = encryptedBlob && typeof encryptedBlob === "object"
+      ? (encryptedBlob as { tier?: string; hint?: string })
+      : {};
+    const tier: SecretAuthTier = rawTier === "gold" || rawTier === "silver" || rawTier === "bronze"
+      ? rawTier
+      : "bronze";
 
     this.logger.info(`[secret-host] Requesting unlock for tier: ${tier}`);
 
@@ -131,7 +148,7 @@ export class SecretHost {
   /**
    * Anchors a new secret to the hardware enclave or password.
    */
-  async createSecret(value: string, tier: "gold" | "silver"): Promise<any> {
+  async createSecret(value: string, tier: "gold" | "silver"): Promise<SovereignSecret> {
     // 1. Request a key (from Hardware or Password)
     const response = await this.onAuthRequest({
       title: `Create Sovereign Secret`,

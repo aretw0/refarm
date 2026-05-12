@@ -118,7 +118,7 @@ export async function runTaskV1Conformance(
       if (evs.length === 0)
         failures.push("events() returned empty list after appendEvent()");
       for (let i = 1; i < evs.length; i++) {
-        if (evs[i].timestamp_ns < evs[i - 1].timestamp_ns)
+        if (evs[i]!.timestamp_ns < evs[i - 1]!.timestamp_ns)
           failures.push("events() not in chronological order");
       }
     } catch (e) {

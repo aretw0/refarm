@@ -1,12 +1,14 @@
 {
-  "extends": "../../tsconfig.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "composite": false,
-    "declaration": false,
-    "declarationMap": false,
-    "outDir": "dist",
-    "baseUrl": "../.."
-  },
-  "include": ["src/**/*"]
+	"extends": "../../tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"composite": false,
+		"declaration": false,
+		"declarationMap": false,
+		"outDir": "dist",
+		"baseUrl": "../.."
+	},
+	"include": [
+		"src/**/*"
+	]
 }

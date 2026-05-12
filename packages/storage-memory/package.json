@@ -14,7 +14,8 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "test": "vitest run --passWithNoTests",
-    "test:conformance": "vitest run src/storage-v1.conformance.test.ts"
+    "test:conformance": "vitest run src/storage-v1.conformance.test.ts",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/storage-contract-v1": "*"
@@ -22,5 +23,8 @@
   "license": "MIT",
   "publishConfig": {
     "access": "public"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }

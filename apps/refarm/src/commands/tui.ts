@@ -1,14 +1,9 @@
-import {
-	type RefarmStatusJson,
-} from "@refarm.dev/cli/status";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
-import {
-	createLaunchProcessSpec,
-	launchProcess,
-} from "./launch-process.js";
-import {
-	launchAvailabilityMessage,
-} from "./launch-feedback.js";
+import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
+import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
+import { launchAvailabilityMessage } from "./launch-feedback.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
@@ -18,10 +13,7 @@ import {
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
-
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 const TUI_LAUNCHER_MODES = ["watch", "prompt"] as const;
 
 export type RefarmTuiLauncherMode = (typeof TUI_LAUNCHER_MODES)[number];
@@ -38,6 +30,8 @@ interface TuiOptions {
 	markdown?: boolean;
 	launch?: boolean;
 	dryRun?: boolean;
+	actions?: boolean;
+	select?: string;
 	launcher?: RefarmTuiLauncherMode;
 }
 
@@ -84,8 +78,23 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 		.option("--markdown", "Output markdown report")
 		.option("--launch", "Launch TUI runtime after renderer preflight")
 		.option("--dry-run", "Print launcher command without executing it")
+		.option("--actions", "Output selectable TUI surface action rows")
+		.option(
+			"--select <id-or-index>",
+			"Select an available TUI action ID or row index when used with --actions",
+		)
 		.option("--launcher <mode>", "Launcher mode: watch | prompt", "watch")
 		.action(async (options: TuiOptions) => {
+			if (options.select && !options.actions) {
+				throw new Error("--select requires --actions.");
+			}
+
+			if (options.actions) {
+				assertTuiActionsOutputOptions(options);
+				await emitTuiActionRows(options, resolvedDeps);
+				return;
+			}
+
 			assertLaunchGuardOptions({
 				json: options.json,
 				markdown: options.markdown,
@@ -113,9 +122,7 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				printSummary: resolvedDeps.printStatusSummary,
 				afterEmit: () => {
 					if (outputMode === "summary" && !options.launch) {
-						console.log(
-							launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES),
-						);
+						console.log(launchAvailabilityMessage("TUI", TUI_LAUNCHER_MODES));
 					}
 				},
 			});
@@ -132,6 +139,39 @@ export function createTuiCommand(deps?: Partial<TuiDeps>): Command {
 				launchProcess: resolvedDeps.launch,
 			});
 		});
+}
+
+async function emitTuiActionRows(
+	options: TuiOptions,
+	deps: TuiDeps,
+): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload: deps.resolveStatusPayload,
+		resolveOptions: {
+			renderer: "tui",
+			input: options.input,
+		},
+		run: (json) => {
+			console.log(
+				formatRefarmActionReadinessOutput(json, {
+					renderer: "tui",
+					json: options.json,
+					select: options.select,
+					unavailableSubject: "TUI action",
+					rowsHeading: "Available TUI actions:",
+					selectedHeading: "Selected TUI action:",
+				}),
+			);
+		},
+	});
+}
+
+function assertTuiActionsOutputOptions(options: TuiOptions): void {
+	if (options.markdown || options.launch || options.dryRun) {
+		throw new Error(
+			"--actions cannot be combined with --markdown, --launch, or --dry-run.",
+		);
+	}
 }
 
 export const tuiCommand = createTuiCommand();

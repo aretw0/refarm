@@ -7,19 +7,21 @@ import {
   detectRuntimeDescriptorRevocationAlerts,
   summarizeRuntimeDescriptorRevocationTelemetry,
   TelemetryRingBuffer,
+  type RuntimeDescriptorRevocationDiagnostics,
+  type RuntimeDescriptorRevocationTelemetrySummary,
 } from "../src/lib/telemetry";
 
 describe("Tractor Telemetry", () => {
-  const mockStorage: StorageAdapter = {
+  const mockStorage = {
     ensureSchema: vi.fn(),
     storeNode: vi.fn(),
     queryNodes: vi.fn().mockResolvedValue([]),
     close: vi.fn(),
-  } as any;
+  } as unknown as StorageAdapter;
 
-  const mockIdentity: IdentityAdapter = {
+  const mockIdentity = {
     getSigningPublicKey: vi.fn().mockResolvedValue("pubkey"),
-  } as any;
+  } as unknown as IdentityAdapter;
 
   it("should emit telemetry when a node is stored", async () => {
     const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-io" });
@@ -78,7 +80,7 @@ describe("Tractor Telemetry", () => {
       name: "Hello World",
       entry: "https://example.com/plugin.wasm",
       capabilities: {}
-    } as any;
+    } as unknown as import("@refarm.dev/plugin-manifest").PluginManifest;
     await tractor.registry.register(manifest);
     const entry = tractor.registry.getPlugin("hello-world");
     if (entry) entry.status = "validated";
@@ -142,9 +144,9 @@ describe("TelemetryRingBuffer", () => {
     const dumped = ring.dump();
     expect(dumped.length).toBe(3);
     // event_1 should be evicted
-    expect(dumped[0].event).toBe("event_2");
-    expect(dumped[1].event).toBe("event_3");
-    expect(dumped[2].event).toBe("event_4");
+    expect(dumped[0]!.event).toBe("event_2");
+    expect(dumped[1]!.event).toBe("event_3");
+    expect(dumped[2]!.event).toBe("event_4");
   });
 
   it("should sanitize strict sensitive keys during dump", () => {
@@ -161,7 +163,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.secret).toBe("[REDACTED]");
     expect(payload.password).toBe("[REDACTED]");
@@ -178,7 +180,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.short).toBe("abc");
     expect(payload.long).toBe("this_is_a_... [TRUNCATED]");
@@ -197,7 +199,7 @@ describe("TelemetryRingBuffer", () => {
     });
 
     const dumped = ring.dump();
-    const payload = dumped[0].payload;
+    const payload = dumped[0]!.payload as Record<string, unknown>;
 
     expect(payload.bytes).toBe("[Uint8Array(2048)]");
     expect(payload.bigArray).toBe("[Array(100)]");
@@ -361,29 +363,29 @@ describe("TelemetryRingBuffer", () => {
 
 describe("TelemetryHost", () => {
   it("should register correctly and capture core events", async () => {
-    const mockStorage: any = { ensureSchema: vi.fn(), queryNodes: vi.fn().mockResolvedValue([]) };
-    const mockIdentity: any = { getSigningPublicKey: vi.fn().mockResolvedValue("key") };
-    
+    const mockStorage = { ensureSchema: vi.fn(), queryNodes: vi.fn().mockResolvedValue([]) } as unknown as StorageAdapter;
+    const mockIdentity = { getSigningPublicKey: vi.fn().mockResolvedValue("key") } as unknown as IdentityAdapter;
+
     const tractor = await Tractor.boot({ storage: mockStorage, identity: mockIdentity, namespace: "test-telemetry-host" });
-    
+
     // Trigger an event (calling the Tractor wrapper, not the raw adapter)
     await tractor.queryNodes("Test");
-    
+
     // The query should have emitted a storage:io event caught by the telemetry host relay in index.ts constructor
-    const dump = await tractor.commands.execute("system:diagnostics:export");
-    
+    const dump = await tractor.commands.execute("system:diagnostics:export") as { events: { event: string }[] };
+
     expect(dump.events.length).toBeGreaterThan(0);
-    expect(dump.events.some((e: any) => e.event === "storage:io")).toBe(true);
+    expect(dump.events.some((e) => e.event === "storage:io")).toBe(true);
   });
 
   it("should expose descriptor revocation summary command", async () => {
-    const mockStorage: any = {
+    const mockStorage = {
       ensureSchema: vi.fn(),
       queryNodes: vi.fn().mockResolvedValue([]),
-    };
-    const mockIdentity: any = {
+    } as unknown as StorageAdapter;
+    const mockIdentity = {
       getSigningPublicKey: vi.fn().mockResolvedValue("key"),
-    };
+    } as unknown as IdentityAdapter;
 
     const tractor = await Tractor.boot({
       storage: mockStorage,
@@ -403,7 +405,7 @@ describe("TelemetryHost", () => {
 
     const result = await tractor.commands.execute(
       "system:diagnostics:descriptor-revocation-summary",
-    );
+    ) as { summary: RuntimeDescriptorRevocationTelemetrySummary };
 
     expect(result.summary.totalEvents).toBe(1);
     expect(
@@ -413,13 +415,13 @@ describe("TelemetryHost", () => {
   });
 
   it("should expose descriptor revocation alerts command", async () => {
-    const mockStorage: any = {
+    const mockStorage = {
       ensureSchema: vi.fn(),
       queryNodes: vi.fn().mockResolvedValue([]),
-    };
-    const mockIdentity: any = {
+    } as unknown as StorageAdapter;
+    const mockIdentity = {
       getSigningPublicKey: vi.fn().mockResolvedValue("key"),
-    };
+    } as unknown as IdentityAdapter;
 
     const tractor = await Tractor.boot({
       storage: mockStorage,
@@ -442,7 +444,7 @@ describe("TelemetryHost", () => {
       {
         configDriftWarnAt: 1,
       },
-    );
+    ) as RuntimeDescriptorRevocationDiagnostics;
 
     expect(result.summary.totalEvents).toBe(1);
     expect(result.alerts[0]?.id).toBe("revocation-config-drift");
@@ -450,13 +452,13 @@ describe("TelemetryHost", () => {
   });
 
   it("should allow filtered descriptor revocation summary command arguments", async () => {
-    const mockStorage: any = {
+    const mockStorage = {
       ensureSchema: vi.fn(),
       queryNodes: vi.fn().mockResolvedValue([]),
-    };
-    const mockIdentity: any = {
+    } as unknown as StorageAdapter;
+    const mockIdentity = {
       getSigningPublicKey: vi.fn().mockResolvedValue("key"),
-    };
+    } as unknown as IdentityAdapter;
 
     const tractor = await Tractor.boot({
       storage: mockStorage,
@@ -489,7 +491,7 @@ describe("TelemetryHost", () => {
       {
         pluginId: "@acme/plugin-a",
       },
-    );
+    ) as { summary: RuntimeDescriptorRevocationTelemetrySummary };
 
     expect(result.summary.totalEvents).toBe(1);
     expect(result.summary.affectedPlugins).toEqual(["@acme/plugin-a"]);

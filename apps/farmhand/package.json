@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/farmhand",
   "version": "0.1.0",
-  "description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
+  "description": "Refarm Farmhand \u2014 headless Node.js daemon for always-on sync",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
@@ -9,7 +9,8 @@
     "dev": "node --watch --experimental-strip-types --experimental-transform-types --import ../../scripts/farmhand-node-register-loader.mjs src/index.ts",
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/effort-contract-v1": "*",
@@ -27,6 +28,7 @@
     "ws": "^8.20.0"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
     "typescript": "^6.0.3",

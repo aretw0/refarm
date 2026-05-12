@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TractorLogger } from "../src/lib/types";
 
 vi.mock("@refarm.dev/heartwood", () => ({
   verify: vi.fn().mockReturnValue(true),
@@ -31,7 +32,7 @@ function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), debug: vi.fn(), error: vi.fn() };
 }
 
-function makeHost(overrides?: { securityMode?: "strict" | "permissive"; logger?: any }) {
+function makeHost(overrides?: { securityMode?: "strict" | "permissive"; logger?: TractorLogger }) {
   const emit = vi.fn();
   const registry = new SovereignRegistry();
   const logger = overrides?.logger ?? makeLogger();
@@ -98,12 +99,12 @@ describe("PluginHost.resolveRunner()", () => {
 
   it("preferred=worker, Worker API present → WorkerRunner used", async () => {
     // Stub Worker global so WorkerRunner.supports() returns true
-    vi.stubGlobal("Worker", vi.fn(function WorkerMock(this: any) {
-      let handler: any;
-      this.addEventListener = vi.fn((t: string, h: any) => { if (t === "message") handler = h; });
-      this.postMessage = vi.fn((msg: any) => {
+    vi.stubGlobal("Worker", vi.fn(function WorkerMock(this: Record<string, unknown>) {
+      let handler: ((ev: { data: unknown }) => void) | undefined;
+      this.addEventListener = vi.fn((t: string, h: (ev: { data: unknown }) => void) => { if (t === "message") handler = h; });
+      this.postMessage = vi.fn((msg: { type: string; id: string; fn?: string }) => {
         if (msg.type === "call" && handler) {
-          Promise.resolve().then(() => handler({ data: { type: "result", id: msg.id, result: "ok" } }));
+          Promise.resolve().then(() => handler?.({ data: { type: "result", id: msg.id, result: "ok" } }));
         }
       });
       this.terminate = vi.fn();
@@ -114,7 +115,7 @@ describe("PluginHost.resolveRunner()", () => {
       id: "worker-plugin",
       entry: "https://example.test/worker.wasm",
       executionContext: { preferred: "worker", fallback: "main-thread", allowed: ["worker", "main-thread"] },
-    } as any);
+    } as unknown as Partial<import("@refarm.dev/plugin-manifest").PluginManifest>);
     registry.register(manifest);
     const entry = registry.getPlugin("worker-plugin");
     if (entry) entry.status = "validated";
@@ -125,15 +126,15 @@ describe("PluginHost.resolveRunner()", () => {
 
   it("preferred=worker, Worker NOT available → falls back to main-thread", async () => {
     // Ensure Worker is absent
-    const orig = (globalThis as any).Worker;
-    delete (globalThis as any).Worker;
+    const orig = (globalThis as { Worker?: unknown }).Worker;
+    delete (globalThis as { Worker?: unknown }).Worker;
     try {
       const { host, registry } = makeHost();
       const manifest = createMockManifest({
         id: "worker-fallback",
         entry: "https://example.test/plugin.wasm",
         executionContext: { preferred: "worker", fallback: "main-thread", allowed: ["worker", "main-thread"] },
-      } as any);
+      } as unknown as Partial<import("@refarm.dev/plugin-manifest").PluginManifest>);
       registry.register(manifest);
       const entry = registry.getPlugin("worker-fallback");
       if (entry) entry.status = "validated";
@@ -141,7 +142,7 @@ describe("PluginHost.resolveRunner()", () => {
       const instance = await host.load(manifest);
       expect(instance.id).toBe("worker-fallback");
     } finally {
-      if (orig) (globalThis as any).Worker = orig;
+      if (orig) (globalThis as { Worker?: unknown }).Worker = orig;
     }
   });
 
@@ -153,7 +154,7 @@ describe("PluginHost.resolveRunner()", () => {
       id: "unknown-fallback",
       entry: "https://example.test/plugin.wasm",
       executionContext: { preferred: "node", fallback: "edge", allowed: ["node"] },
-    } as any);
+    } as unknown as Partial<import("@refarm.dev/plugin-manifest").PluginManifest>);
     registry.register(manifest);
     const entry = registry.getPlugin("unknown-fallback");
     if (entry) entry.status = "validated";
@@ -305,7 +306,7 @@ describe("PluginHost.registerInternal()", () => {
   it("sets state to 'running' when instance.state is falsy", () => {
     const { host } = makeHost();
     const inst = mockInstance();
-    (inst as any).state = undefined;
+    (inst as { state: unknown }).state = undefined;
 
     host.registerInternal(inst);
 

@@ -1,7 +1,7 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { TelemetryEvent } from "./telemetry";
-import type { ExecutionProfile } from "./trust-manager";
-import type { TractorLogger } from "./types";
+import type { TelemetryEvent } from "./telemetry.js";
+import type { ExecutionProfile } from "./trust-manager.js";
+import type { TractorLogger } from "./types.js";
 
 type SpawnSyncResult = {
 	error?: Error;
@@ -10,8 +10,11 @@ type SpawnSyncResult = {
 	stdout?: Buffer;
 };
 
+type NodeProcess = { getBuiltinModule?: (m: string) => unknown };
+type NodeEnvGlobal = typeof globalThis & { process?: NodeProcess };
+
 function spawnSync(command: string, args: string[], options: { input: Buffer; maxBuffer: number }): SpawnSyncResult {
-	const getBuiltinModule = (globalThis as any).process?.getBuiltinModule;
+	const getBuiltinModule = (globalThis as NodeEnvGlobal).process?.getBuiltinModule;
 	const childProcess =
 		typeof getBuiltinModule === "function"
 			? getBuiltinModule("node:child_process")
@@ -33,7 +36,7 @@ export class WasiImports {
 		private storeNode?: (nodeJson: string) => Promise<void>,
 	) {}
 
-	generate(manifest: PluginManifest, profile: ExecutionProfile): any {
+	generate(manifest: PluginManifest, profile: ExecutionProfile): Record<string, unknown> {
 		const allowedOrigins = manifest.capabilities.allowedOrigins ?? [];
 		const isTrustedFast = profile === "trusted-fast";
 
@@ -361,7 +364,7 @@ export class WasiImports {
 			const reqBody =
 				body instanceof Uint8Array
 					? Buffer.from(body)
-					: Buffer.from(body as any);
+					: Buffer.from(body as unknown as string);
 			const resp = spawnSync("curl", curlArgs, {
 				input: reqBody,
 				maxBuffer: 2 * 1024 * 1024 + 64 * 1024,
@@ -388,22 +391,22 @@ export class WasiImports {
 			return new Uint8Array(out);
 		};
 
-		const imports: any = {
+		const imports: Record<string, unknown> = {
 			"wasi:logging/logging": wasiLogging,
 			"wasi:logging/logging@0.1.0-draft": wasiLogging,
 			"wasi:cli/environment": wasiEnvironment,
 			"wasi:cli/environment@0.2.0": wasiEnvironment,
 			"wasi:cli/environment@0.2.3": wasiEnvironment,
 			"wasi:http/outgoing-handler": {
-				handle: async (request: any) => {
+				handle: async (request: unknown) => {
 					if (!isAllowedRequest(request)) {
-						const url = typeof request === "string" ? request : request?.url;
+						const url = typeof request === "string" ? request : (request as { url?: string })?.url;
 						console.warn(
 							`[tractor] Blocked unauthorized fetch to ${url || "<unknown>"} by ${this.pluginId}`,
 						);
 						throw new Error("HTTP request not permitted by capabilities");
 					}
-					return fetch(request);
+					return fetch(request as RequestInfo | URL);
 				},
 			},
 			"refarm:plugin/tractor-bridge": tractorBridge,
