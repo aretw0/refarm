@@ -5,6 +5,10 @@ import {
 	isSessionReady,
 	printOnboarding,
 	printSessionGuide,
+	autoStartFarmhand,
+	defaultLaunchDeps,
+	findRepoRoot,
+	type LaunchDeps,
 } from "./session-launch.js";
 import {
 	defaultChatDeps,
@@ -68,11 +72,23 @@ async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string
 export async function runSessionLaunchFlow(
 	opts: { new?: boolean; session?: string } = {},
 	injectedDeps?: ChatDeps,
+	launchDeps?: LaunchDeps,
 ): Promise<void> {
 	const readiness = await checkSessionReadiness();
 
-	if (!isSessionReady(readiness)) {
-		printSessionGuide(readiness);
+	let farmhandRunning = readiness.farmhandRunning;
+
+	if (!farmhandRunning && readiness.providerConfigured) {
+		farmhandRunning = await autoStartFarmhand(
+			findRepoRoot(),
+			launchDeps ?? defaultLaunchDeps(),
+		);
+		if (!farmhandRunning) process.exit(1);
+	}
+
+	const effectiveReadiness = { ...readiness, farmhandRunning };
+	if (!isSessionReady(effectiveReadiness)) {
+		printSessionGuide(effectiveReadiness);
 		process.exit(1);
 	}
 

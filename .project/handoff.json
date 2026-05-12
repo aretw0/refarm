@@ -1,5 +1,5 @@
 {
-  "context": "Checkpoint 2026-05-12 (sessão 3). P12 Daily-Driver-TUI implementado: refarm chat/session/bare refarm funcionam como REPL, POST /plugins/reload no farmhand, onboarding e readiness check, init idempotente com --force. ADR-064 escrito (TokenAuthError contract). Foco atual: gaps de confiança para migração diária.",
+  "context": "Checkpoint 2026-05-12 (sessão 3 — parte 2). ADR-065 ACCEPTED: farmhand transparent lifecycle. refarm sow agora coleta LLM credentials (mascaradas via secretInput, salvas via SiloCore). Farmhand injeta credenciais do Silo em env vars no boot. detectProvider() corrigido para checar home + CWD. Próximo passo: implementar autoStartFarmhand() em session-launch.ts.",
   "timestamp": "2026-05-12T14:30:00.000Z",
   "current_phase": 12,
   "current_tasks": [
@@ -13,12 +13,12 @@
   ],
   "blockers": [],
   "next_actions": [
-    "[CRÍTICO] Verificar se farmhand→LLM funciona end-to-end: npm run farmhand:daemon + refarm ask 'hello'. O caminho effort→tractor plugin→LLM→stream nunca foi confirmado ao vivo.",
+    "[EM ANDAMENTO] autoStartFarmhand() em session-launch.ts: LaunchDeps interface, Y/n confirm, spawn detached, poll GET /efforts/summary cada 300ms max 10s. ADR-065 Phase 1.",
+    "[PRÓXIMO] Verificar se farmhand→LLM funciona end-to-end: refarm sow → API key → refarm → resposta LLM.",
     "Spinner durante geração no REPL — readline fica mudo enquanto LLM processa.",
     "Histórico de input (↑) no readline — historySize não configurado.",
-    "Verificar continuidade de sessão LLM: session-lock preserva ID mas o histórico de mensagens pode não recarregar.",
     "TokenAuthError: implementar a classe no layer de credenciais (ADR-064 escrito, não codificado).",
-    "Coverage baselines: storage-sqlite e context-provider-v1 sem testes (target 50%)."
+    "[Phase 2] /sow, /keys como REPL commands — readline pause/resume pattern."
   ],
   "open_questions": [
     "refarm configure github: escopo redefinido — não é gh secret set automático, é diagnóstico de saúde de tokens (expiração Cloudflare via API, GitHub detectável só no 401). ADR-064 cobre o contrato.",
@@ -30,7 +30,8 @@
     "DEC-034: artefatos WASM Rust devem ser copiados para dist/ durante build.",
     "DEC-035: provision para, configure ainda não existe — silo é o ponto de integração.",
     "DEC-036 [DECIDED]: refarm chat é cliente HTTP do sidecar farmhand em :42001. Não embeda farmhand.",
-    "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície."
+    "ADR-064 [ACCEPTED]: TokenAuthError com provider + reason + rotationUrl — produzido na camada de credenciais, renderizado por qualquer superfície.",
+    "ADR-065 [ACCEPTED]: Farmhand transparent lifecycle — refarm é o single entry point. Auto-start com Y/n confirm, detached spawn, 300ms poll. LaunchDeps interface para testabilidade."
   ],
   "files_in_flux": [
     ".project/handoff.json",

@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { isSessionReady, isFirstRun, refarmSearchDirs } from "./session-launch.js";
+import { isSessionReady, isFirstRun, refarmSearchDirs, autoStartFarmhand, type LaunchDeps } from "./session-launch.js";
 
 describe("isSessionReady", () => {
 	it("returns true when both provider and farmhand are ready", () => {
@@ -68,5 +68,45 @@ describe("refarmSearchDirs", () => {
 		const dirs = refarmSearchDirs();
 		expect(dirs.some((d) => d.includes(".refarm"))).toBe(true);
 		expect(dirs.length).toBeGreaterThanOrEqual(2);
+	});
+});
+
+function makeLaunchDeps(overrides: Partial<LaunchDeps> = {}): LaunchDeps {
+	return {
+		confirm: vi.fn().mockResolvedValue(true),
+		spawnFarmhand: vi.fn(),
+		probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		...overrides,
+	};
+}
+
+describe("autoStartFarmhand", () => {
+	it("returns true when user confirms and farmhand becomes ready", async () => {
+		const deps = makeLaunchDeps();
+		const result = await autoStartFarmhand("/fake/root", deps);
+		expect(result).toBe(true);
+		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/fake/root");
+	});
+
+	it("returns false and does not spawn when user declines", async () => {
+		const deps = makeLaunchDeps({ confirm: vi.fn().mockResolvedValue(false) });
+		const result = await autoStartFarmhand("/fake/root", deps);
+		expect(result).toBe(false);
+		expect(deps.spawnFarmhand).not.toHaveBeenCalled();
+	});
+
+	it("returns false when farmhand times out after spawning", async () => {
+		const deps = makeLaunchDeps({
+			probeFarmhandUntilReady: vi.fn().mockResolvedValue(false),
+		});
+		const result = await autoStartFarmhand("/fake/root", deps);
+		expect(result).toBe(false);
+		expect(deps.spawnFarmhand).toHaveBeenCalledOnce();
+	});
+
+	it("passes the repo root to spawnFarmhand", async () => {
+		const deps = makeLaunchDeps();
+		await autoStartFarmhand("/my/repo", deps);
+		expect(deps.spawnFarmhand).toHaveBeenCalledWith("/my/repo");
 	});
 });

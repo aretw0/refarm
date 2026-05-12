@@ -1,19 +1,30 @@
 /**
- * Session launch policy — pure readiness check and guide output.
- * No readline, no REPL, no Commander. Just policy.
+ * Session launch policy — readiness check, auto-start, and guide output.
+ * No readline REPL, no Commander. Just policy.
  */
 
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import readline from "node:readline";
+import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
 const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
+const AUTOSTART_POLL_INTERVAL_MS = 300;
+const AUTOSTART_TIMEOUT_MS = 10_000;
 
 export interface SessionReadiness {
 	providerConfigured: boolean;
 	farmhandRunning: boolean;
+}
+
+export interface LaunchDeps {
+	confirm(question: string): Promise<boolean>;
+	spawnFarmhand(repoRoot: string): void;
+	probeFarmhandUntilReady(): Promise<boolean>;
 }
 
 export function isSessionReady(r: SessionReadiness): boolean {
@@ -62,6 +73,79 @@ function detectProvider(): boolean {
 		}
 	}
 
+	return false;
+}
+
+/** Compute the monorepo root from this file's location. */
+export function findRepoRoot(): string {
+	const __filename = fileURLToPath(import.meta.url);
+	// apps/refarm/src/commands/ → up 4 levels → repo root
+	return path.resolve(path.dirname(__filename), "../../../../");
+}
+
+export function defaultLaunchDeps(): LaunchDeps {
+	return {
+		async confirm(question) {
+			const rl = readline.createInterface({
+				input: process.stdin,
+				output: process.stdout,
+			});
+			return new Promise((resolve) => {
+				rl.question(chalk.yellow(question) + " ", (answer) => {
+					rl.close();
+					resolve(answer.trim().toLowerCase() !== "n");
+				});
+			});
+		},
+		spawnFarmhand(repoRoot) {
+			const child = spawn("npm", ["run", "farmhand:daemon"], {
+				cwd: repoRoot,
+				detached: true,
+				stdio: "ignore",
+			});
+			child.unref();
+		},
+		async probeFarmhandUntilReady() {
+			const deadline = Date.now() + AUTOSTART_TIMEOUT_MS;
+			while (Date.now() < deadline) {
+				await new Promise((r) => setTimeout(r, AUTOSTART_POLL_INTERVAL_MS));
+				if (await probeFarmhand()) return true;
+			}
+			return false;
+		},
+	};
+}
+
+/**
+ * Offer to auto-start farmhand when the provider is configured but farmhand
+ * is not running (ADR-065, Phase 1). Returns true if farmhand is now ready.
+ */
+export async function autoStartFarmhand(
+	repoRoot: string,
+	deps: LaunchDeps,
+): Promise<boolean> {
+	process.stderr.write(chalk.red("✗  Farmhand is not running.\n\n"));
+
+	const confirmed = await deps.confirm("   Start it now? (Y/n)");
+	if (!confirmed) {
+		console.error(chalk.dim("\n   Start manually: npm run farmhand:daemon"));
+		return false;
+	}
+
+	process.stdout.write(chalk.dim("   → Starting farmhand..."));
+	deps.spawnFarmhand(repoRoot);
+
+	const start = Date.now();
+	const ready = await deps.probeFarmhandUntilReady();
+	const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+
+	if (ready) {
+		process.stdout.write("  " + chalk.green("✓ Ready") + chalk.dim(` (${elapsed}s)`) + "\n\n");
+		return true;
+	}
+
+	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
+	console.error(chalk.dim("   Start manually: npm run farmhand:daemon"));
 	return false;
 }
 
@@ -128,14 +212,12 @@ export function printOnboarding(): void {
 	console.log(chalk.bold("Welcome to refarm.") + "\n");
 	console.log(chalk.bold("To get started:\n"));
 	console.log(
-		"  " + chalk.cyan("1.") + "  Configure a provider:  " + chalk.cyan("refarm keys"),
+		"  " + chalk.cyan("1.") + "  Configure credentials:  " + chalk.cyan("refarm sow"),
 	);
 	console.log(
-		"  " + chalk.cyan("2.") + "  Start farmhand:        " + chalk.cyan("npm run farmhand:daemon"),
+		"  " + chalk.cyan("2.") + "  Then run:               " + chalk.cyan("refarm"),
 	);
-	console.log(
-		"  " + chalk.cyan("3.") + "  Then run:              " + chalk.cyan("refarm"),
-	);
+	console.log(chalk.dim("\n  Farmhand starts automatically on first use."));
 	console.log();
 	console.log(chalk.dim("Need help?  ") + chalk.cyan("refarm doctor"));
 }
