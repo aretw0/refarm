@@ -13,15 +13,10 @@ vi.mock("@refarm.dev/heartwood", () => ({
 }));
 
 describe("Real WASM Instantiation Integration", () => {
-  const wasmPath = process.env.CARGO_TARGET_DIR
-    ? path.resolve(
-        process.env.CARGO_TARGET_DIR,
-        "wasm32-wasip1/release/refarm_heartwood.wasm",
-      )
-    : path.resolve(
-        __dirname,
-        "../../heartwood/target/wasm32-wasip1/release/refarm_heartwood.wasm"
-      );
+  const wasmPath = path.resolve(
+    __dirname,
+    "../../heartwood/dist/refarm_heartwood.wasm",
+  );
   
   const fixtureWasmDir = path.resolve(__dirname, "./fixtures/heartwood-transpiled");
 
