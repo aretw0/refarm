@@ -8,9 +8,20 @@ import * as path from "node:path";
 
 
 export const initCommand = new Command("init")
-  .description("Scaffold a new Sovereign Farm")
-  .argument("[name]", "Project name", "my-sovereign-farm")
-  .action(async (name) => {
+  .description("Initialize a new farm")
+  .argument("[name]", "Project name", "my-farm")
+  .option("--force", "Reinitialize even if already initialized (destructive)")
+  .action(async (name, opts: { force?: boolean }) => {
+    const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
+    const configPath = path.join(projectDir, "refarm.config.json");
+    const identityPath = path.join(projectDir, ".refarm", "identity.json");
+
+    if (!opts.force && (existsSync(configPath) || existsSync(identityPath))) {
+      console.log(chalk.yellow(`Already initialized at ${projectDir}.`));
+      console.log(chalk.dim("Use --force to reinitialize (destructive)."));
+      process.exit(0);
+    }
+
     console.log(chalk.green(`🌱 Seeding your farm: ${name}...`));
 
     const answers = await inquirer.prompt([
@@ -24,9 +35,8 @@ export const initCommand = new Command("init")
         ]
       }
     ]);
-    
+
     const core = new SowerCore();
-    const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
     
     if (!existsSync(projectDir)) {
         mkdirSync(projectDir, { recursive: true });
@@ -41,8 +51,7 @@ export const initCommand = new Command("init")
         mkdirSync(refarmDir, { recursive: true });
       }
       
-      // 2. Bootstrap Real Identity via Silo (SOVEREIGN IMPROVEMENT)
-      console.log(chalk.blue("🔑 Silo: Generating your Sovereign Master Key..."));
+      console.log(chalk.blue("Generating silo master key..."));
       const silo = new SiloCore();
       const identity = await silo.bootstrapIdentity();
 

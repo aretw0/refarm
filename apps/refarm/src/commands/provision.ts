@@ -167,7 +167,7 @@ const cloudflareCommand = new Command("cloudflare")
 	);
 
 export const provisionCommand = new Command("provision")
-	.description("Provision infrastructure for your Sovereign Farm")
+	.description("Provision cloud infrastructure")
 	.addCommand(
 		new Command("list")
 			.description("List provisionable providers and services")

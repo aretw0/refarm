@@ -109,4 +109,21 @@ describe("initCommand — mocked initialization flow", () => {
       expect.objectContaining({ name: "test-farm" })
     );
   });
+
+  it("aborts re-run without --force when already initialized", async () => {
+    mockExistsSync.mockReturnValue(true);
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(
+      (() => { throw new Error("exit:0"); }) as never,
+    );
+    await expect(runInit()).rejects.toThrow("exit:0");
+    expect(mockBootstrapIdentity).not.toHaveBeenCalled();
+    expect(mockWriteFileSync).not.toHaveBeenCalled();
+    exitSpy.mockRestore();
+  });
+
+  it("reinitializes when --force is passed even if already initialized", async () => {
+    mockExistsSync.mockReturnValue(true);
+    await initCommand.parseAsync(["test-farm", "--force"], { from: "user" });
+    expect(mockBootstrapIdentity).toHaveBeenCalled();
+  });
 });

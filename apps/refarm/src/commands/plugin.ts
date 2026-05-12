@@ -37,7 +37,7 @@ pluginCommand
 
 pluginCommand
   .command("install <id>")
-  .description("Install a plugin by its ID from the Sovereign Graph")
+  .description("Install a plugin by ID")
   .option("-s, --source <url>", "Remote source URL")
   .action(async (id: string, options: { source?: string }) => {
     const sourceUrl = options.source ?? `https://registry.refarm.dev/plugins/${id}.json`;
@@ -82,9 +82,9 @@ pluginCommand
 
 pluginCommand
   .command("search <query>")
-  .description("Search for plugins in the Sovereign Graph")
+  .description("Search for plugins in the registry")
   .action(async (query: string) => {
-    console.log(chalk.blue(`🔍 Searching for '${query}' in the Sovereign Graph...`));
+    console.log(chalk.blue(`Searching for '${query}'...`));
     console.log(chalk.gray("(Search requires a Tractor node — coming soon)"));
   });
 
