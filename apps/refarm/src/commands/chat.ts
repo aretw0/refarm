@@ -40,6 +40,8 @@ export interface ChatDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	reloadPlugins(): Promise<{ reloaded: number; skipped: number }>;
+	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
+	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -243,12 +245,14 @@ export function defaultChatDeps(): ChatDeps {
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
 
-function startThinkingSpinner(): () => void {
+function startThinkingSpinner(getMessage?: (frame: number, elapsedMs: number) => string): () => void {
 	if (!process.stdout.isTTY) return () => {};
+	const startMs = Date.now();
 	let frame = 0;
 	const timer = setInterval(() => {
+		const msg = getMessage ? getMessage(frame, Date.now() - startMs) : "Thinking…";
 		process.stdout.write(
-			`\r${chalk.dim(SPINNER_FRAMES[frame % SPINNER_FRAMES.length])}  ${chalk.dim("Thinking…")}`,
+			`\r${chalk.dim(SPINNER_FRAMES[frame % SPINNER_FRAMES.length])}  ${chalk.dim(msg)}`,
 		);
 		frame++;
 	}, 80);
@@ -320,7 +324,7 @@ async function runTurn(
 	const submittedAtMs = Date.now();
 	const effortId = await deps.submitEffort(effort);
 
-	const stopSpinner = startThinkingSpinner();
+	const stopSpinner = startThinkingSpinner(deps.spinnerMessage?.bind(deps));
 	let spinnerCleared = false;
 	function clearSpinner() {
 		if (!spinnerCleared) {
