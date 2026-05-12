@@ -2,6 +2,8 @@ import { Command } from "commander";
 import { actionsCommand } from "./commands/actions.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
+import { chatCommand } from "./commands/chat.js";
+import { sessionCommand, runSessionLaunchFlow } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { keysCommand } from "./commands/keys.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -27,8 +29,11 @@ export const program = new Command();
 
 program
 	.name("refarm")
-	.description("The Sovereign Farm CLI")
-	.version(resolveRefarmVersion());
+	.description("Farm CLI")
+	.version(resolveRefarmVersion())
+	.action(async () => {
+		await runSessionLaunchFlow();
+	});
 
 program.addCommand(initCommand);
 program.addCommand(sowCommand);
@@ -46,6 +51,8 @@ program.addCommand(openUrlCommand);
 program.addCommand(actionsCommand);
 program.addCommand(statusCommand);
 program.addCommand(taskCommand);
+program.addCommand(sessionCommand);
+program.addCommand(chatCommand);
 program.addCommand(askCommand);
 program.addCommand(sessionsCommand);
 program.addCommand(tasksCommand);

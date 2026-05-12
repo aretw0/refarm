@@ -7,11 +7,11 @@ import {
 
 interface PluginLoaderTarget {
 	registry: {
-		register(manifest: PluginManifest): Promise<void>;
+		register(manifest: PluginManifest, sourceUrl?: string): Promise<string>;
 		trust(pluginId: string): Promise<void>;
 	};
 	plugins: {
-		load(manifest: PluginManifest): Promise<void>;
+		load(manifest: PluginManifest): Promise<unknown>;
 	};
 }
 

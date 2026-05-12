@@ -33,6 +33,7 @@ import {
 	type TaskExecutorFn,
 } from "./transports/file.js";
 import { HttpSidecar } from "./transports/http.js";
+import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
 
 const FARMHAND_PORT = 42000;
@@ -258,6 +259,7 @@ async function main() {
 
 	const httpSidecar = new HttpSidecar(42001, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
+	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 
