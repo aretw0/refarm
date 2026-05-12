@@ -104,6 +104,7 @@ packages/**/.turbo/
 .vscode/
 !.vscode/extensions.json
 !.vscode/settings.json
+!.vscode/tasks.json
 .idea/
 *.swp
 *.swo

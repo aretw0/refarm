@@ -6,6 +6,8 @@
 	"scripts": {
 		"build": "turbo build",
 		"dev": "turbo dev",
+		"cli:dev": "turbo dev --filter=@refarm.dev/refarm",
+		"cli:build": "turbo build --filter=@refarm.dev/refarm",
 		"lint": "turbo lint",
 		"test": "turbo run test",
 		"test:watch": "vitest --watch",
