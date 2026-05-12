@@ -15,6 +15,7 @@
 		"ignoreDeprecations": "6.0",
 		"declaration": true,
 		"declarationMap": true,
-		"sourceMap": true
+		"sourceMap": true,
+		"noUncheckedIndexedAccess": true
 	}
 }

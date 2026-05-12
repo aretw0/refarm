@@ -147,6 +147,32 @@ export function homesteadSurfaceRenderActionById(
 	return host?.actions?.find((action) => action.id === actionId);
 }
 
+export function createHomesteadSurfaceRenderActionRequest(
+	renderRequest: HomesteadSurfaceRenderContextRequest,
+	host: HomesteadSurfaceRenderHostContext | undefined,
+	actionId: string | undefined | null,
+): HomesteadSurfaceRenderActionRequest | undefined {
+	const action = homesteadSurfaceRenderActionById(host, actionId);
+	if (!host || !action) return undefined;
+	return { ...renderRequest, host, action };
+}
+
+export async function invokeHomesteadSurfaceRenderAction(
+	handler: HomesteadSurfaceRenderActionHandler | undefined,
+	renderRequest: HomesteadSurfaceRenderContextRequest,
+	host: HomesteadSurfaceRenderHostContext | undefined,
+	actionId: string | undefined | null,
+): Promise<boolean> {
+	const request = createHomesteadSurfaceRenderActionRequest(
+		renderRequest,
+		host,
+		actionId,
+	);
+	if (!handler || !request) return false;
+	const result = await handler(request);
+	return result !== false;
+}
+
 /**
  * Normalize plugin-provided Homestead surface render results into a DOM write
  * strategy. Plain strings are treated as text; trusted plugins must opt in to

@@ -1,0 +1,9 @@
+{
+	"extends": "@refarm.dev/tsconfig/node.json",
+	"compilerOptions": {
+		"noEmit": true
+	},
+	"include": [
+		"src/**/*.ts"
+	]
+}

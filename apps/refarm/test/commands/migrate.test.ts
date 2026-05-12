@@ -23,7 +23,7 @@ vi.mock("@refarm.dev/windmill", () => ({
 }));
 
 vi.mock("node:fs", async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = await importOriginal<typeof import("node:fs")>();
   return {
     ...actual,
     existsSync: vi.fn().mockReturnValue(true),
@@ -31,7 +31,7 @@ vi.mock("node:fs", async (importOriginal) => {
       JSON.stringify({ brand: { slug: "my-farm", urls: { repository: "https://github.com/user/repo.git" } }, infrastructure: { gitHost: "github" } })
     ),
     default: {
-      ...actual.default,
+      ...actual,
       existsSync: vi.fn().mockReturnValue(true),
       readFileSync: vi.fn().mockReturnValue(
         JSON.stringify({ brand: { slug: "my-farm", urls: { repository: "https://github.com/user/repo.git" } }, infrastructure: { gitHost: "github" } })

@@ -17,6 +17,45 @@ composition model: apps make product choices; packages provide primitives.
 ## Short-term focus
 
 Make the host boundary concrete without prematurely building a full CLI or TUI.
+The current `refarm tree` session/git/all slice should be treated as stable only
+after `npm run refarm:tree:verify`; action-readiness envelope changes should pass
+`npm run refarm:actions:verify`. CRDT mutation, composite mutation, rewind, and
+execution-plan extraction stay deferred behind the proof gates in
+[Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
+
+### Current ROI path
+
+The highest-return path is to harden the host contract from both directions at
+once:
+
+- **Top-down**: preserve the unified host direction — one `refarm` distro with
+  Web, headless, and future TUI renderers over shared semantic contracts.
+- **Bottom-up**: reduce concrete friction in the modules already carrying those
+  contracts, before adding larger behavior surfaces.
+
+Work through these slices in order unless a production failure demands a detour:
+
+1. **Tree internal boundary hardening** — deepen the `refarm tree` module cluster
+   (`tree.ts`, `tree-git.ts`, `tree-session.ts`, `tree-model.ts`, session ID/lock
+   helpers) without changing the JSON contract. Prefer extracting internal
+   builders/adapters for envelopes, preview/result effects, scope guards, and
+   substrate-specific facts. Validate with the granular tree lanes and close with
+   `npm run refarm:tree:verify`.
+2. **Action-readiness internal boundary hardening** — deepen the action selection
+   and readiness cluster (`actions`, Web/TUI/headless action rows,
+   `action-affordances`, `status-actions`, and app-local `execution-plan`) while
+   preserving dry-run/readiness-first semantics. Close with
+   `npm run refarm:actions:verify`.
+3. **Action result envelope proof** — only after readiness is internally stable,
+   add the smallest app-owned execution/result envelope that can be consumed by
+   headless/Web/future TUI without moving product semantics into packages.
+4. **Smoke/CI economy polish** — improve local routing explanations or JSON only
+   when iteration pain appears; do not broaden CI by default.
+5. **Larger host/TUI/product behavior** — defer until the tree/action seams are
+   deep enough that new behavior does not fork runtime policy.
+
+Do **not** use these slices as permission to add CRDT mutation, composite
+mutation, rewind, or package extraction early. Those remain proof-gated.
 
 1. Keep the shared renderer vocabulary healthy:
    - `@refarm.dev/homestead/sdk/host-renderer` owns renderer kinds,
@@ -67,6 +106,7 @@ for Refarm work.
    - renderers present the same state in Web, headless, or TUI.
 2. Agent loop on Refarm primitives:
    - sessions, messages, tool calls, and forks become graph/CRDT concepts;
+   - timeline/fork UX follows the substrate-agnostic [Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md);
    - file/shell/model/tool operations run through auditable host actions;
    - plugin surfaces show state and ask for host actions instead of owning power.
 3. TUI when justified:
@@ -82,6 +122,9 @@ for Refarm work.
 - Source is truth; do not edit generated artifacts.
 - Work in atomic slices with local validation.
 - Do not push/watch CI after every small slice; batch meaningful work.
+- Before push/PR, use the account Actions guard for the hard monthly quota signal:
+  `npm run actions:budget:guard:account`. Use allocation mode only as advisory
+  fairness pressure: `npm run actions:budget:guard:allocation`.
 - Disk is constrained; clean only when necessary.
 - Avoid broad Rust rebuilds unless Rust is touched.
 - Avoid broad markdown autoformat churn in large docs.

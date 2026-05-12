@@ -121,6 +121,21 @@ const EnvSource = {
                 config.brand.scopes[scopeKey] = value;
             }
         }
+        // REFARM_PROVIDER_<ID>_<KEY> → providers.<id>.<camelKey>
+        // e.g. REFARM_PROVIDER_GITHUB_CLIENT_ID → providers.github.clientId
+        for (const [key, value] of Object.entries(process.env)) {
+            if (!key.startsWith("REFARM_PROVIDER_")) continue;
+            const rest = key.slice("REFARM_PROVIDER_".length); // GITHUB_CLIENT_ID
+            const underscore = rest.indexOf("_");
+            if (underscore === -1) continue;
+            const providerId = rest.slice(0, underscore).toLowerCase(); // github
+            const fieldRaw = rest.slice(underscore + 1); // CLIENT_ID
+            // snake_case → camelCase
+            const fieldKey = fieldRaw.toLowerCase().replace(/_([a-z])/g, (_, c) => c.toUpperCase()); // clientId
+            config.providers = config.providers || {};
+            config.providers[providerId] = config.providers[providerId] || {};
+            config.providers[providerId][fieldKey] = value;
+        }
         return config;
     }
 };

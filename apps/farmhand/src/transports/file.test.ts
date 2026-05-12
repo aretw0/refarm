@@ -61,7 +61,7 @@ describe("FileTransportAdapter", () => {
 		expect(result!.effortId).toBe("e1");
 		expect(result!.status).toBe("done");
 		expect(result!.results).toHaveLength(1);
-		expect(result!.results[0].status).toBe("ok");
+		expect(result!.results[0]!.status).toBe("ok");
 	});
 
 	it("process() calls executor for each task", async () => {
@@ -82,8 +82,8 @@ describe("FileTransportAdapter", () => {
 		await adapter.process(effort);
 
 		const result = await adapter.query("e1");
-		expect(result!.results[0].status).toBe("error");
-		expect(result!.results[0].error).toBe("kaboom");
+		expect(result!.results[0]!.status).toBe("error");
+		expect(result!.results[0]!.error).toBe("kaboom");
 		expect(result!.status).toBe("failed");
 	});
 
@@ -123,7 +123,7 @@ describe("FileTransportAdapter", () => {
 		const logs = await adapter.logs("e1");
 		expect(logs).not.toBeNull();
 		expect(logs!.length).toBeGreaterThan(0);
-		expect(logs![0].event).toBe("submitted");
+		expect(logs![0]!.event).toBe("submitted");
 	});
 
 	it("summary() aggregates by status", async () => {

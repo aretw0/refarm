@@ -19,11 +19,11 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		const url = "http://localhost:8080/my-plugin.wasm";
 		const integrity = await sha256IntegrityFor("good content");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("good content").buffer,
-		});
+		} as unknown as Response);
 
 		const plugin = await barn.installPlugin(url, integrity);
 
@@ -38,11 +38,11 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		const url = "http://localhost:8080/bad-plugin.wasm";
 		const integrity = await sha256IntegrityFor("expected content");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("bad content").buffer,
-		});
+		} as unknown as Response);
 
 		await expect(barn.installPlugin(url, integrity)).rejects.toThrow(
 			"Integrity check failed",
@@ -64,28 +64,28 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		const url = "http://localhost:8080/my-plugin.wasm";
 		const integrity = await sha256IntegrityFor("good content");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("good content").buffer,
-		});
+		} as unknown as Response);
 
 		await barn.installPlugin(url, integrity);
 		const plugins = await barn.listPlugins();
 
 		expect(plugins.length).toBeGreaterThan(0);
-		expect(plugins[0].url).toBe(url);
+		expect(plugins[0]!.url).toBe(url);
 	});
 
 	it("should uninstall a plugin and cleanup resources", async () => {
 		const url = "http://localhost:8080/temp-plugin.wasm";
 		const integrity = await sha256IntegrityFor("temp");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () => new TextEncoder().encode("temp").buffer,
-		});
+		} as unknown as Response);
 
 		const plugin = await barn.installPlugin(url, integrity);
 		await barn.uninstallPlugin(plugin.id);
@@ -98,12 +98,12 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		const url = "http://localhost:8080/cached-plugin.wasm";
 		const integrity = await sha256IntegrityFor("cached content");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () =>
 				new TextEncoder().encode("cached content").buffer,
-		});
+		} as unknown as Response);
 
 		const first = await barn.installPlugin(url, integrity);
 		const second = await barn.installPlugin(url, integrity);
@@ -118,12 +118,12 @@ describe("Barn (O Celeiro) - Integration Tests", () => {
 		const installedIntegrity = await sha256IntegrityFor("cached content");
 		const mismatchedIntegrity = await sha256IntegrityFor("other content");
 
-		(global.fetch as any).mockResolvedValue({
+		vi.mocked(global.fetch).mockResolvedValue({
 			ok: true,
 			statusText: "OK",
 			arrayBuffer: async () =>
 				new TextEncoder().encode("cached content").buffer,
-		});
+		} as unknown as Response);
 
 		await barn.installPlugin(url, installedIntegrity);
 

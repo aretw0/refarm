@@ -21,12 +21,12 @@ vi.mock("@refarm.dev/registry", () => ({
 }));
 
 vi.mock("node:child_process", async (importOriginal) => {
-  const actual = await importOriginal() as any;
+  const actual = await importOriginal<typeof import("node:child_process")>();
   return {
     ...actual,
     execFileSync: mockExecFileSync,
     default: {
-      ...actual.default,
+      ...actual,
       execFileSync: mockExecFileSync,
     }
   };

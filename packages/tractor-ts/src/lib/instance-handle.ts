@@ -1,5 +1,5 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
+import { TelemetryEvent } from "./telemetry.js";
 
 export type PluginState = "idle" | "running" | "hot" | "throttled" | "error";
 
@@ -12,7 +12,7 @@ export interface PluginInstance {
   manifest: PluginManifest;
   call(fn: string, args?: unknown): Promise<unknown>;
   terminate(): void;
-  emitTelemetry(event: string, payload?: any): void;
+  emitTelemetry(event: string, payload?: unknown): void;
   state: PluginState;
 }
 
@@ -23,15 +23,15 @@ export class PluginInstanceHandle implements PluginInstance {
     return name.replace(/-([a-z])/g, (_full, chr: string) => chr.toUpperCase());
   }
 
-  private integrationNamespaces(): any[] {
+  private integrationNamespaces(): Record<string, unknown>[] {
     if (!this.componentInstance || typeof this.componentInstance !== "object") {
       return [];
     }
 
-    const namespaces: any[] = [];
-    const integration = (this.componentInstance as any).integration;
+    const namespaces: Record<string, unknown>[] = [];
+    const integration = this.componentInstance["integration"];
     if (integration && typeof integration === "object") {
-      namespaces.push(integration);
+      namespaces.push(integration as Record<string, unknown>);
     }
 
     const namespaced = Object.entries(this.componentInstance)
@@ -41,7 +41,7 @@ export class PluginInstanceHandle implements PluginInstance {
           !!value &&
           typeof value === "object",
       )
-      .map(([, value]) => value);
+      .map(([, value]) => value as Record<string, unknown>);
 
     namespaces.push(...namespaced);
     return namespaces;
@@ -75,15 +75,13 @@ export class PluginInstanceHandle implements PluginInstance {
     public id: string,
     public name: string,
     public manifest: PluginManifest,
-    private componentInstance: any,
+    private componentInstance: Record<string, unknown> | null,
     private emit: (data: TelemetryEvent) => void,
     private onTerminate: (id: string) => void
   ) {}
 
   async call(fn: string, args?: unknown): Promise<unknown> {
     const callStart = performance.now();
-    let result: unknown;
-
     if (!this.componentInstance) {
       const error = new Error(
         `Plugin \"${this.id}\" is not instantiated (component instance unavailable)`,
@@ -119,7 +117,7 @@ export class PluginInstanceHandle implements PluginInstance {
       throw error;
     }
 
-    result = await callable(args);
+    const result = await callable(args);
 
     this.emit({
       event: "api:call",
@@ -135,7 +133,7 @@ export class PluginInstanceHandle implements PluginInstance {
     this.emit({ event: "plugin:terminate", pluginId: this.id });
   }
 
-  emitTelemetry(event: string, payload?: any): void {
+  emitTelemetry(event: string, payload?: unknown): void {
     this.emit({ event, pluginId: this.id, payload });
   }
 }

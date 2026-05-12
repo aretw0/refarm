@@ -1,6 +1,6 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
-import type { PluginInstance } from "./instance-handle";
+import { TelemetryEvent } from "./telemetry.js";
+import type { PluginInstance } from "./instance-handle.js";
 
 /**
  * Abstraction over plugin instantiation strategies.
@@ -33,7 +33,7 @@ export interface PluginRunner {
   instantiate(
     manifest: PluginManifest,
     wasmBuffer: ArrayBuffer,
-    imports: Record<string, any>,
+    imports: Record<string, unknown>,
     emit: (data: TelemetryEvent) => void,
     onTerminate: (id: string) => void,
   ): Promise<PluginInstance>;

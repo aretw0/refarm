@@ -37,9 +37,9 @@ export function runAttractor(
     // h = kappa * h + h @ M   (row-vector times matrix)
     const hNext = new Float32Array(n);
     for (let j = 0; j < n; j++) {
-      let acc = kappa * h[j];
+      let acc = kappa * h[j]!;
       for (let i = 0; i < n; i++) {
-        acc += h[i] * M[i * n + j];
+        acc += h[i]! * M[i * n + j]!;
       }
       // clip to [-1, +1]
       hNext[j] = acc < -1 ? -1 : acc > 1 ? 1 : acc;
@@ -62,9 +62,9 @@ export function convergenceScore(
   let normA = 0;
   let normB = 0;
   for (let i = 0; i < recalled.length; i++) {
-    dot += recalled[i] * query[i];
-    normA += recalled[i] * recalled[i];
-    normB += query[i] * query[i];
+    dot += recalled[i]! * query[i]!;
+    normA += recalled[i]! * recalled[i]!;
+    normB += query[i]! * query[i]!;
   }
   const denom = Math.sqrt(normA) * Math.sqrt(normB);
   return denom < 1e-8 ? 0 : dot / denom;

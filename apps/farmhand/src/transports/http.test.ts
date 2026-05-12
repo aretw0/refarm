@@ -113,7 +113,7 @@ describe("HttpSidecar", () => {
 		};
 		const { status, body } = await request(PORT, "POST", "/efforts", effort);
 		expect(status).toBe(200);
-		expect((body as any).effortId).toBe("e1");
+		expect((body as Record<string, unknown>).effortId).toBe("e1");
 		expect(adapter.submit).toHaveBeenCalled();
 	});
 
@@ -128,7 +128,7 @@ describe("HttpSidecar", () => {
 
 		const { status, body } = await request(PORT, "GET", "/efforts/e1");
 		expect(status).toBe(200);
-		expect((body as any).effortId).toBe("e1");
+		expect((body as Record<string, unknown>).effortId).toBe("e1");
 	});
 
 	it("GET /efforts/:id returns 404 when not found", async () => {
@@ -156,7 +156,7 @@ describe("HttpSidecar", () => {
 
 		const { status, body } = await request(PORT, "GET", "/custom");
 		expect(status).toBe(200);
-		expect((body as any).ok).toBe(true);
+		expect((body as Record<string, unknown>).ok).toBe(true);
 	});
 
 	it("GET /efforts returns effort list", async () => {
@@ -171,14 +171,14 @@ describe("HttpSidecar", () => {
 		const { status, body } = await request(PORT, "GET", "/efforts");
 		expect(status).toBe(200);
 		expect(Array.isArray(body)).toBe(true);
-		expect((body as any[])[0]?.effortId).toBe("e1");
+		expect((body as Record<string, unknown>[])[0]?.effortId).toBe("e1");
 	});
 
 	it("GET /telemetry returns runtime telemetry snapshot", async () => {
 		const { status, body } = await request(PORT, "GET", "/telemetry");
 		expect(status).toBe(200);
 		expect(adapter.telemetry).toHaveBeenCalled();
-		expect((body as any).queueDepth).toBe(0);
+		expect((body as Record<string, unknown>).queueDepth).toBe(0);
 	});
 
 	it("GET /telemetry/window returns rolling window summary", async () => {
@@ -189,7 +189,7 @@ describe("HttpSidecar", () => {
 		);
 		expect(status).toBe(200);
 		expect(adapter.telemetryWindow).toHaveBeenCalledWith(15);
-		expect((body as any).windowMinutes).toBe(60);
+		expect((body as Record<string, unknown>).windowMinutes).toBe(60);
 	});
 
 	it("GET /efforts/:id/logs returns logs", async () => {

@@ -4,7 +4,7 @@ import type {
 	EffortSummary,
 } from "@refarm.dev/effort-contract-v1";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createTaskCommand } from "../../src/commands/task.js";
+import { createTaskCommand, resolveAdapter } from "../../src/commands/task.js";
 import type {
 	TaskSessionCheckpoint,
 	TaskSessionRecorder,
@@ -83,7 +83,7 @@ describe("refarm task run", () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -110,7 +110,7 @@ describe("refarm task run", () => {
 		const adapter = createMockAdapter();
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -138,7 +138,7 @@ describe("refarm task status", () => {
 		});
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -178,7 +178,7 @@ describe("refarm task status", () => {
 
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -225,7 +225,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -260,7 +260,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 		});
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -284,7 +284,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 		});
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -304,7 +304,7 @@ describe("refarm task list/logs/retry/cancel", () => {
 		});
 		const session = createMockSessionRecorder();
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -337,7 +337,7 @@ describe("refarm task resume", () => {
 			getCheckpoint: vi.fn().mockReturnValue(null),
 		});
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -372,7 +372,7 @@ describe("refarm task resume", () => {
 			getCheckpoint: vi.fn().mockReturnValue(checkpoint),
 		});
 		const taskCommand = createTaskCommand(
-			() => adapter as any,
+			() => adapter as unknown as ReturnType<typeof resolveAdapter>,
 			session as unknown as TaskSessionRecorder,
 		);
 		const spy = vi.spyOn(console, "log").mockImplementation(() => {});

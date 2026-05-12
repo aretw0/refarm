@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Tractor } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
 describe("Tractor Log Levels", () => {
   let consoleInfoSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
@@ -98,17 +100,17 @@ describe("Tractor Log Levels", () => {
   });
 
   describe("Environment variable detection", () => {
-    const originalEnv = (globalThis as any)?.process?.env;
+    const originalEnv = (globalThis as NodeEnvGlobal)?.process?.env;
 
     afterEach(() => {
-      if (originalEnv && (globalThis as any)?.process) {
-        (globalThis as any).process.env = originalEnv;
+      if (originalEnv && (globalThis as NodeEnvGlobal)?.process) {
+        (globalThis as NodeEnvGlobal).process.env = originalEnv;
       }
     });
 
     it("should respect REFARM_LOG_LEVEL environment variable", async () => {
-      if ((globalThis as any)?.process?.env) {
-        (globalThis as any).process.env.REFARM_LOG_LEVEL = "silent";
+      if ((globalThis as NodeEnvGlobal)?.process?.env) {
+        (globalThis as NodeEnvGlobal).process.env.REFARM_LOG_LEVEL = "silent";
       }
 
       const tractor = await Tractor.boot(createMockConfig());
@@ -121,9 +123,9 @@ describe("Tractor Log Levels", () => {
     });
 
     it("should auto-detect benchmark mode and default to silent", async () => {
-      if ((globalThis as any)?.process?.env) {
-        (globalThis as any).process.env.VITEST = "true";
-        (globalThis as any).process.env.npm_lifecycle_event = "bench";
+      if ((globalThis as NodeEnvGlobal)?.process?.env) {
+        (globalThis as NodeEnvGlobal).process.env.VITEST = "true";
+        (globalThis as NodeEnvGlobal).process.env.npm_lifecycle_event = "bench";
       }
 
       const tractor = await Tractor.boot(createMockConfig());

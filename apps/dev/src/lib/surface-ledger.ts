@@ -31,11 +31,10 @@ export interface StudioSurfaceLedgerMountOptions {
 
 export const STUDIO_SURFACE_LEDGER_ELEMENT_NAME = "refarm-surface-ledger";
 
-export interface StudioSurfaceLedgerElement
-	extends HomesteadReactiveElement<
-		StudioSurfaceLedgerMountOptions | undefined,
-		StudioSurfaceLedgerController
-	> {}
+export type StudioSurfaceLedgerElement = HomesteadReactiveElement<
+	StudioSurfaceLedgerMountOptions | undefined,
+	StudioSurfaceLedgerController
+>;
 
 export function mountStudioSurfaceLedger(
 	container: HTMLElement,

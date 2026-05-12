@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	parseJsonOutput,
 	runSubprocess,
@@ -9,12 +10,137 @@ import {
 } from "./subprocess-utils.mjs";
 
 const LOGGER_PREFIX = "[refarm-host-cli-smoke]";
-const REFARM_DIST_ENTRY = "apps/refarm/dist/index.js";
+const REPO_ROOT = process.cwd();
+const REFARM_DIST_ENTRY = path.join(REPO_ROOT, "apps/refarm/dist/index.js");
+const REFARM_ESM_LOADER = path.join(
+	REPO_ROOT,
+	"scripts/ci/esm-extension-loader.mjs",
+);
 const REFARM_NODE_ARGS_PREFIX = [
 	"--experimental-loader",
-	"./scripts/ci/esm-extension-loader.mjs",
+	REFARM_ESM_LOADER,
 	REFARM_DIST_ENTRY,
 ];
+const ACTION_AFFORDANCES = [
+	{
+		id: "open-status-report",
+		label: "Open status report",
+		intent: "refarm:status-open",
+	},
+	{ id: "inspect-trust", label: "Inspect trust", intent: "trust:inspect" },
+];
+export const ONLY_PROFILES = new Set([
+	"action-seams",
+	"actions-readiness",
+	"status-action",
+]);
+
+const ONLY_PROFILE_NPM_SCRIPTS = new Map([
+	["action-seams", "refarm:host:smoke:cli:action-seams"],
+	["actions-readiness", "refarm:host:smoke:cli:actions-readiness"],
+	["status-action", "refarm:host:smoke:cli:status-action"],
+]);
+
+const ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS = new Map([
+	["action-seams", "refarm:host:smoke:cli:action-seams:skip-build"],
+	[
+		"actions-readiness",
+		"refarm:host:smoke:cli:actions-readiness:skip-build",
+	],
+	["status-action", "refarm:host:smoke:cli:status-action:skip-build"],
+]);
+
+export function parseOnlyProfile(argv) {
+	const onlyIndex = argv.indexOf("--only");
+	if (onlyIndex === -1) return undefined;
+
+	const profile = argv[onlyIndex + 1];
+	if (!profile) {
+		throw new Error(
+			`Missing value for --only. Available profiles: ${Array.from(ONLY_PROFILES).join(", ")}.`,
+		);
+	}
+	if (!ONLY_PROFILES.has(profile)) {
+		throw new Error(
+			`Unknown --only profile "${profile}". Available profiles: ${Array.from(ONLY_PROFILES).join(", ")}.`,
+		);
+	}
+	return profile;
+}
+
+export function parseSkipBuild(argv) {
+	return argv.includes("--skip-build");
+}
+
+export function hasListOnlyProfilesArg(argv) {
+	return argv.includes("--list-only-profiles");
+}
+
+export function hasJsonArg(argv) {
+	return argv.includes("--json");
+}
+
+export function hasHelpArg(argv) {
+	return argv.includes("--help") || argv.includes("-h");
+}
+
+export function formatOnlyProfileList() {
+	return Array.from(ONLY_PROFILES).join(", ");
+}
+
+export function resolveOnlyProfileCommand(profile) {
+	if (!ONLY_PROFILES.has(profile)) return undefined;
+	return `node scripts/ci/smoke-refarm-host-cli-flows.mjs --only ${profile}`;
+}
+
+export function resolveOnlyProfileSkipBuildCommand(profile) {
+	const command = resolveOnlyProfileCommand(profile);
+	return command ? `${command} --skip-build` : undefined;
+}
+
+export function resolveOnlyProfileNpmScript(profile) {
+	return ONLY_PROFILE_NPM_SCRIPTS.get(profile);
+}
+
+export function resolveOnlyProfileNpmCommand(profile) {
+	const script = resolveOnlyProfileNpmScript(profile);
+	return script ? `npm run ${script}` : undefined;
+}
+
+export function resolveOnlyProfileSkipBuildNpmScript(profile) {
+	return ONLY_PROFILE_SKIP_BUILD_NPM_SCRIPTS.get(profile);
+}
+
+export function resolveOnlyProfileSkipBuildNpmCommand(profile) {
+	const script = resolveOnlyProfileSkipBuildNpmScript(profile);
+	return script ? `npm run ${script}` : undefined;
+}
+
+export function createOnlyProfileListEnvelope() {
+	return {
+		schemaVersion: 1,
+		profiles: Array.from(ONLY_PROFILES).map((profile) => ({
+			profile,
+			npmScript: resolveOnlyProfileNpmScript(profile),
+			npmCommand: resolveOnlyProfileNpmCommand(profile),
+			command: resolveOnlyProfileCommand(profile),
+			skipBuildNpmScript: resolveOnlyProfileSkipBuildNpmScript(profile),
+			skipBuildNpmCommand: resolveOnlyProfileSkipBuildNpmCommand(profile),
+			skipBuildCommand: resolveOnlyProfileSkipBuildCommand(profile),
+		})),
+	};
+}
+
+export function formatHelp() {
+	return [
+		`${LOGGER_PREFIX} usage:`,
+		"  node scripts/ci/smoke-refarm-host-cli-flows.mjs [--only <profile>] [--skip-build] [--list-only-profiles] [--json]",
+		`  focused profiles: ${formatOnlyProfileList()}`,
+		"  --only <profile> runs a focused built-CLI smoke profile instead of the full flow.",
+		"  --skip-build reuses an existing apps/refarm/dist build; default behavior builds before smoking.",
+		"  --list-only-profiles prints focused profile names; add --json for a machine-readable envelope.",
+	].join("\n");
+}
 
 function makeStatusPayload(mode, options = {}) {
 	const diagnostics = options.diagnostics ?? [];
@@ -24,6 +150,8 @@ function makeStatusPayload(mode, options = {}) {
 		mode === "web"
 			? ["interactive", "rich-html", "diagnostics"]
 			: ["interactive", "diagnostics"];
+
+	const availableActions = options.availableActions ?? [];
 
 	return {
 		schemaVersion: 1,
@@ -44,10 +172,11 @@ function makeStatusPayload(mode, options = {}) {
 			databaseName: "refarm-main",
 		},
 		plugins: {
-			installed: 0,
-			active: 0,
+			installed: availableActions.length,
+			active: availableActions.length,
 			rejectedSurfaces: 0,
-			surfaceActions: 0,
+			surfaceActions: availableActions.length,
+			...(availableActions.length > 0 ? { availableActions } : {}),
 		},
 		trust: {
 			profile: "dev",
@@ -68,6 +197,7 @@ function buildRefarmCommandArgs(args) {
 
 async function runRefarmCommand(args, options = {}) {
 	return runSubprocess(process.execPath, buildRefarmCommandArgs(args), {
+		cwd: options.cwd,
 		env: {
 			...process.env,
 			NODE_NO_WARNINGS: "1",
@@ -105,9 +235,79 @@ function parseCommandJsonOutput(label, runResult) {
 	}
 }
 
-async function assertCommandFailsWith(args, expectedSubstring) {
+async function assertStatusActionExecutedEnvelope() {
+	console.log(`${LOGGER_PREFIX} smoke: refarm status --action executed JSON`);
+	const statusActionRun = await runRefarmCommand(["status", "--action", "2"]);
+	const statusActionJson = parseCommandJsonOutput(
+		"status --action",
+		statusActionRun,
+	);
+	if (
+		statusActionJson?.schemaVersion !== 1 ||
+		statusActionJson?.reason !== "executed" ||
+		statusActionJson?.renderer !== "status" ||
+		statusActionJson?.statusSource !== "live"
+	) {
+		throw new Error(
+			`Expected executed status action envelope, got: ${JSON.stringify(statusActionJson)}`,
+		);
+	}
+	if (statusActionJson?.handled !== true) {
+		throw new Error(
+			`Expected status action handled=true, got: ${JSON.stringify(statusActionJson)}`,
+		);
+	}
+	if (statusActionJson?.selection?.resolvedId !== "inspect-trust") {
+		throw new Error(
+			`Expected status action selection.resolvedId=inspect-trust, got: ${JSON.stringify(statusActionJson?.selection)}`,
+		);
+	}
+	if (statusActionJson?.actionRequest?.action?.intent !== "trust:inspect") {
+		throw new Error(
+			`Expected status action request intent=trust:inspect, got: ${JSON.stringify(statusActionJson?.actionRequest?.action)}`,
+		);
+	}
+}
+
+async function assertActionsReadinessEnvelope(webStatusPath) {
+	console.log(`${LOGGER_PREFIX} smoke: refarm actions --input selected JSON`);
+	const actionsJsonRun = await runRefarmCommand([
+		"actions",
+		"--input",
+		webStatusPath,
+		"--select",
+		"2",
+		"--json",
+	]);
+	const actionsJson = parseCommandJsonOutput(
+		"actions --select --json",
+		actionsJsonRun,
+	);
+	if (actionsJson?.command !== "actions") {
+		throw new Error(
+			`Expected actions command=actions from JSON output, got: ${JSON.stringify(actionsJson)}`,
+		);
+	}
+	if (actionsJson?.reason !== "dry-run") {
+		throw new Error(
+			`Expected actions reason=dry-run from JSON output, got: ${JSON.stringify(actionsJson)}`,
+		);
+	}
+	if (actionsJson?.readiness?.status !== "ready") {
+		throw new Error(
+			`Expected actions readiness.status=ready, got: ${JSON.stringify(actionsJson?.readiness)}`,
+		);
+	}
+	if (actionsJson?.selection?.resolvedId !== "inspect-trust") {
+		throw new Error(
+			`Expected actions selection.resolvedId=inspect-trust, got: ${JSON.stringify(actionsJson?.selection)}`,
+		);
+	}
+}
+
+async function assertCommandFailsWith(args, expectedSubstring, options = {}) {
 	try {
-		await runRefarmCommand(args);
+		await runRefarmCommand(args, options);
 		throw new Error(
 			`Expected command to fail with ${JSON.stringify(expectedSubstring)}, but it exited successfully.`,
 		);
@@ -119,7 +319,54 @@ async function assertCommandFailsWith(args, expectedSubstring) {
 	}
 }
 
+async function createIsolatedGitRepo(tempDir) {
+	const gitRepoPath = path.join(tempDir, "tree-fork-git-repo");
+	await mkdir(gitRepoPath, { recursive: true });
+	await runSubprocess("git", ["init", "--initial-branch=main"], {
+		cwd: gitRepoPath,
+		env: process.env,
+		captureOutput: true,
+	});
+	await writeFile(path.join(gitRepoPath, "README.md"), "# tree fork smoke\n", "utf8");
+	await runSubprocess("git", ["add", "README.md"], {
+		cwd: gitRepoPath,
+		env: process.env,
+		captureOutput: true,
+	});
+	await runSubprocess(
+		"git",
+		[
+			"-c",
+			"user.name=Refarm Smoke",
+			"-c",
+			"user.email=refarm-smoke@example.invalid",
+			"commit",
+			"-m",
+			"seed",
+		],
+		{ cwd: gitRepoPath, env: process.env, captureOutput: true },
+	);
+	return gitRepoPath;
+}
+
 async function main() {
+	const argv = process.argv.slice(2);
+	if (hasHelpArg(argv)) {
+		console.log(formatHelp());
+		return;
+	}
+
+	if (hasListOnlyProfilesArg(argv)) {
+		if (hasJsonArg(argv)) {
+			console.log(JSON.stringify(createOnlyProfileListEnvelope(), null, 2));
+		} else {
+			console.log(formatOnlyProfileList());
+		}
+		return;
+	}
+
+	const onlyProfile = parseOnlyProfile(argv);
+	const skipBuild = parseSkipBuild(argv);
 	const keepArtifacts =
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "1" ||
 		process.env.REFARM_HOST_SMOKE_KEEP_ARTIFACTS === "true";
@@ -132,7 +379,11 @@ async function main() {
 	try {
 		await writeFile(
 			webStatusPath,
-			`${JSON.stringify(makeStatusPayload("web"), null, 2)}\n`,
+			`${JSON.stringify(
+				makeStatusPayload("web", { availableActions: ACTION_AFFORDANCES }),
+				null,
+				2,
+			)}\n`,
 			"utf8",
 		);
 		await writeFile(
@@ -146,10 +397,33 @@ async function main() {
 			"utf8",
 		);
 
-		console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-		await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
-			env: process.env,
-		});
+		if (skipBuild) {
+			console.log(
+				`${LOGGER_PREFIX} skipping apps/refarm dist build (--skip-build)`,
+			);
+		} else {
+			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
+			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
+				env: process.env,
+			});
+		}
+
+		if (onlyProfile === "status-action") {
+			await assertStatusActionExecutedEnvelope();
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
+		if (onlyProfile === "actions-readiness") {
+			await assertActionsReadinessEnvelope(webStatusPath);
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
+		if (onlyProfile === "action-seams") {
+			await assertActionsReadinessEnvelope(webStatusPath);
+			await assertStatusActionExecutedEnvelope();
+			console.log(`${LOGGER_PREFIX} passed (${onlyProfile})`);
+			return;
+		}
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm web --input preflight hint`);
 		const webPreflightRun = await runRefarmCommand([
@@ -183,6 +457,18 @@ async function main() {
 		);
 		assertIncludes(tuiPreflightOutput, "available via --launch");
 		assertIncludes(tuiPreflightOutput, "(watch|prompt)");
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm open-url --dry-run`);
+		const openUrlRun = await runRefarmCommand([
+			"open-url",
+			"https://github.com/login/device",
+			"--dry-run",
+		]);
+		const openUrlOutput = stripAnsi(
+			`${openUrlRun.stdout}\n${openUrlRun.stderr}`,
+		);
+		assertIncludes(openUrlOutput, "[dry-run] would open browser URL");
+		assertIncludes(openUrlOutput, "candidate:");
 
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm web --launch --dry-run --open --input`,
@@ -228,6 +514,323 @@ async function main() {
 				`Expected tui renderer kind from JSON output, got: ${JSON.stringify(tuiJson?.renderer)}`,
 			);
 		}
+
+		await assertActionsReadinessEnvelope(webStatusPath);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree --scope git JSON`);
+		const treeGitJsonRun = await runRefarmCommand([
+			"tree",
+			"list",
+			"--scope",
+			"git",
+			"--limit",
+			"1",
+			"--json",
+		]);
+		const treeGitJson = parseCommandJsonOutput(
+			"tree list --scope git --json",
+			treeGitJsonRun,
+		);
+		if (treeGitJson?.schemaVersion !== 1) {
+			throw new Error(
+				`Expected tree schemaVersion=1 from JSON output, got: ${JSON.stringify(treeGitJson)}`,
+			);
+		}
+		if (
+			treeGitJson?.command !== "tree" ||
+			treeGitJson?.scope !== "git" ||
+			treeGitJson?.operation !== "list"
+		) {
+			throw new Error(
+				`Expected tree command/scope/operation from JSON output, got: ${JSON.stringify(treeGitJson)}`,
+			);
+		}
+		if (!Array.isArray(treeGitJson?.nodes) || treeGitJson.nodes.length < 1) {
+			throw new Error(
+				`Expected at least one git timeline node, got: ${JSON.stringify(treeGitJson?.nodes)}`,
+			);
+		}
+		if (treeGitJson.nodes[0]?.kind !== "git") {
+			throw new Error(
+				`Expected first tree node kind=git, got: ${JSON.stringify(treeGitJson.nodes[0])}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git show JSON`);
+		const treeGitShowRun = await runRefarmCommand([
+			"tree",
+			"show",
+			"HEAD",
+			"--scope",
+			"git",
+			"--json",
+		]);
+		const treeGitShow = parseCommandJsonOutput(
+			"tree show --scope git --json",
+			treeGitShowRun,
+		);
+		if (
+			treeGitShow?.schemaVersion !== 1 ||
+			treeGitShow?.command !== "tree" ||
+			treeGitShow?.scope !== "git" ||
+			treeGitShow?.operation !== "show"
+		) {
+			throw new Error(
+				`Expected tree show command/scope/operation from JSON output, got: ${JSON.stringify(treeGitShow)}`,
+			);
+		}
+		if (treeGitShow?.node?.kind !== "git") {
+			throw new Error(
+				`Expected tree show node kind=git, got: ${JSON.stringify(treeGitShow?.node)}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git preview JSON`);
+		const treeGitPreviewRun = await runRefarmCommand([
+			"tree",
+			"preview",
+			"HEAD",
+			"--scope",
+			"git",
+			"--name",
+			"smoke/tree-preview",
+			"--json",
+		]);
+		const treeGitPreview = parseCommandJsonOutput(
+			"tree preview --scope git --json",
+			treeGitPreviewRun,
+		);
+		if (treeGitPreview?.schemaVersion !== 1) {
+			throw new Error(
+				`Expected tree preview schemaVersion=1, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
+		if (treeGitPreview?.operation !== "preview") {
+			throw new Error(
+				`Expected tree preview operation=preview, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
+		if (treeGitPreview?.reason !== "dry-run") {
+			throw new Error(
+				`Expected tree preview reason=dry-run, got: ${JSON.stringify(treeGitPreview)}`,
+			);
+		}
+		if (
+			treeGitPreview?.plan?.action !== "fork" ||
+			treeGitPreview?.plan?.substrate?.kind !== "git-branch"
+		) {
+			throw new Error(
+				`Expected git branch fork preview plan, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.destructive !== false) {
+			throw new Error(
+				`Expected non-destructive git preview, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (
+			treeGitPreview.plan?.effects?.activePointerChanged !== false ||
+			treeGitPreview.plan?.effects?.branchCreated !== true ||
+			treeGitPreview.plan?.substrate?.worktreeSwitched !== false
+		) {
+			throw new Error(
+				`Expected non-switching git fork preview effects, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.readyToExecute !== true) {
+			throw new Error(
+				`Expected git preview readyToExecute=true, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (
+			!treeGitPreview.plan?.recommendedCommand?.startsWith(
+				"refarm tree fork --scope git ",
+			)
+		) {
+			throw new Error(
+				`Expected git preview to recommend refarm tree fork, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (!treeGitPreview.plan?.recommendedCommand?.includes("smoke/tree-preview")) {
+			throw new Error(
+				`Expected named git preview command, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+		if (treeGitPreview.plan?.recommendedCommand?.startsWith("git branch ")) {
+			throw new Error(
+				`Expected git preview not to recommend raw git branch, got: ${JSON.stringify(treeGitPreview?.plan)}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree session fork rejects execution`);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--name", "smoke/tree-fork"],
+			"refarm tree fork currently supports --scope git only",
+		);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--name", "unsafe..name"],
+			"refarm tree fork currently supports --scope git only",
+		);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork rejects unsafe names`);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--scope", "git", "--name", "unsafe..name"],
+			'Invalid branch name "unsafe..name"',
+		);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork rejects entry selectors`);
+		await assertCommandFailsWith(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"smoke/tree-fork",
+				"--at",
+				"entry-1",
+			],
+			"--at is only supported for session timelines",
+		);
+		await assertCommandFailsWith(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"unsafe..name",
+				"--at",
+				"entry-1",
+			],
+			"--at is only supported for session timelines",
+		);
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git fork creates branch in isolated repo`);
+		const isolatedGitRepoPath = await createIsolatedGitRepo(tempDir);
+		const treeGitForkRun = await runRefarmCommand(
+			[
+				"tree",
+				"fork",
+				"HEAD",
+				"--scope",
+				"git",
+				"--name",
+				"smoke/tree-fork",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const treeGitFork = parseCommandJsonOutput(
+			"tree fork --scope git --json",
+			treeGitForkRun,
+		);
+		if (treeGitFork?.operation !== "fork" || treeGitFork?.reason !== "executed") {
+			throw new Error(
+				`Expected executed tree fork envelope, got: ${JSON.stringify(treeGitFork)}`,
+			);
+		}
+		if (treeGitFork?.result?.branchName !== "smoke/tree-fork") {
+			throw new Error(
+				`Expected tree fork branchName=smoke/tree-fork, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
+		if (treeGitFork?.result?.worktreeSwitched !== false) {
+			throw new Error(
+				`Expected tree fork worktreeSwitched=false, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
+		if (
+			treeGitFork?.result?.currentRefBefore !== "main" ||
+			treeGitFork?.result?.currentRefAfter !== "main"
+		) {
+			throw new Error(
+				`Expected tree fork current refs to stay main, got: ${JSON.stringify(treeGitFork?.result)}`,
+			);
+		}
+		const branchListRun = await runSubprocess(
+			"git",
+			["branch", "--list", "smoke/tree-fork"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		assertIncludes(branchListRun.stdout, "smoke/tree-fork");
+		const currentBranchRun = await runSubprocess(
+			"git",
+			["branch", "--show-current"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		if (currentBranchRun.stdout.trim() !== "main") {
+			throw new Error(
+				`Expected git tree fork smoke to keep current branch main, got: ${JSON.stringify(currentBranchRun.stdout.trim())}`,
+			);
+		}
+
+		console.log(`${LOGGER_PREFIX} smoke: refarm tree git switch moves isolated repo branch`);
+		const treeGitSwitchRun = await runRefarmCommand(
+			[
+				"tree",
+				"switch",
+				"smoke/tree-fork",
+				"--scope",
+				"git",
+				"--json",
+			],
+			{ cwd: isolatedGitRepoPath },
+		);
+		const treeGitSwitch = parseCommandJsonOutput(
+			"tree switch --scope git --json",
+			treeGitSwitchRun,
+		);
+		if (
+			treeGitSwitch?.operation !== "switch" ||
+			treeGitSwitch?.reason !== "executed"
+		) {
+			throw new Error(
+				`Expected executed tree switch envelope, got: ${JSON.stringify(treeGitSwitch)}`,
+			);
+		}
+		if (
+			treeGitSwitch?.result?.branchName !== "smoke/tree-fork" ||
+			treeGitSwitch?.result?.currentRefBefore !== "main" ||
+			treeGitSwitch?.result?.currentRefAfter !== "smoke/tree-fork" ||
+			treeGitSwitch?.result?.worktreeSwitched !== true
+		) {
+			throw new Error(
+				`Expected tree switch to move main -> smoke/tree-fork, got: ${JSON.stringify(treeGitSwitch?.result)}`,
+			);
+		}
+		const switchedBranchRun = await runSubprocess(
+			"git",
+			["branch", "--show-current"],
+			{ cwd: isolatedGitRepoPath, env: process.env, captureOutput: true },
+		);
+		if (switchedBranchRun.stdout.trim() !== "smoke/tree-fork") {
+			throw new Error(
+				`Expected git tree switch smoke to move current branch to smoke/tree-fork, got: ${JSON.stringify(switchedBranchRun.stdout.trim())}`,
+			);
+		}
+		await assertCommandFailsWith(
+			["tree", "switch", "smoke/tree-fork", "--scope", "git"],
+			'Git branch "smoke/tree-fork" is already active.',
+			{ cwd: isolatedGitRepoPath },
+		);
+		await assertCommandFailsWith(
+			["tree", "fork", "HEAD", "--scope", "git", "--name", "smoke/tree-fork"],
+			'Git branch "smoke/tree-fork" already exists.',
+			{ cwd: isolatedGitRepoPath },
+		);
+
+		console.log(
+			`${LOGGER_PREFIX} smoke: refarm status --action rejects input artifacts`,
+		);
+		await assertCommandFailsWith(
+			["status", "--input", webStatusPath, "--action", "2"],
+			"--action cannot be combined with --input",
+		);
+
+		await assertStatusActionExecutedEnvelope();
 
 		console.log(`${LOGGER_PREFIX} smoke: refarm status --json --input`);
 		const statusJsonRun = await runRefarmCommand([
@@ -386,8 +989,14 @@ async function main() {
 	}
 }
 
-main().catch((error) => {
-	const message = error instanceof Error ? error.message : String(error);
-	console.error(`${LOGGER_PREFIX} failed: ${message}`);
-	process.exit(1);
-});
+const isMain =
+	process.argv[1] &&
+	path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isMain) {
+	main().catch((error) => {
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`${LOGGER_PREFIX} failed: ${message}`);
+		process.exit(1);
+	});
+}

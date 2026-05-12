@@ -5,11 +5,15 @@
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc --project tsconfig.build.json"
+    "build": "tsc --project tsconfig.build.json",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/plugin-manifest": "*",
     "@refarm.dev/ds": "*"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
+  }
 }

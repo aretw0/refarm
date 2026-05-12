@@ -1,0 +1,50 @@
+{
+  "name": "@refarm.dev/eslint-config",
+  "version": "0.1.0",
+  "description": "Shared ESLint configurations for the Refarm monorepo and downstream Refarm projects.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./src/index.js",
+      "default": "./src/index.js"
+    },
+    "./base": {
+      "types": "./src/base.d.ts",
+      "import": "./src/base.js",
+      "default": "./src/base.js"
+    },
+    "./node": {
+      "types": "./src/node.d.ts",
+      "import": "./src/node.js",
+      "default": "./src/node.js"
+    },
+    "./browser": {
+      "types": "./src/browser.d.ts",
+      "import": "./src/browser.js",
+      "default": "./src/browser.js"
+    }
+  },
+  "files": [
+    "src",
+    "index.d.ts"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "eslint": ">=9.0.0",
+    "typescript-eslint": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "typescript-eslint": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "typescript-eslint": "^8.59.2"
+  }
+}

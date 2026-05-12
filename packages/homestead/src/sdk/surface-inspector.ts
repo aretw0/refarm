@@ -13,7 +13,7 @@ export interface MountedHomesteadSurface {
 export interface HomesteadSurfaceTelemetryEvent {
 	event: string;
 	pluginId?: string;
-	payload?: Record<string, unknown>;
+	payload?: unknown;
 }
 
 export interface HomesteadSurfaceTelemetrySource {
@@ -114,7 +114,7 @@ export function rejectedHomesteadSurfaceFromTelemetry(
 	event: HomesteadSurfaceTelemetryEvent,
 ): RejectedHomesteadSurfaceActivation | undefined {
 	if (event.event !== "ui:surface_rejected") return undefined;
-	const payload = event.payload ?? {};
+	const payload = recordPayloadValue(event.payload);
 	return {
 		pluginId: event.pluginId,
 		reason: stringPayloadValue(payload.reason) ?? "unknown",
@@ -141,7 +141,7 @@ export function homesteadSurfaceActionFromTelemetry(
 	event: HomesteadSurfaceTelemetryEvent,
 ): HomesteadSurfaceActionDiagnostic | undefined {
 	if (!isHomesteadSurfaceActionEvent(event)) return undefined;
-	const payload = event.payload ?? {};
+	const payload = recordPayloadValue(event.payload);
 	const actionId = stringPayloadValue(payload.actionId);
 	if (!actionId) return undefined;
 
@@ -172,6 +172,12 @@ function stringPayloadValue(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim().length > 0
 		? value
 		: undefined;
+}
+
+function recordPayloadValue(value: unknown): Record<string, unknown> {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
 }
 
 function stringArrayPayloadValue(value: unknown): string[] | undefined {

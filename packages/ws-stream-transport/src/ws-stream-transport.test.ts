@@ -91,7 +91,7 @@ describe("WsStreamTransport — WebSocket protocol", () => {
 		});
 
 		const server = http.createServer();
-		const transport = new WsStreamTransport(server, fileTransport);
+		const _transport = new WsStreamTransport(server, fileTransport);
 		await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
 		const port = (server.address() as { port: number }).port;
 

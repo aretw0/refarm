@@ -27,6 +27,8 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/ds",
 	"packages/homestead",
 	"packages/cli",
+	"packages/infra-turbo-cache",
+	"packages/infra-cloudflare",
 	"apps/farmhand",
 	"apps/refarm",
 ];

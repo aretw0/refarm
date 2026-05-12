@@ -37,7 +37,7 @@ export function setStoreNodeFn(fn: ((nodeJson: string) => Promise<void>) | null)
 
 let tem: TEMInference | null = null;
 let temState: ReturnType<TEMInference["createState"]> | null = null;
-let obsEncoder: StructAwareEncoder = new StructAwareEncoder();
+const obsEncoder: StructAwareEncoder = new StructAwareEncoder();
 let lastNovelty = 0;
 
 // ─── WIT: refarm:plugin/integration ─────────────────────────────────────────

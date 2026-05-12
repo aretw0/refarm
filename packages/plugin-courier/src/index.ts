@@ -29,18 +29,18 @@ export class AntennaPlugin {
       const nodes = await this.tractor.queryNodes(`SELECT * WHERE url = '${path}'`);
       if (!nodes || nodes.length === 0) return new Response("404 - Not Found", { status: 404 });
       
-      const html = await this.materializeHtml(nodes[0]);
+      const html = await this.materializeHtml(nodes[0]!);
       const headers = new Headers({ "Content-Type": "text/html" });
       if (this.options.enableEasterEggs) headers.set("X-Broadcasted-By", "Refarm Antenna (The Sovereign Signal)");
 
       return new Response(html, { status: 200, headers });
-    } catch (error: any) {
-      return new Response(`500 - Radio Failure: ${error.message}`, { status: 500 });
+    } catch (error) {
+      return new Response(`500 - Radio Failure: ${error instanceof Error ? error.message : String(error)}`, { status: 500 });
     }
   }
 
-  private async materializeHtml(node: any): Promise<string> {
-    return `<!DOCTYPE html><html><head><title>${node.name}</title></head><body><h1>${node.content}</h1></body></html>`;
+  private async materializeHtml(node: Record<string, unknown>): Promise<string> {
+    return `<!DOCTYPE html><html><head><title>${node["name"]}</title></head><body><h1>${node["content"]}</h1></body></html>`;
   }
 
   private getEasterEggAscii(): string {

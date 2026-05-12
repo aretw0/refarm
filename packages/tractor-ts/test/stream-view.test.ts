@@ -84,8 +84,8 @@ describe("stream observation view", () => {
 		);
 
 		expect(Object.keys(views).sort()).toEqual(["stream-a", "stream-b"]);
-		expect(views["stream-a"].durationNs).toBe(20);
-		expect(views["stream-a"].isTerminal).toBe(true);
-		expect(views["stream-b"].content).toBe("orphan chunk");
+		expect(views["stream-a"]!.durationNs).toBe(20);
+		expect(views["stream-a"]!.isTerminal).toBe(true);
+		expect(views["stream-b"]!.content).toBe("orphan chunk");
 	});
 });

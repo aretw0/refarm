@@ -9,9 +9,9 @@ export const guideCommand = new Command("guide")
   .action(async () => {
     console.log(chalk.blue("📖 Generating your Sovereign Setup Audit..."));
 
-    const config = loadConfig() as any;
+    const config = loadConfig();
     const silo = new SiloCore(config);
-    const tokens = silo.provision("object") as any;
+    const tokens = silo.provision("object") as unknown as Record<string, unknown>;
 
     const checks = [
       { name: "GITHUB_TOKEN", status: tokens.REFARM_GITHUB_TOKEN ? "✅" : "❌", action: "Run 'refarm sow' to add your PAT." },

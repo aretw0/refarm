@@ -14,13 +14,17 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "tsc --noEmit",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:unit": "vitest run --passWithNoTests",
     "clean": "rm -rf dist"
   },
-  "keywords": ["stream", "transport", "websocket"],
+  "keywords": [
+    "stream",
+    "transport",
+    "websocket"
+  ],
   "author": "Refarm Contributors",
   "license": "MIT",
   "repository": {
@@ -28,14 +32,20 @@
     "url": "https://github.com/aretw0/refarm.git",
     "directory": "packages/ws-stream-transport"
   },
-  "files": ["dist", "README.md"],
-  "publishConfig": { "access": "public" },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/stream-contract-v1": "*",
     "ws": "^8.18.3"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*",
     "@refarm.dev/vtconfig": "*",
     "@types/ws": "^8.18.1"

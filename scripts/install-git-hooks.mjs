@@ -447,6 +447,27 @@ else
 fi
 echo ""
 
+# 4a. Task smoke build-order integrity (always runs — fast graph walk, catches new packages missing from TASK_SMOKE_TS_BUILD_ORDER)
+echo "📋 Checking task smoke build-order integrity..."
+if timeout 30 npm run task:build-order:check --silent 2>/tmp/prepush-buildorder.err; then
+  echo "   ✅ Build-order integrity OK"
+else
+  BO_STATUS=$?
+  BO_MSG=$(cat /tmp/prepush-buildorder.err 2>/dev/null || true)
+  if [ "$BO_STATUS" -eq 124 ]; then
+    echo "   ⚠️  Build-order check timed out (non-blocking)"
+    WARNINGS=1
+  elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+    echo "   ❌ Build-order integrity failed (blocking in strict mode)"
+    echo "$BO_MSG"
+    BLOCKING_FAILED=1
+  else
+    echo "   ⚠️  Build-order integrity failed: $BO_MSG"
+    WARNINGS=1
+  fi
+fi
+echo ""
+
 # 4. Quality Gate (SDD->BDD->TDD->DDD)
 echo "🔍 Checking Refarm Quality Gate..."
 if [ $NEEDS_QUALITY_GATE -eq 0 ]; then

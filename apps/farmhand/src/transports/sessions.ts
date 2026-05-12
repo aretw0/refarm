@@ -11,7 +11,7 @@ interface SessionNode {
 }
 
 interface SessionStore {
-	queryNodes<T = Record<string, unknown>>(type: string): Promise<T[]>;
+	queryNodes(type: string): Promise<Record<string, unknown>[]>;
 	storeNode(node: Record<string, unknown>): Promise<void>;
 }
 
@@ -53,29 +53,48 @@ function normalizeSession(node: Record<string, unknown>): SessionNode | null {
 		name: typeof node.name === "string" ? node.name : null,
 		leaf_entry_id: null,
 		parent_session_id: null,
-		created_at_ns: typeof createdAt === "number" ? createdAt : Date.now() * 1_000_000,
+		created_at_ns:
+			typeof createdAt === "number" ? createdAt : Date.now() * 1_000_000,
 	};
 }
 
 export function createSessionsRouteHandler(store: SessionStore) {
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
-		const url = req.url ?? "/";
-		if (url !== "/sessions") return false;
+		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
+		if (requestUrl.pathname !== "/sessions") return false;
 
 		void (async () => {
 			try {
 				if (req.method === "GET") {
-					const rows = await store.queryNodes<Record<string, unknown>>("Session");
+					const rawLimit = requestUrl.searchParams.get("limit");
+					let limit: number | undefined;
+					if (rawLimit !== null) {
+						const parsedLimit = Number.parseInt(rawLimit, 10);
+						if (
+							!/^\d+$/u.test(rawLimit) ||
+							!Number.isInteger(parsedLimit) ||
+							parsedLimit < 1 ||
+							parsedLimit > 200
+						) {
+							json(res, 400, { error: "invalid limit" });
+							return;
+						}
+						limit = parsedLimit;
+					}
+					const rows = await store.queryNodes("Session");
 					const sessions = rows
 						.map((row) => normalizeSession(row))
 						.filter((row): row is SessionNode => row !== null)
-						.sort((a, b) => b.created_at_ns - a.created_at_ns);
+						.sort((a, b) => b.created_at_ns - a.created_at_ns)
+						.slice(0, limit);
 					json(res, 200, { sessions });
 					return;
 				}
 
 				if (req.method === "POST") {
-					const body = await readJson<{ name?: unknown }>(req).catch(() => null);
+					const body = await readJson<{ name?: unknown }>(req).catch(
+						() => null,
+					);
 					if (body === null) {
 						json(res, 400, { error: "invalid json" });
 						return;

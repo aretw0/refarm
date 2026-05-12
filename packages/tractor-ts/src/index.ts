@@ -11,23 +11,23 @@ import { PluginManifest } from "@refarm.dev/plugin-manifest";
 import { SovereignRegistry } from "@refarm.dev/registry";
 import { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { SyncAdapter } from "@refarm.dev/sync-contract-v1";
-import { CommandHost } from "./lib/command-host";
+import { CommandHost } from "./lib/command-host.js";
 import {
   SovereignNode,
   SovereignSignature
-} from "./lib/graph-normalizer";
+} from "./lib/graph-normalizer.js";
 import {
   PluginHost, PluginState,
   PluginTrustGrant
-} from "./lib/plugin-host";
-import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry";
+} from "./lib/plugin-host.js";
+import { EventEmitter, TelemetryEvent, TelemetryHost, TelemetryListener } from "./lib/telemetry.js";
 import {
   SecurityMode,
   TRACTOR_LOG_PRIORITY,
   TractorConfig,
   TractorLogLevel,
   isTractorLogLevel
-} from "./lib/types";
+} from "./lib/types.js";
 
 
 export * from "./lib/agent-response-stream.js";
@@ -43,12 +43,15 @@ export * from "./lib/telemetry.js";
 export * from "./lib/types.js";
 
 /** Sovereign engine version — also accessible from the browser entry as TRACTOR_VERSION. */
-export const TRACTOR_VERSION: string = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
+export const TRACTOR_VERSION: string = (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
 
 function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel {
   if (configLevel) return configLevel;
 
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   const envLevel = env?.REFARM_LOG_LEVEL;
   if (isTractorLogLevel(envLevel)) return envLevel;
 
@@ -60,12 +63,12 @@ function resolveDefaultLogLevel(configLevel?: TractorLogLevel): TractorLogLevel 
 }
 
 export class Tractor {
-  static readonly VERSION = (import.meta as any).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
+  static readonly VERSION = (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION || "0.1.0-solo-fertil";
   readonly storage: StorageAdapter;
   readonly namespace: string;
   identity: IdentityAdapter;
   readonly sync?: SyncAdapter;
-  readonly registry: any; // Using any for registry to avoid circular dependency or deep import issues in this sweep
+  readonly registry: SovereignRegistry;
   readonly plugins: PluginHost;
   readonly envMetadata: Record<string, string>;
   readonly commands: CommandHost;
@@ -107,7 +110,7 @@ export class Tractor {
     );
 
     this.telemetry = new TelemetryHost({ capacity: 1000 });
-    this.commands = new CommandHost((event: string, payload: any) =>
+    this.commands = new CommandHost((event: string, payload: unknown) =>
       this.events.emit({ event, payload }),
     );
 
@@ -148,9 +151,10 @@ export class Tractor {
       title: "Trust Plugin Binary",
       category: "Security",
       description: "Grant trusted-fast execution for a plugin fingerprint.",
-      handler: (args: { pluginId: string; wasmHash: string; leaseMs?: number }) => {
-        if (!args?.pluginId || !args?.wasmHash) throw new Error("pluginId and wasmHash are required");
-        return this.trustPlugin(args.pluginId, args.wasmHash, args.leaseMs);
+      handler: (args?: unknown) => {
+        const { pluginId, wasmHash, leaseMs } = args as { pluginId: string; wasmHash: string; leaseMs?: number };
+        if (!pluginId || !wasmHash) throw new Error("pluginId and wasmHash are required");
+        return this.trustPlugin(pluginId, wasmHash, leaseMs);
       },
     });
 
@@ -159,13 +163,11 @@ export class Tractor {
       title: "Trust Plugin Manifest (Once)",
       category: "Security",
       description: "Temporarily trust a plugin manifest for fast execution.",
-      handler: (args: { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean }) => {
-        if (!args?.acknowledgeRisk) throw new Error("Risk acknowledgment is required");
-        const grant = this.trustPluginManifestOnce(args.manifest, args.wasmHash);
-        return {
-          warning: "✨ Trusted-fast enabled for this session.",
-          grant,
-        };
+      handler: (args?: unknown) => {
+        const { manifest, wasmHash, acknowledgeRisk } = args as { manifest: PluginManifest; wasmHash: string; acknowledgeRisk: boolean };
+        if (!acknowledgeRisk) throw new Error("Risk acknowledgment is required");
+        const grant = this.trustPluginManifestOnce(manifest, wasmHash);
+        return { warning: "✨ Trusted-fast enabled for this session.", grant };
       },
     });
 
@@ -174,9 +176,10 @@ export class Tractor {
         title: "Revoke Plugin Trust",
         category: "Security",
         description: "Revoke trusted-fast execution for a plugin fingerprint or all plugin grants.",
-        handler: (args: { pluginId: string; wasmHash?: string }) => {
-          if (!args?.pluginId) throw new Error("pluginId is required");
-          this.revokePluginTrust(args.pluginId, args.wasmHash);
+        handler: (args?: unknown) => {
+          const { pluginId, wasmHash } = args as { pluginId: string; wasmHash?: string };
+          if (!pluginId) throw new Error("pluginId is required");
+          this.revokePluginTrust(pluginId, wasmHash);
           return { ok: true };
         },
       });
@@ -238,8 +241,9 @@ export class Tractor {
   static async boot(config: TractorConfig): Promise<Tractor> {
     if (!config.storage) throw new Error("[tractor] A Storage Adapter is required to boot.");
     if (!config.identity) throw new Error("[tractor] An Identity Adapter is required to boot.");
-    if ((config.storage as any).open) {
-      config.storage = await (config.storage as any).open(config.namespace);
+    type OpenableStorage = StorageAdapter & { open(ns: string): Promise<StorageAdapter> };
+    if ((config.storage as Partial<OpenableStorage>).open) {
+      config.storage = await (config.storage as OpenableStorage).open(config.namespace);
     }
     await config.storage.ensureSchema();
     if (config.sync) await config.sync.start();
@@ -364,7 +368,7 @@ export class Tractor {
     const securityMode = mode ?? this.defaultSecurityMode;
     let signedNode = node;
     if (securityMode !== "none") {
-      const timestamp = (node as any).timestamp;
+      const timestamp = (node as SovereignNode & { timestamp?: string }).timestamp;
       if (timestamp) {
         const CLOCK_SKEW_GRACE_MS = 10_000;
         if (new Date(timestamp).getTime() > Date.now() + CLOCK_SKEW_GRACE_MS) {
@@ -410,7 +414,7 @@ export class Tractor {
   async queryNodes<T extends SovereignNode = SovereignNode>(type: string): Promise<T[]> {
     const rows = await this.storage.queryNodes(type);
     this.events.emit({ event: "storage:io", payload: { type, action: "query" } });
-    return rows.map((r: { payload: string }) => JSON.parse(r.payload) as T);
+    return rows.map((r) => JSON.parse((r as { payload: string }).payload) as T);
   }
 
   async signNode(node: SovereignNode): Promise<SovereignNode> {

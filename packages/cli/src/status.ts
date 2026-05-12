@@ -1,88 +1,98 @@
 import {
-  homesteadHostRendererCan,
-  type HomesteadHostRendererDescriptor,
-  type HomesteadHostSurfaceState,
-  type HomesteadHostStreamState,
+	homesteadHostRendererCan,
+	summarizeHomesteadHostSurfaceState,
+	type HomesteadHostRendererDescriptor,
+	type HomesteadHostSurfaceState,
+	type HomesteadHostStreamState,
 } from "@refarm.dev/homestead/sdk/host-renderer";
 import type { TrustSummary } from "@refarm.dev/trust";
 import type { RuntimeSummary } from "@refarm.dev/runtime";
 
 export const REFARM_STATUS_SCHEMA_VERSION = 1 as const;
 
+export interface RefarmStatusSurfaceAction {
+	id: string;
+	label: string;
+	intent?: string;
+}
+
 export interface RefarmStatusJson {
-  schemaVersion: typeof REFARM_STATUS_SCHEMA_VERSION;
-  host: { app: string; command: string; profile: string; mode: string };
-  renderer: { id: string; kind: string; capabilities: readonly string[] };
-  runtime: RuntimeSummary;
-  plugins: {
-    installed: number;
-    active: number;
-    rejectedSurfaces: number;
-    surfaceActions: number;
-  };
-  trust: TrustSummary;
-  streams: { active: number; terminal: number };
-  diagnostics: string[];
+	schemaVersion: typeof REFARM_STATUS_SCHEMA_VERSION;
+	host: { app: string; command: string; profile: string; mode: string };
+	renderer: { id: string; kind: string; capabilities: readonly string[] };
+	runtime: RuntimeSummary;
+	plugins: {
+		installed: number;
+		active: number;
+		rejectedSurfaces: number;
+		surfaceActions: number;
+		availableActions?: readonly RefarmStatusSurfaceAction[];
+	};
+	trust: TrustSummary;
+	streams: { active: number; terminal: number };
+	diagnostics: string[];
 }
 
 export interface RefarmStatusOptions {
-  host: { app: string; command: string; profile: string; mode: string };
-  renderer: HomesteadHostRendererDescriptor;
-  runtime: RuntimeSummary;
-  trust: TrustSummary;
-  streams?: HomesteadHostStreamState;
-  plugins?: {
-    installed?: number;
-    active?: number;
-    surfaces?: HomesteadHostSurfaceState;
-  };
+	host: { app: string; command: string; profile: string; mode: string };
+	renderer: HomesteadHostRendererDescriptor;
+	runtime: RuntimeSummary;
+	trust: TrustSummary;
+	streams?: HomesteadHostStreamState;
+	plugins?: {
+		installed?: number;
+		active?: number;
+		surfaces?: HomesteadHostSurfaceState;
+	};
 }
 
 export interface RefarmStatusSchemaVersionIssue {
-  reason: "missing" | "invalid-type" | "newer" | "older";
-  found: unknown;
-  supported: typeof REFARM_STATUS_SCHEMA_VERSION;
-  message: string;
+	reason: "missing" | "invalid-type" | "newer" | "older";
+	found: unknown;
+	supported: typeof REFARM_STATUS_SCHEMA_VERSION;
+	message: string;
 }
 
 export const REFARM_STATUS_FAILURE_DIAGNOSTICS = [
-  "runtime:not-ready",
-  "trust:critical-present",
+	"runtime:not-ready",
+	"trust:critical-present",
 ] as const;
 
 export const REFARM_STATUS_WARNING_DIAGNOSTICS = [
-  "trust:warnings-present",
-  "plugins:rejected-surfaces-present",
-  "streams:active-present",
+	"trust:warnings-present",
+	"plugins:rejected-surfaces-present",
+	"streams:active-present",
 ] as const;
 
 export interface RefarmStatusDiagnosticSummary {
-  failures: string[];
-  warnings: string[];
-  informational: string[];
-  hasFailure: boolean;
+	failures: string[];
+	warnings: string[];
+	informational: string[];
+	hasFailure: boolean;
 }
 
 export function buildRefarmStatusJson(
-  options: RefarmStatusOptions,
+	options: RefarmStatusOptions,
 ): RefarmStatusJson {
-  const { host, renderer, runtime, trust, streams, plugins } = options;
+	const { host, renderer, runtime, trust, streams, plugins } = options;
+	const surfaces = summarizeHomesteadHostSurfaceState(plugins?.surfaces);
 	return {
 		schemaVersion: REFARM_STATUS_SCHEMA_VERSION,
-    host,
-    renderer: {
-      id: renderer.id,
-      kind: renderer.kind,
-      capabilities: renderer.capabilities,
-    },
-    runtime,
-    plugins: {
-      installed: plugins?.installed ?? 0,
-      active: plugins?.active ?? 0,
-      rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
-      surfaceActions: plugins?.surfaces?.actions?.length ?? 0,
-    },
-    trust,
+		host,
+		renderer: {
+			id: renderer.id,
+			kind: renderer.kind,
+			capabilities: renderer.capabilities,
+		},
+		runtime,
+		plugins: {
+			installed: plugins?.installed ?? 0,
+			active: plugins?.active ?? 0,
+			rejectedSurfaces: surfaces.rejected,
+			surfaceActions: surfaces.surfaceActions,
+			...statusAvailableSurfaceActions(plugins?.surfaces?.availableActions),
+		},
+		trust,
 		streams: {
 			active: streams?.active ?? 0,
 			terminal: streams?.terminal ?? 0,
@@ -92,7 +102,8 @@ export function buildRefarmStatusJson(
 			runtime,
 			trust,
 			plugins: {
-				rejectedSurfaces: plugins?.surfaces?.rejected?.length ?? 0,
+				rejectedSurfaces: surfaces.rejected,
+				surfaceActions: surfaces.surfaceActions,
 			},
 			streams: {
 				active: streams?.active ?? 0,
@@ -102,316 +113,392 @@ export function buildRefarmStatusJson(
 }
 
 export function isRefarmStatusJson(value: unknown): value is RefarmStatusJson {
-  if (!isRecord(value)) return false;
-  if (value.schemaVersion !== REFARM_STATUS_SCHEMA_VERSION) return false;
+	if (!isRecord(value)) return false;
+	if (value.schemaVersion !== REFARM_STATUS_SCHEMA_VERSION) return false;
 
-  const host = value.host;
-  if (!isRecord(host)) return false;
-  if (
-    typeof host.app !== "string" ||
-    typeof host.command !== "string" ||
-    typeof host.profile !== "string" ||
-    typeof host.mode !== "string"
-  ) return false;
+	const host = value.host;
+	if (!isRecord(host)) return false;
+	if (
+		typeof host.app !== "string" ||
+		typeof host.command !== "string" ||
+		typeof host.profile !== "string" ||
+		typeof host.mode !== "string"
+	)
+		return false;
 
-  const renderer = value.renderer;
-  if (!isRecord(renderer)) return false;
-  if (
-    typeof renderer.id !== "string" ||
-    typeof renderer.kind !== "string" ||
-    !isStringArray(renderer.capabilities)
-  ) return false;
+	const renderer = value.renderer;
+	if (!isRecord(renderer)) return false;
+	if (
+		typeof renderer.id !== "string" ||
+		typeof renderer.kind !== "string" ||
+		!isStringArray(renderer.capabilities)
+	)
+		return false;
 
-  const runtime = value.runtime;
-  if (!isRecord(runtime)) return false;
-  if (
-    typeof runtime.ready !== "boolean" ||
-    typeof runtime.namespace !== "string" ||
-    typeof runtime.databaseName !== "string"
-  ) return false;
+	const runtime = value.runtime;
+	if (!isRecord(runtime)) return false;
+	if (
+		typeof runtime.ready !== "boolean" ||
+		typeof runtime.namespace !== "string" ||
+		typeof runtime.databaseName !== "string"
+	)
+		return false;
 
-  const plugins = value.plugins;
-  if (!isRecord(plugins)) return false;
-  if (
-    !isFiniteNumber(plugins.installed) ||
-    !isFiniteNumber(plugins.active) ||
-    !isFiniteNumber(plugins.rejectedSurfaces) ||
-    !isFiniteNumber(plugins.surfaceActions)
-  ) return false;
+	const plugins = value.plugins;
+	if (!isRecord(plugins)) return false;
+	if (
+		!isFiniteNumber(plugins.installed) ||
+		!isFiniteNumber(plugins.active) ||
+		!isFiniteNumber(plugins.rejectedSurfaces) ||
+		!isFiniteNumber(plugins.surfaceActions)
+	)
+		return false;
+	if (
+		typeof plugins.availableActions !== "undefined" &&
+		!isRefarmStatusSurfaceActions(plugins.availableActions)
+	)
+		return false;
 
-  const trust = value.trust;
-  if (!isRecord(trust)) return false;
-  if (
-    typeof trust.profile !== "string" ||
-    !isFiniteNumber(trust.warnings) ||
-    !isFiniteNumber(trust.critical)
-  ) return false;
+	const trust = value.trust;
+	if (!isRecord(trust)) return false;
+	if (
+		typeof trust.profile !== "string" ||
+		!isFiniteNumber(trust.warnings) ||
+		!isFiniteNumber(trust.critical)
+	)
+		return false;
 
-  const streams = value.streams;
-  if (!isRecord(streams)) return false;
-  if (!isFiniteNumber(streams.active) || !isFiniteNumber(streams.terminal)) {
-    return false;
-  }
+	const streams = value.streams;
+	if (!isRecord(streams)) return false;
+	if (!isFiniteNumber(streams.active) || !isFiniteNumber(streams.terminal)) {
+		return false;
+	}
 
-  return isStringArray(value.diagnostics);
+	return isStringArray(value.diagnostics);
 }
 
 export function assertRefarmStatusJson(
-  value: unknown,
+	value: unknown,
 ): asserts value is RefarmStatusJson {
-  const schemaIssue = getRefarmStatusSchemaVersionIssue(value);
-  if (schemaIssue) {
-    throw new Error(schemaIssue.message);
-  }
+	const schemaIssue = getRefarmStatusSchemaVersionIssue(value);
+	if (schemaIssue) {
+		throw new Error(schemaIssue.message);
+	}
 
-  if (!isRefarmStatusJson(value)) {
-    throw new Error(
-      `Invalid Refarm status payload for schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
-    );
-  }
+	if (!isRefarmStatusJson(value)) {
+		throw new Error(
+			`Invalid Refarm status payload for schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+		);
+	}
 }
 
 export function getRefarmStatusSchemaVersionIssue(
-  value: unknown,
+	value: unknown,
 ): RefarmStatusSchemaVersionIssue | null {
-  const found = isRecord(value) ? value.schemaVersion : undefined;
+	const found = isRecord(value) ? value.schemaVersion : undefined;
 
-  if (typeof found === "undefined") {
-    return {
-      reason: "missing",
-      found,
-      supported: REFARM_STATUS_SCHEMA_VERSION,
-      message: `Missing Refarm status schemaVersion. Expected schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
-    };
-  }
+	if (typeof found === "undefined") {
+		return {
+			reason: "missing",
+			found,
+			supported: REFARM_STATUS_SCHEMA_VERSION,
+			message: `Missing Refarm status schemaVersion. Expected schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+		};
+	}
 
-  if (typeof found !== "number" || !Number.isFinite(found)) {
-    return {
-      reason: "invalid-type",
-      found,
-      supported: REFARM_STATUS_SCHEMA_VERSION,
-      message: `Invalid Refarm status schemaVersion type (${typeof found}). Expected numeric schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
-    };
-  }
+	if (typeof found !== "number" || !Number.isFinite(found)) {
+		return {
+			reason: "invalid-type",
+			found,
+			supported: REFARM_STATUS_SCHEMA_VERSION,
+			message: `Invalid Refarm status schemaVersion type (${typeof found}). Expected numeric schemaVersion=${REFARM_STATUS_SCHEMA_VERSION}.`,
+		};
+	}
 
-  if (found > REFARM_STATUS_SCHEMA_VERSION) {
-    return {
-      reason: "newer",
-      found,
-      supported: REFARM_STATUS_SCHEMA_VERSION,
-      message: `Unsupported Refarm status schemaVersion=${found}. Local CLI supports up to ${REFARM_STATUS_SCHEMA_VERSION}. Upgrade @refarm.dev/cli.`,
-    };
-  }
+	if (found > REFARM_STATUS_SCHEMA_VERSION) {
+		return {
+			reason: "newer",
+			found,
+			supported: REFARM_STATUS_SCHEMA_VERSION,
+			message: `Unsupported Refarm status schemaVersion=${found}. Local CLI supports up to ${REFARM_STATUS_SCHEMA_VERSION}. Upgrade @refarm.dev/cli.`,
+		};
+	}
 
-  if (found < REFARM_STATUS_SCHEMA_VERSION) {
-    return {
-      reason: "older",
-      found,
-      supported: REFARM_STATUS_SCHEMA_VERSION,
-      message: `Unsupported legacy Refarm status schemaVersion=${found}. Local CLI expects ${REFARM_STATUS_SCHEMA_VERSION}. Regenerate with a newer status producer.`,
-    };
-  }
+	if (found < REFARM_STATUS_SCHEMA_VERSION) {
+		return {
+			reason: "older",
+			found,
+			supported: REFARM_STATUS_SCHEMA_VERSION,
+			message: `Unsupported legacy Refarm status schemaVersion=${found}. Local CLI expects ${REFARM_STATUS_SCHEMA_VERSION}. Regenerate with a newer status producer.`,
+		};
+	}
 
-  return null;
+	return null;
 }
 
 export function parseRefarmStatusJson(
-  input: string | unknown,
+	input: string | unknown,
 ): RefarmStatusJson {
-  const value = typeof input === "string" ? parseJsonString(input) : input;
-  assertRefarmStatusJson(value);
-  return value;
+	const value = typeof input === "string" ? parseJsonString(input) : input;
+	assertRefarmStatusJson(value);
+	return value;
 }
 
 export function classifyRefarmStatusDiagnostics(
-  json: RefarmStatusJson,
-  options: {
-    failureCodes?: readonly string[];
-    warningCodes?: readonly string[];
-  } = {},
+	json: RefarmStatusJson,
+	options: {
+		failureCodes?: readonly string[];
+		warningCodes?: readonly string[];
+	} = {},
 ): RefarmStatusDiagnosticSummary {
-  const failureCodes = new Set(
-    options.failureCodes ?? REFARM_STATUS_FAILURE_DIAGNOSTICS,
-  );
-  const warningCodes = new Set(
-    options.warningCodes ?? REFARM_STATUS_WARNING_DIAGNOSTICS,
-  );
+	const failureCodes = new Set(
+		options.failureCodes ?? REFARM_STATUS_FAILURE_DIAGNOSTICS,
+	);
+	const warningCodes = new Set(
+		options.warningCodes ?? REFARM_STATUS_WARNING_DIAGNOSTICS,
+	);
 
-  const failures: string[] = [];
-  const warnings: string[] = [];
-  const informational: string[] = [];
+	const failures: string[] = [];
+	const warnings: string[] = [];
+	const informational: string[] = [];
 
-  for (const diagnostic of json.diagnostics) {
-    if (failureCodes.has(diagnostic)) {
-      failures.push(diagnostic);
-      continue;
-    }
+	for (const diagnostic of json.diagnostics) {
+		if (failureCodes.has(diagnostic)) {
+			failures.push(diagnostic);
+			continue;
+		}
 
-    if (warningCodes.has(diagnostic)) {
-      warnings.push(diagnostic);
-      continue;
-    }
+		if (warningCodes.has(diagnostic)) {
+			warnings.push(diagnostic);
+			continue;
+		}
 
-    informational.push(diagnostic);
-  }
+		informational.push(diagnostic);
+	}
 
-  return {
-    failures,
-    warnings,
-    informational,
-    hasFailure: failures.length > 0,
-  };
+	return {
+		failures,
+		warnings,
+		informational,
+		hasFailure: failures.length > 0,
+	};
 }
 
 export function formatRefarmStatusMarkdown(json: RefarmStatusJson): string {
-  const diagnostics = json.diagnostics.length > 0
-    ? json.diagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n")
-    : "- none";
+	const diagnostics =
+		json.diagnostics.length > 0
+			? json.diagnostics.map((diagnostic) => `- ${diagnostic}`).join("\n")
+			: "- none";
+	const availableActions = formatRefarmStatusAvailableActionsMarkdown(json);
 
-  const frontmatter = [
-    "---",
-    `schemaVersion: ${json.schemaVersion}`,
-    "host:",
-    `  app: ${JSON.stringify(json.host.app)}`,
-    `  command: ${JSON.stringify(json.host.command)}`,
-    `  profile: ${JSON.stringify(json.host.profile)}`,
-    `  mode: ${JSON.stringify(json.host.mode)}`,
-    "renderer:",
-    `  id: ${JSON.stringify(json.renderer.id)}`,
-    `  kind: ${JSON.stringify(json.renderer.kind)}`,
-    ...(json.renderer.capabilities.length > 0
-      ? [
-          "  capabilities:",
-          ...json.renderer.capabilities.map((capability) =>
-            `    - ${JSON.stringify(capability)}`,
-          ),
-        ]
-      : ["  capabilities: []"]),
-    "runtime:",
-    `  ready: ${json.runtime.ready}`,
-    `  namespace: ${JSON.stringify(json.runtime.namespace)}`,
-    `  databaseName: ${JSON.stringify(json.runtime.databaseName)}`,
-    "trust:",
-    `  profile: ${JSON.stringify(json.trust.profile)}`,
-    `  warnings: ${json.trust.warnings}`,
-    `  critical: ${json.trust.critical}`,
-    "plugins:",
-    `  installed: ${json.plugins.installed}`,
-    `  active: ${json.plugins.active}`,
-    `  rejectedSurfaces: ${json.plugins.rejectedSurfaces}`,
-    `  surfaceActions: ${json.plugins.surfaceActions}`,
-    "streams:",
-    `  active: ${json.streams.active}`,
-    `  terminal: ${json.streams.terminal}`,
-    `diagnosticsCount: ${json.diagnostics.length}`,
-    "---",
-  ].join("\n");
+	const frontmatter = [
+		"---",
+		`schemaVersion: ${json.schemaVersion}`,
+		"host:",
+		`  app: ${JSON.stringify(json.host.app)}`,
+		`  command: ${JSON.stringify(json.host.command)}`,
+		`  profile: ${JSON.stringify(json.host.profile)}`,
+		`  mode: ${JSON.stringify(json.host.mode)}`,
+		"renderer:",
+		`  id: ${JSON.stringify(json.renderer.id)}`,
+		`  kind: ${JSON.stringify(json.renderer.kind)}`,
+		...(json.renderer.capabilities.length > 0
+			? [
+					"  capabilities:",
+					...json.renderer.capabilities.map(
+						(capability) => `    - ${JSON.stringify(capability)}`,
+					),
+				]
+			: ["  capabilities: []"]),
+		"runtime:",
+		`  ready: ${json.runtime.ready}`,
+		`  namespace: ${JSON.stringify(json.runtime.namespace)}`,
+		`  databaseName: ${JSON.stringify(json.runtime.databaseName)}`,
+		"trust:",
+		`  profile: ${JSON.stringify(json.trust.profile)}`,
+		`  warnings: ${json.trust.warnings}`,
+		`  critical: ${json.trust.critical}`,
+		"plugins:",
+		`  installed: ${json.plugins.installed}`,
+		`  active: ${json.plugins.active}`,
+		`  rejectedSurfaces: ${json.plugins.rejectedSurfaces}`,
+		`  surfaceActions: ${json.plugins.surfaceActions}`,
+		"streams:",
+		`  active: ${json.streams.active}`,
+		`  terminal: ${json.streams.terminal}`,
+		`diagnosticsCount: ${json.diagnostics.length}`,
+		"---",
+	].join("\n");
 
-  return [
-    frontmatter,
-    "",
-    "# Refarm Status",
-    "",
-    `- Schema: v${json.schemaVersion}`,
-    `- Host: ${json.host.app} (${json.host.mode})`,
-    `- Renderer: ${json.renderer.id} (${json.renderer.kind})`,
-    `- Runtime: ${json.runtime.ready ? "ready" : "not ready"} (${json.runtime.namespace})`,
-    `- Trust: ${json.trust.profile} (warnings: ${json.trust.warnings}, critical: ${json.trust.critical})`,
-    `- Plugins: ${json.plugins.installed} installed, ${json.plugins.active} active`,
-    `- Streams: ${json.streams.active} active, ${json.streams.terminal} terminal`,
-    "",
-    "## Diagnostics",
-    diagnostics,
-  ].join("\n");
+	return [
+		frontmatter,
+		"",
+		"# Refarm Status",
+		"",
+		`- Schema: v${json.schemaVersion}`,
+		`- Host: ${json.host.app} (${json.host.mode})`,
+		`- Renderer: ${json.renderer.id} (${json.renderer.kind})`,
+		`- Runtime: ${json.runtime.ready ? "ready" : "not ready"} (${json.runtime.namespace})`,
+		`- Trust: ${json.trust.profile} (warnings: ${json.trust.warnings}, critical: ${json.trust.critical})`,
+		`- Plugins: ${json.plugins.installed} installed, ${json.plugins.active} active`,
+		`- Surfaces: ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
+		`- Streams: ${json.streams.active} active, ${json.streams.terminal} terminal`,
+		"",
+		"## Available Actions",
+		availableActions,
+		"",
+		"## Diagnostics",
+		diagnostics,
+	].join("\n");
 }
 
 export function formatRefarmStatusSummary(json: RefarmStatusJson): string {
-  const lines = [
-    `Host:      ${json.host.app} (${json.host.mode})`,
-    `Renderer:  ${json.renderer.id} (${json.renderer.kind})`,
-    `Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
-    `Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
-    `Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
-    `Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
-  ];
+	const lines = [
+		`Host:      ${json.host.app} (${json.host.mode})`,
+		`Renderer:  ${json.renderer.id} (${json.renderer.kind})`,
+		`Runtime:   ${json.runtime.ready ? "ready" : "not ready"} — ${json.runtime.namespace}`,
+		`Trust:     ${json.trust.profile} — warnings: ${json.trust.warnings}, critical: ${json.trust.critical}`,
+		`Plugins:   ${json.plugins.installed} installed, ${json.plugins.active} active`,
+		`Surfaces:  ${json.plugins.rejectedSurfaces} rejected, ${json.plugins.surfaceActions} actions`,
+		`Streams:   ${json.streams.active} active, ${json.streams.terminal} terminal`,
+	];
 
-  if (json.diagnostics.length > 0) {
-    lines.push("Diagnostics:");
-    for (const diagnostic of json.diagnostics) {
-      lines.push(`  - ${diagnostic}`);
-    }
-  }
+	if (json.plugins.availableActions?.length) {
+		lines.push("Available actions:");
+		for (const action of json.plugins.availableActions) {
+			lines.push(
+				`  - ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
+			);
+		}
+	}
 
-  return lines.join("\n");
+	if (json.diagnostics.length > 0) {
+		lines.push("Diagnostics:");
+		for (const diagnostic of json.diagnostics) {
+			lines.push(`  - ${diagnostic}`);
+		}
+	}
+
+	return lines.join("\n");
 }
 
 export function formatRefarmStatusJson(json: RefarmStatusJson): string {
-  return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
+	return JSON.stringify(toCanonicalRefarmStatusJson(json), null, 2);
+}
+
+function formatRefarmStatusAvailableActionsMarkdown(
+	json: RefarmStatusJson,
+): string {
+	if (!json.plugins.availableActions?.length) return "- none";
+	return json.plugins.availableActions
+		.map(
+			(action) =>
+				`- ${action.id}: ${action.label}${action.intent ? ` (${action.intent})` : ""}`,
+		)
+		.join("\n");
+}
+
+function statusAvailableSurfaceActions(
+	actions:
+		| readonly { id: string; label: string; intent?: string }[]
+		| undefined,
+): { availableActions?: RefarmStatusSurfaceAction[] } {
+	if (!actions?.length) return {};
+	return {
+		availableActions: actions.map((action) => ({
+			id: action.id,
+			label: action.label,
+			...(action.intent ? { intent: action.intent } : {}),
+		})),
+	};
 }
 
 function toCanonicalRefarmStatusJson(json: RefarmStatusJson): RefarmStatusJson {
-  return {
-    schemaVersion: json.schemaVersion,
-    host: {
-      app: json.host.app,
-      command: json.host.command,
-      profile: json.host.profile,
-      mode: json.host.mode,
-    },
-    renderer: {
-      id: json.renderer.id,
-      kind: json.renderer.kind,
-      capabilities: [...json.renderer.capabilities],
-    },
-    runtime: {
-      ready: json.runtime.ready,
-      databaseName: json.runtime.databaseName,
-      namespace: json.runtime.namespace,
-    },
-    plugins: {
-      installed: json.plugins.installed,
-      active: json.plugins.active,
-      rejectedSurfaces: json.plugins.rejectedSurfaces,
-      surfaceActions: json.plugins.surfaceActions,
-    },
-    trust: {
-      profile: json.trust.profile,
-      warnings: json.trust.warnings,
-      critical: json.trust.critical,
-    },
-    streams: {
-      active: json.streams.active,
-      terminal: json.streams.terminal,
-    },
-    diagnostics: [...json.diagnostics],
-  };
+	const availableActions = statusAvailableSurfaceActions(
+		json.plugins.availableActions,
+	);
+	return {
+		schemaVersion: json.schemaVersion,
+		host: {
+			app: json.host.app,
+			command: json.host.command,
+			profile: json.host.profile,
+			mode: json.host.mode,
+		},
+		renderer: {
+			id: json.renderer.id,
+			kind: json.renderer.kind,
+			capabilities: [...json.renderer.capabilities],
+		},
+		runtime: {
+			ready: json.runtime.ready,
+			databaseName: json.runtime.databaseName,
+			namespace: json.runtime.namespace,
+		},
+		plugins: {
+			installed: json.plugins.installed,
+			active: json.plugins.active,
+			rejectedSurfaces: json.plugins.rejectedSurfaces,
+			surfaceActions: json.plugins.surfaceActions,
+			...availableActions,
+		},
+		trust: {
+			profile: json.trust.profile,
+			warnings: json.trust.warnings,
+			critical: json.trust.critical,
+		},
+		streams: {
+			active: json.streams.active,
+			terminal: json.streams.terminal,
+		},
+		diagnostics: [...json.diagnostics],
+	};
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null;
+	return typeof value === "object" && value !== null;
 }
 
 function isStringArray(value: unknown): value is string[] {
-  return Array.isArray(value) && value.every((item) => typeof item === "string");
+	return (
+		Array.isArray(value) && value.every((item) => typeof item === "string")
+	);
+}
+
+function isRefarmStatusSurfaceActions(
+	value: unknown,
+): value is RefarmStatusSurfaceAction[] {
+	return (
+		Array.isArray(value) &&
+		value.every((item) => {
+			if (!isRecord(item)) return false;
+			if (typeof item.id !== "string" || typeof item.label !== "string") {
+				return false;
+			}
+			return (
+				typeof item.intent === "undefined" || typeof item.intent === "string"
+			);
+		})
+	);
 }
 
 function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
+	return typeof value === "number" && Number.isFinite(value);
 }
 
 function parseJsonString(input: string): unknown {
-  try {
-    return JSON.parse(input) as unknown;
-  } catch {
-    throw new Error("Invalid JSON for Refarm status payload.");
-  }
+	try {
+		return JSON.parse(input) as unknown;
+	} catch {
+		throw new Error("Invalid JSON for Refarm status payload.");
+	}
 }
 
 function buildStatusDiagnostics(input: {
 	renderer: HomesteadHostRendererDescriptor;
 	runtime: RuntimeSummary;
 	trust: TrustSummary;
-	plugins: { rejectedSurfaces: number };
+	plugins: { rejectedSurfaces: number; surfaceActions: number };
 	streams: { active: number };
 }): string[] {
 	const { renderer, runtime, trust, plugins, streams } = input;
@@ -433,6 +520,9 @@ function buildStatusDiagnostics(input: {
 	}
 	if (plugins.rejectedSurfaces > 0) {
 		diagnostics.push("plugins:rejected-surfaces-present");
+	}
+	if (plugins.surfaceActions > 0) {
+		diagnostics.push("plugins:surface-actions-available");
 	}
 	if (streams.active > 0) {
 		diagnostics.push("streams:active-present");

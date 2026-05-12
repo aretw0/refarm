@@ -1,5 +1,5 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
+import { TelemetryEvent } from "./telemetry.js";
 
 export interface PluginTrustGrant {
   pluginId: string;

@@ -85,9 +85,9 @@ describe("StreamChunk accumulator", () => {
 			{ content: "orphan", sequence: 0, is_final: false },
 		]);
 
-		expect(states["stream-a"].content).toBe("aa");
-		expect(states["stream-a"].isFinal).toBe(true);
-		expect(states["stream-b"].content).toBe("b");
+		expect(states["stream-a"]!.content).toBe("aa");
+		expect(states["stream-a"]!.isFinal).toBe(true);
+		expect(states["stream-b"]!.content).toBe("b");
 		expect(states[UNKNOWN_STREAM_REF]).toEqual({
 			streamRef: null,
 			content: "orphan",

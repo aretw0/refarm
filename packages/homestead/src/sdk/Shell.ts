@@ -14,6 +14,8 @@ import type {
 	SovereignNode,
 	TelemetryEvent,
 } from "@refarm.dev/tractor";
+type ViteImportMeta = ImportMeta & { env?: { BASE_URL?: string } };
+
 import { A11yGuard } from "./A11yGuard.js";
 import {
 	resolveHomesteadSurfaceActivationPlan,
@@ -27,6 +29,7 @@ import {
 } from "./stream-observer.js";
 import {
 	homesteadSurfaceRenderContent,
+	createHomesteadSurfaceRenderActionRequest,
 	homesteadSurfaceRenderActionById,
 	type HomesteadSurfaceRenderAction,
 	type HomesteadSurfaceRenderActionHandler,
@@ -118,8 +121,9 @@ export class StudioShell {
 
 		// Listen for system events
 		this.tractor.observe((data: TelemetryEvent) => {
+			const payload = recordTelemetryPayload(data.payload);
 			if (data.event === "system:switch-tier") {
-				const tier = data.payload?.tier;
+				const tier = typeof payload.tier === "string" ? payload.tier : "";
 				this.logInfo(
 					`[shell] Mode switch detected: ${tier}. Persisting and reloading...`,
 				);
@@ -129,7 +133,7 @@ export class StudioShell {
 
 			if (data.event === "system:plugin_state_changed") {
 				const pluginId = data.pluginId;
-				const state = data.payload?.state;
+				const state = typeof payload.state === "string" ? payload.state : undefined;
 				const selector = `.plugin-${pluginId?.replace(/[^a-z0-9]/g, "-")}`;
 				const el = document.querySelector(selector) as HTMLElement;
 
@@ -289,6 +293,7 @@ export class StudioShell {
 			helpNodes.find(
 				(n: SovereignNode) => n["refarm:renderType"] === "landing",
 			) || helpNodes[0];
+		if (!seedNode) return;
 
 		if (seedNode["refarm:renderType"] === "landing") {
 			mainSlot.innerHTML = `
@@ -301,7 +306,7 @@ export class StudioShell {
           </p>
           
           <div class="landing-actions" style="display: flex; gap: 1.5rem; justify-content: center;">
-            <a href="${(import.meta as any).env?.BASE_URL || "/"}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
+            <a href="${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
               Cultivate your soil
             </a>
             <button id="try-guest-mode" class="btn-secondary" style="padding: 1rem 2.5rem; background: transparent; color: var(--refarm-text-primary); border: 2px solid var(--refarm-border-default); border-radius: 50px; font-weight: 600; cursor: pointer;">
@@ -320,14 +325,15 @@ export class StudioShell {
 			mainSlot
 				.querySelector("#try-guest-mode")
 				?.addEventListener("click", () => {
-					window.location.href = `${(import.meta as any).env?.BASE_URL || "/"}onboarding?mode=guest`;
+					window.location.href = `${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding?mode=guest`;
 				});
 
 			return;
 		}
 
 		if (seedNode["refarm:renderType"] === "onboarding") {
-			const options = (seedNode["refarm:options"] as any[]) || [];
+			type SeedOption = { intent?: string; label?: string; description?: string };
+			const options = (seedNode["refarm:options"] as SeedOption[]) || [];
 			mainSlot.innerHTML = `
         <div class="onboarding-flow" style="max-width: 700px; margin: 4rem auto; animation: fadeIn 0.5s;">
           <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">${seedNode.name}</h1>
@@ -555,11 +561,18 @@ export class StudioShell {
 		host: HomesteadSurfaceRenderHostContext,
 		action: HomesteadSurfaceRenderAction,
 	) {
-		this.emitSurfaceActionRequested(renderRequest, action);
+		const actionRequest = createHomesteadSurfaceRenderActionRequest(
+			renderRequest,
+			host,
+			action.id,
+		);
+		if (!actionRequest) return;
+
+		this.emitSurfaceActionRequested(renderRequest, actionRequest.action);
 		try {
-			await this.options.surfaceAction?.({ ...renderRequest, host, action });
+			await this.options.surfaceAction?.(actionRequest);
 		} catch (error) {
-			this.emitSurfaceActionFailed(renderRequest, action, error);
+			this.emitSurfaceActionFailed(renderRequest, actionRequest.action, error);
 		}
 	}
 
@@ -653,6 +666,12 @@ export class StudioShell {
 function surfaceRenderErrorMessage(error: unknown): string | undefined {
 	if (error instanceof Error) return error.message;
 	return typeof error === "string" && error.length > 0 ? error : undefined;
+}
+
+function recordTelemetryPayload(payload: unknown): Record<string, unknown> {
+	return payload && typeof payload === "object" && !Array.isArray(payload)
+		? (payload as Record<string, unknown>)
+		: {};
 }
 
 export async function setupStudioShell(

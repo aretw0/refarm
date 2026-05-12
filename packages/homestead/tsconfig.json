@@ -4,14 +4,22 @@
 		"noEmit": true,
 		"outDir": "./dist",
 		"baseUrl": "../..",
-		"ignoreDeprecations": "5.0",
 		"rootDir": "..",
-		"lib": ["ESNext", "DOM", "DOM.Iterable"],
+		"lib": [
+			"ESNext",
+			"DOM",
+			"DOM.Iterable"
+		],
 		"composite": false,
 		"declaration": false,
 		"declarationMap": false,
 		"allowJs": true
 	},
-	"include": ["src/**/*"],
-	"exclude": ["src/**/*.astro", "src/ui/index.ts"]
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"src/**/*.astro",
+		"src/ui/index.ts"
+	]
 }

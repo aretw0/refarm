@@ -5,6 +5,13 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 
+interface DeployResult {
+	status: string;
+	results?: Array<{ status: string; target: string; url?: string; message?: string }>;
+	message?: string;
+	url?: string;
+}
+
 export const deployCommand = new Command("deploy")
   .description("Automated Soil: Deploy artifacts to sovereign targets")
   .option("--target <target>", "Target platform (cloudflare, github, all)", "all")
@@ -29,7 +36,7 @@ export const deployCommand = new Command("deploy")
 
       console.log(`🚀 Deploying to ${chalk.cyan(options.target)}...`);
 
-      const result = await windmill.deploy(options.target) as any;
+      const result = await windmill.deploy(options.target) as unknown as DeployResult;
 
       if (result.status === "success" || result.status === "dry-run" || result.status === "partial_failure") {
           console.log(chalk.bold.green("\n✨ Deployment orchestration finished!"));
@@ -54,8 +61,8 @@ export const deployCommand = new Command("deploy")
           console.error(chalk.red(`\n❌ Deployment failed: ${result.message}`));
           process.exit(1);
       }
-    } catch (error: any) {
-      console.error(chalk.red(`\n❌ Error: ${error.message}`));
+    } catch (error) {
+      console.error(chalk.red(`\n❌ Error: ${error instanceof Error ? error.message : String(error)}`));
       process.exit(1);
     }
   });

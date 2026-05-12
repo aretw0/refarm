@@ -78,13 +78,13 @@ export function encodeAction(event: { event: string }): Float32Array {
 export function resolveActionIndex(eventName: string): number {
   // Exact match
   if (eventName in ACTION_VOCAB) {
-    return ACTION_VOCAB[eventName];
+    return ACTION_VOCAB[eventName]!;
   }
 
   // Prefix match: "api:call.OutputApi" → "api:call"
   const parts = eventName.split(".");
-  if (parts.length > 1 && parts[0] in ACTION_VOCAB) {
-    return ACTION_VOCAB[parts[0]];
+  if (parts.length > 1 && parts[0]! in ACTION_VOCAB) {
+    return ACTION_VOCAB[parts[0]!]!;
   }
 
   // Namespace prefix: "system:security:canary_tripped" already in vocab
@@ -92,7 +92,7 @@ export function resolveActionIndex(eventName: string): number {
   const colon = eventName.lastIndexOf(":");
   if (colon > 0) {
     const ns = eventName.slice(0, colon);
-    if (ns in ACTION_VOCAB) return ACTION_VOCAB[ns];
+    if (ns in ACTION_VOCAB) return ACTION_VOCAB[ns]!;
   }
 
   return ACTION_UNKNOWN;

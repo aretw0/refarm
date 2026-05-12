@@ -260,7 +260,7 @@ export class FileTaskSessionRecorder implements TaskSessionRecorder {
 			(entry) => entry.effortId === effortId,
 		);
 		if (existingIndex >= 0) {
-			const existing = state.efforts[existingIndex];
+			const existing = state.efforts[existingIndex]!;
 			existing.transport = transport;
 			existing.statusCommand = buildStatusCommand(effortId, transport);
 			existing.logsCommand = buildLogsCommand(effortId, transport);

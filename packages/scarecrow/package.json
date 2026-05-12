@@ -6,9 +6,13 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/tractor": "*"
+  },
+  "devDependencies": {
+    "@refarm.dev/eslint-config": "*"
   }
 }

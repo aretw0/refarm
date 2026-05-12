@@ -36,12 +36,26 @@ npm run agent:stop         # stop tractor
 npm run farmhand:daemon    # start farmhand in background
 npm run farmhand:stop      # stop farmhand
 npm run disk:check         # disk usage: target dirs, node_modules, volumes
+npm run actions:budget:guard:account      # hard Actions guard: monthly net billable quota
+npm run actions:budget:guard:allocation   # advisory Actions guard: Refarm fairness split
+npm run actions:budget:guard:modes:json   # discover hard/advisory guard metadata
 
 # Session memory helpers (host-owned)
 refarm sessions list        # list known sessions
 refarm sessions new         # create and switch active session
 refarm sessions fork <id>   # branch from an existing session
-refarm sessions use <id>    # switch active session
+refarm sessions use <id>    # session helper to switch active session
+refarm tree switch <id>     # timeline-first active-session switch
+refarm tree list --json             # read-only session timeline nodes
+refarm tree list --limit 5 --json   # bounded session timeline nodes
+refarm tree list --scope git --json # read-only git timeline nodes
+refarm tree preview <id>            # dry-run fork plan for a session node
+refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry
+refarm tree preview <id> --name <branch> # dry-run fork plan with explicit name
+refarm tree preview --scope git <commit> # dry-run branch plan for a commit
+refarm tree fork --scope git <commit> --name <branch> # create branch without switching
+npm run refarm:actions:verify # closeout lane for action-readiness changes
+npm run refarm:tree:verify # closeout lane for tree stabilization changes
 ```
 
 ---
@@ -196,12 +210,43 @@ Notes:
 refarm sessions new --name "auth-refactor"
 refarm ask "planeje os próximos passos"
 refarm sessions fork <id-prefix> --name "auth-refactor-alt"
-refarm sessions use <id-prefix>
+refarm tree preview <id-prefix> --switch
+refarm tree switch <id-prefix>
 refarm ask --session <id-prefix> "continue deste branch"
 ```
 
 Use this when exploring multiple solution branches without losing continuity.
-`--session` pins a request to a specific session without switching first.
+`--session` pins a request to a specific session without switching first. Use
+`refarm ask --new "..."` when you explicitly want a fresh conversation: the CLI
+clears the active pointer, allocates a new session ID, submits the ask with that
+fresh ID, and persists the same ID only after a successful stream or fallback
+result. Active-session pointer writes are verified through the shared
+`session-lock.ts` helper. The longer-term substrate-agnostic design lives in
+[Refarm Tree Primitive](./REFARM_TREE_PRIMITIVE.md).
+
+### Scenario 3d — Timeline-first tree workflow
+
+Use `refarm tree` when you want renderer-neutral inspection and dry-run readiness
+before moving state:
+
+```bash
+refarm tree list --scope all
+refarm tree list --scope session
+refarm tree preview <session-id-prefix> --switch
+refarm tree switch <session-id-prefix>
+
+refarm tree list --scope git --limit 5
+refarm tree preview --scope git HEAD --name experiment/refactor
+refarm tree fork --scope git HEAD --name experiment/refactor
+refarm tree preview --scope git experiment/refactor --switch
+refarm tree switch --scope git experiment/refactor
+```
+
+Preview commands are non-mutating. Blocked-but-resolvable previews should return
+operator-readable readiness (`Blocked: ...`) and, for JSON output,
+`readyToExecute: false`. Execution remains explicit via `tree fork` or
+`tree switch`. After changing tree contracts or adapter boundaries, run
+`npm run refarm:tree:verify` before considering the tree slice closed.
 
 ### Scenario 4 — Port conflict at startup
 

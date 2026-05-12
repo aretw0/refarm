@@ -6,13 +6,13 @@ const demoHref = `${import.meta.env.BASE_URL}?stream-demo`;
 
 <Layout title="Streams — Refarm Studio">
   <section class="refarm-surface refarm-workbench" aria-labelledby="stream-workbench-title">
-    <div class="refarm-eyebrow refarm-eyebrow-chip stream-workbench__eyebrow">Studio dev surface</div>
+    <div class="refarm-eyebrow refarm-eyebrow-chip stream-workbench__eyebrow">Studio diagnostics · temporal observability</div>
     <div class="refarm-workbench-grid">
       <div>
-        <h1 id="stream-workbench-title" class="refarm-workbench-title">Agent stream workbench</h1>
+        <h1 id="stream-workbench-title" class="refarm-workbench-title">Stream diagnostics</h1>
         <p class="refarm-workbench-lead">
-          Validate Homestead stream rendering inside <code class="refarm-code">apps/dev</code> before
-          promoting UI primitives to daily-driver app surfaces.
+          Prove temporal host observability: stream sessions and chunks enter Tractor, then Homestead renders
+          them as statusbar and panel signals without becoming a second dashboard.
         </p>
         <div class="refarm-cluster refarm-workbench-actions">
           <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={demoHref}>Enable demo stream</a>

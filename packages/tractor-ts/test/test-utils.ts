@@ -23,7 +23,7 @@ import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 
 export class MockStorageAdapter implements StorageAdapter {
-  private nodes: any[] = [];
+  private nodes: Record<string, unknown>[] = [];
   
   async ensureSchema(): Promise<void> {}
   
@@ -31,7 +31,7 @@ export class MockStorageAdapter implements StorageAdapter {
     id: string,
     type: string,
     context: string,
-    payload: any,
+    payload: string,
     sourcePlugin: string | null,
   ): Promise<void> {
     const data = typeof payload === "string" ? payload : JSON.stringify(payload);
@@ -49,7 +49,7 @@ export class MockStorageAdapter implements StorageAdapter {
       if (match) {
         return this.nodes.filter(n => {
           try {
-            const parsed = JSON.parse(n.payload);
+            const parsed = JSON.parse(n["payload"] as string);
             return parsed.url === match[1];
           } catch { return false; }
         });

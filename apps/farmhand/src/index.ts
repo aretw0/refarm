@@ -100,7 +100,7 @@ async function handlePluginRoute(
 	const assignedTo = node["plugin:assignedTo"] as string | undefined;
 	if (assignedTo && assignedTo !== FARMHAND_ID) return; // not for this daemon
 
-	const manifest = node["plugin:manifest"] as any;
+	const manifest = node["plugin:manifest"] as Record<string, unknown> | undefined;
 	if (!manifest?.id) {
 		console.warn("[farmhand] PluginRoute missing plugin:manifest — skipping");
 		return;
@@ -108,14 +108,15 @@ async function handlePluginRoute(
 
 	console.log(`[farmhand] PluginRoute: loading plugin "${manifest.id}"`);
 	try {
-		await tractor.registry.register(manifest);
-		await tractor.registry.trust(manifest.id);
-		await tractor.plugins.load(manifest);
-		console.log(`[farmhand] Plugin "${manifest.id}" loaded successfully`);
-	} catch (e: any) {
+		const pluginManifest = manifest as unknown as import("@refarm.dev/plugin-manifest").PluginManifest;
+		await tractor.registry.register(pluginManifest);
+		await tractor.registry.trust(pluginManifest.id);
+		await tractor.plugins.load(pluginManifest);
+		console.log(`[farmhand] Plugin "${pluginManifest.id}" loaded successfully`);
+	} catch (e) {
 		console.error(
 			`[farmhand] Failed to load plugin "${manifest.id}":`,
-			e.message,
+			e instanceof Error ? e.message : String(e),
 		);
 	}
 }
@@ -174,7 +175,7 @@ async function main() {
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
 	const loadSummary = await loadInstalledPlugins(
-		tractor as any,
+		tractor as unknown as Parameters<typeof loadInstalledPlugins>[0],
 		farmhandBaseDir,
 	);
 	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
@@ -226,7 +227,7 @@ async function main() {
 			},
 		};
 
-		await executeTask(captureTractor as any, {
+		await executeTask(captureTractor as unknown as Parameters<typeof executeTask>[0], {
 			taskId: task.id,
 			effortId,
 			pluginId: task.pluginId,

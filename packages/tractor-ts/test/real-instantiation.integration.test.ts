@@ -5,6 +5,7 @@ import { Tractor } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 // @ts-ignore
 import * as heartwoodFixture from "./fixtures/heartwood-transpiled/heartwood.js";
+import type { ImportObject } from "./fixtures/heartwood-transpiled/heartwood.js";
 
 // Mock heartwood to avoid WASM initialization issues in this test
 vi.mock("@refarm.dev/heartwood", () => ({
@@ -12,15 +13,10 @@ vi.mock("@refarm.dev/heartwood", () => ({
 }));
 
 describe("Real WASM Instantiation Integration", () => {
-  const wasmPath = process.env.CARGO_TARGET_DIR
-    ? path.resolve(
-        process.env.CARGO_TARGET_DIR,
-        "wasm32-wasip1/release/refarm_heartwood.wasm",
-      )
-    : path.resolve(
-        __dirname,
-        "../../heartwood/target/wasm32-wasip1/release/refarm_heartwood.wasm"
-      );
+  const wasmPath = path.resolve(
+    __dirname,
+    "../../heartwood/dist/refarm_heartwood.wasm",
+  );
   
   const fixtureWasmDir = path.resolve(__dirname, "./fixtures/heartwood-transpiled");
 
@@ -45,12 +41,12 @@ describe("Real WASM Instantiation Integration", () => {
       targets: ["server"],
       observability: { hooks: [] },
       certification: { license: "MIT", a11yLevel: 0, languages: ["en"] }
-    } as any;
+    } as unknown as import("@refarm.dev/plugin-manifest").PluginManifest;
 
     await tractor.registry.register(manifest);
     const entry = tractor.registry.getPlugin("heartwood-fixture");
     // Standard imports for WASI
-    const imports = (tractor.plugins as any).getWasiImports(manifest, "strict");
+    const imports = tractor.plugins.getWasiImports(manifest, "strict");
 
     // Instantiate with fixture logic
     const componentInstance = await heartwoodFixture.instantiate((name: string) => {
@@ -61,7 +57,7 @@ describe("Real WASM Instantiation Integration", () => {
         }
         const buffer = fs.readFileSync(p);
         return new WebAssembly.Module(buffer);
-    }, imports);
+    }, imports as unknown as ImportObject);
 
     expect(componentInstance).toBeDefined();
     

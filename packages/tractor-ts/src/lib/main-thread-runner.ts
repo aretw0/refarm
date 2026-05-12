@@ -1,11 +1,12 @@
 // Node-only deps (jco, fs, path) are loaded dynamically inside instantiate()
 // so this module can be safely imported in browser bundles without pulling in Node.js APIs.
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { PluginInstance } from "./instance-handle";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
-import type { TelemetryEvent } from "./telemetry";
-import type { TractorLogger } from "./types";
+type RefarmPluginGlobals = typeof globalThis & { __REFARM_PLUGIN_IMPORTS__?: Record<string, unknown> };
+import type { PluginInstance } from "./instance-handle.js";
+import { PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
+import type { TelemetryEvent } from "./telemetry.js";
+import type { TractorLogger } from "./types.js";
 
 /**
  * Plugin runner for the main thread using JCO transpilation.
@@ -31,12 +32,12 @@ export class MainThreadRunner implements PluginRunner {
 	async instantiate(
 		manifest: PluginManifest,
 		wasmBuffer: ArrayBuffer,
-		imports: Record<string, any>,
+		imports: Record<string, unknown>,
 		emit: (data: TelemetryEvent) => void,
 		onTerminate: (id: string) => void,
 	): Promise<PluginInstance> {
 		const pluginId = manifest.id;
-		let componentInstance: any = null;
+		let componentInstance: unknown = null;
 
 		try {
 			const [jco, fs, path] = await Promise.all([
@@ -48,7 +49,7 @@ export class MainThreadRunner implements PluginRunner {
 			const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_") };
 			const { files } = await jco.transpile(
 				new Uint8Array(wasmBuffer),
-				opts as any,
+				opts as Parameters<typeof jco.transpile>[1],
 			);
 
 			const distDir = path.resolve(this.distBase, pluginId);
@@ -60,7 +61,7 @@ export class MainThreadRunner implements PluginRunner {
 			for (const [filename, content] of Object.entries(files)) {
 				const filePath = path.join(distDir, filename);
 				await fs.mkdir(path.dirname(filePath), { recursive: true });
-				await fs.writeFile(filePath, content as any);
+				await fs.writeFile(filePath, content as string | Uint8Array);
 				if (filename === `${jcoName}.js`) entryPoint = filePath;
 			}
 
@@ -75,7 +76,7 @@ export class MainThreadRunner implements PluginRunner {
 			}
 
 			const { pathToFileURL } = await import("node:url");
-			(globalThis as any).__REFARM_PLUGIN_IMPORTS__ = imports;
+			(globalThis as RefarmPluginGlobals).__REFARM_PLUGIN_IMPORTS__ = imports as Record<string, unknown>;
 			const module = await import(pathToFileURL(entryPoint).href);
 
 			if (module.instantiate) {
@@ -91,9 +92,9 @@ export class MainThreadRunner implements PluginRunner {
 			} else {
 				componentInstance = module;
 			}
-		} catch (e: any) {
+		} catch (e) {
 			this.logger.warn(
-				`[tractor] JCO instantiation failed for ${pluginId}: ${e.message}`,
+				`[tractor] JCO instantiation failed for ${pluginId}: ${e instanceof Error ? e.message : String(e)}`,
 			);
 		}
 
@@ -101,7 +102,7 @@ export class MainThreadRunner implements PluginRunner {
 			pluginId,
 			manifest.name,
 			manifest,
-			componentInstance,
+			componentInstance as Record<string, unknown> | null,
 			emit,
 			onTerminate,
 		);

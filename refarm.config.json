@@ -1,4 +1,9 @@
 {
+  "providers": {
+    "github": {
+      "scopes": "repo read:org"
+    }
+  },
   "brand": {
     "scopes": {
       "dev": "@aretw0",

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { RestStorageAdapter } from "./rest-storage-adapter.js";
 
 // ── fetch mock helpers ─────────────────────────────────────────────────────
@@ -36,7 +36,7 @@ describe("RestStorageAdapter", () => {
       await adapter.storeNode("id-1", "FarmhandPresence", "ctx", '{"a":1}', "farmhand");
 
       expect(spy).toHaveBeenCalledOnce();
-      const [url, init] = spy.mock.calls[0];
+      const [url, init] = spy.mock.calls[0]!;
       expect(url).toBe("https://api.example.com/nodes");
       expect(init?.method).toBe("POST");
       expect(JSON.parse(init?.body as string)).toEqual({
@@ -57,7 +57,7 @@ describe("RestStorageAdapter", () => {
 
       await adapter.storeNode("x", "T", "", "{}", null);
 
-      const [, init] = spy.mock.calls[0];
+      const [, init] = spy.mock.calls[0]!;
       expect((init?.headers as Record<string, string>)["Authorization"]).toBe("Bearer secret");
     });
 
@@ -80,7 +80,7 @@ describe("RestStorageAdapter", () => {
       const result = await adapter.queryNodes("FarmhandPresence");
 
       expect(spy).toHaveBeenCalledOnce();
-      const [url] = spy.mock.calls[0];
+      const [url] = spy.mock.calls[0]!;
       expect(url).toBe("https://api.example.com/nodes?type=FarmhandPresence");
       expect(result).toEqual(nodes);
     });
@@ -91,7 +91,7 @@ describe("RestStorageAdapter", () => {
 
       await adapter.queryNodes("My Type/With Spaces");
 
-      const [url] = spy.mock.calls[0];
+      const [url] = spy.mock.calls[0]!;
       expect(url).toContain("type=My%20Type%2FWith%20Spaces");
     });
   });
@@ -118,7 +118,7 @@ describe("RestStorageAdapter", () => {
       const result = await adapter.execute("SELECT count(*) FROM nodes", []);
 
       expect(spy).toHaveBeenCalledOnce();
-      const [url, init] = spy.mock.calls[0];
+      const [url, init] = spy.mock.calls[0]!;
       expect(url).toBe("https://api.example.com/sql");
       expect(JSON.parse(init?.body as string)).toEqual({
         sql: "SELECT count(*) FROM nodes",
@@ -135,7 +135,7 @@ describe("RestStorageAdapter", () => {
       });
 
       const result = await adapter.query<{ id: string }>("SELECT * FROM nodes");
-      expect(result[0].id).toBe("x");
+      expect(result[0]!.id).toBe("x");
     });
   });
 
@@ -146,7 +146,7 @@ describe("RestStorageAdapter", () => {
 
       await adapter.storeNode("x", "T", "", "{}", null);
 
-      const [url] = spy.mock.calls[0];
+      const [url] = spy.mock.calls[0]!;
       expect(url).toBe("https://api.example.com/nodes");
     });
 
@@ -159,10 +159,10 @@ describe("RestStorageAdapter", () => {
       });
 
       await adapter.queryNodes("T");
-      expect(spy.mock.calls[0][0]).toContain("/v2/nodes");
+      expect(spy.mock.calls[0]![0]).toContain("/v2/nodes");
 
       await adapter.execute("SELECT 1");
-      expect(spy.mock.calls[1][0]).toBe("https://api.example.com/v2/query");
+      expect(spy.mock.calls[1]![0]).toBe("https://api.example.com/v2/query");
     });
   });
 

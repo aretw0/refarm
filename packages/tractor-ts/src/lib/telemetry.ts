@@ -4,12 +4,13 @@
  * Defines the core telemetry events, the event emitter, and the bounded
  * ring buffer used as Tractor's "Black Box Recorder".
  */
+import type { CommandHost } from "./command-host.js";
 
 export interface TelemetryEvent {
 	event: string;
 	pluginId?: string;
 	durationMs?: number;
-	payload?: any;
+	payload?: unknown;
 }
 
 export const RUNTIME_DESCRIPTOR_REVOCATION_EVENTS = [
@@ -212,12 +213,13 @@ export function summarizeRuntimeDescriptorRevocationTelemetry(
 
 		const payload = event.payload ?? {};
 		if (typeof payload === "object" && payload !== null) {
+			const record = payload as Record<string, unknown>;
 			incrementCounter(
 				byPolicy,
-				String(payload.policy ?? payload.resolvedPolicy ?? ""),
+				String(record.policy ?? record.resolvedPolicy ?? ""),
 			);
-			incrementCounter(byPolicySource, String(payload.policySource ?? ""));
-			incrementCounter(byProfile, String(payload.profile ?? ""));
+			incrementCounter(byPolicySource, String(record.policySource ?? ""));
+			incrementCounter(byProfile, String(record.profile ?? ""));
 		}
 	}
 
@@ -445,7 +447,7 @@ export class TelemetryRingBuffer {
 		let current = this.tail;
 
 		for (let i = 0; i < this.count; i++) {
-			const ev = this.buffer[current];
+			const ev = this.buffer[current]!;
 			result[i] = {
 				...ev,
 				payload: this.sanitizePayload(ev.payload),
@@ -460,11 +462,11 @@ export class TelemetryRingBuffer {
 	 * Masks sensitive keys and truncates long strings to ensure diagnostic
 	 * safety and readability.
 	 */
-	private sanitizePayload(payload: any): any {
+	private sanitizePayload(payload: unknown): unknown {
 		if (payload == null) return payload;
 		if (typeof payload !== "object") return payload;
 
-		const sanitized: Record<string, any> = {};
+		const sanitized: Record<string, unknown> = {};
 
 		for (const [key, value] of Object.entries(payload)) {
 			if (this.sensitiveKeys.has(key)) {
@@ -520,7 +522,7 @@ export class TelemetryHost {
 	 * Registers itself with the engine's event bus and command host.
 	 * This is what keeps the main Tractor class clean.
 	 */
-	register(events: EventEmitter, commands: any): void {
+	register(events: EventEmitter, commands: CommandHost): void {
 		// Listen to all events and log them in the ring buffer
 		events.on((data) => this.push(data));
 
@@ -542,10 +544,10 @@ export class TelemetryHost {
 			category: "System",
 			description:
 				"Summarizes runtime descriptor revocation telemetry events from the ring buffer.",
-			handler: (args?: RuntimeDescriptorRevocationTelemetrySummaryOptions) => {
+			handler: (args?: unknown) => {
 				const events = this.dump();
 				return {
-					summary: summarizeRuntimeDescriptorRevocationTelemetry(events, args),
+					summary: summarizeRuntimeDescriptorRevocationTelemetry(events, args as RuntimeDescriptorRevocationTelemetrySummaryOptions),
 				};
 			},
 		});
@@ -556,23 +558,21 @@ export class TelemetryHost {
 			category: "System",
 			description:
 				"Builds revocation telemetry diagnostics with severity-ranked alerts for incident triage.",
-			handler: (
-				args?: RuntimeDescriptorRevocationTelemetrySummaryOptions &
-					RuntimeDescriptorRevocationAlertThresholds,
-			) => {
+			handler: (args?: unknown) => {
+				const a = args as (RuntimeDescriptorRevocationTelemetrySummaryOptions & RuntimeDescriptorRevocationAlertThresholds) | undefined;
 				const events = this.dump();
 				return buildRuntimeDescriptorRevocationDiagnostics(events, {
 					summary: {
-						pluginId: args?.pluginId,
-						policy: args?.policy,
-						profile: args?.profile,
-						limit: args?.limit,
+						pluginId: a?.pluginId,
+						policy: a?.policy,
+						profile: a?.profile,
+						limit: a?.limit,
 					},
 					thresholds: {
-						unavailableWarnAt: args?.unavailableWarnAt,
-						unavailableCriticalAt: args?.unavailableCriticalAt,
-						configDriftWarnAt: args?.configDriftWarnAt,
-						staleCacheWarnAt: args?.staleCacheWarnAt,
+						unavailableWarnAt: a?.unavailableWarnAt,
+						unavailableCriticalAt: a?.unavailableCriticalAt,
+						configDriftWarnAt: a?.configDriftWarnAt,
+						staleCacheWarnAt: a?.staleCacheWarnAt,
 					},
 				});
 			},

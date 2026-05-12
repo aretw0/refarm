@@ -1,0 +1,105 @@
+---
+import Layout from "../layouts/Layout.astro";
+
+const streamsHref = `${import.meta.env.BASE_URL}streams`;
+const surfacesHref = `${import.meta.env.BASE_URL}surfaces`;
+const dashboardHref = import.meta.env.BASE_URL;
+---
+
+<Layout title="Diagnostics — Refarm Studio">
+  <section class="refarm-surface refarm-workbench diagnostics-workbench" aria-labelledby="diagnostics-title">
+    <div class="refarm-eyebrow refarm-eyebrow-chip diagnostics-workbench__eyebrow">Studio diagnostics · internal lab</div>
+    <div class="refarm-workbench-grid diagnostics-workbench__grid">
+      <div>
+        <h1 id="diagnostics-title" class="refarm-workbench-title diagnostics-workbench__title">Studio diagnostics</h1>
+        <p class="refarm-workbench-lead">
+          Internal workbench routes prove host primitives before they become product UX. Public Refarm navigation
+          should speak in outcomes and host modes; Streams and Surfaces stay here as diagnostic vocabulary.
+        </p>
+        <div class="refarm-cluster refarm-workbench-actions">
+          <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={dashboardHref}>Back to live shell</a>
+          <a class="refarm-btn refarm-btn-pill" href={streamsHref}>Temporal observability</a>
+          <a class="refarm-btn refarm-btn-pill" href={surfacesHref}>Activation policy</a>
+        </div>
+      </div>
+      <aside class="refarm-surface-card refarm-card-roomy refarm-workbench-card" aria-label="Information architecture guardrail">
+        <strong>IA guardrail</strong>
+        <ul class="refarm-muted-list">
+          <li>Do not promote diagnostic vocabulary into public IA without translating it to user outcomes.</li>
+          <li>Keep overlapping proof routes grouped under Studio diagnostics.</li>
+          <li>Move reusable mechanics to packages only after a second independent consumer appears.</li>
+        </ul>
+      </aside>
+    </div>
+  </section>
+
+  <section class="refarm-split-grid diagnostics-routes" aria-labelledby="diagnostics-routes-title">
+    <div class="refarm-surface-card refarm-card-roomy diagnostics-routes__intro">
+      <p class="refarm-eyebrow">Diagnostic route map</p>
+      <h2 id="diagnostics-routes-title">What each internal route proves</h2>
+      <p class="refarm-card-body">
+        These routes are evidence for the unified host path, not standalone product promises.
+      </p>
+    </div>
+
+    <a class="refarm-surface-card refarm-card-roomy diagnostics-route-card" href={streamsHref}>
+      <p class="refarm-eyebrow">Temporal observability</p>
+      <h3>Streams</h3>
+      <p>
+        Proves stream sessions/chunks, statusbar/panel rendering, and temporal telemetry without becoming a feed.
+      </p>
+    </a>
+
+    <a class="refarm-surface-card refarm-card-roomy diagnostics-route-card" href={surfacesHref}>
+      <p class="refarm-eyebrow">Activation policy</p>
+      <h3>Surfaces</h3>
+      <p>
+        Proves manifest-declared surface gates, trust state, render failures, and action telemetry.
+      </p>
+    </a>
+  </section>
+
+  <style>
+    .diagnostics-workbench {
+      margin-bottom: 1.5rem;
+    }
+
+    .diagnostics-workbench__eyebrow {
+      margin-bottom: 1rem;
+    }
+
+    .diagnostics-workbench__title {
+      max-width: 12ch;
+    }
+
+    .diagnostics-routes {
+      --refarm-split-grid-columns: minmax(0, 0.9fr) repeat(2, minmax(16rem, 1fr));
+    }
+
+    .diagnostics-routes__intro h2,
+    .diagnostics-route-card h3 {
+      margin: 0.25rem 0 0;
+      font-size: clamp(1.25rem, 2.5vw, 1.8rem);
+      letter-spacing: -0.04em;
+    }
+
+    .diagnostics-route-card {
+      color: inherit;
+      text-decoration: none;
+      transition:
+        border-color 0.2s ease,
+        transform 0.2s ease;
+    }
+
+    .diagnostics-route-card:hover,
+    .diagnostics-route-card:focus-visible {
+      border-color: var(--refarm-accent-primary);
+      transform: translateY(-2px);
+    }
+
+    .diagnostics-route-card p:last-child {
+      margin-top: 0.75rem;
+      color: var(--refarm-text-secondary);
+    }
+  </style>
+</Layout>

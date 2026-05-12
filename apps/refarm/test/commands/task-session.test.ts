@@ -36,10 +36,10 @@ describe("FileTaskSessionRecorder", () => {
 
 		expect(checkpoint).not.toBeNull();
 		expect(checkpoint!.activeEffortId).toBe("effort-1");
-		expect(checkpoint!.efforts[0].statusCommand).toContain(
+		expect(checkpoint!.efforts[0]!.statusCommand).toContain(
 			"refarm task status effort-1 --transport http",
 		);
-		expect(checkpoint!.efforts[0].logsCommand).toContain(
+		expect(checkpoint!.efforts[0]!.logsCommand).toContain(
 			"refarm task logs effort-1 --transport http",
 		);
 	});
@@ -71,7 +71,7 @@ describe("FileTaskSessionRecorder", () => {
 
 		const checkpoint = recorder.getCheckpoint();
 		expect(checkpoint?.activeEffortId).toBeUndefined();
-		expect(checkpoint?.efforts[0].lastStatus).toBe("done");
+		expect(checkpoint?.efforts[0]!.lastStatus).toBe("done");
 	});
 
 	it("marks first non-terminal effort as active when listing", () => {

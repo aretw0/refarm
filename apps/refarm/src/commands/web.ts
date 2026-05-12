@@ -1,6 +1,10 @@
-import { spawn } from "node:child_process";
-import { type RefarmStatusJson } from "@refarm.dev/cli/status";
+import {
+	openHostBrowserUrl,
+	resolveBrowserOpenSpec,
+} from "@refarm.dev/cli/browser-open";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 import { Command } from "commander";
+import { formatRefarmActionReadinessOutput } from "./action-affordances.js";
 import {
 	launchAvailabilityMessage,
 	openDryRunMessage,
@@ -8,33 +12,22 @@ import {
 	openStartMessage,
 } from "./launch-feedback.js";
 import { executeRendererLaunchFlow } from "./launch-flow.js";
-import {
-	createLaunchProcessSpec,
-	launchProcess,
-} from "./launch-process.js";
+import { createLaunchProcessSpec, launchProcess } from "./launch-process.js";
 import { assertLaunchGuardOptions } from "./launch-guards.js";
 import { resolveLaunchMode } from "./launch-policy.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
 import { runStatusPreflight } from "./status-preflight.js";
 import {
 	printStatusSummary,
 	type ResolveStatusPayloadResult,
 	resolveStatusPayload,
 } from "./status.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
-
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 const WEB_LAUNCHER_MODES = ["dev", "preview"] as const;
 
 export type RefarmWebLauncherMode = (typeof WEB_LAUNCHER_MODES)[number];
 
 export interface WebLaunchSpec {
-	command: string;
-	args: string[];
-	display: string;
-}
-
-export interface BrowserOpenSpec {
 	command: string;
 	args: string[];
 	display: string;
@@ -58,6 +51,8 @@ interface WebOptions {
 	dryRun?: boolean;
 	open?: boolean;
 	openUrl?: string;
+	actions?: boolean;
+	select?: string;
 	launcher?: RefarmWebLauncherMode;
 }
 
@@ -75,60 +70,10 @@ export function launchWebProcess(spec: WebLaunchSpec): Promise<number> {
 	return launchProcess(spec);
 }
 
-export function resolveBrowserOpenSpec(
-	url: string,
-	platform = process.platform,
-): BrowserOpenSpec {
-	if (platform === "darwin") {
-		return {
-			command: "open",
-			args: [url],
-			display: `open ${url}`,
-		};
-	}
+export { resolveBrowserOpenSpec };
 
-	if (platform === "win32") {
-		return {
-			command: "cmd",
-			args: ["/c", "start", "", url],
-			display: `cmd /c start "" ${url}`,
-		};
-	}
-
-	return {
-		command: "xdg-open",
-		args: [url],
-		display: `xdg-open ${url}`,
-	};
-}
-
-export function openBrowserUrl(url: string): Promise<void> {
-	const spec = resolveBrowserOpenSpec(url);
-
-	return new Promise((resolve, reject) => {
-		const child = spawn(spec.command, spec.args, {
-			cwd: process.cwd(),
-			stdio: "ignore",
-			env: process.env,
-		});
-
-		child.once("error", (error) => {
-			reject(error);
-		});
-
-		child.once("close", (code) => {
-			if ((code ?? 0) === 0) {
-				resolve();
-				return;
-			}
-
-			reject(
-				new Error(
-					`Browser opener exited with code ${code ?? -1} (${spec.display}).`,
-				),
-			);
-		});
-	});
+export async function openBrowserUrl(url: string): Promise<void> {
+	await openHostBrowserUrl(url);
 }
 
 export function createWebCommand(deps?: Partial<WebDeps>): Command {
@@ -153,6 +98,11 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		.option("--launch", "Launch the local web runtime after renderer preflight")
 		.option("--dry-run", "Print launcher command without executing it")
 		.option("--open", "Open default browser after starting web runtime")
+		.option("--actions", "Output selectable Web surface action rows")
+		.option(
+			"--select <id-or-index>",
+			"Select an available Web action ID or row index when used with --actions",
+		)
 		.option(
 			"--open-url <url>",
 			"Browser URL used with --open",
@@ -160,6 +110,16 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 		)
 		.option("--launcher <mode>", "Launcher mode: dev | preview", "dev")
 		.action(async (options: WebOptions) => {
+			if (options.select && !options.actions) {
+				throw new Error("--select requires --actions.");
+			}
+
+			if (options.actions) {
+				assertWebActionsOutputOptions(options);
+				await emitWebActionRows(options, resolvedDeps);
+				return;
+			}
+
 			assertLaunchGuardOptions({
 				json: options.json,
 				markdown: options.markdown,
@@ -188,9 +148,7 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				printSummary: resolvedDeps.printStatusSummary,
 				afterEmit: () => {
 					if (outputMode === "summary" && !options.launch) {
-						console.log(
-							launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES),
-						);
+						console.log(launchAvailabilityMessage("Web", WEB_LAUNCHER_MODES));
 					}
 				},
 			});
@@ -222,6 +180,39 @@ export function createWebCommand(deps?: Partial<WebDeps>): Command {
 				},
 			});
 		});
+}
+
+async function emitWebActionRows(
+	options: WebOptions,
+	deps: WebDeps,
+): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload: deps.resolveStatusPayload,
+		resolveOptions: {
+			renderer: "web",
+			input: options.input,
+		},
+		run: (json) => {
+			console.log(
+				formatRefarmActionReadinessOutput(json, {
+					renderer: "web",
+					json: options.json,
+					select: options.select,
+					unavailableSubject: "Web action",
+					rowsHeading: "Available Web actions:",
+					selectedHeading: "Selected Web action:",
+				}),
+			);
+		},
+	});
+}
+
+function assertWebActionsOutputOptions(options: WebOptions): void {
+	if (options.markdown || options.launch || options.dryRun || options.open) {
+		throw new Error(
+			"--actions cannot be combined with --markdown, --launch, --dry-run, or --open.",
+		);
+	}
 }
 
 export const webCommand = createWebCommand();

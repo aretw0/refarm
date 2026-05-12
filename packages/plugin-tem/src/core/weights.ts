@@ -132,12 +132,12 @@ export function createRandomWeights(
 
   const rnn: TEMWeights["rnn"] = Array.from({ length: nActions }, () =>
     Array.from({ length: nModules }, (_, f) => ({
-      W_ih: rand(hiddenSize * (nG[f] + nActions)),
+      W_ih: rand(hiddenSize * (nG[f]! + nActions)),
       W_hh: rand(hiddenSize * hiddenSize),
       b_ih: rand(hiddenSize),
       b_hh: rand(hiddenSize),
       hiddenSize,
-      inputSize: nG[f] + nActions,
+      inputSize: nG[f]! + nActions,
     })),
   );
 

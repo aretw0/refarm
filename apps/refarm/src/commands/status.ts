@@ -14,10 +14,11 @@ import { createTrustSummaryFromTractor } from "@refarm.dev/trust";
 import { Command } from "commander";
 import { resolveRefarmRenderer } from "../renderers.js";
 import { resolveRefarmHostIdentity } from "./runtime-metadata.js";
+import { invokeRefarmStatusSurfaceActionSelection } from "./status-actions.js";
+import { withResolvedStatusPayload } from "./status-payload.js";
+import { createRefarmStatusHostSurfaceState } from "./status-surfaces.js";
 import { runStatusPreflight } from "./status-preflight.js";
-import {
-	resolveJsonMarkdownStatusOutputMode,
-} from "./status-output.js";
+import { resolveJsonMarkdownStatusOutputMode } from "./status-output.js";
 
 interface StorageAdapter {
 	ensureSchema(): Promise<void>;
@@ -107,13 +108,34 @@ export const statusCommand = new Command("status")
 	)
 	.option("--markdown", "Output markdown report")
 	.option("--json", "Output machine-readable JSON")
+	.option(
+		"--action <id-or-index>",
+		"Invoke a live app-owned status action by available action ID or row index",
+	)
 	.action(
 		async (options: {
 			json?: boolean;
 			markdown?: boolean;
 			renderer?: string;
 			input?: string;
+			action?: string;
 		}) => {
+			if (options.action) {
+				if (options.json || options.markdown) {
+					throw new Error(
+						"--action cannot be combined with --json or --markdown.",
+					);
+				}
+				if (options.input) {
+					throw new Error(
+						"--action cannot be combined with --input; use refarm actions --input <path> --select <id-or-index> for dry-run readiness.",
+					);
+				}
+
+				await emitStatusActionInvocation(options);
+				return;
+			}
+
 			const outputMode = resolveJsonMarkdownStatusOutputMode({
 				json: options.json,
 				markdown: options.markdown,
@@ -128,6 +150,34 @@ export const statusCommand = new Command("status")
 			});
 		},
 	);
+
+async function emitStatusActionInvocation(options: {
+	renderer?: string;
+	input?: string;
+	action?: string;
+}): Promise<void> {
+	await withResolvedStatusPayload({
+		resolveStatusPayload,
+		resolveOptions: options,
+		run: async (json) => {
+			const actionSelection = options.action;
+			if (!actionSelection) {
+				throw new Error("Missing --action action ID or row index.");
+			}
+
+			console.log(
+				JSON.stringify(
+					await invokeRefarmStatusSurfaceActionSelection({
+						status: json,
+						selection: actionSelection,
+					}),
+					null,
+					2,
+				),
+			);
+		},
+	});
+}
 
 export async function resolveStatusPayload(
 	options: ResolveStatusPayloadOptions,
@@ -165,6 +215,9 @@ export async function resolveStatusPayload(
 		renderer,
 		runtime,
 		trust,
+		plugins: {
+			surfaces: createRefarmStatusHostSurfaceState(),
+		},
 	});
 	assertRefarmStatusJson(json);
 

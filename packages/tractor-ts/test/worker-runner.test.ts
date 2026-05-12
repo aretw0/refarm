@@ -6,13 +6,13 @@ import { createMockManifest } from "@refarm.dev/plugin-manifest";
 // Mock Worker factory
 // ---------------------------------------------------------------------------
 function createMockWorker() {
-  let messageHandler: ((ev: { data: any }) => void) | null = null;
+  let messageHandler: ((ev: { data: unknown }) => void) | null = null;
 
   const workerInstance = {
-    addEventListener: vi.fn((type: string, handler: any) => {
+    addEventListener: vi.fn((type: string, handler: (ev: { data: unknown }) => void) => {
       if (type === "message") messageHandler = handler;
     }),
-    postMessage: vi.fn((msg: any) => {
+    postMessage: vi.fn((msg: { type: string; id: string; fn?: string }) => {
       // Auto-respond to "call" messages so callWorker() promises resolve.
       // Use a microtask so the Promise chain in callWorker() is set up first.
       if (msg.type === "call" && messageHandler) {
@@ -24,7 +24,7 @@ function createMockWorker() {
     terminate: vi.fn(),
   };
 
-  const fireMessage = (data: any) => messageHandler?.({ data });
+  const fireMessage = (data: unknown) => messageHandler?.({ data });
 
   return { workerInstance, fireMessage };
 }
@@ -55,13 +55,13 @@ describe("WorkerRunner", () => {
   it("supports() returns false when Worker is not defined", () => {
     vi.unstubAllGlobals();
     // Remove Worker from globals
-    const original = (globalThis as any).Worker;
-    delete (globalThis as any).Worker;
+    const original = (globalThis as { Worker?: unknown }).Worker;
+    delete (globalThis as { Worker?: unknown }).Worker;
     try {
       const runner = new WorkerRunner();
       expect(runner.supports(manifest)).toBe(false);
     } finally {
-      if (original) (globalThis as any).Worker = original;
+      if (original) (globalThis as { Worker?: unknown }).Worker = original;
     }
   });
 
@@ -89,7 +89,8 @@ describe("WorkerRunner", () => {
       ([msg]) => msg.type === "call" && msg.fn === "setup"
     );
     expect(setupCall).toBeDefined();
-    expect(setupCall![0].args).toMatchObject({ wasmUrl: manifest.entry, manifest });
+    const setupMsg = setupCall![0] as { type: string; id: string; fn?: string; args?: unknown };
+    expect(setupMsg.args).toMatchObject({ wasmUrl: manifest.entry, manifest });
   });
 
   it("bridge-call handler: invokes storeNode and replies bridge-result", async () => {
@@ -159,13 +160,13 @@ describe("WorkerRunner", () => {
     // Capture the next postMessage (the call we'll make) to extract its id
     let capturedCallId: string | undefined;
     const origPostMessage = mockWorker.workerInstance.postMessage;
-    mockWorker.workerInstance.postMessage = vi.fn((msg: any) => {
+    mockWorker.workerInstance.postMessage = vi.fn((msg: { type: string; id: string; fn?: string }) => {
       origPostMessage(msg);
       if (msg.type === "call" && msg.fn === "ping") capturedCallId = msg.id;
     });
 
     // Prevent auto-response for this call by re-mocking without auto-respond
-    mockWorker.workerInstance.postMessage = vi.fn((msg: any) => {
+    mockWorker.workerInstance.postMessage = vi.fn((msg: { type: string; id: string; fn?: string }) => {
       if (msg.type === "call" && msg.fn === "ping") capturedCallId = msg.id;
       // Do NOT auto-respond — we'll fire manually
     });
@@ -188,7 +189,7 @@ describe("WorkerRunner", () => {
     const instance = await runner.instantiate(manifest, new ArrayBuffer(0), {}, vi.fn(), vi.fn());
 
     let capturedCallId: string | undefined;
-    mockWorker.workerInstance.postMessage = vi.fn((msg: any) => {
+    mockWorker.workerInstance.postMessage = vi.fn((msg: { type: string; id: string; fn?: string }) => {
       if (msg.type === "call") capturedCallId = msg.id;
     });
 

@@ -14,6 +14,12 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
+import {
+	clearActiveSessionId,
+	readActiveSessionId,
+	writeActiveSessionIdAndVerify,
+} from "./session-lock.js";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -29,6 +35,9 @@ export interface AskDeps {
 		error?: string;
 	} | null>;
 	resolveSessionIdPrefix?(prefix: string): Promise<string>;
+	readActiveSessionId?(): string | null;
+	clearActiveSessionId?(): boolean;
+	persistActiveSessionId?(id: string): void;
 }
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
@@ -113,7 +122,7 @@ function followStreamFile(
 					for (let index = offset; index < lines.length; index++) {
 						let chunk: StreamChunk;
 						try {
-							chunk = JSON.parse(lines[index]) as StreamChunk;
+							chunk = JSON.parse(lines[index]!) as StreamChunk;
 						} catch {
 							continue;
 						}
@@ -283,22 +292,7 @@ async function readEffortResultFile(
 	}
 }
 
-const SESSION_LOCK_PATH = path.join(os.homedir(), ".refarm", "session.lock");
 const DEFAULT_HISTORY_TURNS = 10;
-
-function readSessionId(): string | null {
-	try {
-		const content = fs.readFileSync(SESSION_LOCK_PATH, "utf-8").trim();
-		return content.length > 0 ? content : null;
-	} catch {
-		return null;
-	}
-}
-
-function writeSessionId(id: string): void {
-	fs.mkdirSync(path.dirname(SESSION_LOCK_PATH), { recursive: true });
-	fs.writeFileSync(SESSION_LOCK_PATH, id, "utf-8");
-}
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -311,7 +305,7 @@ function detectConfiguredProvider(): string | null {
 	if (fs.existsSync(envFile)) {
 		const content = fs.readFileSync(envFile, "utf-8");
 		const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
-		if (match) return match[1];
+		if (match) return match[1]!;
 		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
 		return "ollama";
 	}
@@ -331,28 +325,9 @@ function detectConfiguredProvider(): string | null {
 	return null;
 }
 
-function isFullSessionId(value: string): boolean {
-	return value.startsWith("urn:refarm:session:v1:");
-}
-
-function resolveSessionPrefix(prefix: string, sessions: SessionNode[]): string {
-	const exact = sessions.find((session) => session["@id"] === prefix);
-	if (exact) return exact["@id"];
-
-	const matches = sessions.filter(
-		(session) =>
-			session["@id"].includes(prefix) || session["@id"].endsWith(prefix),
-	);
-	if (matches.length === 0) {
-		throw new Error(`No session matching "${prefix}"`);
-	}
-	if (matches.length > 1) {
-		throw new Error(`Ambiguous session prefix "${prefix}" (${matches.length} matches)`);
-	}
-	return matches[0]["@id"];
-}
-
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function resolveSessionIdPrefixFromSidecar(
+	prefix: string,
+): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
 	const response = await fetch(`${SIDECAR_URL}/sessions`);
@@ -360,7 +335,7 @@ async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
 	const body = (await response.json()) as { sessions?: SessionNode[] };
-	return resolveSessionPrefix(prefix, body.sessions ?? []);
+	return resolveSessionIdPrefix(prefix, body.sessions ?? []);
 }
 
 function defaultDeps(): AskDeps {
@@ -378,6 +353,9 @@ function defaultDeps(): AskDeps {
 				options,
 			),
 		readEffortResult: (effortId) => readEffortResultFile(resultsDir, effortId),
+		readActiveSessionId,
+		clearActiveSessionId,
+		persistActiveSessionId: writeActiveSessionIdAndVerify,
 	};
 }
 
@@ -425,6 +403,11 @@ function printAskError(message: string): void {
 
 export function createAskCommand(deps?: AskDeps): Command {
 	const resolved = deps ?? defaultDeps();
+	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
+	const clearActiveSession =
+		resolved.clearActiveSessionId ?? clearActiveSessionId;
+	const persistActiveSession =
+		resolved.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
 
 	return new Command("ask")
 		.description("Ask pi-agent with automatic project context")
@@ -441,7 +424,9 @@ export function createAskCommand(deps?: AskDeps): Command {
 					console.error(chalk.red("\n✗  No LLM provider configured."));
 					console.error(chalk.dim("   Set up a provider:  refarm keys"));
 					console.error(
-						chalk.dim("   Or use Ollama:      ollama serve  (then refarm keys)"),
+						chalk.dim(
+							"   Or use Ollama:      ollama serve  (then refarm keys)",
+						),
 					);
 					process.exit(1);
 				}
@@ -454,19 +439,18 @@ export function createAskCommand(deps?: AskDeps): Command {
 				}
 
 				if (opts.new) {
-					try {
-						fs.unlinkSync(SESSION_LOCK_PATH);
-					} catch {
-						// already absent — fine
-					}
+					clearActiveSession();
 				}
 
 				const explicitSession = opts.session?.trim();
-				let sessionId = readSessionId() ?? newSessionId();
+				let sessionId = opts.new
+					? newSessionId()
+					: (readActiveSession() ?? newSessionId());
 				if (explicitSession && explicitSession.length > 0) {
 					if (resolved.resolveSessionIdPrefix) {
 						try {
-							sessionId = await resolved.resolveSessionIdPrefix(explicitSession);
+							sessionId =
+								await resolved.resolveSessionIdPrefix(explicitSession);
 						} catch (error) {
 							const message =
 								error instanceof Error ? error.message : String(error);
@@ -476,7 +460,9 @@ export function createAskCommand(deps?: AskDeps): Command {
 							) {
 								console.error(chalk.red(`\n✗  ${message}`));
 								console.error(
-									chalk.dim("   Use: refarm sessions list  to inspect available IDs."),
+									chalk.dim(
+										"   Use: refarm sessions list  to inspect available IDs.",
+									),
 								);
 							} else {
 								printAskError(message);
@@ -562,7 +548,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 								console.log(chalk.gray(`\n${"─".repeat(41)}`));
 								console.log(chalk.gray(usageLine(fallback.metadata)));
 							}
-							writeSessionId(sessionId);
+							persistActiveSession(sessionId);
 							return;
 						}
 
@@ -575,7 +561,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 						throw streamError;
 					}
 
-					writeSessionId(sessionId);
+					persistActiveSession(sessionId);
 				} catch (err) {
 					const message = err instanceof Error ? err.message : String(err);
 					printAskError(message);

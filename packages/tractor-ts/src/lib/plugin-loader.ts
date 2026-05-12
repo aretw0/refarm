@@ -1,20 +1,20 @@
 import { transpile } from "@bytecodealliance/jco";
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
-import type { TelemetryEvent } from "../index";
+import type { TelemetryEvent } from "../index.js";
 
 /**
  * Interface for the Tractor host to provide to the plugin.
  * Mirrors the 'tractor-bridge' interface in refarm-sdk.wit.
  */
 export interface TractorBridge {
-  storeNode(node: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: any }>;
-  getNode(id: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: any }>;
-  queryNodes(type: string, limit: number): Promise<{ tag: "ok"; val: string[] } | { tag: "err"; val: any }>;
-  fetch(req: any): Promise<{ tag: "ok"; val: any } | { tag: "err"; val: any }>;
+  storeNode(node: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: unknown }>;
+  getNode(id: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: unknown }>;
+  queryNodes(type: string, limit: number): Promise<{ tag: "ok"; val: string[] } | { tag: "err"; val: unknown }>;
+  fetch(req: Record<string, unknown>): Promise<{ tag: "ok"; val: unknown } | { tag: "err"; val: unknown }>;
   log(level: string, message: string): void;
   requestPermission(capability: string, reason: string): boolean;
-  getIdentity(): Promise<{ tag: "ok"; val: any } | { tag: "err"; val: any }>;
-  getPluginApi(apiName: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: any }>;
+  getIdentity(): Promise<{ tag: "ok"; val: unknown } | { tag: "err"; val: unknown }>;
+  getPluginApi(apiName: string): Promise<{ tag: "ok"; val: string } | { tag: "err"; val: unknown }>;
   emitTelemetry(event: string, payload?: string): void;
 }
 
@@ -30,7 +30,7 @@ export class PluginLoader {
   /**
    * Loads a WASM component and returns its exports (specifically the 'integration' interface).
    */
-  async load(manifest: PluginManifest): Promise<any> {
+  async load(manifest: PluginManifest): Promise<unknown> {
     const wasmUrl = manifest.entry;
     const response = await fetch(wasmUrl);
     if (!response.ok) throw new Error(`Failed to fetch WASM from ${wasmUrl}`);

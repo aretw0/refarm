@@ -52,8 +52,8 @@ pluginCommand
       console.log(chalk.gray(`   Version: ${entry.manifest.version}`));
       console.log(chalk.gray(`   Status: ${entry.status}`));
       console.log(chalk.yellow(`ℹ️  To activate, start a Tractor node (e.g. refarm tractor start)`));
-    } catch (e: any) {
-      console.error(chalk.red(`❌ Installation failed: ${e.message}`));
+    } catch (e) {
+      console.error(chalk.red(`❌ Installation failed: ${e instanceof Error ? e.message : String(e)}`));
       process.exitCode = 1;
     }
   });
@@ -105,8 +105,8 @@ pluginCommand
         stdio: "inherit",
       });
       console.log(chalk.green(`✅ Plugin bundled to ${outDir}/${name}.js`));
-    } catch (e: any) {
-      console.error(chalk.red(`❌ Bundle failed: ${e.message}`));
+    } catch (e) {
+      console.error(chalk.red(`❌ Bundle failed: ${e instanceof Error ? e.message : String(e)}`));
       process.exitCode = 1;
     }
   });

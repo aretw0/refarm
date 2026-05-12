@@ -1,5 +1,5 @@
-import { CommandHost } from "./command-host";
-import { EventEmitter, TelemetryEvent } from "./telemetry";
+import { CommandHost } from "./command-host.js";
+import { EventEmitter, TelemetryEvent } from "./telemetry.js";
 
 export interface RecoveryRequest {
   providerId: string;
@@ -40,11 +40,9 @@ export class IdentityRecoveryHost {
       id: "system:security:recovery:initiate",
       title: "Initiate Account Recovery",
       category: "Security",
-      handler: async (args: {
-        providerId: string;
-        request: RecoveryRequest;
-      }) => {
-        return this.initiateRecovery(args.providerId, args.request);
+      handler: async (args?: unknown) => {
+        const { providerId, request } = args as { providerId: string; request: RecoveryRequest };
+        return this.initiateRecovery(providerId, request);
       },
     });
   }

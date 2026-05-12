@@ -7,13 +7,13 @@ const streamsHref = `${import.meta.env.BASE_URL}streams`;
 
 <Layout title="Surfaces — Refarm Studio">
   <section class="refarm-surface refarm-workbench surfaces-workbench" aria-labelledby="surface-workbench-title">
-    <div class="refarm-eyebrow refarm-eyebrow-chip surfaces-workbench__eyebrow">Activation ledger</div>
+    <div class="refarm-eyebrow refarm-eyebrow-chip surfaces-workbench__eyebrow">Studio diagnostics · activation policy</div>
     <div class="refarm-workbench-grid surfaces-workbench__grid">
       <div>
-        <h1 id="surface-workbench-title" class="refarm-workbench-title surfaces-workbench__title">Surface trust graph</h1>
+        <h1 id="surface-workbench-title" class="refarm-workbench-title surfaces-workbench__title">Surface diagnostics</h1>
         <p class="refarm-workbench-lead">
-          Inspect the Homestead activation path from manifest declaration to slot mount, including explicit render
-          capability, slot allow-listing, kind allow-listing, and registry trust state.
+          Prove activation policy: manifest-declared surfaces must pass slot, kind, capability, registry trust,
+          render, and host-action telemetry gates before product apps rely on them.
         </p>
         <div class="refarm-cluster refarm-workbench-actions">
           <a class="refarm-btn refarm-btn-primary refarm-btn-pill" href={dashboardHref}>Open live shell</a>

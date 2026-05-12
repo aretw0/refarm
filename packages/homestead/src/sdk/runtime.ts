@@ -1,3 +1,4 @@
+import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { OPFSSQLiteAdapter } from "@refarm.dev/storage-sqlite";
 import {
 	BrowserSyncClient,
@@ -70,7 +71,7 @@ export async function bootStudioRuntime(
 	const sqliteStorage = await new OPFSSQLiteAdapter().open(
 		options.databaseName,
 	);
-	const storage = new LoroCRDTStorage(sqliteStorage as any, randomPeerId());
+	const storage = new LoroCRDTStorage(sqliteStorage, randomPeerId());
 	const identity = createStudioRuntimeIdentity(
 		options.identityId,
 		options.identityPublicKey,
@@ -82,9 +83,9 @@ export async function bootStudioRuntime(
 	if (syncClient) syncClient.connect();
 
 	const tractor = await Tractor.boot({
-		storage: storage as any,
+		storage,
 		...(options.tractorSync ? { sync: storage } : {}),
-		identity: identity as any,
+		identity: identity as unknown as IdentityAdapter,
 		namespace: options.namespace,
 		envMetadata: options.envMetadata ?? STUDIO_DEFAULT_ENV_METADATA,
 	});

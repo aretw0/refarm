@@ -1,8 +1,8 @@
 import { PluginManifest } from "@refarm.dev/plugin-manifest";
-import { TelemetryEvent } from "./telemetry";
-import { PluginInstanceHandle } from "./instance-handle";
-import type { PluginInstance, PluginState } from "./instance-handle";
-import type { PluginRunner } from "./plugin-runner";
+import { TelemetryEvent } from "./telemetry.js";
+import { PluginInstanceHandle as _PluginInstanceHandle } from "./instance-handle.js";
+import type { PluginInstance, PluginState } from "./instance-handle.js";
+import type { PluginRunner } from "./plugin-runner.js";
 
 /**
  * Plugin runner that instantiates WASM plugins inside a dedicated WebWorker.
@@ -31,12 +31,12 @@ export class WorkerRunner implements PluginRunner {
   async instantiate(
     manifest: PluginManifest,
     _wasmBuffer: ArrayBuffer,
-    _imports: Record<string, any>,
+    _imports: Record<string, unknown>,
     emit: (data: TelemetryEvent) => void,
     onTerminate: (id: string) => void,
   ): Promise<PluginInstance> {
     const pluginId = manifest.id;
-    const workerEntry = (manifest as any).workerEntry ?? manifest.entry;
+    const workerEntry = (manifest as PluginManifest & { workerEntry?: string }).workerEntry ?? manifest.entry;
 
     const worker = new Worker(workerEntry, { type: "module" });
     const pendingCalls = new Map<
@@ -46,15 +46,15 @@ export class WorkerRunner implements PluginRunner {
     let callSeq = 0;
 
     worker.addEventListener("message", async (ev) => {
-      const msg = ev.data as any;
+      const msg = ev.data as { type: string; id: string; fn: string; args?: unknown; result?: unknown; message?: string; event?: string; payload?: unknown };
 
       if (msg.type === "bridge-call") {
         const { id, fn, args } = msg;
         try {
           if (fn === "store-node" && this.storeNode) await this.storeNode(args as string);
           worker.postMessage({ type: "bridge-result", id, result: "ok" });
-        } catch (e: any) {
-          worker.postMessage({ type: "bridge-error", id, message: e?.message ?? String(e) });
+        } catch (e) {
+          worker.postMessage({ type: "bridge-error", id, message: e instanceof Error ? e.message : String(e) });
         }
         return;
       }
@@ -69,7 +69,7 @@ export class WorkerRunner implements PluginRunner {
           pending.reject(new Error(msg.message));
         }
       } else if (msg.type === "telemetry") {
-        emit({ event: msg.event, pluginId, payload: msg.payload });
+        emit({ event: msg.event ?? "unknown", pluginId, payload: msg.payload });
       }
     });
 
@@ -99,7 +99,7 @@ export class WorkerRunner implements PluginRunner {
         emit({ event: "plugin:terminate", pluginId });
       },
 
-      emitTelemetry(event: string, payload?: any) {
+      emitTelemetry(event: string, payload?: unknown) {
         emit({ event, pluginId, payload });
       },
     };

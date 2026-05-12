@@ -22,7 +22,7 @@ export function runConformanceTests(
 				is_final: false,
 			});
 			expect(received).toHaveLength(1);
-			expect(received[0].content).toBe("hello");
+			expect(received[0]!.content).toBe("hello");
 		});
 
 		it("replays past chunks on late subscribe", () => {
@@ -55,7 +55,7 @@ export function runConformanceTests(
 				sequence: 0,
 				is_final: true,
 			});
-			expect(received[received.length - 1].is_final).toBe(true);
+			expect(received[received.length - 1]!.is_final).toBe(true);
 		});
 
 		it("delivers to multiple subscribers for same stream_ref", () => {

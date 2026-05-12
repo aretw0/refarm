@@ -9,8 +9,10 @@ export interface L8nHostLogger {
   info(...args: unknown[]): void;
 }
 
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+
 function resolveDefaultLogger(): L8nHostLogger {
-  const env = (globalThis as any)?.process?.env as Record<string, string | undefined> | undefined;
+  const env = (globalThis as NodeEnvGlobal).process?.env;
   if (env?.VITEST === "true" || env?.NODE_ENV === "test") {
     return { info: () => {} };
   }
@@ -72,13 +74,13 @@ export class L8nHost {
 
     if (key.includes(':')) {
       const parts = key.split(':');
-      ns = parts[0];
-      k = parts[1];
+      ns = parts[0]!;
+      k = parts[1]!;
     } else if (key.includes('/')) {
       // Support "refarm:core/save" or "plugin/key"
       const parts = key.split('/');
-      ns = parts[0];
-      k = parts[1];
+      ns = parts[0]!;
+      k = parts[1]!;
     }
 
     // Special case for "refarm:core" as it contains a colon

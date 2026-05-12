@@ -16,9 +16,10 @@ export class FireflyPlugin {
 
   private setupListeners() {
     this.tractor.observe((data: TelemetryEvent) => {
+      const payload = recordTelemetryPayload(data.payload);
       // Listen for system alerts
       if (data.event === "system:alert") {
-        this.showToast(data.payload?.reason || "System Alert", data.payload?.severity === "error");
+        this.showToast(String(payload.reason || "System Alert"), payload.severity === "error");
       }
 
       // Listen for update notifications (wired by Herald)
@@ -31,8 +32,8 @@ export class FireflyPlugin {
       }
 
       // Listen for guidance/spotlight events
-      if (data.event === "system:guidance" && data.payload?.targetId) {
-        this.spotlight(data.payload.targetId, data.payload.message);
+      if (data.event === "system:guidance" && typeof payload.targetId === "string") {
+        this.spotlight(payload.targetId, typeof payload.message === "string" ? payload.message : "");
       }
     });
   }
@@ -149,4 +150,10 @@ export class FireflyPlugin {
       target.classList.remove("firefly-focused");
     };
   }
+}
+
+function recordTelemetryPayload(payload: unknown): Record<string, unknown> {
+  return payload && typeof payload === "object" && !Array.isArray(payload)
+    ? (payload as Record<string, unknown>)
+    : {};
 }

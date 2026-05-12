@@ -64,8 +64,9 @@ describe("Tractor Core Commands", () => {
       acknowledgeRisk: true,
     });
 
-    expect(result.warning).toContain("Trusted-fast enabled");
-    expect(result.grant.pluginId).toBe("@refarm.dev/godot-like");
-    expect(result.grant.wasmHash).toBe("sha256:godot-v1");
+    const r = result as { warning: string; grant: { pluginId: string; wasmHash: string } };
+    expect(r.warning).toContain("Trusted-fast enabled");
+    expect(r.grant.pluginId).toBe("@refarm.dev/godot-like");
+    expect(r.grant.wasmHash).toBe("sha256:godot-v1");
   });
 });

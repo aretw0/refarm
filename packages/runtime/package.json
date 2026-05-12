@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/runtime",
   "version": "0.1.0",
-  "description": "Refarm Runtime — domain contract for host runtime state summaries",
+  "description": "Refarm Runtime \u2014 domain contract for host runtime state summaries",
   "type": "module",
   "exports": {
     ".": {
@@ -12,9 +12,11 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "eslint src"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*",
     "@refarm.dev/vtconfig": "*"
   },

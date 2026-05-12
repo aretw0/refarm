@@ -1,8 +1,11 @@
 {
-  "extends": "@refarm.dev/tsconfig/node.json",
-  "compilerOptions": {
-    "noEmit": true,
-    "outDir": "dist"
-  },
-  "include": ["src/**/*", "test/**/*"]
+	"extends": "@refarm.dev/tsconfig/node.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"outDir": "dist"
+	},
+	"include": [
+		"src/**/*",
+		"test/**/*"
+	]
 }

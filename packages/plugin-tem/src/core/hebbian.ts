@@ -37,12 +37,12 @@ export function hebbianUpdate(
 ): void {
   const n = pInf.length;
   for (let i = 0; i < n; i++) {
-    const infI = pInf[i];
-    const genI = pGen[i];
+    const infI = pInf[i]!;
+    const genI = pGen[i]!;
     for (let j = 0; j < n; j++) {
       const idx = i * n + j;
-      const delta = infI * pInf[j] - genI * pGen[j];
-      const updated = lambda * M[idx] + eta * delta;
+      const delta = infI * pInf[j]! - genI * pGen[j]!;
+      const updated = lambda * M[idx]! + eta * delta;
       // clamp to [-1, +1] — prevents runaway weight growth
       M[idx] = updated < -1 ? -1 : updated > 1 ? 1 : updated;
     }

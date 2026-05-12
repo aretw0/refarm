@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/refarm",
   "version": "0.1.0",
-  "description": "Refarm CLI — The Sovereign Farm distro binary.",
+  "description": "Refarm CLI \u2014 The Sovereign Farm distro binary.",
   "type": "module",
   "private": true,
   "bin": {
@@ -9,13 +9,18 @@
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/status-payload.test.ts test/commands/status-preflight.test.ts test/commands/doctor.test.ts test/commands/doctor-output.test.ts test/commands/headless.test.ts test/commands/launch-policy.test.ts test/commands/launch-guards.test.ts test/commands/launch-process.test.ts test/commands/launch-feedback.test.ts test/commands/launch-flow.test.ts test/commands/option-guards.test.ts test/commands/status-output.test.ts test/commands/brand.test.ts test/commands/version.test.ts test/commands/runtime-metadata.test.ts test/commands/web.test.ts test/commands/tui.test.ts test/program.test.ts"
+    "smoke:dist-actions": "npm run build && node scripts/smoke-dist-action-readiness.mjs",
+    "test:host-smoke": "vitest run test/commands/status.test.ts test/commands/status-surfaces.test.ts test/commands/status-actions.test.ts test/commands/status-payload.test.ts test/commands/status-preflight.test.ts test/commands/doctor.test.ts test/commands/doctor-output.test.ts test/commands/headless.test.ts test/commands/headless-action.test.ts test/commands/action-affordances.test.ts test/commands/actions.test.ts test/commands/action-fixture.test.ts test/commands/open-url.test.ts test/commands/launch-policy.test.ts test/commands/launch-guards.test.ts test/commands/launch-process.test.ts test/commands/launch-feedback.test.ts test/commands/launch-flow.test.ts test/commands/option-guards.test.ts test/commands/status-output.test.ts test/commands/brand.test.ts test/commands/version.test.ts test/commands/runtime-metadata.test.ts test/commands/renderers.test.ts test/commands/web.test.ts test/commands/web-actions.test.ts test/commands/tui.test.ts test/commands/tui-actions.test.ts test/commands/tree.list.test.ts test/commands/tree.show.test.ts test/commands/tree.preview.test.ts test/commands/tree.fork.test.ts test/commands/tree.switch.test.ts test/commands/deploy.test.ts test/commands/guide.test.ts test/commands/init.test.ts test/commands/migrate.test.ts test/commands/plugin.test.ts test/commands/provision.test.ts test/program.test.ts",
+    "lint": "eslint src"
   },
   "dependencies": {
     "@refarm.dev/cli": "*",
+    "@refarm.dev/infra-cloudflare": "*",
+    "@refarm.dev/infra-turbo-cache": "*",
     "@refarm.dev/config": "*",
     "@refarm.dev/context-provider-v1": "*",
     "@refarm.dev/effort-contract-v1": "*",
@@ -35,6 +40,7 @@
     "inquirer": "^13.4.2"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "*",
     "@refarm.dev/tsconfig": "*",
     "@refarm.dev/vtconfig": "*",
     "@types/inquirer": "^9.0.9"

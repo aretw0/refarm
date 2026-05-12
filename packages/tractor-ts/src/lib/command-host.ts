@@ -21,7 +21,7 @@ export interface CommandMetadata {
   sourcePlugin?: string;
 }
 
-export type CommandHandler = (args?: any) => Promise<any> | any;
+export type CommandHandler = (args?: unknown) => Promise<unknown> | unknown;
 
 export interface RegisteredCommand extends CommandMetadata {
   handler: CommandHandler;
@@ -30,7 +30,7 @@ export interface RegisteredCommand extends CommandMetadata {
 export class CommandHost {
   private commands: Map<string, RegisteredCommand> = new Map();
 
-  constructor(private emitTelemetry: (event: string, payload?: any) => void) {}
+  constructor(private emitTelemetry: (event: string, payload?: unknown) => void) {}
 
   /**
    * Register a new command in the system.
@@ -61,7 +61,7 @@ export class CommandHost {
   /**
    * Execute a command by ID.
    */
-  async execute(id: string, args?: any): Promise<any> {
+  async execute(id: string, args?: unknown): Promise<unknown> {
     const cmd = this.commands.get(id);
     if (!cmd) {
       throw new Error(`[commands] Command not found: ${id}`);
@@ -78,10 +78,10 @@ export class CommandHost {
       });
 
       return result;
-    } catch (error: any) {
+    } catch (error) {
       this.emitTelemetry("system:command_failed", {
         id,
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
         success: false
       });
       throw error;
@@ -92,6 +92,6 @@ export class CommandHost {
    * List all registered commands (for the palette).
    */
   getCommands(): CommandMetadata[] {
-    return Array.from(this.commands.values()).map(({ handler, ...metadata }) => metadata);
+    return Array.from(this.commands.values()).map(({ handler: _handler, ...metadata }) => metadata);
   }
 }

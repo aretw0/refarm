@@ -24,7 +24,7 @@ import {
 	getCachedPlugin,
 	getPluginCachePath,
 	getPluginRuntimeModuleCachePath,
-} from "./opfs-plugin-cache";
+} from "./opfs-plugin-cache.js";
 import {
 	buildGithubReleaseAssetUrl,
 	fetchRuntimeDescriptorRevocationList,
@@ -33,7 +33,7 @@ import {
 	type RuntimeDescriptorRevocationList,
 	type RuntimeDescriptorRevocationListReference,
 	resolveGithubRepoCoordinates,
-} from "./runtime-descriptor-revocation";
+} from "./runtime-descriptor-revocation.js";
 import {
 	dedupeRuntimeDescriptorRevocationConfigConflicts,
 	dedupeRuntimeDescriptorRevocationInvalidInputs,
@@ -42,7 +42,16 @@ import {
 	type RuntimeDescriptorRevocationProfile,
 	type ResolveRuntimeDescriptorRevocationUnavailablePolicyResult,
 	type RuntimeDescriptorRevocationUnavailablePolicy,
-} from "./runtime-descriptor-revocation-policy";
+} from "./runtime-descriptor-revocation-policy.js";
+
+type ViteImportMeta = ImportMeta & { env?: Record<string, string | undefined> };
+type RefarmGlobals = typeof globalThis & {
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__?: string;
+	__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__?: string;
+	__REFARM_ENVIRONMENT__?: string;
+};
+type NodeEnvGlobal = typeof globalThis & { process?: { env?: Record<string, string | undefined> } };
+const refarmGlobals = globalThis as RefarmGlobals;
 
 const OPFS_CACHE_ADAPTER: PluginBinaryCacheAdapter = {
 	get: getCachedPlugin,
@@ -188,14 +197,11 @@ function normalizeTrustedOrigins(origins: string[] | undefined): Set<string> {
 function resolveInstallRevocationUnavailablePolicy(
 	options: InstallPluginOptions,
 ): ResolveRuntimeDescriptorRevocationUnavailablePolicyResult {
-	const runtimePolicyOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
-	const runtimeProfileOverride = (globalThis as any)
-		.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
-	const runtimeEnvironmentOverride = (globalThis as any)
-		.__REFARM_ENVIRONMENT__;
-	const viteEnv = (import.meta as any).env;
-	const nodeEnv = (globalThis as any)?.process?.env;
+	const runtimePolicyOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_UNAVAILABLE_POLICY__;
+	const runtimeProfileOverride = refarmGlobals.__REFARM_RUNTIME_DESCRIPTOR_REVOCATION_PROFILE__;
+	const runtimeEnvironmentOverride = refarmGlobals.__REFARM_ENVIRONMENT__;
+	const viteEnv = (import.meta as ViteImportMeta).env;
+	const nodeEnv = (globalThis as NodeEnvGlobal).process?.env;
 
 	const environmentProfileResolution =
 		resolveRuntimeDescriptorRevocationEnvironmentProfile({
@@ -308,10 +314,10 @@ function resolveAutoRevocationListReference(
 				revocationAssetName,
 			),
 		};
-	} catch (error: any) {
+	} catch (error) {
 		if (options.descriptorSourceRepository) {
 			throw new Error(
-				`[install-plugin] Unable to resolve descriptor revocation list URL for ${manifest.id}: ${error?.message ?? error}`,
+				`[install-plugin] Unable to resolve descriptor revocation list URL for ${manifest.id}: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 		return null;
@@ -354,14 +360,14 @@ async function assertDescriptorNotRevoked(
 						allowStaleOnError: unavailablePolicy === "stale-allowed",
 						onStaleFallback: (info) => {
 							console.warn(
-								`[install-plugin] Revocation list fetch failed for ${manifest.id}; using stale cache (${info.cacheAgeMs}ms old): ${(info.error as any)?.message ?? String(info.error)}`,
+								`[install-plugin] Revocation list fetch failed for ${manifest.id}; using stale cache (${info.cacheAgeMs}ms old): ${(info.error instanceof Error ? info.error.message : null) ?? String(info.error)}`,
 							);
 						},
 					});
-				} catch (error: any) {
+				} catch (error) {
 					if (unavailablePolicy === "fail-open") {
 						console.warn(
-							`[install-plugin] Revocation list unavailable for ${manifest.id}; continuing due fail-open policy: ${error?.message ?? error}`,
+							`[install-plugin] Revocation list unavailable for ${manifest.id}; continuing due fail-open policy: ${error instanceof Error ? error.message : String(error)}`,
 						);
 						return null;
 					}

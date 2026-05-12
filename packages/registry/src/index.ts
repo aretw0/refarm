@@ -21,10 +21,10 @@ export interface RegistryEntry {
  */
 export class SovereignRegistry {
     private plugins: Map<string, RegistryEntry>;
-    private config: Record<string, any>;
+    private config: Record<string, unknown>;
     private _persistPath?: string;
 
-    constructor(config: Record<string, any> = {}, persistence?: RegistryPersistenceOptions) {
+    constructor(config: Record<string, unknown> = {}, persistence?: RegistryPersistenceOptions) {
         this.plugins = new Map();
         this.config = config;
         this._persistPath = persistence?.path;
@@ -55,9 +55,9 @@ export class SovereignRegistry {
             const raw = await readFile(this._persistPath, "utf-8");
             const entries: RegistryEntry[] = JSON.parse(raw);
             this.importState(entries);
-        } catch (e: any) {
-            if (e?.code !== "ENOENT") {
-                console.warn(`[registry] Could not load persisted state from ${this._persistPath}:`, e.message);
+        } catch (e) {
+            if ((e as NodeJS.ErrnoException)?.code !== "ENOENT") {
+                console.warn(`[registry] Could not load persisted state from ${this._persistPath}:`, e instanceof Error ? e.message : String(e));
             }
             // ENOENT → first boot, start empty
         }
@@ -114,8 +114,8 @@ export class SovereignRegistry {
             if (!entry) throw new Error("Failed to retrieve registered plugin");
             
             return entry;
-        } catch (e: any) {
-            throw new Error(`Remote resolution failed for ${id}: ${e.message}`);
+        } catch (e) {
+            throw new Error(`Remote resolution failed for ${id}: ${e instanceof Error ? e.message : String(e)}`);
         }
     }
 
@@ -157,9 +157,9 @@ export class SovereignRegistry {
                 plugin.error = "Invalid cryptographic signature";
                 return false;
             }
-        } catch (e: any) {
+        } catch (e) {
             plugin.status = "error";
-            plugin.error = e.message;
+            plugin.error = e instanceof Error ? e.message : String(e);
             throw e;
         }
     }

@@ -10,7 +10,7 @@
  *   THEN it produces meaningful novelty signals and relational memory
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { TEMInference, TEMConfig } from "./core/tem-inference";
 import { createRandomWeights } from "./core/weights";
 import { encodeAction } from "./encoding/action-encoder";

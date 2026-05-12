@@ -49,6 +49,9 @@ state using the same contracts as the apps?
 - `refarm headless` (headless snapshot-first output surface)
 - `refarm web` (web renderer preflight + launcher entrypoint via `--launch`)
 - `refarm tui` (tui renderer preflight + terminal launcher entrypoint via `--launch`)
+- `refarm open-url` (host-browser URL opener with devcontainer-aware fallbacks for auth/provider flows)
+- `refarm actions` (renderer-neutral, non-executing host action readiness rows/JSON)
+- `refarm tree` (read-only session/git timeline rows and dry-run fork/branch previews)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
   including host metadata in human/JSON report output)
 
@@ -58,6 +61,11 @@ It can also request browser opening (`--open`, optional `--open-url`) while
 keeping launcher failures explicit and non-fatal to preflight reporting.
 Launch is fail-closed when status diagnostics include failure codes (for
 example `runtime:not-ready` or `trust:critical-present`).
+`refarm open-url <url>` is a small host-browser primitive for auth/provider
+flows that need to open a URL from devcontainers, WSL, Linux desktops, macOS, or
+Windows. The reusable opener lives in `@refarm.dev/cli/browser-open` and tries explicit `REFARM_BROWSER_OPEN_COMMAND`, VS Code `code --open-url`,
+`wslview`, and common Linux openers before printing a manual fallback URL.
+
 `refarm tui` reuses the same status contract and can launch terminal runtime
 entrypoints (`watch` or `prompt`) after runtime preflight
 (`--launch`, optional `--dry-run`). Launch is fail-closed when status
@@ -89,28 +97,71 @@ npm run refarm:host:smoke:dev
 npm run refarm:host:smoke:ci
 npm run refarm:host:smoke:auto:plan
 npm run refarm:host:smoke:auto
+npm run refarm:host:smoke:auto:test
+npm run refarm:actions:verify
+npm run refarm:tree:verify
 ```
 
 - `refarm:host:smoke` runs the focused `apps/refarm` command tests (`status`,
   `doctor`, `headless`, `web`, `tui`, and program wiring).
 - `refarm:host:smoke:cli` executes low-cost CLI flow checks against built distro
   output (`refarm --version`, `refarm web --input`, `refarm tui --input`,
-  `refarm status --json --input`, `refarm headless --input`,
+  `refarm open-url --dry-run`, `refarm actions --input --select --json`,
+  `refarm tree list --scope git --json`,
+  `refarm tree preview --scope git --json`,
+  isolated git `refarm tree fork --scope git --json`, fail-closed tree fork
+  guards, `refarm status --json --input`,
+  `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
   `refarm doctor --json`, `refarm doctor` (summary), and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values,
   fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid
-  output/launch guard combinations (`--open`/`--dry-run` without `--launch`,
-  `--json` + `--markdown`, `headless --markdown --summary`) are rejected
-  fail-closed, using fixture-backed status input.
-- `refarm:host:smoke:ci` runs the command suite + CLI flow smoke through CI
-  wrappers under `scripts/ci/` and includes `apps/refarm` type-check by default.
+  output/launch/action guard combinations (`--open`/`--dry-run` without
+  `--launch`, `--json` + `--markdown`, `headless --markdown --summary`, and
+  `status --action --input`) are rejected fail-closed, using fixture-backed
+  status input.
+- `refarm:actions:headless:test`, `refarm:actions:renderers:test`,
+  `refarm:actions:test`, `refarm:actions:type-check`, and
+  `refarm:actions:smoke-dist` are the granular action-readiness lanes for fast
+  iteration: headless action-request contracts, renderer-neutral/Web/TUI
+  contracts, full semantic Vitest contracts, TypeScript contracts, and built CLI
+  dist smoke respectively. `refarm:actions:verify` composes the full semantic,
+  type, and dist lanes as the closeout lane, including
+  renderer-neutral/Web/headless/TUI no-actions and missing-selection blocked
+  readiness. Use the narrow granular lane while iterating and the composed lane
+  before declaring action-readiness envelope or selection changes complete.
+- `refarm:tree:test`, `refarm:tree:smoke`, `refarm:tree:type-check`,
+  `refarm:tree:farmhand:test`, and `refarm:tree:smoke:cli` are the granular
+  tree lanes for mocked contracts, in-process git smoke, TypeScript contracts,
+  farmhand session routing, and built CLI behavior respectively.
+  `refarm:tree:verify` composes those granular lanes as the tree-only closeout
+  lane. Use the granular lane while iterating and the composed lane before
+  declaring a `refarm tree` stabilization slice complete.
+- `refarm:host:smoke:ci` runs smoke auto routing tests, the command suite, CLI
+  flow smoke through CI wrappers under `scripts/ci/`, includes `apps/refarm`
+  type-check by default, and runs the built dist action-readiness smoke so
+  dry-run vs live execution guardrails are covered before/inside CI validation.
 - `refarm:host:smoke:quick` is the cheapest local lane (`--quick`): runs only
   `refarm:host:smoke` (skips type-check and CLI flows) for rapid slice loops.
 - `refarm:host:smoke:dev` skips type-check but keeps CLI flow smoke, which is a
   pragmatic pre-push lane once `apps/refarm` type-check already passed.
+- `refarm:host:smoke:auto:test` runs the pure routing regression tests for the
+  diff-based auto lane.
+- `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
+  for manual narrow-lane previews/execution.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | quick | dev | ci`) without executing it.
+  recommended lane (`skip | actions | tree | quick | dev | ci`) without executing it. By default
+  it considers `@{upstream}..HEAD` when the branch is ahead, plus local
+  working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
+  operational notes. Non-doc action-readiness deltas route to
+  `npm run refarm:actions:verify` and non-doc tree deltas route to
+  `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
+  docs-only deltas still skip smoke. Manual `--profile` overrides also accept
+  granular lane names such as `actions-headless`, `actions-renderers`,
+  `actions-test`, `actions-type`, `actions-dist`, `tree-test`, `tree-smoke`,
+  `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
+  previews/execution. Shared local helpers such as `execution-plan.ts` stay on
+  the `dev` lane because they feed more than one host contract.
 - `refarm:host:smoke:auto` runs the same diff-based selector and executes the
   recommended lane automatically.
 
@@ -118,6 +169,18 @@ npm run refarm:host:smoke:auto
 
 - **Default ergonomic path:** `npm run refarm:host:smoke:auto`
 - **Preview decision only:** `npm run refarm:host:smoke:auto:plan`
+- **Explicit pre-push range preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --from origin/develop --to HEAD`
+- **Explicit profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile tree`
+- **List explicit profiles:**
+  `npm run refarm:host:smoke:auto:profiles`
+- **List explicit profile mappings:**
+  `npm run refarm:host:smoke:auto:profiles:json`
+- **Explicit granular profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless`
+- **Machine-readable profile preview:**
+  `node scripts/ci/smoke-refarm-host-auto.mjs --profile actions-headless --json`
 - **Manual override inner loop:** `npm run refarm:host:smoke:quick`
 - **Manual override pre-push:** `npm run refarm:host:smoke:dev`
 - **Manual override CI parity checkpoint:** `npm run refarm:host:smoke:ci`
@@ -144,7 +207,7 @@ A future CLI distro should compose, not own, these blocks:
 - `@refarm.dev/homestead/sdk/host-renderer` for renderer descriptors;
 - `@refarm.dev/homestead/sdk/runtime` for browser/Web runtime boot where
   applicable;
-- Homestead surface/action/telemetry helpers for semantic diagnostics;
+- Homestead surface/action/telemetry helpers for semantic diagnostics, following the ownership boundary in [Refarm Host Runtime and Action Routing](./REFARM_HOST_RUNTIME_ACTION_ROUTING.md);
 - Tractor packages for plugin/runtime execution;
 - plugin-manifest/registry/trust packages for install and activation policy;
 - DS only through Web-facing distributions, not for headless output.

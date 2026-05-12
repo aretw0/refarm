@@ -10,34 +10,10 @@ import { Layout } from "@refarm.dev/homestead/ui";
 </Layout>
 
 <script>
-  import { FireflyPlugin, HeraldPlugin } from "@refarm.dev/homestead/sdk";
-  import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
-  import { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
+  import {
+    bootRefarmMeWorkbench,
+    renderRefarmMeBootFailure,
+  } from "../lib/me-runtime";
 
-  async function boot() {
-    try {
-      const { tractor } = await bootStudioRuntime({
-        databaseName: "refarm-me-main",
-        namespace: "citizen",
-        identityId: "citizen",
-        identityPublicKey: "me",
-        envMetadata: { version: "0.1.0-solo-fertil", commit: "me" },
-        connectBrowserSync: true,
-        tractorSync: true,
-      });
-
-      // Register default citizen experience plugins
-      new HeraldPlugin(tractor).announce();
-      new FireflyPlugin(tractor);
-
-      await setupStudioShell(tractor);
-
-      document.getElementById("loading-overlay")?.remove();
-      
-    } catch (err) {
-      console.error("[me] Boot failed", err);
-    }
-  }
-
-  boot();
+  bootRefarmMeWorkbench().catch((err) => renderRefarmMeBootFailure(err));
 </script>

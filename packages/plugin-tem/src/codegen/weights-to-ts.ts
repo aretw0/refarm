@@ -25,11 +25,11 @@ export function validateBundleShapes(bundle: WeightsBundle): void {
   }
 
   for (let a = 0; a < nActions; a++) {
-    if (w.rnn[a].length !== nModules) {
-      throw new Error(`rnn[${a}]: expected ${nModules} modules, got ${w.rnn[a].length}`);
+    if (w.rnn[a]!.length !== nModules) {
+      throw new Error(`rnn[${a}]: expected ${nModules} modules, got ${w.rnn[a]!.length}`);
     }
     for (let f = 0; f < nModules; f++) {
-      const m = w.rnn[a][f];
+      const m = w.rnn[a]![f]!;
       const { hiddenSize, inputSize } = m;
       const expectedWih = hiddenSize * inputSize;
       const expectedWhh = hiddenSize * hiddenSize;

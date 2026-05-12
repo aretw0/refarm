@@ -108,13 +108,13 @@ describe("Boot Stress", () => {
 
   it("rejects boot without storage adapter", async () => {
     await expect(
-      Tractor.boot({ storage: null as any, identity: new MockIdentityAdapter(), namespace: "test" })
+      Tractor.boot({ storage: null as unknown as import("@refarm.dev/storage-contract-v1").StorageAdapter, identity: new MockIdentityAdapter(), namespace: "test" })
     ).rejects.toThrow("[tractor] A Storage Adapter is required to boot.");
   });
 
   it("rejects boot without identity adapter", async () => {
     await expect(
-      Tractor.boot({ storage: new MockStorageAdapter(), identity: null as any, namespace: "test" })
+      Tractor.boot({ storage: new MockStorageAdapter(), identity: null as unknown as import("@refarm.dev/identity-contract-v1").IdentityAdapter, namespace: "test" })
     ).rejects.toThrow("[tractor] An Identity Adapter is required to boot.");
   });
 });
