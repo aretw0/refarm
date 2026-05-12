@@ -1,0 +1,51 @@
+{
+  "number": 12,
+  "name": "Daily-Driver-TUI",
+  "intent": "Implementar TUI interativa no apps/refarm que permita ao usuário largar Pi e Claude Code como ferramentas primárias, usando refarm como daily driver agêntico com loop de conversa persistente e hot-reload de plugins.",
+  "status": "planned",
+  "prerequisites": [
+    "Farmhand sidecar estável (HTTP :42001) — concluído",
+    "Tractor plugin engine com hot-reload plumbing — concluído",
+    "apps/refarm com ask/task/tasks commands — concluído",
+    "Remote Turborepo cache ativo — concluído (PR #22)"
+  ],
+  "success_criteria": [
+    {
+      "criterion": "refarm tui abre REPL interativo com streaming output do farmhand",
+      "verify_method": "manual"
+    },
+    {
+      "criterion": "Comando reload dentro do TUI recarrega plugin sem reiniciar daemon",
+      "verify_method": "test"
+    },
+    {
+      "criterion": "Histórico de sessão persistido entre invocações",
+      "verify_method": "test"
+    },
+    {
+      "criterion": "Usuário consegue completar tarefa de código end-to-end sem sair do refarm tui",
+      "verify_method": "manual"
+    }
+  ],
+  "outputs": [
+    "refarm tui command em apps/refarm",
+    "packages/tui ou renderer TUI integrado ao farmhand",
+    "ADR sobre arquitetura do TUI renderer",
+    "Spec em specs/features/tui-daily-driver.md"
+  ],
+  "gap_analysis": {
+    "have": [
+      "Farmhand sidecar HTTP com SSE streaming",
+      "apps/refarm commands: ask, task, tasks",
+      "effort-contract-v1 (agent protocol)",
+      "stream-contract-v1 (streaming contracts)",
+      "tractor plugin hot-reload plumbing"
+    ],
+    "missing": [
+      "TUI renderer (input line, output pager, status bar)",
+      "Session persistence between invocations",
+      "reload command wiring to tractor hot-reload",
+      "refarm configure github (reads silo → gh secret set)"
+    ]
+  }
+}

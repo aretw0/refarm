@@ -1,43 +1,42 @@
 {
-  "context": "Checkpoint 2026-05-01T03:34Z before likely compaction. Continued atomic CLI/host lane after user confirmed the CLI command should be named `refarm`. Created durable focus text and docs-first CLI/status contracts. Worktree should be clean after this handoff commit. Branch develop remains intentionally local-ahead of origin/develop; do not push/watch CI after every small slice.",
-  "timestamp": "2026-05-01T03:34:00.000Z",
-  "current_phase": 34,
+  "context": "Checkpoint 2026-05-12 após merge develop→main (PR #22). Ciclo de provisionamento Cloudflare concluído, CI estabilizado, branches limpas. Develop e main estão iguais. Próximo ciclo: TUI interativa para diário driver (substituir Pi + Claude Code).",
+  "timestamp": "2026-05-12T01:20:00.000Z",
+  "current_phase": 35,
   "current_tasks": [
-    "Latest commits before this handoff: 55622c40 `docs(cli): define refarm status output`; 3ec91804 `docs(cli): outline refarm distro focus`; 9e7bb585 `chore(project): checkpoint renderer consumer proofs`; 8420833a `refactor(app-me): advertise citizen web renderer`; ee6ab311 `refactor(app-dev): centralize studio renderer catalog`; 81c8f36f `feat(app-dev): add headless renderer snapshot`.",
-    "User confirmed: the CLI should be called `refarm`. Docs now assume future distro path `apps/refarm` unless a later product constraint forces rename. The product command/distro stays in `apps/`; packages remain reusable blocks.",
-    "3ec91804 added `docs/REFARM_CLI_DISTRO.md` and `docs/REFARM_WORK_FOCUS.md`. CLI distro doc defines the first boring command shape: `refarm web`, `refarm headless`, `refarm status`, `refarm doctor`; it keeps CLI UX/defaults/profiles/release packaging in `apps/refarm` and reusable runtime/render/trust/telemetry mechanics in packages. Work focus doc gives short/medium/long restart focus.",
-    "55622c40 added `docs/REFARM_STATUS_OUTPUT.md`, defining the initial canonical JSON shape for `refarm status --json`: schemaVersion, host, renderer, runtime, plugins, trust, streams, diagnostics. It also defines stable initial diagnostic string codes and says status must not depend on Astro, DOM, or TUI.",
-    "`.project/decisions.json` includes DEC-033: plan the `refarm` CLI as a docs-first distro in `apps/refarm` before scaffolding executable code. `docs/REFARM_HOST_MODEL.md` links the CLI distro doc.",
-    "Validation for docs slices: `npm run project:validate --silent` and `git diff --check` passed. No app/package build was necessary because changes were docs/board-only.",
-    "Current state before this handoff commit: `develop...origin/develop [ahead 40]`. Disk has dropped from ~14GB to ~13GB free, still 98% used."
+    "PR #22 merged: 342 commits (develop→main). refarm provision cloudflare turbo-cache funciona end-to-end.",
+    "Remote Turborepo cache ativo: TURBO_API + TURBO_TOKEN setados como GitHub secrets. Worker Cloudflare deployed em aretw0.workers.dev.",
+    "CI hardening: TASK_SMOKE_TS_BUILD_ORDER inclui infra-turbo-cache + infra-cloudflare; integrity check wired no pre-push hook (blocking em develop/main).",
+    "WASM turbo cache fix: todos os pacotes Rust WASM agora copiam artefato para dist/ durante build (heartwood, hello-world). Tests referenciam dist/ em vez de CARGO_TARGET_DIR.",
+    "mermaid CVE resolvido: @mermaid-js/mermaid-cli 11.14.0. npm audit = 0 vulnerabilidades.",
+    "Issues #19, #21 fechadas; PR #20 (deps automático) fechado com nota de deferimento.",
+    "Branches limpas: apenas develop e main (local e remoto).",
+    "Qualidade: health auditor sem falsos positivos, branding neutro, provision/configure split documentado."
   ],
-  "blockers": [
-    "Do not push/watch GitHub Actions after every small slice; batch meaningful work and observe CI once.",
-    "Disk remains constrained at about 13GB free on /workspaces/refarm, 98% used. Use `npm run clean:light --silent` only if generated artifacts grow significantly or free space drops near 2-3GB.",
-    "Project requirements append tooling still fails because older REQ-AGENT entries use schema-invalid `source: user-insight` and extra `rationale`; avoid broad normalization unless explicitly planned.",
-    "Avoid broad markdown autoformat churn in large docs. If editing `docs/ARCHITECTURE.md`, use surgical insertion.",
-    "Avoid broad Rust rebuilds unless Rust is touched. Follow AGENTS.md resource discipline if Rust becomes necessary."
-  ],
+  "blockers": [],
   "next_actions": [
-    "First command after compaction: `git status --branch --short && df -h /workspaces/refarm && git log --oneline -12`. Expect ahead 41 if this handoff commit is present, or ahead 40 before it.",
-    "Best next atomic slice: implement a tiny source-level status snapshot helper (probably in `apps/dev` first or a future `apps/refarm` skeleton only if explicitly desired) that returns the `docs/REFARM_STATUS_OUTPUT.md` JSON shape using existing renderer/headless snapshot proofs. Keep it DOM-free and tested.",
-    "Alternative next slice: scaffold the smallest `apps/refarm` package with a non-executable or minimal command stub that can print static `refarm status --json` from composed blocks. Only do this if user wants code scaffold; otherwise keep proving in app/dev first.",
-    "Alternative next slice: add a shared Homestead status type/schema only if multiple consumers need it; avoid premature package extraction.",
-    "Before pushing accumulated batch: rerun scoped Homestead/app validations plus `npm run project:validate --silent`, `git diff --check`, and likely app builds; then push once and monitor CI once."
+    "Próximo ciclo: refarm tui — REPL interativo com loop persistente e comando reload para iterar sem reiniciar daemon.",
+    "Mapear o que já existe: apps/refarm (commands: ask, task, tasks), packages/farmhand (sidecar HTTP :42001), packages/runtime. Onde o TUI se encaixa?",
+    "Decisão de arquitetura pendente (DEC-036): TUI como renderer de apps/refarm via farmhand HTTP, ou TUI embedded no mesmo processo?",
+    "Tarefas de manutenção desbloqueadas: coverage para storage-sqlite e context-provider-v1 (sem testes); exactOptionalPropertyTypes.",
+    "refarm configure github — próximo comando após TUI (lê silo, roda gh secret set)."
   ],
   "open_questions": [
-    "Should the first status snapshot helper live in `apps/dev` as another proof, or should we now scaffold `apps/refarm`?",
-    "Should `refarm status --json` get TypeScript types in Homestead, app-level types in `apps/refarm`, or stay docs-only until implementation pressure?",
-    "Should TUI primitives live in a generic `packages/tui` block, a Homestead-aware renderer package, or both?",
-    "What minimum agent loop is required before the user can pragmatically stop using Pi for normal work: sessions, file tools, shell, model routing, TUI/Web, plugin trust?"
+    "TUI: processo único com farmhand embedded, ou processo separado apontando para sidecar já rodando?",
+    "reload: recarrega plugin sem reiniciar daemon (tractor hot-reload plumbing existe), ou reseta sessão completa?",
+    "Qual o mínimo de TUI para largar o Pi no dia-a-dia: input line, streaming output, histórico de sessão, reload?",
+    "refarm configure github: ler silo e rodar gh secret set — deve ser próximo após TUI ou pode ser feito antes?"
   ],
-  "key_decisions_pending": [
-    "DEC-031 accepted: unified `refarm` host/runtime with TUI/Web/headless renderers over shared contracts.",
-    "DEC-032 accepted: product CLI/host lives in `apps/`; `packages/` store reusable blocks.",
-    "DEC-033 accepted: plan CLI `refarm` docs-first in `apps/refarm` before scaffolding code.",
-    "Continue enforcing Astro-first UI, Homestead semantic runtime contracts, DS visual primitives, and apps as product/workbench distros."
+  "key_decisions_active": [
+    "DEC-031: host unificado refarm com renderers TUI/Web/headless sobre contratos compartilhados.",
+    "DEC-032: produto CLI/host em apps/; packages/ guardam blocos reutilizáveis.",
+    "DEC-033: planejar CLI refarm docs-first antes de scaffoldar código executável (em andamento).",
+    "DEC-034 (novo): artefatos WASM Rust devem ser copiados para dist/ durante build para que turbo cache funcione corretamente.",
+    "DEC-035 (novo): provision para, configure ainda não existe — silo é o ponto de integração entre os dois.",
+    "DEC-036 (pendente): arquitetura do TUI renderer — processo único embedded vs. cliente do sidecar."
   ],
   "files_in_flux": [
-    ".project/handoff.json"
+    ".project/handoff.json",
+    ".project/decisions.json",
+    ".project/phases/P12-Daily-Driver-TUI.json"
   ]
 }
