@@ -2,14 +2,14 @@ import { Command } from "commander";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import { ExitPromptError } from "@inquirer/core";
+import { SiloCore } from "@refarm.dev/silo";
 import { SowerCore } from "@refarm.dev/sower";
 import { tryOpenUrl } from "../utils/open-url.js";
 import {
 	githubCredentialProvider,
 	cloudflareCredentialProvider,
+	llmCredentialProvider,
 } from "../credentials/index.js";
-
-const PROVIDERS = [githubCredentialProvider, cloudflareCredentialProvider];
 
 export const sowCommand = new Command("sow")
 	.description("Collect provider credentials into your local Silo")
@@ -27,28 +27,32 @@ export const sowCommand = new Command("sow")
 			]);
 
 			const ctx = { tryOpenUrl };
-			const credentials: Record<string, string> = {};
-			for (const provider of PROVIDERS) {
-				credentials[provider.id] = await provider.collect(ctx);
-			}
+
+			// ── Infrastructure credentials ────────────────────────────────────
+			const githubToken = await githubCredentialProvider.collect(ctx);
+			const cloudflareToken = await cloudflareCredentialProvider.collect(ctx);
 
 			const sower = new SowerCore();
 			const results = await sower.sow(
-				{
-					githubToken: credentials["github"]!,
-					cloudflareToken: credentials["cloudflare"]!,
-				},
+				{ githubToken, cloudflareToken },
 				{ owner },
 			);
+
+			// ── LLM provider ──────────────────────────────────────────────────
+			const llm = await llmCredentialProvider.collectLlm(ctx);
+
+			const silo = new SiloCore();
+			await silo.saveTokens({
+				llmProvider: llm.provider,
+				...(llm.apiKey ? { llmApiKey: llm.apiKey } : {}),
+			});
 
 			console.log(
 				chalk.gray(
 					`\n  Silo: Credentials stored at ${results.storagePath ?? "~/.refarm/identity.json"}`,
 				),
 			);
-			console.log(
-				chalk.gray("\n  Run 'refarm health' to audit connectivity at any time."),
-			);
+			console.log(chalk.gray("  Run 'refarm health' to audit connectivity at any time."));
 		} catch (error) {
 			if (!(error instanceof ExitPromptError)) throw error;
 			console.log(chalk.gray("\n  Cancelled."));

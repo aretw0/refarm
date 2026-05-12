@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/farmhand",
   "version": "0.1.0",
-  "description": "Refarm Farmhand \u2014 headless Node.js daemon for always-on sync",
+  "description": "Refarm Farmhand — headless Node.js daemon for always-on sync",
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
@@ -17,10 +17,11 @@
     "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/identity-contract-v1": "*",
     "@refarm.dev/plugin-manifest": "*",
+    "@refarm.dev/silo": "^0.1.0",
     "@refarm.dev/sse-stream-transport": "*",
     "@refarm.dev/storage-contract-v1": "*",
-    "@refarm.dev/stream-contract-v1": "*",
     "@refarm.dev/storage-sqlite": "*",
+    "@refarm.dev/stream-contract-v1": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/task-contract-v1": "*",
     "@refarm.dev/tractor": "*",

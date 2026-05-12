@@ -13,6 +13,7 @@
 import { mkdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { SiloCore } from "@refarm.dev/silo";
 import { FileStreamTransport } from "@refarm.dev/file-stream-transport";
 import type { IdentityAdapter } from "@refarm.dev/identity-contract-v1";
 import { SseStreamTransport } from "@refarm.dev/sse-stream-transport";
@@ -153,8 +154,41 @@ async function handleFarmhandTask(
 	});
 }
 
+const LLM_ENV_KEY: Record<string, string> = {
+	anthropic: "ANTHROPIC_API_KEY",
+	openai: "OPENAI_API_KEY",
+	groq: "GROQ_API_KEY",
+	mistral: "MISTRAL_API_KEY",
+	xai: "XAI_API_KEY",
+	deepseek: "DEEPSEEK_API_KEY",
+	together: "TOGETHER_API_KEY",
+	openrouter: "OPENROUTER_API_KEY",
+	gemini: "GEMINI_API_KEY",
+};
+
+async function injectSiloLlmEnv(): Promise<void> {
+	try {
+		const tokens = (await new SiloCore().loadTokens()) as Record<string, string | undefined>;
+		const provider = tokens.llmProvider;
+		const apiKey = tokens.llmApiKey;
+
+		if (provider && !process.env.LLM_PROVIDER) {
+			process.env.LLM_PROVIDER = provider;
+		}
+		if (apiKey && provider) {
+			const envKey = LLM_ENV_KEY[provider];
+			if (envKey && !process.env[envKey]) {
+				process.env[envKey] = apiKey;
+			}
+		}
+	} catch {
+		// Silo unavailable — farmhand-start.sh .env fallback still applies
+	}
+}
+
 async function main() {
 	console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
+	await injectSiloLlmEnv();
 
 	// CQRS: LoroDoc is the write model; memoryStorage is the read model.
 	// LoroCRDTStorage implements both StorageAdapter and SyncAdapter.
