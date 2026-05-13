@@ -178,15 +178,15 @@ fn tools_anthropic_and_openai_have_same_tool_count() {
     );
 }
 
-// A5 — LLM_AGENT_ID namespacing: absent → plain hex; set → urn:farmhand:<id>:<hex>
+// A5 — MODEL_AGENT_ID namespacing: absent → plain hex; set → urn:farmhand:<id>:<hex>
 #[test]
 fn a5_agent_id_absent_produces_plain_hex() {
     let _guard = ENV_LOCK.lock().unwrap();
-    std::env::remove_var("LLM_AGENT_ID");
+    std::env::remove_var("MODEL_AGENT_ID");
     let id = new_id();
     assert!(
         !id.starts_with("urn:"),
-        "without LLM_AGENT_ID, id must not be a URN: {id}"
+        "without MODEL_AGENT_ID, id must not be a URN: {id}"
     );
     assert!(
         id.chars().all(|c| c.is_ascii_hexdigit()),
@@ -263,9 +263,9 @@ fn tools_rename_symbol_has_required_fields() {
 #[test]
 fn a5_agent_id_set_produces_urn_prefix() {
     let _guard = ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_AGENT_ID", "myagent");
+    std::env::set_var("MODEL_AGENT_ID", "myagent");
     let id = new_id();
-    std::env::remove_var("LLM_AGENT_ID");
+    std::env::remove_var("MODEL_AGENT_ID");
     assert!(
         id.starts_with("urn:farmhand:myagent:"),
         "must have URN prefix: {id}"
@@ -275,9 +275,9 @@ fn a5_agent_id_set_produces_urn_prefix() {
 #[test]
 fn a5_agent_id_uniqueness_preserved_across_instances() {
     let _guard = ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_AGENT_ID", "agent-alpha");
+    std::env::set_var("MODEL_AGENT_ID", "agent-alpha");
     let ids: Vec<_> = (0..10).map(|_| new_id()).collect();
-    std::env::remove_var("LLM_AGENT_ID");
+    std::env::remove_var("MODEL_AGENT_ID");
     let unique: std::collections::HashSet<_> = ids.iter().collect();
     assert_eq!(
         ids.len(),
