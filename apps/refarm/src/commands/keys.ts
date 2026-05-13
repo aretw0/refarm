@@ -7,7 +7,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../.
 const KEYS_SCRIPT = path.join(ROOT, "scripts/setup-llm-keys.mjs");
 
 export const keysCommand = new Command("keys")
-	.description("Configure LLM provider API keys (stored in .refarm/.env)")
+	.description("Configure model provider API keys (stored in .refarm/.env)")
 	.option("--status", "Show current key status without making changes")
 	.action((opts: { status?: boolean }) => {
 		const args = opts.status ? ["--status"] : [];

@@ -54,7 +54,7 @@ export function refarmSearchDirs(): string[] {
 }
 
 function detectProvider(): boolean {
-	if (process.env.LLM_PROVIDER) return true;
+	if (process.env.MODEL_PROVIDER) return true;
 
 	for (const base of refarmSearchDirs()) {
 		if (fs.existsSync(path.join(base, ".env"))) return true;
@@ -175,7 +175,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !r.farmhandRunning) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure your LLM provider:  ") + chalk.cyan("refarm keys"),
+			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm keys"),
 		);
 		console.error(
 			chalk.dim("   Then start farmhand:          ") +
@@ -185,7 +185,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	}
 
 	if (!r.providerConfigured) {
-		console.error(chalk.red("✗  No LLM provider configured.\n"));
+		console.error(chalk.red("✗  No model provider configured.\n"));
 		console.error(
 			chalk.dim("   Set up a provider:  ") + chalk.cyan("refarm keys"),
 		);

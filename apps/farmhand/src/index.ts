@@ -154,7 +154,7 @@ async function handleFarmhandTask(
 	});
 }
 
-const LLM_ENV_KEY: Record<string, string> = {
+const MODEL_ENV_KEY: Record<string, string> = {
 	anthropic: "ANTHROPIC_API_KEY",
 	openai: "OPENAI_API_KEY",
 	groq: "GROQ_API_KEY",
@@ -166,17 +166,17 @@ const LLM_ENV_KEY: Record<string, string> = {
 	gemini: "GEMINI_API_KEY",
 };
 
-async function injectSiloLlmEnv(): Promise<void> {
+async function injectSiloModelEnv(): Promise<void> {
 	try {
 		const tokens = (await new SiloCore().loadTokens()) as Record<string, string | undefined>;
 		const provider = tokens.modelProvider;
 		const apiKey = tokens.modelApiKey;
 
-		if (provider && !process.env.LLM_PROVIDER) {
-			process.env.LLM_PROVIDER = provider;
+		if (provider && !process.env.MODEL_PROVIDER) {
+			process.env.MODEL_PROVIDER = provider;
 		}
 		if (apiKey && provider) {
-			const envKey = LLM_ENV_KEY[provider];
+			const envKey = MODEL_ENV_KEY[provider];
 			if (envKey && !process.env[envKey]) {
 				process.env[envKey] = apiKey;
 			}
@@ -188,7 +188,7 @@ async function injectSiloLlmEnv(): Promise<void> {
 
 async function main() {
 	console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
-	await injectSiloLlmEnv();
+	await injectSiloModelEnv();
 
 	// CQRS: LoroDoc is the write model; memoryStorage is the read model.
 	// LoroCRDTStorage implements both StorageAdapter and SyncAdapter.

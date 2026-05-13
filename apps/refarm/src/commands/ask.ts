@@ -299,12 +299,12 @@ function newSessionId(): string {
 }
 
 function detectConfiguredProvider(): string | null {
-	if (process.env.LLM_PROVIDER) return process.env.LLM_PROVIDER;
+	if (process.env.MODEL_PROVIDER) return process.env.MODEL_PROVIDER;
 
 	const envFile = path.join(os.homedir(), ".refarm", ".env");
 	if (fs.existsSync(envFile)) {
 		const content = fs.readFileSync(envFile, "utf-8");
-		const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
+		const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
 		if (match) return match[1]!;
 		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
 		return "ollama";
@@ -377,7 +377,7 @@ function printAskError(message: string): void {
 		message.includes("Farmhand HTTP");
 
 	const isProviderError =
-		message.includes("llm-bridge request failed") ||
+		message.includes("model-bridge request failed") ||
 		message.includes("Couldn't connect to server") ||
 		message.includes("curl: (7)");
 
@@ -388,7 +388,7 @@ function printAskError(message: string): void {
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
-		console.error(chalk.red(`\n✗  LLM provider unavailable: ${provider}`));
+		console.error(chalk.red(`\n✗  Model provider unavailable: ${provider}`));
 		if (provider === "ollama") {
 			console.error(chalk.dim("   Start Ollama:  ollama serve"));
 			console.error(chalk.dim("   Or switch provider:  refarm keys"));
@@ -421,7 +421,7 @@ export function createAskCommand(deps?: AskDeps): Command {
 				opts: { files?: string; new?: boolean; session?: string },
 			) => {
 				if (!deps && detectConfiguredProvider() === null) {
-					console.error(chalk.red("\n✗  No LLM provider configured."));
+					console.error(chalk.red("\n✗  No model provider configured."));
 					console.error(chalk.dim("   Set up a provider:  refarm keys"));
 					console.error(
 						chalk.dim(
