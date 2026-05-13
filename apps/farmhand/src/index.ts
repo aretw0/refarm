@@ -23,6 +23,8 @@ import type { StorageAdapter } from "@refarm.dev/storage-contract-v1";
 import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
+import { loadConfigAsync } from "@refarm.dev/config";
+import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
@@ -210,6 +212,19 @@ async function main() {
 
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
+
+	const config = await loadConfigAsync().catch(() => ({}));
+	const autoEntries: unknown[] = Array.isArray(config?.plugins?.autoInstall)
+		? (config.plugins.autoInstall as unknown[])
+		: [];
+	if (autoEntries.length > 0) {
+		const pluginsDir = path.join(farmhandBaseDir, "plugins");
+		const autoSummary = await autoInstallPlugins(autoEntries, pluginsDir);
+		console.log(
+			`[farmhand] Auto-install: installed=${autoSummary.installed} cached=${autoSummary.cached} failed=${autoSummary.failed}`,
+		);
+	}
+
 	const loadSummary = await loadInstalledPlugins(
 		tractor as unknown as Parameters<typeof loadInstalledPlugins>[0],
 		farmhandBaseDir,

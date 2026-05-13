@@ -30,5 +30,6 @@
     }
   },
   "mode": "persistent",
-  "storage": "opfs"
+  "storage": "opfs",
+  "plugins": { "autoInstall": [] }
 }

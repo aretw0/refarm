@@ -13,6 +13,7 @@
     "lint": "eslint src"
   },
   "dependencies": {
+    "@refarm.dev/config": "*",
     "@refarm.dev/effort-contract-v1": "*",
     "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/identity-contract-v1": "*",
