@@ -1,6 +1,9 @@
 import crypto from "node:crypto";
+import fs from "node:fs/promises";
 import type http from "node:http";
-import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+import path from "node:path";
+import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
+import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
 import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
 import type { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
@@ -91,6 +94,72 @@ export function createPluginsRouteHandler(
 
 	return (req: http.IncomingMessage, res: http.ServerResponse): boolean => {
 		const requestUrl = new URL(req.url ?? "/", "http://127.0.0.1");
+
+		if (requestUrl.pathname === "/plugins/install") {
+			void (async () => {
+				try {
+					if (req.method !== "POST") {
+						json(res, 405, { error: "method not allowed" });
+						return;
+					}
+
+					const body = await readJsonBody<{
+						pluginId?: unknown;
+						wasmUrl?: unknown;
+						integrity?: unknown;
+						manifest?: unknown;
+					}>(req);
+
+					const pluginId = typeof body?.pluginId === "string" ? body.pluginId.trim() : null;
+					const wasmUrl = typeof body?.wasmUrl === "string" ? body.wasmUrl.trim() : null;
+					const integrity = typeof body?.integrity === "string" ? body.integrity.trim() : null;
+					const manifest =
+						body?.manifest && typeof body.manifest === "object" && !Array.isArray(body.manifest)
+							? (body.manifest as PluginManifest)
+							: null;
+
+					if (!pluginId) { json(res, 400, { error: "pluginId is required" }); return; }
+					if (!wasmUrl) { json(res, 400, { error: "wasmUrl is required" }); return; }
+					if (!integrity) { json(res, 400, { error: "integrity is required" }); return; }
+					if (!manifest) { json(res, 400, { error: "manifest is required" }); return; }
+
+					const pluginsDir = path.join(baseDir, "plugins");
+					const cache = createFilesystemCacheAdapter(pluginsDir);
+
+					const result = await installWasmArtifact(
+						{ pluginId, wasmUrl, integrity },
+						{ cache },
+					);
+
+					const wasmAbsPath = path.join(pluginsDir, pluginId, "plugin.wasm");
+					const manifestOnDisk: PluginManifest = {
+						...manifest,
+						id: pluginId,
+						entry: `file://${wasmAbsPath}`,
+						integrity,
+					};
+					const manifestPath = path.join(pluginsDir, pluginId, "plugin.json");
+					await fs.mkdir(path.join(pluginsDir, pluginId), { recursive: true });
+					await fs.writeFile(manifestPath, JSON.stringify(manifestOnDisk, null, 2), "utf-8");
+
+					await target.registry.register(manifestOnDisk);
+					await target.registry.trust(pluginId);
+					await target.plugins.load(manifestOnDisk);
+
+					json(res, 200, {
+						pluginId: result.pluginId,
+						wasmHash: result.wasmHash,
+						byteLength: result.byteLength,
+						artifactKind: result.artifactKind,
+					});
+				} catch (error) {
+					json(res, 500, {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			})();
+			return true;
+		}
 
 		// GET /plugins/reload/status/:reloadId
 		const statusMatch = requestUrl.pathname.match(/^\/plugins\/reload\/status\/([^/]+)$/u);

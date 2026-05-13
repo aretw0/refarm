@@ -10,7 +10,32 @@ vi.mock("../installed-plugins.js", () => ({
 	listInstalledPluginIds: vi.fn().mockReturnValue(["plugin-a"]),
 }));
 
+vi.mock("../filesystem-cache-adapter.js", () => ({
+	createFilesystemCacheAdapter: vi.fn().mockReturnValue({
+		get: vi.fn().mockResolvedValue(null),
+		set: vi.fn().mockResolvedValue(undefined),
+		evict: vi.fn().mockResolvedValue(undefined),
+	}),
+}));
+
+vi.mock("@refarm.dev/plugin-manifest", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@refarm.dev/plugin-manifest")>();
+	return {
+		...actual,
+		installWasmArtifact: vi.fn().mockResolvedValue({
+			pluginId: "plugin-a",
+			wasmUrl: "https://example.com/plugin-a.wasm",
+			cached: false,
+			byteLength: 1024,
+			wasmHash: "sha256-abc123",
+			artifactKind: "component",
+		}),
+	};
+});
+
 import { loadInstalledPlugins, listInstalledPluginIds } from "../installed-plugins.js";
+import { installWasmArtifact, createMockManifest } from "@refarm.dev/plugin-manifest";
+import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
 
 function makeAdapter() {
 	return {
@@ -205,6 +230,91 @@ describe("createPluginsRouteHandler", () => {
 		it("does not intercept unrelated routes", async () => {
 			const res = await request(port, "GET", "/efforts");
 			expect(res.status).toBe(200);
+		});
+	});
+
+	describe("POST /plugins/install", () => {
+		beforeEach(() => startSidecar(true));
+
+		const validBody = {
+			pluginId: "plugin-a",
+			wasmUrl: "https://example.com/plugin-a.wasm",
+			integrity: "sha256-abc123",
+			manifest: createMockManifest({ id: "plugin-a" }),
+		};
+
+		it("returns 200 with wasmHash and artifactKind on success", async () => {
+			const res = await request(port, "POST", "/plugins/install", validBody);
+			expect(res.status).toBe(200);
+			const body = res.body as {
+				pluginId: string;
+				wasmHash: string;
+				byteLength: number;
+				artifactKind: string;
+			};
+			expect(body.pluginId).toBe("plugin-a");
+			expect(body.wasmHash).toBe("sha256-abc123");
+			expect(body.artifactKind).toBe("component");
+			expect(body.byteLength).toBe(1024);
+		});
+
+		it("calls installWasmArtifact with pluginId, wasmUrl, integrity", async () => {
+			await request(port, "POST", "/plugins/install", validBody);
+			expect(installWasmArtifact).toHaveBeenCalledWith(
+				{
+					pluginId: "plugin-a",
+					wasmUrl: "https://example.com/plugin-a.wasm",
+					integrity: "sha256-abc123",
+				},
+				expect.objectContaining({ cache: expect.anything() }),
+			);
+		});
+
+		it("calls tractor registry.register, trust, and plugins.load", async () => {
+			await request(port, "POST", "/plugins/install", validBody);
+			expect(target.registry.register).toHaveBeenCalled();
+			expect(target.registry.trust).toHaveBeenCalledWith("plugin-a");
+			expect(target.plugins.load).toHaveBeenCalled();
+		});
+
+		it("returns 400 when pluginId is missing", async () => {
+			const { pluginId: _omit, ...body } = validBody;
+			const res = await request(port, "POST", "/plugins/install", body);
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toMatch(/pluginId/u);
+		});
+
+		it("returns 400 when wasmUrl is missing", async () => {
+			const { wasmUrl: _omit, ...body } = validBody;
+			const res = await request(port, "POST", "/plugins/install", body);
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toMatch(/wasmUrl/u);
+		});
+
+		it("returns 400 when integrity is missing", async () => {
+			const { integrity: _omit, ...body } = validBody;
+			const res = await request(port, "POST", "/plugins/install", body);
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toMatch(/integrity/u);
+		});
+
+		it("returns 400 when manifest is missing", async () => {
+			const { manifest: _omit, ...body } = validBody;
+			const res = await request(port, "POST", "/plugins/install", body);
+			expect(res.status).toBe(400);
+			expect((res.body as { error: string }).error).toMatch(/manifest/u);
+		});
+
+		it("returns 405 for GET /plugins/install", async () => {
+			const res = await request(port, "GET", "/plugins/install");
+			expect(res.status).toBe(405);
+		});
+
+		it("returns 500 when installWasmArtifact throws", async () => {
+			vi.mocked(installWasmArtifact).mockRejectedValueOnce(new Error("network failure"));
+			const res = await request(port, "POST", "/plugins/install", validBody);
+			expect(res.status).toBe(500);
+			expect((res.body as { error: string }).error).toMatch(/network failure/u);
 		});
 	});
 });
