@@ -126,9 +126,9 @@ tractor.onNode("FarmhandTaskResult", (result) => { ... });
 5. Tractor invoca plugin.respond(payload: string)
 6. Plugin: parse_respond_payload(payload) → { prompt, system }
 7. Plugin verifica guards:
-   - LLM_MAX_CONTEXT_TOKENS (limite de tokens)
-   - LLM_BUDGET_<PROVIDER>_USD (cap de gasto 30 dias)
-   - LLM_HISTORY_TURNS (janela de histórico conversacional)
+   - MODEL_MAX_CONTEXT_TOKENS (limite de tokens)
+   - MODEL_BUDGET_<PROVIDER>_USD (cap de gasto 30 dias)
+   - MODEL_HISTORY_TURNS (janela de histórico conversacional)
 8. Plugin chama provider::complete(messages[])
    → Se MODEL_STREAM_RESPONSES=1: usa complete-http-stream WIT (host-proxied)
    → Senão: chamada síncrona única
@@ -182,10 +182,10 @@ Variáveis de ambiente relevantes (definidas no host Tractor):
 | `ANTHROPIC_API_KEY` | — | Credencial (fica no Tractor, nunca no plugin) |
 | `MODEL_ID` | `claude-sonnet-4-6` | Modelo a usar |
 | `MODEL_STREAM_RESPONSES` | `0` | `1` para streaming via SSE/WS |
-| `LLM_MAX_CONTEXT_TOKENS` | — | Limite de tokens no contexto |
-| `LLM_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
-| `LLM_HISTORY_TURNS` | `10` | Quantas turns do histórico incluir |
-| `LLM_FALLBACK_PROVIDER` | — | Provider alternativo se principal falhar |
+| `MODEL_MAX_CONTEXT_TOKENS` | — | Limite de tokens no contexto |
+| `MODEL_BUDGET_ANTHROPIC_USD` | — | Cap de gasto mensal (USD) |
+| `MODEL_HISTORY_TURNS` | `10` | Quantas turns do histórico incluir |
+| `MODEL_FALLBACK_PROVIDER` | — | Provider alternativo se principal falhar |
 
 ---
 
