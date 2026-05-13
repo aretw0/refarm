@@ -9,7 +9,7 @@
 
 ## Context
 
-The current Tractor host already enforces strict boundary hardening for agent execution (`LLM_SHELL_ALLOWLIST`, `LLM_FS_ROOT`, env/header sanitization, trusted plugin gates). However, model/provider selection remains largely implicit and provider-specific.
+The current Tractor host already enforces strict boundary hardening for agent execution (`MODEL_SHELL_ALLOWLIST`, `MODEL_FS_ROOT`, env/header sanitization, trusted plugin gates). However, model/provider selection remains largely implicit and provider-specific.
 
 This creates three problems:
 
@@ -132,4 +132,4 @@ Security remains unchanged in principle: model routing happens **after** environ
 - `packages/tractor/src/host/sensitive_aliases.rs`
 - `packages/tractor/src/host/agent_tools_bridge/core.rs`
 - `packages/tractor/src/host/plugin_host/core.rs`
-- `packages/tractor/src/host/wasi_bridge/llm_http_and_headers.rs`
+- `packages/tractor/src/host/wasi_bridge/model_http_and_headers.rs`

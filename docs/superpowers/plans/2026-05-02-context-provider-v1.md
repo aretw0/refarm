@@ -1112,7 +1112,7 @@ Under **DDD**, mark:
 - [x] Wire `refarm ask` in `apps/refarm/src/program.ts`
 - [x] Add `@refarm.dev/context-provider-v1` and `@refarm.dev/file-stream-transport`
   as dependencies in `apps/refarm/package.json`
-- [ ] Smoke gate: verify end-to-end with stub LLM
+- [ ] Smoke gate: verify end-to-end with stub MODEL
 ```
 
 Also change the top-level **Status** from `Draft` to `In Progress`.

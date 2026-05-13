@@ -1,10 +1,10 @@
-# `llm` → `model` Rename Implementation Plan
+# `model` → `model` Rename Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename every `llm`/`LLM` identifier, env var, and WIT interface name to `model`/`MODEL` across the entire monorepo — no backward-compat shims, pre-release project.
+**Goal:** Rename every `model`/`MODEL` identifier, env var, and WIT interface name to `model`/`MODEL` across the entire monorepo — no backward-compat shims, pre-release project.
 
-**Architecture:** WIT interface `llm-bridge` → `model-bridge` (source of truth); `cargo build` regenerates Rust bindings automatically; TypeScript, env vars, and docs updated to match.
+**Architecture:** WIT interface `model-bridge` → `model-bridge` (source of truth); `cargo build` regenerates Rust bindings automatically; TypeScript, env vars, and docs updated to match.
 
 **Tech Stack:** Rust (cargo/wit-bindgen), TypeScript (Vitest), WIT component model, bash grep/sed.
 
@@ -16,23 +16,23 @@
 
 | File | Change |
 |---|---|
-| `packages/refarm-plugin-wit/wit/refarm-plugin-host.wit` | Rename `interface llm-bridge` → `model-bridge` |
-| `packages/pi-agent/wit/world.wit` | Rename `import llm-bridge` → `import model-bridge` |
+| `packages/refarm-plugin-wit/wit/refarm-plugin-host.wit` | Rename `interface model-bridge` → `model-bridge` |
+| `packages/pi-agent/wit/world.wit` | Rename `import model-bridge` → `import model-bridge` |
 | `packages/pi-agent/src/bindings.rs` | **Auto-generated** — do not edit; `cargo build` regenerates |
 | `packages/pi-agent/src/provider.rs` | Module use + env vars + function calls |
 | `packages/pi-agent/src/lib.rs` | Env var docs + runtime env sets + capability string |
 | `packages/pi-agent/src/streaming_config.rs` | Const rename |
 | `packages/pi-agent/src/compress.rs` | Env var |
 | `packages/pi-agent/src/extensibility_contract.rs` | set/remove env calls |
-| `packages/pi-agent/src/response_nodes.rs` | Schema key `"llm"` → `"inference"` |
+| `packages/pi-agent/src/response_nodes.rs` | Schema key `"model"` → `"inference"` |
 | `packages/tractor-ts/src/lib/wasi-imports.ts` | Interface key + env vars + local vars + error msgs |
 | `packages/tractor-ts/test/wasi-imports.test.ts` | Interface key + env var names |
 | `apps/farmhand/src/index.ts` | Const + function name + env var |
 | `apps/refarm/src/commands/ask.ts` | Env var + .env pattern + error strings |
 | `apps/refarm/src/commands/keys.ts` | Description string |
 | `apps/refarm/src/commands/session-launch.ts` | Env var + error strings |
-| `specs/ADRs/ADR-053-host-proxied-llm-streaming.md` | Rename file + update content |
-| Other ADRs + `docs/` | Update `llm-bridge` and `LLM_*` references |
+| `specs/ADRs/ADR-053-host-proxied-model-streaming.md` | Rename file + update content |
+| Other ADRs + `docs/` | Update `model-bridge` and `LLM_*` references |
 
 ---
 
@@ -47,18 +47,18 @@
 Apply these three changes:
 
 ```wit
-// OLD — doc comment (line starting with "/// Host-proxied LLM")
-/// Host-proxied LLM completion bridge.
+// OLD — doc comment (line starting with "/// Host-proxied model")
+/// Host-proxied model completion bridge.
 // NEW
 /// Host-proxied model completion bridge.
 
 // OLD — interface declaration
-interface llm-bridge {
+interface model-bridge {
 // NEW
 interface model-bridge {
 
 // OLD — import in world (bottom of file)
-    import llm-bridge;
+    import model-bridge;
 // NEW
     import model-bridge;
 ```
@@ -67,15 +67,15 @@ interface model-bridge {
 
 ```wit
 // OLD (line 7)
-    import llm-bridge;
+    import model-bridge;
 // NEW
     import model-bridge;
 ```
 
-- [ ] **Step 3: Verify no remaining `llm-bridge` in WIT files**
+- [ ] **Step 3: Verify no remaining `model-bridge` in WIT files**
 
 ```bash
-grep -r "llm-bridge" packages/refarm-plugin-wit packages/pi-agent/wit
+grep -r "model-bridge" packages/refarm-plugin-wit packages/pi-agent/wit
 ```
 
 Expected: no output.
@@ -85,7 +85,7 @@ Expected: no output.
 ```bash
 git add packages/refarm-plugin-wit/wit/refarm-plugin-host.wit \
         packages/pi-agent/wit/world.wit
-git commit -m "refactor(wit): rename llm-bridge → model-bridge interface"
+git commit -m "refactor(wit): rename model-bridge → model-bridge interface"
 ```
 
 ---
@@ -105,33 +105,33 @@ git commit -m "refactor(wit): rename llm-bridge → model-bridge interface"
 ```rust
 // Line 1 — module import
 // OLD
-use crate::refarm::plugin::llm_bridge;
+use crate::refarm::plugin::model_bridge;
 // NEW
 use crate::refarm::plugin::model_bridge;
 
 // Line 27 — model env var
 // OLD
-let explicit_model = std::env::var("LLM_MODEL").unwrap_or_default();
+let explicit_model = std::env::var("MODEL_ID").unwrap_or_default();
 // NEW
 let explicit_model = std::env::var("MODEL_ID").unwrap_or_default();
 
 // Line 36 — base URL env var
 // OLD
-let base_url = std::env::var("LLM_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
+let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
 // NEW
 let base_url = std::env::var("MODEL_BASE_URL").unwrap_or_else(|_| default_base.to_owned());
 
 // Line 85 — non-streaming call
 // OLD
-llm_bridge::complete_http(provider, base_url, path, headers, body)
+model_bridge::complete_http(provider, base_url, path, headers, body)
 // NEW
 model_bridge::complete_http(provider, base_url, path, headers, body)
 
-// Lines 112–118 — streaming call (two occurrences of llm_bridge)
+// Lines 112–118 — streaming call (two occurrences of model_bridge)
 // OLD
-let response = llm_bridge::complete_http_stream(
+let response = model_bridge::complete_http_stream(
     ...
-    &llm_bridge::StreamResponseMetadata {
+    &model_bridge::StreamResponseMetadata {
 // NEW
 let response = model_bridge::complete_http_stream(
     ...
@@ -142,12 +142,12 @@ let response = model_bridge::complete_http_stream(
 
 ```rust
 // OLD
-pub(crate) const LLM_STREAM_RESPONSES_ENV: &str = "LLM_STREAM_RESPONSES";
+pub(crate) const MODEL_STREAM_RESPONSES_ENV: &str = "MODEL_STREAM_RESPONSES";
 // NEW
 pub(crate) const MODEL_STREAM_RESPONSES_ENV: &str = "MODEL_STREAM_RESPONSES";
 ```
 
-Also update any usage of `LLM_STREAM_RESPONSES_ENV` within the same file.
+Also update any usage of `MODEL_STREAM_RESPONSES_ENV` within the same file.
 
 - [ ] **Step 3: Update `compress.rs`**
 
@@ -162,12 +162,12 @@ let max_lines = std::env::var("MODEL_TOOL_OUTPUT_MAX_LINES")
 
 ```rust
 // OLD
-std::env::set_var("LLM_PROVIDER", name);
+std::env::set_var("MODEL_PROVIDER", name);
 // NEW
 std::env::set_var("MODEL_PROVIDER", name);
 
 // OLD
-std::env::remove_var("LLM_PROVIDER");
+std::env::remove_var("MODEL_PROVIDER");
 // NEW
 std::env::remove_var("MODEL_PROVIDER");
 
@@ -181,7 +181,7 @@ std::env::remove_var("MODEL_DEFAULT_PROVIDER");
 
 ```rust
 // OLD — schema key (inside the JSON macro/string, line ~44)
-"llm": {
+"inference": {
     "model":       payload.model,
     "tokens_in":   payload.tokens_in,
     "tokens_out":  payload.tokens_out,
@@ -202,17 +202,17 @@ The module doc comment (lines 1–35) lists all env vars. Apply all renames:
 
 | Old | New |
 |---|---|
-| `LLM_PROVIDER` | `MODEL_PROVIDER` |
+| `MODEL_PROVIDER` | `MODEL_PROVIDER` |
 | `LLM_DEFAULT_PROVIDER` | `MODEL_DEFAULT_PROVIDER` |
-| `LLM_MODEL` | `MODEL_ID` |
-| `LLM_BASE_URL` | `MODEL_BASE_URL` |
+| `MODEL_ID` | `MODEL_ID` |
+| `MODEL_BASE_URL` | `MODEL_BASE_URL` |
 | `LLM_MAX_CONTEXT_TOKENS` | `MODEL_MAX_CONTEXT_TOKENS` |
 | `LLM_FALLBACK_PROVIDER` | `MODEL_FALLBACK_PROVIDER` |
 | `LLM_BUDGET_<PROVIDER>_USD` | `MODEL_BUDGET_<PROVIDER>_USD` |
 | `LLM_HISTORY_TURNS` | `MODEL_HISTORY_TURNS` |
 | `LLM_TOOL_CALL_MAX_ITER` | `MODEL_TOOL_CALL_MAX_ITER` |
 | `LLM_TOOL_OUTPUT_MAX_LINES` | `MODEL_TOOL_OUTPUT_MAX_LINES` |
-| `LLM_STREAM_RESPONSES` | `MODEL_STREAM_RESPONSES` |
+| `MODEL_STREAM_RESPONSES` | `MODEL_STREAM_RESPONSES` |
 | `LLM_SYSTEM` | `MODEL_SYSTEM` |
 | `LLM_SESSION_ID` | `MODEL_SESSION_ID` |
 
@@ -239,18 +239,18 @@ let _turns   = EnvGuard::maybe_set("MODEL_HISTORY_TURNS", turns_str.as_deref());
 
 // Line ~282 — required_capabilities vec
 // OLD
-"llm-bridge".to_string(),
+"model-bridge".to_string(),
 // NEW
 "model-bridge".to_string(),
 ```
 
-- [ ] **Step 8: Verify no remaining `llm` / `LLM` in Rust source**
+- [ ] **Step 8: Verify no remaining `model` / `MODEL` in Rust source**
 
 ```bash
-grep -rn "llm\|LLM" packages/pi-agent/src --include="*.rs"
+grep -rn "model\|MODEL" packages/pi-agent/src --include="*.rs"
 ```
 
-Expected: no output (comments in test files mentioning "llm" for explanation are acceptable, but all identifiers and env vars must be gone).
+Expected: no output (comments in test files mentioning "model" for explanation are acceptable, but all identifiers and env vars must be gone).
 
 - [ ] **Step 9: Build pi-agent to regenerate bindings**
 
@@ -258,7 +258,7 @@ Expected: no output (comments in test files mentioning "llm" for explanation are
 cd packages/pi-agent && cargo build 2>&1 | tail -5
 ```
 
-Expected: compiles successfully. The `bindings.rs` is auto-regenerated and will now contain `pub mod model_bridge` instead of `pub mod llm_bridge`.
+Expected: compiles successfully. The `bindings.rs` is auto-regenerated and will now contain `pub mod model_bridge` instead of `pub mod model_bridge`.
 
 - [ ] **Step 10: Run pi-agent tests**
 
@@ -278,7 +278,7 @@ git add packages/pi-agent/src/provider.rs \
         packages/pi-agent/src/extensibility_contract.rs \
         packages/pi-agent/src/response_nodes.rs \
         packages/pi-agent/src/bindings.rs
-git commit -m "refactor(pi-agent): llm→model — env vars, module use, schema key"
+git commit -m "refactor(pi-agent): model→model — env vars, module use, schema key"
 ```
 
 ---
@@ -293,7 +293,7 @@ git commit -m "refactor(pi-agent): llm→model — env vars, module use, schema 
 
 ```typescript
 // OLD (line ~413)
-"refarm:plugin/llm-bridge": {
+"refarm:plugin/model-bridge": {
 // NEW
 "refarm:plugin/model-bridge": {
 ```
@@ -325,37 +325,37 @@ Rename all `mockLlm*` variables to `mockModel*` throughout the file:
 
 ```typescript
 // OLD (line ~23)
-throw new Error("llm-bridge requires Node.js child_process.spawnSync");
+throw new Error("model-bridge requires Node.js child_process.spawnSync");
 // NEW
 throw new Error("model-bridge requires Node.js child_process.spawnSync");
 
 // OLD (line ~220)
-`... run npm run agent:keys, or use LLM_PROVIDER=ollama.`
+`... run npm run agent:keys, or use MODEL_PROVIDER=ollama.`
 // NEW
 `... run refarm sow, or use MODEL_PROVIDER=ollama.`
 
 // OLD (line ~231)
-throw new Error(`Invalid LLM base-url: "${baseUrl}"`);
+throw new Error(`Invalid MODEL base-url: "${baseUrl}"`);
 // NEW
 throw new Error(`Invalid model base-url: "${baseUrl}"`);
 
 // OLD (line ~234)
-throw new Error("Invalid LLM path: path is empty");
+throw new Error("Invalid MODEL path: path is empty");
 // NEW
 throw new Error("Invalid model path: path is empty");
 
 // OLD (line ~374)
-throw new Error(`llm-bridge http error: ${resp.error.message}`);
+throw new Error(`model-bridge http error: ${resp.error.message}`);
 // NEW
 throw new Error(`model-bridge http error: ${resp.error.message}`);
 
 // OLD (line ~382)
-`llm-bridge request failed for provider "${providerName ...
+`model-bridge request failed for provider "${providerName ...
 // NEW
 `model-bridge request failed for provider "${providerName ...
 
 // OLD (line ~388)
-throw new Error("llm-bridge response body too large");
+throw new Error("model-bridge response body too large");
 // NEW
 throw new Error("model-bridge response body too large");
 ```
@@ -364,7 +364,7 @@ throw new Error("model-bridge response body too large");
 
 ```typescript
 // OLD (line ~262)
-describe("WasiImports — refarm:plugin/llm-bridge", () => {
+describe("WasiImports — refarm:plugin/model-bridge", () => {
 // NEW
 describe("WasiImports — refarm:plugin/model-bridge", () => {
 
@@ -374,7 +374,7 @@ delete process.env.REFARM_MOCK_LLM_BODY;
 delete process.env.REFARM_MOCK_MODEL_BODY;
 
 // OLD (lines ~273, ~294)
-const llmBridge = imports["refarm:plugin/llm-bridge"]!;
+const llmBridge = imports["refarm:plugin/model-bridge"]!;
 // NEW
 const modelBridge = imports["refarm:plugin/model-bridge"]!;
 
@@ -389,10 +389,10 @@ process.env.REFARM_MOCK_LLM_BODY = JSON.stringify({ ... });
 process.env.REFARM_MOCK_MODEL_BODY = JSON.stringify({ ... });
 ```
 
-- [ ] **Step 6: Verify no remaining `llm` / `LLM` in tractor-ts**
+- [ ] **Step 6: Verify no remaining `model` / `MODEL` in tractor-ts**
 
 ```bash
-grep -rn "llm\|LLM" packages/tractor-ts/src packages/tractor-ts/test --include="*.ts"
+grep -rn "model\|MODEL" packages/tractor-ts/src packages/tractor-ts/test --include="*.ts"
 ```
 
 Expected: no output.
@@ -410,7 +410,7 @@ Expected: all tests pass.
 ```bash
 git add packages/tractor-ts/src/lib/wasi-imports.ts \
         packages/tractor-ts/test/wasi-imports.test.ts
-git commit -m "refactor(tractor-ts): llm-bridge → model-bridge host imports + env vars"
+git commit -m "refactor(tractor-ts): model-bridge → model-bridge host imports + env vars"
 ```
 
 ---
@@ -437,8 +437,8 @@ async function injectSiloLlmEnv(): Promise<void> {
 async function injectSiloModelEnv(): Promise<void> {
 
 // OLD (lines 175–176)
-if (provider && !process.env.LLM_PROVIDER) {
-    process.env.LLM_PROVIDER = provider;
+if (provider && !process.env.MODEL_PROVIDER) {
+    process.env.MODEL_PROVIDER = provider;
 // NEW
 if (provider && !process.env.MODEL_PROVIDER) {
     process.env.MODEL_PROVIDER = provider;
@@ -458,27 +458,27 @@ await injectSiloModelEnv();
 
 ```typescript
 // OLD (line 302)
-if (process.env.LLM_PROVIDER) return process.env.LLM_PROVIDER;
+if (process.env.MODEL_PROVIDER) return process.env.MODEL_PROVIDER;
 // NEW
 if (process.env.MODEL_PROVIDER) return process.env.MODEL_PROVIDER;
 
 // OLD (line 307)
-const match = content.match(/^\s*LLM_PROVIDER\s*=\s*(\S+)/m);
+const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
 // NEW
 const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
 
 // OLD (line 380)
-message.includes("llm-bridge request failed") ||
+message.includes("model-bridge request failed") ||
 // NEW
 message.includes("model-bridge request failed") ||
 
 // OLD (line 391)
-console.error(chalk.red(`\n✗  LLM provider unavailable: ${provider}`));
+console.error(chalk.red(`\n✗  model provider unavailable: ${provider}`));
 // NEW
 console.error(chalk.red(`\n✗  Model provider unavailable: ${provider}`));
 
 // OLD (line 424)
-console.error(chalk.red("\n✗  No LLM provider configured."));
+console.error(chalk.red("\n✗  No model provider configured."));
 // NEW
 console.error(chalk.red("\n✗  No model provider configured."));
 ```
@@ -487,7 +487,7 @@ console.error(chalk.red("\n✗  No model provider configured."));
 
 ```typescript
 // OLD (line 10)
-.description("Configure LLM provider API keys (stored in .refarm/.env)")
+.description("Configure model provider API keys (stored in .refarm/.env)")
 // NEW
 .description("Configure model provider API keys (stored in .refarm/.env)")
 ```
@@ -496,25 +496,25 @@ console.error(chalk.red("\n✗  No model provider configured."));
 
 ```typescript
 // OLD (line 57)
-if (process.env.LLM_PROVIDER) return true;
+if (process.env.MODEL_PROVIDER) return true;
 // NEW
 if (process.env.MODEL_PROVIDER) return true;
 
 // OLD (line 178)
-chalk.dim("   Configure your LLM provider:  ") + chalk.cyan("refarm keys"),
+chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm keys"),
 // NEW
 chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm sow"),
 
 // OLD (line 188)
-console.error(chalk.red("✗  No LLM provider configured.\n"));
+console.error(chalk.red("✗  No model provider configured.\n"));
 // NEW
 console.error(chalk.red("✗  No model provider configured.\n"));
 ```
 
-- [ ] **Step 5: Verify no remaining `llm` / `LLM` in apps/**
+- [ ] **Step 5: Verify no remaining `model` / `MODEL` in apps/**
 
 ```bash
-grep -rn "llm\|LLM" apps/ --include="*.ts" | grep -v "node_modules\|dist/"
+grep -rn "model\|MODEL" apps/ --include="*.ts" | grep -v "node_modules\|dist/"
 ```
 
 Expected: no output.
@@ -535,7 +535,7 @@ git add apps/farmhand/src/index.ts \
         apps/refarm/src/commands/ask.ts \
         apps/refarm/src/commands/keys.ts \
         apps/refarm/src/commands/session-launch.ts
-git commit -m "refactor(apps): LLM_PROVIDER → MODEL_PROVIDER env var + error strings"
+git commit -m "refactor(apps): MODEL_PROVIDER → MODEL_PROVIDER env var + error strings"
 ```
 
 ---
@@ -543,31 +543,31 @@ git commit -m "refactor(apps): LLM_PROVIDER → MODEL_PROVIDER env var + error s
 ## Task 5: Update ADRs and documentation
 
 **Files:**
-- Rename + modify: `specs/ADRs/ADR-053-host-proxied-llm-streaming.md`
+- Rename + modify: `specs/ADRs/ADR-053-host-proxied-model-streaming.md`
 - Modify: several other ADRs and `docs/` files (see list below)
 
 - [ ] **Step 1: Rename ADR-053**
 
 ```bash
-git mv specs/ADRs/ADR-053-host-proxied-llm-streaming.md \
+git mv specs/ADRs/ADR-053-host-proxied-model-streaming.md \
         specs/ADRs/ADR-053-host-proxied-model-streaming.md
 ```
 
 - [ ] **Step 2: Update ADR-053 content**
 
 Open `specs/ADRs/ADR-053-host-proxied-model-streaming.md` and replace all occurrences of:
-- `llm-bridge` → `model-bridge`
-- `LLM_PROVIDER` → `MODEL_PROVIDER`
-- `LLM` (when referring to the concept) → `model`
-- Title: "Host-Proxied LLM Streaming" → "Host-Proxied Model Streaming"
+- `model-bridge` → `model-bridge`
+- `MODEL_PROVIDER` → `MODEL_PROVIDER`
+- `MODEL` (when referring to the concept) → `model`
+- Title: "Host-Proxied Model Streaming" → "Host-Proxied Model Streaming"
 
 - [ ] **Step 3: Update other ADRs**
 
-Files to update (replace `llm-bridge`, `LLM_*`, `LLM provider` with `model-bridge`, `MODEL_*`, `model provider`):
+Files to update (replace `model-bridge`, `LLM_*`, `model provider` with `model-bridge`, `MODEL_*`, `model provider`):
 
 ```bash
 # Find all affected ADR files
-grep -rln "llm\|LLM" specs/ADRs/ docs/
+grep -rln "model\|MODEL" specs/ADRs/ docs/
 ```
 
 Open each returned file and apply the same substitutions. Key files from earlier scan:
@@ -591,19 +591,19 @@ Open each returned file and apply the same substitutions. Key files from earlier
 - `docs/REFARM_PERSONAL_DAILY_DRIVER.md`
 - `docs/USER_STORY.md`
 
-- [ ] **Step 4: Verify no remaining `llm` / `LLM` across the repo**
+- [ ] **Step 4: Verify no remaining `model` / `MODEL` across the repo**
 
 ```bash
-grep -rn "llm\|LLM" specs/ docs/ --include="*.md" | grep -v "COMPACTATION\|.pi-lens\|node_modules"
+grep -rn "model\|MODEL" specs/ docs/ --include="*.md" | grep -v "COMPACTATION\|.pi-lens\|node_modules"
 ```
 
-Expected: no output (or only meta-references like "this doc used to say LLM").
+Expected: no output (or only meta-references like "this doc used to say MODEL").
 
 - [ ] **Step 5: Commit**
 
 ```bash
 git add specs/ docs/
-git commit -m "docs: llm → model rename in ADRs and documentation (ADR-053 renamed)"
+git commit -m "docs: model → model rename in ADRs and documentation (ADR-053 renamed)"
 ```
 
 ---
@@ -613,7 +613,7 @@ git commit -m "docs: llm → model rename in ADRs and documentation (ADR-053 ren
 - [ ] **Full repo grep — confirm clean**
 
 ```bash
-grep -rn "llm\|LLM\|llm-bridge" \
+grep -rn "model\|MODEL\|model-bridge" \
   packages/ apps/ specs/ docs/ \
   --include="*.ts" --include="*.rs" --include="*.wit" --include="*.md" \
   | grep -v "node_modules\|dist/\|target/\|bindings.rs\|.pi-lens\|COMPACTATION"

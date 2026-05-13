@@ -43,7 +43,7 @@ O conceito de "Graph-as-Code" e a abordagem "Ontology-First" do Refarm são a cu
 
 Inspirações que moldaram a visão do **Pi Agent** e da arquitetura de ferramentas atômicas (read, write, edit, bash) dentro do ecossistema Refarm.
 
-- **[Claude Code (Anthropic)](https://www.anthropic.com/claude-code)**: Pelo design minimalista de um coding agent orientado a terminal que expõe exatamente 4 ferramentas atômicas ao LLM — `read`, `write`, `edit`, `bash`. Esta filosofia de composição sobre ferramenta única é a pedra angular do **Pi Agent** do Refarm. A demonstração de que ferramentas estruturadas (argv[], sem interpolação de shell) e sandboxing de capabilities podem coexistir com produtividade máxima é o modelo que nos guia.
+- **[Claude Code (Anthropic)](https://www.anthropic.com/claude-code)**: Pelo design minimalista de um coding agent orientado a terminal que expõe exatamente 4 ferramentas atômicas ao MODEL — `read`, `write`, `edit`, `bash`. Esta filosofia de composição sobre ferramenta única é a pedra angular do **Pi Agent** do Refarm. A demonstração de que ferramentas estruturadas (argv[], sem interpolação de shell) e sandboxing de capabilities podem coexistir com produtividade máxima é o modelo que nos guia.
 
 - **[Zig Language](https://ziglang.org)**: Pela visão de um sistema de controle de memória explícito sem GC, com footprint binário mínimo (~KB vs MB) e compilação cruzada de primeira classe. O princípio "No hidden control flow" do Zig é o que buscamos no host Pi-Nano: nada acontece que o programador não pediu explicitamente. Inspiração para a estratégia de runtime ultra-leve para dispositivos onde wasmtime (~27 MB) não cabe.
 

@@ -191,20 +191,20 @@ httpSidecar.addRouteHandler(
 
 ---
 
-## Part 2 — `llm` → `model` Rename
+## Part 2 — `model` → `model` Rename
 
 ### Rationale
 
-The term `llm` (Large Language Model) is semantically incorrect for a provider-agnostic system that may route to small models, local models (Ollama/Phi/Gemma), or specialised embedding models. `model` is the correct umbrella term. This was a naming mistake from early development; the project is pre-release so no backward compatibility is needed.
+The term `model` (Large Language Model) is semantically incorrect for a provider-agnostic system that may route to small models, local models (Ollama/Phi/Gemma), or specialised embedding models. `model` is the correct umbrella term. This was a naming mistake from early development; the project is pre-release so no backward compatibility is needed.
 
 ### Scope
 
 #### WIT Interface (`packages/refarm-plugin-wit`)
 
 `refarm-plugin-host.wit`:
-- `interface llm-bridge` → `interface model-bridge`
-- `import llm-bridge` in world `refarm-plugin-host` → `import model-bridge`
-- Doc comment: "Host-proxied LLM completion bridge" → "Host-proxied model completion bridge"
+- `interface model-bridge` → `interface model-bridge`
+- `import model-bridge` in world `refarm-plugin-host` → `import model-bridge`
+- Doc comment: "Host-proxied model completion bridge" → "Host-proxied model completion bridge"
 
 #### `packages/pi-agent`
 
@@ -256,7 +256,7 @@ The term `llm` (Large Language Model) is semantically incorrect for a provider-a
 - `REFARM_MOCK_LLM_BODY` → `REFARM_MOCK_MODEL_BODY`
 - `REFARM_LLM_HTTP_TIMEOUT_SEC` → `REFARM_MODEL_HTTP_TIMEOUT_SEC`
 - Local variable names: `mockLlm*` → `mockModel*`
-- Error messages: `"llm-bridge request failed"`, `"llm-bridge http error"`, `"llm-bridge requires..."` → `"model-bridge ..."`
+- Error messages: `"llm-bridge request failed"` → `"model-bridge request failed"`
 
 `test/wasi-imports.test.ts`:
 - `"refarm:plugin/llm-bridge"` → `"refarm:plugin/model-bridge"`
@@ -274,7 +274,7 @@ The term `llm` (Large Language Model) is semantically incorrect for a provider-a
 `src/commands/ask.ts`:
 - `process.env.LLM_PROVIDER` reads → `MODEL_PROVIDER`
 - `.env` file parsing: `LLM_PROVIDER=...` match regex → `MODEL_PROVIDER=...`
-- Error strings: `"LLM provider unavailable"` → `"Model provider unavailable"`, `"No LLM provider configured"` → `"No model provider configured"`
+- Error strings: `"llm provider unavailable"` → `"model provider unavailable"`, `"No LLM provider configured"` → `"No model provider configured"`
 - `"llm-bridge request failed"` error match → `"model-bridge request failed"`
 
 `src/commands/keys.ts`:
@@ -296,7 +296,7 @@ Files to update `llm` → `model` in content:
 - `specs/ADRs/ADR-058-context-injection-doctrine.md` — content references
 - `specs/ADRs/ADR-065-farmhand-transparent-lifecycle.md` — content references
 - `specs/ADRs/README.md` — index entry for ADR-053
-- `specs/features/`, `docs/` — all `llm-bridge` and `LLM_*` references
+- `specs/features/`, `docs/` — all `llm-bridge` → `model-bridge` and `LLM_*` references
 
 ---
 

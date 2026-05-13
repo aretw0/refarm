@@ -69,7 +69,7 @@ Default budgets (overridable per-call by the model):
 - `search_files`: `max_results=100` matches
 - `list_tasks`: `limit=20` (already enforced in the tool itself)
 
-The feature is controlled by the `LLM_PRE_TOOL_BUDGET` environment variable:
+The feature is controlled by the `MODEL_PRE_TOOL_BUDGET` environment variable:
 - Unset or `1`/`true`/`yes`/`on` → enforcement active (default)
 - `0`/`false`/`no`/`off` → pass-through mode (for debugging)
 
@@ -123,7 +123,7 @@ This means:
 - New context providers start as extensions; only those that prove essential across multiple
   work profiles graduate to being loaded by default
 
-As the LLM model changes (different context windows, different cost structures), providers
+As the model changes (different context windows, different cost structures), providers
 may be promoted or demoted without changing the agent's core behavior.
 
 ---
@@ -133,7 +133,7 @@ may be promoted or demoted without changing the agent's core behavior.
 **Positive:**
 - System prompt token footprint stays bounded and predictable
 - `read_file` becomes pageable — long files no longer silently lose content at the end
-- Budget enforcement is auditable via `LLM_PRE_TOOL_BUDGET=0` passthrough mode
+- Budget enforcement is auditable via `MODEL_PRE_TOOL_BUDGET=0` passthrough mode
 - Extensions can improve context quality without changing core behavior
 
 **Negative:**
@@ -145,7 +145,7 @@ may be promoted or demoted without changing the agent's core behavior.
 
 ## Related
 
-- ADR-053: Host-proxied LLM streaming
+- ADR-053: Host-proxied model streaming
 - ADR-057: Task/session contracts
 - ADR-044: WASM plugin loading (Barn)
 - `packages/pi-agent/src/compress.rs` — existing post-output compression (secondary safety net)

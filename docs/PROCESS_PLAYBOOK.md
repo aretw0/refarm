@@ -23,7 +23,7 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 ## Quick reference
 
 ```bash
-npm run farm:status        # unified status: both services, ports, artifacts, LLM
+npm run farm:status        # unified status: both services, ports, artifacts, MODEL
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
 npm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
 npm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
@@ -263,7 +263,7 @@ npm run agent:daemon
 
 ### Scenario 5 — Run pi-agent harness tests
 
-The harness starts its own mock LLM on a random port — no service conflict possible.
+The harness starts its own mock MODEL on a random port — no service conflict possible.
 It does NOT require tractor or farmhand to be running.
 
 ```bash
@@ -297,7 +297,7 @@ npm run farm:status        # check ARTIFACTS section
 | ----- | --------- | ------------------------------- | ------------------------------------- |
 | 42000 | WebSocket | CRDT sync (tractor OR farmhand) | Both backends running simultaneously  |
 | 42001 | HTTP      | farmhand HTTP sidecar           | farmhand + CI smoke stub both running |
-| :0    | HTTP      | mock LLM (harness tests)        | OS-assigned — no conflict possible    |
+| :0    | HTTP      | mock MODEL (harness tests)        | OS-assigned — no conflict possible    |
 
 ---
 
@@ -309,8 +309,8 @@ npm run farm:status        # check ARTIFACTS section
   tractor.log      # tractor stdout/stderr (background mode)
   farmhand.pid     # farmhand background PID (created by npm run farmhand:daemon)
   farmhand.log     # farmhand stdout/stderr (background mode)
-  .env             # LLM API keys (npm run agent:keys to configure)
-  config.json      # LLM provider, model, budgets, FS restrictions
+  .env             # MODEL API keys (npm run agent:keys to configure)
+  config.json      # model provider, model, budgets, FS restrictions
   .repl_history    # REPL command history
   tasks/           # FileTransport input queue (farmhand)
   task-results/    # effort outcomes
@@ -335,7 +335,7 @@ When something is wrong, work top-down:
 2. **Port conflict?** — `ss -tlnp | grep '42000\|42001'` — identify the PID.
 3. **Stale PID file?** — process dead but PID file exists → `rm .refarm/*.pid` then retry.
 4. **Binary missing?** — ARTIFACTS section in farm:status will tell you what to build.
-5. **No API keys?** — LLM section in farm:status → `npm run agent:keys`.
+5. **No API keys?** — MODEL section in farm:status → `npm run agent:keys`.
 6. **Disk full?** — `npm run disk:check` → `npm run clean:light` or `npm run clean:heavy`.
 7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and pi_agent.wasm is at
    `$CARGO_TARGET_DIR/wasm32-wasip1/release/pi_agent.wasm`.

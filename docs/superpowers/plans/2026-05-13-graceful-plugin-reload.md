@@ -8,7 +8,7 @@
 
 **Tech Stack:** Node.js EventEmitter, Vitest, native `fetch`, existing `HttpSidecar` test pattern.
 
-**⚠ Prerequisite:** Complete `2026-05-13-llm-to-model-rename.md` before starting this plan — both plans touch `apps/farmhand/src/index.ts`.
+**⚠ Prerequisite:** Complete `2026-05-13-model-to-model-rename.md` before starting this plan — both plans touch `apps/farmhand/src/index.ts`.
 
 ---
 

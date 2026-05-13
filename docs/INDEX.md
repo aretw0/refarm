@@ -27,7 +27,7 @@
 - **[Stratification Policy](STRATIFICATION.md)** — TS-Strict vs JS-Atomic package classification. Defines hybrid coexistence rules (`tsconfig.build.json` presence = TS-Strict; see AGENTS.md Rule 4).
 - **[Scaffolding Development Policy](SCAFFOLDING.md)** — Island Isolation Policy for `sower` scaffolding: never run `refarm init` within the monorepo root.
 - **[Local Disk Hygiene](local-disk-hygiene.md)** — resource-aware validation and cleanup tiers for constrained workstations.
-- **[pi-agent Streaming Responses](agent-streaming.md)** — opt-in host-proxied LLM streaming, response shape, and economical validation commands.
+- **[pi-agent Streaming Responses](agent-streaming.md)** — opt-in host-proxied MODEL streaming, response shape, and economical validation commands.
 
 ### 📦 Ecosystem & Plugins
 

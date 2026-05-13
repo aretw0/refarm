@@ -36,7 +36,7 @@ The entry points. Each distro is an opinionated assembly of sovereign blocks.
 |---|---|---|
 | `apps/dev` | Astro / Browser | Developer portal (refarm.dev) |
 | `apps/me` | Astro / Browser | Homestead · sovereign identity (refarm.me) |
-| `apps/farmhand` | Node.js daemon | Task execution · LLM routing |
+| `apps/farmhand` | Node.js daemon | Task execution · MODEL routing |
 | `apps/refarm` | CLI entry | Runtime bootstrap · `refarm` command |
 
 ---
@@ -61,7 +61,7 @@ The execution engine. Same WIT contract runs on both runtimes.
 | `tractor` (Rust) | wasmtime | IoT, Raspberry Pi, ~27MB footprint |
 
 WIT exports: `setup · ingest · push · respond · on-event`
-WIT imports (for pi-agent): `llm-bridge · agent-fs · agent-shell`
+WIT imports (for pi-agent): `model-bridge · agent-fs · agent-shell`
 
 ---
 

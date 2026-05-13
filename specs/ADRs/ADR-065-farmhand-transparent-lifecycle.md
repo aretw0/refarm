@@ -48,8 +48,8 @@ REPL commands for flows that currently require leaving the session:
 | Command | Effect |
 |---|---|
 | `/sow` | Pause readline → run credential collection flow → resume session |
-| `/keys` | Pause readline → run LLM key setup → resume session |
-| `/provider` | Switch active LLM provider without restarting |
+| `/keys` | Pause readline → run model key setup → resume session |
+| `/provider` | Switch active model provider without restarting |
 
 Implementation contract: the REPL `close()` readline → run interactive flow → `reopen readline` → print prompt. The session ID is preserved throughout.
 
