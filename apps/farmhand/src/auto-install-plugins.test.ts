@@ -127,7 +127,7 @@ describe("autoInstallPlugins", () => {
 	it("processes multiple entries accumulating counts", async () => {
 		vi.mocked(installWasmArtifact)
 			.mockResolvedValueOnce({ pluginId: "a", wasmUrl: "ua", cached: false, byteLength: 100, wasmHash: "h1", artifactKind: "component" })
-			.mockResolvedValueOnce({ pluginId: "b", wasmUrl: "ub", cached: true,  byteLength: 200, wasmHash: "h2", artifactKind: "component" })
+			.mockResolvedValueOnce({ pluginId: "b", wasmUrl: "ub", cached: true, byteLength: 200, wasmHash: "h2", artifactKind: "component" })
 			.mockRejectedValueOnce(new Error("network error"));
 		const entries = [
 			{ id: "a", url: "ua", integrity: "ia" },
