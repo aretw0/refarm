@@ -213,7 +213,10 @@ async function main() {
 	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
 
-	const config = await loadConfigAsync().catch(() => ({}));
+	const config = await loadConfigAsync().catch((err: unknown) => {
+		console.warn("[farmhand] Failed to load config, skipping auto-install:", err instanceof Error ? err.message : String(err));
+		return {};
+	});
 	const autoEntries: unknown[] = Array.isArray(config?.plugins?.autoInstall)
 		? (config.plugins.autoInstall as unknown[])
 		: [];
