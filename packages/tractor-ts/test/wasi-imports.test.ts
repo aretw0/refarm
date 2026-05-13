@@ -259,21 +259,21 @@ describe("WasiImports — versioned WASI keys", () => {
 });
 
 // ---------------------------------------------------------------------------
-// LLM bridge behavior (mock opt-in + fail-closed credentials)
+// Model bridge behavior (mock opt-in + fail-closed credentials)
 // ---------------------------------------------------------------------------
-describe("WasiImports — refarm:plugin/llm-bridge", () => {
+describe("WasiImports — refarm:plugin/model-bridge", () => {
   beforeEach(() => {
-    delete process.env.REFARM_MOCK_LLM_BODY;
+    delete process.env.REFARM_MOCK_MODEL_BODY;
     delete process.env.ANTHROPIC_API_KEY;
     delete process.env.OPENAI_API_KEY;
   });
 
   it("fails closed when non-ollama provider has no credentials", () => {
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
+    const modelBridge = imports["refarm:plugin/model-bridge"]!;
 
     expect(() =>
-      llmBridge["complete-http"]!(
+      modelBridge["complete-http"]!(
         "openai",
         "https://api.openai.com",
         "/v1/chat/completions",
@@ -283,17 +283,17 @@ describe("WasiImports — refarm:plugin/llm-bridge", () => {
     ).toThrow(/No credentials configured for provider "openai"/i);
   });
 
-  it("uses explicit REFARM_MOCK_LLM_BODY when provided", () => {
-    process.env.REFARM_MOCK_LLM_BODY = JSON.stringify({
+  it("uses explicit REFARM_MOCK_MODEL_BODY when provided", () => {
+    process.env.REFARM_MOCK_MODEL_BODY = JSON.stringify({
       id: "t1",
       choices: [{ message: { role: "assistant", content: "mocked from env" } }],
       usage: { prompt_tokens: 1, completion_tokens: 1, total_tokens: 2 },
     });
 
     const { imports } = makeImports("strict");
-    const llmBridge = imports["refarm:plugin/llm-bridge"]!;
+    const modelBridge = imports["refarm:plugin/model-bridge"]!;
 
-    const bytes = llmBridge["complete-http"]!(
+    const bytes = modelBridge["complete-http"]!(
       "openai",
       "https://api.openai.com",
       "/v1/chat/completions",

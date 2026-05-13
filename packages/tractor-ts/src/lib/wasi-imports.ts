@@ -20,7 +20,7 @@ function spawnSync(command: string, args: string[], options: { input: Buffer; ma
 			? getBuiltinModule("node:child_process")
 			: null;
 	if (!childProcess?.spawnSync) {
-		throw new Error("llm-bridge requires Node.js child_process.spawnSync");
+		throw new Error("model-bridge requires Node.js child_process.spawnSync");
 	}
 	return childProcess.spawnSync(command, args, options);
 }
@@ -137,13 +137,13 @@ export class WasiImports {
 			},
 		};
 
-		const mockLlmBodyRaw = process.env.REFARM_MOCK_LLM_BODY;
-		const mockLlmBody =
-			typeof mockLlmBodyRaw === "string" && mockLlmBodyRaw.trim().length > 0
-				? mockLlmBodyRaw
+		const mockModelBodyRaw = process.env.REFARM_MOCK_MODEL_BODY;
+		const mockModelBody =
+			typeof mockModelBodyRaw === "string" && mockModelBodyRaw.trim().length > 0
+				? mockModelBodyRaw
 				: null;
-		const mockLlmBytes = mockLlmBody
-			? new TextEncoder().encode(mockLlmBody)
+		const mockModelBytes = mockModelBody
+			? new TextEncoder().encode(mockModelBody)
 			: null;
 
 		const normalizeProviderName = (provider: string): string =>
@@ -217,7 +217,7 @@ export class WasiImports {
 						? providerEnv
 						: `${providerEnv} (or OPENAI_API_KEY)`;
 				throw new Error(
-					`No credentials configured for provider "${normalized}". Set ${envHint}, run npm run agent:keys, or use LLM_PROVIDER=ollama.`,
+					`No credentials configured for provider "${normalized}". Set ${envHint}, run npm run agent:keys, or use MODEL_PROVIDER=ollama.`,
 				);
 			}
 
@@ -228,10 +228,10 @@ export class WasiImports {
 			const left = baseUrl.trim().replace(/\/+$/, "");
 			const right = reqPath.trim();
 			if (!left || !/^https?:\/\//i.test(left)) {
-				throw new Error(`Invalid LLM base-url: "${baseUrl}"`);
+				throw new Error(`Invalid model base-url: "${baseUrl}"`);
 			}
 			if (!right) {
-				throw new Error("Invalid LLM path: path is empty");
+				throw new Error("Invalid model path: path is empty");
 			}
 			return right.startsWith("/") ? `${left}${right}` : `${left}/${right}`;
 		};
@@ -245,10 +245,10 @@ export class WasiImports {
 				.filter(([name]) => /^[-!#$%&'*+.^_`|~0-9A-Za-z]+$/.test(name));
 		};
 
-		const mockLlmContent = (() => {
-			if (!mockLlmBody) return "";
+		const mockModelContent = (() => {
+			if (!mockModelBody) return "";
 			try {
-				const parsed = JSON.parse(mockLlmBody) as {
+				const parsed = JSON.parse(mockModelBody) as {
 					choices?: Array<{ message?: { content?: string } }>;
 				};
 				const content = parsed.choices?.[0]?.message?.content;
@@ -258,7 +258,7 @@ export class WasiImports {
 			} catch {
 				// fall through to deterministic default
 			}
-			return "mock llm response";
+			return "mock model response";
 		})();
 
 		const persistMockStreamFinalChunk = (
@@ -309,7 +309,7 @@ export class WasiImports {
 				stream_ref: streamRef,
 				sequence,
 				payload_kind: "final_text",
-				content: mockLlmContent,
+				content: mockModelContent,
 				is_final: true,
 				timestamp_ns: Date.now(),
 				metadata: {
@@ -336,12 +336,12 @@ export class WasiImports {
 			headers: Array<[string, string]>,
 			body: Uint8Array,
 		) => {
-			if (mockLlmBytes) {
-				return mockLlmBytes;
+			if (mockModelBytes) {
+				return mockModelBytes;
 			}
 
 			const providerName = normalizeProviderName(provider);
-			const llmUrl = joinBaseUrlAndPath(baseUrl, reqPath);
+			const modelUrl = joinBaseUrlAndPath(baseUrl, reqPath);
 
 			const requestHeaders = sanitizedPluginHeaders(headers);
 			const authHeader = authHeaderForProvider(providerName);
@@ -350,10 +350,10 @@ export class WasiImports {
 			const curlArgs = [
 				"-sS",
 				"--max-time",
-				String(Number(process.env.REFARM_LLM_HTTP_TIMEOUT_SEC ?? "60") || 60),
+				String(Number(process.env.REFARM_MODEL_HTTP_TIMEOUT_SEC ?? "60") || 60),
 				"-X",
 				"POST",
-				llmUrl,
+				modelUrl,
 			];
 
 			for (const [name, value] of requestHeaders) {
@@ -371,7 +371,7 @@ export class WasiImports {
 			});
 
 			if (resp.error) {
-				throw new Error(`llm-bridge http error: ${resp.error.message}`);
+				throw new Error(`model-bridge http error: ${resp.error.message}`);
 			}
 
 			if (resp.status !== 0) {
@@ -379,13 +379,13 @@ export class WasiImports {
 					.toString("utf-8")
 					.trim();
 				throw new Error(
-					`llm-bridge request failed for provider "${providerName || "<empty>"}": ${stderr || `curl exited with status ${resp.status}`}`,
+					`model-bridge request failed for provider "${providerName || "<empty>"}": ${stderr || `curl exited with status ${resp.status}`}`,
 				);
 			}
 
 			const out = resp.stdout ?? Buffer.alloc(0);
 			if (out.length > 2 * 1024 * 1024) {
-				throw new Error("llm-bridge response body too large");
+				throw new Error("model-bridge response body too large");
 			}
 
 			return new Uint8Array(out);
@@ -410,7 +410,7 @@ export class WasiImports {
 				},
 			},
 			"refarm:plugin/tractor-bridge": tractorBridge,
-			"refarm:plugin/llm-bridge": {
+			"refarm:plugin/model-bridge": {
 				"complete-http": completeHttp,
 				"complete-http-stream": (
 					provider: string,
@@ -427,7 +427,7 @@ export class WasiImports {
 						headers,
 						body,
 					);
-					const streamResult = mockLlmBytes
+					const streamResult = mockModelBytes
 						? persistMockStreamFinalChunk(provider, _streamMetadata)
 						: { storedChunks: 0, lastSequence: undefined };
 					return {
