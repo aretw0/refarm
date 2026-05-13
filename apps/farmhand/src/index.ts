@@ -29,6 +29,7 @@ import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 import { WebSocketSyncTransport } from "./transport.js";
+import { PluginUsageTracker } from "./plugin-usage-tracker.js";
 import {
 	FileTransportAdapter,
 	type TaskExecutorFn,
@@ -284,16 +285,21 @@ async function main() {
 		return { status, result, error };
 	};
 
+	const pluginTracker = new PluginUsageTracker();
 	const fileTransport = new FileTransportAdapter(
 		farmhandBaseDir,
 		taskExecutorFn,
+		{
+			onEffortStart: (effortId, pluginIds) => pluginTracker.registerEffort(effortId, pluginIds),
+			onEffortEnd:   (effortId)            => pluginTracker.releaseEffort(effortId),
+		},
 	);
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
 	const httpSidecar = new HttpSidecar(42001, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
-	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir));
+	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir, pluginTracker));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 
