@@ -4,7 +4,7 @@ import path from "node:path";
 import { Command } from "commander";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../..");
-const KEYS_SCRIPT = path.join(ROOT, "scripts/setup-llm-keys.mjs");
+const KEYS_SCRIPT = path.join(ROOT, "scripts/setup-model-keys.mjs");
 
 export const keysCommand = new Command("keys")
 	.description("Configure model provider API keys (stored in .refarm/.env)")
