@@ -270,7 +270,7 @@ describe("createPluginsRouteHandler", () => {
 			);
 		});
 
-		it("calls tractor registry.register, trust, and plugins.load", async () => {
+		it("calls target registry.register, trust, and plugins.load", async () => {
 			await request(port, "POST", "/plugins/install", validBody);
 			expect(target.registry.register).toHaveBeenCalled();
 			expect(target.registry.trust).toHaveBeenCalledWith("plugin-a");
