@@ -39,7 +39,7 @@ export interface ChatDeps {
 	readActiveSessionId?(): string | null;
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
-	reloadPlugins(): Promise<{ reloaded: number; skipped: number }>;
+	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
@@ -64,14 +64,67 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 	return payload.effortId;
 }
 
-async function reloadPluginsViaHttp(): Promise<{ reloaded: number; skipped: number }> {
+async function reloadPluginsViaHttp(
+	pluginIds?: string[],
+): Promise<{ reloaded: string[]; skipped: string[] }> {
 	const response = await fetch(`${SIDECAR_URL}/plugins/reload`, {
 		method: "POST",
+		headers: { "content-type": "application/json" },
+		body: pluginIds ? JSON.stringify({ pluginIds }) : undefined,
 	});
 	if (!response.ok) {
 		throw new Error(`Farmhand HTTP ${response.status}`);
 	}
-	return response.json() as Promise<{ reloaded: number; skipped: number }>;
+
+	const { reloadId, reloaded, deferred, skipped } = (await response.json()) as {
+		reloadId: string;
+		reloaded: string[];
+		deferred: string[];
+		skipped: string[];
+	};
+
+	if (deferred.length === 0) {
+		return { reloaded, skipped };
+	}
+
+	// Poll until all deferred reloads complete
+	const pending = new Set(deferred);
+	const completed = new Set(reloaded);
+	const failed = new Set(skipped);
+
+	for (const p of deferred) {
+		process.stdout.write(chalk.yellow(`⏳ ${p}: waiting for active tasks...\n`));
+	}
+
+	while (pending.size > 0) {
+		await new Promise<void>((r) => setTimeout(r, 500));
+
+		const statusRes = await fetch(
+			`${SIDECAR_URL}/plugins/reload/status/${reloadId}`,
+		);
+		if (!statusRes.ok) break;
+
+		const status = (await statusRes.json()) as {
+			pending: string[];
+			completed: string[];
+			failed: string[];
+		};
+
+		for (const p of status.completed) {
+			if (pending.delete(p)) completed.add(p);
+		}
+		for (const p of status.failed) {
+			if (pending.delete(p)) failed.add(p);
+		}
+		for (const p of [...pending]) {
+			if (!status.pending.includes(p)) {
+				pending.delete(p);
+				if (!completed.has(p)) failed.add(p);
+			}
+		}
+	}
+
+	return { reloaded: [...completed], skipped: [...failed] };
 }
 
 function followStreamFile(
@@ -451,12 +504,19 @@ export async function runSessionRepl(
 					rl.pause();
 					void (async () => {
 						try {
-							const result = await deps.reloadPlugins();
-							console.log(
-								chalk.dim(
-									`✓ Plugins reloaded: ${result.reloaded} loaded, ${result.skipped} skipped`,
-								),
+							const ids = command.pluginIds;
+							const { reloaded, skipped } = await deps.reloadPlugins(
+								ids.length > 0 ? ids : undefined,
 							);
+							for (const p of reloaded) {
+								console.log(chalk.green(`✓  ${p} reloaded`));
+							}
+							for (const p of skipped) {
+								console.error(chalk.red(`✗  ${p} failed to reload`));
+							}
+							if (reloaded.length === 0 && skipped.length === 0) {
+								console.log(chalk.dim("No plugins to reload."));
+							}
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));

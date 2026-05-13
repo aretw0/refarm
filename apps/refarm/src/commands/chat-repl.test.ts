@@ -14,8 +14,19 @@ describe("parseChatLine", () => {
 		expect(parseChatLine("")).toEqual({ kind: "message", text: "" });
 	});
 
-	it("parses /reload", () => {
-		expect(parseChatLine("/reload")).toEqual({ kind: "reload" });
+	it("parses /reload with no args", () => {
+		expect(parseChatLine("/reload")).toEqual({ kind: "reload", pluginIds: [] });
+	});
+
+	it("parses /reload with a single plugin id", () => {
+		expect(parseChatLine("/reload pi-agent")).toEqual({ kind: "reload", pluginIds: ["pi-agent"] });
+	});
+
+	it("parses /reload with multiple plugin ids", () => {
+		expect(parseChatLine("/reload pi-agent other-plugin")).toEqual({
+			kind: "reload",
+			pluginIds: ["pi-agent", "other-plugin"],
+		});
 	});
 
 	it("parses /new", () => {
@@ -43,7 +54,7 @@ describe("parseChatLine", () => {
 	});
 
 	it("is case-insensitive for slash commands", () => {
-		expect(parseChatLine("/RELOAD")).toEqual({ kind: "reload" });
+		expect(parseChatLine("/RELOAD")).toEqual({ kind: "reload", pluginIds: [] });
 		expect(parseChatLine("/Exit")).toEqual({ kind: "exit" });
 	});
 

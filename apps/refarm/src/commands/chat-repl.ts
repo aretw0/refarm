@@ -5,14 +5,13 @@
 
 export type ChatCommand =
 	| { kind: "message"; text: string }
-	| { kind: "reload" }
+	| { kind: "reload"; pluginIds: string[] }
 	| { kind: "new" }
 	| { kind: "session"; prefix: string }
 	| { kind: "exit" }
 	| { kind: "help" };
 
 const SLASH_COMMANDS: Record<string, ChatCommand> = {
-	reload: { kind: "reload" },
 	new: { kind: "new" },
 	exit: { kind: "exit" },
 	quit: { kind: "exit" },
@@ -37,11 +36,15 @@ export function parseChatLine(line: string): ChatCommand {
 			: { kind: "message", text: trimmed };
 	}
 
+	if (commandName === "reload") {
+		return { kind: "reload", pluginIds: rest.filter(Boolean) };
+	}
+
 	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
 }
 
 export const CHAT_HELP_TEXT = `Available commands:
-  /reload           Hot-reload plugins in farmhand
+  /reload [id...]   Hot-reload plugins in farmhand (all, or named plugin IDs)
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /exit  or  /quit  Exit refarm chat
