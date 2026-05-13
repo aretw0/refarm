@@ -46,15 +46,15 @@ fn dedup_lines_collapses_run_of_two() {
 
 #[test]
 fn compress_tool_output_passthrough_when_under_limit() {
-    std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "100");
+    std::env::set_var("MODEL_TOOL_OUTPUT_MAX_LINES", "100");
     let output = "line1\nline2\nline3";
     assert_eq!(compress_tool_output(output), output);
-    std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    std::env::remove_var("MODEL_TOOL_OUTPUT_MAX_LINES");
 }
 
 #[test]
 fn compress_tool_output_truncates_with_header() {
-    std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "2");
+    std::env::set_var("MODEL_TOOL_OUTPUT_MAX_LINES", "2");
     let output = "a\nb\nfoo\nbar";
     let result = compress_tool_output(output);
     assert!(
@@ -62,12 +62,12 @@ fn compress_tool_output_truncates_with_header() {
         "header missing: {result}"
     );
     assert!(result.contains("a"), "kept lines must appear: {result}");
-    std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    std::env::remove_var("MODEL_TOOL_OUTPUT_MAX_LINES");
 }
 
 #[test]
 fn compress_tool_output_dedup_reduces_before_truncation() {
-    std::env::set_var("LLM_TOOL_OUTPUT_MAX_LINES", "5");
+    std::env::set_var("MODEL_TOOL_OUTPUT_MAX_LINES", "5");
     // 10 identical lines → deduped to 1 → well under limit
     let output = "warn: something\n".repeat(10).trim_end().to_string();
     let result = compress_tool_output(&output);
@@ -79,12 +79,12 @@ fn compress_tool_output_dedup_reduces_before_truncation() {
         result.contains("[×10]"),
         "dedup annotation must appear: {result}"
     );
-    std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    std::env::remove_var("MODEL_TOOL_OUTPUT_MAX_LINES");
 }
 
 #[test]
 fn compress_tool_output_strips_ansi_before_dedup() {
-    std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    std::env::remove_var("MODEL_TOOL_OUTPUT_MAX_LINES");
     let output = "\x1b[31mERROR\x1b[0m\n\x1b[31mERROR\x1b[0m\nok";
     let result = compress_tool_output(output);
     assert!(
@@ -99,7 +99,7 @@ fn compress_tool_output_strips_ansi_before_dedup() {
 
 #[test]
 fn compress_tool_output_unlimited_by_default() {
-    std::env::remove_var("LLM_TOOL_OUTPUT_MAX_LINES");
+    std::env::remove_var("MODEL_TOOL_OUTPUT_MAX_LINES");
     let big = (0..1000)
         .map(|i| i.to_string())
         .collect::<Vec<_>>()

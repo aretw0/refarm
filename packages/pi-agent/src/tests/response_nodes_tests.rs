@@ -25,10 +25,10 @@ fn response_nodes_agent_response_builder_shape() {
     assert_eq!(node["@type"], "AgentResponse");
     assert_eq!(node["prompt_ref"], "urn:pi-agent:prompt-test");
     assert_eq!(node["content"], "done");
-    assert_eq!(node["llm"]["model"], "stub");
-    assert_eq!(node["llm"]["tokens_in"], 1);
-    assert_eq!(node["llm"]["tokens_out"], 2);
-    assert_eq!(node["llm"]["duration_ms"], 3);
+    assert_eq!(node["inference"]["model"], "stub");
+    assert_eq!(node["inference"]["tokens_in"], 1);
+    assert_eq!(node["inference"]["tokens_out"], 2);
+    assert_eq!(node["inference"]["duration_ms"], 3);
     assert_eq!(node["sequence"], 0);
     assert_eq!(node["is_final"], true);
 }

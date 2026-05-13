@@ -17,7 +17,7 @@ fn run_primary_completion(
 ) -> Result<crate::provider::CompletionResult, String> {
     if crate::budget_exceeded_for_provider(provider_name) {
         Err(format!(
-            "[budget] LLM_BUDGET_{}_USD exceeded — primary provider blocked",
+            "[budget] MODEL_BUDGET_{}_USD exceeded — primary provider blocked",
             provider_name.to_uppercase()
         ))
     } else {
@@ -30,7 +30,7 @@ fn try_fallback_completion(
     messages: &[(String, String)],
     primary_err: &str,
 ) -> Option<ReactResult> {
-    let fallback_name = std::env::var("LLM_FALLBACK_PROVIDER").ok()?;
+    let fallback_name = std::env::var("MODEL_FALLBACK_PROVIDER").ok()?;
     let fb = crate::provider::Provider::from_provider_name(&fallback_name);
     let fb_model = fb.model().to_owned();
     if crate::streaming_config::stream_responses_enabled_from_env() {

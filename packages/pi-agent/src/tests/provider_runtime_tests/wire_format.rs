@@ -354,7 +354,7 @@ fn provider_runtime_emit_stream_response_chunk_drafts_from_sse() {
 #[test]
 fn provider_runtime_stream_body_gate_stays_off_without_opt_in() {
     let _guard = super::ENV_LOCK.lock().expect("env lock");
-    std::env::remove_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV);
+    std::env::remove_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV);
 
     let openai_body = crate::provider_runtime::build_openai_body_with_streaming(
         "m",
@@ -379,7 +379,7 @@ fn provider_runtime_stream_body_gate_stays_off_without_opt_in() {
 #[test]
 fn provider_runtime_stream_body_gate_requires_explicit_opt_in() {
     let _guard = super::ENV_LOCK.lock().expect("env lock");
-    std::env::set_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV, "1");
+    std::env::set_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV, "1");
 
     let openai_body = crate::provider_runtime::build_openai_body_with_streaming(
         "m",
@@ -395,7 +395,7 @@ fn provider_runtime_stream_body_gate_requires_explicit_opt_in() {
         crate::streaming_config::provider_stream_request_enabled_from_env(),
     );
 
-    std::env::remove_var(crate::streaming_config::LLM_STREAM_RESPONSES_ENV);
+    std::env::remove_var(crate::streaming_config::MODEL_STREAM_RESPONSES_ENV);
 
     let openai: serde_json::Value = serde_json::from_str(&openai_body).unwrap();
     let anthropic: serde_json::Value = serde_json::from_str(&anthropic_body).unwrap();

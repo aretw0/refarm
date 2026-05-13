@@ -1,22 +1,22 @@
 #[test]
 fn provider_runtime_tool_loop_max_iter_defaults_to_five() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
     assert_eq!(crate::provider_runtime::tool_loop_max_iter(), 5);
 }
 #[test]
 fn provider_runtime_tool_loop_max_iter_reads_env() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "9");
+    std::env::set_var("MODEL_TOOL_CALL_MAX_ITER", "9");
     assert_eq!(crate::provider_runtime::tool_loop_max_iter(), 9);
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 }
 #[test]
 fn provider_runtime_tool_loop_max_iter_invalid_env_falls_back() {
     let _guard = super::ENV_LOCK.lock().unwrap();
-    std::env::set_var("LLM_TOOL_CALL_MAX_ITER", "invalid");
+    std::env::set_var("MODEL_TOOL_CALL_MAX_ITER", "invalid");
     assert_eq!(crate::provider_runtime::tool_loop_max_iter(), 5);
-    std::env::remove_var("LLM_TOOL_CALL_MAX_ITER");
+    std::env::remove_var("MODEL_TOOL_CALL_MAX_ITER");
 }
 #[test]
 fn provider_runtime_dedup_tool_output_marks_duplicates() {

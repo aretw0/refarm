@@ -54,7 +54,7 @@ fn history_from_nodes_returns_empty_for_empty_input() {
 
 #[test]
 fn history_disabled_by_default_when_env_unset() {
-    // LLM_HISTORY_TURNS defaults to 0 — no history injected without opt-in.
+    // MODEL_HISTORY_TURNS defaults to 0 — no history injected without opt-in.
     // history_from_nodes with max_turns=0 must return empty regardless of records.
     let now = now_ns();
     let nodes = vec![

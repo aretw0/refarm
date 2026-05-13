@@ -5,18 +5,18 @@ use std::sync::Mutex;
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 // A1 — any provider name not in the explicit list must pass through to OpenAI compat
-// (base_url driven by LLM_BASE_URL), enabling Groq, Mistral, Perplexity, etc. with zero code.
+// (base_url driven by MODEL_BASE_URL), enabling Groq, Mistral, Perplexity, etc. with zero code.
 #[test]
 fn a1_unknown_provider_name_passes_through_without_code_change() {
     let _guard = ENV_LOCK.lock().unwrap();
     for name in ["groq", "mistral", "perplexity", "together", "anyrandom"] {
-        std::env::set_var("LLM_PROVIDER", name);
+        std::env::set_var("MODEL_PROVIDER", name);
         assert_eq!(
             provider_name_from_env(),
             name,
             "provider name '{name}' must survive resolution unchanged"
         );
-        std::env::remove_var("LLM_PROVIDER");
+        std::env::remove_var("MODEL_PROVIDER");
     }
     // Verify the compat arm is the catch-all — nothing panics for unknown names.
     // Full Provider::from_env() is wasm32-only; name resolution is the testable surface.
@@ -26,14 +26,14 @@ fn a1_unknown_provider_name_passes_through_without_code_change() {
 #[test]
 fn a2_zero_config_boot_returns_response() {
     let _guard = ENV_LOCK.lock().unwrap();
-    std::env::remove_var("LLM_PROVIDER");
-    std::env::remove_var("LLM_DEFAULT_PROVIDER");
-    std::env::remove_var("LLM_MODEL");
-    std::env::remove_var("LLM_BASE_URL");
-    std::env::remove_var("LLM_MAX_CONTEXT_TOKENS");
-    std::env::remove_var("LLM_FALLBACK_PROVIDER");
-    std::env::remove_var("LLM_HISTORY_TURNS");
-    std::env::remove_var("LLM_SYSTEM");
+    std::env::remove_var("MODEL_PROVIDER");
+    std::env::remove_var("MODEL_DEFAULT_PROVIDER");
+    std::env::remove_var("MODEL_ID");
+    std::env::remove_var("MODEL_BASE_URL");
+    std::env::remove_var("MODEL_MAX_CONTEXT_TOKENS");
+    std::env::remove_var("MODEL_FALLBACK_PROVIDER");
+    std::env::remove_var("MODEL_HISTORY_TURNS");
+    std::env::remove_var("MODEL_SYSTEM");
     let (content, _, _, _, _, _, _, _) = react("hello");
     assert!(
         !content.is_empty(),
@@ -41,7 +41,7 @@ fn a2_zero_config_boot_returns_response() {
     );
 }
 
-// A3 — history is opt-in: absent or zero LLM_HISTORY_TURNS means no CRDT reads for context.
+// A3 — history is opt-in: absent or zero MODEL_HISTORY_TURNS means no CRDT reads for context.
 // Verified via history_from_nodes(nodes, 0) → empty, regardless of available records.
 #[test]
 fn a3_context_is_opt_in_not_default() {
@@ -58,12 +58,12 @@ fn a3_context_is_opt_in_not_default() {
     );
 }
 
-// A4 — budget is opt-in: no LLM_BUDGET_* env vars means no spend tracking and no blocking.
+// A4 — budget is opt-in: no MODEL_BUDGET_* env vars means no spend tracking and no blocking.
 #[test]
 fn a4_budget_does_not_block_when_no_limit_set() {
-    std::env::remove_var("LLM_BUDGET_ANTHROPIC_USD");
-    std::env::remove_var("LLM_BUDGET_OLLAMA_USD");
-    std::env::remove_var("LLM_BUDGET_OPENAI_USD");
+    std::env::remove_var("MODEL_BUDGET_ANTHROPIC_USD");
+    std::env::remove_var("MODEL_BUDGET_OLLAMA_USD");
+    std::env::remove_var("MODEL_BUDGET_OPENAI_USD");
     // sum_provider_spend_usd with an enormous spend must NOT block when no env var is set.
     // The guard in budget_exceeded_for_provider returns false when the var is absent.
     // We verify the pure spend function itself — the guard gate is tested via env var presence.
@@ -74,7 +74,7 @@ fn a4_budget_does_not_block_when_no_limit_set() {
     ];
     let spend = sum_provider_spend_usd(&records, "anthropic", now, 30 * 24 * 3600 * 1_000_000_000);
     assert!(spend > 0.0, "spend is computed correctly");
-    // Without LLM_BUDGET_ANTHROPIC_USD set, budget_exceeded_for_provider returns false.
+    // Without MODEL_BUDGET_ANTHROPIC_USD set, budget_exceeded_for_provider returns false.
     // That path is wasm32-only, but the env-var absence → no-op contract is documented here.
 }
 

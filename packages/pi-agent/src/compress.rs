@@ -39,11 +39,11 @@ pub(crate) fn dedup_lines(lines: &[&str]) -> Vec<String> {
     out
 }
 
-/// Pipeline: strip ANSI → dedup repeated lines → truncate to LLM_TOOL_OUTPUT_MAX_LINES.
+/// Pipeline: strip ANSI → dedup repeated lines → truncate to MODEL_TOOL_OUTPUT_MAX_LINES.
 /// Inspired by squeez (claudioemmanuel/squeez). Default: unlimited, fully opt-in.
 /// The truncation header tells the LLM how much was hidden so it can request more.
 pub(crate) fn compress_tool_output(output: &str) -> String {
-    let max_lines = std::env::var("LLM_TOOL_OUTPUT_MAX_LINES")
+    let max_lines = std::env::var("MODEL_TOOL_OUTPUT_MAX_LINES")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(usize::MAX);

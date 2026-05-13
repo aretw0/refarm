@@ -43,7 +43,7 @@ fn agent_response_schema_has_required_fields() {
         "sequence":   0,
         "is_final":   true,
         "tool_calls": tool_calls,
-        "llm": { "model": model, "tokens_in": tokens_in, "tokens_out": tokens_out, "duration_ms": 0u64 },
+        "inference": { "model": model, "tokens_in": tokens_in, "tokens_out": tokens_out, "duration_ms": 0u64 },
     });
 
     for field in [
@@ -54,7 +54,7 @@ fn agent_response_schema_has_required_fields() {
         "sequence",
         "is_final",
         "tool_calls",
-        "llm",
+        "inference",
     ] {
         assert!(
             node.get(field).is_some(),
@@ -65,6 +65,6 @@ fn agent_response_schema_has_required_fields() {
     assert_eq!(node["is_final"], true);
     assert_eq!(node["sequence"], 0);
     for sub in ["model", "tokens_in", "tokens_out", "duration_ms"] {
-        assert!(node["llm"].get(sub).is_some(), "llm missing: {sub}");
+        assert!(node["inference"].get(sub).is_some(), "inference missing: {sub}");
     }
 }
