@@ -16,6 +16,11 @@ export type TaskExecutorFn = (
 	effortId: string,
 ) => Promise<{ status: "ok" | "error"; result?: unknown; error?: string }>;
 
+export interface FileTransportOptions {
+	onEffortStart?: (effortId: string, pluginIds: string[]) => void;
+	onEffortEnd?: (effortId: string) => void;
+}
+
 const DEFAULT_MAX_ATTEMPTS = 2;
 const TERMINAL_STATUSES = new Set<EffortStatus>(["done", "failed", "cancelled"]);
 
@@ -69,6 +74,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 	constructor(
 		baseDir: string,
 		private readonly executor: TaskExecutorFn,
+		private readonly options: FileTransportOptions = {},
 	) {
 		this.tasksDir = path.join(baseDir, "tasks");
 		this.resultsDir = path.join(baseDir, "task-results");
@@ -439,6 +445,8 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 		let cancelled = this.cancelRequests.has(effort.id);
 
 		this.inFlightEfforts.add(effort.id);
+		const pluginIds = effort.tasks.map((t) => t.pluginId);
+		this.options.onEffortStart?.(effort.id, pluginIds);
 		this.writeEffortResult({
 			effortId: effort.id,
 			status: cancelled ? "cancelled" : "in-progress",
@@ -645,6 +653,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 			});
 		} finally {
 			this.inFlightEfforts.delete(effort.id);
+			this.options.onEffortEnd?.(effort.id);
 			if (
 				TERMINAL_STATUSES.has(
 					this.readEffortResult(effort.id)?.status ?? "pending",
