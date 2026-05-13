@@ -1,7 +1,7 @@
 # Feature: Farmhand Graceful Plugin Reload
 
 **Status**: Planned
-**Version**: v0.2.0
+**Version**: v0.1.0
 **Owner**: Arthur Silva
 
 ---
