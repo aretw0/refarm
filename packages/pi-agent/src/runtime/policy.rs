@@ -23,7 +23,7 @@ pub(crate) fn context_limit_error(prompt: &str) -> Option<ReactResult> {
 
 #[cfg(target_arch = "wasm32")]
 fn task_context_for_prompt() -> Option<String> {
-    let n = std::env::var("LLM_TASK_CONTEXT_TURNS")
+    let n = std::env::var("MODEL_TASK_CONTEXT_TURNS")
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(0);

@@ -7,7 +7,7 @@ mod structured_tools;
 mod task_tools;
 
 fn pre_tool_budget_enabled() -> bool {
-    match std::env::var("LLM_PRE_TOOL_BUDGET") {
+    match std::env::var("MODEL_PRE_TOOL_BUDGET") {
         Ok(v) => {
             let n = v.trim().to_ascii_lowercase();
             !matches!(n.as_str(), "0" | "false" | "no" | "off")
