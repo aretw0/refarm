@@ -85,7 +85,7 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 			const manualPromise = callbacks.onManualCodeInput().then((v) => {
 				manualInput = v;
 				server.cancelWait();
-			}).catch(() => server.cancelWait());
+			}).catch((err: unknown) => { server.cancelWait(); throw err; });
 
 			const result = await server.waitForCode();
 			if (result?.code) {
