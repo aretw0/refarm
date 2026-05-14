@@ -5,8 +5,8 @@
 pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
     matches!(
         upper,
-        "LLM_SHELL_ALLOWLIST"
-            | "LLM_FS_ROOT"
+        "MODEL_SHELL_ALLOWLIST"
+            | "MODEL_FS_ROOT"
             | "LLM_TRUSTED_PLUGINS"
             | "LLM_USER"
             | "LLM_USER_NAME"

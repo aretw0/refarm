@@ -256,7 +256,6 @@ mod tests {
     #[test]
     fn disallowed_llm_forward_env_helper_matches_expected_cases() {
         let blocked = [
-            "LLM_SHELL_ALLOWLIST",
             "LLM_GITHUB_TOKEN",
             "LLM_PROVIDER_WEBHOOK_SECRET",
             "LLM_AWS_EC2_METADATA_TOKEN",
@@ -288,7 +287,7 @@ mod tests {
             );
         }
 
-        let key_blocked = ["LLM_GITHUB_TOKEN", "LLM_SHELL_ALLOWLIST", "LLM_AWS_FOO_BAR"];
+        let key_blocked = ["LLM_GITHUB_TOKEN", "LLM_USER", "LLM_AWS_FOO_BAR"];
         for key in key_blocked {
             assert!(
                 !is_forwardable_llm_env_key(key),

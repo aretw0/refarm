@@ -46,8 +46,6 @@
 
         let blocked = [
             "LLM_",
-            "LLM_SHELL_ALLOWLIST",
-            "LLM_FS_ROOT",
             "LLM_TRUSTED_PLUGINS",
             "LLM_USER",
             "LLM_USER_NAME",

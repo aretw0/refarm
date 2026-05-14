@@ -215,6 +215,7 @@ fn write_sse_http_response(stream: &mut TcpStream, body: &str) -> std::io::Resul
 /// Clear all env vars touched by the harness to prevent cross-test leakage.
 fn clean_llm_env() {
     for var in ["LLM_PROVIDER","LLM_BASE_URL","LLM_MODEL","LLM_HISTORY_TURNS",
+                "MODEL_FS_ROOT","MODEL_SHELL_ALLOWLIST",
                 "LLM_MAX_CONTEXT_TOKENS","LLM_FALLBACK_PROVIDER",
                 "LLM_BUDGET_OLLAMA_USD","LLM_BUDGET_ANTHROPIC_USD","LLM_BUDGET_OPENAI_USD",
                 "LLM_TOOL_CALL_MAX_ITER","LLM_TOOL_OUTPUT_MAX_LINES","LLM_STREAM_RESPONSES","LLM_SYSTEM",
@@ -1232,7 +1233,7 @@ async fn harness_write_structured_tool_creates_file() {
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_FS_ROOT", dir.path().to_str().unwrap());
+    std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
@@ -1254,7 +1255,7 @@ async fn harness_write_structured_tool_creates_file() {
     assert_eq!(parsed["value"], 42);
 
     clean_llm_env();
-    std::env::remove_var("LLM_FS_ROOT");
+    std::env::remove_var("MODEL_FS_ROOT");
 }
 
 #[tokio::test]
@@ -1304,7 +1305,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
 
     let port = mock_llm_server_sequence(vec![tool_call_resp, final_resp]).await;
     std::env::set_var("LLM_BASE_URL", format!("http://127.0.0.1:{port}"));
-    std::env::set_var("LLM_FS_ROOT", dir.path().to_str().unwrap());
+    std::env::set_var("MODEL_FS_ROOT", dir.path().to_str().unwrap());
 
     let sync = make_sync();
     let host = PluginHost::new(TrustManager::new(), TelemetryBus::new(100)).unwrap();
@@ -1328,7 +1329,7 @@ async fn harness_read_structured_tool_returns_paginated_header() {
     );
 
     clean_llm_env();
-    std::env::remove_var("LLM_FS_ROOT");
+    std::env::remove_var("MODEL_FS_ROOT");
 }
 
 // ── Multi-agent swarm harness ─────────────────────────────────────────────────

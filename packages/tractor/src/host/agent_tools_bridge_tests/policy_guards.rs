@@ -109,7 +109,7 @@
         let outside = outside_dir.path();
 
         let err = enforce_spawn_cwd_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
-        assert!(err.contains("cwd outside LLM_FS_ROOT"));
+        assert!(err.contains("cwd outside MODEL_FS_ROOT"));
     }
 
     #[test]
@@ -179,8 +179,8 @@
     #[test]
     fn shell_allowlist_env_unset_wrapper_still_enforces_argv_count_cap() {
         let _guard = ENV_LOCK.lock().unwrap();
-        let prev = std::env::var("LLM_SHELL_ALLOWLIST").ok();
-        std::env::remove_var("LLM_SHELL_ALLOWLIST");
+        let prev = std::env::var("MODEL_SHELL_ALLOWLIST").ok();
+        std::env::remove_var("MODEL_SHELL_ALLOWLIST");
 
         let mut argv = vec!["echo".to_string()];
         argv.extend((0..128).map(|i| i.to_string()));
@@ -189,7 +189,7 @@
         assert!(err.contains("too many argv entries"));
 
         if let Some(prev) = prev {
-            std::env::set_var("LLM_SHELL_ALLOWLIST", prev);
+            std::env::set_var("MODEL_SHELL_ALLOWLIST", prev);
         }
     }
 
@@ -439,7 +439,7 @@
         let outside = outside_dir.path().join("escape.txt");
 
         let err = enforce_fs_root_with(outside.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
-        assert!(err.contains("path outside LLM_FS_ROOT"));
+        assert!(err.contains("path outside MODEL_FS_ROOT"));
     }
 
     #[test]
@@ -494,7 +494,7 @@
     #[test]
     fn fs_root_empty_marker_blocks_all_paths() {
         let err = enforce_fs_root_with("/tmp/anything", Some(Path::new(""))).unwrap_err();
-        assert!(err.contains("path outside LLM_FS_ROOT"));
+        assert!(err.contains("path outside MODEL_FS_ROOT"));
     }
 
     #[test]
@@ -504,7 +504,7 @@
         let escape = root.join("..").join("outside.txt");
 
         let err = enforce_fs_root_with(escape.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
-        assert!(err.contains("path outside LLM_FS_ROOT"));
+        assert!(err.contains("path outside MODEL_FS_ROOT"));
     }
 
     #[test]
@@ -519,7 +519,7 @@
 
         let err = enforce_fs_root_with(escape.to_string_lossy().as_ref(), Some(&root)).unwrap_err();
         assert!(
-            err.contains("path outside LLM_FS_ROOT") || err.contains("resolve path("),
+            err.contains("path outside MODEL_FS_ROOT") || err.contains("resolve path("),
             "unexpected error: {err}"
         );
     }

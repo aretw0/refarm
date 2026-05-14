@@ -66,7 +66,7 @@ fn enforce_spawn_cwd_with(cwd: &str, fs_root: Option<&Path>) -> Result<(), Strin
     }
     if let Some(root) = fs_root {
         if enforce_fs_root_with(cwd, Some(root)).is_err() {
-            return Err("spawn: cwd outside LLM_FS_ROOT".to_string());
+            return Err("spawn: cwd outside MODEL_FS_ROOT".to_string());
         }
     }
     let metadata = std::fs::metadata(cwd)
@@ -222,7 +222,7 @@ fn parse_trusted_plugins(
 }
 
 fn shell_allowlist_from_env() -> Option<std::collections::HashSet<String>> {
-    let raw = std::env::var("LLM_SHELL_ALLOWLIST").ok()?;
+    let raw = std::env::var("MODEL_SHELL_ALLOWLIST").ok()?;
     Some(parse_shell_allowlist(&raw))
 }
 
@@ -332,33 +332,33 @@ fn enforce_spawn_argv_within_limits(argv: &[String]) -> Result<(), String> {
 }
 
 fn configured_fs_root() -> Result<Option<PathBuf>, String> {
-    let Ok(raw) = std::env::var("LLM_FS_ROOT") else {
+    let Ok(raw) = std::env::var("MODEL_FS_ROOT") else {
         return Ok(None);
     };
     if raw.len() > MAX_FS_PATH_LEN {
-        return Err("[blocked: invalid LLM_FS_ROOT: exceeds max length]".to_string());
+        return Err("[blocked: invalid MODEL_FS_ROOT: exceeds max length]".to_string());
     }
     if contains_control_chars(&raw) {
-        return Err("[blocked: invalid LLM_FS_ROOT: contains control characters]".to_string());
+        return Err("[blocked: invalid MODEL_FS_ROOT: contains control characters]".to_string());
     }
     if !raw.is_ascii() {
-        return Err("[blocked: invalid LLM_FS_ROOT: must be ascii]".to_string());
+        return Err("[blocked: invalid MODEL_FS_ROOT: must be ascii]".to_string());
     }
     let trimmed = raw.trim();
     if trimmed.is_empty() {
         return Ok(Some(PathBuf::new()));
     }
     if trimmed != raw {
-        return Err("[blocked: invalid LLM_FS_ROOT: surrounding whitespace not allowed]".to_string());
+        return Err("[blocked: invalid MODEL_FS_ROOT: surrounding whitespace not allowed]".to_string());
     }
     if raw.chars().any(|c| c.is_whitespace()) {
-        return Err("[blocked: invalid LLM_FS_ROOT: whitespace not allowed]".to_string());
+        return Err("[blocked: invalid MODEL_FS_ROOT: whitespace not allowed]".to_string());
     }
     let root = std::fs::canonicalize(trimmed)
-        .map_err(|e| format!("[blocked: invalid LLM_FS_ROOT '{trimmed}': {e}]"))?;
+        .map_err(|e| format!("[blocked: invalid MODEL_FS_ROOT '{trimmed}': {e}]"))?;
     if !root.is_dir() {
         return Err(format!(
-            "[blocked: invalid LLM_FS_ROOT '{trimmed}': must be a directory]"
+            "[blocked: invalid MODEL_FS_ROOT '{trimmed}': must be a directory]"
         ));
     }
     Ok(Some(root))
@@ -375,14 +375,14 @@ fn enforce_fs_root_with(path: &str, fs_root: Option<&Path>) -> Result<(), String
     };
 
     if root.as_os_str().is_empty() {
-        return Err("[blocked: path outside LLM_FS_ROOT]".into());
+        return Err("[blocked: path outside MODEL_FS_ROOT]".into());
     }
 
     let resolved = resolve_for_fs_policy(path)?;
     if resolved.starts_with(root) {
         Ok(())
     } else {
-        Err("[blocked: path outside LLM_FS_ROOT]".into())
+        Err("[blocked: path outside MODEL_FS_ROOT]".into())
     }
 }
 
