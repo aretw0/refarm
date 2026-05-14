@@ -35,7 +35,6 @@ vi.mock("@refarm.dev/plugin-manifest", async (importOriginal) => {
 
 import { loadInstalledPlugins, listInstalledPluginIds } from "../installed-plugins.js";
 import { installWasmArtifact, createMockManifest } from "@refarm.dev/plugin-manifest";
-import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
 
 function makeAdapter() {
 	return {

@@ -53,7 +53,7 @@ async function resolveTargetSession(
 	return readActive() ?? newSessionId();
 }
 
-async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
+async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 	const response = await fetch("http://127.0.0.1:42001/sessions");
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
