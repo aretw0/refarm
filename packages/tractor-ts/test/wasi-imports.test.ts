@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WasiImports } from "../src/lib/wasi-imports";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
@@ -255,6 +258,38 @@ describe("WasiImports — versioned WASI keys", () => {
   it("generates @0.2.0 variant for wasi:random/random", () => {
     const { imports } = makeImports("strict");
     expect(imports["wasi:random/random@0.2.0"]).toBeDefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Drift prevention: every refarm:plugin/* import in the transpiled pi-agent
+// artifact must have a matching key registered by WasiImports.generate().
+// If this test fails after a WIT rename, regenerate .jco-dist:
+//   cargo component build --release --target wasm32-wasip1  (in packages/pi-agent)
+//   npx jco transpile <wasm> --name _refarm_pi_agent --out-dir .jco-dist/@refarm/pi-agent --no-nodejs-compat --import-bindings hybrid
+// ---------------------------------------------------------------------------
+describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
+  it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
+    const distDir = resolve(
+      fileURLToPath(import.meta.url),
+      "../../src/.jco-dist/@refarm/pi-agent",
+    );
+    const js = readFileSync(resolve(distDir, "_refarm_pi_agent.js"), "utf-8");
+
+    // Extract all unique 'refarm:plugin/X' strings from import statements.
+    const imported = new Set<string>();
+    for (const m of js.matchAll(/from\s+'(refarm:plugin\/[^']+)'/g)) {
+      imported.add(m[1]!.replace(/@[\d.]+$/, "")); // strip version suffix
+    }
+
+    const emit = vi.fn();
+    const logger = { debug: vi.fn(), warn: vi.fn(), info: vi.fn(), error: vi.fn() };
+    const wasi = new WasiImports("drift-check", logger, emit);
+    const generated = wasi.generate(createMockManifest(), "strict") as Record<string, unknown>;
+
+    for (const key of imported) {
+      expect(generated, `Host is missing registration for '${key}' — WIT was renamed but wasi-imports.ts was not updated`).toHaveProperty(key);
+    }
   });
 });
 
