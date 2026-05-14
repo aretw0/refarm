@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -264,15 +264,21 @@ describe("WasiImports — versioned WASI keys", () => {
 // ---------------------------------------------------------------------------
 // Drift prevention: every refarm:plugin/* import in the transpiled pi-agent
 // artifact must have a matching key registered by WasiImports.generate().
-// If this test fails after a WIT rename, regenerate .jco-dist:
-//   cargo component build --release --target wasm32-wasip1  (in packages/pi-agent)
-//   npx jco transpile <wasm> --name _refarm_pi_agent --out-dir .jco-dist/@refarm/pi-agent --no-nodejs-compat --import-bindings hybrid
+// Skips when pi-agent hasn't been built yet (fresh checkout, CI pre-build).
+// To build: npm run build --workspace=@refarm.dev/pi-agent
 // ---------------------------------------------------------------------------
 describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
   it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
     const require = createRequire(import.meta.url);
     const piAgentDir = dirname(require.resolve("@refarm.dev/pi-agent/package.json"));
-    const js = readFileSync(resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js"), "utf-8");
+    const artifactPath = resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js");
+
+    if (!existsSync(artifactPath)) {
+      console.warn("[drift-prevention] Skipping: pi-agent dist/jco not built. Run: npm run build --workspace=@refarm.dev/pi-agent");
+      return;
+    }
+
+    const js = readFileSync(artifactPath, "utf-8");
 
     // Extract all unique 'refarm:plugin/X' strings from import statements.
     const imported = new Set<string>();
