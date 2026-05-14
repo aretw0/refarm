@@ -1,0 +1,32 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"tasks": {
+		"build": {
+			"inputs": [
+				"src/**/*.rs",
+				"wit/**",
+				"Cargo.toml",
+				"Cargo.lock"
+			],
+			"outputs": [
+				"dist/**"
+			]
+		},
+		"test": {
+			"inputs": [
+				"src/**/*.rs",
+				"wit/**",
+				"Cargo.toml",
+				"Cargo.lock"
+			]
+		},
+		"test:unit": {
+			"inputs": [
+				"src/**/*.rs",
+				"wit/**",
+				"Cargo.toml",
+				"Cargo.lock"
+			]
+		}
+	}
+}

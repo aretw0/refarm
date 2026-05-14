@@ -56,6 +56,7 @@
 	},
 	"devDependencies": {
 		"@refarm.dev/hello-world-plugin": "*",
+		"@refarm.dev/pi-agent": "*",
 		"@refarm.dev/eslint-config": "*",
 		"@refarm.dev/tsconfig": "*",
 		"nostr-tools": "^2.23.3"

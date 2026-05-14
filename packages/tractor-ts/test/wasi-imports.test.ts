@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import { dirname, resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WasiImports } from "../src/lib/wasi-imports";
 import { createMockManifest } from "@refarm.dev/plugin-manifest";
@@ -270,11 +270,9 @@ describe("WasiImports — versioned WASI keys", () => {
 // ---------------------------------------------------------------------------
 describe("WasiImports — drift prevention: .jco-dist matches registered imports", () => {
   it("every refarm:plugin/* import in _refarm_pi_agent.js has a host registration", () => {
-    const distDir = resolve(
-      fileURLToPath(import.meta.url),
-      "../../src/.jco-dist/@refarm/pi-agent",
-    );
-    const js = readFileSync(resolve(distDir, "_refarm_pi_agent.js"), "utf-8");
+    const require = createRequire(import.meta.url);
+    const piAgentDir = dirname(require.resolve("@refarm.dev/pi-agent/package.json"));
+    const js = readFileSync(resolve(piAgentDir, "dist/jco/_refarm_pi_agent.js"), "utf-8");
 
     // Extract all unique 'refarm:plugin/X' strings from import statements.
     const imported = new Set<string>();
