@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generatePKCE } from "./pkce.js";
+import { generatePKCE, base64urlEncode } from "./pkce.js";
 
 describe("generatePKCE", () => {
 	it("returns verifier and challenge as non-empty strings", async () => {
@@ -29,5 +29,13 @@ describe("generatePKCE", () => {
 		const a = await generatePKCE();
 		const b = await generatePKCE();
 		expect(a.verifier).not.toBe(b.verifier);
+	});
+
+	it("challenge equals BASE64URL(SHA-256(verifier))", async () => {
+		const { verifier, challenge } = await generatePKCE();
+		const encoded = new TextEncoder().encode(verifier);
+		const hashBuffer = await crypto.subtle.digest("SHA-256", encoded);
+		const expected = base64urlEncode(new Uint8Array(hashBuffer));
+		expect(challenge).toBe(expected);
 	});
 });
