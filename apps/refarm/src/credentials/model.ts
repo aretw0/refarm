@@ -99,12 +99,12 @@ export const modelCredentialProvider: CredentialProvider & {
 			| { kind: "ollama" };
 
 		const choices = [
-			new Separator("── Subscription (your existing account) ──"),
+			new Separator("── Subscription ──"),
 			...OAUTH_PROVIDERS.map((p) => ({
 				name: p.name,
 				value: { kind: "oauth" as const, id: p.id },
 			})),
-			new Separator("── Pay-per-use API key ──"),
+			new Separator("── API key ──"),
 			...API_KEY_PROVIDERS.map((p) => ({
 				name: p.label,
 				value: { kind: "api" as const, id: p.id },
