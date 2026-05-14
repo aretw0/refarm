@@ -228,6 +228,7 @@ async function injectSiloModelEnv(): Promise<void> {
 						});
 					} else {
 						console.warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} — agent may fail`);
+						return; // Don't inject an expired token
 					}
 				}
 				const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];

@@ -97,7 +97,7 @@ if [ -f "$ENV_FILE" ]; then
   set +a
 else
   echo "⚠   No .refarm/.env found. LLM calls may fail without API keys."
-  echo "   Run: node scripts/setup-model-keys.mjs"
+  echo "   Run: refarm sow"
 fi
 
 # ── provider selection ────────────────────────────────────────────────────────
