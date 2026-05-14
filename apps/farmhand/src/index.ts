@@ -169,15 +169,77 @@ const MODEL_ENV_KEY: Record<string, string> = {
 	gemini: "GEMINI_API_KEY",
 };
 
+interface OAuthCreds { access: string; refresh: string; expires: number }
+
+const OAUTH_TOKEN_URLS: Record<string, string> = {
+	anthropic: "https://platform.claude.com/v1/oauth/token",
+	"openai-codex": "https://auth.openai.com/oauth/token",
+};
+const OAUTH_CLIENT_IDS: Record<string, string> = {
+	anthropic: "9d1c250a-e61b-44d9-88ed-5944d1962f5e",
+	"openai-codex": "app_EMoamEEZ73f0CkXaXp7hrann",
+};
+
+async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
+	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
+	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
+	if (!tokenUrl || !clientId) return null;
+	try {
+		const isOpenAI = oauthProvider === "openai-codex";
+		const body = isOpenAI
+			? new URLSearchParams({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh })
+			: JSON.stringify({ grant_type: "refresh_token", client_id: clientId, refresh_token: creds.refresh });
+		const headers = isOpenAI
+			? { "content-type": "application/x-www-form-urlencoded" }
+			: { "content-type": "application/json", accept: "application/json" };
+		const res = await fetch(tokenUrl, { method: "POST", headers, body, signal: AbortSignal.timeout(15_000) });
+		if (!res.ok) return null;
+		const d = isOpenAI
+			? (await res.json()) as { access_token: string; refresh_token: string; expires_in: number }
+			: JSON.parse(await res.text()) as { access_token: string; refresh_token: string; expires_in: number };
+		return { access: d.access_token, refresh: d.refresh_token, expires: Date.now() + d.expires_in * 1000 - 300_000 };
+	} catch {
+		return null;
+	}
+}
+
 async function injectSiloModelEnv(): Promise<void> {
 	try {
-		const tokens = (await new SiloCore().loadTokens()) as Record<string, string | undefined>;
-		const provider = tokens.modelProvider;
-		const apiKey = tokens.modelApiKey;
+		const silo = new SiloCore();
+		const tokens = (await silo.loadTokens()) as Record<string, unknown>;
+		const provider = tokens.modelProvider as string | undefined;
+		const oauthProvider = tokens.oauthProvider as string | undefined;
 
 		if (provider && !process.env.MODEL_PROVIDER) {
 			process.env.MODEL_PROVIDER = provider;
 		}
+
+		// OAuth path: use (and possibly refresh) stored OAuth token
+		if (oauthProvider) {
+			const allOAuth = (tokens.oauthCredentials ?? {}) as Record<string, OAuthCreds>;
+			let creds = allOAuth[oauthProvider];
+			if (creds) {
+				if (Date.now() >= creds.expires) {
+					const refreshed = await refreshOAuthToken(oauthProvider, creds);
+					if (refreshed) {
+						creds = refreshed;
+						await silo.saveTokens({
+							oauthCredentials: { ...allOAuth, [oauthProvider]: refreshed },
+						});
+					} else {
+						console.warn(`[farmhand] OAuth token refresh failed for ${oauthProvider} — agent may fail`);
+					}
+				}
+				const envKey = MODEL_ENV_KEY[provider ?? oauthProvider];
+				if (envKey && !process.env[envKey]) {
+					process.env[envKey] = creds.access;
+				}
+				return;
+			}
+		}
+
+		// API key fallback
+		const apiKey = tokens.modelApiKey as string | undefined;
 		if (apiKey && provider) {
 			const envKey = MODEL_ENV_KEY[provider];
 			if (envKey && !process.env[envKey]) {
