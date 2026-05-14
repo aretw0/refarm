@@ -85,7 +85,7 @@ export const modelCredentialProvider: CredentialProvider & {
 		const choices = [
 			new Separator("── Subscription (your existing account) ──"),
 			...OAUTH_PROVIDERS.map((p) => ({
-				name: `${p.name}  ${chalk.dim("[login — no API credits needed]")}`,
+				name: p.name,
 				value: { kind: "oauth" as const, id: p.id },
 			})),
 			new Separator("── Pay-per-use API key ──"),
