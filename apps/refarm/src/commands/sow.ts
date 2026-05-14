@@ -9,6 +9,7 @@ import {
 	cloudflareCredentialProvider,
 	modelCredentialProvider,
 } from "../credentials/index.js";
+import { OAUTH_PROVIDER_TO_MODEL_PROVIDER } from "../credentials/model.js";
 
 interface SowOptions {
 	model?: boolean;
@@ -47,10 +48,25 @@ export const sowCommand = new Command("sow")
 					console.log(chalk.dim(`  Model: reconfiguring (was: ${stored.modelProvider})`));
 				}
 				const credential = await modelCredentialProvider.collectModel(ctx);
-				await silo.saveTokens({
-					modelProvider: credential.provider,
-					...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
-				});
+
+				if (credential.oauthCredentials) {
+					const modelProvider = OAUTH_PROVIDER_TO_MODEL_PROVIDER[credential.provider] ?? credential.provider;
+					const existingTokens = (await silo.loadTokens()) as Record<string, unknown>;
+					await silo.saveTokens({
+						modelProvider,
+						oauthProvider: credential.provider,
+						oauthCredentials: {
+							...(existingTokens.oauthCredentials ?? {}),
+							[credential.provider]: credential.oauthCredentials,
+						},
+					});
+				} else {
+					await silo.saveTokens({
+						modelProvider: credential.provider,
+						...(credential.apiKey ? { modelApiKey: credential.apiKey } : {}),
+						oauthProvider: undefined,
+					});
+				}
 			} else {
 				console.log(chalk.dim(`  Model: already configured (${stored.modelProvider}) — skipped`));
 			}
