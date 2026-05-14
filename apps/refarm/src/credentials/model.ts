@@ -1,6 +1,7 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
-import { Separator } from "@inquirer/prompts";
+
+const { Separator } = inquirer;
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
