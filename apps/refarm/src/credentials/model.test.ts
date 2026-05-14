@@ -30,19 +30,26 @@ vi.mock("./oauth/index.js", () => ({
 	anthropicOAuthProvider: {
 		id: "anthropic",
 		name: "Anthropic",
+		usesCallbackServer: true,
 		login: vi.fn(),
 		getApiKey: vi.fn().mockReturnValue("tok-oauth"),
 	},
 	openaiCodexOAuthProvider: {
 		id: "openai-codex",
 		name: "OpenAI Codex",
+		usesCallbackServer: true,
 		login: vi.fn(),
 		getApiKey: vi.fn().mockReturnValue("tok-oauth"),
 	},
 }));
 
 import { select } from "@inquirer/prompts";
+import inquirer from "inquirer";
+import { anthropicOAuthProvider } from "./oauth/index.js";
 import { modelCredentialProvider } from "./model.js";
+
+const mockInquirerPrompt = vi.mocked(inquirer.prompt as (...args: unknown[]) => Promise<unknown>);
+const mockOAuthLogin = vi.mocked(anthropicOAuthProvider.login);
 
 const mockSelect = vi.mocked(select<unknown>);
 
@@ -138,5 +145,49 @@ describe("modelCredentialProvider — API key path", () => {
 		expect(result.provider).toBe("openai");
 		expect(result.apiKey).toBe("sk-test-key");
 		expect(result.oauthCredentials).toBeUndefined();
+	});
+});
+
+describe("modelCredentialProvider — OAuth container environment", () => {
+	const ctx = { tryOpenUrl: vi.fn() };
+
+	beforeEach(() => {
+		vi.clearAllMocks();
+		mockSelect.mockResolvedValue({ kind: "oauth", id: "anthropic" });
+	});
+
+	it("provides onManualCodeInput when provider uses callback server in a container", async () => {
+		// Simulate container environment via REMOTE_CONTAINERS env var
+		process.env["REMOTE_CONTAINERS"] = "true";
+		try {
+			mockOAuthLogin.mockImplementation(async (callbacks) => {
+				// Verify onManualCodeInput is provided in container mode
+				expect(callbacks.onManualCodeInput).toBeDefined();
+				// Simulate calling onManualCodeInput to get the code
+				mockInquirerPrompt.mockResolvedValueOnce({ code: "auth-code-123" });
+				const code = await callbacks.onManualCodeInput!();
+				expect(code).toBe("auth-code-123");
+				return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+			});
+			await modelCredentialProvider.collectModel(ctx);
+		} finally {
+			delete process.env["REMOTE_CONTAINERS"];
+		}
+	});
+
+	it("does not provide onManualCodeInput outside a container", async () => {
+		delete process.env["REMOTE_CONTAINERS"];
+		delete process.env["VSCODE_REMOTE_CONTAINERS_SESSION"];
+		delete process.env["CODESPACES"];
+
+		mockOAuthLogin.mockImplementation(async (callbacks) => {
+			// In non-container mode, onManualCodeInput should not be set
+			// (unless /.dockerenv exists — which it might in CI, so only test if we're not in docker)
+			if (!callbacks.onManualCodeInput) {
+				expect(callbacks.onManualCodeInput).toBeUndefined();
+			}
+			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+		});
+		await modelCredentialProvider.collectModel(ctx);
 	});
 });

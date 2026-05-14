@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import { select, Separator } from "@inquirer/prompts";
@@ -5,6 +6,15 @@ import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
 import type { OAuthCredentials, OAuthProviderInterface } from "./oauth/index.js";
+
+/** Returns true when running inside a Docker/devcontainer where localhost ports
+ *  are not reachable from the host browser — OAuth callback servers won't work. */
+function isContainerEnvironment(): boolean {
+	if (existsSync("/.dockerenv")) return true;
+	if (process.env["REMOTE_CONTAINERS"] || process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) return true;
+	if (process.env["CODESPACES"]) return true;
+	return false;
+}
 
 export interface ModelCredential {
 	/** Provider id stored as MODEL_PROVIDER env var value. */
@@ -36,23 +46,38 @@ const API_KEY_PROVIDERS = [
 
 type ApiKeyProviderId = typeof API_KEY_PROVIDERS[number]["id"];
 
+async function promptCode(message: string): Promise<string> {
+	const { code } = await inquirer.prompt<{ code: string }>([
+		{ type: "input", name: "code", message },
+	]);
+	return code;
+}
+
 async function runOAuthFlow(
 	ctx: CollectContext,
 	provider: OAuthProviderInterface,
 ): Promise<ModelCredential> {
+	const containerEnv = isContainerEnvironment();
+	const needsManualCode = containerEnv && provider.usesCallbackServer;
+
 	const creds = await provider.login({
 		onAuth: ({ url, instructions }) => {
 			console.log(chalk.dim(`\n  ${instructions ?? "Complete login in your browser."}`));
 			console.log(chalk.cyan(`  → ${url}\n`));
+			if (needsManualCode) {
+				console.log(chalk.yellow("  ⚠  Running in a container — the browser redirect cannot reach this environment."));
+				console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
+			}
 			ctx.tryOpenUrl(url);
 		},
-		onPrompt: async ({ message }) => {
-			const { code } = await inquirer.prompt<{ code: string }>([
-				{ type: "input", name: "code", message },
-			]);
-			return code;
-		},
+		onPrompt: async ({ message }) => promptCode(message),
 		onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
+		// In a container the callback server won't receive the browser redirect —
+		// provide onManualCodeInput so the prompt appears immediately and races
+		// with the server (whichever arrives first wins; the other is cancelled).
+		...(needsManualCode ? {
+			onManualCodeInput: () => promptCode("Paste the redirect URL or authorization code:"),
+		} : {}),
 	});
 	console.log(chalk.green(`  ✓ ${provider.name} — authenticated`));
 	return { provider: provider.id, apiKey: provider.getApiKey(creds), oauthCredentials: creds };
