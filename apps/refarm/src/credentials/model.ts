@@ -63,10 +63,10 @@ async function runOAuthFlow(
 		},
 		onPrompt: async ({ message }) => promptCode(message),
 		onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
-		// In a container the callback server won't receive the browser redirect —
-		// provide onManualCodeInput so the prompt appears immediately and races
-		// with the server (whichever arrives first wins; the other is cancelled).
+		// In a container the callback server cannot receive browser redirects —
+		// skip it entirely and prompt for the code directly.
 		...(needsManualCode ? {
+			skipCallbackServer: true,
 			onManualCodeInput: () => promptCode("Paste the redirect URL or authorization code:"),
 		} : {}),
 	});

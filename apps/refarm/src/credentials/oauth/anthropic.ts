@@ -56,7 +56,9 @@ async function exchangeCode(
 
 export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials> {
 	const { verifier, challenge } = await generatePKCE();
-	const server = await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: verifier });
+	const server = callbacks.skipCallbackServer
+		? { waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
+		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: verifier });
 
 	const authParams = new URLSearchParams({
 		code: "true",

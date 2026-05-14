@@ -23,6 +23,12 @@ export interface OAuthLoginCallbacks {
 	 * callback server runs concurrently. Whichever arrives first wins.
 	 */
 	onManualCodeInput?: () => Promise<string>;
+	/**
+	 * When true, the provider must skip starting a local callback HTTP server
+	 * and rely solely on onManualCodeInput / onPrompt for the code.
+	 * Use when the environment cannot receive browser redirects (e.g. containers).
+	 */
+	skipCallbackServer?: boolean;
 }
 
 export interface OAuthProviderInterface {

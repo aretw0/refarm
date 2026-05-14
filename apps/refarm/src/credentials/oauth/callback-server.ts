@@ -57,8 +57,18 @@ export async function startCallbackServer(options: {
 		}
 	});
 
-	return new Promise((resolve, reject) => {
-		server.on("error", reject);
+	return new Promise((resolve) => {
+		server.on("error", (err: NodeJS.ErrnoException) => {
+			server.close();
+			if (err.code === "EADDRINUSE") {
+				// Port occupied (leftover from a previous crashed session).
+				// Return a null server so callers fall through to manual code input.
+				resolve({ waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} });
+			} else {
+				// Unexpected error — surface it via waitForCode so callers can handle it.
+				resolve({ waitForCode: () => Promise.reject(err), cancelWait: () => {}, close: () => {} });
+			}
+		});
 		server.listen(port, "127.0.0.1", () => {
 			resolve({
 				waitForCode: () => codePromise,

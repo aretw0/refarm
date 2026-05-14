@@ -61,7 +61,9 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 	const { verifier, challenge } = await generatePKCE();
 	const state = Array.from(crypto.getRandomValues(new Uint8Array(16))).map((b) => b.toString(16).padStart(2, "0")).join("");
 
-	const server = await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: state });
+	const server = callbacks.skipCallbackServer
+		? { waitForCode: () => Promise.resolve(null), cancelWait: () => {}, close: () => {} }
+		: await startCallbackServer({ port: CALLBACK_PORT, path: CALLBACK_PATH, expectedState: state });
 
 	const url = new URL(AUTHORIZE_URL);
 	url.searchParams.set("response_type", "code");
