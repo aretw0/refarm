@@ -1,7 +1,6 @@
 import chalk from "chalk";
 import inquirer from "inquirer";
-
-const { Separator } = inquirer;
+import { select, Separator } from "@inquirer/prompts";
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
@@ -98,10 +97,7 @@ export const modelCredentialProvider: CredentialProvider & {
 			{ name: "Ollama  (no key required)", value: { kind: "ollama" as const } },
 		];
 
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const { choice } = await (inquirer.prompt as any)([
-			{ type: "select", name: "choice", message: "Select provider:", choices, pageSize: 16 },
-		]) as { choice: Choice };
+		const choice = await select<Choice>({ message: "Select provider:", choices, pageSize: 16 });
 
 		if (choice.kind === "ollama") {
 			console.log(chalk.green("  ✓ Ollama selected — make sure Ollama is running: ollama serve"));

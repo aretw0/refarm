@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock inquirer before the module loads so collectModel never blocks on TTY
-vi.mock("inquirer", () => {
+// Mock @inquirer/prompts — the select call blocks on TTY without this
+vi.mock("@inquirer/prompts", () => {
 	class MockSeparator {
 		type = "separator" as const;
 		separator: string;
@@ -9,11 +9,16 @@ vi.mock("inquirer", () => {
 			this.separator = text;
 		}
 	}
-	const prompt = vi.fn();
 	return {
-		default: { prompt, Separator: MockSeparator },
+		select: vi.fn(),
+		Separator: MockSeparator,
 	};
 });
+
+// inquirer is still used for the OAuth code prompt — keep it mockable
+vi.mock("inquirer", () => ({
+	default: { prompt: vi.fn() },
+}));
 
 // secretInput would block on TTY — mock it to resolve immediately
 vi.mock("../prompts/secret-input.js", () => ({
@@ -36,14 +41,14 @@ vi.mock("./oauth/index.js", () => ({
 	},
 }));
 
-import inquirer from "inquirer";
+import { select } from "@inquirer/prompts";
 import { modelCredentialProvider } from "./model.js";
 
-const mockPrompt = vi.mocked(inquirer.prompt as (...args: unknown[]) => Promise<unknown>);
+const mockSelect = vi.mocked(select<unknown>);
 
-function capturedPromptConfig() {
-	const [[questions]] = mockPrompt.mock.calls as [unknown[]][][];
-	return (questions as Array<{ type: string; choices: unknown[] }>)[0];
+function capturedChoices(): readonly unknown[] {
+	const config = mockSelect.mock.calls[0]?.[0] as unknown as { choices: readonly unknown[] };
+	return config.choices;
 }
 
 describe("modelCredentialProvider — prompt config", () => {
@@ -52,17 +57,17 @@ describe("modelCredentialProvider — prompt config", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		// Default: user picks Ollama so we don't need extra mocks
-		mockPrompt.mockResolvedValue({ choice: { kind: "ollama" } });
+		mockSelect.mockResolvedValue({ kind: "ollama" });
 	});
 
-	it("uses type:select (not type:list — inquirer v13 dropped list)", async () => {
+	it("calls @inquirer/prompts select directly (not classic inquirer.prompt wrapper)", async () => {
 		await modelCredentialProvider.collectModel(ctx);
-		expect(capturedPromptConfig().type).toBe("select");
+		expect(mockSelect).toHaveBeenCalledOnce();
 	});
 
 	it("includes all API key providers in choices", async () => {
 		await modelCredentialProvider.collectModel(ctx);
-		const choices = capturedPromptConfig().choices;
+		const choices = capturedChoices();
 		const apiIds = choices
 			.filter((c): c is { value: { kind: "api"; id: string } } =>
 				typeof c === "object" && c !== null && (c as { value?: { kind?: string } }).value?.kind === "api",
@@ -80,7 +85,7 @@ describe("modelCredentialProvider — prompt config", () => {
 
 	it("includes OAuth providers in choices", async () => {
 		await modelCredentialProvider.collectModel(ctx);
-		const choices = capturedPromptConfig().choices;
+		const choices = capturedChoices();
 		const oauthIds = choices
 			.filter((c): c is { value: { kind: "oauth"; id: string } } =>
 				typeof c === "object" && c !== null && (c as { value?: { kind?: string } }).value?.kind === "oauth",
@@ -93,7 +98,7 @@ describe("modelCredentialProvider — prompt config", () => {
 
 	it("includes Ollama option", async () => {
 		await modelCredentialProvider.collectModel(ctx);
-		const choices = capturedPromptConfig().choices;
+		const choices = capturedChoices();
 		const hasOllama = choices.some(
 			(c) => typeof c === "object" && c !== null && (c as { value?: { kind?: string } }).value?.kind === "ollama",
 		);
@@ -102,7 +107,7 @@ describe("modelCredentialProvider — prompt config", () => {
 
 	it("includes Separator items for visual grouping", async () => {
 		await modelCredentialProvider.collectModel(ctx);
-		const choices = capturedPromptConfig().choices;
+		const choices = capturedChoices();
 		const separators = choices.filter(
 			(c) => typeof c === "object" && c !== null && (c as { type?: string }).type === "separator",
 		);
@@ -116,7 +121,7 @@ describe("modelCredentialProvider — Ollama path", () => {
 	beforeEach(() => vi.clearAllMocks());
 
 	it("returns provider:ollama and apiKey:null", async () => {
-		mockPrompt.mockResolvedValue({ choice: { kind: "ollama" } });
+		mockSelect.mockResolvedValue({ kind: "ollama" });
 		const result = await modelCredentialProvider.collectModel(ctx);
 		expect(result).toEqual({ provider: "ollama", apiKey: null });
 	});
@@ -128,7 +133,7 @@ describe("modelCredentialProvider — API key path", () => {
 	beforeEach(() => vi.clearAllMocks());
 
 	it("returns provider id and the pasted key", async () => {
-		mockPrompt.mockResolvedValue({ choice: { kind: "api", id: "openai" } });
+		mockSelect.mockResolvedValue({ kind: "api", id: "openai" });
 		const result = await modelCredentialProvider.collectModel(ctx);
 		expect(result.provider).toBe("openai");
 		expect(result.apiKey).toBe("sk-test-key");
