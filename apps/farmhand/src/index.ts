@@ -10,7 +10,7 @@
  *  - FarmhandTask nodes → execute the plugin function, write result back to graph
  */
 
-import { mkdir } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { SiloCore } from "@refarm.dev/silo";
@@ -252,9 +252,37 @@ async function injectSiloModelEnv(): Promise<void> {
 	}
 }
 
+async function injectConfigEnv(): Promise<void> {
+	try {
+		const cfgPath = path.join(os.homedir(), ".refarm", "config.json");
+		const raw = await readFile(cfgPath, "utf8").catch(() => null);
+		if (!raw) return;
+		const cfg = JSON.parse(raw) as Record<string, unknown>;
+
+		const envMap: Record<string, string> = {
+			MODEL_FS_ROOT:            "MODEL_FS_ROOT",
+			MODEL_SHELL_ALLOWLIST:    "MODEL_SHELL_ALLOWLIST",
+			MODEL_HISTORY_TURNS:      "MODEL_HISTORY_TURNS",
+			MODEL_TOOL_CALL_MAX_ITER: "MODEL_TOOL_CALL_MAX_ITER",
+			MODEL_STREAM_RESPONSES:   "MODEL_STREAM_RESPONSES",
+			MODEL_SYSTEM:             "MODEL_SYSTEM",
+		};
+
+		for (const [cfgKey, envKey] of Object.entries(envMap)) {
+			const v = cfg[cfgKey];
+			if (v !== undefined && v !== null && !process.env[envKey]) {
+				process.env[envKey] = String(v);
+			}
+		}
+	} catch {
+		// config injection is best-effort
+	}
+}
+
 async function main() {
 	console.log(`[farmhand] Booting (id=${FARMHAND_ID})...`);
 	await injectSiloModelEnv();
+	await injectConfigEnv();
 
 	// CQRS: LoroDoc is the write model; memoryStorage is the read model.
 	// LoroCRDTStorage implements both StorageAdapter and SyncAdapter.

@@ -5,7 +5,7 @@
 #   ./scripts/tractor-start.sh                          # foreground (default)
 #   ./scripts/tractor-start.sh --background             # background with PID file
 #   ./scripts/tractor-start.sh --namespace myproject    # custom namespace
-#   LLM_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
+#   MODEL_PROVIDER=openai ./scripts/tractor-start.sh      # override provider
 #
 # Keys are loaded from .refarm/.env (gitignored).
 # Run `npm run agent:keys` to configure them.
@@ -102,17 +102,17 @@ fi
 
 # ── provider selection ────────────────────────────────────────────────────────
 
-# Priority: LLM_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
-if [ -z "${LLM_PROVIDER:-}" ]; then
+# Priority: MODEL_PROVIDER env > .refarm/config.json provider field > ollama (sovereign default)
+if [ -z "${MODEL_PROVIDER:-}" ]; then
   CONFIG="$ROOT/.refarm/config.json"
   if [ -f "$CONFIG" ] && command -v node >/dev/null 2>&1; then
     PROVIDER_FROM_CONFIG=$(node -e "try{const c=JSON.parse(require('fs').readFileSync('$CONFIG','utf8'));process.stdout.write(c.provider||'')}catch{}" 2>/dev/null || true)
     if [ -n "$PROVIDER_FROM_CONFIG" ]; then
-      export LLM_PROVIDER="$PROVIDER_FROM_CONFIG"
+      export MODEL_PROVIDER="$PROVIDER_FROM_CONFIG"
     fi
   fi
-  LLM_PROVIDER="${LLM_PROVIDER:-ollama}"
-  export LLM_PROVIDER
+  MODEL_PROVIDER="${MODEL_PROVIDER:-ollama}"
+  export MODEL_PROVIDER
 fi
 
 # ── key check ─────────────────────────────────────────────────────────────────
@@ -120,13 +120,13 @@ fi
 require_key() {
   local var="$1"
   if [ -z "${!var:-}" ]; then
-    echo "  LLM_PROVIDER=$LLM_PROVIDER but $var is not set."
-    echo "   Run: npm run agent:keys"
+    echo "  MODEL_PROVIDER=$MODEL_PROVIDER but $var is not set."
+    echo "   Configure keys with: refarm sow"
     exit 1
   fi
 }
 
-case "$LLM_PROVIDER" in
+case "$MODEL_PROVIDER" in
   anthropic)   require_key ANTHROPIC_API_KEY ;;
   openai*)     require_key OPENAI_API_KEY ;;
   groq)        require_key GROQ_API_KEY ;;
@@ -137,7 +137,7 @@ case "$LLM_PROVIDER" in
   openrouter)  require_key OPENROUTER_API_KEY ;;
   gemini)      require_key GEMINI_API_KEY ;;
   ollama)
-    echo "   LLM_PROVIDER=ollama (sovereign default — no API key needed)"
+    echo "   MODEL_PROVIDER=ollama (sovereign default — no API key needed)"
     echo "   Ensure Ollama is running: ollama serve"
     ;;
 esac
@@ -145,7 +145,7 @@ esac
 # ── start daemon ──────────────────────────────────────────────────────────────
 
 echo "   Starting tractor daemon"
-echo "   provider : $LLM_PROVIDER"
+echo "   provider : $MODEL_PROVIDER"
 echo "   plugin   : $PI_AGENT"
 echo "   streams  : $REFARM_STREAMS_DIR"
 [ $# -gt 0 ] && echo "   extra    : $*"

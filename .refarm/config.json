@@ -1,0 +1,13 @@
+{
+  "provider": "anthropic",
+  "model": "claude-sonnet-4-6",
+  "default_provider": "ollama",
+  "budgets": {
+    "anthropic": 10.0
+  },
+  "trusted_plugins": ["pi_agent"],
+  "MODEL_FS_ROOT": "/workspaces/refarm",
+  "MODEL_SHELL_ALLOWLIST": "ls,cat,find,grep,git,node,npm,cargo,rustc,wasm-tools,bash,sh",
+  "MODEL_HISTORY_TURNS": 10,
+  "MODEL_TOOL_CALL_MAX_ITER": 8
+}
