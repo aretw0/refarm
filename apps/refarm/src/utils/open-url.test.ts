@@ -5,18 +5,21 @@ vi.mock("node:child_process", () => ({
 	execFile: vi.fn(),
 }));
 
+vi.mock("@refarm.dev/root", () => ({
+	isWsl: vi.fn().mockReturnValue(false),
+}));
+
+import { isWsl } from "@refarm.dev/root";
+
 const mockExecFile = vi.mocked(childProcess.execFile);
+const mockIsWsl = vi.mocked(isWsl);
 
 function mockChild(unref = vi.fn()) {
 	return { unref } as unknown as ReturnType<typeof childProcess.execFile>;
 }
 
 describe("tryOpenUrl", () => {
-	afterEach(() => {
-		vi.clearAllMocks();
-		delete process.env["WSL_DISTRO_NAME"];
-		delete process.env["WSL_INTEROP"];
-	});
+	afterEach(() => vi.clearAllMocks());
 
 	it("never throws even if execFile throws", async () => {
 		mockExecFile.mockImplementation(() => { throw new Error("no such file"); });
@@ -41,8 +44,8 @@ describe("tryOpenUrl", () => {
 		expect(unref).toHaveBeenCalled();
 	});
 
-	it("on Linux with WSL env vars, uses wslview instead of xdg-open", async () => {
-		process.env["WSL_DISTRO_NAME"] = "Ubuntu";
+	it("uses wslview when isWsl() returns true", async () => {
+		mockIsWsl.mockReturnValue(true);
 		const child = mockChild();
 		mockExecFile.mockReturnValue(child);
 		const { tryOpenUrl } = await import("./open-url.js");

@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/refarm",
   "version": "0.1.0",
-  "description": "Refarm CLI \u2014 The Sovereign Farm distro binary.",
+  "description": "Refarm CLI — The Sovereign Farm distro binary.",
   "type": "module",
   "private": true,
   "bin": {
@@ -19,15 +19,16 @@
   },
   "dependencies": {
     "@refarm.dev/cli": "*",
-    "@refarm.dev/infra-cloudflare": "*",
-    "@refarm.dev/infra-turbo-cache": "*",
     "@refarm.dev/config": "*",
     "@refarm.dev/context-provider-v1": "*",
     "@refarm.dev/effort-contract-v1": "*",
     "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/health": "*",
     "@refarm.dev/homestead": "*",
+    "@refarm.dev/infra-cloudflare": "*",
+    "@refarm.dev/infra-turbo-cache": "*",
     "@refarm.dev/registry": "*",
+    "@refarm.dev/root": "^0.1.0",
     "@refarm.dev/runtime": "*",
     "@refarm.dev/silo": "*",
     "@refarm.dev/sower": "*",

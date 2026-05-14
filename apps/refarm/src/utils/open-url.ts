@@ -1,16 +1,14 @@
 import { execFile } from "node:child_process";
+import { isWsl } from "@refarm.dev/root";
 
 function resolveOpenCommand(url: string): [string, string[]] | null {
 	if (process.platform === "darwin") return ["open", [url]];
 	if (process.platform === "win32") return ["cmd", ["/c", "start", "", url]];
 
-	// Linux — check for WSL Windows interop (not available in Docker devcontainers)
-	if (process.env["WSL_DISTRO_NAME"] || process.env["WSL_INTEROP"]) {
-		// wslview (wslu package) is the safe WSL browser opener
-		return ["wslview", [url]];
-	}
+	// WSL: wslview (wslu package) is the safe browser opener — avoids Windows Terminal interop crashes
+	if (isWsl()) return ["wslview", [url]];
 
-	// Plain Linux / devcontainer without WSL interop — xdg-open with low risk
+	// Plain Linux / devcontainer — xdg-open best-effort
 	return ["xdg-open", [url]];
 }
 

@@ -1,20 +1,11 @@
-import { existsSync } from "node:fs";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import { select, Separator } from "@inquirer/prompts";
+import { isContainer } from "@refarm.dev/root";
 import type { CollectContext, CredentialProvider } from "./types.js";
 import { secretInput } from "../prompts/secret-input.js";
 import { anthropicOAuthProvider, openaiCodexOAuthProvider } from "./oauth/index.js";
 import type { OAuthCredentials, OAuthProviderInterface } from "./oauth/index.js";
-
-/** Returns true when running inside a Docker/devcontainer where localhost ports
- *  are not reachable from the host browser — OAuth callback servers won't work. */
-function isContainerEnvironment(): boolean {
-	if (existsSync("/.dockerenv")) return true;
-	if (process.env["REMOTE_CONTAINERS"] || process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) return true;
-	if (process.env["CODESPACES"]) return true;
-	return false;
-}
 
 export interface ModelCredential {
 	/** Provider id stored as MODEL_PROVIDER env var value. */
@@ -57,7 +48,7 @@ async function runOAuthFlow(
 	ctx: CollectContext,
 	provider: OAuthProviderInterface,
 ): Promise<ModelCredential> {
-	const containerEnv = isContainerEnvironment();
+	const containerEnv = isContainer();
 	const needsManualCode = containerEnv && provider.usesCallbackServer;
 
 	const creds = await provider.login({
