@@ -100,7 +100,7 @@ export const modelCredentialProvider: CredentialProvider & {
 
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		const { choice } = await (inquirer.prompt as any)([
-			{ type: "list", name: "choice", message: "Select provider:", choices, pageSize: 16 },
+			{ type: "select", name: "choice", message: "Select provider:", choices, pageSize: 16 },
 		]) as { choice: Choice };
 
 		if (choice.kind === "ollama") {
