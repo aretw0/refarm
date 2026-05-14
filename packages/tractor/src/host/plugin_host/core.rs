@@ -133,41 +133,41 @@ pub struct PluginHost {
     module_linker: Arc<wasmtime::Linker<P1Store>>,
 }
 
-/// Forward only LLM_* vars into plugin WASI env.
+/// Forward only MODEL_* vars into plugin WASI env.
 ///
 /// Security: avoids leaking unrelated host environment variables (credentials,
 /// tokens, etc.) into the plugin sandbox.
-fn forwarded_llm_env_vars() -> Vec<(String, String)> {
-    forwarded_llm_env_vars_from_iter(std::env::vars())
+fn forwarded_model_env_vars() -> Vec<(String, String)> {
+    forwarded_model_env_vars_from_iter(std::env::vars())
 }
 
-fn forwarded_llm_env_vars_from_iter<I>(vars: I) -> Vec<(String, String)>
+fn forwarded_model_env_vars_from_iter<I>(vars: I) -> Vec<(String, String)>
 where
     I: IntoIterator<Item = (String, String)>,
 {
     // Boundary-local (not shared): transport/runtime quotas and dedupe mechanics.
-    // Semantic allow/deny policy for `LLM_*` keys/values is delegated to
+    // Semantic allow/deny policy for `MODEL_*` keys/values is delegated to
     // `crate::host::sensitive_aliases`.
-    const MAX_FORWARDED_LLM_ENV_VARS: usize = 128;
-    const MAX_FORWARDED_LLM_ENV_SCAN: usize = 512;
-    const MAX_FORWARDED_LLM_ENV_TOTAL_BYTES: usize = 64 * 1024;
+    const MAX_FORWARDED_MODEL_ENV_VARS: usize = 128;
+    const MAX_FORWARDED_MODEL_ENV_SCAN: usize = 512;
+    const MAX_FORWARDED_MODEL_ENV_TOTAL_BYTES: usize = 64 * 1024;
 
     let mut out = Vec::new();
     let mut total_bytes = 0usize;
     let mut seen_keys = std::collections::HashSet::new();
 
-    for (k, v) in vars.into_iter().take(MAX_FORWARDED_LLM_ENV_SCAN) {
-        if out.len() >= MAX_FORWARDED_LLM_ENV_VARS {
+    for (k, v) in vars.into_iter().take(MAX_FORWARDED_MODEL_ENV_SCAN) {
+        if out.len() >= MAX_FORWARDED_MODEL_ENV_VARS {
             break;
         }
-        if !is_forwardable_llm_env_key(&k) || !is_forwardable_llm_env_value(&v) {
+        if !is_forwardable_model_env_key(&k) || !is_forwardable_model_env_value(&v) {
             continue;
         }
         if seen_keys.contains(&k) {
             continue;
         }
         let next_total = total_bytes.saturating_add(k.len() + v.len());
-        if next_total > MAX_FORWARDED_LLM_ENV_TOTAL_BYTES {
+        if next_total > MAX_FORWARDED_MODEL_ENV_TOTAL_BYTES {
             continue;
         }
         seen_keys.insert(k.clone());
@@ -178,6 +178,6 @@ where
     out
 }
 
-fn is_forwardable_llm_env_key(key: &str) -> bool {
-    crate::host::sensitive_aliases::is_forwardable_llm_env_key(key)
+fn is_forwardable_model_env_key(key: &str) -> bool {
+    crate::host::sensitive_aliases::is_forwardable_model_env_key(key)
 }

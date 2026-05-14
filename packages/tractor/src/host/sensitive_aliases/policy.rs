@@ -1,17 +1,17 @@
-// Shared policy evaluators for LLM forwarding and spawn env gating.
+// Shared policy evaluators for MODEL_ forwarding and spawn env gating.
 // Extracted from sensitive_aliases.rs to keep policy mechanics isolated
 // from alias catalogs.
 
-pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
+pub(crate) fn is_disallowed_model_forward_env_upper(upper: &str) -> bool {
     matches!(
         upper,
         "MODEL_SHELL_ALLOWLIST"
             | "MODEL_FS_ROOT"
-            | "LLM_TRUSTED_PLUGINS"
-            | "LLM_USER"
-            | "LLM_USER_NAME"
-            | "LLM_EMAIL"
-            | "LLM_AUTHENTICATION"
+            | "MODEL_TRUSTED_PLUGINS"
+            | "MODEL_USER"
+            | "MODEL_USER_NAME"
+            | "MODEL_EMAIL"
+            | "MODEL_AUTHENTICATION"
     ) || upper.ends_with("_API_KEY")
         || upper.ends_with("_KEY")
         || upper.contains("_KEY_")
@@ -161,9 +161,9 @@ pub(crate) fn is_disallowed_llm_forward_env_upper(upper: &str) -> bool {
         || upper.ends_with("_SSL_CLIENT_SAN")
 }
 
-fn is_safe_llm_forward_env_key_format(key: &str) -> bool {
+fn is_safe_model_forward_env_key_format(key: &str) -> bool {
     const MAX_SUFFIX_LEN: usize = 96;
-    let suffix = &key["LLM_".len()..];
+    let suffix = &key["MODEL_".len()..];
     !suffix.is_empty()
         && suffix.len() <= MAX_SUFFIX_LEN
         && suffix
@@ -171,23 +171,23 @@ fn is_safe_llm_forward_env_key_format(key: &str) -> bool {
             .all(|b| b.is_ascii_uppercase() || b.is_ascii_digit() || b == b'_')
 }
 
-/// Shared plugin-forwarding policy for `LLM_*` env keys.
-pub(crate) fn is_forwardable_llm_env_key(key: &str) -> bool {
-    if !key.starts_with("LLM_") {
+/// Shared plugin-forwarding policy for `MODEL_*` env keys.
+pub(crate) fn is_forwardable_model_env_key(key: &str) -> bool {
+    if !key.starts_with("MODEL_") {
         return false;
     }
-    if key.len() <= "LLM_".len() {
+    if key.len() <= "MODEL_".len() {
         return false;
     }
-    if !is_safe_llm_forward_env_key_format(key) {
+    if !is_safe_model_forward_env_key_format(key) {
         return false;
     }
     let upper = key.to_ascii_uppercase();
-    !super::is_disallowed_llm_forward_env_upper(&upper)
+    !super::is_disallowed_model_forward_env_upper(&upper)
 }
 
-/// Shared plugin-forwarding policy for `LLM_*` env values.
-pub(crate) fn is_forwardable_llm_env_value(value: &str) -> bool {
+/// Shared plugin-forwarding policy for `MODEL_*` env values.
+pub(crate) fn is_forwardable_model_env_value(value: &str) -> bool {
     const MAX_LLM_ENV_VALUE_LEN: usize = 4096;
     !value.trim().is_empty()
         && value.trim() == value

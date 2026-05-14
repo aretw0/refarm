@@ -1,77 +1,77 @@
     #[test]
-    fn forwarded_llm_env_vars_from_iter_filters_and_caps_entries() {
+    fn forwarded_model_env_vars_from_iter_filters_and_caps_entries() {
         let mut vars = vec![
-            ("LLM_PROVIDER".to_string(), "openai".to_string()),
-            ("LLM_TRUSTED_PLUGINS".to_string(), "pi_agent".to_string()),
-            ("LLM_USER".to_string(), "alice".to_string()),
-            ("LLM_OPENAI_API_KEY".to_string(), "secret".to_string()),
+            ("MODEL_PROVIDER".to_string(), "openai".to_string()),
+            ("MODEL_TRUSTED_PLUGINS".to_string(), "pi_agent".to_string()),
+            ("MODEL_USER".to_string(), "alice".to_string()),
+            ("MODEL_OPENAI_API_KEY".to_string(), "secret".to_string()),
             ("OTHER_VAR".to_string(), "x".to_string()),
-            ("LLM_BAD".to_string(), "bad\nvalue".to_string()),
+            ("MODEL_BAD".to_string(), "bad\nvalue".to_string()),
         ];
-        vars.extend((0..130).map(|i| (format!("LLM_SAFE_{i}"), "ok".to_string())));
+        vars.extend((0..130).map(|i| (format!("MODEL_SAFE_{i}"), "ok".to_string())));
 
-        let out = forwarded_llm_env_vars_from_iter(vars);
+        let out = forwarded_model_env_vars_from_iter(vars);
         let map: std::collections::HashMap<_, _> = out.into_iter().collect();
 
-        assert_eq!(map.get("LLM_PROVIDER"), Some(&"openai".to_string()));
-        assert!(!map.contains_key("LLM_TRUSTED_PLUGINS"));
-        assert!(!map.contains_key("LLM_USER"));
-        assert!(!map.contains_key("LLM_OPENAI_API_KEY"));
+        assert_eq!(map.get("MODEL_PROVIDER"), Some(&"openai".to_string()));
+        assert!(!map.contains_key("MODEL_TRUSTED_PLUGINS"));
+        assert!(!map.contains_key("MODEL_USER"));
+        assert!(!map.contains_key("MODEL_OPENAI_API_KEY"));
         assert!(!map.contains_key("OTHER_VAR"));
-        assert!(!map.contains_key("LLM_BAD"));
+        assert!(!map.contains_key("MODEL_BAD"));
         assert_eq!(map.len(), 128);
     }
 
     #[test]
-    fn forwarded_llm_env_vars_from_iter_caps_total_bytes() {
+    fn forwarded_model_env_vars_from_iter_caps_total_bytes() {
         let vars: Vec<(String, String)> = (0..40)
-            .map(|i| (format!("LLM_A{i:03}"), "x".repeat(3000)))
+            .map(|i| (format!("MODEL_A{i:03}"), "x".repeat(3000)))
             .collect();
 
-        let out = forwarded_llm_env_vars_from_iter(vars);
+        let out = forwarded_model_env_vars_from_iter(vars);
         let map: std::collections::HashMap<_, _> = out.into_iter().collect();
 
         assert_eq!(map.len(), 21);
-        assert!(map.contains_key("LLM_A000"));
-        assert!(map.contains_key("LLM_A020"));
-        assert!(!map.contains_key("LLM_A021"));
+        assert!(map.contains_key("MODEL_A000"));
+        assert!(map.contains_key("MODEL_A020"));
+        assert!(!map.contains_key("MODEL_A021"));
     }
 
     #[test]
-    fn forwarded_llm_env_vars_from_iter_deduplicates_keys() {
+    fn forwarded_model_env_vars_from_iter_deduplicates_keys() {
         let vars = vec![
-            ("LLM_PROVIDER".to_string(), "openai".to_string()),
-            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
-            ("LLM_MODEL".to_string(), "gpt-4.1-mini".to_string()),
+            ("MODEL_PROVIDER".to_string(), "openai".to_string()),
+            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
+            ("MODEL_ID".to_string(), "gpt-4.1-mini".to_string()),
         ];
 
-        let out = forwarded_llm_env_vars_from_iter(vars);
+        let out = forwarded_model_env_vars_from_iter(vars);
         let map: std::collections::HashMap<_, _> = out.into_iter().collect();
 
         assert_eq!(map.len(), 2);
-        assert_eq!(map.get("LLM_PROVIDER"), Some(&"openai".to_string()));
-        assert_eq!(map.get("LLM_MODEL"), Some(&"gpt-4.1-mini".to_string()));
+        assert_eq!(map.get("MODEL_PROVIDER"), Some(&"openai".to_string()));
+        assert_eq!(map.get("MODEL_ID"), Some(&"gpt-4.1-mini".to_string()));
     }
 
     #[test]
-    fn forwarded_llm_env_vars_from_iter_allows_stream_responses_flag() {
-        let out = forwarded_llm_env_vars_from_iter(vec![(
-            "LLM_STREAM_RESPONSES".to_string(),
+    fn forwarded_model_env_vars_from_iter_allows_stream_responses_flag() {
+        let out = forwarded_model_env_vars_from_iter(vec![(
+            "MODEL_STREAM_RESPONSES".to_string(),
             "1".to_string(),
         )]);
         let map: std::collections::HashMap<_, _> = out.into_iter().collect();
 
-        assert_eq!(map.get("LLM_STREAM_RESPONSES"), Some(&"1".to_string()));
+        assert_eq!(map.get("MODEL_STREAM_RESPONSES"), Some(&"1".to_string()));
     }
 
     #[test]
-    fn forwarded_llm_env_vars_from_iter_limits_input_scan_window() {
+    fn forwarded_model_env_vars_from_iter_limits_input_scan_window() {
         let mut vars: Vec<(String, String)> = (0..512)
             .map(|i| (format!("OTHER_{i}"), "x".to_string()))
             .collect();
-        vars.push(("LLM_PROVIDER".to_string(), "openai".to_string()));
+        vars.push(("MODEL_PROVIDER".to_string(), "openai".to_string()));
 
-        let out = forwarded_llm_env_vars_from_iter(vars);
+        let out = forwarded_model_env_vars_from_iter(vars);
         assert!(out.is_empty());
     }
 
@@ -86,11 +86,11 @@
         ).unwrap();
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
-        assert_eq!(map["LLM_PROVIDER"], "anthropic");
-        assert_eq!(map["LLM_MODEL"], "claude-opus-4-7");
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
-        assert_eq!(map["LLM_BUDGET_ANTHROPIC_USD"], "5");
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
+        assert_eq!(map["MODEL_PROVIDER"], "anthropic");
+        assert_eq!(map["MODEL_ID"], "claude-opus-4-7");
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
+        assert_eq!(map["MODEL_BUDGET_ANTHROPIC_USD"], "5");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "2.5");
     }
 
     #[test]
@@ -104,7 +104,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_STREAM_RESPONSES"], "1");
+        assert_eq!(map["MODEL_STREAM_RESPONSES"], "1");
     }
 
     #[test]
@@ -118,7 +118,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_STREAM_RESPONSES"], "0");
+        assert_eq!(map["MODEL_STREAM_RESPONSES"], "0");
     }
 
     #[test]
@@ -132,7 +132,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_STREAM_RESPONSES"));
+        assert!(!map.contains_key("MODEL_STREAM_RESPONSES"));
     }
 
     #[test]
@@ -149,9 +149,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_BUDGET_ANTHROPIC_USD"));
-        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
-        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "1.25");
+        assert!(!map.contains_key("MODEL_BUDGET_ANTHROPIC_USD"));
+        assert!(!map.contains_key("MODEL_BUDGET_OPENAI_USD"));
+        assert_eq!(map["MODEL_BUDGET_OLLAMA_USD"], "1.25");
     }
 
     #[test]
@@ -168,9 +168,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "openai");
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
-        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["MODEL_PROVIDER"], "openai");
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("MODEL_ID"));
     }
 
     #[test]
@@ -187,9 +187,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "openai");
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
-        assert!(!map.contains_key("LLM_MODEL"));
+        assert_eq!(map["MODEL_PROVIDER"], "openai");
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("MODEL_ID"));
     }
 
     #[test]
@@ -206,9 +206,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_PROVIDER"));
-        assert!(!map.contains_key("LLM_MODEL"));
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("MODEL_PROVIDER"));
+        assert!(!map.contains_key("MODEL_ID"));
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
     }
 
     #[test]
@@ -225,9 +225,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "openai");
-        assert!(!map.contains_key("LLM_MODEL"));
-        assert!(!map.contains_key("LLM_DEFAULT_PROVIDER"));
+        assert_eq!(map["MODEL_PROVIDER"], "openai");
+        assert!(!map.contains_key("MODEL_ID"));
+        assert!(!map.contains_key("MODEL_DEFAULT_PROVIDER"));
     }
 
     #[test]
@@ -247,9 +247,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_PROVIDER"));
-        assert!(!map.contains_key("LLM_MODEL"));
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert!(!map.contains_key("MODEL_PROVIDER"));
+        assert!(!map.contains_key("MODEL_ID"));
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
     }
 
     #[test]
@@ -266,8 +266,8 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "openai");
-        assert_eq!(map["LLM_DEFAULT_PROVIDER"], "ollama");
+        assert_eq!(map["MODEL_PROVIDER"], "openai");
+        assert_eq!(map["MODEL_DEFAULT_PROVIDER"], "ollama");
     }
 
     #[test]
@@ -284,9 +284,9 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_PROVIDER"));
-        assert!(!map.contains_key("LLM_DEFAULT_PROVIDER"));
-        assert_eq!(map["LLM_MODEL"], "gpt-4o-mini");
+        assert!(!map.contains_key("MODEL_PROVIDER"));
+        assert!(!map.contains_key("MODEL_DEFAULT_PROVIDER"));
+        assert_eq!(map["MODEL_ID"], "gpt-4o-mini");
     }
 
     #[test]
@@ -303,8 +303,8 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "2.5");
-        assert!(!map.contains_key("LLM_BUDGET___USD"));
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "2.5");
+        assert!(!map.contains_key("MODEL_BUDGET___USD"));
     }
 
     #[test]
@@ -321,7 +321,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
         assert_eq!(map.len(), 1);
     }
 
@@ -339,7 +339,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
         assert_eq!(map.len(), 1);
     }
 
@@ -359,7 +359,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let budget_count = vars
             .iter()
-            .filter(|(k, _)| k.starts_with("LLM_BUDGET_"))
+            .filter(|(k, _)| k.starts_with("MODEL_BUDGET_"))
             .count();
 
         assert_eq!(budget_count, 64);
@@ -379,8 +379,8 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
-        assert!(!map.contains_key("LLM_BUDGET___USD"));
+        assert_eq!(map["MODEL_BUDGET_OPENAI_CODEX_V1_USD"], "2.5");
+        assert!(!map.contains_key("MODEL_BUDGET___USD"));
     }
 
     #[test]
@@ -398,7 +398,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
         assert_eq!(map.len(), 1);
     }
 
@@ -416,7 +416,7 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_BUDGET_OPENAI_USD"], "1");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_USD"], "1");
         assert_eq!(map.len(), 1);
     }
 
@@ -434,8 +434,8 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "openai");
-        assert_eq!(map["LLM_BUDGET_OPENAI_CODEX_V1_USD"], "1");
+        assert_eq!(map["MODEL_PROVIDER"], "openai");
+        assert_eq!(map["MODEL_BUDGET_OPENAI_CODEX_V1_USD"], "1");
     }
 
     #[test]
@@ -452,8 +452,8 @@
         let vars = refarm_config_env_vars_from(dir.path());
         let map: std::collections::HashMap<_, _> = vars.into_iter().collect();
 
-        assert!(!map.contains_key("LLM_BUDGET_OPENAI_USD"));
-        assert_eq!(map["LLM_BUDGET_OLLAMA_USD"], "0");
+        assert!(!map.contains_key("MODEL_BUDGET_OPENAI_USD"));
+        assert_eq!(map["MODEL_BUDGET_OLLAMA_USD"], "0");
     }
 
     #[test]
@@ -604,53 +604,53 @@
     }
 
     #[test]
-    fn merge_plugin_env_vars_config_overrides_llm_vars() {
-        let llm = vec![
-            ("LLM_PROVIDER".to_string(), "openai".to_string()),
-            ("LLM_MODEL".to_string(), "gpt-4o-mini".to_string()),
+    fn merge_plugin_env_vars_config_overrides_model_vars() {
+        let model = vec![
+            ("MODEL_PROVIDER".to_string(), "openai".to_string()),
+            ("MODEL_ID".to_string(), "gpt-4o-mini".to_string()),
         ];
         let cfg = vec![
-            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
-            ("LLM_BASE_URL".to_string(), "http://127.0.0.1:11434".to_string()),
+            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
+            ("MODEL_BASE_URL".to_string(), "http://127.0.0.1:11434".to_string()),
         ];
 
-        let merged = merge_plugin_env_vars(llm, cfg);
+        let merged = merge_plugin_env_vars(model, cfg);
         let map: std::collections::HashMap<_, _> = merged.into_iter().collect();
 
-        assert_eq!(map["LLM_PROVIDER"], "ollama");
-        assert_eq!(map["LLM_MODEL"], "gpt-4o-mini");
-        assert_eq!(map["LLM_BASE_URL"], "http://127.0.0.1:11434");
+        assert_eq!(map["MODEL_PROVIDER"], "ollama");
+        assert_eq!(map["MODEL_ID"], "gpt-4o-mini");
+        assert_eq!(map["MODEL_BASE_URL"], "http://127.0.0.1:11434");
     }
 
     #[test]
     fn merge_plugin_env_vars_caps_total_entries() {
-        let llm: Vec<(String, String)> = (0..220)
-            .map(|i| (format!("LLM_SAFE_{i:03}"), "ok".to_string()))
+        let model: Vec<(String, String)> = (0..220)
+            .map(|i| (format!("MODEL_SAFE_{i:03}"), "ok".to_string()))
             .collect();
 
-        let merged = merge_plugin_env_vars(llm, vec![]);
+        let merged = merge_plugin_env_vars(model, vec![]);
         assert_eq!(merged.len(), 192);
     }
 
     #[test]
     fn merge_plugin_env_vars_caps_total_payload_bytes() {
-        let llm: Vec<(String, String)> = (0..40)
-            .map(|i| (format!("LLM_A{i:03}"), "x".repeat(3000)))
+        let model: Vec<(String, String)> = (0..40)
+            .map(|i| (format!("MODEL_A{i:03}"), "x".repeat(3000)))
             .collect();
 
-        let merged = merge_plugin_env_vars(llm, vec![]);
+        let merged = merge_plugin_env_vars(model, vec![]);
         assert_eq!(merged.len(), 32);
-        assert!(merged.iter().any(|(k, _)| k == "LLM_A000"));
-        assert!(merged.iter().any(|(k, _)| k == "LLM_A031"));
-        assert!(!merged.iter().any(|(k, _)| k == "LLM_A032"));
+        assert!(merged.iter().any(|(k, _)| k == "MODEL_A000"));
+        assert!(merged.iter().any(|(k, _)| k == "MODEL_A031"));
+        assert!(!merged.iter().any(|(k, _)| k == "MODEL_A032"));
     }
 
     #[test]
     fn refarm_config_node_payload_contains_expected_fields() {
         let dir = tempfile::tempdir().unwrap();
         let env_vars = vec![
-            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
-            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
+            ("MODEL_ID".to_string(), "llama3.2".to_string()),
         ];
         let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
 
@@ -658,7 +658,7 @@
 
         assert_eq!(payload["@type"], "RefarmConfig");
         assert_eq!(payload["plugin_id"], "pi_agent");
-        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
+        assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
         assert_eq!(payload["config_json"]["model"], "llama3.2");
         assert!(payload["@id"].as_str().unwrap_or("").starts_with("urn:tractor:refarm-config:pi_agent:"));
     }
@@ -669,8 +669,8 @@
         let sync = NativeSync::new(storage, "test-refarm-config").unwrap();
         let dir = tempfile::tempdir().unwrap();
         let env_vars = vec![
-            ("LLM_PROVIDER".to_string(), "ollama".to_string()),
-            ("LLM_MODEL".to_string(), "llama3.2".to_string()),
+            ("MODEL_PROVIDER".to_string(), "ollama".to_string()),
+            ("MODEL_ID".to_string(), "llama3.2".to_string()),
         ];
         let cfg = serde_json::json!({"provider": "ollama", "model": "llama3.2"});
 
@@ -685,13 +685,13 @@
         let payload: serde_json::Value = serde_json::from_str(&row.payload).unwrap();
         assert_eq!(payload["@type"], "RefarmConfig");
         assert_eq!(payload["plugin_id"], "pi_agent");
-        assert_eq!(payload["llm_env"]["LLM_PROVIDER"], "ollama");
+        assert_eq!(payload["model_env"]["MODEL_PROVIDER"], "ollama");
     }
 
     #[test]
     fn refarm_config_node_payload_uses_null_config_when_missing() {
         let dir = tempfile::tempdir().unwrap();
-        let env_vars = vec![("LLM_PROVIDER".to_string(), "ollama".to_string())];
+        let env_vars = vec![("MODEL_PROVIDER".to_string(), "ollama".to_string())];
 
         let payload = refarm_config_node_payload("pi_agent", dir.path(), &env_vars, None);
 
