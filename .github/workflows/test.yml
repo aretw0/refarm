@@ -260,7 +260,7 @@ jobs:
         run: echo "::notice::Reusing previous successful Test & Quality validation for unchanged inputs."
 
       - name: Validate .project cross-block consistency
-        run: npm run project:validate --silent
+        run: pnpm run project:validate --silent
 
       - name: Setup
         id: setup
@@ -281,11 +281,11 @@ jobs:
 
       - name: Security audit
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: npm audit --audit-level=high
+        run: pnpm audit --audit-level=high
 
       - name: TSConfig preflight
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true'
-        run: npm run tsconfig:guard
+        run: pnpm run tsconfig:guard
 
       - name: Carry-forward policy unit tests
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.ci_changes == 'true'
@@ -293,17 +293,17 @@ jobs:
 
       - name: Farmhand task execution smoke (CLI ↔ sidecar)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
-        run: npm run task:execution:smoke
+        run: pnpm run task:execution:smoke
 
       - name: Farmhand pi-agent respond smoke (effort round-trip)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
-        run: npm run task:execution:smoke:pi-agent
+        run: pnpm run task:execution:smoke:pi-agent
 
       - name: Telemetry strict gate (blocking on develop + PR -> main)
         id: telemetry_gate
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true'
         continue-on-error: ${{ !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop')) }}
-        run: npm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
+        run: pnpm run refarm:telemetry:gate:ci -- --out .artifacts/telemetry/gate-quality.json --timeout-ms 20000
 
       - name: Telemetry gate warning (non-blocking branches)
         if: always() && steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.run_task_smoke == 'true' && steps.telemetry_gate.outcome == 'failure' && !((github.event_name == 'pull_request' && github.base_ref == 'main') || (github.event_name == 'push' && github.ref_name == 'develop'))
@@ -317,19 +317,19 @@ jobs:
 
       - name: Tractor health probe smoke
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run test:smoke:health -w @refarm.dev/tractor-rs
+        run: pnpm run test:smoke:health -w @refarm.dev/tractor-rs
 
       - name: Browser runtime descriptor gate (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm --prefix packages/tractor-ts run runtime-module:ci
+        run: pnpm -C packages/tractor-ts run runtime-module:ci
 
       - name: Runtime descriptor release-path smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+        run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
       - name: Revocation diagnostics report smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: npm run runtime-descriptor:revocation-report:sample
+        run: pnpm run runtime-descriptor:revocation-report:sample
 
       - name: Revocation diagnostics baseline lookup (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
@@ -346,7 +346,7 @@ jobs:
       - name: Revocation diagnostics history smoke (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
-          npm run runtime-descriptor:revocation-history -- \
+          pnpm run runtime-descriptor:revocation-history -- \
             --reports-file .artifacts/runtime-descriptor-revocation-history/reports.txt \
             --out-dir .artifacts/runtime-descriptor-revocation-history
 
@@ -388,16 +388,16 @@ jobs:
           git fetch origin main || true
           # Use -f to ensure we can switch branches even if npm ci modified tracked files
           git checkout -f origin/main || git checkout -f main || true
-          npm ci
+          pnpm install --frozen-lockfile
           cd packages/tractor
-          npm run bench:save
+          pnpm run bench:save
           cd ../..
 
           # Return to PR commit and test
           git checkout -f $CURRENT_BRANCH
-          npm ci
+          pnpm install --frozen-lockfile
           cd packages/tractor
-          npm run bench:check
+          pnpm run bench:check
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "benchmarks/gha-payload.json" ]; then
@@ -447,7 +447,7 @@ jobs:
               body += `- **Threshold Required:** +${threshold}%\n`;
               body += `- **Previous High-Water Mark:** +${highWaterMark}%\n`;
               body += `- **Current PR Speedup:** +**${diff}%** Average Improvement\n\n`;
-              body += `> *Note: Please remember to run \`npm run bench:save\` locally to re-calibrate your development baseline, though the repository baseline is generated dynamically from main.*`;
+              body += `> *Note: Please remember to run \`pnpm run bench:save\` locally to re-calibrate your development baseline, though the repository baseline is generated dynamically from main.*`;
               
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
@@ -464,7 +464,7 @@ jobs:
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
         run: |
           cd packages/tractor
-          npm run coverage:check
+          pnpm run coverage:check
 
           # Export payload to GHA env vars if the script exited cleanly
           if [ -f "coverage/gha-payload.json" ]; then
@@ -521,7 +521,7 @@ jobs:
               if (currentCoverage >= 100) {
                 body += `\n\n🎉 **PERFECT COVERAGE!** 💯 You've reached the holy grail.`;
               } else {
-                 body += `\n> *Note: Please remember to run \`npm run coverage:save\` and commit the new baseline so your changes protect the project moving forward.*`;
+                 body += `\n> *Note: Please remember to run \`pnpm run coverage:save\` and commit the new baseline so your changes protect the project moving forward.*`;
               }
               
               await github.rest.issues.createComment({
@@ -596,7 +596,7 @@ jobs:
 
       - name: Build (full fallback)
         if: needs.changes.outputs.turbo_filter == ''
-        run: npm run build
+        run: pnpm run build
 
       - name: Upload build artifacts
         if: success()

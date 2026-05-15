@@ -12,7 +12,7 @@ on:
         description: Command that generates dependency report
         required: false
         type: string
-        default: npm run deps:check
+        default: pnpm run deps:check
       no-updates-pattern:
         description: Pattern that indicates no updates are required
         required: false
@@ -23,8 +23,8 @@ on:
         required: false
         type: string
         default: |
-          npm run deps:update
-          npm install
+          pnpm run deps:update
+          pnpm install
       issue-title:
         description: Tracking issue title
         required: false
@@ -57,7 +57,7 @@ on:
         default: |
           ## 🔄 Atualização Automática de Dependências
 
-          Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `npm run deps:check`**.
+          Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `pnpm run deps:check`**.
 
           O relatório detalhado pode ser discutido na Issue: {{ISSUE_URL}}
 
@@ -129,10 +129,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          npm run lint
-          npm run type-check
-          npm run test:unit
-          npm run test:integration
+          pnpm run lint
+          pnpm run type-check
+          pnpm run test:unit
+          pnpm run test:integration
 
       - name: Benchmark Quality Gate (Tractor)
         id: bench_gate
@@ -143,7 +143,7 @@ jobs:
           set -euo pipefail
           if [ -d "packages/tractor" ]; then
             cd packages/tractor
-            npm run bench:check
+            pnpm run bench:check
           fi
 
       - name: Compose Final Report

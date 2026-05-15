@@ -39,13 +39,13 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Build Heartwood WASM Package
-        run: npm --workspace "$REFARM_SCOPE_DEV/heartwood" run build
+        run: pnpm -C "$REFARM_SCOPE_DEV/heartwood" run build
 
       - name: Build Refarm.dev App
         env:
           ASTRO_SITE: ${{ vars.REFARM_ASTRO_SITE || format('https://{0}.github.io/{1}/', github.repository_owner, github.event.repository.name) }}
           ASTRO_BASE: ${{ vars.REFARM_ASTRO_BASE || format('/{0}/', github.event.repository.name) }}
-        run: npm --workspace "$REFARM_SCOPE_DEV/app" run build
+        run: pnpm -C "$REFARM_SCOPE_DEV/app" run build
 
       - name: Verify Astro base-path links
         env:

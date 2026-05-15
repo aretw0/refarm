@@ -15,11 +15,11 @@ jobs:
     uses: ./.github/workflows/reusable-dependency-update.yml
     with:
       report-file: deps-report.md
-      check-command: npm run deps:check
+      check-command: pnpm run deps:check
       no-updates-pattern: Nenhuma dependência desatualizada
       update-command: |
-        npm run deps:update
-        npm install
+        pnpm run deps:update
+        pnpm install
       issue-title: Automated Dependency Updates Report
       issue-search-query: in:title Automated Dependency Updates Report
       issue-labels: dependencies
@@ -28,7 +28,7 @@ jobs:
       pr-body-template: |
         ## 🔄 Atualização Automática de Dependências
 
-        Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `npm run deps:check`**.
+        Este PR aplica automaticamente as **atualizações identificadas pelo novo script customizado `pnpm run deps:check`**.
 
         O relatório detalhado pode ser discutido na Issue: {{ISSUE_URL}}
 

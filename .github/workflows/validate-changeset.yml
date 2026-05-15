@@ -93,7 +93,7 @@ jobs:
             ### 📋 To add a changeset:
 
             \`\`\`bash
-            npm run changeset
+            pnpm run changeset
             # Follow the prompts:
             # - Select packages changed
             # - Choose version bump (patch/minor/major)

@@ -1,5 +1,5 @@
 name: "NPM Audit Report"
-description: "Generate npm audit JSON and Markdown reports, plus vulnerability counters"
+description: "Generate pnpm audit JSON and Markdown reports, plus vulnerability counters"
 
 inputs:
   json-output:
@@ -35,7 +35,7 @@ runs:
         JSON_OUT="${{ inputs.json-output }}"
         MD_OUT="${{ inputs.markdown-output }}"
 
-        npm audit --json > "$JSON_OUT" || true
+        pnpm audit --json > "$JSON_OUT" || true
 
         MODERATE=$(jq -r '.metadata.vulnerabilities.moderate // 0' "$JSON_OUT")
         HIGH=$(jq -r '.metadata.vulnerabilities.high // 0' "$JSON_OUT")

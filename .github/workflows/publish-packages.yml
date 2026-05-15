@@ -38,7 +38,7 @@ jobs:
         run: node scripts/ci/setup-env.mjs
 
       - name: Build all packages
-        run: npm run build --workspaces
+        run: ppnpm -r run build
 
       - name: Extract package info from tag
         id: pkg
@@ -75,7 +75,7 @@ jobs:
             echo ""
             echo "Fix by running:"
             echo "  cd packages/${{ steps.pkg.outputs.workspace }}"
-            echo "  npm version $TAG_VERSION --no-git-tag-version"
+            echo "  pnpm version $TAG_VERSION --no-git-tag-version"
             echo "  git add package.json"
             echo "  git commit --amend --no-edit"
             exit 1
@@ -84,18 +84,18 @@ jobs:
           echo "✅ Version $PKG_VERSION matches tag"
 
       - name: Run type checks
-        run: npm run lint --workspaces
+        run: pnpm run lint --workspaces
 
       - name: Run conformance tests
-        run: npm run test:capabilities
+        run: pnpm run test:capabilities
 
       - name: Dry-run publish (validation)
         working-directory: packages/${{ steps.pkg.outputs.workspace }}
         run: |
           echo "🔍 Validating package contents..."
-          npm publish --dry-run
+          pnpm publish --dry-run
 
-      - name: Configure npm authentication
+      - name: Configure pnpm authentication
         run: |
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
 
@@ -103,7 +103,7 @@ jobs:
         working-directory: packages/${{ steps.pkg.outputs.workspace }}
         run: |
           echo "🚀 Publishing ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}"
-          npm publish --provenance --access public
+          pnpm publish --provenance --access public
 
       - name: Create GitHub Release
         env:
@@ -121,7 +121,7 @@ jobs:
 
           ### Installation
 
-          npm install ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
+          pnpm add ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }}
 
           ### Changes
 
@@ -139,6 +139,6 @@ jobs:
           sleep 30
 
           echo "🔍 Verifying package is available..."
-          npm view ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }} --json
+          pnpm view ${{ steps.pkg.outputs.name }}@${{ steps.pkg.outputs.version }} --json
 
           echo "✅ Package published successfully!"

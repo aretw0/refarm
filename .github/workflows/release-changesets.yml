@@ -34,12 +34,12 @@ jobs:
 
       - name: Validate quality gates
         run: |
-          npm run lint
-          npm run type-check
-          npm run test:capabilities
+          pnpm run lint
+          pnpm run type-check
+          pnpm run test:capabilities
 
       - name: Validate browser runtime descriptor provenance gate
-        run: npm --prefix packages/tractor-ts run runtime-module:ci
+        run: pnpm -C packages/tractor-ts run runtime-module:ci
 
       - name: Export runtime descriptor bundle (versioned)
         if: always()
@@ -55,7 +55,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Smoke release descriptor path (export + publish dry-run + resolver)
-        run: npm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
+        run: pnpm run runtime-descriptor:release-smoke -- --sha "${{ github.sha }}"
 
       - name: Create Release PR or Publish
         id: changesets
