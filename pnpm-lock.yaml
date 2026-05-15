@@ -135,6 +135,9 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../../packages/identity-contract-v1
+      '@refarm.dev/pi-agent':
+        specifier: workspace:*
+        version: link:../../packages/pi-agent
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../../packages/plugin-manifest
@@ -814,6 +817,9 @@ importers:
       '@bytecodealliance/jco':
         specifier: ^1.18.0
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@bytecodealliance/preview2-shim':
+        specifier: ^0.17.3
+        version: 0.17.9
       '@noble/ed25519':
         specifier: ^3.1.0
         version: 3.1.0
@@ -7586,6 +7592,11 @@ packages:
 
   yaml-language-server@1.20.0:
     resolution: {integrity: sha512-qhjK/bzSRZ6HtTvgeFvjNPJGWdZ0+x5NREV/9XZWFjIGezew2b4r5JPy66IfOhd5OA7KeFwk1JfmEbnTvev0cA==}
+    hasBin: true
+
+  yaml@2.7.1:
+    resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
+    engines: {node: '>= 14'}
     hasBin: true
 
   yaml@2.9.0:
@@ -14769,8 +14780,9 @@ snapshots:
       vscode-languageserver-textdocument: 1.0.12
       vscode-languageserver-types: 3.17.5
       vscode-uri: 3.1.0
-      yaml: 2.9.0
+      yaml: 2.7.1
 
+  yaml@2.7.1: {}
 
   yaml@2.9.0: {}
 
