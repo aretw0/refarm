@@ -36,6 +36,10 @@ runs:
         node-version: ${{ inputs.node-version }}
         cache: "npm"
 
+    # SECURITY: Turbo cache is scoped by context (PR vs push) to prevent cache poisoning.
+    # PRs write to turbo-pr-* namespace; push builds write to turbo-push-* namespace.
+    # These are disjoint: main/develop cannot restore a PR's poisoned Turbo cache.
+    # See: docs/security/ci-cache-hardening.md
     - name: Cache Turbo (local fallback)
       if: ${{ inputs.turbo-cache-api == '' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
