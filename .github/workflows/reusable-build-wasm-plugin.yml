@@ -70,7 +70,7 @@ jobs:
 
       - name: Install Node dependencies
         run: |
-          if [ -f package-lock.json ]; then
+          if [ -f pnpm-lock.yaml ]; then
             pnpm install --frozen-lockfile
           else
             pnpm install
@@ -114,7 +114,7 @@ jobs:
             exit 1
           fi
           echo "Transpiling: $WASM_FILE"
-          npx jco transpile "$WASM_FILE" -o ${{ inputs.output-dir }} --name ${{ inputs.component-name }}
+          pnpm exec jco transpile "$WASM_FILE" -o ${{ inputs.output-dir }} --name ${{ inputs.component-name }}
 
       - name: Compute integrity hash
         id: integrity

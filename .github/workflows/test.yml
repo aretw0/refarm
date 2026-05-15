@@ -135,12 +135,12 @@ jobs:
           fi
 
           code_changes=false
-          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|package-lock\.json$|tsconfig\.json$)'; then
+          if has_match '^(apps/|packages/|validations/|templates/|scripts/|turbo\.json$|package\.json$|pnpm-lock\.yaml$|tsconfig\.json$)'; then
             code_changes=true
           fi
 
           tractor_gates=false
-          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|package-lock\.json$)'; then
+          if has_match '^(packages/tractor/|packages/tractor-ts/|packages/pi-agent/|packages/barn/|packages/plugin-manifest/|packages/storage-sqlite/|packages/storage-rest/|packages/sync-loro/|turbo\.json$|package\.json$|pnpm-lock\.yaml$)'; then
             tractor_gates=true
           fi
 
@@ -149,12 +149,12 @@ jobs:
           # Turbo and owns any build dependencies it needs in the E2E runner.
           run_build=false
           run_e2e=false
-          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|package-lock\.json$)'; then
+          if has_match '^(apps/|validations/|packages/tractor/|packages/tractor-ts/|playwright\.config\.|turbo\.json$|package\.json$|pnpm-lock\.yaml$)'; then
             run_e2e=true
           fi
 
           run_task_smoke=false
-          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|package-lock\.json$|\.github/workflows/test\.yml$)'; then
+          if has_match '^(apps/farmhand/|apps/refarm/|packages/context-provider-v1/|packages/effort-contract-v1/|packages/file-stream-transport/|packages/pi-agent/|packages/refarm-plugin-wit/|packages/registry/|packages/sse-stream-transport/|packages/stream-contract-v1/|packages/tractor-ts/|packages/ws-stream-transport/|scripts/ci/smoke-task-execution-loop\.mjs|scripts/ci/smoke-task-pi-agent-respond\.mjs|scripts/ci/subprocess-utils\.mjs|scripts/ci/esm-extension-loader\.mjs|scripts/ci/task-smoke-daemon\.mjs|scripts/ci/task-smoke-cli\.mjs|scripts/ci/refarm-telemetry-gate\.mjs|package\.json$|pnpm-lock\.yaml$|\.github/workflows/test\.yml$)'; then
             run_task_smoke=true
           fi
 
@@ -201,7 +201,7 @@ jobs:
           .github/actions
           .github/workflows/test.yml
           package.json
-          package-lock.json
+          pnpm-lock.yaml
           turbo.json
           tsconfig.json
           .cargo/config.toml
@@ -219,7 +219,7 @@ jobs:
           .github/workflows/test.yml
           scripts/ci/content-signature.mjs
           package.json
-          package-lock.json
+          pnpm-lock.yaml
           turbo.json
           tsconfig.json
           .cargo/config.toml
@@ -352,11 +352,11 @@ jobs:
 
       - name: Verify (Full Turbo)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter != ''
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
 
       - name: Verify (Full Turbo fallback)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes == 'true' && needs.changes.outputs.turbo_filter == ''
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration --cache-dir=.turbo
 
       - name: Verify (Full Turbo) skipped
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.code_changes != 'true'
@@ -592,7 +592,7 @@ jobs:
 
       - name: Build (affected)
         if: needs.changes.outputs.turbo_filter != ''
-        run: npx turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
+        run: pnpm turbo run build --filter=${{ needs.changes.outputs.turbo_filter }} --cache-dir=.turbo
 
       - name: Build (full fallback)
         if: needs.changes.outputs.turbo_filter == ''
@@ -680,11 +680,11 @@ jobs:
 
       - name: Run E2E Tests (affected)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'affected'
-        run: npx turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --filter=${{ steps.e2e_filter.outputs.filter }} --cache-dir=.turbo
 
       - name: Run E2E Tests (full fallback)
         if: steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_filter.outputs.mode == 'full'
-        run: npx turbo run test:e2e --cache-dir=.turbo
+        run: pnpm turbo run test:e2e --cache-dir=.turbo
 
       - name: Upload Playwright report
         if: always() && steps.e2e_cache.outputs.cache-hit != 'true' && steps.e2e_check.outputs.enabled == 'true'
@@ -722,7 +722,7 @@ jobs:
           pr-number: ${{ github.event.pull_request.number }}
 
       - name: Deep regression (full stack)
-        run: npx turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
+        run: pnpm turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
 
   audit-moderate:
     runs-on: ubuntu-latest

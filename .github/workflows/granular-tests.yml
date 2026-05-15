@@ -15,7 +15,7 @@ on:
       - ".github/actions/setup/**"
       - ".github/workflows/granular-tests.yml"
       - "package.json"
-      - "package-lock.json"
+      - "pnpm-lock.yaml"
       - "turbo.json"
       - "tsconfig.json"
 
@@ -61,7 +61,7 @@ jobs:
           .github/actions/setup
           .github/workflows/granular-tests.yml
           package.json
-          package-lock.json
+          pnpm-lock.yaml
           turbo.json
           tsconfig.json
           .cargo/config.toml

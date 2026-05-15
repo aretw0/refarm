@@ -36,7 +36,7 @@ jobs:
         specs/diagrams/mermaid.config.json
         scripts/check-diagrams.mjs
         scripts/puppeteer-no-sandbox.json
-        package-lock.json
+        pnpm-lock.yaml
         .github/workflows/validate-diagrams.yml
         .github/workflows/reusable-validate-docs.yml
       create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}

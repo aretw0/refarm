@@ -3,16 +3,6 @@ lockfileVersion: '9.0'
 settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
-  onlyBuiltDependencies:
-    - '@loro-crdt/base'
-    - '@playwright/test'
-    - better-sqlite3
-    - esbuild
-    - playwright
-    - puppeteer
-    - sharp
-    - unrs-resolver
-    - workerd
 
 importers:
 
@@ -315,6 +305,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
 
   packages/config:
     dependencies:
