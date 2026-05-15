@@ -26,6 +26,14 @@ inputs:
     description: "Turbo team slug for cache key namespacing (TURBO_TEAM)."
     required: false
     default: "refarm"
+  is-pr:
+    description: "Whether this run is triggered by a pull_request event. Scopes Turbo cache to prevent cache poisoning."
+    required: false
+    default: "false"
+  pr-number:
+    description: "Pull request number (used for scoped cache key when is-pr=true)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -40,14 +48,23 @@ runs:
     # PRs write to turbo-pr-* namespace; push builds write to turbo-push-* namespace.
     # These are disjoint: main/develop cannot restore a PR's poisoned Turbo cache.
     # See: docs/security/ci-cache-hardening.md
-    - name: Cache Turbo (local fallback)
-      if: ${{ inputs.turbo-cache-api == '' }}
+    - name: Cache Turbo — PR
+      if: ${{ inputs.turbo-cache-api == '' && inputs.is-pr == 'true' }}
       uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
       with:
         path: .turbo
-        key: ${{ runner.os }}-turbo-${{ hashFiles('package-lock.json', 'turbo.json') }}
+        key: ${{ runner.os }}-turbo-pr-${{ inputs.pr-number }}-${{ hashFiles('package-lock.json', 'turbo.json') }}
         restore-keys: |
-          ${{ runner.os }}-turbo-
+          ${{ runner.os }}-turbo-pr-${{ inputs.pr-number }}-
+
+    - name: Cache Turbo — push
+      if: ${{ inputs.turbo-cache-api == '' && inputs.is-pr != 'true' }}
+      uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      with:
+        path: .turbo
+        key: ${{ runner.os }}-turbo-push-${{ hashFiles('package-lock.json', 'turbo.json') }}
+        restore-keys: |
+          ${{ runner.os }}-turbo-push-
 
     - name: Configure Turbo remote cache
       if: ${{ inputs.turbo-cache-api != '' }}
