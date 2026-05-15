@@ -169,8 +169,14 @@ do
 
   if echo "$CHANGED_FILES" | grep -Eq '^(turbo\\.json|eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
     FORCE_GLOBAL_LINT=1
-    FORCE_GLOBAL_TYPECHECK=1
     FORCE_GLOBAL_UNIT_TESTS=1
+  fi
+
+  # turbo.json changes do not invalidate TypeScript — only tsconfig changes do.
+  # Keeping turbo.json here would trigger a full Rust+TS rebuild (cold cache)
+  # that reliably times out at 120 s.
+  if echo "$CHANGED_FILES" | grep -Eq '^tsconfig(\\.[^/]*)?\\.json$'; then
+    FORCE_GLOBAL_TYPECHECK=1
   fi
 
   if echo "$CHANGED_FILES" | grep -Eq '^(apps|packages|validations|templates)/.*(/src/|/test/|\\.test\\.|\\.spec\\.|\\.wit$)|(^|/)specs/'; then
@@ -366,7 +372,7 @@ else
         fi
       done
     else
-      if timeout 120 env CI=1 pnpm run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 240 env CI=1 pnpm run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global type-check passed"
       else
         TC_STATUS=$?
