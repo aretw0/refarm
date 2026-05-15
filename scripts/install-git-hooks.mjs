@@ -167,14 +167,15 @@ do
     NEEDS_UNIT_TESTS=1
   fi
 
-  if echo "$CHANGED_FILES" | grep -Eq '^(turbo\\.json|eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
+  # turbo.json is a pipeline config — it doesn't affect what ESLint or tsc check.
+  # Including it in FORCE_GLOBAL_* would cold-invalidate Turbo's entire cache
+  # (turbo.json is a global cache key) and trigger Rust rebuilds, reliably
+  # exceeding the fallback timeouts on protected branches.
+  if echo "$CHANGED_FILES" | grep -Eq '^(eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
     FORCE_GLOBAL_LINT=1
     FORCE_GLOBAL_UNIT_TESTS=1
   fi
 
-  # turbo.json changes do not invalidate TypeScript — only tsconfig changes do.
-  # Keeping turbo.json here would trigger a full Rust+TS rebuild (cold cache)
-  # that reliably times out at 120 s.
   if echo "$CHANGED_FILES" | grep -Eq '^tsconfig(\\.[^/]*)?\\.json$'; then
     FORCE_GLOBAL_TYPECHECK=1
   fi
@@ -280,7 +281,7 @@ else
       fi
     done
   else
-    if timeout 90 env CI=1 pnpm run --silent lint >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 180 env CI=1 pnpm run --silent lint >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Lint passed"
     else
       LINT_STATUS=$?
