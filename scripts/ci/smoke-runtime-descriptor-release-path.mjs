@@ -41,8 +41,8 @@ async function main() {
 		"--dry-run",
 	]);
 
-	await runSubprocess("npm", [
-		"--prefix",
+	await runSubprocess("pnpm", [
+		"-C",
 		"packages/tractor-ts",
 		"run",
 		"test:unit",

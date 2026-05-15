@@ -447,7 +447,7 @@ async function main() {
 		return;
 	}
 
-	await runSubprocess("npm", ["run", command], { env: process.env });
+	await runSubprocess("pnpm", ["run", command], { env: process.env });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * audit-fix.mjs — automated npm audit remediation
+ * audit-fix.mjs — automated pnpm audit remediation
  *
- * What npm audit fix doesn't handle:
+ * What pnpm audit doesn't handle:
  *   1. Root overrides that pin a transitive dep to a vulnerable version
  *   2. Workspace direct deps that are in the vulnerable range
  *   3. Purely transitive deps that need a new root override
@@ -41,8 +41,8 @@ function run(cmd, args, opts = {}) {
 
 /** Minimum version that's strictly greater than the vulnerable range end. */
 function safeVersionFor(pkg, vulnerableRange) {
-	// npm view returns all versions matching a range
-	const above = run("npm", ["view", `${pkg}@>${vulnerableRange.split(" - ").pop()}`, "version", "--json"]);
+	// pnpm view returns all versions matching a range (same registry API as npm view)
+	const above = run("pnpm", ["view", `${pkg}@>${vulnerableRange.split(" - ").pop()}`, "version", "--json"]);
 	if (above.status !== 0) return null;
 	try {
 		const parsed = JSON.parse(above.stdout.trim());
@@ -69,7 +69,7 @@ async function workspacePackageFiles() {
 
 // ── main ─────────────────────────────────────────────────────────────────────
 
-const auditResult = run("npm", ["audit", "--json"]);
+const auditResult = run("pnpm", ["audit", "--json"]);
 const report = JSON.parse(auditResult.stdout || "{}");
 const vulns = report.vulnerabilities ?? {};
 
@@ -81,7 +81,8 @@ if (Object.keys(vulns).length === 0) {
 console.log(`🔍 Found ${Object.keys(vulns).length} vulnerable package(s). Analysing...\n`);
 
 const rootPkg = readJson(path.join(ROOT, "package.json"));
-rootPkg.overrides ??= {};
+rootPkg.pnpm ??= {};
+rootPkg.pnpm.overrides ??= {};
 
 const workspaceFiles = await workspacePackageFiles();
 const workspacePkgs = workspaceFiles.map((f) => ({ file: f, data: readJson(f) }));
@@ -104,10 +105,10 @@ for (const [name, vuln] of Object.entries(vulns)) {
 	console.log(`📦 ${name}  vulnerable: ${range}  →  safe: ${safe}`);
 
 	// 1. Bump root override if it exists and is in the vulnerable range
-	if (rootPkg.overrides[name]) {
-		const current = rootPkg.overrides[name];
+	if (rootPkg.pnpm.overrides[name]) {
+		const current = rootPkg.pnpm.overrides[name];
 		console.log(`   override ${current} → ${safe}`);
-		rootPkg.overrides[name] = safe;
+		rootPkg.pnpm.overrides[name] = safe;
 		changed = true;
 	}
 
@@ -132,9 +133,9 @@ for (const [name, vuln] of Object.entries(vulns)) {
 			(f) => w.data[f]?.[name],
 		),
 	);
-	if (!isDirectAnywhere && !rootPkg.overrides[name]) {
+	if (!isDirectAnywhere && !rootPkg.pnpm.overrides[name]) {
 		console.log(`   adding root override: ${name} → ${safe}`);
-		rootPkg.overrides[name] = safe;
+		rootPkg.pnpm.overrides[name] = safe;
 		changed = true;
 	}
 }
@@ -148,12 +149,12 @@ if (DRY_RUN) {
 	process.exit(0);
 }
 
-console.log("\n📥 Running npm install...");
-const install = run("npm", ["install"], { stdio: "inherit" });
-if (install.status !== 0) { console.error("❌ npm install failed."); process.exit(1); }
+console.log("\n📥 Running pnpm install...");
+const install = run("pnpm", ["install"], { stdio: "inherit" });
+if (install.status !== 0) { console.error("❌ pnpm install failed."); process.exit(1); }
 
 console.log("\n🔒 Verifying audit...");
-const verify = run("npm", ["audit"]);
+const verify = run("pnpm", ["audit"]);
 if (verify.status === 0) {
 	console.log("✅ All vulnerabilities resolved.");
 } else {

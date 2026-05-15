@@ -240,7 +240,7 @@ async function main() {
 				skipWorkspaces: ["apps/refarm"],
 			});
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
+			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
 				env: process.env,
 				captureOutput: false,
 			});
@@ -249,7 +249,7 @@ async function main() {
 		const preReady = await isTelemetryReady();
 		if (!preReady) {
 			console.log(`${LOGGER_PREFIX} starting farmhand daemon...`);
-			await runSubprocess("npm", ["run", "farmhand:daemon"], {
+			await runSubprocess("pnpm", ["run", "farmhand:daemon"], {
 				env: process.env,
 				captureOutput: false,
 			});
@@ -288,7 +288,7 @@ async function main() {
 				console.log(
 					`${LOGGER_PREFIX} stopping farmhand daemon started by this gate...`,
 				);
-				await runSubprocess("npm", ["run", "farmhand:stop"], {
+				await runSubprocess("pnpm", ["run", "farmhand:stop"], {
 					env: process.env,
 					captureOutput: false,
 				});

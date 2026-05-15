@@ -45,12 +45,12 @@ async function main() {
     }
     
     reportContent += '\n---\n';
-    reportContent += '> 🤖 **Nota:** Relatório gerado automaticamente por `npm run deps:check`.\n';
+    reportContent += '> 🤖 **Nota:** Relatório gerado automaticamente por `pnpm run deps:check`.\n';
     
     if (isUpdate) {
       reportContent += '> ⚠️ **Ação Executada:** Os arquivos `package.json` foram modificados com as novas versões. As mudanças estão prontas para o PR.\n';
     } else {
-      reportContent += '> 💡 Execute `npm run deps:update` para aplicar as atualizações localmente se preferir antes de criar o PR.\n';
+      reportContent += '> 💡 Execute `pnpm run deps:update` para aplicar as atualizações localmente se preferir antes de criar o PR.\n';
     }
 
     fs.writeFileSync(reportPath, reportContent);

@@ -3,7 +3,7 @@
  * agent-status — health check for the pi-agent stack
  *
  * Shows: daemon state, configured keys, WASM freshness, LLM config, LLM_FS_ROOT safety.
- * Usage: npm run agent:status
+ * Usage: pnpm run agent:status
  */
 
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -84,7 +84,7 @@ function checkDaemon() {
   }
 
   if (!existsSync(PID_FILE)) {
-    info('daemon', 'not running (no PID file) — start: npm run agent:daemon');
+    info('daemon', 'not running (no PID file) — start: pnpm run agent:daemon');
     return;
   }
 
@@ -107,7 +107,7 @@ function checkDaemon() {
       warn('daemon', `process alive (pid ${pid}) but WS not responding`);
     }
   } catch {
-    warn('daemon', `PID ${pid} not alive — stale PID file. Run: npm run agent:stop`);
+    warn('daemon', `PID ${pid} not alive — stale PID file. Run: pnpm run agent:stop`);
   }
 }
 
@@ -139,7 +139,7 @@ function checkKeys(envVars) {
     info('keys', `not configured: ${c.dim}${missing.join(', ')}${c.reset}`);
   }
   if (configured.length === 0) {
-    fail('keys', 'no API keys configured — run: npm run agent:keys');
+    fail('keys', 'no API keys configured — run: ppnpm run agent:keys');
   }
 }
 

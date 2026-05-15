@@ -3,7 +3,7 @@
  * farm-status — unified process and health status for the Refarm factory.
  *
  * Covers tractor (Rust WASM host) and farmhand (Node.js task orchestrator).
- * Run: npm run farm:status
+ * Run: pnpm run farm:status
  * See: docs/PROCESS_PLAYBOOK.md
  */
 
@@ -138,7 +138,7 @@ function checkTractor() {
     if (b42.bound) {
       warn('tractor', `no PID file but port 42000 bound by PID ${b42.pid ?? '?'} (${b42.proc ?? 'unknown'}) — stale?`);
     } else {
-      info('tractor', `not running  ${c.dim}(start: npm run agent:daemon)${c.reset}`);
+      info('tractor', `not running  ${c.dim}(start: pnpm run agent:daemon)${c.reset}`);
     }
     return false;
   }
@@ -164,7 +164,7 @@ async function checkFarmhand() {
     } else if (b42.bound) {
       info('farmhand', `not running  (port 42000 held by ${b42.proc ?? 'pid=' + b42.pid})`);
     } else {
-      info('farmhand', `not running  ${c.dim}(start: npm run farmhand:daemon)${c.reset}`);
+      info('farmhand', `not running  ${c.dim}(start: pnpm run farmhand:daemon)${c.reset}`);
     }
     return false;
   }
@@ -232,7 +232,7 @@ function checkLlm() {
     .map(([k, label]) => `${label} ${c.dim}${maskedKey(envVars[k] || process.env[k])}${c.reset}`);
 
   if (configured.length) ok('keys', configured.join('  '));
-  else fail('keys', 'no API keys — run: npm run agent:keys');
+  else fail('keys', 'no API keys — run: ppnpm run agent:keys');
 
   const provider = envVars.LLM_PROVIDER || process.env.LLM_PROVIDER || config.provider || 'ollama';
   const model    = envVars.LLM_MODEL    || process.env.LLM_MODEL    || config.model    || '(default)';

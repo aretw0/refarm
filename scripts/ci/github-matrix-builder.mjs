@@ -95,7 +95,7 @@ function getChangedPackages() {
  */
 function getAllWorkspacePackages() {
     try {
-        const output = execSync("npm query .workspace", { 
+        const output = execSync("pnpm ls -r --json --depth 0", { 
             cwd: ROOT_DIR, 
             encoding: "utf-8" 
         });

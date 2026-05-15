@@ -165,7 +165,7 @@ export async function ensureTaskSmokeTypeBuilds(
 		}
 		built += 1;
 		await resetTsBuildArtifacts(workspaceDir);
-		await runSubprocess("npm", ["--prefix", workspaceDir, "run", "build"], {
+		await runSubprocess("pnpm", ["-C", workspaceDir, "run", "build"], {
 			env,
 		});
 	}

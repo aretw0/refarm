@@ -3,12 +3,12 @@
  * agent-repl — interactive multi-turn session with pi-agent
  *
  * Usage:
- *   npm run agent:repl
- *   npm run agent:repl -- --ws-port 42001 --namespace dev
+ *   pnpm run agent:repl
+ *   pnpm run agent:repl -- --ws-port 42001 --namespace dev
  *
  * Prerequisites:
- *   npm run agent:daemon   (or agent:start in a separate terminal)
- *   npm run agent:keys     (configure at least one LLM provider)
+ *   pnpm run agent:daemon   (or agent:start in a separate terminal)
+ *   ppnpm run agent:keys     (configure at least one LLM provider)
  */
 
 import { createInterface } from 'node:readline';
@@ -386,8 +386,8 @@ async function main() {
   const daemonRunning = checkDaemon();
   if (!daemonRunning) {
     console.error(`${c.yellow}Daemon not responding on port ${WS_PORT}.${c.reset}`);
-    console.error(`Start it first:  ${c.cyan}npm run agent:daemon${c.reset}`);
-    console.error(`Or:              ${c.cyan}npm run agent:start${c.reset}  (foreground)`);
+    console.error(`Start it first:  ${c.cyan}pnpm run agent:daemon${c.reset}`);
+    console.error(`Or:              ${c.cyan}pnpm run agent:start${c.reset}  (foreground)`);
     process.exit(1);
   }
 

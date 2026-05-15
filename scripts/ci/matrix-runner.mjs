@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
 const workspacePackages = JSON.parse(
-	execSync("npm query .workspace", { cwd: ROOT_DIR }).toString(),
+	execSync("pnpm ls -r --json --depth 0", { cwd: ROOT_DIR }).toString(),
 );
 
 function findWorkspacePackage(pkgName) {
@@ -18,7 +18,7 @@ function findWorkspacePackage(pkgName) {
 
 function npmPackageExists(pkgName) {
 	try {
-		execSync(`npm view ${pkgName}@latest version --silent`, {
+		execSync(`pnpm view ${pkgName}@latest version --silent`, {
 			cwd: ROOT_DIR,
 			stdio: "pipe",
 		});
@@ -153,11 +153,11 @@ function runForward(pkgName) {
 	try {
 		// Replace local workspace dependencies with their published registry baseline.
 		rewriteWorkspaceDepsToLatest(join(pkgDir, "package.json"));
-		execSync("npm install --no-workspaces --package-lock=false", {
+		execSync("pnpm install --no-frozen-lockfile --ignore-workspace", {
 			cwd: pkgDir,
 			stdio: "inherit",
 		});
-		execSync(`npm run ${validationScript}`, { cwd: pkgDir, stdio: "inherit" });
+		execSync(`pnpm run ${validationScript}`, { cwd: pkgDir, stdio: "inherit" });
 		console.log(
 			`✅ Forward compat passed for ${pkgName} (${validationScript})`,
 		);
@@ -168,7 +168,7 @@ function runForward(pkgName) {
 	} finally {
 		// Restore state using git
 		execSync(`git checkout package.json`, { cwd: pkgDir });
-		execSync(`npm install`, { cwd: ROOT_DIR });
+		execSync(`pnpm install`, { cwd: ROOT_DIR });
 	}
 }
 
@@ -187,8 +187,8 @@ function runBackward(pkgName, consumerName) {
 	const testDir = join(ROOT_DIR, ".turbo", "matrix-test", consumerSlug);
 
 	try {
-		execSync("npm run build", { cwd: pkgDir, stdio: "inherit" });
-		const tarOutput = execSync(`npm pack --pack-destination /tmp`, {
+		execSync("pnpm run build", { cwd: pkgDir, stdio: "inherit" });
+		const tarOutput = execSync(`pnpm pack --pack-destination /tmp`, {
 			cwd: pkgDir,
 		})
 			.toString()
@@ -198,14 +198,14 @@ function runBackward(pkgName, consumerName) {
 		rmSync(testDir, { recursive: true, force: true });
 		mkdirSync(testDir, { recursive: true });
 
-		execSync("npm init -y", { cwd: testDir });
+		execSync("pnpm init", { cwd: testDir });
 		// Install the published consumer
-		execSync(`npm install ${consumerName}@latest --no-save`, {
+		execSync(`pnpm add ${consumerName}@latest`, {
 			cwd: testDir,
 			stdio: "inherit",
 		});
 		// Overwrite the specific child dependency with our local altered tarball
-		execSync(`npm install ${tarballPath} --no-save`, {
+		execSync(`pnpm add ${tarballPath}`, {
 			cwd: testDir,
 			stdio: "inherit",
 		});

@@ -9,7 +9,7 @@
  *   - feature branches: warning-only mode
  *   - test:unit and security are advisory locally (enforced in CI)
  *
- * Usage: npm run hooks:install
+ * Usage: pnpm run hooks:install
  */
 
 import { chmodSync, existsSync, mkdirSync, writeFileSync } from "fs";
@@ -22,7 +22,7 @@ const rootDir = join(__dirname, "..");
 
 const hookContent = `#!/bin/sh
 # Pre-push hook: valida qualidade antes de push
-# Installed by: npm run hooks:install
+# Installed by: pnpm run hooks:install
 # Mode: context-aware (strict on main/develop, permissive on other branches)
 # Strategy: selective workspace checks + commit cache to avoid re-running
 
@@ -256,7 +256,7 @@ else
 
       LINT_TIMEOUT=$(workspace_lint_timeout "$ws")
 
-      if timeout "$LINT_TIMEOUT" env CI=1 npm --prefix "$ws" run "$LINT_SCRIPT" --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      if timeout "$LINT_TIMEOUT" env CI=1 pnpm -C "$ws" run "$LINT_SCRIPT" --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
         echo "   ✅ Lint passed ($ws:$LINT_SCRIPT)"
       else
         LINT_STATUS=$?
@@ -274,7 +274,7 @@ else
       fi
     done
   else
-    if timeout 90 env CI=1 npm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 90 env CI=1 pnpm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Lint passed"
     else
       LINT_STATUS=$?
@@ -303,7 +303,7 @@ echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
 else
-  if timeout 120 env CI=1 npm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+  if timeout 120 env CI=1 pnpm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ TSConfig guard passed"
   else
     TYPECHECK_STATUS=$?
@@ -343,7 +343,7 @@ else
           continue
         fi
 
-        if timeout 90 env CI=1 npm --prefix "$ws" run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        if timeout 90 env CI=1 pnpm -C "$ws" run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
           echo "   ✅ Type-check passed ($ws)"
         else
           TC_STATUS=$?
@@ -366,7 +366,7 @@ else
         fi
       done
     else
-      if timeout 120 env CI=1 npm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 120 env CI=1 pnpm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global type-check passed"
       else
         TC_STATUS=$?
@@ -415,7 +415,7 @@ else
 
       TEST_TIMEOUT=$(workspace_test_timeout "$ws")
 
-      if timeout "$TEST_TIMEOUT" env CI=1 npm --prefix "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout "$TEST_TIMEOUT" env CI=1 pnpm -C "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
       else
         UNIT_STATUS=$?
@@ -428,7 +428,7 @@ else
       fi
     done
   else
-    if timeout 120 env CI=1 npm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 120 env CI=1 pnpm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Unit tests passed"
     else
       UNIT_STATUS=$?
@@ -449,7 +449,7 @@ echo ""
 
 # 4a. Task smoke build-order integrity (always runs — fast graph walk, catches new packages missing from TASK_SMOKE_TS_BUILD_ORDER)
 echo "📋 Checking task smoke build-order integrity..."
-if timeout 30 npm run task:build-order:check --silent 2>/tmp/prepush-buildorder.err; then
+if timeout 30 pnpm run task:build-order:check --silent 2>/tmp/prepush-buildorder.err; then
   echo "   ✅ Build-order integrity OK"
 else
   BO_STATUS=$?
@@ -495,7 +495,7 @@ echo "🔒 Checking security (advisory local check)..."
 if [ $NEEDS_SECURITY_AUDIT -eq 0 ]; then
   echo "   ⏭️  Security audit skipped (no manifest/lockfile changes in push range)"
 else
-  if timeout 120 npm audit --audit-level=high --silent 2>/dev/null; then
+  if timeout 120 pnpm audit --audit-level=high --silent 2>/dev/null; then
     echo "   ✅ No high/critical vulnerabilities"
   else
     AUDIT_STATUS=$?
@@ -538,7 +538,7 @@ exit 0
 
 const postCheckoutHookContent = `#!/bin/sh
 # Post-checkout hook: warns/generates tractor baselines when switching branches
-# Installed by: npm run hooks:install
+# Installed by: pnpm run hooks:install
 
 # Keep branch changes non-blocking even when optional baselines are not implemented yet.
 cleanup_transient_artifacts() {
@@ -569,7 +569,7 @@ try_generate_baseline() {
     return 0
   fi
 
-  if npm run "$script_name"; then
+  if pnpm run "$script_name"; then
     if [ -f "$target_file" ]; then
       echo "✅ Baseline generated: $target_file"
     else

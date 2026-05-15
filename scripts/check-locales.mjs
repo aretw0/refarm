@@ -2,7 +2,7 @@
 
 /**
  * Check that all locale files have the same keys
- * Usage: npm run i18n:check
+ * Usage: pnpm run i18n:check
  */
 
 import fs from 'fs';

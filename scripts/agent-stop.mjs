@@ -3,7 +3,7 @@
  * agent-stop — stop a backgrounded tractor daemon
  *
  * Reads .refarm/tractor.pid and sends SIGTERM.
- * Usage: npm run agent:stop
+ * Usage: pnpm run agent:stop
  */
 
 import { existsSync, readFileSync, unlinkSync } from 'node:fs';

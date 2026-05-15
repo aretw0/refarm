@@ -21,11 +21,11 @@ if (args.length === 0) {
   console.log(`  node scripts/toggle-dev-mode.mjs test      - Run tests in current mode`);
   console.log(`  VITEST_USE_DIST=true node ... test       - Run tests in DIST mode`);
   console.log(`\nExample:`);
-  console.log(`  VITEST_USE_DIST=true npm test\n`);
+  console.log(`  VITEST_USE_DIST=true pnpm test\n`);
 } else if (args[0] === 'test') {
   console.log(`Running tests...`);
   try {
-    execSync('npm test', { stdio: 'inherit' });
+    execSync('pnpm test', { stdio: 'inherit' });
   } catch (e) {
     process.exit(1);
   }

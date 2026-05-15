@@ -403,7 +403,7 @@ async function main() {
 			);
 		} else {
 			console.log(`${LOGGER_PREFIX} building apps/refarm dist...`);
-			await runSubprocess("npm", ["--prefix", "apps/refarm", "run", "build"], {
+			await runSubprocess("pnpm", ["-C", "apps/refarm", "run", "build"], {
 				env: process.env,
 			});
 		}
