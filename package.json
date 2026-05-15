@@ -104,6 +104,8 @@
 		"deps:check": "node scripts/check-deps.mjs",
 		"deps:update": "node scripts/check-deps.mjs --update",
 		"security:audit": "npm audit",
+		"security:fix": "node scripts/security/audit-fix.mjs",
+		"security:fix:dry": "node scripts/security/audit-fix.mjs --dry-run",
 		"changeset": "changeset",
 		"changeset:version": "changeset version",
 		"changeset:publish": "changeset publish",
