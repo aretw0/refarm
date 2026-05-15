@@ -55,7 +55,7 @@
     "@refarm.dev/storage-sqlite": "*",
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
-    "astro": "^6.1.8"
+    "astro": "^6.2.2"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
