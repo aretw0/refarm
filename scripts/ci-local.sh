@@ -124,6 +124,10 @@ echo "  turbo_filter=${TURBO_FILTER:-<none>}"
 step "Validate .project cross-block consistency"
 run_step "project-block-consistency" node scripts/ci/project-block-consistency.mjs
 
+# ── 1b. Missing dep declarations (catches pnpm hoisting gaps before Turbo) ───
+step "Missing dependency declarations"
+run_step "check-missing-deps" node scripts/check-missing-deps.mjs
+
 # ── 2. pnpm install --frozen-lockfile (mirrors setup action) ─────────────────
 step "Setup — pnpm install --frozen-lockfile"
 if [ ! -f pnpm-lock.yaml ]; then
