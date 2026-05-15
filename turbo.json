@@ -30,7 +30,8 @@
         "**/*.rs",
         "Cargo.toml",
         "Cargo.lock"
-      ]
+      ],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
     "test:coverage": {
       "dependsOn": ["build"],
@@ -43,7 +44,8 @@
         "Cargo.toml",
         "Cargo.lock"
       ],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**"],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
     "test:unit": {
       "dependsOn": ["build"],
@@ -55,7 +57,8 @@
         "**/*.rs",
         "Cargo.toml",
         "Cargo.lock"
-      ]
+      ],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
     "test:integration": {
       "dependsOn": ["build"],
@@ -67,7 +70,8 @@
         "**/*.rs",
         "Cargo.toml",
         "Cargo.lock"
-      ]
+      ],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
     "test:e2e": {
       "dependsOn": ["build"],
