@@ -193,7 +193,8 @@
 			"postcss": "8.5.10",
 			"uuid": "14.0.0",
 			"fast-uri": "3.1.2",
-			"yaml-language-server>yaml": "2.8.3"
+			"yaml": "2.9.0",
+			"yaml-language-server": "1.23.0"
 		},
 		"onlyBuiltDependencies": [
 			"better-sqlite3",
