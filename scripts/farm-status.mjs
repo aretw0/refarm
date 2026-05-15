@@ -234,8 +234,8 @@ function checkLlm() {
   if (configured.length) ok('keys', configured.join('  '));
   else fail('keys', 'no API keys — run: ppnpm run agent:keys');
 
-  const provider = envVars.LLM_PROVIDER || process.env.LLM_PROVIDER || config.provider || 'ollama';
-  const model    = envVars.LLM_MODEL    || process.env.LLM_MODEL    || config.model    || '(default)';
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || config.provider || 'ollama';
+  const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(default)';
   const budget   = config.budgets?.[provider] ?? null;
   info('llm', [
     `provider=${c.cyan}${provider}${c.reset}`,

@@ -380,7 +380,7 @@ function handleSlashCommand(line) {
 async function main() {
   loadEnvFile();
 
-  const provider = process.env.LLM_PROVIDER || 'ollama';
+  const provider = process.env.MODEL_PROVIDER || 'ollama';
 
   // Check daemon is alive
   const daemonRunning = checkDaemon();
