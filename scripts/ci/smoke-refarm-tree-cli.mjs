@@ -12,13 +12,13 @@ import {
 const LOGGER_PREFIX = "[refarm-tree-cli-smoke]";
 const REPO_ROOT = process.cwd();
 const REFARM_DIST_ENTRY = path.join(REPO_ROOT, "apps/refarm/dist/index.js");
-const REFARM_ESM_LOADER = path.join(
+const REFARM_ESM_REGISTER = path.join(
 	REPO_ROOT,
-	"scripts/ci/esm-extension-loader.mjs",
+	"scripts/ci/esm-extension-register.mjs",
 );
 const REFARM_NODE_ARGS_PREFIX = [
-	"--experimental-loader",
-	REFARM_ESM_LOADER,
+	"--import",
+	REFARM_ESM_REGISTER,
 	REFARM_DIST_ENTRY,
 ];
 

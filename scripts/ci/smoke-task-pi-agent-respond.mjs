@@ -317,8 +317,8 @@ async function main() {
 		farmhand = spawn(
 			process.execPath,
 			[
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
+				"--import",
+				"./scripts/ci/esm-extension-register.mjs",
 				"apps/farmhand/dist/index.js",
 			],
 			{
@@ -412,8 +412,8 @@ async function main() {
 			[
 				"45s",
 				process.execPath,
-				"--experimental-loader",
-				"./scripts/ci/esm-extension-loader.mjs",
+				"--import",
+				"./scripts/ci/esm-extension-register.mjs",
 				"apps/refarm/dist/index.js",
 				"ask",
 				"quanto é 2+2 no smoke?",
