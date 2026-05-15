@@ -1,5 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import path from "node:path";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the modules that touch filesystem or npm resolution
 vi.mock("node:module", () => {

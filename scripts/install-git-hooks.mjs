@@ -256,7 +256,7 @@ else
 
       LINT_TIMEOUT=$(workspace_lint_timeout "$ws")
 
-      if timeout "$LINT_TIMEOUT" env CI=1 pnpm -C "$ws" run "$LINT_SCRIPT" --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      if timeout "$LINT_TIMEOUT" env CI=1 pnpm -C "$ws" run --silent "$LINT_SCRIPT" >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
         echo "   ✅ Lint passed ($ws:$LINT_SCRIPT)"
       else
         LINT_STATUS=$?
@@ -274,7 +274,7 @@ else
       fi
     done
   else
-    if timeout 90 env CI=1 pnpm run lint --silent >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+    if timeout 90 env CI=1 pnpm run --silent lint >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
       echo "   ✅ Lint passed"
     else
       LINT_STATUS=$?
@@ -303,7 +303,7 @@ echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
 else
-  if timeout 120 env CI=1 pnpm run tsconfig:guard --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+  if timeout 120 env CI=1 pnpm run --silent tsconfig:guard >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ TSConfig guard passed"
   else
     TYPECHECK_STATUS=$?
@@ -343,7 +343,7 @@ else
           continue
         fi
 
-        if timeout 90 env CI=1 pnpm -C "$ws" run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        if timeout 90 env CI=1 pnpm -C "$ws" run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
           echo "   ✅ Type-check passed ($ws)"
         else
           TC_STATUS=$?
@@ -366,7 +366,7 @@ else
         fi
       done
     else
-      if timeout 120 env CI=1 pnpm run type-check --silent >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+      if timeout 120 env CI=1 pnpm run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
         echo "   ✅ Global type-check passed"
       else
         TC_STATUS=$?
@@ -415,7 +415,7 @@ else
 
       TEST_TIMEOUT=$(workspace_test_timeout "$ws")
 
-      if timeout "$TEST_TIMEOUT" env CI=1 pnpm -C "$ws" run "$TEST_SCRIPT" --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      if timeout "$TEST_TIMEOUT" env CI=1 pnpm -C "$ws" run --silent "$TEST_SCRIPT" >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
         echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
       else
         UNIT_STATUS=$?
@@ -428,7 +428,7 @@ else
       fi
     done
   else
-    if timeout 120 env CI=1 pnpm run test:unit --silent >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 120 env CI=1 pnpm run --silent test:unit >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Unit tests passed"
     else
       UNIT_STATUS=$?
@@ -449,7 +449,7 @@ echo ""
 
 # 4a. Task smoke build-order integrity (always runs — fast graph walk, catches new packages missing from TASK_SMOKE_TS_BUILD_ORDER)
 echo "📋 Checking task smoke build-order integrity..."
-if timeout 30 pnpm run task:build-order:check --silent 2>/tmp/prepush-buildorder.err; then
+if timeout 30 pnpm run --silent task:build-order:check 2>/tmp/prepush-buildorder.err; then
   echo "   ✅ Build-order integrity OK"
 else
   BO_STATUS=$?
