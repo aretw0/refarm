@@ -25,6 +25,7 @@ import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
 import { loadConfigAsync } from "@refarm.dev/config";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
+import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
@@ -311,8 +312,29 @@ async function main() {
 	const autoEntries: unknown[] = Array.isArray(config?.plugins?.autoInstall)
 		? (config.plugins.autoInstall as unknown[])
 		: [];
+
+	const pluginsDir = path.join(farmhandBaseDir, "plugins");
+	await mkdir(pluginsDir, { recursive: true });
+
+	// Phase 1: Bundled plugins — auto-install from co-located npm packages
+	const defaultBundled: BundledEntry[] = [
+		{
+			id: "@refarm/pi-agent",
+			package: "@refarm.dev/pi-agent",
+			wasmFile: "dist/pi_agent.wasm",
+		},
+	];
+	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
+		? (config.plugins.bundled as BundledEntry[])
+		: [];
+	const bundledEntries = [...defaultBundled, ...configBundled];
+	const bundledSummary = await bundleInstallPlugins(bundledEntries, pluginsDir);
+	console.log(
+		`[farmhand] Bundled install: installed=${bundledSummary.installed} cached=${bundledSummary.cached} failed=${bundledSummary.failed}`,
+	);
+
+	// Phase 2: Auto-install from URLs (config.plugins.autoInstall)
 	if (autoEntries.length > 0) {
-		const pluginsDir = path.join(farmhandBaseDir, "plugins");
 		const autoSummary = await autoInstallPlugins(autoEntries, pluginsDir);
 		console.log(
 			`[farmhand] Auto-install: installed=${autoSummary.installed} cached=${autoSummary.cached} failed=${autoSummary.failed}`,
