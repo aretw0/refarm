@@ -71,23 +71,17 @@ prompt, and session context assembled by the chat CLI.
 
 ## True gaps (what's actually missing)
 
-### Gap 1 — Installation is a manual step (highest impact)
+### Gap 1 — Installation is a manual step (highest impact) — ADDRESSED
 
-`scripts/pi-agent-install.mjs` must be run after every `cargo build`. It:
-1. Finds the compiled `pi_agent.wasm` in the cargo target dir
-2. Copies it to `~/.refarm/plugins/@refarm/pi-agent/plugin.wasm`
-3. Computes SHA-256 integrity
-4. Writes `plugin.json` with `entry: "file://..."` and `integrity`
-5. Also builds `apps/refarm` dist and installs the `refarm` shim to `~/.local/bin/refarm`
+Farmhand now auto-installs pi-agent on boot via `bundleInstallPlugin`, reading
+the WASM from the co-located npm package (`@refarm.dev/pi-agent` dist/jco/).
+A version file (`.version`) prevents unnecessary reinstalls. The `scripts/pi-agent-install.mjs`
+script remains for backward compatibility but is no longer the primary path.
 
-This is the only thing standing between "all code exists" and "it works". A fresh
-devcontainer or CI runner without a prior `npm run agent:install` fails silently
-(farmhand starts without pi-agent loaded, chat submits efforts that time out).
+To manually trigger install: `refarm agent install`
+To check for updates: `refarm agent update`
 
-**Path forward**: Document the install step clearly, add a preflight check in
-`refarm chat` that detects missing pi-agent and fails fast with instructions.
-Longer term: `refarm.config.json` autoInstall entry for pi-agent pointing to a
-published artifact (see `docs/superpowers/specs/2026-05-13-barn-scarecrow-evolution.md`).
+This is resolved — a fresh devcontainer or CI runner works without manual steps.
 
 ### Gap 2 — History turns disabled by default
 
@@ -169,7 +163,7 @@ already implemented for rapid iteration once the binary exists.
 
 **Phase 1 — Make it work (today)**
 
-1. Run `npm run agent:install` to install pi-agent into farmhand
+1. Farmhand auto-installs pi-agent on boot (no manual step needed)
 2. Set env vars in farmhand startup:
    ```
    MODEL_HISTORY_TURNS=20
@@ -182,10 +176,9 @@ already implemented for rapid iteration once the binary exists.
 **Phase 2 — Make it reliable**
 
 - Add preflight check in `refarm chat`: detect missing `@refarm/pi-agent` plugin
-  and fail fast with instructions
-- Add `@refarm/pi-agent` to `refarm.config.json` `plugins.autoInstall` once the
-  artifact is published to a stable URL
+  and fail fast with instructions (e.g., "Run: `refarm agent install`")
 - ADR-065: farmhand auto-start so `refarm chat` works without a separate daemon
+- Monitor bundled install logs to ensure pi-agent consistently installs on farmhand boot
 
 **Phase 3 — Make it self-aware (coding system prompt)**
 

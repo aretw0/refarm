@@ -30,7 +30,7 @@ npm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
 # When checking remote CI results (after local validation):
 gh run list --workflow test.yml --limit 5
 gh run watch --exit-status
-npm run agent:install      # install pi-agent plugin + local refarm shim (~/.local/bin/refarm)
+refarm agent install       # manual: force-install pi-agent (normally auto-installed on farmhand boot)
 npm run agent:daemon       # start tractor in background
 npm run agent:stop         # stop tractor
 npm run farmhand:daemon    # start farmhand in background
@@ -183,16 +183,14 @@ npm run farmhand:stop
 ### Scenario 3b — Canonical local ask flow (daily driver)
 
 ```bash
-npm run agent:install      # refresh plugin + ensure 'refarm' command shim
-npm run farmhand:daemon
+npm run farmhand:daemon    # farmhand auto-installs pi-agent on boot
 refarm ask "o que é CRDT?"
 ```
 
 Notes:
-- `agent:install` now installs `~/.local/bin/refarm` wrapper that launches
-  `apps/refarm/dist` with the local resolver loader, so `refarm ask ...` works
-  without manual node flags.
-- If `~/.local/bin` is not in PATH, add it before using `refarm` directly.
+- Farmhand auto-installs pi-agent from the bundled npm package when it boots.
+  To manually trigger: `refarm agent install`.
+- `refarm ask ...` works with the built-in resolver loader.
 - Use `refarm telemetry --profile balanced` (or conservative/throughput) to
   watch queue/in-flight pressure and recent failure-rate signals.
 - Use `refarm telemetry --strict` to fail-closed when diagnostics are present

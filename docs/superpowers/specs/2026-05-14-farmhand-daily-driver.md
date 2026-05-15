@@ -152,15 +152,15 @@ response and checking terminal output fidelity.
 
 ## Gap 6 — `pi-agent` preflight check
 
-If `@refarm/pi-agent` is not installed in farmhand (because `npm run agent:install`
-wasn't run), `refarm chat` submits efforts that time out silently. The user has
+If `@refarm/pi-agent` is not installed in farmhand (because farmhand hasn't
+booted with bundled plugin install yet), `refarm chat` submits efforts that time out silently. The user has
 no indication of what went wrong.
 
 **Target behavior**: on REPL start, `GET /plugins` from the sidecar, verify
 `@refarm/pi-agent` is in the loaded plugin list. If not:
 
 ```
-✗  pi-agent is not installed. Run: npm run agent:install
+✗  pi-agent is not installed. Run: refarm agent install
 ```
 
 **Files to touch**: `apps/refarm/src/commands/chat.ts` — add plugin preflight
@@ -191,12 +191,11 @@ before entering REPL loop. The HTTP sidecar does not currently expose a
 
 A developer can:
 1. Start a fresh devcontainer (or fresh machine with refarm cloned and built)
-2. Run `npm run agent:install` once
-3. Type `refarm` and get a working REPL within 3s — farmhand auto-started if needed
-4. Ask a multi-step coding question, see streaming output with tool calls
-5. Type ↑ to recall previous prompts
-6. Type `/reload` to hot-reload a plugin they just changed
-7. Close and reopen — session ID and readline history are preserved
+2. Type `refarm` and get a working REPL within 3s — farmhand auto-started if needed, pi-agent auto-installed on farmhand boot
+3. Ask a multi-step coding question, see streaming output with tool calls
+4. Type ↑ to recall previous prompts
+5. Type `/reload` to hot-reload a plugin they just changed
+6. Close and reopen — session ID and readline history are preserved
 
 ---
 
