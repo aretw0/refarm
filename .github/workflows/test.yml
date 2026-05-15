@@ -317,7 +317,7 @@ jobs:
 
       - name: Tractor health probe smoke
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
-        run: pnpm run test:smoke:health -w @refarm.dev/tractor-rs
+        run: pnpm --filter @refarm.dev/tractor-rs run test:smoke:health
 
       - name: Browser runtime descriptor gate (Tractor TS)
         if: steps.quality_cache.outputs.cache-hit != 'true' && needs.changes.outputs.tractor_gates == 'true'
