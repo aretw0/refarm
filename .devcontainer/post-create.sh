@@ -37,9 +37,8 @@ git ls-files -s | awk '/^120000/ {print $4}' | xargs -r git checkout -- 2>/dev/n
 # 1) Cache and tool directories
 log "Preparing cache directories and permissions..."
 for dir in \
-  /home/vscode/.npm \
-  /home/vscode/.npm-global \
-  /home/vscode/.npm-global/bin \
+  /home/vscode/.local/share/pnpm \
+  /home/vscode/.local/share/pnpm/store \
   /home/vscode/.turbo \
   /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
@@ -77,12 +76,14 @@ if gh auth status -h github.com >/dev/null 2>&1; then
 fi
 
 # 2) Node dependencies
-if [ -f package-lock.json ]; then
-  log "Running npm ci..."
-  npm ci
+corepack enable || warn "corepack enable failed — pnpm may not be available"
+corepack prepare --activate || warn "corepack prepare failed"
+if [ -f pnpm-lock.yaml ]; then
+  log "Running pnpm install --frozen-lockfile..."
+  pnpm install --frozen-lockfile
 else
-  log "No package-lock.json found, running npm install..."
-  npm install
+  log "No pnpm-lock.yaml found, running pnpm install..."
+  pnpm install
 fi
 
 # 3) Rust baseline parity for local/CI checks
@@ -125,7 +126,7 @@ wait $PI_PID     || true
 
 # 5) Finalize
 log "Installing git hooks..."
-npm run hooks:install || warn "Could not install git hooks automatically"
+pnpm run hooks:install || warn "Could not install git hooks automatically"
 
 if [ -f scripts/factory-preflight.mjs ]; then
   log "Running factory preflight..."
@@ -134,7 +135,7 @@ fi
 
 log "Tool versions:"
 node --version || true
-npm --version || true
+pnpm --version || true
 rustc --version || true
 cargo --version || true
 cargo-component --version || true

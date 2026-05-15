@@ -44,14 +44,14 @@ function makeStatus(overrides?: Partial<any>) {
 describe("resolveWebLaunchSpec", () => {
 	it("maps dev and preview launchers to deterministic commands", () => {
 		expect(resolveWebLaunchSpec("dev")).toEqual({
-			command: "npm",
-			args: ["--prefix", "apps/dev", "run", "dev"],
-			display: "npm --prefix apps/dev run dev",
+			command: "pnpm",
+			args: ["-C", "apps/dev", "run", "dev"],
+			display: "pnpm -C apps/dev run dev",
 		});
 		expect(resolveWebLaunchSpec("preview")).toEqual({
-			command: "npm",
-			args: ["--prefix", "apps/dev", "run", "preview"],
-			display: "npm --prefix apps/dev run preview",
+			command: "pnpm",
+			args: ["-C", "apps/dev", "run", "preview"],
+			display: "pnpm -C apps/dev run preview",
 		});
 	});
 });
@@ -318,7 +318,7 @@ describe("webCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "npm --prefix apps/dev run dev",
+				display: "pnpm -C apps/dev run dev",
 			}),
 		);
 		expect(logSpy).toHaveBeenCalledWith(
@@ -342,7 +342,7 @@ describe("webCommand", () => {
 
 		expect(launch).toHaveBeenCalledWith(
 			expect.objectContaining({
-				display: "npm --prefix apps/dev run preview",
+				display: "pnpm -C apps/dev run preview",
 			}),
 		);
 	});

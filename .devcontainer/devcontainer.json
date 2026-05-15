@@ -32,16 +32,15 @@
     "TERM_PROGRAM": "vscode"
   },
   "remoteEnv": {
-    "NPM_CONFIG_PREFIX": "/home/vscode/.npm-global",
-    "PATH": "/home/vscode/.npm-global/bin:${containerEnv:PATH}",
+    "PNPM_HOME": "/home/vscode/.local/share/pnpm",
+    "PATH": "/home/vscode/.local/share/pnpm:${containerEnv:PATH}",
     "LANG": "C.UTF-8",
     "LC_ALL": "C.UTF-8",
     "LANGUAGE": "en_US:en",
     "TERM_PROGRAM": "vscode"
   },
   "mounts": [
-    "source=refarm-npm-cache,target=/home/vscode/.npm,type=volume",
-    "source=refarm-npm-global,target=/home/vscode/.npm-global,type=volume",
+    "source=refarm-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
     "source=refarm-cargo-registry,target=/usr/local/cargo/registry,type=volume",
     "source=refarm-cargo-git,target=/usr/local/cargo/git,type=volume",
     "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume",

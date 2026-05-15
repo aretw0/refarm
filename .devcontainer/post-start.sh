@@ -6,7 +6,7 @@ echo "[refarm-devcontainer] Post-start sanity check..."
 ensure_hooks() {
   if [ -d .git ] && [ ! -x .git/hooks/pre-push ]; then
     echo "[refarm-devcontainer] Installing git hooks..."
-    npm run hooks:install >/dev/null 2>&1 || true
+    pnpm run hooks:install >/dev/null 2>&1 || true
   fi
 }
 

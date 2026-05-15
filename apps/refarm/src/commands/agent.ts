@@ -92,7 +92,7 @@ async function installPlugin(
 	if (!existsSync(wasmSrc)) {
 		console.error(`  ✗ ${plugin.id}: WASM not found at ${wasmSrc}`);
 		console.error(
-			`    Build first: npm --prefix packages/pi-agent run build`,
+			`    Build first: pnpm -C packages/pi-agent run build`,
 		);
 		return "failed";
 	}
