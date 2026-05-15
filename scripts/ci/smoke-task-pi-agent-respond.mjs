@@ -288,11 +288,11 @@ async function main() {
 			...process.env,
 			HOME: tempHome,
 			USERPROFILE: tempHome,
-			LLM_PROVIDER: "ollama",
-			LLM_MODEL: "smoke-pi-agent-model",
-			LLM_STREAM_RESPONSES: "1",
-			LLM_HISTORY_TURNS: "0",
-			REFARM_MOCK_LLM_BODY: JSON.stringify({
+			MODEL_PROVIDER: "ollama",
+			MODEL_ID: "smoke-pi-agent-model",
+			MODEL_STREAM_RESPONSES: "1",
+			MODEL_HISTORY_TURNS: "0",
+			REFARM_MOCK_MODEL_BODY: JSON.stringify({
 				id: "smoke-pi-agent",
 				object: "chat.completion",
 				choices: [
