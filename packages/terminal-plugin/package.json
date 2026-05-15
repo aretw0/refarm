@@ -9,11 +9,11 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/ds": "*"
+    "@refarm.dev/plugin-manifest": "workspace:*",
+    "@refarm.dev/ds": "workspace:*"
   },
   "license": "MIT",
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

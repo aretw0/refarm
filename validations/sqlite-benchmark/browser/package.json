@@ -18,7 +18,7 @@
     "test:e2e:webkit": "playwright test --project=webkit"
   },
   "devDependencies": {
-    "@refarm.dev/vtconfig": "*",
+    "@refarm.dev/vtconfig": "workspace:*",
     "@playwright/test": "^1.59.1",
     "@types/node": "^25.6.0",
     "@types/sql.js": "^1.4.11",

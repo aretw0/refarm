@@ -26,11 +26,11 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/storage-contract-v1": "*"
+    "@refarm.dev/storage-contract-v1": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

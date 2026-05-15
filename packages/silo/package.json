@@ -21,13 +21,13 @@
   },
   "dependencies": {
     "@noble/ed25519": "^3.1.0",
-    "@refarm.dev/heartwood": "0.1.0"
+    "@refarm.dev/heartwood": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

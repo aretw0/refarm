@@ -36,6 +36,6 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@refarm.dev/tsconfig": "*"
+		"@refarm.dev/tsconfig": "workspace:*"
 	}
 }

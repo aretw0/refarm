@@ -15,17 +15,17 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
+    "@refarm.dev/homestead": "workspace:*",
+    "@refarm.dev/storage-sqlite": "workspace:*",
+    "@refarm.dev/sync-loro": "workspace:*",
+    "@refarm.dev/tractor": "workspace:*",
     "astro": "^6.2.2"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
-    "@refarm.dev/config": "*",
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/config": "workspace:*",
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
     "typescript": "^6.0.3"
   },
   "license": "MIT"

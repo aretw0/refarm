@@ -27,15 +27,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/trust": "*",
-    "@refarm.dev/runtime": "*"
+    "@refarm.dev/homestead": "workspace:*",
+    "@refarm.dev/trust": "workspace:*",
+    "@refarm.dev/runtime": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

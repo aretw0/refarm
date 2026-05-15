@@ -21,12 +21,12 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/tractor": "*"
+    "@refarm.dev/plugin-manifest": "workspace:*",
+    "@refarm.dev/tractor": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {

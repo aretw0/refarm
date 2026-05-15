@@ -15,10 +15,10 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/tractor": "*"
+    "@refarm.dev/tractor": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*"
   }
 }

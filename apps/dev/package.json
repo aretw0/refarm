@@ -18,20 +18,20 @@
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
-    "@refarm.dev/ds": "*",
-    "@refarm.dev/homestead": "*",
-    "@refarm.dev/scarecrow": "*",
-    "@refarm.dev/sower": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.me/identity-nostr": "*",
+    "@refarm.dev/ds": "workspace:*",
+    "@refarm.dev/homestead": "workspace:*",
+    "@refarm.dev/scarecrow": "workspace:*",
+    "@refarm.dev/sower": "workspace:*",
+    "@refarm.dev/storage-sqlite": "workspace:*",
+    "@refarm.dev/sync-loro": "workspace:*",
+    "@refarm.dev/tractor": "workspace:*",
+    "@refarm.me/identity-nostr": "workspace:*",
     "astro": "^6.2.2"
   },
   "devDependencies": {
-    "@refarm.dev/config": "*",
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/config": "workspace:*",
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
     "typescript": "^6.0.3"
   },
   "license": "MIT"

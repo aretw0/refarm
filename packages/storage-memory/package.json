@@ -18,13 +18,13 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/storage-contract-v1": "*"
+    "@refarm.dev/storage-contract-v1": "workspace:*"
   },
   "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

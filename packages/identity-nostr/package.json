@@ -39,6 +39,6 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

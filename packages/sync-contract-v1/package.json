@@ -46,7 +46,7 @@
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*"
   }
 }

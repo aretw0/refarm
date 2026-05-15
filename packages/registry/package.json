@@ -16,14 +16,14 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/plugin-manifest": "0.1.0",
-    "@refarm.dev/heartwood": "0.1.0"
+    "@refarm.dev/plugin-manifest": "workspace:*",
+    "@refarm.dev/heartwood": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

@@ -50,17 +50,17 @@
     "lint": "eslint src"
   },
   "dependencies": {
-    "@refarm.dev/ds": "*",
-    "@refarm.dev/plugin-manifest": "*",
-    "@refarm.dev/storage-sqlite": "*",
-    "@refarm.dev/sync-loro": "*",
-    "@refarm.dev/tractor": "*",
+    "@refarm.dev/ds": "workspace:*",
+    "@refarm.dev/plugin-manifest": "workspace:*",
+    "@refarm.dev/storage-sqlite": "workspace:*",
+    "@refarm.dev/sync-loro": "workspace:*",
+    "@refarm.dev/tractor": "workspace:*",
     "astro": "^6.2.2"
   },
   "devDependencies": {
-    "@refarm.dev/config": "*",
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/config": "workspace:*",
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*"
   },
   "license": "MIT"
 }

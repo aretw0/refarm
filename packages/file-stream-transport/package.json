@@ -41,11 +41,11 @@
     "access": "public"
   },
   "dependencies": {
-    "@refarm.dev/stream-contract-v1": "*"
+    "@refarm.dev/stream-contract-v1": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
-    "@refarm.dev/vtconfig": "*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*"
   }
 }

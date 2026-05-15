@@ -24,7 +24,7 @@
     "vitest": "^4.1.0"
   },
   "devDependencies": {
-    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/tsconfig": "workspace:*",
     "typescript": "^6.0.3",
     "vite": "^8.0.9",
     "vitest": "^4.1.4"

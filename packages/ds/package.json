@@ -21,7 +21,7 @@
     "lint": "eslint src"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
+    "@refarm.dev/eslint-config": "workspace:*",
     "@storybook/addon-a11y": "^10.3.5",
     "@storybook/addon-links": "^10.3.5",
     "@storybook/html": "^10.3.5",

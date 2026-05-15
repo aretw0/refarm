@@ -40,14 +40,14 @@
     "access": "public"
   },
   "dependencies": {
-    "@refarm.dev/file-stream-transport": "*",
-    "@refarm.dev/stream-contract-v1": "*",
+    "@refarm.dev/file-stream-transport": "workspace:*",
+    "@refarm.dev/stream-contract-v1": "workspace:*",
     "ws": "^8.18.3"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*",
-    "@refarm.dev/tsconfig": "*",
-    "@refarm.dev/vtconfig": "*",
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/tsconfig": "workspace:*",
+    "@refarm.dev/vtconfig": "workspace:*",
     "@types/ws": "^8.18.1"
   }
 }

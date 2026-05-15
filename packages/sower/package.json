@@ -27,15 +27,15 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@refarm.dev/silo": "*",
-    "@refarm.dev/tractor": "*",
-    "@refarm.dev/windmill": "*"
+    "@refarm.dev/silo": "workspace:*",
+    "@refarm.dev/tractor": "workspace:*",
+    "@refarm.dev/windmill": "workspace:*"
   },
   "license": "AGPL-3.0-only",
   "publishConfig": {
     "access": "public"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

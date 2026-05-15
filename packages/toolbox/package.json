@@ -12,6 +12,6 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@refarm.dev/tsconfig": "*"
+    "@refarm.dev/tsconfig": "workspace:*"
   }
 }

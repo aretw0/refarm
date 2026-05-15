@@ -1,0 +1,14 @@
+packages:
+  - "packages/*"
+  - "apps/*"
+  - "validations/*"
+  - "validations/*/host"
+  - "validations/*/browser"
+  - "validations/*/hello-world"
+  - "templates/*"
+allowBuilds:
+  esbuild: set this to true or false
+  puppeteer: set this to true or false
+  sharp: set this to true or false
+  unrs-resolver: set this to true or false
+  workerd: set this to true or false

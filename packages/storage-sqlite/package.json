@@ -42,11 +42,11 @@
     "wasm"
   ],
   "dependencies": {
-    "@refarm.dev/storage-contract-v1": "*",
-    "@refarm.dev/task-contract-v1": "*",
-    "@refarm.dev/session-contract-v1": "*"
+    "@refarm.dev/storage-contract-v1": "workspace:*",
+    "@refarm.dev/task-contract-v1": "workspace:*",
+    "@refarm.dev/session-contract-v1": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/eslint-config": "*"
+    "@refarm.dev/eslint-config": "workspace:*"
   }
 }

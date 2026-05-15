@@ -151,15 +151,6 @@
 		"url": "git+https://github.com/aretw0/refarm.git"
 	},
 	"homepage": "https://refarm.dev.br",
-	"workspaces": [
-		"apps/*",
-		"packages/*",
-		"templates/*",
-		"validations/*",
-		"validations/*/host",
-		"validations/*/browser",
-		"validations/*/hello-world"
-	],
 	"devDependencies": {
 		"@changesets/cli": "^2.31.0",
 		"@mermaid-js/mermaid-cli": "^11.14.0",
@@ -177,22 +168,30 @@
 		"typescript-eslint": "^8.59.2",
 		"vitest": "^4.1.4"
 	},
-	"overrides": {
-		"flatted": "3.4.2",
-		"basic-ftp": "6.0.1",
-		"ip-address": "10.2.0",
-		"astro": "6.2.2",
-		"devalue": "5.8.1",
-		"dompurify": "3.4.2",
-		"postcss": "8.5.10",
-		"uuid": "14.0.0",
-		"fast-uri": "3.1.2",
-		"yaml-language-server": {
-			"yaml": "2.8.3"
-		}
+	"pnpm": {
+		"overrides": {
+			"flatted": "3.4.2",
+			"basic-ftp": "6.0.1",
+			"ip-address": "10.2.0",
+			"astro": "6.2.2",
+			"devalue": "5.8.1",
+			"dompurify": "3.4.2",
+			"postcss": "8.5.10",
+			"uuid": "14.0.0",
+			"fast-uri": "3.1.2",
+			"yaml-language-server>yaml": "2.8.3"
+		},
+		"onlyBuiltDependencies": [
+			"better-sqlite3",
+			"esbuild",
+			"@loro-crdt/base",
+			"sharp",
+			"playwright",
+			"@playwright/test"
+		]
 	},
 	"//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
-	"packageManager": "npm@11.12.1",
+	"packageManager": "pnpm@11.1.2",
 	"engines": {
 		"node": ">=22"
 	}

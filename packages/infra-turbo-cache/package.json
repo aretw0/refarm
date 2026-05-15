@@ -19,10 +19,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@refarm.dev/infra-contract-v1": "*"
+    "@refarm.dev/infra-contract-v1": "workspace:*"
   },
   "devDependencies": {
-    "@refarm.dev/tsconfig": "*",
+    "@refarm.dev/tsconfig": "workspace:*",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
   }
