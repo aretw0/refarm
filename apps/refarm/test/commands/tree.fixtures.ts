@@ -1,5 +1,6 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { expect, vi } from "vitest";
+import type { Mock } from "vitest";
 
 export const SESSION = {
 	"@id": "urn:refarm:session:v1:abc123def456",
@@ -50,7 +51,7 @@ export function makeSpawnResult(status: number, stdout = "", stderr = "") {
 	return { pid: 0, output: [], stdout, stderr, status, signal: null } as unknown as SpawnSyncReturns<string>;
 }
 
-export function makeJsonFetch(data: unknown, status = 200) {
+export function makeJsonFetch(data: unknown, status = 200): Mock {
 	return vi.fn().mockResolvedValue({
 		ok: status >= 200 && status < 300,
 		status,
