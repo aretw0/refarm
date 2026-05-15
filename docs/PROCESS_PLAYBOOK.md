@@ -23,22 +23,22 @@ The factory runs **one backend at a time** on port 42000. Two backends exist:
 ## Quick reference
 
 ```bash
-npm run farm:status        # unified status: both services, ports, artifacts, MODEL
+pnpm run farm:status        # unified status: both services, ports, artifacts, MODEL
 refarm telemetry           # runtime pressure snapshot (queue/in-flight/failures)
-npm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
-npm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
+pnpm run refarm:telemetry:gate:ci      # strict fail-closed gate (recommended CI policy)
+pnpm run refarm:telemetry:gate:strict-all  # enforce all diagnostics (hard mode)
 # When checking remote CI results (after local validation):
 gh run list --workflow test.yml --limit 5
 gh run watch --exit-status
 refarm agent install       # manual: force-install pi-agent (normally auto-installed on farmhand boot)
-npm run agent:daemon       # start tractor in background
-npm run agent:stop         # stop tractor
-npm run farmhand:daemon    # start farmhand in background
-npm run farmhand:stop      # stop farmhand
-npm run disk:check         # disk usage: target dirs, node_modules, volumes
-npm run actions:budget:guard:account      # hard Actions guard: monthly net billable quota
-npm run actions:budget:guard:allocation   # advisory Actions guard: Refarm fairness split
-npm run actions:budget:guard:modes:json   # discover hard/advisory guard metadata
+pnpm run agent:daemon       # start tractor in background
+pnpm run agent:stop         # stop tractor
+pnpm run farmhand:daemon    # start farmhand in background
+pnpm run farmhand:stop      # stop farmhand
+pnpm run disk:check         # disk usage: target dirs, node_modules, volumes
+pnpm run actions:budget:guard:account      # hard Actions guard: monthly net billable quota
+pnpm run actions:budget:guard:allocation   # advisory Actions guard: Refarm fairness split
+pnpm run actions:budget:guard:modes:json   # discover hard/advisory guard metadata
 
 # Session memory helpers (host-owned)
 refarm sessions list        # list known sessions
@@ -54,8 +54,8 @@ refarm tree preview <id> --at <entry> # dry-run fork plan at a historical entry
 refarm tree preview <id> --name <branch> # dry-run fork plan with explicit name
 refarm tree preview --scope git <commit> # dry-run branch plan for a commit
 refarm tree fork --scope git <commit> --name <branch> # create branch without switching
-npm run refarm:actions:verify # closeout lane for action-readiness changes
-npm run refarm:tree:verify # closeout lane for tree stabilization changes
+pnpm run refarm:actions:verify # closeout lane for action-readiness changes
+pnpm run refarm:tree:verify # closeout lane for tree stabilization changes
 ```
 
 ---
@@ -65,8 +65,8 @@ npm run refarm:tree:verify # closeout lane for tree stabilization changes
 ### Start
 
 ```bash
-npm run agent:daemon       # background — writes .refarm/tractor.pid + tractor.log
-npm run agent:start        # foreground — no PID file, Ctrl+C to stop
+pnpm run agent:daemon       # background — writes .refarm/tractor.pid + tractor.log
+pnpm run agent:start        # foreground — no PID file, Ctrl+C to stop
 ```
 
 Prerequisites: tractor binary must exist.
@@ -80,7 +80,7 @@ cd packages/tractor && cargo build --release
 ### Stop
 
 ```bash
-npm run agent:stop         # SIGTERM via .refarm/tractor.pid
+pnpm run agent:stop         # SIGTERM via .refarm/tractor.pid
 # Or kill directly:
 kill $(cat .refarm/tractor.pid)
 ```
@@ -94,7 +94,7 @@ tail -f .refarm/tractor.log     # background mode only
 ### Check
 
 ```bash
-npm run farm:status
+pnpm run farm:status
 # tractor section shows: pid, WS probe result, binary age
 ```
 
@@ -105,8 +105,8 @@ npm run farm:status
 ### Start
 
 ```bash
-npm run farmhand:daemon    # background — writes .refarm/farmhand.pid + farmhand.log
-npm run farmhand:start     # foreground — no PID file, Ctrl+C to stop
+pnpm run farmhand:daemon    # background — writes .refarm/farmhand.pid + farmhand.log
+pnpm run farmhand:start     # foreground — no PID file, Ctrl+C to stop
 ```
 
 No build step required — runs from source via Node type-stripping with the Farmhand resolver loader (`scripts/farmhand-node-loader.mjs`).
@@ -114,7 +114,7 @@ No build step required — runs from source via Node type-stripping with the Far
 ### Stop
 
 ```bash
-npm run farmhand:stop      # SIGTERM via .refarm/farmhand.pid
+pnpm run farmhand:stop      # SIGTERM via .refarm/farmhand.pid
 ```
 
 ### Logs
@@ -126,7 +126,7 @@ tail -f .refarm/farmhand.log    # background mode only
 ### Check
 
 ```bash
-npm run farm:status
+pnpm run farm:status
 # farmhand section shows: pid, HTTP sidecar probe, task queue depth
 
 # Direct HTTP probe:
@@ -140,34 +140,34 @@ curl -s http://127.0.0.1:42001/efforts/summary | node -e "process.stdin|>JSON.pa
 ### Scenario 1 — Start fresh for interactive agent work
 
 ```bash
-npm run farm:status        # verify nothing is running
-npm run agent:daemon       # start tractor
-npm run agent:repl         # start REPL
+pnpm run farm:status        # verify nothing is running
+pnpm run agent:daemon       # start tractor
+pnpm run agent:repl         # start REPL
 # When done:
-npm run agent:stop
+pnpm run agent:stop
 ```
 
 ### Scenario 2 — Run a task smoke test
 
 ```bash
-npm run farm:status        # verify nothing is running on :42001
+pnpm run farm:status        # verify nothing is running on :42001
 # Tests start their own farmhand stub on :42001; a running farmhand will conflict.
-npm run task:execution:smoke
+pnpm run task:execution:smoke
 # Or:
-npm run task:execution:smoke:pi-agent
+pnpm run task:execution:smoke:pi-agent
 ```
 
 If farmhand is already running, stop it first:
 
 ```bash
-npm run farmhand:stop && npm run task:execution:smoke
+pnpm run farmhand:stop && pnpm run task:execution:smoke
 ```
 
 ### Scenario 3 — Farmhand for agent task dispatch (batch)
 
 ```bash
-npm run farm:status        # verify tractor is not running
-npm run farmhand:daemon    # starts :42000 (WS) + :42001 (HTTP)
+pnpm run farm:status        # verify tractor is not running
+pnpm run farmhand:daemon    # starts :42000 (WS) + :42001 (HTTP)
 # Dispatch efforts via HTTP:
 curl -X POST http://127.0.0.1:42001/efforts -H 'Content-Type: application/json' \
   -d '{"task": {...}, "effort": {...}}'
@@ -175,15 +175,15 @@ curl -X POST http://127.0.0.1:42001/efforts -H 'Content-Type: application/json' 
 curl -s http://127.0.0.1:42001/efforts/summary
 # Check rolling pressure window:
 curl -s 'http://127.0.0.1:42001/telemetry/window?minutes=30'
-npm run farm:status
+pnpm run farm:status
 # Stop:
-npm run farmhand:stop
+pnpm run farmhand:stop
 ```
 
 ### Scenario 3b — Canonical local ask flow (daily driver)
 
 ```bash
-npm run farmhand:daemon    # farmhand auto-installs pi-agent on boot
+pnpm run farmhand:daemon    # farmhand auto-installs pi-agent on boot
 refarm ask "o que é CRDT?"
 ```
 
@@ -196,7 +196,7 @@ Notes:
 - Use `refarm telemetry --strict` to fail-closed when diagnostics are present
   (automation/CI-friendly exit code 2).
 - For automation wrappers that can bootstrap farmhand when needed, use
-  `npm run refarm:telemetry:gate:ci`.
+  `pnpm run refarm:telemetry:gate:ci`.
 - To persist gate output artifacts for trend analysis, add
   `--out .artifacts/telemetry/gate-latest.json`.
 - Signal meanings + first-response actions live in
@@ -244,19 +244,19 @@ Preview commands are non-mutating. Blocked-but-resolvable previews should return
 operator-readable readiness (`Blocked: ...`) and, for JSON output,
 `readyToExecute: false`. Execution remains explicit via `tree fork` or
 `tree switch`. After changing tree contracts or adapter boundaries, run
-`npm run refarm:tree:verify` before considering the tree slice closed.
+`pnpm run refarm:tree:verify` before considering the tree slice closed.
 
 ### Scenario 4 — Port conflict at startup
 
 ```bash
-npm run agent:daemon
+pnpm run agent:daemon
 # ❌  Port 42000 is already bound by PID 4567.
-npm run farm:status        # identify what's on :42000
-npm run farmhand:stop      # if farmhand is the culprit
+pnpm run farm:status        # identify what's on :42000
+pnpm run farmhand:stop      # if farmhand is the culprit
 # or:
-npm run agent:stop         # if a stale tractor is the culprit
+pnpm run agent:stop         # if a stale tractor is the culprit
 # Then retry:
-npm run agent:daemon
+pnpm run agent:daemon
 ```
 
 ### Scenario 5 — Run pi-agent harness tests
@@ -276,7 +276,7 @@ the harness uses an in-memory NativeSync (`:memory:`) — no port conflict.
 
 ### Scenario 6 — After disk cleanup, rebuild binaries
 
-After running `npm run clean:heavy` or when `CARGO_TARGET_DIR` volume is empty:
+After running `pnpm run clean:heavy` or when `CARGO_TARGET_DIR` volume is empty:
 
 ```bash
 # Rebuild tractor binary:
@@ -284,7 +284,7 @@ cd packages/tractor && cargo build --release
 # Rebuild pi-agent WASM:
 cd packages/pi-agent && cargo component build --release
 # Verify:
-npm run farm:status        # check ARTIFACTS section
+pnpm run farm:status        # check ARTIFACTS section
 ```
 
 ---
@@ -303,11 +303,11 @@ npm run farm:status        # check ARTIFACTS section
 
 ```
 .refarm/
-  tractor.pid      # tractor background PID (created by npm run agent:daemon)
+  tractor.pid      # tractor background PID (created by pnpm run agent:daemon)
   tractor.log      # tractor stdout/stderr (background mode)
-  farmhand.pid     # farmhand background PID (created by npm run farmhand:daemon)
+  farmhand.pid     # farmhand background PID (created by pnpm run farmhand:daemon)
   farmhand.log     # farmhand stdout/stderr (background mode)
-  .env             # MODEL API keys (npm run agent:keys to configure)
+  .env             # MODEL API keys (pnpm run agent:keys to configure)
   config.json      # model provider, model, budgets, FS restrictions
   .repl_history    # REPL command history
   tasks/           # FileTransport input queue (farmhand)
@@ -329,12 +329,12 @@ All `.refarm/` contents are gitignored.
 
 When something is wrong, work top-down:
 
-1. **`npm run farm:status`** — start here. Read every section.
+1. **`pnpm run farm:status`** — start here. Read every section.
 2. **Port conflict?** — `ss -tlnp | grep '42000\|42001'` — identify the PID.
 3. **Stale PID file?** — process dead but PID file exists → `rm .refarm/*.pid` then retry.
 4. **Binary missing?** — ARTIFACTS section in farm:status will tell you what to build.
-5. **No API keys?** — MODEL section in farm:status → `npm run agent:keys`.
-6. **Disk full?** — `npm run disk:check` → `npm run clean:light` or `npm run clean:heavy`.
+5. **No API keys?** — MODEL section in farm:status → `pnpm run agent:keys`.
+6. **Disk full?** — `pnpm run disk:check` → `pnpm run clean:light` or `pnpm run clean:heavy`.
 7. **WASM/harness fails?** — ensure `$CARGO_TARGET_DIR` is set and pi_agent.wasm is at
    `$CARGO_TARGET_DIR/wasm32-wasip1/release/pi_agent.wasm`.
 
@@ -345,5 +345,5 @@ When something is wrong, work top-down:
 This playbook is an interim measure. The `apps/refarm` CLI (`refarm-task`, etc.) is
 evolving to abstract daemon lifecycle, task dispatch, and status into first-class
 commands. When those ship, the manual steps above become `refarm start`, `refarm stop`,
-and `refarm status`. Until then, this doc and `npm run farm:status` are the canonical
+and `refarm status`. Until then, this doc and `pnpm run farm:status` are the canonical
 operator interface.

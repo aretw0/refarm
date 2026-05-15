@@ -7,8 +7,8 @@ packages:
   - "validations/*/hello-world"
   - "templates/*"
 allowBuilds:
-  esbuild: set this to true or false
-  puppeteer: set this to true or false
-  sharp: set this to true or false
-  unrs-resolver: set this to true or false
-  workerd: set this to true or false
+  esbuild: true
+  puppeteer: true
+  sharp: true
+  unrs-resolver: true
+  workerd: true

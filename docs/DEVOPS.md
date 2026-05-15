@@ -17,7 +17,7 @@
 
 ## Commit Automation Guardrails
 
-`npm run git-commit-auto` now treats high-impact groups as **important commits**
+`pnpm run git-commit-auto` now treats high-impact groups as **important commits**
 (security, CI/release surfaces, Rust/WIT contract paths).
 
 For these groups, the tool still handles the operational path (`git add` + `git commit`),
@@ -27,9 +27,9 @@ semantics human-curated while preserving automation for repetitive mechanics.
 Strict mode (recommended for stabilization/release windows):
 
 ```bash
-GIT_COMMIT_AUTO_STRICT=1 npm run git-commit-auto
+GIT_COMMIT_AUTO_STRICT=1 pnpm run git-commit-auto
 # or
-npm run git-commit-auto -- --strict-important
+pnpm run git-commit-auto -- --strict-important
 ```
 
 Strict mode rejects generic messages (e.g. `chore: update implementation`) and
@@ -45,7 +45,7 @@ Refarm uses **VS Code Dev Containers** to provide a consistent, reproducible dev
 
 - **Base:** Debian GNU/Linux 12 (bookworm)
 - **Node.js:** v22.16.0
-- **npm:** 10.9.2 (pinned via `packageManager` in `package.json`)
+- **pnpm:** 11.1.2 (pinned via `packageManager` in `package.json`, managed by corepack)
 - **Rust:** 1.94.0
 - **Cargo:** 1.94.0
 
@@ -59,10 +59,10 @@ When opening the workspace in VS Code with the Remote Containers extension:
    - Ensures Rust targets (`x86_64-unknown-linux-gnu`, `wasm32-unknown-unknown`, `wasm32-wasip1`)
    - Ensures Rust components (`rust-src`, `clippy`, `rustfmt`) for local/CI parity
    - Installs cargo tools: `cargo-component`, `wasm-tools`
-   - Runs `npm ci` to install workspace dependencies
+   - Runs `pnpm install --frozen-lockfile` to install workspace dependencies
    - Installs Playwright browsers (`npx playwright install --with-deps`)
-   - Runs `npm run hooks:install`
-   - Runs `npm run factory:preflight` for deterministic readiness checks
+   - Runs `pnpm run hooks:install`
+   - Runs `pnpm run factory:preflight` for deterministic readiness checks
 3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
    - Re-validates Rust toolchain health (`stable` + component baseline checks)
    - Reinstalls git hooks when missing
@@ -74,7 +74,7 @@ Refarm now uses a repo-local build file: `.devcontainer/Dockerfile`.
 Purpose:
 
 - Keep system-level dependencies versioned in Git
-- Ensure fresh container builds already support diagram generation (`npm run diagrams:fix`)
+- Ensure fresh container builds already support diagram generation (`pnpm run diagrams:fix`)
 - Avoid one-off manual apt installs that are lost on rebuild
 
 Current image-level dependencies explicitly tracked in Dockerfile:
@@ -88,7 +88,7 @@ Mermaid design system baseline:
 
 - Global style configuration file: `specs/diagrams/mermaid.config.json`
 - Diagram generation script (`scripts/check-diagrams.mjs`) always passes this config to Mermaid CLI
-- Any style changes must be applied in this file, then regenerated via `npm run diagrams:fix`
+- Any style changes must be applied in this file, then regenerated via `pnpm run diagrams:fix`
 
 Tracking rule:
 
@@ -109,26 +109,26 @@ If you need to rebuild the container:
 After rebuild, run baseline validation:
 
 ```bash
-npm run diagrams:fix
-npm run test:unit
+pnpm run diagrams:fix
+pnpm run test:unit
 ```
 
 ### Troubleshooting
 
-**Issue: `npm error EACCES` in post-create**
+**Issue: pnpm permission errors in post-create**
 
-- **Cause:** npm cache contains root-owned files
-- **Fix:** Already handled in `post-create.sh` (targets cache/toolchain directories and repairs ownership safely)
-- **Manual workaround:** `rm -rf ~/.npm && npm cache clean --force`
+- **Cause:** pnpm store or home directory contains root-owned files
+- **Fix:** Already handled in `post-create.sh` (repairs ownership on `~/.local/share/pnpm` and toolchain directories)
+- **Manual workaround:** `sudo chown -R vscode:vscode ~/.local/share/pnpm`
 
 **Issue: Package installation failures**
 
-- **Cause:** Stale node_modules or package-lock.json mismatch
-- **Fix:** Delete both and reinstall:
+- **Cause:** Stale node_modules or pnpm-lock.yaml mismatch
+- **Fix:** Delete node_modules and reinstall from lockfile:
 
   ```bash
-  rm -rf node_modules package-lock.json
-  npm install
+  rm -rf node_modules
+  pnpm install --frozen-lockfile
   ```
 
 **Issue: `cargo clippy` / `cargo fmt` missing locally (but required by CI)**
@@ -152,17 +152,17 @@ npm run test:unit
   ```bash
   cargo clippy --version
   cargo fmt --version
-  npm run factory:preflight
+  pnpm run factory:preflight
   ```
 
 **Issue: Mermaid/Chromium fails with missing shared library**
 
-- **Symptom:** `npm run diagrams:fix` fails with `error while loading shared libraries: <libname>.so`
+- **Symptom:** `pnpm run diagrams:fix` fails with `error while loading shared libraries: <libname>.so`
 - **Root cause:** devcontainer image missing required runtime library for headless Chromium
 - **Fix process:**
   1. Add missing package to `.devcontainer/Dockerfile`
   2. Rebuild container
-  3. Re-run `npm run diagrams:fix`
+  3. Re-run `pnpm run diagrams:fix`
   4. Document dependency update in this DevOps guide
 
 **Issue: GitHub Actions fails with `Unrecognized named-value: 'steps'` in `uses:`**
@@ -192,7 +192,7 @@ npm run test:unit
 
 - **Root cause:** Local actions (`./.github/actions/...`) are resolved from the checked-out workspace. If `actions/checkout` has not run in that job, the local action path does not exist yet.
 - **Fix applied (Mar 6, 2026):** Added `actions/checkout@v6.0.2` as the first step in all jobs that invoke local actions.
-- **Additional correction:** Simplified `./.github/actions/setup` to only configure Node + `npm ci` (checkout moved to workflows/jobs).
+- **Additional correction:** Simplified `./.github/actions/setup` to only configure Node + `pnpm install --frozen-lockfile` (checkout moved to workflows/jobs).
 - **Prevention rule:** In every job that uses `./.github/actions/*`, run checkout first.
 
 **Note: `refarm/refarm` path in runner logs is expected**
@@ -214,7 +214,7 @@ npm run test:unit
 - **Root cause:** TypeScript sample code was embedded directly inside `<textarea>...</textarea>` in an Astro template. Curly braces and template interpolation tokens (`{}`, `${}`) inside that inline block were interpreted by the Astro parser.
 - **Fix applied (Mar 6, 2026):** Moved sample editor content to a frontmatter string (`defaultPluginCode`) and rendered it via `{defaultPluginCode}` in the textarea.
 - **Additional correction:** Replaced TypeScript-only syntax in inline `<script>` with plain JavaScript (`!`, type annotations, and `as` assertions removed).
-- **Verification:** `npm run build -w @refarm.dev/studio` succeeds locally.
+- **Verification:** `pnpm run build -w @refarm.dev/studio` succeeds locally.
 
 **Warning: "The CJS build of Vite's Node API is deprecated" in Git Hooks**
 
@@ -224,7 +224,7 @@ npm run test:unit
   The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
   ```
 
-- **Root cause:** Vitest internally uses Vite's CommonJS API instead of ESM API. This occurs specifically during `npm run test:unit` when Vitest initializes, not during lint or type-check commands.
+- **Root cause:** Vitest internally uses Vite's CommonJS API instead of ESM API. This occurs specifically during `pnpm run test:unit` when Vitest initializes, not during lint or type-check commands.
 
 - **Impact:** Purely cosmetic; does not affect test functionality or results. Clutters git hook output making it harder to spot actual issues.
 
@@ -233,9 +233,9 @@ npm run test:unit
      - **Result:** Failed. Vite doesn't respect this env var consistently across all contexts.
   
   2. **Discovery:** Ran hook commands individually:
-     - `npm run lint` → ✅ No warning
-     - `npm run type-check` → ✅ No warning  
-     - `npm run test:unit` → ❌ Warning appears (Vitest loads Vite)
+     - `pnpm run lint` → ✅ No warning
+     - `pnpm run type-check` → ✅ No warning  
+     - `pnpm run test:unit` → ❌ Warning appears (Vitest loads Vite)
   
   3. **Root identification:** Warning originates from Vitest's internal Vite usage during test initialization, written to stderr.
 
@@ -250,9 +250,9 @@ npm run test:unit
     ```
 
   - Applied filter to all npm commands in hook that might invoke Vitest:
-    - `npm run lint 2>&1 | filter_vite_warning`
-    - `npm run type-check 2>&1 | filter_vite_warning`
-    - `npm run test:unit 2>&1 | filter_vite_warning`
+    - `pnpm run lint 2>&1 | filter_vite_warning`
+    - `pnpm run type-check 2>&1 | filter_vite_warning`
+    - `pnpm run test:unit 2>&1 | filter_vite_warning`
 
 - **Why grep filter instead of env var:**
   - More reliable: works regardless of how Vite is configured internally
@@ -264,12 +264,12 @@ npm run test:unit
 - **Verification:**
 
   ```bash
-  npm run hooks:install  # Reinstall hook with filter
+  pnpm run hooks:install  # Reinstall hook with filter
   .git/hooks/pre-push 2>&1 | grep -c "CJS build"  # Should return 0
   ```
 
 - **Files modified:**
-  - `scripts/install-git-hooks.mjs` - Added filter function and applied to all npm commands
+  - `scripts/install-git-hooks.mjs` - Added filter function and applied to all pnpm commands
 
 ---
 
@@ -286,7 +286,7 @@ The CI lanes are intentionally split by responsibility:
 
 Implementation baseline:
 
-- **Dependency cache:** `actions/setup-node` with `cache: npm` in `./.github/actions/setup`.
+- **Dependency cache:** `pnpm/action-setup@v4` + `actions/setup-node` with `cache: pnpm` in `./.github/actions/setup`.
 - **Rust Target Provisioning:** `./.github/actions/setup` accepts a `rust-target` input (default: `wasm32-wasip1`) to keep WASM compilation setup centralized.
 - **Turbo env passthrough:** `turbo.json` forwards `RUSTUP_HOME`, `CARGO_HOME`, and `RUSTUP_TOOLCHAIN` to avoid Rust manifest drift in parallel Turbo tasks.
 - **E2E owns its build dependencies:** the standalone `workspace-build` artifact flow is retired for normal PR validation. E2E runs through Turbo in its own runner and owns any build dependency it needs.
@@ -302,7 +302,7 @@ Implementation baseline:
 
 ### Invalidation Rules
 
-- **npm cache invalidates when:** Node version or lockfile changes.
+- **pnpm store/dependency cache invalidates when:** Node version or `pnpm-lock.yaml` changes.
 - **Playwright cache invalidates when:** lockfile, Playwright config, runner OS, or setup dependency policy changes.
 - **Turbo cache invalidates when:** lockfile, `turbo.json`, runner OS, or relevant task inputs change.
 - **Content-signature validation cache invalidates when:** any tracked file selected by the gate pathspecs changes, the validation name changes, `REFARM_SIGNATURE_VERSION` changes, or `REFARM_SIGNATURE_EXTRA` changes.
@@ -329,7 +329,7 @@ Implementation baseline:
 
 ### Residual Cost (Expected)
 
-- `npm ci` still runs once per job that needs setup due job isolation on hosted runners.
+- `pnpm install --frozen-lockfile` still runs once per job that needs setup due to job isolation on hosted runners.
 - `audit-moderate` still performs a non-blocking audit/report flow and is not currently content-signature cached.
 - Further reduction of Turbo task execution across runners would require remote task-output cache (for example Turbo remote cache with `TURBO_TOKEN`/`TURBO_TEAM`).
 
@@ -448,14 +448,14 @@ The audit noise that was breaking CI was removed with low-risk transitive depend
 ### Verification Commands
 
 ```bash
-npm audit
-npm audit --audit-level=high
+pnpm audit
+pnpm audit --audit-level=high
 ```
 
 Expected result:
 
 ```text
-found 0 vulnerabilities
+No known vulnerabilities found
 ```
 
 ### Ongoing Policy
@@ -469,7 +469,7 @@ found 0 vulnerabilities
 ### Security Best Practices
 
 - ✅ **Automated Visibility** — Security audit workflows run in CI and publish artifacts
-- ✅ **Lock Files** — Always commit `package-lock.json`
+- ✅ **Lock Files** — Always commit `pnpm-lock.yaml`
 - ✅ **Deterministic Tooling** — Use pinned `packageManager` + `rust-toolchain.toml`
 - 🔍 **Monitor PRs** — GitHub dependabot can alert us to new vulnerabilities
 
@@ -480,7 +480,7 @@ For responsible disclosure and reporting policy, see `SECURITY.md`.
 Current strategy uses two layers:
 
 - **Pipeline gate (`.github/workflows/test.yml`)**
-  - `npm audit --audit-level=high`
+  - `pnpm audit --audit-level=high`
   - Blocks PRs only for `high` and `critical`
 - **Visibility workflow (`.github/workflows/security-audit.yml`)**
   - Manual run via `workflow_dispatch`
@@ -562,7 +562,7 @@ Branch behavior summary:
 Run this command to confirm everything is set up correctly:
 
 ```bash
-npm run factory:preflight
+pnpm run factory:preflight
 ```
 
 **Expected Output:**
@@ -602,13 +602,13 @@ cargo run -p refarm-tractor --bin tractor -- health --ws-port 1 --skip-boot-prob
 
 ```bash
 # Ensure dependencies are installed
-npm ci
+pnpm install --frozen-lockfile
 
 # Run turbo pipeline (if defined)
-npm run build
+pnpm run build
 
 # Run tests (if defined)
-npm run test
+pnpm run test
 ```
 
 ### Colony preflight checklist (quick vs complete)
@@ -617,8 +617,8 @@ Quick preflight (sempre obrigatório):
 
 ```bash
 node scripts/reso.mjs status
-npm run project:validate
-npm run factory:preflight
+pnpm run project:validate
+pnpm run factory:preflight
 ```
 
 Complete preflight (runtime/security boundaries):
@@ -629,7 +629,7 @@ cargo check --quiet
 cargo test --lib agent_tools_bridge --quiet
 cargo test --lib plugin_host --quiet
 cargo test --lib wasi_bridge --quiet
-npm run test:smoke:ws
+pnpm run test:smoke:ws
 ```
 
 Go/No-Go:
@@ -642,7 +642,7 @@ Go/No-Go:
 Command used:
 
 ```bash
-npm run type-check --silent
+pnpm run type-check --silent
 ```
 
 Result summary:
@@ -659,10 +659,10 @@ Attack order/backlog (if regression appears):
 
 | Domain | Canonical command | Status | Notes |
 |---|---|---|---|
-| Foundation | `npm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
-| Runtime | `npm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
-| Contracts/Storage/Sync | `npm run gate:smoke:contracts` | ✅ Green | Builds + conformance/unit para pacotes prioritários |
-| Colony Full | `npm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio + `project:validate` |
+| Foundation | `pnpm run gate:smoke:foundation` | ✅ Green | `cli` type-check + tests de `config/toolbox/vtconfig` |
+| Runtime | `pnpm run gate:smoke:runtime` | ✅ Green | `tractor-rs` smoke/build checks + `tractor-ts` build/type-check/runtime-module smoke |
+| Contracts/Storage/Sync | `pnpm run gate:smoke:contracts` | ✅ Green | Builds + conformance/unit para pacotes prioritários |
+| Colony Full | `pnpm run gate:full:colony` | ✅ Green (expected by composition) | Encadeia smoke por domínio + `project:validate` |
 
 Dependências operacionais entre domínios:
 
@@ -673,7 +673,7 @@ Dependências operacionais entre domínios:
 Bloqueadores monitorados:
 
 - Nenhum bloqueador técnico aberto neste snapshot para os domínios acima.
-- `npm audit` moderado permanece **advisory** (0 high/critical).
+- `pnpm audit` moderado permanece **advisory** (0 high/critical).
 
 ### Colony concurrency baseline
 
@@ -727,8 +727,7 @@ docker debug <container-id>
 ### Volumes & Mounts
 
 - `/workspaces/refarm` — Workspace root (mounted from host)
-- `/home/vscode/.npm` — npm cache (persistent during session)
-- `/home/vscode/.npm/_cacache` — npm package cache (requires proper permissions)
+- `/home/vscode/.local/share/pnpm/store` — pnpm content-addressed store (persisted via Docker volume `refarm-pnpm-store`)
 
 ---
 
@@ -749,11 +748,11 @@ If you update this guide or the dev container configuration:
 | Task | Command |
 |------|---------|
 | Rebuild container | `Dev Containers: Rebuild Container` (VS Code) |
-| Factory readiness check | `npm run factory:preflight` |
+| Factory readiness check | `pnpm run factory:preflight` |
 | Tractor runtime readiness probe | `cargo run -p refarm-tractor --bin tractor -- health --ws-port 42000` |
-| Run security audit | `npm audit` |
-| Attempt non-breaking vulnerability fixes | `npm audit fix` |
-| Clean npm cache | `rm -rf ~/.npm && npm cache clean --force` |
+| Run security audit | `pnpm audit` |
+| Attempt non-breaking vulnerability fixes | `pnpm audit fix` |
+| Clean pnpm store | `pnpm store prune` |
 | Verify tools | See [Environment Validation](#environment-validation) |
 | Install Rust lint/format parity tools | `rustup component add rust-src clippy rustfmt` |
 | View container logs | `docker logs <container-id>` |

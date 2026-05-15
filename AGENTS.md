@@ -10,7 +10,7 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 - **Generative Model**: `src/` is the system's internal causal model. Artifacts (`dist/`) are derived observations — never edit an observation, fix the model.
 - **Action as Sampling**: Builds, tests, and `reso.mjs status` are actions that sample the environment to reduce uncertainty before deciding.
-- **Calibrated Precision**: Use existing tooling (`reso.mjs`, `npm run build`) to assess current state reliability. Never assume — measure.
+- **Calibrated Precision**: Use existing tooling (`reso.mjs`, `pnpm run build`) to assess current state reliability. Never assume — measure.
 - **Complexity Minimization**: Prefer atomic changes. Surprise (unexpected errors) scales with delta size. Small commits = lower free energy.
 - **Markov Blanket**: You interact with the repository exclusively through reads (files, tooling output) and writes to `src/`. Never assume direct access to runtime state or generated artifacts.
 
@@ -23,7 +23,7 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 ## 2. The Build Cycle
 
-- **Build to Verify**: If a change in one package affects another, you MUST run `npm run build` in the dependency package to synchronize type definitions and distribution files.
+- **Build to Verify**: If a change in one package affects another, you MUST run `pnpm run build` in the dependency package to synchronize type definitions and distribution files.
 - **No Cheat-Fixes**: Do not bypass TypeScript or Lint errors by editing generated `.d.ts` files. Fix the root cause in the source or the build configuration.
 
 > _Active Inference_: a build is a perception act — it samples reality to confirm the model's predictions. Skip it and you're acting blind.
@@ -61,7 +61,7 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 - **Workflow Reuse**: Use reusable workflows (`workflow_call`) and local actions (`./.github/actions/...`) to promote DRY principles and composition.
 - **Lean Modifications**: When editing `.github/workflows/`, make minimal, targeted changes. Avoid large-scale re-indents or sweeping re-ordering that obscures the logical diff.
 - **Local Reproduction First**: Use the closest scoped local command to reproduce likely failures before pushing. GitHub Actions is a final confirmation signal, not the first test runner.
-- **Wrapper Logic**: Prefer encapsulating complex build or test logic into local script "wrappers" (e.g., `npm run test:conformance`) rather than long, multi-line `run` blocks in YAML.
+- **Wrapper Logic**: Prefer encapsulating complex build or test logic into local script "wrappers" (e.g., `pnpm run test:conformance`) rather than long, multi-line `run` blocks in YAML.
 
 > _Active Inference_: pinned hashes and reusable workflows minimize environmental drift — a stable environment produces predictable outcomes and lowers surprise.
 
@@ -96,11 +96,11 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 ### Validation economy: pay for signal, not repetition
 
 - **Micro-slice**: run only the directly affected test/filter plus `git diff --check`.
-- **Package checkpoint**: add `cargo check --quiet` for the touched Rust package or `npm --prefix <pkg> run type-check` for the touched TS package.
+- **Package checkpoint**: add `cargo check --quiet` for the touched Rust package or `pnpm -C <pkg> run type-check` for the touched TS package.
 - **WASM/plugin boundary**: rebuild `pi_agent.wasm` only when pi-agent/WIT changed and a harness test must execute; otherwise prefer `cargo check --target wasm32-wasip1 --quiet`.
 - **Harness**: prefer filtered harness runs (`cargo test --test pi_agent_harness harness_streaming -- --ignored --test-threads=1`) over repeated one-test invocations.
 - **Push/CI gate**: run the broader scoped gate once, then push and watch CI with `gh run watch --exit-status` instead of repeatedly reproducing the same expensive local work.
-- **Cleanup**: `npm run clean:light` is for checkpoints/session boundaries or low disk. Running it after every slice removes incremental caches and makes the next Rust check more expensive.
+- **Cleanup**: `pnpm run clean:light` is for checkpoints/session boundaries or low disk. Running it after every slice removes incremental caches and makes the next Rust check more expensive.
 
 ### What `.cargo/config.toml` enforces
 

@@ -41,14 +41,14 @@ cargo component build --release
 
 # 3. Rodar teste E2E automatizado (Playwright)
 cd ..\host
-npm install
+pnpm install
 copy ..\hello-world\target\wasm32-wasip1\release\hello_world_plugin.wasm public\hello-world-plugin.wasm
-npm run test:e2e
+pnpm run test:e2e
 
 # 4. Rodar benchmarks SQLite
 cd ..\..\sqlite-benchmark
-npm install
-npm run bench:all
+pnpm install
+pnpm run bench:all
 ```
 
 ### Dev Container (Linux/bash)
@@ -64,14 +64,14 @@ cargo component build --release
 
 # 3. Rodar teste E2E automatizado (Playwright)
 cd ../host
-npm install
+pnpm install
 cp ../hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm public/hello-world-plugin.wasm
-npm run test:e2e
+pnpm run test:e2e
 
 # 4. Rodar benchmarks SQLite
 cd ../../sqlite-benchmark
-npm install
-npm run bench:all
+pnpm install
+pnpm run bench:all
 ```
 
 Verificar: sem erros (warnings sobre "yanked" são normais).  
@@ -80,14 +80,14 @@ Detalhes: [RUST_SETUP_NOTES.md](./RUST_SETUP_NOTES.md).
 Execucao end-to-end reprodutivel a partir da raiz:
 
 ```bash
-npm run test:e2e:setup
-npm run test:repro
+pnpm run test:e2e:setup
+pnpm run test:repro
 ```
 
 Benchmark SQLite reproduzivel a partir da raiz:
 
 ```bash
-npm run bench:sqlite
+pnpm run bench:sqlite
 ```
 
 ---
@@ -183,7 +183,7 @@ wasm-tools component wit target\wasm32-wasip1\release\hello_world_plugin.wasm
 
 ```powershell
 cd ..\host
-npm install
+pnpm install
 
 # Copiar WASM (ajuste path conforme opcao A ou B)
 # Opcao A:
@@ -191,14 +191,14 @@ copy ..\hello-world\target\wasm32-unknown-unknown\release\hello_world_plugin.was
 # Opção B:
 # copy ..\hello-world\target\wasm32-wasip1\release\hello_world_plugin.wasm public\hello-world-plugin.wasm
 
-npm run dev
+pnpm run dev
 ```
 
 #### Dev Container (Linux/bash)
 
 ```bash
 cd ../host
-npm install
+pnpm install
 
 # Copiar WASM (ajuste path conforme opção A ou B)
 # Opção A:
@@ -206,7 +206,7 @@ cp ../hello-world/target/wasm32-unknown-unknown/release/hello_world_plugin.wasm 
 # Opção B:
 # cp ../hello-world/target/wasm32-wasip1/release/hello_world_plugin.wasm public/hello-world-plugin.wasm
 
-npm run dev
+pnpm run dev
 ```
 
 **Fluxo de teste**:
@@ -250,16 +250,16 @@ const { instance } = await instantiate(wasmBytes, {
 
 ```powershell
 cd validations\sqlite-benchmark
-npm install
-npm run bench:all
+pnpm install
+pnpm run bench:all
 ```
 
 #### Dev Container (Linux/bash)
 
 ```bash
 cd validations/sqlite-benchmark
-npm install
-npm run bench:all
+pnpm install
+pnpm run bench:all
 ```
 
 Isso roda:

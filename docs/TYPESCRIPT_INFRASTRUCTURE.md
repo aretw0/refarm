@@ -172,7 +172,7 @@ E para build:
 2. Use alias para src/index como padrao.
 3. Promova um pacote para alias por diretorio apenas quando sua raiz estiver endurecida para types e exports.
 4. Trate subpaths como contratos explicitos do pacote.
-5. Quando a estrutura de aliases mudar, atualize tambem docs/DEVELOPMENT_RESOLUTION.md e docs/RESOLUTION_MATRIX.md.
+5. Quando a estrutura de aliases mudar, atualize tambem docs/DEVELOPMENT_RESOLUTION.md.
 
 ---
 
