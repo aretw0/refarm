@@ -89,6 +89,9 @@ jobs:
 
       - uses: ./.github/actions/setup
         if: steps.matrix-cache.outputs.cache-hit != 'true'
+        with:
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Build Matrix DAG
         id: build-matrix
@@ -115,6 +118,9 @@ jobs:
           fetch-depth: 0
 
       - uses: ./.github/actions/setup
+        with:
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Build WASM plugin for tests
         run: |

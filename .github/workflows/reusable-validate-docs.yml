@@ -36,6 +36,16 @@ on:
         required: false
         type: string
         default: ""
+      is-pr:
+        description: "Whether the workflow was triggered by a pull_request event"
+        required: false
+        type: boolean
+        default: false
+      pr-number:
+        description: "Pull request number (required when is-pr is true)"
+        required: false
+        type: string
+        default: ""
     outputs:
       validation-status:
         description: "Status of validation: success or failure"
@@ -107,6 +117,9 @@ jobs:
       - name: Setup
         if: steps.validation-cache-key.outputs.key == '' || steps.validation-cache.outputs.cache-hit != 'true'
         uses: ./.github/actions/setup
+        with:
+          is-pr: ${{ inputs.is-pr }}
+          pr-number: ${{ inputs.pr-number }}
 
       - name: Validation cache hit
         if: steps.validation-cache-key.outputs.key != '' && steps.validation-cache.outputs.cache-hit == 'true'

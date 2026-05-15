@@ -20,6 +20,9 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Check for skip label
         id: skip-check

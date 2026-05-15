@@ -42,3 +42,5 @@ jobs:
       create-issue-on-failure: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
       issue-title: "Mermaid diagram validation failed"
       issue-labels: "documentation,diagrams,validation"
+      is-pr: ${{ github.event_name == 'pull_request' }}
+      pr-number: ${{ github.event.pull_request.number }}

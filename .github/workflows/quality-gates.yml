@@ -59,6 +59,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
       - name: Ensure tests fail (Red Phase)
         run: |
           echo "🔍 Verifying Red Phase: Integration tests should FAIL."
@@ -76,6 +78,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: "true"
+          pr-number: ${{ github.event.pull_request.number }}
       - name: Unit Tests and Coverage
         run: |
           # Enforce unit tests pass and check coverage

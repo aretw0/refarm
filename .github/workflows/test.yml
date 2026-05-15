@@ -269,6 +269,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       # Turbo Cache is now handled in ./.github/actions/setup
       # - name: Cache Turbo
@@ -585,6 +587,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Build (affected)
         if: needs.changes.outputs.turbo_filter != ''
@@ -637,6 +641,8 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Check E2E script status
         id: e2e_check
@@ -712,6 +718,8 @@ jobs:
           playwright-setup: "true"
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Deep regression (full stack)
         run: npx turbo run build lint type-check test:coverage test:unit test:integration test:e2e --cache-dir=.turbo
@@ -732,6 +740,8 @@ jobs:
         with:
           turbo-cache-api: ${{ secrets.TURBO_CACHE_API_URL }}
           turbo-cache-token: ${{ secrets.TURBO_CACHE_TOKEN }}
+          is-pr: ${{ github.event_name == 'pull_request' }}
+          pr-number: ${{ github.event.pull_request.number }}
 
       - name: Audit moderate report (non-blocking)
         id: audit_report
