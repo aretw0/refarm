@@ -17,10 +17,14 @@ The setup action (`.github/actions/setup/action.yml`) enforces this via the `is-
 
 ## What is NOT a vector
 
-- **npm node_modules cache**: `actions/setup-node` with `cache: "npm"` uses the lockfile hash as an exact key. PRs that don't change the lockfile get the same key as main (safe). PRs that change the lockfile get a different key (different hash = different entry, no cross-contamination).
+- **pnpm node_modules cache**: `actions/setup-node` with `cache: "pnpm"` uses the lockfile hash as an exact key. PRs that don't change `pnpm-lock.yaml` get the same key as main (safe — same content). PRs that change it get a different hash = different entry, no cross-contamination.
 - **Rust cargo cache**: uses Swatinem/rust-cache with content-based keys. No open cross-PR prefix fallback.
-- **Playwright browser cache**: lockfile-hashed key. Same analysis as npm.
+- **Playwright browser cache**: lockfile-hashed key. Same analysis as pnpm.
 - **Turbo remote cache** (when `TURBO_CACHE_API_URL` is set): the local cache step is skipped entirely. Remote cache security depends on the Turbo cache server's access controls (scoped by team/token).
+
+## Supply chain hardening (complementary)
+
+The workspace uses `pnpm` with `shamefully-hoist=false` and an `onlyBuiltDependencies` allowlist — only packages in the explicit list can run `postinstall`/`prepare` scripts. This closes the install-time code execution vector (a dependency running arbitrary code during `pnpm install`) independently of cache isolation.
 
 ## Maintenance
 
