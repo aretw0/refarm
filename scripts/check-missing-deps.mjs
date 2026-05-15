@@ -6,6 +6,10 @@
  * and reports external imports that are not declared in that package's
  * package.json (dependencies, devDependencies, peerDependencies).
  *
+ * Also scans scripts/ (root-level .mjs/.ts files) against the root
+ * package.json — catches gaps like missing workspace packages used in CI
+ * scripts that run directly via `node scripts/...`.
+ *
  * Under pnpm's non-hoisted layout each package can only resolve what it
  * declares. npm's hoisting used to make transitive deps silently available;
  * pnpm exposes these gaps at install time — this script catches them locally
@@ -155,6 +159,34 @@ for (const dir of pkgDirs) {
 
   if (missing.size > 0) {
     problems.push({ pkg: pkgJson.name, dir: relative(ROOT, dir), missing });
+  }
+}
+
+// Scan root scripts/ (.mjs and .ts) against the root package.json.
+// Root scripts run with root node_modules — any import must be declared there.
+function findScriptFiles(dir, files = []) {
+  if (!existsSync(dir)) return files;
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (["node_modules", "dist", ".turbo", ".git"].includes(entry.name)) continue;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) findScriptFiles(full, files);
+    else if (/\.(mjs|ts)$/.test(entry.name)) files.push(full);
+  }
+  return files;
+}
+
+{
+  const scriptsMissing = new Map();
+  for (const file of findScriptFiles(join(ROOT, "scripts"))) {
+    const src = readFileSync(file, "utf8");
+    for (const spec of extractImports(src)) {
+      if (rootDeclared.has(spec)) continue;
+      if (!scriptsMissing.has(spec)) scriptsMissing.set(spec, []);
+      scriptsMissing.get(spec).push(relative(ROOT, file));
+    }
+  }
+  if (scriptsMissing.size > 0) {
+    problems.push({ pkg: "refarm (root scripts/)", dir: "scripts", missing: scriptsMissing });
   }
 }
 

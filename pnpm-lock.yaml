@@ -14,6 +14,27 @@ importers:
       '@mermaid-js/mermaid-cli':
         specifier: ^11.14.0
         version: 11.15.0(@babel/core@7.29.0)(@babel/template@7.28.6)(playwright-core@1.60.0)(puppeteer@24.43.1(typescript@6.0.3))(yaml@2.9.0)
+      '@refarm.dev/config':
+        specifier: workspace:*
+        version: link:packages/config
+      '@refarm.dev/fence':
+        specifier: workspace:*
+        version: link:packages/fence
+      '@refarm.dev/health':
+        specifier: workspace:*
+        version: link:packages/health
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:packages/plugin-manifest
+      '@refarm.dev/silo':
+        specifier: workspace:*
+        version: link:packages/silo
+      '@refarm.dev/thresher':
+        specifier: workspace:*
+        version: link:packages/thresher
+      '@refarm.dev/windmill':
+        specifier: workspace:*
+        version: link:packages/windmill
       '@types/node':
         specifier: ^25.6.0
         version: 25.7.0

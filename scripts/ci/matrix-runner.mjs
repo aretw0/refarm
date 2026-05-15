@@ -82,7 +82,7 @@ function pickValidationScript(pkg) {
 function getChangedPackages() {
 	try {
 		const output = execSync(
-			"npx turbo run test --filter=...[origin/main] --dry-run=json",
+			"pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
 			{ cwd: ROOT_DIR },
 		).toString();
 		const turboData = JSON.parse(output);
@@ -150,14 +150,25 @@ function runForward(pkgName) {
 		);
 		return;
 	}
+	// Copy package to an isolated dir outside the workspace so pnpm treats it
+	// as a standalone project and resolves all deps from the registry.
+	// In-place mutation of package.json inside the workspace is fragile: pnpm
+	// creates a local pnpm-lock.yaml and node_modules/ that git restore misses.
+	const slug = pkgName.replace(/[@/]/g, "__");
+	const testDir = `/tmp/refarm-forward-compat/${slug}`;
 	try {
-		// Replace local workspace dependencies with their published registry baseline.
-		rewriteWorkspaceDepsToLatest(join(pkgDir, "package.json"));
-		execSync("pnpm install --no-frozen-lockfile --ignore-workspace", {
-			cwd: pkgDir,
+		rmSync(testDir, { recursive: true, force: true });
+		mkdirSync(testDir, { recursive: true });
+		execSync(`cp -r "${pkgDir}/." "${testDir}"`, { stdio: "pipe" });
+		for (const artifact of ["node_modules", "dist", ".turbo"]) {
+			rmSync(join(testDir, artifact), { recursive: true, force: true });
+		}
+		rewriteWorkspaceDepsToLatest(join(testDir, "package.json"));
+		execSync("pnpm install --no-frozen-lockfile", {
+			cwd: testDir,
 			stdio: "inherit",
 		});
-		execSync(`pnpm run ${validationScript}`, { cwd: pkgDir, stdio: "inherit" });
+		execSync(`pnpm run ${validationScript}`, { cwd: testDir, stdio: "inherit" });
 		console.log(
 			`✅ Forward compat passed for ${pkgName} (${validationScript})`,
 		);
@@ -166,9 +177,7 @@ function runForward(pkgName) {
 		console.error(err instanceof Error ? err.message : String(err));
 		process.exit(1);
 	} finally {
-		// Restore state using git
-		execSync(`git checkout package.json`, { cwd: pkgDir });
-		execSync(`pnpm install`, { cwd: ROOT_DIR });
+		rmSync(testDir, { recursive: true, force: true });
 	}
 }
 

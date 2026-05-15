@@ -13,11 +13,9 @@ import { execSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadConfig } from "@refarm.dev/config";
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = join(__dirname, "../..");
-const config = loadConfig(ROOT_DIR);
 
 /**
  * Get changed files compared to origin/main
@@ -47,7 +45,7 @@ function isDependencyOnlyChange(files) {
 
     const allowed = [
         /(^|\/)package\.json$/,
-        /(^|\/)package-lock\.json$/,
+        /(^|\/)pnpm-lock\.yaml$/,
         /^final-report\.md$/,
         /^\.changeset\/.*\.md$/,
         /^\.github\/workflows\/granular-tests\.yml$/,
@@ -71,7 +69,7 @@ function getChangedPackages() {
 
         // Use turbo's built-in dry-run to detect affected packages
         const output = execSync(
-            "npx turbo run test --filter=...[origin/main] --dry-run=json",
+            "pnpm exec turbo run test --filter=...[origin/main] --dry-run=json",
             { cwd: ROOT_DIR, encoding: "utf-8" }
         );
         const turboData = JSON.parse(output);

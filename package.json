@@ -155,9 +155,16 @@
 		"type": "git",
 		"url": "git+https://github.com/aretw0/refarm.git"
 	},
-	"homepage": "https://refarm.dev.br",
+	"homepage": "https://refarm.dev",
 	"devDependencies": {
 		"@changesets/cli": "^2.31.0",
+		"@refarm.dev/config": "workspace:*",
+		"@refarm.dev/fence": "workspace:*",
+		"@refarm.dev/health": "workspace:*",
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/silo": "workspace:*",
+		"@refarm.dev/thresher": "workspace:*",
+		"@refarm.dev/windmill": "workspace:*",
 		"@mermaid-js/mermaid-cli": "^11.14.0",
 		"@types/node": "^25.6.0",
 		"@vitest/coverage-v8": "^4.1.4",
