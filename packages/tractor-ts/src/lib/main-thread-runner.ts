@@ -46,7 +46,7 @@ export class MainThreadRunner implements PluginRunner {
 				import("node:path"),
 			]);
 
-			const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_") };
+			const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_"), importBindings: "direct" };
 			const { files } = await jco.transpile(
 				new Uint8Array(wasmBuffer),
 				opts as Parameters<typeof jco.transpile>[1],
