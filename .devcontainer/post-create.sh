@@ -110,6 +110,10 @@ MDT_PID=$!
 
 (
   retry 2 pnpm add -g @earendil-works/pi-coding-agent || { warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"; exit 0; }
+  retry 2 npm install -g @aretw0/pi-stack || { warn "pi-stack install failed. Run: npm install -g @aretw0/pi-stack"; exit 0; }
+  if command -v pi >/dev/null 2>&1; then
+    node "$(npm root -g)/@aretw0/pi-stack/install.mjs" || warn "pi-stack setup failed. Run: node \$(npm root -g)/@aretw0/pi-stack/install.mjs"
+  fi
 ) &
 PI_PID=$!
 
