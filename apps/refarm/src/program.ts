@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { actionsCommand } from "./commands/actions.js";
+import { agentCommand } from "./commands/agent.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
 import { chatCommand } from "./commands/chat.js";
@@ -46,6 +47,7 @@ program.addCommand(migrateCommand);
 program.addCommand(deployCommand);
 program.addCommand(doctorCommand);
 program.addCommand(pluginCommand);
+program.addCommand(agentCommand);
 program.addCommand(openUrlCommand);
 program.addCommand(actionsCommand);
 program.addCommand(statusCommand);
