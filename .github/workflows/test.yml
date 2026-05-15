@@ -260,7 +260,7 @@ jobs:
         run: echo "::notice::Reusing previous successful Test & Quality validation for unchanged inputs."
 
       - name: Validate .project cross-block consistency
-        run: pnpm run project:validate --silent
+        run: node scripts/ci/project-block-consistency.mjs
 
       - name: Setup
         id: setup
