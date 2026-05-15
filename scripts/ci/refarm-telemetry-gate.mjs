@@ -95,6 +95,9 @@ function parseArgs(argv) {
 			case "--skip-build":
 				options.skipBuild = true;
 				break;
+			case "--":
+				// pnpm appends '--' when extra args are passed via 'pnpm run script -- args'
+				break;
 			case "--timeout-ms": {
 				const value = Number(argv[index + 1]);
 				if (!Number.isFinite(value) || value <= 0) {
