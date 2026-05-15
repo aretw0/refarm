@@ -39,6 +39,8 @@
   ],
   "license": "MIT",
   "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*"
+    "@refarm.dev/eslint-config": "workspace:*",
+    "@refarm.dev/identity-contract-v1": "workspace:*",
+    "nostr-tools": "^2.23.3"
   }
 }

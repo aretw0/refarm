@@ -200,6 +200,12 @@ importers:
 
   apps/refarm:
     dependencies:
+      '@inquirer/core':
+        specifier: ^11.1.10
+        version: 11.1.10(@types/node@25.7.0)
+      '@inquirer/prompts':
+        specifier: ^8.4.3
+        version: 8.4.3(@types/node@25.7.0)
       '@refarm.dev/cli':
         specifier: workspace:*
         version: link:../../packages/cli
@@ -267,6 +273,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@refarm.dev/plugin-manifest':
+        specifier: workspace:*
+        version: link:../../packages/plugin-manifest
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../../packages/tsconfig
@@ -405,6 +414,9 @@ importers:
       '@refarm.dev/ds':
         specifier: workspace:*
         version: link:../ds
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
@@ -445,6 +457,12 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/identity-contract-v1':
+        specifier: workspace:*
+        version: link:../identity-contract-v1
+      nostr-tools:
+        specifier: ^2.23.3
+        version: 2.23.3(typescript@6.0.3)
 
   packages/infra-cloudflare:
     dependencies:
