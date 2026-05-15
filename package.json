@@ -187,7 +187,10 @@
 			"@loro-crdt/base",
 			"sharp",
 			"playwright",
-			"@playwright/test"
+			"@playwright/test",
+			"puppeteer",
+			"unrs-resolver",
+			"workerd"
 		]
 	},
 	"//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
