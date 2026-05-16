@@ -195,7 +195,9 @@
 			"fast-uri": "3.1.2",
 			"//security-yaml": "GHSA-48c2-rrv3-qjmp — stack overflow in yaml <2.8.3 via deeply nested collections. Remove when @astrojs/language-server bumps volar-service-yaml to >=0.0.71 (which uses yaml-language-server@1.23.0).",
 			"yaml": "2.9.0",
-			"yaml-language-server": "1.23.0"
+			"yaml-language-server": "1.23.0",
+			"//jco": "Pin to single version — dual JCO (root v1.17.3 + tractor-ts v1.19.0) caused trampoline0 redeclaration during pi-agent JCO transpilation (static import in plugin-loader.ts was the trigger, now removed).",
+			"@bytecodealliance/jco": "1.19.0"
 		},
 		"onlyBuiltDependencies": [
 			"better-sqlite3",
