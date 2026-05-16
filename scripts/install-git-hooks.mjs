@@ -475,6 +475,28 @@ else
 fi
 echo ""
 
+# 4b. Vitest config phantom dep check (always runs — fast file scan, catches missing devDeps that work locally via hoisting but fail in CI)
+echo "📦 Checking vitest.config.ts dependencies..."
+if timeout 15 pnpm run --silent deps:vitest-config-check 2>/tmp/prepush-vitestdeps.err; then
+  echo "   ✅ No phantom vitest deps"
+else
+  VD_STATUS=$?
+  VD_MSG=$(cat /tmp/prepush-vitestdeps.err 2>/dev/null || true)
+  if [ "$VD_STATUS" -eq 124 ]; then
+    echo "   ⚠️  Vitest dep check timed out (non-blocking)"
+    WARNINGS=1
+  elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+    echo "   ❌ Phantom vitest deps found (blocking in strict mode)"
+    echo "$VD_MSG"
+    BLOCKING_FAILED=1
+  else
+    echo "   ⚠️  Phantom vitest deps found (warning — will fail in CI)"
+    echo "$VD_MSG"
+    WARNINGS=1
+  fi
+fi
+echo ""
+
 # 4. Quality Gate (SDD->BDD->TDD->DDD)
 echo "🔍 Checking Refarm Quality Gate..."
 if [ $NEEDS_QUALITY_GATE -eq 0 ]; then
