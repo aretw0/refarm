@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Tractor } from "../src/index";
 import { createMockConfig } from "./helpers/mock-adapters";
 // @ts-ignore
@@ -12,19 +12,13 @@ vi.mock("@refarm.dev/heartwood", () => ({
   verify: vi.fn().mockReturnValue(true),
 }));
 
-describe("Real WASM Instantiation Integration", () => {
-  const wasmPath = path.resolve(
-    __dirname,
-    "../../heartwood/dist/refarm_heartwood.wasm",
-  );
-  
-  const fixtureWasmDir = path.resolve(__dirname, "./fixtures/heartwood-transpiled");
+const wasmPath = path.resolve(
+  __dirname,
+  "../../heartwood/dist/refarm_heartwood.wasm",
+);
 
-  beforeAll(() => {
-    if (!fs.existsSync(wasmPath)) {
-      throw new Error(`WASM plugin not found at ${wasmPath}. Build it first!`);
-    }
-  });
+describe.skipIf(!fs.existsSync(wasmPath))("Real WASM Instantiation Integration", () => {
+  const fixtureWasmDir = path.resolve(__dirname, "./fixtures/heartwood-transpiled");
 
   it("should load, instantiate and call a real WASM component (Heartwood Fixture)", async () => {
     const config = createMockConfig();

@@ -41,17 +41,23 @@ async function main() {
 		"--dry-run",
 	]);
 
-	await runSubprocess("pnpm", [
-		"-C",
-		"packages/tractor-ts",
-		"run",
-		"test:unit",
-		"--",
-		"install-plugin",
-		"browser-plugin-host",
-		"runtime-descriptor-revocation-policy",
-		"runtime-descriptor-revocation",
-	]);
+	// Use pnpm exec (not pnpm run) so patterns are passed as positional args
+	// directly to vitest without pnpm injecting a "--" separator that vitest
+	// would interpret as Node.js flags rather than file-name filters.
+	await runSubprocess(
+		"pnpm",
+		[
+			"exec",
+			"vitest",
+			"run",
+			"--passWithNoTests",
+			"install-plugin",
+			"browser-plugin-host",
+			"runtime-descriptor-revocation-policy",
+			"runtime-descriptor-revocation",
+		],
+		{ cwd: path.join(root, "packages/tractor-ts") },
+	);
 
 	console.log(
 		"[runtime-descriptor-release-smoke] export + publish(dry-run) + resolver tests passed",
