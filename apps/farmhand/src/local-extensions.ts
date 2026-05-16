@@ -66,7 +66,7 @@ function buildManifest(ext: ExtJson, extDir: string): PluginManifest {
       requiresApi: ext.capabilities?.requiresApi ?? [],
     },
     permissions: [],
-    targets: ["server"],
+    targets: ["server"] as PluginManifest["targets"],
     observability: {
       hooks: [],
     },
@@ -75,7 +75,7 @@ function buildManifest(ext: ExtJson, extDir: string): PluginManifest {
       a11yLevel: 0,
       languages: ["en"],
     },
-  } as unknown as PluginManifest;
+  };
 }
 
 export class LocalExtensionRegistry {
@@ -143,11 +143,6 @@ export class LocalExtensionRegistry {
     for (const extDir of extDirs) {
       const ext = readExtJson(extDir);
       if (!ext || ext.id !== pluginId) continue;
-
-      const entryPath = path.join(extDir, "index.js");
-      if (!fs.existsSync(entryPath)) {
-        throw new Error(`[local-ext] index.js not found for ${pluginId}`);
-      }
 
       const manifest = buildManifest(ext, extDir);
       await tractor.registry.register(manifest);

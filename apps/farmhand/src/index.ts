@@ -319,7 +319,7 @@ async function main() {
 
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
 	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
-	let localExtRegistry: LocalExtensionRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
+	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
 	const localExtSummary = await localExtRegistry.load(
 		tractor as unknown as Parameters<typeof localExtRegistry.load>[0],
 	);
