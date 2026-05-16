@@ -4,13 +4,20 @@
   "private": true,
   "description": "Base GraphNode interface — shared fields for all typed nodes in the Refarm sovereign data graph",
   "type": "module",
-  "main": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "clean": "rm -rf dist"
   },
   "devDependencies": {
     "@refarm.dev/tsconfig": "workspace:*",
