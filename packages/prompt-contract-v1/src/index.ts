@@ -50,12 +50,15 @@ export interface OperatorChannel {
 // Use in non-interactive environments (CI, automated scripts).
 
 export function createAutoOperatorChannel(): OperatorChannel {
-	const ask = async (prompt: OperatorPrompt): Promise<boolean | string> => {
+	function ask(prompt: ConfirmPrompt): Promise<boolean>;
+	function ask(prompt: SelectPrompt): Promise<string>;
+	function ask(prompt: TextPrompt): Promise<string>;
+	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
 		if (prompt.type === "confirm") return prompt.default ?? true;
 		if (prompt.type === "select") return prompt.default ?? prompt.options[0]?.value ?? "";
 		return prompt.default ?? "";
-	};
-	return { ask } as OperatorChannel;
+	}
+	return { ask };
 }
 
 // ── createScriptedOperatorChannel ────────────────────────────────────────────
@@ -66,25 +69,31 @@ export function createScriptedOperatorChannel(
 	answers: Array<boolean | string>,
 ): OperatorChannel {
 	const queue = [...answers];
-	const ask = async (_prompt: OperatorPrompt): Promise<boolean | string> => {
+	function ask(prompt: ConfirmPrompt): Promise<boolean>;
+	function ask(prompt: SelectPrompt): Promise<string>;
+	function ask(prompt: TextPrompt): Promise<string>;
+	async function ask(_prompt: OperatorPrompt): Promise<boolean | string> {
 		if (queue.length === 0) {
 			throw new RangeError("createScriptedOperatorChannel: answer queue exhausted");
 		}
 		return queue.shift()!;
-	};
-	return { ask } as OperatorChannel;
+	}
+	return { ask };
 }
 
 // ── createStdioOperatorChannel ────────────────────────────────────────────────
 // Interactive readline implementation. No external dependencies.
 
 export function createStdioOperatorChannel(): OperatorChannel {
-	const ask = async (prompt: OperatorPrompt): Promise<boolean | string> => {
+	function ask(prompt: ConfirmPrompt): Promise<boolean>;
+	function ask(prompt: SelectPrompt): Promise<string>;
+	function ask(prompt: TextPrompt): Promise<string>;
+	async function ask(prompt: OperatorPrompt): Promise<boolean | string> {
 		if (prompt.type === "confirm") return askConfirm(prompt);
 		if (prompt.type === "select") return askSelect(prompt);
 		return askText(prompt);
-	};
-	return { ask } as OperatorChannel;
+	}
+	return { ask };
 }
 
 function askConfirm(prompt: ConfirmPrompt): Promise<boolean> {
@@ -123,7 +132,12 @@ function askSelect(prompt: SelectPrompt): Promise<string> {
 				return;
 			}
 			const n = parseInt(t, 10);
-			const opt = Number.isFinite(n) ? prompt.options[n - 1] : undefined;
+			const opt = Number.isFinite(n) && n >= 1 && n <= prompt.options.length
+				? prompt.options[n - 1]
+				: undefined;
+			if (!opt) {
+				process.stderr.write(`  Invalid choice, using default.\n`);
+			}
 			resolve(opt?.value ?? prompt.default ?? prompt.options[0]?.value ?? "");
 		});
 	});
@@ -131,11 +145,9 @@ function askSelect(prompt: SelectPrompt): Promise<string> {
 
 function askText(prompt: TextPrompt): Promise<string> {
 	const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-	const hint = prompt.placeholder
-		? ` (${prompt.placeholder})`
-		: prompt.default
-			? ` [${prompt.default}]`
-			: "";
+	let hint = "";
+	if (prompt.placeholder) hint += ` (${prompt.placeholder})`;
+	if (prompt.default) hint += ` [${prompt.default}]`;
 	return new Promise((resolve) => {
 		rl.question(`${prompt.question}${hint}: `, (answer) => {
 			rl.close();
@@ -157,9 +169,10 @@ export async function runOperatorChannelConformance(
 	channel: OperatorChannel,
 ): Promise<OperatorChannelConformanceResult> {
 	const failures: string[] = [];
-	const total = 3;
+	let checksRun = 0;
 
 	// 1 — confirm returns boolean
+	checksRun++;
 	try {
 		const result = await channel.ask({ type: "confirm", question: "_conformance_", default: true });
 		if (typeof result !== "boolean") failures.push("confirm: did not return boolean");
@@ -168,6 +181,7 @@ export async function runOperatorChannelConformance(
 	}
 
 	// 2 — select returns a value present in options
+	checksRun++;
 	try {
 		const opts: SelectOption[] = [
 			{ value: "a", label: "A" },
@@ -187,6 +201,7 @@ export async function runOperatorChannelConformance(
 	}
 
 	// 3 — text returns string
+	checksRun++;
 	try {
 		const result = await channel.ask({
 			type: "text",
@@ -199,5 +214,5 @@ export async function runOperatorChannelConformance(
 	}
 
 	const failed = failures.length;
-	return { pass: failed === 0, total, failed, failures };
+	return { pass: failed === 0, total: checksRun, failed, failures };
 }
