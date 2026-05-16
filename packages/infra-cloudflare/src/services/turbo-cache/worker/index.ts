@@ -131,7 +131,7 @@ export default {
 
 	// Cloudflare Cron Trigger — runs on schedule defined in wrangler.toml [triggers].
 	// Deletes all R2 objects whose uploaded-at metadata exceeds ARTIFACT_TTL_SECONDS.
-	async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): Promise<void> {
+	async scheduled(_controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
 		const ttlSeconds = Number(env.ARTIFACT_TTL_SECONDS) || 2_592_000;
 		if (ttlSeconds === 0) return; // TTL=0 means retain forever — skip cleanup.
 
@@ -157,7 +157,7 @@ async function runCleanup(bucket: R2Bucket, ttlSeconds: number, dryRun: boolean)
 	let cursor: string | undefined;
 
 	do {
-		const listed = await bucket.list({ cursor, limit: 1000, include: ["customMetadata"] });
+		const listed = await bucket.list({ cursor, limit: 1000 });
 		cursor = listed.truncated ? listed.cursor : undefined;
 
 		const toDelete = listed.objects.filter((obj) => isStale(obj, ttlSeconds));

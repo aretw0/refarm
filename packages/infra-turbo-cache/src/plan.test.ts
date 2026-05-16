@@ -35,7 +35,7 @@ describe("createTurboCacheServicePlan", () => {
 	it("merges partial retention overrides with defaults", () => {
 		const plan = createTurboCacheServicePlan({ retention: { ttlSeconds: 7_776_000 } });
 		expect(plan.retention.ttlSeconds).toBe(7_776_000);
-		expect(plan.retention.maxArtifactBytes).toBe(DEFAULT_RETENTION_POLICY.maxArtifactBytes);
+		expect(plan.retention.maxAssetBytes).toBe(DEFAULT_RETENTION_POLICY.maxAssetBytes);
 		expect(plan.retention.dryRun).toBe(false);
 	});
 

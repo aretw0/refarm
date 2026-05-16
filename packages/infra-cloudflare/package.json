@@ -20,7 +20,8 @@
   },
   "dependencies": {
     "@refarm.dev/infra-contract-v1": "workspace:*",
-    "@refarm.dev/infra-turbo-cache": "workspace:*"
+    "@refarm.dev/infra-turbo-cache": "workspace:*",
+    "@refarm.dev/policy-contract-v1": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20241106.0",

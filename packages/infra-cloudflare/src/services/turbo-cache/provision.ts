@@ -2,11 +2,14 @@ import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-	DEFAULT_RETENTION_POLICY,
 	createTurboCacheServicePlan,
 	turboCacheManifest,
 } from "@refarm.dev/infra-turbo-cache";
 import type { TurboCacheServicePlan } from "@refarm.dev/infra-turbo-cache";
+import {
+	DEFAULT_RETENTION_POLICY,
+	type RetentionPolicy,
+} from "@refarm.dev/policy-contract-v1";
 import type { CloudflareProvider } from "../../provider.js";
 import type { CloudflareProvisionPlan } from "../../types.js";
 
@@ -22,7 +25,7 @@ export interface CloudflareTurboCacheProvisionInput {
 	authToken?: string;
 	/** Retention policy — overrides the defaults baked into wrangler.toml.
 	 *  Propagated as Worker vars so the policy is live without redeploying. */
-	retention?: import("@refarm.dev/infra-turbo-cache").RetentionPolicy;
+	retention?: RetentionPolicy;
 	dryRun?: boolean;
 }
 
@@ -132,13 +135,13 @@ export class CloudflareTurboCacheProvisioner {
 		}
 	}
 
-	private async deploy(retention: import("@refarm.dev/infra-turbo-cache").RetentionPolicy): Promise<string> {
+	private async deploy(retention: RetentionPolicy): Promise<string> {
 		await this.ensureWorkersSubdomain();
 		// Push retention policy as Worker vars so they take effect immediately
 		// without editing wrangler.toml. The wrangler.toml defaults act as fallback.
 		const vars = [
 			`ARTIFACT_TTL_SECONDS:${retention.ttlSeconds}`,
-			`MAX_ARTIFACT_BYTES:${retention.maxArtifactBytes}`,
+			`MAX_ARTIFACT_BYTES:${retention.maxAssetBytes}`,
 			`CLEANUP_DRY_RUN:${retention.dryRun}`,
 		];
 		const varArgs = vars.flatMap((v) => ["--var", v]);

@@ -502,6 +502,9 @@ importers:
       '@refarm.dev/infra-turbo-cache':
         specifier: workspace:*
         version: link:../infra-turbo-cache
+      '@refarm.dev/policy-contract-v1':
+        specifier: workspace:*
+        version: link:../policy-contract-v1
     devDependencies:
       '@cloudflare/workers-types':
         specifier: ^4.20241106.0
@@ -536,6 +539,9 @@ importers:
       '@refarm.dev/infra-contract-v1':
         specifier: workspace:*
         version: link:../infra-contract-v1
+      '@refarm.dev/policy-contract-v1':
+        specifier: workspace:*
+        version: link:../policy-contract-v1
     devDependencies:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
@@ -587,6 +593,18 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+
+  packages/policy-contract-v1:
+    devDependencies:
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/registry:
     dependencies:
@@ -7619,6 +7637,11 @@ packages:
 
   yaml-language-server@1.20.0:
     resolution: {integrity: sha512-qhjK/bzSRZ6HtTvgeFvjNPJGWdZ0+x5NREV/9XZWFjIGezew2b4r5JPy66IfOhd5OA7KeFwk1JfmEbnTvev0cA==}
+    hasBin: true
+
+  yaml@2.7.1:
+    resolution: {integrity: sha512-10ULxpnOCQXxJvBgxsn9ptjq6uviG/htZKk9veJGhlqn3w/DxQ631zFF+nlQXLwmImeS5amR2dl2U8sg6U9jsQ==}
+    engines: {node: '>= 14'}
     hasBin: true
 
   yaml@2.9.0:
@@ -14863,8 +14886,9 @@ snapshots:
       vscode-languageserver-textdocument: 1.0.12
       vscode-languageserver-types: 3.17.5
       vscode-uri: 3.1.0
-      yaml: 2.9.0
+      yaml: 2.7.1
 
+  yaml@2.7.1: {}
 
   yaml@2.9.0: {}
 

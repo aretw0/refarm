@@ -19,7 +19,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@refarm.dev/infra-contract-v1": "workspace:*"
+    "@refarm.dev/infra-contract-v1": "workspace:*",
+    "@refarm.dev/policy-contract-v1": "workspace:*"
   },
   "devDependencies": {
     "@refarm.dev/tsconfig": "workspace:*",
