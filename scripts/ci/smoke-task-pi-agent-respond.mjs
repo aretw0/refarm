@@ -398,6 +398,17 @@ async function main() {
 			);
 		}
 
+		// Assert non-empty content: catches case where componentInstance is null and pipeline fails silently
+		const content = respondResult.content ?? '';
+		if (!content || content.trim() === '') {
+			throw new Error(
+				`[task-smoke:pi-agent] FAIL: result has empty content — pi-agent componentInstance was likely null (JCO instantiation failed silently). Full result: ${JSON.stringify(respondResult, null, 2)}`,
+			);
+		}
+		console.log(
+			`[task-smoke:pi-agent] OK: got ${content.length} chars from model=${respondResult.model} provider=${respondResult.provider}`,
+		);
+
 		const streamsDir = path.join(tempHome, ".refarm", "streams");
 		const streamSummary = await waitForFinalStreamChunks({
 			streamsDir,
