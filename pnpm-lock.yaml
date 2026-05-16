@@ -257,6 +257,9 @@ importers:
       '@refarm.dev/infra-turbo-cache':
         specifier: workspace:*
         version: link:../../packages/infra-turbo-cache
+      '@refarm.dev/prompt-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/prompt-contract-v1
       '@refarm.dev/registry':
         specifier: workspace:*
         version: link:../../packages/registry
@@ -619,6 +622,18 @@ importers:
         version: link:../tsconfig
 
   packages/policy-contract-v1:
+    devDependencies:
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^4.1.4
+        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
+
+  packages/prompt-contract-v1:
     devDependencies:
       '@refarm.dev/tsconfig':
         specifier: workspace:*

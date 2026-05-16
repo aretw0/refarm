@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@refarm.dev/cli": "workspace:*",
+    "@refarm.dev/prompt-contract-v1": "workspace:*",
     "@refarm.dev/config": "workspace:*",
     "@refarm.dev/context-provider-v1": "workspace:*",
     "@refarm.dev/effort-contract-v1": "workspace:*",

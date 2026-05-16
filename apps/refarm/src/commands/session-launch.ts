@@ -6,10 +6,13 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import readline from "node:readline";
 import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
+import {
+	type OperatorChannel,
+	createStdioOperatorChannel,
+} from "@refarm.dev/prompt-contract-v1";
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
 const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
@@ -24,7 +27,7 @@ export interface SessionReadiness {
 export type AutostartMode = "always" | "ask" | "never";
 
 export interface LaunchDeps {
-	confirm(question: string): Promise<boolean>;
+	operator: OperatorChannel;
 	spawnFarmhand(repoRoot: string): void;
 	probeFarmhandUntilReady(): Promise<boolean>;
 	/** How to handle farmhand auto-start. Reads from config.json; default "ask". */
@@ -111,19 +114,7 @@ export function findRepoRoot(): string {
 export function defaultLaunchDeps(): LaunchDeps {
 	const deps: LaunchDeps = {
 		autostartMode: readAutostartMode(),
-
-		async confirm(question) {
-			const rl = readline.createInterface({
-				input: process.stdin,
-				output: process.stdout,
-			});
-			return new Promise((resolve) => {
-				rl.question(chalk.yellow(question) + " ", (answer) => {
-					rl.close();
-					resolve(answer.trim().toLowerCase() !== "n");
-				});
-			});
-		},
+		operator: createStdioOperatorChannel(),
 
 		spawnFarmhand(repoRoot) {
 			const child = spawn(
@@ -145,7 +136,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 
 		async recoverProvider() {
 			process.stderr.write(chalk.red("✗  No model provider configured.\n\n"));
-			const go = await deps.confirm("   Configure now? (Y/n)");
+			const go = await deps.operator.ask({ type: "confirm", question: "   Configure now?", default: true });
 			if (!go) {
 				console.error(chalk.dim("   Run `refarm sow` when ready."));
 				return false;
@@ -178,7 +169,7 @@ export async function autoStartFarmhand(
 	process.stderr.write(chalk.red("✗  Farmhand is not running.\n\n"));
 
 	if (mode === "ask") {
-		const confirmed = await deps.confirm("   Start it now? (Y/n)");
+		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
 			console.error(chalk.dim("\n   Run `refarm doctor` for diagnostics."));
 			return false;
