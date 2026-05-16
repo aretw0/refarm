@@ -70,7 +70,7 @@ async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<strin
  * 4. Enter REPL
  */
 export async function runSessionLaunchFlow(
-	opts: { new?: boolean; session?: string } = {},
+	opts: { new?: boolean; session?: string; message?: string } = {},
 	injectedDeps?: ChatDeps,
 	launchDeps?: LaunchDeps,
 ): Promise<void> {
@@ -108,7 +108,7 @@ export async function runSessionLaunchFlow(
 		process.exit(1);
 	}
 
-	await runSessionRepl(sessionId, deps);
+	await runSessionRepl(sessionId, deps, "refarm", opts.message);
 }
 
 export function createSessionCommand(deps?: ChatDeps): Command {
@@ -116,10 +116,11 @@ export function createSessionCommand(deps?: ChatDeps): Command {
 		.description(
 			"Start or resume an interactive session (the default when running bare `refarm`)",
 		)
+		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Resume a specific session ID or unique prefix")
-		.action(async (opts: { new?: boolean; session?: string }) => {
-			await runSessionLaunchFlow(opts, deps);
+		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
+			await runSessionLaunchFlow({ ...opts, message }, deps);
 		});
 }
 

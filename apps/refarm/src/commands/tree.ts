@@ -130,7 +130,7 @@ function exitForAllListError(err: unknown): never {
 	const msg = err instanceof Error ? err.message : String(err);
 	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 		console.error(chalk.red("✗  farmhand sidecar is not running."));
-		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else {
 		console.error(chalk.red(`✗  ${msg}`));
 	}

@@ -141,7 +141,7 @@ async function listSessions(): Promise<void> {
 		const msg = err instanceof Error ? err.message : String(err);
 		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+			console.error(chalk.dim("   Diagnose:  refarm doctor"));
 		} else {
 			console.error(chalk.red(`✗  ${msg}`));
 		}
@@ -210,7 +210,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 			);
 			console.error(
 				chalk.dim(
-					"   Restart/update backend and retry: pnpm run farmhand:daemon",
+					"   Restart or update backend and retry: refarm doctor",
 				),
 			);
 			process.exit(1);
@@ -226,7 +226,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 		const msg = err instanceof Error ? err.message : String(err);
 		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+			console.error(chalk.dim("   Diagnose:  refarm doctor"));
 		} else {
 			console.error(chalk.red(`✗  ${msg}`));
 		}
@@ -320,7 +320,7 @@ async function forkSession(
 		const msg = err instanceof Error ? err.message : String(err);
 		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+			console.error(chalk.dim("   Diagnose:  refarm doctor"));
 		} else {
 			console.error(chalk.red(`✗  ${msg}`));
 		}
@@ -374,7 +374,7 @@ async function showSession(prefix: string): Promise<void> {
 		const msg = err instanceof Error ? err.message : String(err);
 		if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
 			console.error(chalk.red("✗  tractor is not running."));
-			console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+			console.error(chalk.dim("   Diagnose:  refarm doctor"));
 		} else {
 			console.error(chalk.red(`✗  ${msg}`));
 		}

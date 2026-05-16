@@ -128,7 +128,7 @@ function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
 function printConnectionFailure(message: string): never {
 	if (message.includes("ECONNREFUSED") || message.includes("fetch failed")) {
 		console.error(chalk.red("✗  farmhand is not running."));
-		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else if (message.includes("telemetry endpoint not available")) {
 		console.error(
 			chalk.red("✗  telemetry endpoint is unavailable in this daemon."),

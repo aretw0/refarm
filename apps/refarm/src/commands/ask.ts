@@ -393,18 +393,17 @@ function printAskError(message: string): void {
 
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
-		console.error(chalk.dim("   Status:    pnpm run farm:status"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
 		console.error(chalk.red(`\n✗  Model provider unavailable: ${provider}`));
 		if (provider === "ollama") {
 			console.error(chalk.dim("   Start Ollama:  ollama serve"));
-			console.error(chalk.dim("   Or switch provider:  refarm keys"));
+			console.error(chalk.dim("   Or switch provider:  refarm sow"));
 		} else {
-			console.error(chalk.dim("   Check your API key:  refarm keys --status"));
-			console.error(chalk.dim("   Reconfigure:         refarm keys"));
+			console.error(chalk.dim("   Check your API key:  refarm sow --status"));
+			console.error(chalk.dim("   Reconfigure:         refarm sow"));
 		}
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
@@ -432,10 +431,10 @@ export function createAskCommand(deps?: AskDeps): Command {
 			) => {
 				if (!deps && detectConfiguredProvider() === null) {
 					console.error(chalk.red("\n✗  No model provider configured."));
-					console.error(chalk.dim("   Set up a provider:  refarm keys"));
+					console.error(chalk.dim("   Set up a provider:  refarm sow"));
 					console.error(
 						chalk.dim(
-							"   Or use Ollama:      ollama serve  (then refarm keys)",
+							"   Or use Ollama:      ollama serve  (then refarm sow)",
 						),
 					);
 					process.exit(1);

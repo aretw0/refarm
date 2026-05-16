@@ -98,11 +98,11 @@ export function defaultLaunchDeps(): LaunchDeps {
 			});
 		},
 		spawnFarmhand(repoRoot) {
-			const child = spawn("npm", ["run", "farmhand:daemon"], {
-				cwd: repoRoot,
-				detached: true,
-				stdio: "ignore",
-			});
+			const child = spawn(
+				"bash",
+				[path.join(repoRoot, "scripts", "farmhand-start.sh"), "--background"],
+				{ detached: true, stdio: "ignore" },
+			);
 			child.unref();
 		},
 		async probeFarmhandUntilReady() {
@@ -128,7 +128,7 @@ export async function autoStartFarmhand(
 
 	const confirmed = await deps.confirm("   Start it now? (Y/n)");
 	if (!confirmed) {
-		console.error(chalk.dim("\n   Start manually: pnpm run farmhand:daemon"));
+		console.error(chalk.dim("\n   Run `refarm doctor` for diagnostics."));
 		return false;
 	}
 
@@ -145,7 +145,7 @@ export async function autoStartFarmhand(
 	}
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
-	console.error(chalk.dim("   Start manually: pnpm run farmhand:daemon"));
+	console.error(chalk.dim("   Run `refarm doctor` for diagnostics."));
 	return false;
 }
 
@@ -175,11 +175,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured && !r.farmhandRunning) {
 		console.error(chalk.red("✗  refarm is not configured yet.\n"));
 		console.error(
-			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm keys"),
-		);
-		console.error(
-			chalk.dim("   Then start farmhand:          ") +
-				chalk.cyan("pnpm run farmhand:daemon"),
+			chalk.dim("   Configure your model provider:  ") + chalk.cyan("refarm sow"),
 		);
 		return;
 	}
@@ -187,12 +183,12 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.providerConfigured) {
 		console.error(chalk.red("✗  No model provider configured.\n"));
 		console.error(
-			chalk.dim("   Set up a provider:  ") + chalk.cyan("refarm keys"),
+			chalk.dim("   Set up a provider:  ") + chalk.cyan("refarm sow"),
 		);
 		console.error(
 			chalk.dim("   Use Ollama:         ") +
 				chalk.cyan("ollama serve") +
-				chalk.dim("  (then refarm keys)"),
+				chalk.dim("  (then refarm sow)"),
 		);
 		return;
 	}
@@ -200,10 +196,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.farmhandRunning) {
 		console.error(chalk.red("✗  Farmhand is not running.\n"));
 		console.error(
-			chalk.dim("   Start it:   ") + chalk.cyan("pnpm run farmhand:daemon"),
-		);
-		console.error(
-			chalk.dim("   Or inline:  ") + chalk.cyan("pnpm run farmhand:start"),
+			chalk.dim("   Diagnose:  ") + chalk.cyan("refarm doctor"),
 		);
 	}
 }

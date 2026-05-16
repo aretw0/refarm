@@ -333,7 +333,7 @@ function printChatError(message: string): void {
 		message.includes("Farmhand HTTP");
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}
@@ -429,6 +429,7 @@ export async function runSessionRepl(
 	sessionId: string,
 	deps: ChatDeps,
 	label = "refarm",
+	initialMessage?: string,
 ): Promise<void> {
 	const clearActiveSession = deps.clearActiveSessionId ?? clearActiveSessionId;
 	const persistActiveSession = deps.persistActiveSessionId ?? writeActiveSessionIdAndVerify;
@@ -451,6 +452,10 @@ export async function runSessionRepl(
 		});
 
 		rl.prompt();
+
+		if (initialMessage) {
+			rl.emit("line", initialMessage);
+		}
 
 		rl.on("line", (line) => {
 			const command = parseChatLine(line);
@@ -559,12 +564,13 @@ export async function runSessionRepl(
 
 export function createChatCommand(deps?: ChatDeps): Command {
 	return new Command("chat")
-		.description("Alias for `refarm session` — interactive REPL")
+		.description("Interactive REPL — optionally send an initial message")
+		.argument("[message]", "Initial message to send immediately")
 		.option("--new", "Start a fresh session")
 		.option("--session <id>", "Resume a specific session ID or prefix")
-		.action(async (opts: { new?: boolean; session?: string }) => {
+		.action(async (message: string | undefined, opts: { new?: boolean; session?: string }) => {
 			const { runSessionLaunchFlow } = await import("./session.js");
-			await runSessionLaunchFlow(opts, deps);
+			await runSessionLaunchFlow({ ...opts, message }, deps);
 		});
 }
 
