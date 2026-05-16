@@ -40,32 +40,42 @@ export class MainThreadRunner implements PluginRunner {
 		let componentInstance: unknown = null;
 
 		try {
-			const [jco, fs, path] = await Promise.all([
-				import("@bytecodealliance/jco"),
+			const [fs, path] = await Promise.all([
 				import("node:fs/promises"),
 				import("node:path"),
 			]);
 
-			const opts = { name: pluginId.replace(/[^a-z0-9]/gi, "_") };
-			const { files } = await jco.transpile(new Uint8Array(wasmBuffer), opts);
-
-			const distDir = path.resolve(this.distBase, pluginId);
-			await fs.mkdir(distDir, { recursive: true });
-
 			const jcoName = pluginId.replace(/[^a-z0-9]/gi, "_");
+			const distDir = path.resolve(this.distBase, pluginId);
+
 			let entryPoint = "";
+			let files: Record<string, string | Uint8Array> = {};
 
-			for (const [filename, content] of Object.entries(files)) {
-				const filePath = path.join(distDir, filename);
-				await fs.mkdir(path.dirname(filePath), { recursive: true });
-				await fs.writeFile(filePath, content as string | Uint8Array);
-				if (filename === `${jcoName}.js`) entryPoint = filePath;
-			}
+			// Use cached transpile output when available — avoids loading JCO on every boot
+			const cachedEntry = path.join(distDir, `${jcoName}.js`);
+			try {
+				await fs.access(cachedEntry);
+				entryPoint = cachedEntry;
+			} catch {
+				// Cache miss — transpile now
+				const jco = await import("@bytecodealliance/jco");
+				const result = await jco.transpile(new Uint8Array(wasmBuffer), { name: jcoName });
+				files = result.files;
 
-			if (!entryPoint) {
-				const items = await fs.readdir(distDir);
-				const rootJs = items.find((f) => f.endsWith(".js"));
-				if (rootJs) entryPoint = path.join(distDir, rootJs);
+				await fs.mkdir(distDir, { recursive: true });
+
+				for (const [filename, content] of Object.entries(files)) {
+					const filePath = path.join(distDir, filename);
+					await fs.mkdir(path.dirname(filePath), { recursive: true });
+					await fs.writeFile(filePath, content as string | Uint8Array);
+					if (filename === `${jcoName}.js`) entryPoint = filePath;
+				}
+
+				if (!entryPoint) {
+					const items = await fs.readdir(distDir);
+					const rootJs = items.find((f) => f.endsWith(".js"));
+					if (rootJs) entryPoint = path.join(distDir, rootJs);
+				}
 			}
 
 			if (!entryPoint) {
