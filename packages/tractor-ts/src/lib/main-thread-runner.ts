@@ -49,12 +49,18 @@ export class MainThreadRunner implements PluginRunner {
 			const distDir = path.resolve(this.distBase, pluginId);
 
 			let entryPoint = "";
+			// files is only populated on cache-miss (transpile path). On cache-hit it stays empty
+			// because JCO default output self-fetches its WASM via fetchCompile(new URL(..., import.meta.url))
+			// and never calls the instantiate() callback. If a plugin is ever transpiled with
+			// { instantiation: true }, the cache-hit path must read .wasm files from distDir here.
 			let files: Record<string, string | Uint8Array> = {};
 
-			// Use cached transpile output when available — avoids loading JCO on every boot
+			// Use cached transpile output when available — avoids loading JCO on every boot.
+			// Check both the JS entry and its WASM sidecar to guard against partial cache.
 			const cachedEntry = path.join(distDir, `${jcoName}.js`);
+			const cachedWasm = path.join(distDir, `${jcoName}.core.wasm`);
 			try {
-				await fs.access(cachedEntry);
+				await Promise.all([fs.access(cachedEntry), fs.access(cachedWasm)]);
 				entryPoint = cachedEntry;
 			} catch {
 				// Cache miss — transpile now
