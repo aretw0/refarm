@@ -333,7 +333,7 @@ function printChatError(message: string): void {
 		message.includes("Farmhand HTTP");
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
+		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}

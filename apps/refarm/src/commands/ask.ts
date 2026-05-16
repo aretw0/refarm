@@ -383,8 +383,8 @@ function printAskError(message: string): void {
 
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Start it:  npm run farmhand:daemon"));
-		console.error(chalk.dim("   Status:    npm run farm:status"));
+		console.error(chalk.dim("   Start it:  pnpm run farmhand:daemon"));
+		console.error(chalk.dim("   Status:    pnpm run farm:status"));
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";

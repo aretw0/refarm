@@ -128,7 +128,7 @@ export async function autoStartFarmhand(
 
 	const confirmed = await deps.confirm("   Start it now? (Y/n)");
 	if (!confirmed) {
-		console.error(chalk.dim("\n   Start manually: npm run farmhand:daemon"));
+		console.error(chalk.dim("\n   Start manually: pnpm run farmhand:daemon"));
 		return false;
 	}
 
@@ -145,7 +145,7 @@ export async function autoStartFarmhand(
 	}
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
-	console.error(chalk.dim("   Start manually: npm run farmhand:daemon"));
+	console.error(chalk.dim("   Start manually: pnpm run farmhand:daemon"));
 	return false;
 }
 
@@ -179,7 +179,7 @@ export function printSessionGuide(r: SessionReadiness): void {
 		);
 		console.error(
 			chalk.dim("   Then start farmhand:          ") +
-				chalk.cyan("npm run farmhand:daemon"),
+				chalk.cyan("pnpm run farmhand:daemon"),
 		);
 		return;
 	}
@@ -200,10 +200,10 @@ export function printSessionGuide(r: SessionReadiness): void {
 	if (!r.farmhandRunning) {
 		console.error(chalk.red("✗  Farmhand is not running.\n"));
 		console.error(
-			chalk.dim("   Start it:   ") + chalk.cyan("npm run farmhand:daemon"),
+			chalk.dim("   Start it:   ") + chalk.cyan("pnpm run farmhand:daemon"),
 		);
 		console.error(
-			chalk.dim("   Or inline:  ") + chalk.cyan("npm run farmhand:start"),
+			chalk.dim("   Or inline:  ") + chalk.cyan("pnpm run farmhand:start"),
 		);
 	}
 }
