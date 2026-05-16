@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import chalk from "chalk";
 
@@ -21,10 +21,16 @@ export interface SessionReadiness {
 	farmhandRunning: boolean;
 }
 
+export type AutostartMode = "always" | "ask" | "never";
+
 export interface LaunchDeps {
 	confirm(question: string): Promise<boolean>;
 	spawnFarmhand(repoRoot: string): void;
 	probeFarmhandUntilReady(): Promise<boolean>;
+	/** How to handle farmhand auto-start. Reads from config.json; default "ask". */
+	autostartMode?: AutostartMode;
+	/** Called when no provider is configured — returns true if provider is now ready. */
+	recoverProvider?(): Promise<boolean>;
 }
 
 export function isSessionReady(r: SessionReadiness): boolean {
@@ -76,6 +82,25 @@ function detectProvider(): boolean {
 	return false;
 }
 
+/** Read autostart preference from the nearest .refarm/config.json. */
+export function readAutostartMode(): AutostartMode {
+	for (const base of refarmSearchDirs()) {
+		const configFile = path.join(base, "config.json");
+		if (!fs.existsSync(configFile)) continue;
+		try {
+			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
+				autostart?: string;
+			};
+			if (config.autostart === "always" || config.autostart === "never") {
+				return config.autostart;
+			}
+		} catch {
+			// ignore malformed config
+		}
+	}
+	return "ask";
+}
+
 /** Compute the monorepo root from this file's location. */
 export function findRepoRoot(): string {
 	const __filename = fileURLToPath(import.meta.url);
@@ -84,7 +109,9 @@ export function findRepoRoot(): string {
 }
 
 export function defaultLaunchDeps(): LaunchDeps {
-	return {
+	const deps: LaunchDeps = {
+		autostartMode: readAutostartMode(),
+
 		async confirm(question) {
 			const rl = readline.createInterface({
 				input: process.stdin,
@@ -97,6 +124,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 				});
 			});
 		},
+
 		spawnFarmhand(repoRoot) {
 			const child = spawn(
 				"bash",
@@ -105,6 +133,7 @@ export function defaultLaunchDeps(): LaunchDeps {
 			);
 			child.unref();
 		},
+
 		async probeFarmhandUntilReady() {
 			const deadline = Date.now() + AUTOSTART_TIMEOUT_MS;
 			while (Date.now() < deadline) {
@@ -113,7 +142,21 @@ export function defaultLaunchDeps(): LaunchDeps {
 			}
 			return false;
 		},
+
+		async recoverProvider() {
+			process.stderr.write(chalk.red("✗  No model provider configured.\n\n"));
+			const go = await deps.confirm("   Configure now? (Y/n)");
+			if (!go) {
+				console.error(chalk.dim("   Run `refarm sow` when ready."));
+				return false;
+			}
+			// Re-invoke the same CLI binary with the `sow` subcommand.
+			// process.argv[0] = node binary, process.argv[1] = refarm entry script.
+			spawnSync(process.argv[0]!, [process.argv[1]!, "sow"], { stdio: "inherit" });
+			return detectProvider();
+		},
 	};
+	return deps;
 }
 
 /**
@@ -124,12 +167,22 @@ export async function autoStartFarmhand(
 	repoRoot: string,
 	deps: LaunchDeps,
 ): Promise<boolean> {
+	const mode = deps.autostartMode ?? "ask";
+
+	if (mode === "never") {
+		process.stderr.write(chalk.red("✗  Farmhand is not running.\n"));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		return false;
+	}
+
 	process.stderr.write(chalk.red("✗  Farmhand is not running.\n\n"));
 
-	const confirmed = await deps.confirm("   Start it now? (Y/n)");
-	if (!confirmed) {
-		console.error(chalk.dim("\n   Run `refarm doctor` for diagnostics."));
-		return false;
+	if (mode === "ask") {
+		const confirmed = await deps.confirm("   Start it now? (Y/n)");
+		if (!confirmed) {
+			console.error(chalk.dim("\n   Run `refarm doctor` for diagnostics."));
+			return false;
+		}
 	}
 
 	process.stdout.write(chalk.dim("   → Starting farmhand..."));

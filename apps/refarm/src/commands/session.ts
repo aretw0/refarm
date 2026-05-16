@@ -74,15 +74,19 @@ export async function runSessionLaunchFlow(
 	injectedDeps?: ChatDeps,
 	launchDeps?: LaunchDeps,
 ): Promise<void> {
-	const readiness = await checkSessionReadiness();
+	const launch = launchDeps ?? defaultLaunchDeps();
+	let readiness = await checkSessionReadiness();
 
+	// Recovery pass 1: if provider not configured, offer inline setup.
+	if (!readiness.providerConfigured && launch.recoverProvider) {
+		const recovered = await launch.recoverProvider();
+		if (recovered) readiness = { ...readiness, providerConfigured: true };
+	}
+
+	// Recovery pass 2: auto-start farmhand when provider is now configured.
 	let farmhandRunning = readiness.farmhandRunning;
-
 	if (!farmhandRunning && readiness.providerConfigured) {
-		farmhandRunning = await autoStartFarmhand(
-			findRepoRoot(),
-			launchDeps ?? defaultLaunchDeps(),
-		);
+		farmhandRunning = await autoStartFarmhand(findRepoRoot(), launch);
 		if (!farmhandRunning) process.exit(1);
 	}
 
