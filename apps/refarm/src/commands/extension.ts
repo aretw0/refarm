@@ -86,6 +86,13 @@ export function listExtensions(cwd: string, homeDir: string): ExtensionEntry[] {
 }
 
 async function newExtension(name: string, isGlobal: boolean): Promise<void> {
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
+    console.error(
+      `Invalid extension name '${name}': use lowercase letters, digits, and hyphens only (e.g. my-tool)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   const cwd = process.cwd();
   const homeDir = os.homedir();
   const baseDir = extensionBaseDir(cwd, homeDir, isGlobal);
@@ -111,6 +118,13 @@ async function newExtension(name: string, isGlobal: boolean): Promise<void> {
 }
 
 async function saveExtension(name: string, toGlobal: boolean): Promise<void> {
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(name)) {
+    console.error(
+      `Invalid extension name '${name}': use lowercase letters, digits, and hyphens only (e.g. my-tool)`,
+    );
+    process.exitCode = 1;
+    return;
+  }
   const cwd = process.cwd();
   const homeDir = os.homedir();
 

@@ -24,7 +24,10 @@ vi.mock("node:fs/promises", async (importOriginal) => {
 const mockFs = await import("node:fs");
 
 describe("extension commands", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.exitCode = undefined;
+  });
 
   it("extensionCommand exports a Commander Command named 'extension'", async () => {
     const { extensionCommand } = await import("./extension.js");
@@ -51,5 +54,31 @@ describe("extension commands", () => {
     const { listExtensions } = await import("./extension.js");
     const result = listExtensions(process.cwd(), os.homedir());
     expect(result.some((e) => e.id === "@local/my-tool")).toBe(true);
+  });
+
+  it("save command errors when neither --global nor --local is passed", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { extensionCommand } = await import("./extension.js");
+
+    await extensionCommand.parseAsync(["save", "my-tool"], { from: "user" });
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("--global"),
+    );
+    consoleErrorSpy.mockRestore();
+  });
+
+  it("new command rejects names with path separators", async () => {
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { extensionCommand } = await import("./extension.js");
+
+    await extensionCommand.parseAsync(["new", "../evil"], { from: "user" });
+
+    expect(process.exitCode).toBe(1);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      expect.stringContaining("Invalid extension name"),
+    );
+    consoleErrorSpy.mockRestore();
   });
 });
