@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+	DEFAULT_RETENTION_POLICY,
 	createTurboCacheServicePlan,
 	turboCacheManifest,
 } from "@refarm.dev/infra-turbo-cache";
@@ -19,6 +20,9 @@ export interface CloudflareTurboCacheProvisionInput {
 	workerName?: string;
 	team?: string;
 	authToken?: string;
+	/** Retention policy — overrides the defaults baked into wrangler.toml.
+	 *  Propagated as Worker vars so the policy is live without redeploying. */
+	retention?: import("@refarm.dev/infra-turbo-cache").RetentionPolicy;
 	dryRun?: boolean;
 }
 
@@ -84,9 +88,11 @@ export class CloudflareTurboCacheProvisioner {
 			return { workerUrl: "<dry-run>", authToken, bucketName, plan };
 		}
 
+		const retention = { ...DEFAULT_RETENTION_POLICY, ...input.retention };
+
 		await this.ensureBucket(bucketName);
 		await this.setSecret("AUTH_TOKEN", authToken);
-		const workerUrl = await this.deploy();
+		const workerUrl = await this.deploy(retention);
 
 		return { workerUrl, authToken, bucketName, plan };
 	}
@@ -126,9 +132,17 @@ export class CloudflareTurboCacheProvisioner {
 		}
 	}
 
-	private async deploy(): Promise<string> {
+	private async deploy(retention: import("@refarm.dev/infra-turbo-cache").RetentionPolicy): Promise<string> {
 		await this.ensureWorkersSubdomain();
-		const { stdout } = await this.provider.exec(["deploy"], WORKER_DIR);
+		// Push retention policy as Worker vars so they take effect immediately
+		// without editing wrangler.toml. The wrangler.toml defaults act as fallback.
+		const vars = [
+			`ARTIFACT_TTL_SECONDS:${retention.ttlSeconds}`,
+			`MAX_ARTIFACT_BYTES:${retention.maxArtifactBytes}`,
+			`CLEANUP_DRY_RUN:${retention.dryRun}`,
+		];
+		const varArgs = vars.flatMap((v) => ["--var", v]);
+		const { stdout } = await this.provider.exec(["deploy", ...varArgs], WORKER_DIR);
 		const match = stdout.match(/https:\/\/[^\s]+\.workers\.dev/);
 		return match?.[0] ?? "<url-not-found>";
 	}
