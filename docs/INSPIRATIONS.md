@@ -20,6 +20,33 @@ This document is a tribute to the "Greats" we've learned from.
 - **[Vim](https://www.vim.org)**: For teaching the world that the keyboard is the fastest interface for the human mind. Refarm's intent-centric navigation aims to bring that "flow state" to every digital task.
 - **[SilverBullet](https://silverbullet.md/)**: For the concept of a "Self-Extending" workspace built entirely on Markdown. Their architecture of **"Plugs"** (plugins that run anywhere) communicating with the host via **"Syscalls"**, combined with programmable notes via Lua, is a huge inspiration. It proves that an application can be dynamically extended by the user on the fly without breaking the core engine.
 - **[Spin (Fermyon)](https://spinframework.dev/)**: For its "Component-First" approach to WebAssembly. Spin v3's work on **Spin Factors** and cross-language component dependencies mirrors our vision for `tractor`. They are setting the standard for how high-level capabilities should be exposed to sandboxed Wasm components.
+
+- **[wasmCloud (Bytecode Alliance)](https://wasmcloud.com)** — *nosso professor mais exigente.*  
+  wasmCloud é o sistema de computação distribuída sobre WASM Component Model mais battle-tested em produção. Tudo que eles provaram funciona em escala informa o que estamos construindo — mesmo que nossos contextos sejam diferentes. Lições que absorvemos e estamos em processo de absorver:
+
+  | Conceito wasmCloud | O que aprendemos | Onde está no Refarm |
+  |--------------------|-----------------|---------------------|
+  | **Lattice** | Uma flat topology de hosts que compartilham providers via NATS — prova que backends podem ser protocolos, não implementações | `BackendDescriptor` + `ManagedBackend` — qualquer processo que satisfaça o protocolo HTTP é um backend válido |
+  | **Link Definitions** | A fiação explícita `componente → provider` para uma interface WIT específica. Nenhum componente resolve um provider implicitamente — tudo é declarado e gerenciado pelo runtime | Nosso `requires/providesApi` em `plugin-manifest` é o embrião disso. Precisamos evoluir para ser tão explícito quanto |
+  | **Providers** | Capability providers são eles próprios componentes (WASM ou nativos) com um protocolo de registro no host — não são built-ins, são plugins | `tractor` carrega providers como componentes WASM via JCO. A nossa Tier 1 (extensões JS locais) é um atalho antes de chegarmos à maturidade de wasmCloud |
+  | **`wash` CLI** | O developer CLI do wasmCloud — `wash build`, `wash dev`, `wash deploy`. Primeiro-cidadão, não afterthought | `refarm plugin`, `refarm extension`, futuramente `refarm component`. O `wash` nos mostra onde o DX precisa chegar |
+  | **`wash dev` loop** | Live-reload de componentes enquanto você edita Rust — rebuild + hot-deploy automático no host local | Nossa `/reload` no REPL + `refarm extension new` é o equivalente para JS local. Para WASM, ainda não chegamos lá |
+  | **Policy Service** | Serviço separado de autorização — o host pergunta ao policy service se um componente pode executar uma capability antes de permitir | Nosso `heartwood` + `TrustManager` + `PluginRegistry` cobre isso para o caso local, mas menos explicitamente separado |
+  | **Host como protocolo** | Um wasmCloud host pode ser qualquer processo que fale o protocolo de lattice — não é só o `wasmcloud-host` Rust. Isso permitiu hosts em Go, Python, JS | Exatamente o que o `BackendDescriptor` codifica: o farmhand é uma implementação do protocolo, não o protocolo em si |
+
+  **Onde somos deliberadamente diferentes:**
+  - wasmCloud resolve *escala horizontal distribuída* (cloud-native microservices com NATS como backbone). Refarm resolve *soberania local + AI agent* — um developer com um projeto, não uma fleet de serviços.
+  - wasmCloud requer que todo componente seja WASM. Refarm tem Tier 1 (JS local sem build) porque o DX de "escreva e use agora" importa mais que pureza arquitetural no início.
+  - wasmCloud usa NATS como message bus do Lattice. Nosso "Lattice" é um `fetch()` HTTP + SSE — simples o suficiente para o caso de uso.
+  - wasmCloud tem governance corporativa (Cosmonic → wasmCloud Inc). Refarm é soberano por design.
+
+  **O que ainda não fizemos que precisamos fazer, inspirados neles:**
+  - Link Definitions explícitas: hoje nosso `requires/providesApi` é declarativo mas o runtime não valida a fiação em tempo de boot
+  - Host discovery: wasmCloud sabe quais providers estão disponíveis no lattice antes de carregar um componente. Nós não temos isso ainda
+  - `refarm component dev` — o equivalente de `wash dev` para WASM + WIT: rebuild automático ao salvar Rust, hot-reload no farmhand
+
+  Se o wasmCloud é o que a indústria validou para WASM distribuído em produção, Refarm é o que queremos que exista para o developer soberano local. Estudamos eles para não reinventar o que já foi errado e acertado, e para saber exatamente quando e por que divergimos.
+
 - **[zwasm (ClojureWasm)](https://github.com/clojurewasm/zwasm)**: A production-ready (~1.2 MB) WebAssembly Component Model runtime written in Zig. Full WASI P2 + WIT support, 100% spec conformance (62k tests). The technical foundation for the Refarm **Pi-Nano** host — our lightweight Zig-based tractor for edge and resource-constrained environments. Proves that the Component Model doesn't require a heavy JIT runtime.
 - **[nullclaw](https://github.com/nullclaw/nullclaw)**: An AI assistant infrastructure framework written in Zig — 678 KB static binary, <2ms boot, 50+ AI providers, pluggable channels and memory backends. The closest thing to "Pi agent written in Zig." A direct reference for how the Refarm sovereign CLI agent should be designed: minimal footprint, fast startup, provider-agnostic.
 
