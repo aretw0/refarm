@@ -17,7 +17,6 @@
     "clean": "rm -rf dist .astro"
   },
   "dependencies": {
-    "@astrojs/check": "^0.9.9",
     "@refarm.dev/ds": "workspace:*",
     "@refarm.dev/homestead": "workspace:*",
     "@refarm.dev/scarecrow": "workspace:*",
@@ -29,6 +28,7 @@
     "astro": "^6.2.2"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.9",
     "@refarm.dev/config": "workspace:*",
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",

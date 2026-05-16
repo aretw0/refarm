@@ -57,6 +57,9 @@ jobs:
         run: pnpm audit --audit-level=high --omit=dev
 
       # ── Tier 2: non-blocking gate — moderate in prod deps ───────────────
+      # GHSA-48c2-rrv3-qjmp (yaml <2.8.3): ignored — exact version pin in
+      # yaml-language-server@1.20.0 (dev tooling, @astrojs/check) that pnpm
+      # overrides cannot reach. Track: @astrojs/language-server → volar-service-yaml@0.0.71.
       - name: Security gate (moderate, prod deps only — non-blocking)
         id: audit_gate_moderate
         if: always()

@@ -12,3 +12,6 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
   workerd: true
+auditConfig:
+  ignoreGhsas:
+    - GHSA-48c2-rrv3-qjmp
