@@ -27,6 +27,7 @@ import { loadConfigAsync } from "@refarm.dev/config";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
+import { LocalExtensionRegistry } from "./local-extensions.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
@@ -315,6 +316,18 @@ async function main() {
 
 	const pluginsDir = path.join(farmhandBaseDir, "plugins");
 	await mkdir(pluginsDir, { recursive: true });
+
+	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
+	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
+	let localExtRegistry: LocalExtensionRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
+	const localExtSummary = await localExtRegistry.load(
+		tractor as unknown as Parameters<typeof localExtRegistry.load>[0],
+	);
+	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
+		console.log(
+			`[farmhand] Local extensions: loaded=${localExtSummary.loaded} skipped=${localExtSummary.skipped}`,
+		);
+	}
 
 	// Phase 1: Bundled plugins — auto-install from co-located npm packages
 	const defaultBundled: BundledEntry[] = [
