@@ -4,7 +4,13 @@
     "dockerfile": "Dockerfile",
     "context": "."
   },
-  "runArgs": ["--memory=4g", "--cpus=2"],
+  "runArgs": [
+    "--memory=4g",
+    "--cpus=2",
+    "--cap-add=SYS_ADMIN",
+    "--security-opt=seccomp=unconfined",
+    "--security-opt=apparmor=unconfined"
+  ],
   "hostRequirements": {
     "cpus": 4,
     "memory": "8gb"

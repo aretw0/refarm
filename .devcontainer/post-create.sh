@@ -141,6 +141,13 @@ cargo-component --version || true
 wasm-tools --version || true
 npx playwright --version || true
 gh --version 2>/dev/null | head -1 || true
+rg --version 2>/dev/null | head -1 || true
+fd --version 2>/dev/null || true
+bwrap --version 2>/dev/null || true
+jq --version 2>/dev/null || true
+shellcheck --version 2>/dev/null | head -1 || true
+shfmt --version 2>/dev/null || true
+hyperfine --version 2>/dev/null || true
 pi --version 2>/dev/null || true
 claude --version 2>/dev/null || true
 mmdc --version 2>/dev/null || true

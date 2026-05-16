@@ -84,9 +84,32 @@ check_agent_env() {
   fi
 }
 
+check_coding_agent_tools() {
+  local missing=()
+
+  for tool in bwrap fd rg jq shellcheck shfmt; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+      missing+=("$tool")
+    fi
+  done
+
+  if [ ${#missing[@]} -gt 0 ]; then
+    echo "[refarm-devcontainer][warn] Missing coding-agent tools: ${missing[*]}"
+    echo "[refarm-devcontainer][warn] Rebuild the devcontainer so Dockerfile tool installs are applied."
+  fi
+
+  if command -v bwrap >/dev/null 2>&1; then
+    if ! bwrap --ro-bind / / true >/dev/null 2>&1; then
+      echo "[refarm-devcontainer][warn] bubblewrap is installed but cannot create namespaces."
+      echo "[refarm-devcontainer][warn] Rebuild/reopen with devcontainer runArgs, or enable unprivileged user namespaces on the host."
+    fi
+  fi
+}
+
 ensure_hooks
 ensure_git_transport
 check_rust_baseline
+check_coding_agent_tools
 check_agent_env
 
 echo "[refarm-devcontainer] Post-start sanity check complete."

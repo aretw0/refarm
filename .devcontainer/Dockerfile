@@ -2,11 +2,23 @@
 FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 
 # ── System dependencies ────────────────────────────────────────────────────────
-# Mermaid CLI (mmdc) / headless Chromium + Playwright runtime libraries
+# Coding-agent tools + Mermaid CLI (mmdc) / headless Chromium + Playwright runtime libraries
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
+    bash-completion \
+    bubblewrap \
+    ca-certificates \
+    direnv \
+    fd-find \
+    git-lfs \
+    hyperfine \
+    jq \
     locales \
     ripgrep \
+    shellcheck \
+    shfmt \
+    tree \
+    unzip \
     libdbus-1-3 \
     libatk1.0-0 \
     libatk-bridge2.0-0 \
@@ -26,6 +38,7 @@ RUN apt-get update \
   && sed -i 's/^# *pt_BR.UTF-8 UTF-8/pt_BR.UTF-8 UTF-8/' /etc/locale.gen \
   && locale-gen pt_BR.UTF-8 \
   && update-locale LANG=pt_BR.UTF-8 LC_ALL=pt_BR.UTF-8 LANGUAGE=pt_BR:pt:en \
+  && ln -sf /usr/bin/fdfind /usr/local/bin/fd \
   && rm -rf /var/lib/apt/lists/*
 
 # ── GitHub CLI ─────────────────────────────────────────────────────────────────
