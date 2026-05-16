@@ -31,13 +31,14 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 ## 3. Atomic Hygiene & Tooling
 
 - **Deterministic Alignment**: NEVER spend cognitive cycles trying to guess where a package is pointing. Use the existing tooling:
-  - Run `node scripts/reso.mjs status` to see the current resolution state.
-  - Use `node scripts/reso.mjs src` to toggle to local development or `dist` for production validation.
+  - Run `node packages/toolbox/src/cli.mjs reso status` to see the current resolution state. (`scripts/reso.mjs` is a deprecated wrapper — prefer the toolbox directly.)
+  - Use `node packages/toolbox/src/cli.mjs reso src` to toggle to local development, or `reso dist` for production validation.
+- **Scoped builds**: use `pnpm --filter @refarm.dev/<pkg> run build` (or `type-check`, `test`) rather than `cd`-ing into packages. The `--filter` flag respects workspace dependency order.
 - **Git Discipline**: Large, sweeping changes should be avoided. Prefer atomic, logical commits.
-  - Health first: Always run `refarm health` (once available in `@refarm.dev/cli`) after significant refactors.
-  - Plugin Integrity: Leverage the `Barn` (`@refarm.dev/barn`) for managing plugin lifecycles and ensuring their integrity (SHA-256 validation) before deployment.
+  - Health first: Always run `refarm health` after significant refactors (`@refarm.dev/health` is implemented — it audits filesystem structure, build alignment, and resolution status).
+  - Plugin Integrity: Leverage the `Barn` (`@refarm.dev/barn`) for plugin lifecycle management and SHA-256 integrity validation before deployment. Its evolution roadmap (FilesystemCacheAdapter → farmhand → Scarecrow policy) is tracked in `docs/superpowers/specs/`.
 
-> _Active Inference_: `reso.mjs status` calibrates precision — it tells you how reliable the current environment signal is before you act on it.
+> _Active Inference_: `reso status` calibrates precision — it tells you how reliable the current environment signal is before you act on it.
 
 ## 4. Hybrid Awareness
 
@@ -69,7 +70,29 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings (`jobs=16`, `codegen-units=16`) will exhaust available memory and crash the container. `.cargo/config.toml` at the repo root enforces safe defaults — do not override them without reason.
 
+### Artifact storage layout
+
+| Location | What lives there | How to clean |
+|---|---|---|
+| `/home/vscode/.cargo-target` | All Rust build artifacts (Docker named volume, **not** the bind mount) | `pnpm run clean:rust` (incremental) or `clean:rust:full` |
+| `/workspaces/refarm/.pnpm-store` | pnpm content-addressed store (bind mount on C:) | `pnpm store prune` removes unreferenced packages |
+| `/workspaces/refarm/.turbo` | Turbo build cache | `pnpm run clean:light` |
+
+**VHDX compaction (Windows-side, required after heavy Rust cleans):** Deleting files inside the container reduces logical usage inside the ext4.vhdx but the VHDX file itself does not shrink automatically. To reclaim space on the Windows host, run from PowerShell (Admin) **after closing VS Code**:
+
+```powershell
+# 1. Stop WSL (detaches all containers)
+wsl --shutdown
+
+# 2. Compact Docker's data VHDX — adjust path to match your Docker installation
+Optimize-VHD -Path "$env:LOCALAPPDATA\Docker\wsl\disk\docker_data.vhdx" -Mode Full
+```
+
+### Workspace clean tiers
+
 ### Rust build commands — ordered by RAM cost (cheapest first)
+
+> Run `pnpm run clean:rust:check` to see current Cargo target size before deciding whether to clean.
 
 ```bash
 # ✅ Single focused unit/integration filter — cheapest normal development signal
@@ -100,9 +123,9 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 - **WASM/plugin boundary**: rebuild `pi_agent.wasm` only when pi-agent/WIT changed and a harness test must execute; otherwise prefer `cargo check --target wasm32-wasip1 --quiet`.
 - **Harness**: prefer filtered harness runs (`cargo test --test pi_agent_harness harness_streaming -- --ignored --test-threads=1`) over repeated one-test invocations.
 - **Push/CI gate**: run the broader scoped gate once, then push and watch CI with `gh run watch --exit-status` instead of repeatedly reproducing the same expensive local work.
-- **Cleanup**: `pnpm run clean:light` is for checkpoints/session boundaries or low disk. Running it after every slice removes incremental caches and makes the next Rust check more expensive.
+- **Cleanup tiers**: `clean:light` (Rust incremental + .turbo) for checkpoints; `clean:medium` adds coverage/artifacts; `clean:heavy` nukes entire Rust target dirs (requires full rebuild). Run `clean:rust:check` first to decide. Running `clean:light` after every slice removes incremental caches and makes the next Rust check more expensive.
 
-### What `.cargo/config.toml` enforces
+### What `.cargo/config.toml` enforces (Rust only)
 
 | Setting                         | Default | This repo | Reason                               |
 | ------------------------------- | ------- | --------- | ------------------------------------ |
@@ -116,7 +139,7 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 
 - **No silent high-impact actions**: before destructive or wide-impact operations (mass edits, deletes, branch-wide rewrites), require explicit human confirmation.
 - **Protected surfaces**: changes under `.project/**`, `.github/workflows/**`, `packages/tractor/**`, `packages/tractor-ts/**`, and `packages/plugin-manifest/**` should follow serialized lock/handoff policy.
-- **Unauthorized action monitor**: `.pi/monitors/unauthorized-action/*` is the first line of defense and must remain enabled/calibrated.
+- **Unauthorized action monitor**: `.pi/monitors/unauthorized-action/` is the first line of defense and must remain enabled/calibrated. Its companion agents live in `.pi/agents/`.
 - **If intent is ambiguous, stop and ask**: do not infer permission for operations outside the user-declared scope.
 
 > _Active Inference_: in uncertain conditions, information-gathering (ask/confirm) is lower-risk than irreversible action.
