@@ -9,6 +9,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join, resolve } from 'node:path';
+import os from 'node:os';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
@@ -57,6 +58,14 @@ function readConfig() {
 function maskedKey(k) {
   if (!k || k.length < 12) return '(empty)';
   return k.slice(0, 8) + '...' + k.slice(-4);
+}
+
+function readSiloTokens() {
+  try {
+    const p = join(os.homedir(), '.refarm', 'identity.json');
+    if (!existsSync(p)) return {};
+    return JSON.parse(readFileSync(p, 'utf8')).tokens ?? {};
+  } catch { return {}; }
 }
 
 function fileAge(path) {
@@ -134,12 +143,20 @@ function checkKeys(envVars) {
 
   if (configured.length > 0) {
     ok('keys', configured.join('  '));
+    if (missing.length > 0) {
+      info('keys', `not configured: ${c.dim}${missing.join(', ')}${c.reset}`);
+    }
+    return;
   }
-  if (missing.length > 0) {
-    info('keys', `not configured: ${c.dim}${missing.join(', ')}${c.reset}`);
-  }
-  if (configured.length === 0) {
-    fail('keys', 'no API keys configured — run: ppnpm run agent:keys');
+
+  const silo = readSiloTokens();
+  if (silo.modelApiKey) {
+    const label = silo.modelProvider ?? 'key';
+    ok('keys', `${label} ${c.dim}${maskedKey(silo.modelApiKey)}${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else if (silo.oauthProvider && silo.oauthCredentials?.[silo.oauthProvider]) {
+    ok('keys', `${silo.oauthProvider} ${c.dim}OAuth token present${c.reset} ${c.dim}(silo)${c.reset}`);
+  } else {
+    fail('keys', `no credentials — run: ${c.cyan}refarm sow${c.reset}`);
   }
 }
 
@@ -160,7 +177,8 @@ function checkTractorBinary() {
 }
 
 function checkModelConfig(envVars, config) {
-  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || config.provider || 'ollama';
+  const silo = readSiloTokens();
+  const provider = envVars.MODEL_PROVIDER || process.env.MODEL_PROVIDER || silo.modelProvider || config.provider || '(not configured)';
   const model    = envVars.MODEL_ID       || process.env.MODEL_ID       || config.model    || '(provider default)';
   const history  = envVars.MODEL_HISTORY_TURNS    || process.env.MODEL_HISTORY_TURNS    || config.MODEL_HISTORY_TURNS    || '0';
   const maxIter  = envVars.MODEL_TOOL_CALL_MAX_ITER || process.env.MODEL_TOOL_CALL_MAX_ITER || config.MODEL_TOOL_CALL_MAX_ITER || '5';

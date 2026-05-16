@@ -306,8 +306,18 @@ function detectConfiguredProvider(): string | null {
 		const content = fs.readFileSync(envFile, "utf-8");
 		const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
 		if (match) return match[1]!;
-		// .env exists but no explicit provider — user ran `refarm keys`, ollama is valid default
-		return "ollama";
+	}
+
+	const siloFile = path.join(os.homedir(), ".refarm", "identity.json");
+	if (fs.existsSync(siloFile)) {
+		try {
+			const silo = JSON.parse(fs.readFileSync(siloFile, "utf-8")) as {
+				tokens?: { modelProvider?: string };
+			};
+			if (silo.tokens?.modelProvider) return silo.tokens.modelProvider;
+		} catch {
+			// ignore malformed silo
+		}
 	}
 
 	const configFile = path.join(os.homedir(), ".refarm", "config.json");
