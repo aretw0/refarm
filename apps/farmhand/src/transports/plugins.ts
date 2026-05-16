@@ -5,6 +5,7 @@ import path from "node:path";
 import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
 import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
 import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
+import { LocalExtensionRegistry } from "../local-extensions.js";
 import type { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
 export interface PluginReloadTarget {
@@ -56,6 +57,7 @@ export function createPluginsRouteHandler(
 	target: PluginReloadTarget,
 	baseDir: string,
 	tracker: PluginUsageTracker,
+	localExtensions?: LocalExtensionRegistry,
 ) {
 	const reloadStatuses = new Map<string, ReloadStatus>();
 	const pendingPluginReloads = new Map<string, Set<string>>();
@@ -69,7 +71,14 @@ export function createPluginsRouteHandler(
 
 	async function performReload(pluginId: string, watchers: Set<string>): Promise<void> {
 		try {
-			await loadInstalledPlugins(target, baseDir, { pluginFilter: [pluginId] });
+			if (localExtensions?.getLoadedIds().includes(pluginId)) {
+				await localExtensions.reload(
+					target as Parameters<typeof localExtensions.reload>[0],
+					pluginId,
+				);
+			} else {
+				await loadInstalledPlugins(target, baseDir, { pluginFilter: [pluginId] });
+			}
 			for (const wId of watchers) {
 				const s = reloadStatuses.get(wId);
 				if (s) {
@@ -196,7 +205,10 @@ export function createPluginsRouteHandler(
 					Array.isArray(body?.pluginIds) &&
 					(body.pluginIds as unknown[]).every((id) => typeof id === "string")
 						? (body.pluginIds as string[])
-						: listInstalledPluginIds(baseDir);
+						: [
+								...listInstalledPluginIds(baseDir),
+								...(localExtensions?.getLoadedIds() ?? []),
+							];
 
 				const reloadId = crypto.randomUUID();
 				const status: ReloadStatus = {
@@ -210,7 +222,14 @@ export function createPluginsRouteHandler(
 				for (const pluginId of pluginIds) {
 					if (tracker.isIdle(pluginId)) {
 						try {
-							await loadInstalledPlugins(target, baseDir, { pluginFilter: [pluginId] });
+							if (localExtensions?.getLoadedIds().includes(pluginId)) {
+								await localExtensions.reload(
+									target as Parameters<typeof localExtensions.reload>[0],
+									pluginId,
+								);
+							} else {
+								await loadInstalledPlugins(target, baseDir, { pluginFilter: [pluginId] });
+							}
 							status.completed.add(pluginId);
 						} catch (err) {
 							console.error(

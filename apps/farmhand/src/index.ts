@@ -443,7 +443,7 @@ async function main() {
 
 	const httpSidecar = new HttpSidecar(42001, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
-	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir, pluginTracker));
+	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir, pluginTracker, localExtRegistry));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 
