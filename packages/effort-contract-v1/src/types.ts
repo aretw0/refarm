@@ -21,6 +21,10 @@ export interface Effort {
 	source?: string;
 	context?: unknown;
 	submittedAt: string;
+	/** Relative ordering hint. Lower number = higher priority. */
+	priority?: number;
+	/** Arbitrary categorisation labels. */
+	tags?: string[];
 }
 
 export interface TaskResult {

@@ -48,6 +48,9 @@
   "publishConfig": {
     "access": "public"
   },
+  "dependencies": {
+    "@refarm.dev/node-contract-v1": "workspace:*"
+  },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*"

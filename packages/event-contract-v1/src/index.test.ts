@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { createEventBus } from "./index.js";
+import { EVENT_CAPABILITY, createEventBus, runEventBusConformance } from "./index.js";
+
+describe("EVENT_CAPABILITY", () => {
+	it("is event:v1", () => {
+		expect(EVENT_CAPABILITY).toBe("event:v1");
+	});
+});
 
 describe("createEventBus", () => {
 	it("delivers emitted data to subscriber", () => {
@@ -54,5 +60,32 @@ describe("createEventBus", () => {
 		bus.on("noop", handler);
 		bus.emit("noop");
 		expect(handler).toHaveBeenCalledWith(undefined);
+	});
+
+	it("once() fires exactly once", () => {
+		const bus = createEventBus();
+		const handler = vi.fn();
+		bus.once("shot", handler);
+		bus.emit("shot", 1);
+		bus.emit("shot", 2);
+		expect(handler).toHaveBeenCalledTimes(1);
+		expect(handler).toHaveBeenCalledWith(1);
+	});
+
+	it("once() unsubscribe before firing prevents delivery", () => {
+		const bus = createEventBus();
+		const handler = vi.fn();
+		const unsub = bus.once("shot2", handler);
+		unsub();
+		bus.emit("shot2");
+		expect(handler).not.toHaveBeenCalled();
+	});
+});
+
+describe("runEventBusConformance", () => {
+	it("passes for createEventBus()", () => {
+		const result = runEventBusConformance(createEventBus());
+		expect(result.pass).toBe(true);
+		expect(result.failures).toEqual([]);
 	});
 });

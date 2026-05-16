@@ -19,13 +19,17 @@ export interface StorageQuery {
   type?: string;
   limit?: number;
   offset?: number;
+  /** Return only records created after this ISO timestamp. */
+  createdAfter?: string;
+  /** Return only records created before this ISO timestamp. */
+  createdBefore?: string;
 }
 
 export interface StorageTelemetryEvent {
   traceId: string;
   pluginId: string;
   capability: typeof STORAGE_CAPABILITY;
-  operation: "get" | "put" | "delete" | "query";
+  operation: "get" | "put" | "put_many" | "delete" | "delete_many" | "query";
   durationMs: number;
   ok: boolean;
   errorCode?: StorageErrorCode;
@@ -37,7 +41,9 @@ export interface StorageProvider {
 
   get(id: string): Promise<StorageRecord | null>;
   put(record: StorageRecord): Promise<void>;
+  putMany(records: StorageRecord[]): Promise<void>;
   delete(id: string): Promise<void>;
+  deleteMany(ids: string[]): Promise<void>;
   query(query: StorageQuery): Promise<StorageRecord[]>;
 }
 

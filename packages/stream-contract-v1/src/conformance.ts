@@ -88,5 +88,16 @@ export function runConformanceTests(
 			}
 			expect(sequences).toEqual([0, 1, 2, 3, 4]);
 		});
+
+		it("cancel() stops further deliveries", () => {
+			const transport = factory();
+			const received: StreamChunk[] = [];
+			transport.subscribe("ref-f", (chunk) => received.push(chunk));
+			transport.write({ stream_ref: "ref-f", content: "before", sequence: 0, is_final: false });
+			transport.cancel("ref-f");
+			transport.write({ stream_ref: "ref-f", content: "after", sequence: 1, is_final: true });
+			expect(received).toHaveLength(1);
+			expect(received[0]!.content).toBe("before");
+		});
 	});
 }

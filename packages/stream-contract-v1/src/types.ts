@@ -9,7 +9,8 @@ export interface StreamChunk {
 		| "text_delta"
 		| "final_text"
 		| "final_tool_call"
-		| "final_empty";
+		| "final_empty"
+		| "error";
 	metadata?: unknown;
 }
 
@@ -23,4 +24,6 @@ export interface StreamConsumer {
 
 export interface StreamTransportAdapter extends StreamProducer, StreamConsumer {
 	readonly capability: typeof STREAM_CAPABILITY;
+	/** Cancel an in-flight stream. Subsequent writes to this stream_ref are no-ops. */
+	cancel(stream_ref: string): void;
 }

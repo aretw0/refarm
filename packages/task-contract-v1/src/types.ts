@@ -1,3 +1,5 @@
+import type { GraphNode } from "@refarm.dev/node-contract-v1";
+
 export const TASK_CAPABILITY = "task:v1" as const;
 
 export type TaskStatus =
@@ -18,15 +20,18 @@ export type TaskEventKind =
   | "blocked_by"
   | "unblocked";
 
-export interface Task {
+export interface Task extends GraphNode {
   "@type": "Task";
-  "@id": string;
+  /** title is required for tasks (narrows GraphNode's optional title). */
   title: string;
   status: TaskStatus;
   created_by: string | null;
   assigned_to: string | null;
+  /** Overrides GraphNode.context_id to require explicit null (no undefined). */
   context_id: string | null;
   parent_task_id: string | null;
+  /** Optional deadline in nanoseconds since Unix epoch. */
+  due_at_ns?: number;
   created_at_ns: number;
   updated_at_ns: number;
 }
@@ -46,6 +51,15 @@ export interface TaskFilter {
   assigned_to?: string;
   context_id?: string;
   parent_task_id?: string | null;
+  created_by?: string;
+  /** Return only tasks created after this timestamp (nanoseconds). */
+  created_after_ns?: number;
+  /** Return only tasks created before this timestamp (nanoseconds). */
+  created_before_ns?: number;
+  /** Return only tasks due before this timestamp (nanoseconds). */
+  due_before_ns?: number;
+  /** Return only tasks that include all of these tags. */
+  tags?: string[];
 }
 
 export interface TaskSummary {
@@ -69,6 +83,7 @@ export interface TaskContractAdapter {
     id: string,
     patch: Partial<Omit<Task, "@id" | "@type">>,
   ): Promise<Task>;
+  delete(id: string): Promise<void>;
   appendEvent(
     event: Omit<TaskEvent, "@id" | "timestamp_ns">,
   ): Promise<TaskEvent>;
