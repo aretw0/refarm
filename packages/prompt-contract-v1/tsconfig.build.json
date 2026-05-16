@@ -1,8 +1,6 @@
 {
-	"extends": "./tsconfig.json",
+	"extends": ["./tsconfig.json", "@refarm.dev/tsconfig/build.json"],
 	"compilerOptions": {
-		"emitDeclarationOnly": false,
 		"rootDir": "src"
-	},
-	"exclude": ["src/**/*.test.ts", "src/**/*.spec.ts"]
+	}
 }

@@ -1,15 +1,8 @@
 {
-	"extends": "../../tsconfig.json",
+	"extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
 	"compilerOptions": {
-		"noEmit": false,
-		"emitDeclarationOnly": true,
-		"composite": true,
-		"declaration": true,
-		"declarationMap": true,
 		"outDir": "dist",
 		"baseUrl": "../.."
 	},
-	"include": [
-		"src/**/*"
-	]
+	"include": ["src/**/*"]
 }

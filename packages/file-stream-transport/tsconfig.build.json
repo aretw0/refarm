@@ -1,13 +1,6 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "noEmit": false,
-    "emitDeclarationOnly": false,
-    "rootDir": "src",
-    "outDir": "dist"
-  },
-  "include": ["src/**/*"]
+	"extends": ["./tsconfig.json", "@refarm.dev/tsconfig/build.json"],
+	"compilerOptions": {
+		"rootDir": "src"
+	}
 }
