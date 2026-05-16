@@ -1,17 +1,18 @@
 {
-  "name": "@refarm.dev/toolbox",
-  "version": "0.1.0",
-  "description": "Refarm Developer CLI Toolbox for SDD/BDD/DDD workflows.",
-  "type": "module",
-  "main": "./src/cli.mjs",
-  "types": "./src/cli.mjs",
-  "bin": {
-    "refarm-task": "./src/cli.mjs"
-  },
-  "scripts": {
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*"
-  }
+	"name": "@refarm.dev/toolbox",
+	"version": "0.1.0",
+	"description": "Refarm Developer CLI Toolbox for SDD/BDD/DDD workflows.",
+	"type": "module",
+	"main": "./src/cli.mjs",
+	"types": "./src/cli.mjs",
+	"bin": {
+		"refarm-task": "./src/cli.mjs"
+	},
+	"scripts": {
+		"test": "vitest run"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }

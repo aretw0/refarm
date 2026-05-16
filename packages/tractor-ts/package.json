@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/tractor",
 	"version": "0.1.0",
-	"description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
+	"description": "Refarm Tractor \u2014 the heavy machinery that cultivates your personal 'Solo F\u00e9rtil' orchestrating plugins",
 	"type": "module",
 	"repository": {
 		"type": "git",
@@ -57,10 +57,11 @@
 		"@refarm.dev/sync-contract-v1": "workspace:*"
 	},
 	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/hello-world-plugin": "workspace:*",
 		"@refarm.dev/pi-agent": "workspace:*",
-		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*",
 		"nostr-tools": "^2.23.3"
 	},
 	"license": "AGPL-3.0-only",

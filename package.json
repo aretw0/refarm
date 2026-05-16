@@ -39,6 +39,7 @@
 		"runtime-descriptor:release-smoke": "node scripts/ci/smoke-runtime-descriptor-release-path.mjs --sha local",
 		"task:execution:smoke": "node scripts/ci/smoke-task-execution-loop.mjs",
 		"task:build-order:check": "node -e \"import('./scripts/ci/subprocess-utils.mjs').then(m => m.assertTaskSmokeBuildOrderIntegrity()).catch(e => { console.error(e.message); process.exit(1); })\"",
+		"deps:vitest-config-check": "node scripts/ci/check-vitest-config-deps.mjs",
 		"task:execution:smoke:pi-agent": "node scripts/ci/smoke-task-pi-agent-respond.mjs",
 		"refarm:host:smoke": "pnpm -C apps/refarm run test:host-smoke",
 		"refarm:host:smoke:dist-actions": "pnpm -C apps/refarm run smoke:dist-actions",
