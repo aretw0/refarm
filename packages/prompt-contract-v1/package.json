@@ -1,0 +1,20 @@
+{
+  "name": "@refarm.dev/prompt-contract-v1",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Typed operator-prompt primitive — confirm, select, and text prompts across CLI, TUI, and web surfaces",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "type-check": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@refarm.dev/tsconfig": "workspace:*",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
