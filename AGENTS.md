@@ -70,29 +70,9 @@ These rules are not arbitrary — they derive from a unified cognitive model:
 
 The host machine has **~8GB RAM and 16 cores**. Default Rust toolchain settings (`jobs=16`, `codegen-units=16`) will exhaust available memory and crash the container. `.cargo/config.toml` at the repo root enforces safe defaults — do not override them without reason.
 
-### Artifact storage layout
-
-| Location | What lives there | How to clean |
-|---|---|---|
-| `/home/vscode/.cargo-target` | All Rust build artifacts (Docker named volume, **not** the bind mount) | `pnpm run clean:rust` (incremental) or `clean:rust:full` |
-| `/workspaces/refarm/.pnpm-store` | pnpm content-addressed store (bind mount on C:) | `pnpm store prune` removes unreferenced packages |
-| `/workspaces/refarm/.turbo` | Turbo build cache | `pnpm run clean:light` |
-
-**VHDX compaction (Windows-side, required after heavy Rust cleans):** Deleting files inside the container reduces logical usage inside the ext4.vhdx but the VHDX file itself does not shrink automatically. To reclaim space on the Windows host, run from PowerShell (Admin) **after closing VS Code**:
-
-```powershell
-# 1. Stop WSL (detaches all containers)
-wsl --shutdown
-
-# 2. Compact Docker's data VHDX — adjust path to match your Docker installation
-Optimize-VHD -Path "$env:LOCALAPPDATA\Docker\wsl\disk\docker_data.vhdx" -Mode Full
-```
-
-### Workspace clean tiers
+> For artifact locations, cleanup tiers (light/medium/heavy), CARGO_TARGET_DIR volume layout, and disk compaction guidance: see [`docs/local-disk-hygiene.md`](docs/local-disk-hygiene.md).
 
 ### Rust build commands — ordered by RAM cost (cheapest first)
-
-> Run `pnpm run clean:rust:check` to see current Cargo target size before deciding whether to clean.
 
 ```bash
 # ✅ Single focused unit/integration filter — cheapest normal development signal
@@ -123,7 +103,7 @@ cargo test   # compiles ALL test binaries simultaneously → OOM risk
 - **WASM/plugin boundary**: rebuild `pi_agent.wasm` only when pi-agent/WIT changed and a harness test must execute; otherwise prefer `cargo check --target wasm32-wasip1 --quiet`.
 - **Harness**: prefer filtered harness runs (`cargo test --test pi_agent_harness harness_streaming -- --ignored --test-threads=1`) over repeated one-test invocations.
 - **Push/CI gate**: run the broader scoped gate once, then push and watch CI with `gh run watch --exit-status` instead of repeatedly reproducing the same expensive local work.
-- **Cleanup tiers**: `clean:light` (Rust incremental + .turbo) for checkpoints; `clean:medium` adds coverage/artifacts; `clean:heavy` nukes entire Rust target dirs (requires full rebuild). Run `clean:rust:check` first to decide. Running `clean:light` after every slice removes incremental caches and makes the next Rust check more expensive.
+- **Cleanup**: `pnpm run clean:rust:check` to audit, then pick a tier from `docs/local-disk-hygiene.md`. Running `clean:light` after every slice removes incremental caches and makes the next Rust check more expensive.
 
 ### What `.cargo/config.toml` enforces (Rust only)
 

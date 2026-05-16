@@ -11,13 +11,13 @@ boundaries.
 Before starting work, measure rather than guess:
 
 ```bash
-npm run disk:check
+pnpm run clean:rust:check
 ```
 
 At the end of a normal session:
 
 ```bash
-npm run clean:light
+pnpm run clean:light
 ```
 
 This removes Rust incremental caches and all `.turbo` directories while keeping
@@ -27,10 +27,10 @@ most build outputs that make the next package-scoped check faster.
 
 | Tier   | Command                | Use when                                      | What it removes                                    |
 | ------ | ---------------------- | --------------------------------------------- | -------------------------------------------------- |
-| Report | `npm run disk:check`   | Before deciding what to build/clean           | Nothing                                            |
-| Light  | `npm run clean:light`  | End of session                                | Rust incremental/stale objects + `.turbo`          |
-| Medium | `npm run clean:medium` | After test/coverage runs or noisy experiments | Light + `coverage/` + `.artifacts/` + `artifacts/` |
-| Heavy  | `npm run clean:heavy`  | Host is critically low on disk                | Entire Rust `target/` dirs + medium cleanup        |
+| Report | `pnpm run clean:rust:check`    | Before deciding what to build/clean           | Nothing                                            |
+| Light  | `pnpm run clean:light`  | End of session                                | Rust incremental/stale objects + `.turbo`          |
+| Medium | `pnpm run clean:medium` | After test/coverage runs or noisy experiments | Light + `coverage/` + `.artifacts/` + `artifacts/` |
+| Heavy  | `pnpm run clean:heavy`  | Host is critically low on disk                | Entire Rust `target/` dirs + medium cleanup        |
 
 Avoid deleting `node_modules` unless absolutely necessary. Reinstalling packages
 also needs temporary disk and network, so it is a last resort.
@@ -40,8 +40,8 @@ also needs temporary disk and network, so it is a last resort.
 Prefer package-scoped checks:
 
 ```bash
-npm --prefix packages/tractor-ts run type-check
-npm --prefix packages/storage-memory run test:unit
+pnpm --filter @refarm.dev/tractor-ts run type-check
+pnpm --filter @refarm.dev/storage-memory run test:unit
 ```
 
 For Rust, stay package- and target-specific:
@@ -55,7 +55,7 @@ cargo test --lib some_module --quiet
 Avoid these during low-disk local work unless preparing a push/release:
 
 ```bash
-npm run build
+pnpm run build
 turbo build
 cargo test
 ```
@@ -72,25 +72,25 @@ edit.
 | Rust API shape changed                     | focused test + `cargo check --quiet` in that package                                             | rebuilding unrelated crates                   |
 | pi-agent source changed, no harness needed | `cargo check --target wasm32-wasip1 --quiet`                                                     | `cargo component build --release`             |
 | pi-agent/Tractor boundary changed          | filtered `pi_agent_harness` run, sequential                                                      | full harness suite repeatedly                 |
-| TS package edit                            | `npm --prefix <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
+| TS package edit                            | `pnpm --filter <pkg> run type-check` or direct unit suite                                         | repo-wide `turbo build`                       |
 | Before push                                | reproduce likely failures locally with the closest scoped command, then CI as final confirmation | using GitHub Actions as the first test runner |
 
 For the current pi-agent streaming lane, prefer the wrapper scripts:
 
 ```bash
 # Cheap package-level streaming checks, no WASM rebuild.
-npm run agent:streaming:check
+pnpm run agent:streaming:check
 
 # Harness only when pi_agent.wasm is already fresh.
-npm run agent:streaming:harness
+pnpm run agent:streaming:harness
 
 # Explicit heavy gate: rebuild WASM, then run streaming harness filters.
-npm run agent:streaming:harness:build
+pnpm run agent:streaming:harness:build
 ```
 
-Do not run `npm run clean:light` after every small Rust slice. It saves disk but
+Do not run `pnpm run clean:light` after every small Rust slice. It saves disk but
 also removes incremental caches; use it at session/checkpoint boundaries or when
-`npm run disk:check` shows pressure.
+`pnpm run clean:rust:check` shows pressure.
 
 ## CARGO_TARGET_DIR volume redirect (devcontainer)
 
@@ -106,9 +106,9 @@ Consequences:
   Scripts read `CARGO_TARGET_DIR` and fall back to the workspace paths when the var
   is unset (local dev without the devcontainer).
 - **Host disk**: workspace `target/` dirs are stale once the redirect is active. Run
-  `npm run clean:heavy` once to remove them and reclaim host C:\ space (~2–3 GB).
-- **Volume disk**: `npm run disk:check` now reports the volume size separately.
-  `npm run clean:rust:full` also purges the volume when `CARGO_TARGET_DIR` is set.
+  `pnpm run clean:heavy` once to remove them and reclaim host C:\ space (~2–3 GB).
+- **Volume disk**: `pnpm run clean:rust:check` now reports the volume size separately.
+  `pnpm run clean:rust:full` also purges the volume when `CARGO_TARGET_DIR` is set.
 - **Speed**: Docker volume I/O is faster than bind-mount WSL2 I/O, so incremental
   rebuilds are noticeably quicker.
 
