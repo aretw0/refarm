@@ -10,6 +10,7 @@
 		"build": "tsc --project tsconfig.build.json",
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
+		"test:unit": "vitest run",
 		"lint": "eslint src"
 	},
 	"dependencies": {
