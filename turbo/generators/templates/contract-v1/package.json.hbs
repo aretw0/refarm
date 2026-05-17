@@ -10,8 +10,7 @@
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts"
-    },
-    "./styles/*": "./src/*"
+    }
   },
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
@@ -20,8 +19,16 @@
     "type-check": "tsc --noEmit",
     "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run src/index.test.ts",
+    "test:unit": "vitest run src/conformance.test.ts",
+    "test:conformance": "vitest run src/conformance.test.ts",
     "clean": "rm -rf dist"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",

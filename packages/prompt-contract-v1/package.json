@@ -1,27 +1,31 @@
 {
-  "name": "@refarm.dev/prompt-contract-v1",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Typed operator-prompt primitive — confirm, select, and text prompts across CLI, TUI, and web surfaces",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "clean": "rm -rf dist"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
-  }
+	"name": "@refarm.dev/prompt-contract-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Typed operator-prompt primitive — confirm, select, and text prompts across CLI, TUI, and web surfaces",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run",
+		"test:unit": "vitest run",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "^6.0.3",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
 }

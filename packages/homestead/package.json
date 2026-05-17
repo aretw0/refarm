@@ -65,7 +65,8 @@
 	"devDependencies": {
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
-		"@refarm.dev/tsconfig": "workspace:*"
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
 	},
 	"license": "MIT"
 }

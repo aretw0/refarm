@@ -328,6 +328,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/cli:
     dependencies:
@@ -378,6 +381,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       '@storybook/addon-a11y':
         specifier: ^10.3.5
         version: 10.3.6(storybook@10.3.6(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))
@@ -420,14 +426,18 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
-  packages/fence: {}
+  packages/fence:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
 
   packages/file-stream-transport:
     dependencies:
@@ -450,6 +460,10 @@ importers:
       isomorphic-git:
         specifier: ^1.37.5
         version: 1.37.6
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
 
   packages/heartwood:
     devDependencies:
@@ -490,6 +504,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/identity-contract-v1:
     devDependencies:
@@ -511,6 +528,9 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../identity-contract-v1
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       nostr-tools:
         specifier: ^2.23.3
         version: 2.23.3(typescript@6.0.3)
@@ -530,30 +550,36 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20241106.0
         version: 4.20260511.1
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
       wrangler:
         specifier: ^4.90.0
         version: 4.90.1(@cloudflare/workers-types@4.20260511.1)
 
   packages/infra-contract-v1:
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/infra-turbo-cache:
     dependencies:
@@ -564,27 +590,33 @@ importers:
         specifier: workspace:*
         version: link:../policy-contract-v1
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/node-contract-v1:
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/pi-agent:
     devDependencies:
@@ -604,6 +636,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/plugin-manifest:
     devDependencies:
@@ -626,30 +661,39 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/policy-contract-v1:
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/prompt-contract-v1:
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   packages/registry:
     dependencies:
@@ -678,6 +722,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/runtime:
     devDependencies:
@@ -700,6 +747,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/session-contract-v1:
     devDependencies:
@@ -709,6 +759,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/silo:
     dependencies:
@@ -722,6 +775,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/sower:
     dependencies:
@@ -738,6 +794,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/sse-stream-transport:
     dependencies:
@@ -779,6 +838,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/storage-rest:
     dependencies:
@@ -792,6 +854,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/storage-sqlite:
     dependencies:
@@ -820,6 +885,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/sync-contract-v1:
     devDependencies:
@@ -841,6 +909,9 @@ importers:
       '@refarm.dev/sync-contract-v1':
         specifier: workspace:*
         version: link:../sync-contract-v1
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/sync-loro:
     dependencies:
@@ -863,6 +934,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/task-contract-v1:
     dependencies:
@@ -876,6 +950,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/terminal-plugin:
     dependencies:
@@ -890,7 +967,11 @@ importers:
         specifier: workspace:*
         version: link:../eslint-config
 
-  packages/thresher: {}
+  packages/thresher:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
 
   packages/toolbox:
     devDependencies:
@@ -992,6 +1073,10 @@ importers:
       isomorphic-git:
         specifier: ^1.37.5
         version: 1.37.6
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
 
   packages/ws-stream-transport:
     dependencies:

@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/ds",
 	"version": "0.1.0",
-	"description": "Refarm Design System \u2014 Shared Styles and Tokens",
+	"description": "Refarm Design System — Shared Styles and Tokens",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
@@ -29,7 +29,8 @@
 		"@storybook/addon-links": "^10.3.5",
 		"@storybook/html": "^10.3.5",
 		"@storybook/html-vite": "^10.3.5",
-		"storybook": "^10.3.5"
+		"storybook": "^10.3.5",
+		"@refarm.dev/vtconfig": "workspace:*"
 	},
 	"license": "MIT"
 }

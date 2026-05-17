@@ -9,12 +9,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
+    "@refarm.dev/vtconfig": "workspace:*"
   }
 }

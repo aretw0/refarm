@@ -6,7 +6,8 @@
 	"main": "./dist/index.js",
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
-		"lint": "eslint src"
+		"lint": "eslint src",
+		"test": "vitest run --passWithNoTests"
 	},
 	"dependencies": {
 		"@refarm.dev/plugin-manifest": "workspace:*",

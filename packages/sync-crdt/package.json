@@ -1,45 +1,46 @@
 {
-  "name": "@refarm.dev/sync-crdt",
-  "version": "0.1.0",
-  "description": "CRDT-based sync primitive \u2014 conflict-free replicated data types for local-first applications",
-  "type": "module",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aretw0/refarm.git",
-    "directory": "packages/sync-crdt"
-  },
-  "bugs": {
-    "url": "https://github.com/aretw0/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.json",
-    "dev": "tsc --project tsconfig.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run",
-    "test:unit": "vitest run test/smoke.test.ts",
-    "test:conformance": "vitest run test/sync-v1.conformance.test.ts",
-    "clean": "rm -rf dist"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/sync-contract-v1": "workspace:*"
-  },
-  "keywords": [
-    "crdt",
-    "sync",
-    "local-first",
-    "offline-first",
-    "conflict-free"
-  ],
-  "license": "MIT"
+	"name": "@refarm.dev/sync-crdt",
+	"version": "0.1.0",
+	"description": "CRDT-based sync primitive — conflict-free replicated data types for local-first applications",
+	"type": "module",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/sync-crdt"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.json",
+		"dev": "tsc --project tsconfig.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run test/smoke.test.ts",
+		"test:conformance": "vitest run test/sync-v1.conformance.test.ts",
+		"clean": "rm -rf dist"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/sync-contract-v1": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	},
+	"keywords": [
+		"crdt",
+		"sync",
+		"local-first",
+		"offline-first",
+		"conflict-free"
+	],
+	"license": "MIT"
 }

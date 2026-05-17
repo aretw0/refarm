@@ -1,5 +1,13 @@
 import type { PlopTypes } from "@turbo/gen";
 
+/** my-contract-v1 → MyContractV1 */
+function toPascalCase(kebab: string): string {
+  return kebab
+    .split("-")
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join("");
+}
+
 export default function generator(plop: PlopTypes.NodePlopAPI): void {
   plop.setGenerator("package", {
     description: "Scaffold a new @refarm.dev package",
@@ -16,6 +24,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         name: "type",
         message: "Package type:",
         choices: [
+          "contract-v1",
           "buildable",
           "source-only",
           "wasm-component",
@@ -33,7 +42,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         type: "confirm",
         name: "private",
         message: "Private?",
-        default: true,
+        default: false,
       },
     ],
     actions(data) {
@@ -44,6 +53,8 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
 
       // SCREAMING_SNAKE_CASE: my-contract-v1 → MY_CONTRACT_V1
       data.constantName = name.replace(/-/g, "_").toUpperCase();
+      // PascalCase: my-contract-v1 → MyContractV1
+      data.pascalName = toPascalCase(name);
       data.privateStr = data.private ? "true" : "false";
 
       const actions: PlopTypes.ActionType[] = [
@@ -56,8 +67,9 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         },
       ];
 
-      // Patch root tsconfig.json paths for TS types (buildable, source-only, ui-library)
-      if (type === "buildable" || type === "source-only" || type === "ui-library") {
+      // Patch root tsconfig.json paths for TS types
+      const needsRootPaths = ["buildable", "source-only", "ui-library", "contract-v1"];
+      if (needsRootPaths.includes(type)) {
         actions.push({
           type: "modify",
           path: "tsconfig.json",

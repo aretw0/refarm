@@ -15,13 +15,16 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
+    "lint": "eslint src",
     "type-check": "tsc --noEmit",
+    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run src/index.test.ts",
     "clean": "rm -rf dist"
   },
   "devDependencies": {
+    "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
+    "@refarm.dev/vtconfig": "workspace:*"
   }
 }

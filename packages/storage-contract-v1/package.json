@@ -19,7 +19,8 @@
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
 		"test": "vitest run",
 		"test:unit": "vitest run",
-		"clean": "rm -rf dist"
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run src/conformance.test.ts"
 	},
 	"keywords": [
 		"plugin",

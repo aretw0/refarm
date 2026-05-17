@@ -1,25 +1,27 @@
 {
-  "name": "@refarm.dev/infra-contract-v1",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Provider-neutral infrastructure planning contracts for Refarm-managed services",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "test": "vitest run"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
-  }
+	"name": "@refarm.dev/infra-contract-v1",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Provider-neutral infrastructure planning contracts for Refarm-managed services",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "^6.0.3",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
 }

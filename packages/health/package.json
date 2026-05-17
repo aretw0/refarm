@@ -7,7 +7,9 @@
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
-		"dev": "tsc --project tsconfig.build.json --watch"
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"test": "vitest run --passWithNoTests",
+		"lint": "eslint src"
 	},
 	"dependencies": {
 		"isomorphic-git": "^1.37.5"
@@ -21,5 +23,8 @@
 			"import": "./dist/index.js",
 			"types": "./dist/index.d.ts"
 		}
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*"
 	}
 }

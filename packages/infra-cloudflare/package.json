@@ -1,33 +1,35 @@
 {
-  "name": "@refarm.dev/infra-cloudflare",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Cloudflare provider — agnostic primitives and provider adapters for managing Cloudflare resources",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json && cp -r src/services/turbo-cache/worker dist/services/turbo-cache/",
-    "clean": "rm -rf dist",
-    "type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@refarm.dev/infra-contract-v1": "workspace:*",
-    "@refarm.dev/infra-turbo-cache": "workspace:*",
-    "@refarm.dev/policy-contract-v1": "workspace:*"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20241106.0",
-    "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4",
-    "wrangler": "^4.90.0"
-  }
+	"name": "@refarm.dev/infra-cloudflare",
+	"version": "0.1.0",
+	"private": true,
+	"description": "Cloudflare provider — agnostic primitives and provider adapters for managing Cloudflare resources",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json && cp -r src/services/turbo-cache/worker dist/services/turbo-cache/",
+		"clean": "rm -rf dist",
+		"type-check": "tsc --noEmit && tsc --noEmit --project tsconfig.worker.json",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/infra-contract-v1": "workspace:*",
+		"@refarm.dev/infra-turbo-cache": "workspace:*",
+		"@refarm.dev/policy-contract-v1": "workspace:*"
+	},
+	"devDependencies": {
+		"@cloudflare/workers-types": "^4.20241106.0",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "^6.0.3",
+		"wrangler": "^4.90.0",
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/eslint-config": "workspace:*"
+	}
 }

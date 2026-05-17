@@ -1,54 +1,59 @@
 {
-  "name": "@refarm.dev/effort-contract-v1",
-  "version": "0.1.0",
-  "description": "Versioned effort capability contract (effort:v1) and conformance suite",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "exports": {
-    ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "lint": "eslint src",
-    "type-check": "tsc --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests",
-    "clean": "rm -rf dist"
-  },
-  "keywords": [
-    "plugin",
-    "capability",
-    "effort",
-    "task",
-    "contract",
-    "conformance"
-  ],
-  "author": "Refarm Contributors",
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/aretw0/refarm.git",
-    "directory": "packages/effort-contract-v1"
-  },
-  "bugs": {
-    "url": "https://github.com/aretw0/refarm/issues"
-  },
-  "homepage": "https://refarm.dev.br",
-  "files": [
-    "dist",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/tsconfig": "workspace:*"
-  }
+	"name": "@refarm.dev/effort-contract-v1",
+	"scaffold": {
+		"type": "exempt",
+		"reason": "conformance suite exists but in-memory adapter not yet implemented — pending effort domain design"
+	},
+	"version": "0.1.0",
+	"description": "Versioned effort capability contract (effort:v1) and conformance suite",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run --passWithNoTests",
+		"test:unit": "vitest run --passWithNoTests",
+		"clean": "rm -rf dist",
+		"test:conformance": "vitest run"
+	},
+	"keywords": [
+		"plugin",
+		"capability",
+		"effort",
+		"task",
+		"contract",
+		"conformance"
+	],
+	"author": "Refarm Contributors",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/aretw0/refarm.git",
+		"directory": "packages/effort-contract-v1"
+	},
+	"bugs": {
+		"url": "https://github.com/aretw0/refarm/issues"
+	},
+	"homepage": "https://refarm.dev.br",
+	"files": [
+		"dist",
+		"README.md"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*"
+	}
 }

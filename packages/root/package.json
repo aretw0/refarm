@@ -1,26 +1,27 @@
 {
-  "name": "@refarm.dev/root",
-  "version": "0.1.0",
-  "description": "Root — runtime environment detection primitives for the Refarm ecosystem.",
-  "type": "module",
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    }
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "test": "vitest run",
-    "lint": "eslint src"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/tsconfig": "workspace:*"
-  }
+	"name": "@refarm.dev/root",
+	"version": "0.1.0",
+	"description": "Root — runtime environment detection primitives for the Refarm ecosystem.",
+	"type": "module",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"import": "./dist/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"test": "vitest run",
+		"lint": "eslint src"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
+	}
 }
