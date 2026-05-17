@@ -9,7 +9,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
         name: "name",
         message: "Package name (without scope, e.g. my-contract-v1):",
         validate: (v: string) =>
-          /^[a-z][a-z0-9-]*$/.test(v) || "Use lowercase kebab-case",
+          /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(v) || "Use lowercase kebab-case",
       },
       {
         type: "list",
@@ -63,6 +63,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
           path: "tsconfig.json",
           transform(content: string) {
             const tsconfig = JSON.parse(content);
+            tsconfig.compilerOptions ??= {};
             const paths = tsconfig.compilerOptions.paths ?? {};
             paths[`@refarm.dev/${name}`] = [`./packages/${name}/src`];
             tsconfig.compilerOptions.paths = paths;
