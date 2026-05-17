@@ -33,6 +33,8 @@
 		"test": "vitest run",
 		"test:conformance": "vitest run src/storage-v1.conformance.test.ts src/task-v1.conformance.test.ts src/session-v1.conformance.test.ts",
 		"test:unit": "vitest run test/smoke.test.ts",
+		"coverage:save": "vitest run --coverage && cp coverage/coverage-summary.json benchmarks/coverage-baseline.json",
+		"coverage:check": "vitest run --coverage && node scripts/check-coverage.mjs",
 		"clean": "rm -rf dist"
 	},
 	"keywords": [
