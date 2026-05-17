@@ -12,8 +12,9 @@ const PACKAGES_DIR = join(ROOT, "packages");
 function readJson(path) {
   try {
     return JSON.parse(readFileSync(path, "utf8"));
-  } catch {
-    return null;
+  } catch (err) {
+    if (err.code === "ENOENT") return null;
+    throw new Error(`Failed to parse ${path}: ${err.message}`);
   }
 }
 
@@ -53,7 +54,7 @@ function exportsToDist(exports) {
     return Object.values(exports).some((v) =>
       typeof v === "string"
         ? v.startsWith("./dist/")
-        : typeof v === "object" && Object.values(v).some((vv) => typeof vv === "string" && vv.startsWith("./dist/"))
+        : v !== null && typeof v === "object" && Object.values(v).some((vv) => typeof vv === "string" && vv.startsWith("./dist/"))
     );
   }
   return false;
