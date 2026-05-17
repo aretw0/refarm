@@ -21,6 +21,7 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --project tsconfig.json --noEmit",
     "test": "vitest run",
+    "test:unit": "vitest run src/loro-crdt-storage.test.ts",
     "test:conformance": "vitest run src/sync-v1.conformance.test.ts",
     "clean": "rm -rf dist",
     "lint": "eslint src"

@@ -32,7 +32,7 @@
 		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
 		"test": "vitest run",
 		"test:conformance": "vitest run src/storage-v1.conformance.test.ts src/task-v1.conformance.test.ts src/session-v1.conformance.test.ts",
-		"test:unit": "vitest run",
+		"test:unit": "vitest run test/smoke.test.ts",
 		"clean": "rm -rf dist"
 	},
 	"keywords": [
