@@ -43,6 +43,7 @@ import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
 
 const FARMHAND_PORT = 42000;
+const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
 const FARMHAND_PLUGIN_ID = "farmhand";
 const HEARTBEAT_INTERVAL_MS = 30_000;
 
@@ -303,7 +304,7 @@ async function main() {
 
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
-	const farmhandBaseDir = path.join(os.homedir(), ".refarm");
+	const farmhandBaseDir = process.env.FARMHAND_DATA_DIR ?? path.join(os.homedir(), ".refarm");
 	await mkdir(farmhandBaseDir, { recursive: true });
 
 	const config = await loadConfigAsync().catch((err: unknown) => {
@@ -340,7 +341,9 @@ async function main() {
 	const configBundled: BundledEntry[] = Array.isArray(config?.plugins?.bundled)
 		? (config.plugins.bundled as BundledEntry[])
 		: [];
-	const bundledEntries = [...defaultBundled, ...configBundled];
+	const bundledEntries = process.env.FARMHAND_SKIP_BUNDLED_INSTALL === "1"
+		? []
+		: [...defaultBundled, ...configBundled];
 	const bundledSummary = await bundleInstallPlugins(bundledEntries, pluginsDir);
 	console.log(
 		`[farmhand] Bundled install: installed=${bundledSummary.installed} cached=${bundledSummary.cached} failed=${bundledSummary.failed}`,
@@ -441,7 +444,7 @@ async function main() {
 	const stopFileWatcher = fileTransport.watch();
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
-	const httpSidecar = new HttpSidecar(42001, fileTransport);
+	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
 	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir, pluginTracker, localExtRegistry));
 	await httpSidecar.start();
