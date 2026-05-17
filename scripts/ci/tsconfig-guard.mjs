@@ -259,11 +259,24 @@ function main() {
 			const { imports, usesNodeBuiltin } = collectImports(file);
 			if (usesNodeBuiltin) sawNodeBuiltin = true;
 
+			const repoPackagesDir = path.join(repoRoot, "packages");
+
 			for (const spec of imports) {
 				const resolved = resolveAliasTarget(spec, paths, projectDir, baseUrl);
 				if (!resolved) continue;
 				if (!targetLooksLikeSource(resolved.rawTarget, resolved.resolved))
 					continue;
+
+				// Cross-package workspace imports (e.g. @refarm.dev/*) resolve to
+				// sibling packages' src/ via the root tsconfig paths — this is
+				// intentional for IDE support. Build isolation is enforced by
+				// composite tsconfig and dist/ resolution at build time.
+				if (
+					isInside(resolved.resolved, repoPackagesDir) &&
+					!isInside(resolved.resolved, projectDir)
+				) {
+					continue;
+				}
 
 				if (!isInside(resolved.resolved, rootDirAbs)) {
 					problems.push({
