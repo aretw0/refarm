@@ -8,6 +8,8 @@
 
 **Tech Stack:** `@turbo/gen` (Plop.js wrapper), Node.js ESM, Handlebars `.hbs` templates, GitHub Actions.
 
+**Codemod research tie-in:** This plan is the first low-risk place to practice the `migration pack` discipline described in [`docs/research/codemod-strategic-assessment.md`](../../research/codemod-strategic-assessment.md). Do not introduce a separate package system here. Treat the scaffold/linter work as a proto migration profile for Refarm plugin packages: deterministic rules, fixtureable outputs, dry-run/evidence, scoped validation, and agent-operable instructions.
+
 ---
 
 ## Key files to study before implementing
@@ -994,6 +996,44 @@ git commit -m "fix(scaffold): migrate sower + barn to buildable presets; exempt 
 
 ---
 
+## Task 7: Capture the first migration-pack candidate
+
+**Purpose:** Preserve what this plan teaches about Codemod-style package evolution without expanding the implementation scope. This is documentation-only unless a later plan explicitly implements a runner.
+
+**Files:**
+- Modify: `docs/superpowers/specs/2026-05-17-package-scaffold-design.md`
+
+- [ ] **Step 1: Add a short "Migration Pack Candidate" section**
+
+Append a section to the design doc that records package scaffold conformance as the first candidate migration pack:
+
+```markdown
+## Migration Pack Candidate
+
+This scaffold/conformance work is a low-risk candidate for the migration-pack
+profile described in `docs/research/codemod-strategic-assessment.md`.
+
+The package does not need a new distribution mechanism. It would be a profile
+inside the existing Refarm plugin/package model:
+
+- intent: migrate package directories toward canonical scaffold types;
+- detection: `scripts/validate-packages.mjs`;
+- deterministic action: replace non-conformant package config with canonical templates;
+- fixtures: representative package directories for buildable/source-only/js-tool/config-pkg;
+- dry run: linter output plus planned file edits;
+- validation: `node scripts/validate-packages.mjs`, scoped package builds/tests, and `git diff --check`;
+- policy: protected packages require explicit handoff; generated artifacts are never edited.
+
+First concrete target: the `sower` and `barn` buildable-preset migration already
+listed in the implementation plan.
+```
+
+- [ ] **Step 2: Commit with the design docs**
+
+If the implementation is being committed task-by-task, include this with the nearest documentation commit rather than creating a separate code change.
+
+---
+
 ## Done criteria
 
 - `pnpm turbo gen package` works interactively for all 6 types
@@ -1001,3 +1041,4 @@ git commit -m "fix(scaffold): migrate sower + barn to buildable presets; exempt 
 - `node scripts/validate-packages.mjs` exits 0 on the current repo
 - CI `validate-scaffold` job runs on every PR touching `packages/` or `scripts/`
 - `sower` and `barn` pass the linter without exemptions
+- The scaffold design doc records package scaffold conformance as the first migration-pack candidate

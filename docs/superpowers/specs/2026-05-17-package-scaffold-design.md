@@ -258,3 +258,26 @@ O job **não depende de `build`** — lê apenas JSON e verifica presença de ar
 - Gerador para `apps/`
 - Integração com `refarm scaffold` CLI — avaliado em iteração futura
 - Publicação automática de pacotes após scaffold
+
+---
+
+## Migration Pack Candidate
+
+Este trabalho de scaffold/conformance é um candidato de baixo risco para praticar
+o perfil de `migration pack` descrito em
+[`docs/research/codemod-strategic-assessment.md`](../../research/codemod-strategic-assessment.md).
+
+Isso não exige um novo mecanismo de distribuição. O caminho correto é tratar a
+migração como um perfil dentro do modelo existente de plugin/package do Refarm:
+
+- **intent:** migrar diretórios `packages/*` para tipos canônicos de scaffold;
+- **detection:** `scripts/validate-packages.mjs`;
+- **deterministic action:** substituir configuração não-conforme por templates canônicos;
+- **fixtures:** diretórios representativos para `buildable`, `source-only`, `js-tool` e `config-pkg`;
+- **dry run:** output do linter mais plano explícito de arquivos que seriam editados;
+- **validation:** `node scripts/validate-packages.mjs`, builds/tests escopados e `git diff --check`;
+- **policy:** pacotes protegidos exigem handoff explícito; artefatos gerados nunca são editados.
+
+O primeiro alvo concreto é a migração de `sower` e `barn` para presets
+`buildable`, já descrita no plano de implementação. Isso exercita a forma
+Codemod sem introduzir ainda um runner, registry ou package type separado.
