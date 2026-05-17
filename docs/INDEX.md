@@ -48,6 +48,7 @@
 ## 🚀 Release Planning
 
 - **[v0.1.0 Release Gate](v0.1.0-release-gate.md)** — Daily-driver-first gate; contract publication on hold until Refarm replaces the current pi workflow.
+- **[Daily Driver Control Plane Plan](superpowers/plans/2026-05-17-refarm-daily-driver-control-plane.md)** — Convergence lane for Farmhand as the local/remote control plane, plugin safety, TUI/PWA clients, and documentation alignment before publication.
 - **[Daily-Driver Parity Checklist](DAILY_DRIVER_PARITY.md)** — Capability checklist mapping pi workflow to Refarm surfaces.
 - **[Gate 3 Spec](gate3-homestead-tractor-spec.md)** — Homestead × Tractor integration spec.
 - **[Schema Migration Strategy](schema-migration-strategy.md)** — SCHEMA_V1 freeze, upgrade contract, `refarm migrate` CLI.
