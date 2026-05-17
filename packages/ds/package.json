@@ -1,32 +1,35 @@
 {
-  "name": "@refarm.dev/ds",
-  "version": "0.1.0",
-  "description": "Refarm Design System \u2014 Shared Styles and Tokens",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist",
-    "src"
-  ],
-  "exports": {
-    ".": "./dist/index.js",
-    "./styles/*": "./src/*"
-  },
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "test": "vitest run --passWithNoTests",
-    "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build",
-    "lint": "eslint src"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@storybook/addon-a11y": "^10.3.5",
-    "@storybook/addon-links": "^10.3.5",
-    "@storybook/html": "^10.3.5",
-    "@storybook/html-vite": "^10.3.5",
-    "storybook": "^10.3.5"
-  },
-  "license": "MIT"
+	"name": "@refarm.dev/ds",
+	"version": "0.1.0",
+	"description": "Refarm Design System \u2014 Shared Styles and Tokens",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist",
+		"src"
+	],
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		},
+		"./styles/*": "./src/*"
+	},
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"test": "vitest run --passWithNoTests",
+		"storybook": "storybook dev -p 6006",
+		"build-storybook": "storybook build",
+		"lint": "eslint src"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@storybook/addon-a11y": "^10.3.5",
+		"@storybook/addon-links": "^10.3.5",
+		"@storybook/html": "^10.3.5",
+		"@storybook/html-vite": "^10.3.5",
+		"storybook": "^10.3.5"
+	},
+	"license": "MIT"
 }

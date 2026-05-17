@@ -1,19 +1,25 @@
 {
-  "name": "@refarm.dev/terminal-plugin",
-  "version": "0.1.0",
-  "description": "Standardised Terminal for Refarm platform",
-  "type": "module",
-  "main": "./dist/index.js",
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/plugin-manifest": "workspace:*",
-    "@refarm.dev/ds": "workspace:*"
-  },
-  "license": "MIT",
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*"
-  }
+	"name": "@refarm.dev/terminal-plugin",
+	"version": "0.1.0",
+	"description": "Standardised Terminal for Refarm platform",
+	"type": "module",
+	"main": "./dist/index.js",
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/ds": "workspace:*"
+	},
+	"license": "MIT",
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*"
+	},
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	}
 }

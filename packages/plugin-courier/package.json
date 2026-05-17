@@ -1,24 +1,30 @@
 {
-  "name": "@refarm.dev/plugin-courier",
-  "version": "0.1.0",
-  "description": "Graph-native Web Publisher Plugin (The Courier) for Refarm.",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "files": [
-    "dist"
-  ],
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "type-check": "tsc --noEmit",
-    "type-check:dist": "tsc --project tsconfig.build.json --noEmit",
-    "test": "npm run type-check && vitest run",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/tractor": "workspace:*"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/tsconfig": "workspace:*"
-  }
+	"name": "@refarm.dev/plugin-courier",
+	"version": "0.1.0",
+	"description": "Graph-native Web Publisher Plugin (The Courier) for Refarm.",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"type-check": "tsc --noEmit",
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "npm run type-check && vitest run",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/tractor": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*"
+	},
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	}
 }

@@ -1,7 +1,11 @@
 {
-	"extends": "@refarm.dev/tsconfig/node.json",
+	"extends": [
+		"../../tsconfig.json",
+		"@refarm.dev/tsconfig/buildable.json"
+	],
 	"compilerOptions": {
-		"noEmit": true
+		"outDir": "dist",
+		"baseUrl": "../.."
 	},
 	"include": [
 		"src/**/*.ts"

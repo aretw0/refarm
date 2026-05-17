@@ -1,5 +1,8 @@
 {
-	"extends": ["./tsconfig.json", "@refarm.dev/tsconfig/build.json"],
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
 	"compilerOptions": {
 		"rootDir": "src"
 	}

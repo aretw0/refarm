@@ -1,16 +1,22 @@
 {
-  "name": "@refarm.dev/thresher",
-  "version": "0.1.0",
-  "description": "The Thresher — Compatibility and Integrity Auditor for Refarm.",
-  "type": "module",
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  }
+	"name": "@refarm.dev/thresher",
+	"version": "0.1.0",
+	"description": "The Thresher — Compatibility and Integrity Auditor for Refarm.",
+	"type": "module",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	}
 }

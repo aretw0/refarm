@@ -1,35 +1,41 @@
 {
-  "name": "@refarm.dev/plugin-tem",
-  "version": "0.1.0",
-  "description": "TEM Sovereign Graph reasoning engine \u2014 Tolman-Eichenbaum Machine as a WASM plugin",
-  "type": "module",
-  "main": "./dist/index.js",
-  "module": "./dist/index.js",
-  "types": "./dist/index.d.ts",
-  "bin": {
-    "tem-codegen": "./dist/codegen/index.js"
-  },
-  "files": [
-    "dist",
-    "plugin.json",
-    "README.md"
-  ],
-  "scripts": {
-    "build": "tsc --project tsconfig.build.json",
-    "dev": "tsc --project tsconfig.build.json --watch",
-    "test": "vitest run --passWithNoTests",
-    "lint": "eslint src"
-  },
-  "dependencies": {
-    "@refarm.dev/plugin-manifest": "workspace:*",
-    "@refarm.dev/tractor": "workspace:*"
-  },
-  "devDependencies": {
-    "@refarm.dev/eslint-config": "workspace:*",
-    "@refarm.dev/tsconfig": "workspace:*"
-  },
-  "license": "AGPL-3.0-only",
-  "publishConfig": {
-    "access": "public"
-  }
+	"name": "@refarm.dev/plugin-tem",
+	"version": "0.1.0",
+	"description": "TEM Sovereign Graph reasoning engine — Tolman-Eichenbaum Machine as a WASM plugin",
+	"type": "module",
+	"main": "./dist/index.js",
+	"module": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"bin": {
+		"tem-codegen": "./dist/codegen/index.js"
+	},
+	"files": [
+		"dist",
+		"plugin.json",
+		"README.md"
+	],
+	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"test": "vitest run --passWithNoTests",
+		"lint": "eslint src"
+	},
+	"dependencies": {
+		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/tractor": "workspace:*"
+	},
+	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*"
+	},
+	"license": "AGPL-3.0-only",
+	"publishConfig": {
+		"access": "public"
+	},
+	"exports": {
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
+	}
 }

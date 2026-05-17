@@ -1,23 +1,29 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist",
-    "composite": true,
-    "declaration": true,
-    "declarationMap": true,
-    "paths": {
-      "@refarm.dev/locales/*": ["locales/*"],
-      "@refarm.dev/tractor": ["packages/tractor/dist/index.d.ts"],
-      "@refarm.dev/plugin-manifest": ["packages/plugin-manifest/src/index.d.ts"]
-    },
-    "noEmit": false
-  },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "src/**/*.astro",
-    "src/ui/index.ts"
-  ]
+	"extends": [
+		"./tsconfig.json",
+		"@refarm.dev/tsconfig/build.json"
+	],
+	"compilerOptions": {
+		"rootDir": "src",
+		"outDir": "dist",
+		"composite": true,
+		"paths": {
+			"@refarm.dev/locales/*": [
+				"locales/*"
+			],
+			"@refarm.dev/tractor": [
+				"packages/tractor/dist/index.d.ts"
+			],
+			"@refarm.dev/plugin-manifest": [
+				"packages/plugin-manifest/src/index.d.ts"
+			]
+		}
+	},
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"src/**/*.astro",
+		"src/ui/index.ts"
+	]
 }

@@ -1,9 +1,17 @@
 {
-	"extends": "../tsconfig/node.json",
+	"extends": [
+		"../../tsconfig.json",
+		"@refarm.dev/tsconfig/buildable.json"
+	],
 	"compilerOptions": {
 		"outDir": "dist",
-		"rootDir": "src"
+		"baseUrl": "../.."
 	},
-	"include": ["src/**/*"],
-	"exclude": ["node_modules", "dist"]
+	"include": [
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }
