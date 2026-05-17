@@ -1,20 +1,8 @@
 {
-  "compilerOptions": {
-    "noEmit": true,
-    "module": "ESNext",
-    "target": "ESNext",
-    "moduleResolution": "bundler",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "composite": true,
-    "declaration": true,
-    "emitDeclarationOnly": true,
-    "outDir": "dist",
-    "rootDir": "src",
-    "types": [
-      "node",
-      "vitest"
-    ],
-    "noUncheckedIndexedAccess": true
-  }
+	"extends": ["../../tsconfig.json", "@refarm.dev/tsconfig/buildable.json"],
+	"compilerOptions": {
+		"outDir": "dist",
+		"baseUrl": "../.."
+	},
+	"include": ["src/**/*"]
 }

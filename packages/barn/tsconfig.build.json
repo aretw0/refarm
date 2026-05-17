@@ -1,11 +1,6 @@
 {
-  "extends": "./tsconfig.json",
-  "compilerOptions": {
-    "noEmit": false,
-    "declaration": true,
-    "declarationMap": true,
-    "emitDeclarationOnly": false,
-    "rootDir": "./src"
-  },
-  "include": ["src/**/*"]
+	"extends": ["./tsconfig.json", "@refarm.dev/tsconfig/build.json"],
+	"compilerOptions": {
+		"rootDir": "src"
+	}
 }
