@@ -99,6 +99,9 @@ playwright/.cache/
 packages/**/dist/
 packages/**/build/
 packages/**/.turbo/
+# Declaration files never belong in src/ — guard against tsc emitting without outDir
+packages/**/src/**/*.d.ts
+packages/**/src/**/*.d.ts.map
 
 # ─── Editor & IDE ─────────────────────────────────────────────────────────────
 .claude/agents/
