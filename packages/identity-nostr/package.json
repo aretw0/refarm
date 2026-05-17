@@ -25,6 +25,7 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
     "test:unit": "vitest run --passWithNoTests",
     "test:conformance": "vitest run src/identity-v1.conformance.test.ts",
     "clean": "rm -rf dist"

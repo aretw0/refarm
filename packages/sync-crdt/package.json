@@ -25,7 +25,8 @@
     "dev": "tsc --project tsconfig.json --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test:unit": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:unit": "vitest run test/smoke.test.ts",
     "test:conformance": "vitest run test/sync-v1.conformance.test.ts",
     "clean": "rm -rf dist"
   },
