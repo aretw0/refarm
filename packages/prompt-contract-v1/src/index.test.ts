@@ -77,7 +77,7 @@ describe("runOperatorChannelConformance", () => {
 	it("passes for createAutoOperatorChannel", async () => {
 		const result = await runOperatorChannelConformance(createAutoOperatorChannel());
 		expect(result.pass).toBe(true);
-		expect(result.total).toBeGreaterThan(0);
+		expect(result.total).toBeGreaterThanOrEqual(3);
 		expect(result.failures).toEqual([]);
 	});
 
