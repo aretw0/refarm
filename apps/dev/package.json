@@ -9,9 +9,9 @@
     "preview": "astro preview",
     "astro:check": "astro check",
     "lint": "eslint src",
-    "lint:prepush": "npm run astro:check",
-    "type-check": "npm run astro:check && tsc --project tsconfig.json --noEmit",
-    "type-check:dist": "npm run astro:check && tsc --project tsconfig.build.json --noEmit",
+    "lint:prepush": "pnpm run astro:check",
+    "type-check": "pnpm run astro:check && tsc --project tsconfig.json --noEmit",
+    "type-check:dist": "pnpm run astro:check && tsc --project tsconfig.build.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "clean": "rm -rf dist .astro"

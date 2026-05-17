@@ -12,7 +12,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"dev": "tsc --project tsconfig.build.json --watch",
-		"test": "npx vitest run src/index.test.ts --root . --environment node",
+		"test": "vitest run src/index.test.ts --root . --environment node",
 		"lint": "eslint src"
 	},
 	"dependencies": {
@@ -24,7 +24,9 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@refarm.dev/eslint-config": "workspace:*"
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
+		"@refarm.dev/vtconfig": "workspace:*"
 	},
 	"exports": {
 		".": {
