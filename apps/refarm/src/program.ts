@@ -30,7 +30,7 @@ export const program = new Command();
 
 program
 	.name("refarm")
-	.description("Farm CLI")
+	.description("Refarm CLI")
 	.version(resolveRefarmVersion())
 	.action(async () => {
 		await runSessionLaunchFlow();
