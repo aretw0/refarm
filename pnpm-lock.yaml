@@ -202,6 +202,9 @@ importers:
         specifier: 'catalog:'
         version: 8.20.1
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../../packages/deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
@@ -403,6 +406,24 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
 
+  packages/deps:
+    dependencies:
+      '@bytecodealliance/jco':
+        specifier: 'catalog:'
+        version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@noble/ed25519':
+        specifier: 'catalog:'
+        version: 3.1.0
+      isomorphic-git:
+        specifier: 'catalog:'
+        version: 1.37.6
+      nostr-tools:
+        specifier: 'catalog:'
+        version: 2.23.3(typescript@6.0.3)
+      ws:
+        specifier: 'catalog:'
+        version: 8.20.1
+
   packages/ds:
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -488,6 +509,9 @@ importers:
         specifier: 'catalog:'
         version: 1.37.6
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -497,6 +521,9 @@ importers:
       '@bytecodealliance/jco':
         specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
 
   packages/homestead:
     dependencies:
@@ -549,6 +576,9 @@ importers:
 
   packages/identity-nostr:
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -650,6 +680,9 @@ importers:
       '@bytecodealliance/jco':
         specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
 
   packages/plugin-courier:
     dependencies:
@@ -799,6 +832,9 @@ importers:
         specifier: workspace:*
         version: link:../heartwood
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -1038,6 +1074,9 @@ importers:
         specifier: workspace:*
         version: link:../sync-contract-v1
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -1101,6 +1140,9 @@ importers:
         specifier: 'catalog:'
         version: 1.37.6
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
@@ -1117,6 +1159,9 @@ importers:
         specifier: 'catalog:'
         version: 8.20.1
     devDependencies:
+      '@refarm.dev/deps':
+        specifier: workspace:*
+        version: link:../deps
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config

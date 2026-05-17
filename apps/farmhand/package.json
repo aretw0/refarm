@@ -35,7 +35,8 @@
 		"@types/node": "catalog:",
 		"@types/ws": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*",
-		"typescript": "catalog:"
+		"typescript": "catalog:",
+		"@refarm.dev/deps": "workspace:*"
 	},
 	"license": "AGPL-3.0-only"
 }

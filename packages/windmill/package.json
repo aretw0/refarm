@@ -30,6 +30,7 @@
 		"access": "public"
 	},
 	"devDependencies": {
-		"@refarm.dev/eslint-config": "workspace:*"
+		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/deps": "workspace:*"
 	}
 }

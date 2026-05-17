@@ -43,6 +43,7 @@
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"nostr-tools": "catalog:",
-		"@refarm.dev/vtconfig": "workspace:*"
+		"@refarm.dev/vtconfig": "workspace:*",
+		"@refarm.dev/deps": "workspace:*"
 	}
 }

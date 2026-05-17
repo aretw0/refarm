@@ -48,6 +48,7 @@
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*",
-		"@types/ws": "catalog:"
+		"@types/ws": "catalog:",
+		"@refarm.dev/deps": "workspace:*"
 	}
 }

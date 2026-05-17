@@ -19,6 +19,7 @@
 		"test:integration": "echo 'No integration tests for this crate'"
 	},
 	"devDependencies": {
-		"@bytecodealliance/jco": "catalog:"
+		"@bytecodealliance/jco": "catalog:",
+		"@refarm.dev/deps": "workspace:*"
 	}
 }
