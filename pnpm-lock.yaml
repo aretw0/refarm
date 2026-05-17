@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    typescript:
+      specifier: ^6.0.3
+      version: 6.0.3
+
 importers:
 
   .:
@@ -121,7 +127,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tsconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   apps/farmhand:
@@ -188,7 +194,7 @@ importers:
         specifier: ^8.18.1
         version: 8.18.1
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   apps/me:
@@ -222,7 +228,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/tsconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   apps/refarm:
@@ -560,7 +566,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
       wrangler:
         specifier: ^4.90.0
@@ -578,7 +584,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   packages/infra-turbo-cache:
@@ -600,7 +606,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   packages/node-contract-v1:
@@ -615,7 +621,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   packages/pi-agent:
@@ -677,7 +683,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   packages/prompt-contract-v1:
@@ -692,7 +698,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
 
   packages/registry:
@@ -1050,7 +1056,7 @@ importers:
         specifier: workspace:*
         version: link:../tsconfig
       typescript:
-        specifier: ^6.0.3
+        specifier: 'catalog:'
         version: 6.0.3
       vite:
         specifier: ^8.0.9

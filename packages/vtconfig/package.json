@@ -1,32 +1,32 @@
 {
-  "name": "@refarm.dev/vtconfig",
-  "version": "0.1.0",
-  "private": true,
-  "type": "module",
-  "main": "./src/index.js",
-  "types": "./index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./index.d.ts",
-      "import": "./src/index.js",
-      "default": "./src/index.js"
-    }
-  },
-  "files": [
-    "src",
-    "index.d.ts"
-  ],
-  "scripts": {
-    "test": "vitest run"
-  },
-  "peerDependencies": {
-    "vite": "^8.0.1",
-    "vitest": "^4.1.0"
-  },
-  "devDependencies": {
-    "@refarm.dev/tsconfig": "workspace:*",
-    "typescript": "^6.0.3",
-    "vite": "^8.0.9",
-    "vitest": "^4.1.4"
-  }
+	"name": "@refarm.dev/vtconfig",
+	"version": "0.1.0",
+	"private": true,
+	"type": "module",
+	"main": "./src/index.js",
+	"types": "./index.d.ts",
+	"exports": {
+		".": {
+			"types": "./index.d.ts",
+			"import": "./src/index.js",
+			"default": "./src/index.js"
+		}
+	},
+	"files": [
+		"src",
+		"index.d.ts"
+	],
+	"scripts": {
+		"test": "vitest run"
+	},
+	"peerDependencies": {
+		"vite": "^8.0.1",
+		"vitest": "^4.1.0"
+	},
+	"devDependencies": {
+		"@refarm.dev/tsconfig": "workspace:*",
+		"typescript": "catalog:",
+		"vite": "^8.0.9",
+		"vitest": "^4.1.4"
+	}
 }

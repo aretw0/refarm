@@ -26,7 +26,7 @@
 	},
 	"devDependencies": {
 		"@refarm.dev/tsconfig": "workspace:*",
-		"typescript": "^6.0.3",
+		"typescript": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*"
 	}
