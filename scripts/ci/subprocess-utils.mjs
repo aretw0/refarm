@@ -30,6 +30,8 @@ const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/homestead",
 	"packages/cli",
 	"packages/prompt-contract-v1",
+	"packages/infra-contract-v1",
+	"packages/policy-contract-v1",
 	"packages/infra-turbo-cache",
 	"packages/infra-cloudflare",
 	"apps/farmhand",

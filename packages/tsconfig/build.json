@@ -3,6 +3,7 @@
 	"display": "Refarm Build Override",
 	"compilerOptions": {
 		"composite": true,
+		"paths": {},
 		"emitDeclarationOnly": false
 	}
 }

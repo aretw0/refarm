@@ -36,6 +36,7 @@ describe("TaskMemoryBridge", () => {
 				get: vi.fn(),
 				update,
 				appendEvent,
+				delete: vi.fn(),
 			},
 			actorUrn: "urn:refarm:farmhand:test",
 		});
@@ -85,6 +86,7 @@ describe("TaskMemoryBridge", () => {
 				get: vi.fn(),
 				update,
 				appendEvent,
+				delete: vi.fn(),
 			},
 			actorUrn: "urn:refarm:farmhand:test",
 		});
@@ -135,6 +137,7 @@ describe("TaskMemoryBridge", () => {
 				get: vi.fn(),
 				update,
 				appendEvent,
+				delete: vi.fn(),
 			},
 			actorUrn: "urn:refarm:farmhand:test",
 		});
