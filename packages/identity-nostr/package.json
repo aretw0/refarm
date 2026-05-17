@@ -42,7 +42,7 @@
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
-		"nostr-tools": "^2.23.3",
+		"nostr-tools": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*"
 	}
 }

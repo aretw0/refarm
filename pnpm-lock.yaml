@@ -6,9 +6,30 @@ settings:
 
 catalogs:
   default:
+    '@bytecodealliance/jco':
+      specifier: ^1.18.0
+      version: 1.19.0
+    '@noble/ed25519':
+      specifier: ^3.1.0
+      version: 3.1.0
+    '@types/node':
+      specifier: ^25.6.0
+      version: 25.8.0
+    '@types/ws':
+      specifier: ^8.18.1
+      version: 8.18.1
+    isomorphic-git:
+      specifier: ^1.37.5
+      version: 1.37.6
+    nostr-tools:
+      specifier: ^2.23.3
+      version: 2.23.3
     typescript:
       specifier: ^6.0.3
       version: 6.0.3
+    ws:
+      specifier: ^8.20.0
+      version: 8.20.1
 
 importers:
 
@@ -178,7 +199,7 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ws-stream-transport
       ws:
-        specifier: ^8.20.0
+        specifier: 'catalog:'
         version: 8.20.1
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -188,10 +209,10 @@ importers:
         specifier: workspace:*
         version: link:../../packages/vtconfig
       '@types/node':
-        specifier: ^25.6.0
+        specifier: 'catalog:'
         version: 25.8.0
       '@types/ws':
-        specifier: ^8.18.1
+        specifier: 'catalog:'
         version: 8.18.1
       typescript:
         specifier: 'catalog:'
@@ -464,7 +485,7 @@ importers:
   packages/health:
     dependencies:
       isomorphic-git:
-        specifier: ^1.37.5
+        specifier: 'catalog:'
         version: 1.37.6
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -474,7 +495,7 @@ importers:
   packages/heartwood:
     devDependencies:
       '@bytecodealliance/jco':
-        specifier: ^1.18.0
+        specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
 
   packages/homestead:
@@ -538,7 +559,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       nostr-tools:
-        specifier: ^2.23.3
+        specifier: 'catalog:'
         version: 2.23.3(typescript@6.0.3)
 
   packages/infra-cloudflare:
@@ -627,7 +648,7 @@ importers:
   packages/pi-agent:
     devDependencies:
       '@bytecodealliance/jco':
-        specifier: ^1.18.0
+        specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
 
   packages/plugin-courier:
@@ -772,7 +793,7 @@ importers:
   packages/silo:
     dependencies:
       '@noble/ed25519':
-        specifier: ^3.1.0
+        specifier: 'catalog:'
         version: 3.1.0
       '@refarm.dev/heartwood':
         specifier: workspace:*
@@ -993,13 +1014,13 @@ importers:
   packages/tractor-ts:
     dependencies:
       '@bytecodealliance/jco':
-        specifier: ^1.18.0
+        specifier: 'catalog:'
         version: 1.19.0(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
       '@bytecodealliance/preview2-shim':
         specifier: ^0.17.3
         version: 0.17.9
       '@noble/ed25519':
-        specifier: ^3.1.0
+        specifier: 'catalog:'
         version: 3.1.0
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
@@ -1033,7 +1054,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       nostr-tools:
-        specifier: ^2.23.3
+        specifier: 'catalog:'
         version: 2.23.3(typescript@6.0.3)
 
   packages/trust:
@@ -1068,7 +1089,7 @@ importers:
   packages/windmill:
     dependencies:
       '@noble/ed25519':
-        specifier: ^3.1.0
+        specifier: 'catalog:'
         version: 3.1.0
       '@refarm.dev/config':
         specifier: workspace:*
@@ -1077,7 +1098,7 @@ importers:
         specifier: ^1.2.0
         version: 1.2.0
       isomorphic-git:
-        specifier: ^1.37.5
+        specifier: 'catalog:'
         version: 1.37.6
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -1093,7 +1114,7 @@ importers:
         specifier: workspace:*
         version: link:../stream-contract-v1
       ws:
-        specifier: ^8.18.3
+        specifier: 'catalog:'
         version: 8.20.1
     devDependencies:
       '@refarm.dev/eslint-config':
@@ -1106,7 +1127,7 @@ importers:
         specifier: workspace:*
         version: link:../vtconfig
       '@types/ws':
-        specifier: ^8.18.1
+        specifier: 'catalog:'
         version: 8.18.1
 
   templates/rust-plugin: {}

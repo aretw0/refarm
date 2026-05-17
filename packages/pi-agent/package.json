@@ -20,7 +20,7 @@
 		"dist"
 	],
 	"devDependencies": {
-		"@bytecodealliance/jco": "^1.18.0"
+		"@bytecodealliance/jco": "catalog:"
 	},
 	"license": "AGPL-3.0-only"
 }

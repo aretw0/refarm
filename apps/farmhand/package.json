@@ -28,12 +28,12 @@
 		"@refarm.dev/task-contract-v1": "workspace:*",
 		"@refarm.dev/tractor": "workspace:*",
 		"@refarm.dev/ws-stream-transport": "workspace:*",
-		"ws": "^8.20.0"
+		"ws": "catalog:"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
-		"@types/node": "^25.6.0",
-		"@types/ws": "^8.18.1",
+		"@types/node": "catalog:",
+		"@types/ws": "catalog:",
 		"@refarm.dev/vtconfig": "workspace:*",
 		"typescript": "catalog:"
 	},
