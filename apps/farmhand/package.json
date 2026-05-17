@@ -34,8 +34,8 @@
     "@refarm.dev/eslint-config": "workspace:*",
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
-    "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
+    "@refarm.dev/vtconfig": "workspace:*",
+    "typescript": "^6.0.3"
   },
   "license": "AGPL-3.0-only"
 }

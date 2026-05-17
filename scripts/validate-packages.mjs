@@ -212,14 +212,31 @@ function validateConfigPkg(pkgDir, pkg) {
   return violations;
 }
 
+const APPS_DIR = join(ROOT, "apps");
+
+function validateApp(pkgDir, pkg) {
+  const violations = [];
+  const devDeps = pkg.devDependencies ?? {};
+  if (devDeps["vitest"] && !devDeps["@refarm.dev/vtconfig"]) {
+    violations.push('raw "vitest" devDep without @refarm.dev/vtconfig — use vtconfig for swap-readiness');
+  }
+  return violations;
+}
+
 const packageDirs = readdirSync(PACKAGES_DIR, { withFileTypes: true })
   .filter((d) => d.isDirectory())
   .map((d) => join(PACKAGES_DIR, d.name));
 
+const appDirs = existsSync(APPS_DIR)
+  ? readdirSync(APPS_DIR, { withFileTypes: true })
+      .filter((d) => d.isDirectory())
+      .map((d) => join(APPS_DIR, d.name))
+  : [];
+
 let violations = 0;
 let exemptions = 0;
 
-console.log(`Validating ${packageDirs.length} packages...\n`);
+console.log(`Validating ${packageDirs.length} packages, ${appDirs.length} apps...\n`);
 
 for (const pkgDir of packageDirs) {
   const name = pkgDir.split("/").at(-1);
@@ -252,6 +269,26 @@ for (const pkgDir of packageDirs) {
   } else {
     for (const v of pkgViolations) {
       console.log(`  ✗ ${name.padEnd(30)} ${type} — ${v}`);
+      violations++;
+    }
+  }
+}
+
+for (const appDir of appDirs) {
+  const name = "apps/" + appDir.split("/").at(-1);
+  const pkg = readJson(join(appDir, "package.json"));
+  if (!pkg) continue;
+  if (pkg.scaffold?.type === "exempt") {
+    console.log(`  ~ ${name.padEnd(30)} exempt — ${pkg.scaffold.reason ?? "(no reason given)"}`);
+    exemptions++;
+    continue;
+  }
+  const appViolations = validateApp(appDir, pkg);
+  if (appViolations.length === 0) {
+    console.log(`  ✓ ${name.padEnd(30)} app`);
+  } else {
+    for (const v of appViolations) {
+      console.log(`  ✗ ${name.padEnd(30)} app — ${v}`);
       violations++;
     }
   }

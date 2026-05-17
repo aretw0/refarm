@@ -178,6 +178,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../../packages/vtconfig
       '@types/node':
         specifier: ^25.6.0
         version: 25.8.0
@@ -187,9 +190,6 @@ importers:
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
-      vitest:
-        specifier: ^4.1.4
-        version: 4.1.6(@types/node@25.8.0)(@vitest/coverage-v8@4.1.6)(@vitest/ui@4.1.6)(jsdom@29.1.1(@noble/hashes@2.0.1))(vite@8.0.12(@types/node@25.8.0)(esbuild@0.27.7)(jiti@1.21.7)(terser@5.47.1)(yaml@2.9.0))
 
   apps/me:
     dependencies:
@@ -423,15 +423,15 @@ importers:
 
   packages/event-contract-v1:
     devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
-      typescript:
-        specifier: ^6.0.3
-        version: 6.0.3
 
   packages/fence:
     devDependencies:

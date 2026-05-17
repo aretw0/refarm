@@ -4,17 +4,28 @@
 	"private": true,
 	"description": "Provider-neutral event bus contract — emit/subscribe primitives for cross-extension communication",
 	"type": "module",
-	"main": "./src/index.ts",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"exports": {
-		".": "./src/index.ts"
+		".": {
+			"import": "./dist/index.js",
+			"types": "./dist/index.d.ts"
+		}
 	},
 	"scripts": {
+		"build": "tsc --project tsconfig.build.json",
+		"dev": "tsc --project tsconfig.build.json --watch",
+		"lint": "eslint src",
 		"type-check": "tsc --noEmit",
-		"test": "vitest run"
+		"type-check:dist": "tsc --project tsconfig.build.json --noEmit",
+		"test": "vitest run",
+		"test:unit": "vitest run src/conformance.test.ts",
+		"test:conformance": "vitest run src/conformance.test.ts",
+		"clean": "rm -rf dist"
 	},
 	"devDependencies": {
+		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/tsconfig": "workspace:*",
-		"typescript": "^6.0.3",
 		"@refarm.dev/vtconfig": "workspace:*"
 	}
 }
