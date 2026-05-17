@@ -161,6 +161,7 @@
 	"homepage": "https://refarm.dev",
 	"devDependencies": {
 		"@changesets/cli": "^2.31.0",
+		"@mermaid-js/mermaid-cli": "^11.14.0",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/fence": "workspace:*",
 		"@refarm.dev/health": "workspace:*",
@@ -168,7 +169,7 @@
 		"@refarm.dev/silo": "workspace:*",
 		"@refarm.dev/thresher": "workspace:*",
 		"@refarm.dev/windmill": "workspace:*",
-		"@mermaid-js/mermaid-cli": "^11.14.0",
+		"@turbo/gen": "^2.9.14",
 		"@types/node": "^25.6.0",
 		"@vitest/coverage-v8": "^4.1.4",
 		"@vitest/ui": "^4.1.4",
