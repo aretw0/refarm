@@ -11,6 +11,7 @@
 		"lint": "turbo lint",
 		"test": "turbo run test",
 		"test:watch": "vitest --watch",
+		"validate-packages": "node scripts/validate-packages.mjs",
 		"git-atomic": "node packages/toolbox/src/git-atomic-analysis.mjs",
 		"git-commit-auto": "node packages/toolbox/src/git-commit-auto.mjs",
 		"git-commit-auto:strict": "GIT_COMMIT_AUTO_STRICT=1 node packages/toolbox/src/git-commit-auto.mjs",
