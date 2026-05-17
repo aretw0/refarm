@@ -24,7 +24,7 @@
 		"test": "vitest run --passWithNoTests",
 		"test:unit": "vitest run --passWithNoTests",
 		"clean": "rm -rf dist",
-		"test:conformance": "vitest run"
+		"test:conformance": "vitest run --passWithNoTests"
 	},
 	"keywords": [
 		"plugin",

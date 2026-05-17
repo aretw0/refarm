@@ -60,6 +60,14 @@
       ],
       "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
     },
+    "test:conformance": {
+      "dependsOn": ["build"],
+      "inputs": [
+        "src/**",
+        "*.config.*"
+      ],
+      "env": ["VITEST_USE_DIST", "VITEST_FORCE_DIST"]
+    },
     "test:integration": {
       "dependsOn": ["build"],
       "inputs": [
