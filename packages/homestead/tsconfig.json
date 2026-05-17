@@ -10,7 +10,8 @@
 			"ESNext",
 			"DOM",
 			"DOM.Iterable"
-		]
+		],
+		"rootDir": ".."
 	},
 	"include": [
 		"src/**/*"
