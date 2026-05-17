@@ -208,6 +208,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
+      '@refarm.dev/model-mock':
+        specifier: workspace:*
+        version: link:../../packages/model-mock
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../../packages/vtconfig
@@ -346,6 +349,18 @@ importers:
         specifier: ^9.0.9
         version: 9.0.9
 
+  packages/artefact-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
   packages/barn:
     dependencies:
       '@refarm.dev/plugin-manifest':
@@ -456,6 +471,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/eslint-config:
     devDependencies:
@@ -656,6 +674,24 @@ importers:
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+
+  packages/model-mock:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+      '@types/node':
+        specifier: 'catalog:'
+        version: 25.8.0
       typescript:
         specifier: 'catalog:'
         version: 6.0.3

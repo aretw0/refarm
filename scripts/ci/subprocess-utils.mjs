@@ -5,6 +5,7 @@ import path from "node:path";
 const TASK_SMOKE_TS_BUILD_ORDER = [
 	"packages/root",
 	"packages/effort-contract-v1",
+	"packages/artefact-contract-v1",
 	"packages/identity-contract-v1",
 	"packages/node-contract-v1",
 	"packages/storage-contract-v1",
