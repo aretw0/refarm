@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import { createTaskMemoryBridge } from "./task-memory-bridge.js";
 
+const ACTOR_URN = "urn:refarm:farmhand:test";
+
 function sampleEffortTask(id = "task-1") {
 	return {
 		id,
@@ -10,94 +12,65 @@ function sampleEffortTask(id = "task-1") {
 	};
 }
 
+function makeTask(id: string, contextId: string) {
+	return {
+		"@type": "Task",
+		"@id": `urn:refarm:task:v1:${id}`,
+		title: "@refarm/pi-agent.respond",
+		status: "active",
+		created_by: ACTOR_URN,
+		assigned_to: ACTOR_URN,
+		context_id: `urn:refarm:effort:v1:${contextId}`,
+		parent_task_id: null,
+		created_at_ns: 1,
+		updated_at_ns: 1,
+	};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function makeAdapter(overrides: Record<string, any> = {}) {
+	return {
+		create: vi.fn(),
+		get: vi.fn(),
+		update: vi.fn(),
+		appendEvent: vi.fn(),
+		delete: vi.fn(),
+		...overrides,
+	};
+}
+
+function makeBridge(adapter: ReturnType<typeof makeAdapter>) {
+	return createTaskMemoryBridge({ adapter, actorUrn: ACTOR_URN });
+}
+
 describe("TaskMemoryBridge", () => {
 	it("creates task once and reuses mapping for same effort/task id", async () => {
-		const create = vi.fn().mockResolvedValue({
-			"@type": "Task",
-			"@id": "urn:refarm:task:v1:abc",
-			title: "@refarm/pi-agent.respond",
-			status: "active",
-			created_by: "urn:refarm:farmhand:test",
-			assigned_to: "urn:refarm:farmhand:test",
-			context_id: "urn:refarm:effort:v1:effort-1",
-			parent_task_id: null,
-			created_at_ns: 1,
-			updated_at_ns: 1,
-		});
-		const appendEvent = vi.fn().mockResolvedValue({
-			"@type": "TaskEvent",
-			"@id": "urn:refarm:task-event:v1:1",
-		});
-		const update = vi.fn();
+		const create = vi.fn().mockResolvedValue(makeTask("abc", "effort-1"));
+		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:1" });
+		const adapter = makeAdapter({ create, appendEvent });
+		const bridge = makeBridge(adapter);
 
-		const bridge = createTaskMemoryBridge({
-			adapter: {
-				create,
-				get: vi.fn(),
-				update,
-				appendEvent,
-				delete: vi.fn(),
-			},
-			actorUrn: "urn:refarm:farmhand:test",
-		});
-
-		const first = await bridge.ensureTask(
-			sampleEffortTask("task-1"),
-			"effort-1",
-		);
-		const second = await bridge.ensureTask(
-			sampleEffortTask("task-1"),
-			"effort-1",
-		);
+		const first = await bridge.ensureTask(sampleEffortTask("task-1"), "effort-1");
+		const second = await bridge.ensureTask(sampleEffortTask("task-1"), "effort-1");
 
 		expect(first).toBe("urn:refarm:task:v1:abc");
 		expect(second).toBe(first);
 		expect(create).toHaveBeenCalledTimes(1);
 		expect(appendEvent).toHaveBeenCalledTimes(1);
-		expect(update).not.toHaveBeenCalled();
+		expect(adapter.update).not.toHaveBeenCalled();
 	});
 
 	it("records done outcome as status_changed event", async () => {
-		const create = vi.fn().mockResolvedValue({
-			"@type": "Task",
-			"@id": "urn:refarm:task:v1:done-task",
-			title: "@refarm/pi-agent.respond",
-			status: "active",
-			created_by: "urn:refarm:farmhand:test",
-			assigned_to: "urn:refarm:farmhand:test",
-			context_id: "urn:refarm:effort:v1:effort-done",
-			parent_task_id: null,
-			created_at_ns: 1,
-			updated_at_ns: 1,
-		});
-		const update = vi.fn().mockResolvedValue({
-			"@type": "Task",
-			"@id": "urn:refarm:task:v1:done-task",
-			status: "done",
-		});
-		const appendEvent = vi.fn().mockResolvedValue({
-			"@type": "TaskEvent",
-			"@id": "urn:refarm:task-event:v1:2",
-		});
+		const create = vi.fn().mockResolvedValue(makeTask("done-task", "effort-done"));
+		const update = vi.fn().mockResolvedValue({ "@type": "Task", "@id": "urn:refarm:task:v1:done-task", status: "done" });
+		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:2" });
+		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
-		const bridge = createTaskMemoryBridge({
-			adapter: {
-				create,
-				get: vi.fn(),
-				update,
-				appendEvent,
-				delete: vi.fn(),
-			},
-			actorUrn: "urn:refarm:farmhand:test",
-		});
-
-		await bridge.recordOutcome(sampleEffortTask("task-done"), "effort-done", {
-			status: "ok",
-		});
+		await bridge.recordOutcome(sampleEffortTask("task-done"), "effort-done", { status: "ok" });
 
 		expect(update).toHaveBeenCalledWith("urn:refarm:task:v1:done-task", {
 			status: "done",
-			assigned_to: "urn:refarm:farmhand:test",
+			assigned_to: ACTOR_URN,
 		});
 		expect(appendEvent).toHaveBeenCalledTimes(2);
 		expect(appendEvent).toHaveBeenLastCalledWith(
@@ -109,59 +82,24 @@ describe("TaskMemoryBridge", () => {
 	});
 
 	it("records failed outcome when executor returns error", async () => {
-		const create = vi.fn().mockResolvedValue({
-			"@type": "Task",
-			"@id": "urn:refarm:task:v1:failed-task",
-			title: "@refarm/pi-agent.respond",
-			status: "active",
-			created_by: "urn:refarm:farmhand:test",
-			assigned_to: "urn:refarm:farmhand:test",
-			context_id: "urn:refarm:effort:v1:effort-failed",
-			parent_task_id: null,
-			created_at_ns: 1,
-			updated_at_ns: 1,
-		});
-		const update = vi.fn().mockResolvedValue({
-			"@type": "Task",
-			"@id": "urn:refarm:task:v1:failed-task",
-			status: "failed",
-		});
-		const appendEvent = vi.fn().mockResolvedValue({
-			"@type": "TaskEvent",
-			"@id": "urn:refarm:task-event:v1:3",
-		});
+		const create = vi.fn().mockResolvedValue(makeTask("failed-task", "effort-failed"));
+		const update = vi.fn().mockResolvedValue({ "@type": "Task", "@id": "urn:refarm:task:v1:failed-task", status: "failed" });
+		const appendEvent = vi.fn().mockResolvedValue({ "@type": "TaskEvent", "@id": "urn:refarm:task-event:v1:3" });
+		const bridge = makeBridge(makeAdapter({ create, update, appendEvent }));
 
-		const bridge = createTaskMemoryBridge({
-			adapter: {
-				create,
-				get: vi.fn(),
-				update,
-				appendEvent,
-				delete: vi.fn(),
-			},
-			actorUrn: "urn:refarm:farmhand:test",
+		await bridge.recordOutcome(sampleEffortTask("task-failed"), "effort-failed", {
+			status: "error",
+			error: "timeout",
 		});
-
-		await bridge.recordOutcome(
-			sampleEffortTask("task-failed"),
-			"effort-failed",
-			{
-				status: "error",
-				error: "timeout",
-			},
-		);
 
 		expect(update).toHaveBeenCalledWith("urn:refarm:task:v1:failed-task", {
 			status: "failed",
-			assigned_to: "urn:refarm:farmhand:test",
+			assigned_to: ACTOR_URN,
 		});
 		expect(appendEvent).toHaveBeenLastCalledWith(
 			expect.objectContaining({
 				event: "status_changed",
-				payload: expect.objectContaining({
-					status: "failed",
-					error: "timeout",
-				}),
+				payload: expect.objectContaining({ status: "failed", error: "timeout" }),
 			}),
 		);
 	});
