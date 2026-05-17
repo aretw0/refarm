@@ -49,7 +49,7 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
       if (!data) return [];
       const { name, type } = data;
       const dest = `packages/{{name}}`;
-      const templateDir = `turbo/generators/templates/${type}`;
+      const templateDir = `templates/${type}`;
 
       // SCREAMING_SNAKE_CASE: my-contract-v1 → MY_CONTRACT_V1
       data.constantName = name.replace(/-/g, "_").toUpperCase();
@@ -74,12 +74,29 @@ export default function generator(plop: PlopTypes.NodePlopAPI): void {
           type: "modify",
           path: "tsconfig.json",
           transform(content: string) {
-            const tsconfig = JSON.parse(content);
-            tsconfig.compilerOptions ??= {};
-            const paths = tsconfig.compilerOptions.paths ?? {};
-            paths[`@refarm.dev/${name}`] = [`./packages/${name}/src`];
-            tsconfig.compilerOptions.paths = paths;
-            return JSON.stringify(tsconfig, null, 2) + "\n";
+            const key = `@refarm.dev/${name}`;
+            if (content.includes(`"${key}"`)) return content;
+            const newLine = `      "${key}": ["./packages/${name}/src"]`;
+            // Surgical insert: find the closing } of the "paths" block by counting braces
+            const pathsStart = content.indexOf('"paths"');
+            if (pathsStart === -1) return content;
+            let depth = 0;
+            let closingIdx = -1;
+            for (let i = content.indexOf("{", pathsStart); i < content.length; i++) {
+              if (content[i] === "{") depth++;
+              else if (content[i] === "}") {
+                depth--;
+                if (depth === 0) {
+                  closingIdx = i;
+                  break;
+                }
+              }
+            }
+            if (closingIdx === -1) return content;
+            const before = content.slice(0, closingIdx).trimEnd();
+            const after = content.slice(closingIdx);
+            const needsComma = !before.endsWith(",");
+            return `${before}${needsComma ? "," : ""}\n${newLine}\n    ${after}`;
           },
         });
       }
