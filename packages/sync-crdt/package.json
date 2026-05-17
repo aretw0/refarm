@@ -26,7 +26,7 @@
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run test/smoke.test.ts",
+    "test:unit": "vitest run",
     "test:conformance": "vitest run test/sync-v1.conformance.test.ts",
     "clean": "rm -rf dist"
   },
