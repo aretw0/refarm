@@ -85,6 +85,11 @@ describe("createCloudflareTurboCacheProvisionPlan", () => {
 					},
 				],
 				ciSecrets: ["TURBO_CACHE_API_URL", "TURBO_CACHE_TOKEN"],
+				retention: {
+					dryRun: false,
+					maxAssetBytes: 52428800,
+					ttlSeconds: 2592000,
+				},
 			},
 			resources: [
 				{
@@ -199,7 +204,16 @@ describe("CloudflareTurboCacheProvisioner", () => {
 				args: ["secret", "put", "AUTH_TOKEN"],
 				input: "provided-token",
 			},
-			{ kind: "exec", args: ["deploy"], input: undefined },
+			{
+				kind: "exec",
+				args: [
+					"deploy",
+					"--var", "ARTIFACT_TTL_SECONDS:2592000",
+					"--var", "MAX_ARTIFACT_BYTES:52428800",
+					"--var", "CLEANUP_DRY_RUN:false",
+				],
+				input: undefined,
+			},
 		]);
 	});
 
