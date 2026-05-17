@@ -13,7 +13,7 @@
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
-		"test": "vitest run --passWithNoTests",
+		"test": "vitest run",
 		"test:conformance": "vitest run src/storage-v1.conformance.test.ts",
 		"lint": "eslint src"
 	},

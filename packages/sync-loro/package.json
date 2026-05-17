@@ -20,7 +20,7 @@
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch",
     "type-check": "tsc --project tsconfig.json --noEmit",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "test:conformance": "vitest run src/sync-v1.conformance.test.ts",
     "clean": "rm -rf dist",
     "lint": "eslint src"

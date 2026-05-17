@@ -9,10 +9,9 @@
 		".": "./src/index.js"
 	},
 	"scripts": {
-		"lint": "vitest run --passWithNoTests",
 		"type-check": "true",
 		"test": "vitest run",
-		"test:unit": "vitest run --passWithNoTests",
+		"test:unit": "vitest run",
 		"test:conformance": "vitest run src/validate.test.js"
 	},
 	"keywords": [

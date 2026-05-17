@@ -16,8 +16,8 @@
     "dev": "tsc --project tsconfig.build.json --watch",
     "lint": "eslint src",
     "type-check": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "test:unit": "vitest run --passWithNoTests",
+    "test": "vitest run",
+    "test:unit": "vitest run",
     "clean": "rm -rf dist"
   },
   "keywords": [
