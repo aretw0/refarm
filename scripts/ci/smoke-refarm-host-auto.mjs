@@ -236,6 +236,7 @@ export function isRefarmTreeFile(file) {
 		file.startsWith("apps/refarm/test/commands/tree") ||
 		file === "apps/farmhand/src/transports/sessions.ts" ||
 		file === "apps/farmhand/src/transports/sessions.test.ts" ||
+		file === "apps/farmhand/src/transports/effort-chat.integration.test.ts" ||
 		file === "docs/REFARM_TREE_PRIMITIVE.md"
 	);
 }

@@ -53,6 +53,12 @@ test("detects tree timeline files", () => {
 		true,
 	);
 	assert.equal(
+		isRefarmTreeFile(
+			"apps/farmhand/src/transports/effort-chat.integration.test.ts",
+		),
+		true,
+	);
+	assert.equal(
 		isRefarmTreeFile("apps/refarm/src/commands/action-affordances.ts"),
 		false,
 	);
@@ -212,6 +218,7 @@ test("routes tree-only deltas to focused tree lane", () => {
 			"apps/refarm/src/commands/tree.ts",
 			"apps/refarm/test/commands/tree.test.ts",
 			"apps/farmhand/src/transports/sessions.test.ts",
+			"apps/farmhand/src/transports/effort-chat.integration.test.ts",
 			"docs/REFARM_TREE_PRIMITIVE.md",
 		]).profile,
 		"tree",
