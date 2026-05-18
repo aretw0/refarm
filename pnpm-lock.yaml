@@ -756,13 +756,16 @@ importers:
 
   packages/plugin-courier:
     dependencies:
-      '@refarm.dev/tractor':
+      '@refarm.dev/runtime':
         specifier: workspace:*
-        version: link:../tractor-ts
+        version: link:../runtime
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tractor':
+        specifier: workspace:*
+        version: link:../tractor-ts
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
