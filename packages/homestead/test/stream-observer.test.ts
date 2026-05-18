@@ -63,7 +63,7 @@ describe("Homestead stream observer rendering", () => {
 			},
 		]);
 
-		expect(html).toContain("Live soil telemetry");
+		expect(html).toContain("Live stream telemetry");
 		expect(html).toContain("Agent streams");
 		expect(html).toContain("prompt-a");
 		expect(html).toContain("first line");

@@ -81,7 +81,7 @@ export class HeraldPlugin {
       `  ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝\n` +
       `%c\n` +
       `  ${this.l8n.t("refarm:core/engine_version", { version: HOMESTEAD_ENGINE_VERSION })}\n` +
-      `  ${this.l8n.t("refarm:core/sovereign_knowledge_infrastructure")}\n\n`,
+      `  ${this.l8n.t("refarm:core/knowledge_workspace")}\n\n`,
       primary,
       muted
     );

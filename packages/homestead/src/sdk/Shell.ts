@@ -249,7 +249,10 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamObserver = "true";
-				panel.setAttribute("aria-label", "Live agent streams");
+				panel.setAttribute(
+					"aria-label",
+					this.l8n.t("refarm:core/live_agent_streams"),
+				);
 				panel.style.display = "inline-flex";
 				panel.style.gap = "0.5rem";
 				panel.style.marginLeft = "1rem";
@@ -259,7 +262,7 @@ export class StudioShell {
 			}
 
 			panel.hidden = views.length === 0;
-			panel.innerHTML = renderStreamStatusbarHtml(views);
+			panel.innerHTML = renderStreamStatusbarHtml(views, this.l8n);
 		}
 
 		if (streamSlot) {
@@ -269,12 +272,15 @@ export class StudioShell {
 			if (!panel) {
 				panel = document.createElement("section");
 				panel.dataset.refarmStreamPanel = "true";
-				panel.setAttribute("aria-label", "Live agent stream panel");
+				panel.setAttribute(
+					"aria-label",
+					this.l8n.t("refarm:core/live_agent_stream_panel"),
+				);
 				streamSlot.appendChild(panel);
 			}
 
 			panel.hidden = views.length === 0;
-			panel.innerHTML = renderStreamPanelHtml(views);
+			panel.innerHTML = renderStreamPanelHtml(views, this.l8n);
 			streamSlot.hidden =
 				views.length === 0 &&
 				!streamSlot.querySelector("[data-refarm-plugin-id]");
@@ -304,15 +310,15 @@ export class StudioShell {
           
           <div class="landing-actions" style="display: flex; gap: 1.5rem; justify-content: center;">
             <a href="${(import.meta as ViteImportMeta).env?.BASE_URL || "/"}onboarding" class="btn-primary" style="padding: 1rem 2.5rem; background: var(--refarm-accent-primary); color: white; border-radius: 50px; text-decoration: none; font-weight: 600; box-shadow: var(--refarm-shadow-lg);">
-              Cultivate your soil
+              ${this.l8n.t("refarm:core/get_started")}
             </a>
             <button id="try-guest-mode" class="btn-secondary" style="padding: 1rem 2.5rem; background: transparent; color: var(--refarm-text-primary); border: 2px solid var(--refarm-border-default); border-radius: 50px; font-weight: 600; cursor: pointer;">
-              Try Guest Mode
+              ${this.l8n.t("refarm:core/try_guest_mode")}
             </button>
           </div>
 
           <div class="semantic-preview" style="margin-top: 6rem; text-align: left; padding: 2rem; border-radius: 20px; background: rgba(0,0,0,0.03); border: 1px dashed var(--refarm-border-default);">
-            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">Sovereign Node Raw Data</small>
+            <small style="text-transform: uppercase; letter-spacing: 0.1em; opacity: 0.5;">${this.l8n.t("refarm:core/raw_node_data")}</small>
             <pre style="margin-top: 1rem; font-size: 0.8rem; color: var(--refarm-accent-secondary); overflow: auto;">${JSON.stringify(seedNode, null, 2)}</pre>
           </div>
         </div>
@@ -377,7 +383,7 @@ export class StudioShell {
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
-              <small style="display: block; margin-top: 1rem; opacity: 0.5;">Source: ${node["refarm:sourcePlugin"]}</small>
+              <small style="display: block; margin-top: 1rem; opacity: 0.5;">${this.l8n.t("refarm:core/source_label", { source: String(node["refarm:sourcePlugin"] ?? "") })}</small>
             </div>
           `,
 						)
@@ -456,7 +462,7 @@ export class StudioShell {
 			const locale = this.l8n.getLocale();
 
 			// Automatic i18n Registration
-			if (plugin?.manifest.i18n) {
+			if (plugin?.manifest?.i18n) {
 				const bundle = plugin.manifest.i18n;
 
 				if (typeof bundle === "object") {
@@ -519,7 +525,7 @@ export class StudioShell {
 
 			const api = this.tractor.plugins.findByApi?.(`${pluginId}:ui`);
 			if (api) {
-				pluginWrap.innerHTML = `<small>Plugin ${pluginId} active in ${slotId}</small>`;
+				pluginWrap.innerHTML = `<small>${this.l8n.t("refarm:core/plugin_active_in_slot", { pluginId, slotId })}</small>`;
 			}
 		} catch (e) {
 			this.logError(`[shell] Failed to render plugin ${pluginId}`, e);

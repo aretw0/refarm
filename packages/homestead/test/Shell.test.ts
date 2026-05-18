@@ -588,7 +588,7 @@ describe("StudioShell Orchestrator", () => {
         expect(statusbar?.textContent).toContain("active");
         expect(statusbar?.textContent).toContain("hello from the stream");
         expect(streams?.hidden).toBe(false);
-        expect(streams?.textContent).toContain("Live soil telemetry");
+        expect(streams?.textContent).toContain("Live stream telemetry");
         expect(streams?.textContent).toContain("hello from the stream");
     });
 });
