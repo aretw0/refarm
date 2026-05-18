@@ -1,8 +1,8 @@
 # ADR-066: TypeScript/Turbo Build Boundary and Package Scaffold Invariants
 
-**Status**: Accepted  
-**Date**: 2026-05-17  
-**Deciders**: Arthur Silva  
+**Status**: Accepted
+**Date**: 2026-05-17
+**Deciders**: Arthur Silva
 **Related**: ADR-001 (monorepo structure), ADR-030 (devops)
 
 ---

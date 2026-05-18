@@ -503,7 +503,7 @@ Replace the entire file content. Key changes vs current:
 - Remove `readline` import
 - Add `import { type OperatorChannel, createStdioOperatorChannel } from "@refarm.dev/prompt-contract-v1";`
 - `LaunchDeps`: remove `confirm`, add `operator: OperatorChannel`
-- `defaultLaunchDeps`: remove `confirm()` method, add `operator: createStdioOperatorChannel()`; in `recoverProvider`, use `deps.operator.ask(...)` 
+- `defaultLaunchDeps`: remove `confirm()` method, add `operator: createStdioOperatorChannel()`; in `recoverProvider`, use `deps.operator.ask(...)`
 - `autoStartFarmhand`: `deps.confirm(...)` → `deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true })`
 
 Full updated file:
