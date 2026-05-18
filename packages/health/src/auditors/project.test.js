@@ -70,6 +70,53 @@ describe("RefarmProjectAuditor", () => {
         ]);
     });
 
+    it("accepts custom auditor titles", () => {
+        const auditor = new RefarmProjectAuditor({ title: "Workspace Health" });
+
+        expect(auditor.title).toBe("Workspace Health");
+    });
+
+    it("keeps Refarm package exemptions as defaults", async () => {
+        const auditor = new RefarmProjectAuditor();
+        makeWorkspacePackage(
+            "packages",
+            "tsconfig",
+            { name: "@refarm.dev/tsconfig", main: "./dist/index.js" },
+            ["tsconfig.json"],
+        );
+
+        await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([]);
+        await expect(auditor.checkResolutionStatus(rootDir)).resolves.toEqual([
+            { package: "packages/tsconfig", mode: "LINKED (dist)" },
+        ]);
+    });
+
+    it("allows callers to override package exemptions", async () => {
+        const auditor = new RefarmProjectAuditor({ exemptPackageIds: [] });
+        makeWorkspacePackage(
+            "packages",
+            "tsconfig",
+            { name: "@example/tsconfig", main: "./dist/index.js" },
+            ["tsconfig.json"],
+        );
+        makeWorkspacePackage(
+            "modules",
+            "meta",
+            { name: "@example/meta", main: "./dist/index.js" },
+            ["tsconfig.json"],
+        );
+
+        await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([
+            { package: "packages/tsconfig", type: "missing_build_config" },
+        ]);
+        await expect(
+            auditor.checkBuildConfigs(rootDir, {
+                workspaceRoots: ["modules"],
+                exemptPackageIds: ["modules/meta"],
+            }),
+        ).resolves.toEqual([]);
+    });
+
     it("reports resolution status with workspace root prefixes", async () => {
         const auditor = new RefarmProjectAuditor();
         makeWorkspacePackage("packages", "published", {

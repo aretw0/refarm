@@ -7,5 +7,6 @@ Health provides diagnostic and self-healing utilities for the Refarm monorepo an
 - **System Diagnostics**: Automated checks for monorepo integrity (TS, Lint, Build).
 - **Self-Healing Contracts**: Standardized ways for plugins to report and fix their own errors.
 - **Build Verification**: Ensuring all required artifacts are present and valid.
+- **Configurable Project Policy**: `RefarmProjectAuditor` defaults to Refarm roots and exemptions, but callers can override `workspaceRoots`, `exemptPackageIds`, and `title` for other workspace shapes.
 
 See [ROADMAP.md](./ROADMAP.md) for the path to the `refarm health` command.

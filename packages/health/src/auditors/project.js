@@ -6,14 +6,18 @@ import path from "node:path";
  * Leverages generic auditors and Graph policies.
  */
 export class RefarmProjectAuditor {
+    #title;
     #workspaceRoots;
+    #exemptPackageIds;
 
     constructor(options = {}) {
+        this.#title = options.title || "Refarm Monorepo Health";
         this.#workspaceRoots = options.workspaceRoots || ["packages", "apps"];
+        this.#exemptPackageIds = new Set(options.exemptPackageIds || ["packages/heartwood", "packages/tsconfig"]);
     }
 
     get id() { return "project"; }
-    get title() { return "Refarm Monorepo Health"; }
+    get title() { return this.#title; }
 
     workspacePackageDirs(rootDir, options = {}) {
         const roots = options.workspaceRoots || this.#workspaceRoots;
@@ -43,15 +47,21 @@ export class RefarmProjectAuditor {
     async audit(context = {}) {
         const rootDir = context.rootDir || process.cwd();
         const workspaceRoots = context.policy?.workspaceRoots || context.workspaceRoots;
+        const exemptPackageIds = context.policy?.exemptPackageIds || context.exemptPackageIds;
 
         // In a stratified flow, we might receive results from generic_fs
         const genericResults = context.generic_fs || {};
 
         return {
             git: genericResults.git || [],
-            builds: await this.checkBuildConfigs(rootDir, { workspaceRoots }),
-            alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots })
+            builds: await this.checkBuildConfigs(rootDir, { workspaceRoots, exemptPackageIds }),
+            alignment: await this.checkPackageAlignment(rootDir, { workspaceRoots, exemptPackageIds })
         };
+    }
+
+    isExemptPackage(pkg, options = {}) {
+        const exemptPackageIds = new Set(options.exemptPackageIds || this.#exemptPackageIds);
+        return exemptPackageIds.has(pkg.id);
     }
 
     /**
@@ -85,8 +95,7 @@ export class RefarmProjectAuditor {
     async checkBuildConfigs(rootDir, options = {}) {
         const issues = [];
         for (const pkg of this.workspacePackageDirs(rootDir, options)) {
-            // Hardcoded exceptions: heartwood (WASM with package.json), tsconfig (meta)
-            if (pkg.root === "packages" && (pkg.name === "heartwood" || pkg.name === "tsconfig")) continue;
+            if (this.isExemptPackage(pkg, options)) continue;
 
             // Skip non-TypeScript packages
             if (this.isNonTsPackage(pkg.path)) continue;
@@ -107,7 +116,6 @@ export class RefarmProjectAuditor {
         const status = await this.checkResolutionStatus(rootDir, options);
 
         for (const item of status) {
-            if (item.package === "tsconfig") continue;
             if (item.mode === "LOCAL (src)") {
                 issues.push({
                     package: item.package,
@@ -128,7 +136,7 @@ export class RefarmProjectAuditor {
         for (const pkg of this.workspacePackageDirs(rootDir, options)) {
             const pkgJsonPath = path.join(pkg.path, "package.json");
 
-            if (pkg.root === "packages" && (pkg.name === "tsconfig" || pkg.name === "heartwood")) {
+            if (this.isExemptPackage(pkg, options)) {
                 status.push({ package: pkg.id, mode: "LINKED (dist)" });
                 continue;
             }
