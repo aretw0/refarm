@@ -1,5 +1,9 @@
 {
 	"name": "@refarm.dev/thresher",
+	"scaffold": {
+		"type": "exempt",
+		"reason": "compatibility auditor placeholder; runtime integrity rules not implemented yet"
+	},
 	"version": "0.1.0",
 	"description": "The Thresher — Compatibility and Integrity Auditor for Refarm.",
 	"type": "module",

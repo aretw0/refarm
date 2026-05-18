@@ -1,5 +1,9 @@
 {
 	"name": "@refarm.dev/fence",
+	"scaffold": {
+		"type": "exempt",
+		"reason": "boundary auditor placeholder; runtime audit rules not implemented yet"
+	},
 	"version": "0.1.0",
 	"description": "The Fence — Scope and Boundary Auditor for Refarm.",
 	"type": "module",
