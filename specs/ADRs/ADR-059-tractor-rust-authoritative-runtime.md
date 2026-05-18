@@ -68,6 +68,26 @@ Rust already owns the target implementations for these areas in
 - `telemetry/mod.rs`
 - `daemon/ws_server.rs`
 
+### Current TypeScript Consumer Map
+
+As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
+
+| Consumer | Current use | Migration pressure |
+|---|---|---|
+| `apps/refarm` | CLI `status` boots `Tractor` to summarize runtime/trust. | High: runtime-driver path should move to Rust/sidecar status instead of tractor-ts boot. |
+| `apps/farmhand` | Boots `Tractor` and executes tasks through `plugins`/`storeNode`. | High: farmhand should delegate runtime execution to Rust tractor. |
+| `packages/homestead` | SDK/runtime shell, stream observers, plugin handles, browser-facing types. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
+| `apps/me` | Type-only plugin instance/runtime surfaces via Homestead. | Low: browser/client compatibility surface. |
+| `apps/dev` | Type-only plugin instance surfaces plus stream demo seeding. | Low/Medium: browser/client compatibility, but demo seeding should remain thin. |
+| `packages/sower` | Plugin class depends on `Tractor` and `SovereignNode`. | Medium: define a narrow host interface instead of depending on full tractor-ts. |
+| `packages/scarecrow` | Plugin class and tests depend on `Tractor`/test utils. | Medium: define a narrow host interface and test fixture contract. |
+| `packages/plugin-courier` | Type dependency plus integration tests boot `Tractor`. | Medium/High: tests should move toward Rust-backed or narrow host fixtures. |
+| `packages/vtconfig` and `packages/toolbox` | Alias/resolution support for `@refarm.dev/tractor` and test utils. | Low: tooling support remains while npm compatibility exists. |
+| `templates/courier/typescript` | Template dependency for generated plugins. | Medium: template should eventually depend on a narrow host contract. |
+
+Unused direct dependencies on `@refarm.dev/tractor` were removed from
+`packages/barn` and `packages/plugin-tem`; neither imported the package.
+
 ## Consequences
 
 ### What changes

@@ -22,8 +22,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
-		"@refarm.dev/plugin-manifest": "workspace:*",
-		"@refarm.dev/tractor": "workspace:*"
+		"@refarm.dev/plugin-manifest": "workspace:*"
 	},
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",

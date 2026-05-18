@@ -388,9 +388,6 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../tractor-ts
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -790,9 +787,6 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../tractor-ts
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
