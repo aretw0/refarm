@@ -8,7 +8,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"dev": "tsc --project tsconfig.build.json --watch",
-		"test": "vitest run --passWithNoTests",
+		"test": "vitest run",
 		"lint": "eslint src"
 	},
 	"dependencies": {
