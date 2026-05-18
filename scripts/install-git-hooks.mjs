@@ -117,7 +117,6 @@ NEEDS_TYPECHECK=0
 NEEDS_UNIT_TESTS=0
 FORCE_GLOBAL_LINT=0
 FORCE_GLOBAL_TYPECHECK=0
-FORCE_GLOBAL_UNIT_TESTS=0
 NEEDS_QUALITY_GATE=0
 NEEDS_SECURITY_AUDIT=0
 CHANGED_WORKSPACES=""
@@ -171,9 +170,9 @@ do
   # Including it in FORCE_GLOBAL_* would cold-invalidate Turbo's entire cache
   # (turbo.json is a global cache key) and trigger Rust rebuilds, reliably
   # exceeding the fallback timeouts on protected branches.
+  # Unit tests stay scoped and advisory locally; CI remains the global test gate.
   if echo "$CHANGED_FILES" | grep -Eq '^(eslint\\.config\\.js|tsconfig(\\.[^/]*)?\\.json)$'; then
     FORCE_GLOBAL_LINT=1
-    FORCE_GLOBAL_UNIT_TESTS=1
   fi
 
   if echo "$CHANGED_FILES" | grep -Eq '^tsconfig(\\.[^/]*)?\\.json$'; then
@@ -410,7 +409,7 @@ if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
 else
   UNIT_WARN=0
 
-  if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_UNIT_TESTS -eq 0 ]; then
+  if [ -n "$CHANGED_WORKSPACES" ]; then
     echo "   🔎 Scoped tests for changed workspaces"
     for ws in $CHANGED_WORKSPACES; do
       [ -f "$ws/package.json" ] || continue
