@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 
 interface ExtJson {
   id: string;
@@ -12,16 +13,6 @@ interface ExtJson {
     requires?: string[];
     providesApi?: string[];
     requiresApi?: string[];
-  };
-}
-
-interface PluginLoaderTarget {
-  registry: {
-    register(manifest: PluginManifest): Promise<string>;
-    trust(pluginId: string): Promise<void>;
-  };
-  plugins: {
-    load(manifest: PluginManifest): Promise<unknown>;
   };
 }
 
@@ -98,7 +89,7 @@ export class LocalExtensionRegistry {
     ];
   }
 
-  async load(tractor: PluginLoaderTarget): Promise<{ loaded: number; skipped: number }> {
+  async load(tractor: RuntimePluginLoaderTarget): Promise<{ loaded: number; skipped: number }> {
     const extDirs = this.collectExtDirs();
     let loaded = 0;
     let skipped = 0;
@@ -137,7 +128,7 @@ export class LocalExtensionRegistry {
     return { loaded, skipped };
   }
 
-  async reload(tractor: PluginLoaderTarget, pluginId: string): Promise<void> {
+  async reload(tractor: RuntimePluginLoaderTarget, pluginId: string): Promise<void> {
     const extDirs = this.collectExtDirs();
 
     for (const extDir of extDirs) {

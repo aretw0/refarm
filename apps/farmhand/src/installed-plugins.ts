@@ -4,16 +4,7 @@ import {
 	assertValidPluginManifest,
 	type PluginManifest,
 } from "@refarm.dev/plugin-manifest";
-
-interface PluginLoaderTarget {
-	registry: {
-		register(manifest: PluginManifest, sourceUrl?: string): Promise<string>;
-		trust(pluginId: string): Promise<void>;
-	};
-	plugins: {
-		load(manifest: PluginManifest): Promise<unknown>;
-	};
-}
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 
 interface LoggerLike {
 	info(...args: unknown[]): void;
@@ -79,7 +70,7 @@ export function listInstalledPluginIds(baseDir: string): string[] {
 }
 
 export async function loadInstalledPlugins(
-	tractor: PluginLoaderTarget,
+	tractor: RuntimePluginLoaderTarget,
 	baseDir: string,
 	options?: { pluginFilter?: string[] },
 	logger: LoggerLike = console,

@@ -24,6 +24,10 @@ import { LoroCRDTStorage, peerIdFromString } from "@refarm.dev/sync-loro";
 import { Tractor } from "@refarm.dev/tractor";
 import { WsStreamTransport } from "@refarm.dev/ws-stream-transport";
 import { loadConfigAsync } from "@refarm.dev/config";
+import type {
+	RuntimeHost,
+	RuntimePluginLoaderTarget,
+} from "@refarm.dev/runtime";
 import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
@@ -102,7 +106,7 @@ function createEphemeralIdentity(): IdentityAdapter {
  * loads the plugin into the Tractor instance.
  */
 async function handlePluginRoute(
-	tractor: Tractor,
+	tractor: RuntimePluginLoaderTarget,
 	node: Record<string, unknown>,
 ): Promise<void> {
 	const assignedTo = node["plugin:assignedTo"] as string | undefined;
@@ -144,7 +148,7 @@ async function handlePluginRoute(
  * After execution you should write a FarmhandTaskResult node via tractor.storeNode().
  */
 async function handleFarmhandTask(
-	tractor: Tractor,
+	tractor: RuntimeHost,
 	node: Record<string, unknown>,
 ): Promise<void> {
 	const assignedTo = node["task:assignedTo"] as string | undefined;
@@ -301,6 +305,7 @@ async function main() {
 		logLevel: "info",
 		forceGuestMode: true,
 	});
+	const runtime = tractor as unknown as RuntimeHost;
 
 	console.log("[farmhand] Tractor booted with Loro CRDT storage.");
 
@@ -321,9 +326,7 @@ async function main() {
 	// Phase 0: Load local extensions from .refarm/extensions/ (project) and ~/.refarm/extensions/ (global)
 	// Loaded first so project-local extensions can override bundled plugins like pi-agent.
 	const localExtRegistry = new LocalExtensionRegistry(process.cwd(), os.homedir());
-	const localExtSummary = await localExtRegistry.load(
-		tractor as unknown as Parameters<typeof localExtRegistry.load>[0],
-	);
+	const localExtSummary = await localExtRegistry.load(runtime);
 	if (localExtSummary.loaded > 0 || localExtSummary.skipped > 0) {
 		console.log(
 			`[farmhand] Local extensions: loaded=${localExtSummary.loaded} skipped=${localExtSummary.skipped}`,
@@ -358,7 +361,7 @@ async function main() {
 	}
 
 	const loadSummary = await loadInstalledPlugins(
-		tractor as unknown as Parameters<typeof loadInstalledPlugins>[0],
+		runtime,
 		farmhandBaseDir,
 	);
 	if (loadSummary.loaded > 0 || loadSummary.skipped > 0) {
@@ -393,7 +396,7 @@ async function main() {
 		}
 
 		const captureTractor = {
-			plugins: tractor.plugins,
+			plugins: runtime.plugins,
 			storeNode: async (node: Record<string, unknown>) => {
 				status = node["task:status"] as "ok" | "error";
 				const rawResult = node["task:result"];
@@ -410,7 +413,7 @@ async function main() {
 			},
 		};
 
-		await executeTask(captureTractor as unknown as Parameters<typeof executeTask>[0], {
+		await executeTask(captureTractor, {
 			taskId: task.id,
 			effortId,
 			pluginId: task.pluginId,
@@ -445,8 +448,8 @@ async function main() {
 	console.log(`[farmhand] File transport watching ${farmhandBaseDir}/tasks/`);
 
 	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
-	httpSidecar.addRouteHandler(createSessionsRouteHandler(tractor));
-	httpSidecar.addRouteHandler(createPluginsRouteHandler(tractor, farmhandBaseDir, pluginTracker, localExtRegistry));
+	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
+	httpSidecar.addRouteHandler(createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
 
@@ -463,7 +466,7 @@ async function main() {
 	streamRegistry.register(fileStreamTransport);
 	streamRegistry.register(sseStreamTransport);
 	streamRegistry.register(wsStreamTransport);
-	tractor.onNode("StreamChunk", async (node) => {
+	runtime.onNode("StreamChunk", async (node) => {
 		streamRegistry.dispatch(toStreamChunk(node as Record<string, unknown>));
 	});
 	console.log(
@@ -471,7 +474,7 @@ async function main() {
 	);
 
 	// Write initial presence node (goes into LoroDoc, projected to read model)
-	await tractor.storeNode({
+	await runtime.storeNode({
 		"@context": "https://schema.refarm.dev/",
 		"@type": "FarmhandPresence",
 		"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
@@ -495,13 +498,13 @@ async function main() {
 	storage.onUpdate((bytes) => transport.broadcast(bytes));
 
 	// Subscribe to CRDT node changes via the high-level reactive API
-	tractor.onNode("PluginRoute", (node) => handlePluginRoute(tractor, node));
-	tractor.onNode("FarmhandTask", (node) => handleFarmhandTask(tractor, node));
+	runtime.onNode("PluginRoute", (node) => handlePluginRoute(runtime, node));
+	runtime.onNode("FarmhandTask", (node) => handleFarmhandTask(runtime, node));
 
 	// Periodic heartbeat: refresh FarmhandPresence every 30 seconds
 	const heartbeatTimer = setInterval(async () => {
 		try {
-			await tractor.storeNode({
+			await runtime.storeNode({
 				"@context": "https://schema.refarm.dev/",
 				"@type": "FarmhandPresence",
 				"@id": `urn:farmhand:presence:${FARMHAND_ID}`,
@@ -522,7 +525,7 @@ async function main() {
 		stopFileWatcher();
 		await httpSidecar.stop();
 		await transport.disconnect();
-		await tractor.shutdown?.();
+		await runtime.shutdown?.();
 		process.exit(0);
 	}
 

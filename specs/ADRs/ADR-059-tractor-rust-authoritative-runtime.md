@@ -31,6 +31,12 @@ but that package is a compatibility boundary, not the source of runtime truth.
 New runtime behavior lands in Rust first unless it is explicitly browser-only or
 npm-compatibility-only.
 
+Runtime-facing TypeScript consumers should depend on narrow host contracts from
+`@refarm.dev/runtime`, not on the full `Tractor` class. These contracts describe
+the minimum surface an orchestrator needs (`plugins.get`, `plugins.load`,
+`registry`, `storeNode`, `onNode`) and let farmhand, tests, and future Rust
+adapters converge without treating tractor-ts as the domain interface.
+
 ### TypeScript Boundary
 
 The TypeScript package should shrink toward a browser/compatibility boundary.
@@ -74,7 +80,7 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 
 | Consumer | Current use | Migration pressure |
 |---|---|---|
-| `apps/farmhand` | Boots `Tractor` and executes tasks through `plugins`/`storeNode`. | High: farmhand should delegate runtime execution to Rust tractor. |
+| `apps/farmhand` | Still boots `Tractor` during transition, but task execution, plugin loading, reload, and sidecar handlers consume `@refarm.dev/runtime` host contracts. | High: next step is replacing the bootstrap with Rust tractor delegation. |
 | `packages/homestead` | SDK/runtime shell, stream observers, plugin handles, browser-facing types. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
 | `apps/me` | Type-only plugin instance/runtime surfaces via Homestead. | Low: browser/client compatibility surface. |
 | `apps/dev` | Type-only plugin instance surfaces plus stream demo seeding. | Low/Medium: browser/client compatibility, but demo seeding should remain thin. |

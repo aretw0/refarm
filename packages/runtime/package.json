@@ -15,6 +15,9 @@
     "test": "vitest run",
     "lint": "eslint src"
   },
+  "dependencies": {
+    "@refarm.dev/plugin-manifest": "workspace:*"
+  },
   "devDependencies": {
     "@refarm.dev/eslint-config": "workspace:*",
     "@refarm.dev/tsconfig": "workspace:*",

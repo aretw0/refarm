@@ -3,20 +3,13 @@ import fs from "node:fs/promises";
 import type http from "node:http";
 import path from "node:path";
 import { installWasmArtifact, type PluginManifest } from "@refarm.dev/plugin-manifest";
+import type { RuntimePluginLoaderTarget } from "@refarm.dev/runtime";
 import { createFilesystemCacheAdapter } from "../filesystem-cache-adapter.js";
 import { listInstalledPluginIds, loadInstalledPlugins } from "../installed-plugins.js";
 import { LocalExtensionRegistry } from "../local-extensions.js";
 import type { PluginUsageTracker } from "../plugin-usage-tracker.js";
 
-export interface PluginReloadTarget {
-	registry: {
-		register(manifest: PluginManifest, sourceUrl?: string): Promise<string>;
-		trust(pluginId: string): Promise<void>;
-	};
-	plugins: {
-		load(manifest: PluginManifest): Promise<unknown>;
-	};
-}
+export type PluginReloadTarget = RuntimePluginLoaderTarget;
 
 const RELOAD_STATUS_TTL_MS = 5 * 60 * 1_000;
 
