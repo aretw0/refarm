@@ -78,6 +78,15 @@ function hasScript(pkg, ...names) {
   return names.every((n) => n in scripts);
 }
 
+function validateTestScriptRequiresTests(pkg) {
+  const violations = [];
+  const testScript = pkg.scripts?.test ?? "";
+  if (testScript.includes("--passWithNoTests")) {
+    violations.push('script "test" must not use --passWithNoTests unless package.json declares scaffold.type="exempt"');
+  }
+  return violations;
+}
+
 function noRawVitestDep(pkg) {
   const devDeps = pkg.devDependencies ?? {};
   return !("vitest" in devDeps);
@@ -263,6 +272,7 @@ for (const pkgDir of packageDirs) {
   else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
   else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
   else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
+  pkgViolations.push(...validateTestScriptRequiresTests(pkg));
 
   if (pkgViolations.length === 0) {
     console.log(`  ✓ ${name.padEnd(30)} ${type}`);
@@ -283,7 +293,10 @@ for (const appDir of appDirs) {
     exemptions++;
     continue;
   }
-  const appViolations = validateApp(appDir, pkg);
+  const appViolations = [
+    ...validateApp(appDir, pkg),
+    ...validateTestScriptRequiresTests(pkg),
+  ];
   if (appViolations.length === 0) {
     console.log(`  ✓ ${name.padEnd(30)} app`);
   } else {
