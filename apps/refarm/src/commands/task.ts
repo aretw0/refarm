@@ -23,7 +23,13 @@ interface TaskOperationsAdapter extends EffortTransportAdapter {
 	summary(): Promise<EffortSummary>;
 }
 
-const FINAL_STATUSES = new Set(["done", "failed", "cancelled"]);
+const FINAL_STATUSES = new Set([
+	"done",
+	"partial",
+	"failed",
+	"timed-out",
+	"cancelled",
+]);
 
 function baseSummary(): EffortSummary {
 	return {
@@ -31,7 +37,9 @@ function baseSummary(): EffortSummary {
 		pending: 0,
 		inProgress: 0,
 		done: 0,
+		partial: 0,
 		failed: 0,
+		timedOut: 0,
 		cancelled: 0,
 	};
 }
@@ -164,8 +172,14 @@ class FileTransportClient implements TaskOperationsAdapter {
 				case "done":
 					summary.done += 1;
 					break;
+				case "partial":
+					summary.partial += 1;
+					break;
 				case "failed":
 					summary.failed += 1;
+					break;
+				case "timed-out":
+					summary.timedOut += 1;
 					break;
 				case "cancelled":
 					summary.cancelled += 1;
@@ -510,7 +524,7 @@ export function createTaskCommand(
 
 			console.log(
 				chalk.bold(
-					`Efforts: total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} failed=${summary.failed} cancelled=${summary.cancelled}`,
+					`Efforts: total=${summary.total} pending=${summary.pending} in-progress=${summary.inProgress} done=${summary.done} partial=${summary.partial} failed=${summary.failed} timed-out=${summary.timedOut} cancelled=${summary.cancelled}`,
 				),
 			);
 			if (efforts.length === 0) {

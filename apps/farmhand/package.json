@@ -23,6 +23,7 @@
 		"lint": "eslint src"
 	},
 	"dependencies": {
+		"@refarm.dev/automation-contract-v1": "workspace:*",
 		"@refarm.dev/config": "workspace:*",
 		"@refarm.dev/effort-contract-v1": "workspace:*",
 		"@refarm.dev/file-stream-transport": "workspace:*",

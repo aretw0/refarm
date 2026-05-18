@@ -153,6 +153,9 @@ importers:
 
   apps/farmhand:
     dependencies:
+      '@refarm.dev/automation-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/automation-contract-v1
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -350,6 +353,25 @@ importers:
         version: 9.0.9
 
   packages/artefact-contract-v1:
+    devDependencies:
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
+
+  packages/automation-contract-v1:
+    dependencies:
+      '@refarm.dev/artefact-contract-v1':
+        specifier: workspace:*
+        version: link:../artefact-contract-v1
+      '@refarm.dev/effort-contract-v1':
+        specifier: workspace:*
+        version: link:../effort-contract-v1
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
