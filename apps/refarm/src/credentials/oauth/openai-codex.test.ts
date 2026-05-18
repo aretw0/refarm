@@ -4,7 +4,7 @@ import { openaiCodexOAuthProvider } from "./openai-codex.js";
 describe("openaiCodexOAuthProvider", () => {
 	it("has correct id and name", () => {
 		expect(openaiCodexOAuthProvider.id).toBe("openai-codex");
-		expect(openaiCodexOAuthProvider.name).toBe("ChatGPT Plus/Pro (OpenAI Codex)");
+		expect(openaiCodexOAuthProvider.name).toBe("OpenAI Codex (ChatGPT sign-in)");
 	});
 
 	it("uses callback server", () => {

@@ -118,7 +118,7 @@ export async function loginOpenAICodex(callbacks: OAuthLoginCallbacks): Promise<
 
 export const openaiCodexOAuthProvider: OAuthProviderInterface = {
 	id: "openai-codex",
-	name: "ChatGPT Plus/Pro (OpenAI Codex)",
+	name: "OpenAI Codex (ChatGPT sign-in)",
 	usesCallbackServer: true,
 	login: (callbacks) => loginOpenAICodex(callbacks),
 	refreshToken: (creds) => refreshCodexToken(creds.refresh),

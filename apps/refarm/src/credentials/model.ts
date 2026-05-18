@@ -18,14 +18,14 @@ export interface ModelCredential {
 
 // ── Subscription tier (OAuth PKCE, no API credits needed) ─────────────────────
 const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
-	anthropicOAuthProvider,
 	openaiCodexOAuthProvider,
+	anthropicOAuthProvider,
 ];
 
 // ── API key tier (paste + link) ───────────────────────────────────────────────
 const API_KEY_PROVIDERS = [
-	{ id: "anthropic",  label: "Anthropic API key",   envKey: "ANTHROPIC_API_KEY",  url: "https://console.anthropic.com/settings/keys" },
 	{ id: "openai",     label: "OpenAI API key",       envKey: "OPENAI_API_KEY",     url: "https://platform.openai.com/api-keys" },
+	{ id: "anthropic",  label: "Anthropic API key",   envKey: "ANTHROPIC_API_KEY",  url: "https://console.anthropic.com/settings/keys" },
 	{ id: "groq",       label: "Groq",                 envKey: "GROQ_API_KEY",       url: "https://console.groq.com/keys" },
 	{ id: "mistral",    label: "Mistral",              envKey: "MISTRAL_API_KEY",    url: "https://console.mistral.ai/api-keys" },
 	{ id: "gemini",     label: "Gemini (Google)",      envKey: "GEMINI_API_KEY",     url: "https://aistudio.google.com/app/apikey" },

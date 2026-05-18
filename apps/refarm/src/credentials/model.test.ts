@@ -109,6 +109,30 @@ describe("modelCredentialProvider — prompt config", () => {
 		expect(oauthIds).toContain("openai-codex");
 	});
 
+	it("offers OpenAI Codex before other subscription providers", async () => {
+		await modelCredentialProvider.collectModel(ctx);
+		const choices = capturedChoices();
+		const oauthIds = choices
+			.filter((c): c is { value: { kind: "oauth"; id: string } } =>
+				typeof c === "object" && c !== null && (c as { value?: { kind?: string } }).value?.kind === "oauth",
+			)
+			.map((c) => c.value.id);
+
+		expect(oauthIds[0]).toBe("openai-codex");
+	});
+
+	it("offers OpenAI API key before other API key providers", async () => {
+		await modelCredentialProvider.collectModel(ctx);
+		const choices = capturedChoices();
+		const apiIds = choices
+			.filter((c): c is { value: { kind: "api"; id: string } } =>
+				typeof c === "object" && c !== null && (c as { value?: { kind?: string } }).value?.kind === "api",
+			)
+			.map((c) => c.value.id);
+
+		expect(apiIds[0]).toBe("openai");
+	});
+
 	it("includes Ollama option", async () => {
 		await modelCredentialProvider.collectModel(ctx);
 		const choices = capturedChoices();
