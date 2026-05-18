@@ -21,8 +21,8 @@ export interface StaticBody {
 }
 
 /**
- * String-interpolated template — `direction` and string-valued args support
- * `{{varName}}` placeholders. The adapter substitutes from the trigger `input`.
+ * String-interpolated template — `direction` supports `{{varName}}` placeholders
+ * that the adapter substitutes from the trigger `input`.
  */
 export interface TemplateBody {
 	type: "template";

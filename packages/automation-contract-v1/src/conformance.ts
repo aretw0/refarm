@@ -15,8 +15,10 @@ export async function runAutomationV1Conformance(
 	adapter: AutomationAdapter,
 ): Promise<AutomationConformanceResult> {
 	const failures: string[] = [];
+	let ran = 0;
 
 	function check(label: string, condition: boolean): void {
+		ran++;
 		if (!condition) failures.push(label);
 	}
 
@@ -32,7 +34,7 @@ export async function runAutomationV1Conformance(
 		);
 	} catch (e) {
 		failures.push(`create() threw: ${String(e)}`);
-		return { pass: false, total: 14, failed: failures.length, failures };
+		return { pass: false, total: ran, failed: failures.length, failures };
 	}
 
 	// 2. get(unknown) returns null
@@ -169,5 +171,5 @@ export async function runAutomationV1Conformance(
 	}
 
 	const failed = failures.length;
-	return { pass: failed === 0, total: 14, failed, failures };
+	return { pass: failed === 0, total: ran, failed, failures };
 }
