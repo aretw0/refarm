@@ -1,9 +1,5 @@
 {
 	"name": "@refarm.dev/node-contract-v1",
-	"scaffold": {
-		"type": "exempt",
-		"reason": "structural types only (GraphNode base interface) — extended by domain contracts; no runtime adapter surface to validate"
-	},
 	"version": "0.1.0",
 	"private": true,
 	"description": "Base GraphNode interface — shared fields for all typed nodes in the Refarm sovereign data graph",
@@ -20,7 +16,7 @@
 		"build": "tsc --project tsconfig.build.json",
 		"dev": "tsc --project tsconfig.build.json --watch",
 		"type-check": "tsc --noEmit",
-		"test": "vitest run --passWithNoTests",
+		"test": "vitest run",
 		"clean": "rm -rf dist",
 		"lint": "eslint src"
 	},

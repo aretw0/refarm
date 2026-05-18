@@ -30,16 +30,28 @@ function classifyPackage(pkgDir) {
   const main = pkg.main ?? "";
   const exports = pkg.exports ?? {};
 
+  if (hasCargo && scripts["build:wasm"] && scripts["build:jco"]) return { type: "wasm-jco-component", pkg };
   if (hasCargo && scripts["build:wasm"]) return { type: "wasm-component", pkg };
   if (hasCargo) return { type: "rust-only" };
 
   const buildScript = scripts.build ?? "";
 
-  // Contracts: buildable packages that OWN a conformance suite definition (src/conformance.ts).
+  // Behavioral contracts own a conformance suite definition (src/conformance.ts).
   // Adapter packages run test:conformance against imported suites — they classify as buildable.
+  // Structural contracts are private type-shape packages without a runtime adapter surface.
   const hasOwnConformanceDef =
     existsSync(join(pkgDir, "src/conformance.ts")) || existsSync(join(pkgDir, "src/conformance.js"));
   if (main.startsWith("./dist/") && hasOwnConformanceDef && buildScript.includes("tsc")) return { type: "contract-v1", pkg };
+  if (
+    pkg.private === true &&
+    typeof pkg.name === "string" &&
+    pkg.name.endsWith("-contract-v1") &&
+    main.startsWith("./dist/") &&
+    buildScript.includes("tsc") &&
+    !scripts["test:conformance"]
+  ) {
+    return { type: "structural-contract-v1", pkg };
+  }
 
   if (/^\.\/src\/.+\.ts$/.test(main)) return { type: "source-only", pkg };
   if (/^\.\/src\/.+\.(mjs|js)$/.test(main)) return { type: "js-tool", pkg };
@@ -172,6 +184,22 @@ function validateContractV1(pkgDir, pkg) {
   return violations;
 }
 
+function validateStructuralContractV1(pkgDir, pkg) {
+  const violations = validateBuildable(pkgDir, pkg);
+
+  if (hasScript(pkg, "test:conformance")) {
+    violations.push('script "test:conformance" must not be declared for structural-contract-v1');
+  }
+
+  const hasOwnConformanceDef =
+    existsSync(join(pkgDir, "src/conformance.ts")) || existsSync(join(pkgDir, "src/conformance.js"));
+  if (hasOwnConformanceDef) {
+    violations.push("src/conformance.* present — use contract-v1 scaffold instead");
+  }
+
+  return violations;
+}
+
 function validateSourceOnly(pkgDir, pkg) {
   const violations = [];
 
@@ -201,6 +229,19 @@ function validateWasmComponent(pkgDir, pkg) {
   if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
   if (!pkg.scripts?.["build:transpile"]) violations.push('script "build:transpile" missing');
   if (!pkg.scripts?.build) violations.push('script "build" missing');
+
+  return violations;
+}
+
+function validateWasmJcoComponent(pkgDir, pkg) {
+  const violations = [];
+
+  if (!existsSync(join(pkgDir, "Cargo.toml"))) violations.push("Cargo.toml missing");
+  if (!pkg.scripts?.["build:wasm"]) violations.push('script "build:wasm" missing');
+  if (!pkg.scripts?.["build:jco"]) violations.push('script "build:jco" missing');
+  if (!pkg.scripts?.build) violations.push('script "build" missing');
+  if (!pkg.scripts?.test) violations.push('script "test" missing');
+  if (!pkg.scripts?.["test:unit"]) violations.push('script "test:unit" missing');
 
   return violations;
 }
@@ -277,9 +318,11 @@ for (const pkgDir of packageDirs) {
 
   let pkgViolations = [];
   if (type === "contract-v1") pkgViolations = validateContractV1(pkgDir, pkg);
+  else if (type === "structural-contract-v1") pkgViolations = validateStructuralContractV1(pkgDir, pkg);
   else if (type === "buildable" || type === "ui-library") pkgViolations = validateBuildable(pkgDir, pkg);
   else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
   else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
+  else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
   else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
   else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
   pkgViolations.push(...validateTestScriptRequiresTests(pkg));

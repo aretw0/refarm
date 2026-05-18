@@ -532,6 +532,12 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/file-stream-transport:
     dependencies:
@@ -1132,6 +1138,12 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/toolbox:
     devDependencies:

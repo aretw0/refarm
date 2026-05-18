@@ -1,9 +1,5 @@
 {
 	"name": "@refarm.dev/pi-agent",
-	"scaffold": {
-		"type": "exempt",
-		"reason": "uses build:jco instead of build:transpile — non-standard WASM transpile pipeline"
-	},
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",

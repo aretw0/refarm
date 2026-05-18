@@ -1,9 +1,5 @@
 {
 	"name": "@refarm.dev/policy-contract-v1",
-	"scaffold": {
-		"type": "exempt",
-		"reason": "structural types only (RetentionPolicy, QuotaPolicy, EvictionPolicy) — configuration shapes without runtime behavior to validate"
-	},
 	"version": "0.1.0",
 	"private": true,
 	"description": "Provider-neutral asset lifecycle policy contracts — retention, quotas, eviction",
