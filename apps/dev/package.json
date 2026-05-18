@@ -12,7 +12,7 @@
 		"lint:prepush": "pnpm run astro:check",
 		"type-check": "pnpm run astro:check && tsc --project tsconfig.json --noEmit",
 		"type-check:dist": "pnpm run astro:check && tsc --project tsconfig.build.json --noEmit",
-		"test": "vitest run --passWithNoTests",
+		"test": "vitest run",
 		"test:watch": "vitest",
 		"clean": "rm -rf dist .astro"
 	},
