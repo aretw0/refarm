@@ -25,7 +25,7 @@ import { webCommand } from "./commands/web.js";
 
 export const program = new Command();
 
-interface LazyCommandOption<TOptions extends Record<string, unknown>> {
+interface LazyCommandOption {
 	flags: string;
 	description: string;
 }
@@ -34,7 +34,7 @@ interface LazyCommandConfig<TOptions extends Record<string, unknown>> {
 	name: string;
 	description: string;
 	argument?: { flags: string; description: string; defaultValue?: string };
-	options?: LazyCommandOption<TOptions>[];
+	options?: LazyCommandOption[];
 	load: () => Promise<Command>;
 	toArgs: (argument: string | undefined, options: TOptions) => string[];
 }

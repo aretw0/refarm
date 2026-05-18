@@ -13,8 +13,8 @@ export type TurboCacheRequirementKind =
 	| "http-endpoint"
 	| "bearer-auth";
 
-export interface TurboCacheRequirement
-	extends ManagedResourceRequirement<TurboCacheRequirementKind> {}
+export type TurboCacheRequirement =
+	ManagedResourceRequirement<TurboCacheRequirementKind>;
 
 export interface TurboCacheServicePlan
 	extends ManagedServicePlan<

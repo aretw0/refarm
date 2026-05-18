@@ -29,8 +29,8 @@ export interface CloudflareTurboCacheProvisionInput {
 	dryRun?: boolean;
 }
 
-export interface CloudflareTurboCacheProvisionPlan
-	extends CloudflareProvisionPlan<TurboCacheServicePlan> {}
+export type CloudflareTurboCacheProvisionPlan =
+	CloudflareProvisionPlan<TurboCacheServicePlan>;
 
 export interface CloudflareTurboCacheProvisionOutput {
 	workerUrl: string;
@@ -125,7 +125,7 @@ export class CloudflareTurboCacheProvisioner {
 		const candidate = `cf-${this.provider.accountId.slice(0, 20)}`;
 		try {
 			await this.provider.registerWorkersSubdomain(candidate);
-		} catch (err) {
+		} catch (_err) {
 			// Name conflict (already taken globally) — ask the operator to pick one.
 			const url = `https://dash.cloudflare.com/${this.provider.accountId}/workers-and-pages`;
 			throw new Error(
