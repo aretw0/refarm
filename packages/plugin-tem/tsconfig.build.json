@@ -10,9 +10,6 @@
 		"paths": {
 			"@refarm.dev/plugin-manifest": [
 				"./packages/plugin-manifest/dist/index.d.ts"
-			],
-			"@refarm.dev/tractor": [
-				"./packages/tractor/dist/index.d.ts"
 			]
 		}
 	},
