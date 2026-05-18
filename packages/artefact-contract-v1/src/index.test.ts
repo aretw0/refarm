@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canTransition, ARTEFACT_TERMINAL_STATES } from "./types.js";
+import { ARTEFACT_CAPABILITY, canTransition, ARTEFACT_TERMINAL_STATES } from "./types.js";
 
 describe("canTransition", () => {
   it("draft → ready is valid", () => expect(canTransition("draft", "ready")).toBe(true));
@@ -23,4 +23,8 @@ describe("ARTEFACT_TERMINAL_STATES", () => {
     expect(ARTEFACT_TERMINAL_STATES.has("archived")).toBe(true);
     expect(ARTEFACT_TERMINAL_STATES.size).toBe(1);
   });
+});
+
+describe("ARTEFACT_CAPABILITY", () => {
+  it("is artefact:v1", () => expect(ARTEFACT_CAPABILITY).toBe("artefact:v1"));
 });
