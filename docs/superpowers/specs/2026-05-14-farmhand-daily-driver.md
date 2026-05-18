@@ -38,9 +38,8 @@ specific and small.
 - **`refarm doctor`** — deterministic health audit (filesystem, builds, alignment)
 - **`checkSessionReadiness()`** — probes farmhand, detects provider config; the
   readiness plumbing already exists in `session-launch.ts`
-- **Farmhand auto-start** — `session-launch.ts` can start Farmhand, poll until
-  ready, and respect `autostart` policy from config or
-  `REFARM_FARMHAND_AUTOSTART`
+- **`spawnFarmhand()`** in `LaunchDeps` — interface already defined; the auto-start
+  confirmation flow is stubbed for testing
 
 ### What's missing (the gaps)
 
@@ -48,8 +47,7 @@ specific and small.
 
 ## Gap 1 — Farmhand auto-start (ADR-065 Phase 1)
 
-**Status**: implemented locally; hardening continues through policy and
-restart/reconnect behavior.
+**Status**: ADR accepted, implementation pending.
 
 When `refarm chat` runs and farmhand is not on `:42001`, the user gets a raw
 `fetch` connection refused error. The fix is in `session-launch.ts`:
@@ -66,17 +64,15 @@ refarm ▸ _
 
 **Implementation contract** (from ADR-065):
 - Confirm before starting — no silent background processes
-- Respect explicit policy — `.refarm/config.json` or
-  `REFARM_FARMHAND_AUTOSTART=always|ask|never`
 - Detached spawn via `spawn('node', [...], { detached: true, stdio: 'ignore' })`
 - Poll `GET /efforts/summary` every 300ms, max 10s, show elapsed time
 - Fallback on timeout: print manual instructions, exit 1
 - `LaunchDeps` interface is already defined in `session-launch.ts` — inject
   real implementations in `chat.ts`, stub them in tests
 
-**Files touched**: `apps/refarm/src/commands/session-launch.ts` implements the
-policy and `apps/refarm/src/commands/session.ts` calls it before entering the
-REPL loop.
+**Files to touch**: `apps/refarm/src/commands/session-launch.ts` (implement
+the stub), `apps/refarm/src/commands/chat.ts` (call `autoStartFarmhand()`
+before entering the REPL loop).
 
 ---
 

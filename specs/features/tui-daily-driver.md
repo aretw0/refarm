@@ -24,7 +24,10 @@ The `ask` command already establishes this pattern through the `AskDeps` interfa
 - `addRouteHandler` in `HttpSidecar` is the clean extension point for the `/plugins/reload` endpoint
 - Multiple consumers (chat + web studio + scripts) can coexist without restart
 
-**Implication for `refarm chat`**: it MUST require farmhand to be running (same guard as `ask`). The REPL does not boot farmhand itself.
+**Implication for `refarm chat`**: it is a client of the Farmhand sidecar, but
+the user-facing launcher may make Farmhand lifecycle transparent. If Farmhand is
+not running, launch policy is controlled by `.refarm/config.json` `autostart`
+or `REFARM_FARMHAND_AUTOSTART=always|ask|never`; the default is `ask`.
 
 ---
 
@@ -58,9 +61,14 @@ The `ask` command already establishes this pattern through the `AskDeps` interfa
    **When** user runs `refarm chat` again
    **Then** the previous session ID is restored from session-lock, preserving history
 
-5. **Given** farmhand is NOT running
+5. **Given** farmhand is NOT running and autostart policy is `never`
    **When** user runs `refarm chat`
-   **Then** an actionable error is printed (same as `ask`) and process exits 1
+   **Then** an actionable error is printed and process exits 1
+
+6. **Given** farmhand is NOT running and autostart policy is `ask` or `always`
+   **When** user runs `refarm chat`
+   **Then** the launcher asks or starts according to policy, polls readiness,
+   and enters the REPL only after Farmhand is ready
 
 ---
 
