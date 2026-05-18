@@ -25,6 +25,49 @@ The farmhand daemon evolves into an **orchestration shell** that delegates WASM 
 - HTTP sidecar proxying
 - Process lifecycle management
 
+`@refarm.dev/tractor` may continue to be published from `packages/tractor-ts`
+for npm compatibility, browser-native flows, and existing TypeScript consumers,
+but that package is a compatibility boundary, not the source of runtime truth.
+New runtime behavior lands in Rust first unless it is explicitly browser-only or
+npm-compatibility-only.
+
+### TypeScript Boundary
+
+The TypeScript package should shrink toward a browser/compatibility boundary.
+Its transitional scaffold is now represented by `hybrid-bindings-package`: it
+publishes from `dist/src/*`, emits `src/**/*` plus `test/test-utils.ts`, and
+keeps `./test/test-utils` as an explicit test utility export.
+
+Responsibilities that remain natural in TypeScript:
+
+- Browser entrypoint and browser plugin loading policy.
+- OPFS plugin cache and browser runtime module cache.
+- Browser runtime descriptor install/verification flows.
+- Compatibility exports for existing npm consumers.
+- Thin test utilities used by TypeScript packages.
+- Pure projection helpers consumed directly by UI/client code, if they remain
+  dependency-light and runtime-neutral.
+
+Responsibilities that should not grow further in tractor-ts:
+
+- Native plugin host orchestration.
+- WASI import surface and bridge behavior.
+- Trust policy enforcement for native execution.
+- Runtime telemetry bus as source of truth.
+- Storage/sync lifecycle and daemon lifecycle.
+- Core command/identity boot behavior when used as runtime driver.
+
+Rust already owns the target implementations for these areas in
+`packages/tractor`:
+
+- `host/plugin_host/*`
+- `host/wasi_bridge/*`
+- `trust/mod.rs`
+- `storage/sqlite.rs`
+- `sync/loro.rs`
+- `telemetry/mod.rs`
+- `daemon/ws_server.rs`
+
 ## Consequences
 
 ### What changes
