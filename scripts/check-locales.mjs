@@ -8,77 +8,49 @@
 import fs from 'fs';
 import path from 'path';
 
-const LOCALES_DIR = path.join(process.cwd(), 'locales');
-const SUPPORTED_LOCALES = ['pt-BR', 'en', 'es'];
+import {
+  checkLocales,
+  DEFAULT_SUPPORTED_LOCALES,
+} from './check-locales-lib.mjs';
 
-function flattenKeys(obj, prefix = '') {
-  let keys = [];
-  
-  for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    
-    if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
-      keys = keys.concat(flattenKeys(value, fullKey));
-    } else {
-      keys.push(fullKey);
-    }
-  }
-  
-  return keys;
-}
+const LOCALES_DIR = path.join(process.cwd(), 'locales');
+const SUPPORTED_LOCALES = DEFAULT_SUPPORTED_LOCALES;
 
 function main() {
   console.log('🌍 Checking i18n locale files...\n');
-  
-  // Load all locales
-  const locales = {};
-  const localeKeys = {};
-  
-  for (const locale of SUPPORTED_LOCALES) {
-    const filePath = path.join(LOCALES_DIR, `${locale}.json`);
-    
-    if (!fs.existsSync(filePath)) {
-      console.error(`❌ Missing locale file: ${locale}.json`);
-      process.exit(1);
-    }
-    
-    const content = fs.readFileSync(filePath, 'utf-8');
-    locales[locale] = JSON.parse(content);
-    localeKeys[locale] = new Set(flattenKeys(locales[locale]));
+
+  if (!fs.existsSync(LOCALES_DIR)) {
+    console.error(`❌ Missing locales directory: ${LOCALES_DIR}`);
+    process.exit(1);
   }
-  
-  // Check for differences
-  const baseLocale = SUPPORTED_LOCALES[0];
-  const baseKeys = localeKeys[baseLocale];
-  let hasErrors = false;
-  
-  for (const locale of SUPPORTED_LOCALES.slice(1)) {
-    const currentKeys = localeKeys[locale];
-    
-    // Check for missing keys
-    const missingKeys = [...baseKeys].filter(k => !currentKeys.has(k));
+
+  let result;
+  try {
+    result = checkLocales(LOCALES_DIR, SUPPORTED_LOCALES);
+  } catch (error) {
+    console.error(`❌ ${error.message}`);
+    process.exit(1);
+  }
+
+  for (const { locale, missingKeys, extraKeys } of result.differences) {
     if (missingKeys.length > 0) {
-      console.error(`⚠️  ${locale} missing keys from ${baseLocale}:`);
+      console.error(`⚠️  ${locale} missing keys from ${result.baseLocale}:`);
       missingKeys.forEach(k => console.error(`   - ${k}`));
-      hasErrors = true;
     }
-    
-    // Check for extra keys
-    const extraKeys = [...currentKeys].filter(k => !baseKeys.has(k));
+
     if (extraKeys.length > 0) {
-      console.error(`⚠️  ${locale} has extra keys not in ${baseLocale}:`);
+      console.error(`⚠️  ${locale} has extra keys not in ${result.baseLocale}:`);
       extraKeys.forEach(k => console.error(`   - ${k}`));
-      hasErrors = true;
     }
   }
-  
-  if (hasErrors) {
+
+  if (result.differences.length > 0) {
     console.error('\n❌ Locale files are out of sync');
     process.exit(1);
   } else {
     console.log(`✅ All locale files synchronized`);
-    console.log(`📊 Total keys: ${baseKeys.size}`);
-    console.log(`🗣️  Locales: ${SUPPORTED_LOCALES.join(', ')}`);
+    console.log(`📊 Total keys: ${result.baseKeyCount}`);
+    console.log(`🗣️  Locales: ${result.supportedLocales.join(', ')}`);
   }
 }
 
