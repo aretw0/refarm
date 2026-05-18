@@ -15,6 +15,7 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
+import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
@@ -389,25 +390,13 @@ async function runTurn(
 	const entries = await registry.collect({ cwd: process.cwd(), query });
 	const system = buildSystemPrompt(entries);
 
-	const effort: Effort = {
-		id: crypto.randomUUID(),
-		direction: "ask",
-		tasks: [
-			{
-				id: crypto.randomUUID(),
-				pluginId: "@refarm/pi-agent",
-				fn: "respond",
-				args: {
-					prompt: query,
-					system,
-					session_id: sessionId,
-					history_turns: DEFAULT_HISTORY_TURNS,
-				},
-			},
-		],
+	const effort = createPiAgentRespondEffort({
+		prompt: query,
+		system,
+		sessionId,
 		source: "refarm-chat",
-		submittedAt: new Date().toISOString(),
-	};
+		historyTurns: DEFAULT_HISTORY_TURNS,
+	});
 
 	const submittedAtMs = Date.now();
 	const effortId = await deps.submitEffort(effort);

@@ -14,6 +14,7 @@ import type { Effort } from "@refarm.dev/effort-contract-v1";
 import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
+import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
 	clearActiveSessionId,
@@ -502,25 +503,13 @@ export function createAskCommand(deps?: AskDeps): Command {
 				const entries = await registry.collect({ cwd: process.cwd(), query });
 				const system = buildSystemPrompt(entries);
 
-				const effort: Effort = {
-					id: crypto.randomUUID(),
-					direction: "ask",
-					tasks: [
-						{
-							id: crypto.randomUUID(),
-							pluginId: "@refarm/pi-agent",
-							fn: "respond",
-							args: {
-								prompt: query,
-								system,
-								session_id: sessionId,
-								history_turns: DEFAULT_HISTORY_TURNS,
-							},
-						},
-					],
+				const effort = createPiAgentRespondEffort({
+					prompt: query,
+					system,
+					sessionId,
 					source: "refarm-ask",
-					submittedAt: new Date().toISOString(),
-				};
+					historyTurns: DEFAULT_HISTORY_TURNS,
+				});
 
 				console.log(chalk.bold.cyan(`pi-agent ▸ ${query}\n`));
 
