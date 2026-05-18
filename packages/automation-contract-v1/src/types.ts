@@ -108,10 +108,10 @@ export interface AutomationAdapter {
 
 	get(id: string): Promise<Automation | null>;
 
-	/** Status changes are only allowed via the transition methods below. */
+	/** Status changes are only allowed via the transition methods below. updatedAt is managed by the adapter. */
 	update(
 		id: string,
-		patch: Partial<Omit<Automation, "id" | "createdAt" | "status">>,
+		patch: Partial<Omit<Automation, "id" | "createdAt" | "updatedAt" | "status">>,
 	): Promise<Automation>;
 
 	delete(id: string): Promise<void>;
