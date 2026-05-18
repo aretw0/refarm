@@ -134,7 +134,7 @@ export function createInMemoryAutomationAdapter(
 			const { body } = automation;
 
 			if (body.type === "static") {
-				return bakeEffort(body.effort, input);
+				return { id: crypto.randomUUID(), submittedAt: nowIso(), ...body.effort };
 			}
 
 			if (body.type === "template") {

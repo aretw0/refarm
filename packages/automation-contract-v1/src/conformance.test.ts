@@ -99,6 +99,16 @@ describe("createInMemoryAutomationAdapter — trigger", () => {
 		expect(effort!.direction).toBe("hello World");
 	});
 
+	it("trigger(active) does NOT interpolate static body placeholders", async () => {
+		const bodyWithPlaceholder = { type: "static" as const, effort: { direction: "hello {{name}}", tasks: [] } };
+		const adapter = createInMemoryAutomationAdapter({ body: bodyWithPlaceholder });
+		const a = await adapter.create({ name: "test", body: bodyWithPlaceholder, triggers: [{ type: "manual" }] });
+		await adapter.validate(a.id);
+		await adapter.activate(a.id);
+		const effort = await adapter.trigger(a.id, { name: "World" });
+		expect(effort!.direction).toBe("hello {{name}}");
+	});
+
 	it("trigger(draft) returns null", async () => {
 		const adapter = createInMemoryAutomationAdapter();
 		const a = await adapter.create({ name: "test", body: STATIC_BODY, triggers: [{ type: "manual" }] });
