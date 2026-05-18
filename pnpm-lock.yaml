@@ -113,6 +113,9 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@refarm.dev/scarecrow':
         specifier: workspace:*
         version: link:../../packages/scarecrow
@@ -125,9 +128,6 @@ importers:
       '@refarm.dev/sync-loro':
         specifier: workspace:*
         version: link:../../packages/sync-loro
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../../packages/tractor-ts
       '@refarm.me/identity-nostr':
         specifier: workspace:*
         version: link:../../packages/identity-nostr
@@ -235,15 +235,15 @@ importers:
       '@refarm.dev/homestead':
         specifier: workspace:*
         version: link:../../packages/homestead
+      '@refarm.dev/runtime':
+        specifier: workspace:*
+        version: link:../../packages/runtime
       '@refarm.dev/storage-sqlite':
         specifier: workspace:*
         version: link:../../packages/storage-sqlite
       '@refarm.dev/sync-loro':
         specifier: workspace:*
         version: link:../../packages/sync-loro
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../../packages/tractor-ts
       astro:
         specifier: ^6.2.2
         version: 6.3.2(@types/node@25.8.0)(jiti@1.21.7)(lightningcss@1.32.0)(rollup@4.60.3)(terser@5.47.1)(yaml@2.9.0)

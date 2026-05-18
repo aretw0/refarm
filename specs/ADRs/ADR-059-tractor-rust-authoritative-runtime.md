@@ -82,8 +82,8 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 |---|---|---|
 | `apps/farmhand` | Still boots `Tractor` during transition, but task execution, plugin loading, reload, and sidecar handlers consume `@refarm.dev/runtime` host contracts. | High: next step is replacing the bootstrap with Rust tractor delegation. |
 | `packages/homestead` | SDK/runtime shell, stream observers, plugin handles, browser-facing types. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
-| `apps/me` | Type-only plugin instance/runtime surfaces via Homestead. | Low: browser/client compatibility surface. |
-| `apps/dev` | Type-only plugin instance surfaces plus stream demo seeding. | Low/Medium: browser/client compatibility, but demo seeding should remain thin. |
+| `apps/me` | Consumes Homestead runtime and `@refarm.dev/runtime` plugin-handle types; no direct tractor-ts dependency remains. | Low: browser runtime still arrives through Homestead until that boundary is redesigned. |
+| `apps/dev` | Consumes Homestead runtime and `@refarm.dev/runtime` plugin-handle/node-store types for diagnostics and stream demos; no direct tractor-ts dependency remains. | Low/Medium: browser runtime still arrives through Homestead, but app fixtures no longer type against tractor-ts. |
 | `packages/sower` | Plugin class depends on `@refarm.dev/runtime` host capabilities (`emitTelemetry`, `switchTier`) and runtime node types. | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
 | `packages/scarecrow` | Plugin class and tests depend on `@refarm.dev/runtime` host capabilities (`observe`, `queryNodes`, `setPluginState`, `emitTelemetry`). | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
 | `packages/plugin-courier` | Production code depends on `@refarm.dev/runtime` query capability; integration tests still boot tractor-ts as a compatibility fixture. | Medium: tests should move toward Rust-backed or narrow host fixtures. |

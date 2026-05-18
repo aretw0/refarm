@@ -11,7 +11,9 @@ export function createNullRuntimeSummary(): RuntimeSummary {
 export type {
   RuntimeHost,
   RuntimeNode,
+  RuntimeNodeStoreTarget,
   RuntimeObserverTarget,
+  RuntimePluginHandle,
   RuntimePluginHost,
   RuntimePluginInstance,
   RuntimePluginLoader,
@@ -20,6 +22,7 @@ export type {
   RuntimePluginReader,
   RuntimePluginRegistry,
   RuntimePluginStateTarget,
+  RuntimePluginState,
   RuntimeQueryTarget,
   RuntimeTaskTarget,
   RuntimeTelemetryEvent,

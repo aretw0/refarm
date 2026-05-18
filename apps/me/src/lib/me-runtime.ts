@@ -1,7 +1,7 @@
 import type { HomesteadHostRendererDescriptor } from "@refarm.dev/homestead/sdk/host-renderer";
 import { bootStudioRuntime } from "@refarm.dev/homestead/sdk/runtime";
 import type { setupStudioShell } from "@refarm.dev/homestead/sdk/shell";
-import type { PluginInstance } from "@refarm.dev/tractor";
+import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { REFARM_ME_WEB_RENDERER } from "./me-renderers";
 import {
 	createRefarmMeSurfaceActionHandler,
@@ -125,7 +125,7 @@ function registerRefarmMeSurfacePlugins(
 		tractor.emitTelemetry({ event, payload, pluginId });
 	const plugins = createSurfacePlugins(emitTelemetry);
 	for (const plugin of plugins) {
-		tractor.plugins.registerInternal(plugin as PluginInstance);
+		tractor.plugins.registerInternal(plugin as RuntimePluginHandle);
 	}
 	return plugins.map((plugin) => plugin.id);
 }

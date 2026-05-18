@@ -1,4 +1,4 @@
-import type { PluginInstance } from "@refarm.dev/tractor";
+import type { RuntimePluginHandle } from "@refarm.dev/runtime";
 import { createHomesteadSurfacePluginHandle } from "@refarm.dev/homestead/sdk/plugin-handle";
 import {
 	createHomesteadSurfaceRenderActionRequest,
@@ -35,7 +35,7 @@ export interface RefarmMePersonalSurfaceActionResolution {
 
 export function createRefarmMeSurfacePlugins(
 	emitTelemetry: RefarmMeSurfaceTelemetry = () => {},
-): PluginInstance[] {
+): RuntimePluginHandle[] {
 	return [
 		createHomesteadSurfacePluginHandle({
 			id: REFARM_ME_PERSONAL_SURFACE_PLUGIN_ID,

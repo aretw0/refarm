@@ -16,9 +16,9 @@
 	},
 	"dependencies": {
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
-		"@refarm.dev/tractor": "workspace:*",
 		"astro": "^6.2.2"
 	},
 	"devDependencies": {

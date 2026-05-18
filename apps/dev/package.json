@@ -19,11 +19,11 @@
 	"dependencies": {
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/homestead": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/scarecrow": "workspace:*",
 		"@refarm.dev/sower": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
-		"@refarm.dev/tractor": "workspace:*",
 		"@refarm.me/identity-nostr": "workspace:*",
 		"astro": "^6.2.2"
 	},

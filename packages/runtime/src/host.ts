@@ -15,6 +15,22 @@ export interface RuntimePluginInstance {
 	call(fn: string, args?: unknown): Promise<unknown>;
 }
 
+export type RuntimePluginState =
+	| "idle"
+	| "running"
+	| "hot"
+	| "throttled"
+	| "error";
+
+export interface RuntimePluginHandle extends RuntimePluginInstance {
+	id: string;
+	name: string;
+	manifest: RuntimePluginManifest;
+	emitTelemetry(event: string, payload?: unknown): void;
+	state: RuntimePluginState;
+	terminate(): void;
+}
+
 export interface RuntimePluginHost {
 	get(pluginId: string): RuntimePluginInstance | undefined;
 	load(manifest: RuntimePluginManifest): Promise<unknown>;
@@ -31,7 +47,11 @@ export type RuntimePluginLoader = Pick<RuntimePluginHost, "load">;
 
 export interface RuntimeTaskTarget {
 	plugins: RuntimePluginReader;
-	storeNode(node: RuntimeNode): Promise<void>;
+	storeNode(node: RuntimeNode, mode?: string): Promise<void>;
+}
+
+export interface RuntimeNodeStoreTarget {
+	storeNode(node: RuntimeNode, mode?: string): Promise<void>;
 }
 
 export interface RuntimePluginLoaderTarget {
@@ -42,7 +62,7 @@ export interface RuntimePluginLoaderTarget {
 export interface RuntimeHost {
 	plugins: RuntimePluginReader & RuntimePluginLoader;
 	registry: RuntimePluginRegistry;
-	storeNode(node: RuntimeNode): Promise<void>;
+	storeNode(node: RuntimeNode, mode?: string): Promise<void>;
 	queryNodes<T extends RuntimeNode = RuntimeNode>(type: string): Promise<T[]>;
 	onNode(type: string, handler: (node: RuntimeNode) => void | Promise<void>): void;
 	shutdown?: () => Promise<void>;
