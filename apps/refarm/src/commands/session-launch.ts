@@ -87,6 +87,9 @@ function detectProvider(): boolean {
 
 /** Read autostart preference from the nearest .refarm/config.json. */
 export function readAutostartMode(): AutostartMode {
+	const envMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
+	if (envMode) return envMode;
+
 	for (const base of refarmSearchDirs()) {
 		const configFile = path.join(base, "config.json");
 		if (!fs.existsSync(configFile)) continue;
@@ -94,14 +97,18 @@ export function readAutostartMode(): AutostartMode {
 			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
 				autostart?: string;
 			};
-			if (config.autostart === "always" || config.autostart === "never") {
-				return config.autostart;
-			}
+			const configMode = parseAutostartMode(config.autostart);
+			if (configMode) return configMode;
 		} catch {
 			// ignore malformed config
 		}
 	}
 	return "ask";
+}
+
+function parseAutostartMode(value: string | undefined): AutostartMode | null {
+	if (value === "always" || value === "ask" || value === "never") return value;
+	return null;
 }
 
 /** Compute the monorepo root from this file's location. */

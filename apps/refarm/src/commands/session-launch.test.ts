@@ -12,6 +12,22 @@ import {
 	type LaunchDeps,
 } from "./session-launch.js";
 
+let stdoutWriteSpy: ReturnType<typeof vi.spyOn>;
+let stderrWriteSpy: ReturnType<typeof vi.spyOn>;
+let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+beforeEach(() => {
+	stdoutWriteSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+	stderrWriteSpy = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+	consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+});
+
+afterEach(() => {
+	stdoutWriteSpy.mockRestore();
+	stderrWriteSpy.mockRestore();
+	consoleErrorSpy.mockRestore();
+});
+
 describe("isSessionReady", () => {
 	it("returns true when both provider and farmhand are ready", () => {
 		expect(
@@ -48,6 +64,7 @@ describe("isFirstRun", () => {
 	});
 
 	afterEach(() => {
+		delete process.env.REFARM_FARMHAND_AUTOSTART;
 		process.env.HOME = originalHome;
 		cwdSpy.mockRestore();
 	});
@@ -176,6 +193,43 @@ describe("readAutostartMode", () => {
 	it("returns 'ask' when no config file exists", () => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		expect(readAutostartMode()).toBe("ask");
+	});
+
+	it("returns the env override when REFARM_FARMHAND_AUTOSTART is set", () => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		process.env.REFARM_FARMHAND_AUTOSTART = "never";
+
+		expect(readAutostartMode()).toBe("never");
+	});
+
+	it("lets the env override force ask even when config says always", () => {
+		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "always" }));
+		cwdSpy.mockReturnValue(tmpBase);
+		process.env.REFARM_FARMHAND_AUTOSTART = "ask";
+
+		try {
+			expect(readAutostartMode()).toBe("ask");
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
+
+	it("ignores unrecognized env overrides and falls back to config", () => {
+		const tmpBase = join(tmpdir(), `refarm-autostart-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "never" }));
+		cwdSpy.mockReturnValue(tmpBase);
+		process.env.REFARM_FARMHAND_AUTOSTART = "sometimes";
+
+		try {
+			expect(readAutostartMode()).toBe("never");
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
 	});
 
 	it("returns 'always' when config.autostart is always", () => {

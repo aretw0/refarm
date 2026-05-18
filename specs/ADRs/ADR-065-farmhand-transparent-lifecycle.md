@@ -37,6 +37,9 @@ refarm ▸ _
 ```
 
 - **Confirm before starting** — respect that the user may not want a background process spawned silently.
+- **Respect explicit operator policy** — `.refarm/config.json` may set
+  `autostart` to `always`, `ask`, or `never`; `REFARM_FARMHAND_AUTOSTART`
+  may override it for scripts, tests, CI, and headless usage.
 - **Detached spawn** — farmhand runs independently of the refarm CLI process.
 - **Poll until ready** — probe `GET /efforts/summary` every 300ms, max 10s, with elapsed time shown.
 - **Fallback on timeout** — if farmhand doesn't start in time, print manual instructions and exit.
@@ -103,6 +106,8 @@ Simpler for the user, no daemon management.
 - `session-launch.ts`: `autoStartFarmhand()` — confirm → spawn → poll
 - `LaunchDeps` interface for testability (same pattern as `ChatDeps`)
 - Inject repo root via `fileURLToPath(import.meta.url)` (same pattern as `keys.ts`)
+- `readAutostartMode()` reads `REFARM_FARMHAND_AUTOSTART` first, then
+  `.refarm/config.json`, then defaults to `ask`
 
 **Phase 2 — In-REPL configuration:**
 - `chat-repl.ts`: add `/sow`, `/keys` to `ChatCommand` discriminated union
