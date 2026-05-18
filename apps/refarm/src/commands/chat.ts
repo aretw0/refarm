@@ -46,9 +46,44 @@ export interface ChatDeps {
 
 const SIDECAR_URL = "http://127.0.0.1:42001";
 const DEFAULT_HISTORY_TURNS = 20;
+const MAX_CHAT_HISTORY_LINES = 500;
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
+}
+
+export function resolveChatHistoryPath(homeDir = os.homedir()): string {
+	return path.join(homeDir, ".refarm", "chat-history");
+}
+
+export function loadChatHistory(historyPath = resolveChatHistoryPath()): string[] {
+	if (!fs.existsSync(historyPath)) return [];
+	return fs
+		.readFileSync(historyPath, "utf-8")
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean)
+		.slice(0, MAX_CHAT_HISTORY_LINES);
+}
+
+export function rememberChatHistoryLine(
+	history: string[],
+	line: string,
+): string[] {
+	const trimmed = line.trim();
+	if (!trimmed || trimmed.startsWith("/")) return history;
+	return [
+		trimmed,
+		...history.filter((entry) => entry !== trimmed),
+	].slice(0, MAX_CHAT_HISTORY_LINES);
+}
+
+export function saveChatHistory(
+	history: readonly string[],
+	historyPath = resolveChatHistoryPath(),
+): void {
+	fs.mkdirSync(path.dirname(historyPath), { recursive: true });
+	fs.writeFileSync(historyPath, `${history.slice(0, MAX_CHAT_HISTORY_LINES).join("\n")}\n`, "utf-8");
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
@@ -443,6 +478,7 @@ export async function runSessionRepl(
 	console.log();
 
 	return new Promise((resolve) => {
+		let chatHistory = loadChatHistory();
 		const rl = readline.createInterface({
 			input: process.stdin,
 			output: process.stdout,
@@ -450,6 +486,7 @@ export async function runSessionRepl(
 			terminal: true,
 			historySize: 1000,
 		});
+		(rl as typeof rl & { history: string[] }).history = [...chatHistory];
 
 		rl.prompt();
 
@@ -537,6 +574,7 @@ export async function runSessionRepl(
 						rl.prompt();
 						break;
 					}
+					chatHistory = rememberChatHistoryLine(chatHistory, command.text);
 					rl.pause();
 					void (async () => {
 						try {
@@ -556,6 +594,7 @@ export async function runSessionRepl(
 		});
 
 		rl.on("close", () => {
+			saveChatHistory(chatHistory);
 			console.log(chalk.dim("\nSession saved."));
 			resolve();
 		});
