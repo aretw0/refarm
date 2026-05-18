@@ -74,7 +74,6 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 
 | Consumer | Current use | Migration pressure |
 |---|---|---|
-| `apps/refarm` | CLI `status` boots `Tractor` to summarize runtime/trust. | High: runtime-driver path should move to Rust/sidecar status instead of tractor-ts boot. |
 | `apps/farmhand` | Boots `Tractor` and executes tasks through `plugins`/`storeNode`. | High: farmhand should delegate runtime execution to Rust tractor. |
 | `packages/homestead` | SDK/runtime shell, stream observers, plugin handles, browser-facing types. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
 | `apps/me` | Type-only plugin instance/runtime surfaces via Homestead. | Low: browser/client compatibility surface. |
@@ -87,6 +86,8 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 
 Unused direct dependencies on `@refarm.dev/tractor` were removed from
 `packages/barn` and `packages/plugin-tem`; neither imported the package.
+`apps/refarm status` no longer boots tractor-ts for a synthetic status payload;
+it now builds the local CLI status snapshot directly.
 
 ## Consequences
 

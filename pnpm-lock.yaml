@@ -305,9 +305,6 @@ importers:
       '@refarm.dev/root':
         specifier: workspace:*
         version: link:../../packages/root
-      '@refarm.dev/runtime':
-        specifier: workspace:*
-        version: link:../../packages/runtime
       '@refarm.dev/silo':
         specifier: workspace:*
         version: link:../../packages/silo
@@ -317,12 +314,6 @@ importers:
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../../packages/stream-contract-v1
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../../packages/tractor-ts
-      '@refarm.dev/trust':
-        specifier: workspace:*
-        version: link:../../packages/trust
       '@refarm.dev/windmill':
         specifier: workspace:*
         version: link:../../packages/windmill
