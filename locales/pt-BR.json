@@ -2,8 +2,17 @@
   "app.title": "Refarm",
   "app.description": "Sistema Operacional Pessoal para Dados Soberanos",
   "app.tagline": "Centralizar e reformar dados de múltiplas fontes fragmentadas em um gráfico único, portável e offline.",
+  "engine_version": "Motor Refarm v{version} — Solo Fértil",
+  "loaded_capabilities": "Capacidades carregadas",
   "nav.home": "Início",
   "nav.plugins": "Plugins",
   "nav.docs": "Documentação",
-  "nav.about": "Sobre"
+  "nav.about": "Sobre",
+  "no_external_plugins_loaded": "(nenhum plugin externo carregado)",
+  "refresh": "Atualizar",
+  "sovereign_knowledge_infrastructure": "Infraestrutura de Conhecimento Soberano",
+  "system_alert": "Alerta do sistema",
+  "update_available": "Uma nova atualização soberana está sendo preparada...",
+  "update_ready": "Atualização pronta. Cultivar agora?",
+  "update_ready_message": "Atualize para aplicar as mudanças soberanas."
 }

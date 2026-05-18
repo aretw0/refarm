@@ -4,6 +4,7 @@ export * from "./host-renderer.js";
 export * from "./l8n-host.js";
 export * from "./plugin-handle.js";
 export * from "./runtime.js";
+export * from "./studio-host.js";
 export * from "./surface-inspector.js";
 export * from "./surface-renderer.js";
 export * from "./surface-slots.js";

@@ -7,11 +7,11 @@ import {
 	type StreamSessionStateMap,
 } from "./stream-state.js";
 import type {
-	Tractor,
-	PluginInstance,
-	SovereignNode,
-	TelemetryEvent,
-} from "@refarm.dev/tractor";
+	StudioHost,
+	StudioHostNode,
+	StudioHostPlugin,
+	StudioHostTelemetryEvent,
+} from "./studio-host.js";
 type ViteImportMeta = ImportMeta & { env?: { BASE_URL?: string } };
 
 type HomesteadLogLevel = "silent" | "error" | "warn" | "info" | "debug";
@@ -25,7 +25,7 @@ const HOMESTEAD_LOG_PRIORITY: Record<HomesteadLogLevel, number> = {
 };
 
 import { A11yGuard } from "./A11yGuard.js";
-import { L8nHost } from "./l8n-host.js";
+import { createHomesteadL8n, L8nHost } from "./l8n-host.js";
 import {
 	resolveHomesteadSurfaceActivationPlan,
 	type HomesteadSurfaceMount,
@@ -48,9 +48,6 @@ import {
 	type HomesteadSurfaceRenderResult,
 } from "./surface-renderer.js";
 
-import en from "@refarm.dev/locales/en.json";
-import ptBR from "@refarm.dev/locales/pt-BR.json";
-
 export interface ShellSlot {
 	id: string;
 	element: HTMLElement;
@@ -72,31 +69,18 @@ export class StudioShell {
 	private streamChunks: StreamChunkStateMap = {};
 
 	constructor(
-		private tractor: Tractor,
+		private tractor: StudioHost,
 		private options: StudioShellOptions = {},
 	) {
-		this.l8n = new L8nHost();
-		this.setupL8n();
+		this.l8n = createHomesteadL8n();
 		this.discoverSlots();
 	}
 
-	private setupL8n() {
-		// 1. Detect Browser Locale
-		const locale = navigator.language.split("-")[0] || "en";
-		this.l8n.setLocale(locale);
-
-		// 2. Register Bootloader Bundle (PT/EN)
-		this.l8n.registerKeys("refarm:core", en);
-
-		if (locale === "pt") {
-			this.l8n.registerKeys("refarm:core", ptBR);
-		}
-	}
-
 	private shouldLog(level: "info" | "warn" | "error"): boolean {
+		const logLevel = this.tractor.logLevel;
 		const current =
-			this.tractor.logLevel in HOMESTEAD_LOG_PRIORITY
-				? (this.tractor.logLevel as HomesteadLogLevel)
+			logLevel && logLevel in HOMESTEAD_LOG_PRIORITY
+				? (logLevel as HomesteadLogLevel)
 				: "info";
 		return (
 			HOMESTEAD_LOG_PRIORITY[current] >= HOMESTEAD_LOG_PRIORITY[level]
@@ -133,7 +117,7 @@ export class StudioShell {
 		this.updateStatus(this.l8n.t("refarm:core/loading"));
 
 		// Listen for system events
-		this.tractor.observe((data: TelemetryEvent) => {
+		this.tractor.observe((data: StudioHostTelemetryEvent) => {
 			const payload = recordTelemetryPayload(data.payload);
 			if (data.event === "system:switch-tier") {
 				const tier = typeof payload.tier === "string" ? payload.tier : "";
@@ -190,7 +174,7 @@ export class StudioShell {
 		this.updateStatus(this.l8n.t("refarm:core/status_ready"));
 	}
 
-	private resolveSurfaceTrustStatus(plugin: PluginInstance) {
+	private resolveSurfaceTrustStatus(plugin: StudioHostPlugin) {
 		const entry = plugin.manifest.entry ?? "";
 		if (entry.startsWith("internal:")) {
 			return { trusted: true, source: "internal-entry" };
@@ -231,7 +215,7 @@ export class StudioShell {
 	}
 
 	private setupStreamObservationSubscriber() {
-		this.tractor.onNode("StreamSession", async (node: SovereignNode) => {
+		this.tractor.onNode("StreamSession", async (node: StudioHostNode) => {
 			this.streamSessions = applyStreamSessionEventToMap(
 				this.streamSessions,
 				node as StreamSessionEvent,
@@ -239,7 +223,7 @@ export class StudioShell {
 			this.renderStreamObservationPanel();
 		});
 
-		this.tractor.onNode("StreamChunk", async (node: SovereignNode) => {
+		this.tractor.onNode("StreamChunk", async (node: StudioHostNode) => {
 			this.streamChunks = applyStreamChunkEventToMap(
 				this.streamChunks,
 				node as StreamChunkEvent,
@@ -304,7 +288,7 @@ export class StudioShell {
 		const helpNodes = await this.tractor.getHelpNodes();
 		const seedNode =
 			helpNodes.find(
-				(n: SovereignNode) => n["refarm:renderType"] === "landing",
+				(n: StudioHostNode) => n["refarm:renderType"] === "landing",
 			) || helpNodes[0];
 		if (!seedNode) return;
 
@@ -389,7 +373,7 @@ export class StudioShell {
         <div class="help-grid" style="display: grid; gap: 1.5rem;">
           ${helpNodes
 						.map(
-							(node: SovereignNode) => `
+							(node: StudioHostNode) => `
             <div class="help-card" style="padding: 1.5rem; border: 1px solid var(--refarm-border-default); border-radius: 12px; background: var(--refarm-bg-secondary);">
               <h3 style="margin-bottom: 0.5rem; color: var(--refarm-accent-primary);">${node.name}</h3>
               <p style="font-size: 0.9rem; color: var(--refarm-text-secondary);">${node.text}</p>
@@ -688,7 +672,7 @@ function recordTelemetryPayload(payload: unknown): Record<string, unknown> {
 }
 
 export async function setupStudioShell(
-	tractor: Tractor,
+	tractor: StudioHost,
 	options: StudioShellOptions = {},
 ): Promise<StudioShell> {
 	const shell = new StudioShell(tractor, options);

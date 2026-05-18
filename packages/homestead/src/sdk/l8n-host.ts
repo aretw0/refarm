@@ -1,3 +1,6 @@
+import en from "@refarm.dev/locales/en.json";
+import ptBR from "@refarm.dev/locales/pt-BR.json";
+
 /**
  * L8nHost — Homestead shell internationalization helper.
  *
@@ -76,6 +79,24 @@ export class L8nHost {
 			unlocked: "Unlocked",
 		});
 	}
+}
+
+export function createHomesteadL8n(locale = resolveBrowserLocale()): L8nHost {
+	const l8n = new L8nHost();
+	l8n.setLocale(locale);
+	l8n.registerKeys("refarm:core", en);
+
+	if (locale === "pt") {
+		l8n.registerKeys("refarm:core", ptBR);
+	}
+
+	return l8n;
+}
+
+function resolveBrowserLocale(): string {
+	const language =
+		typeof navigator === "undefined" ? "en" : navigator.language;
+	return language.split("-")[0] || "en";
 }
 
 function parseTranslationKey(key: string): { namespace: string; name: string } {

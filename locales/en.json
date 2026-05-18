@@ -2,8 +2,17 @@
   "app.title": "Refarm",
   "app.description": "Personal Operating System for Sovereign Data",
   "app.tagline": "Centralize and reform data from multiple fragmented sources into a single, portable, offline-first graph.",
+  "engine_version": "Refarm Engine v{version} — Fertile Soil",
+  "loaded_capabilities": "Loaded Capabilities",
   "nav.home": "Home",
   "nav.plugins": "Plugins",
   "nav.docs": "Documentation",
-  "nav.about": "About"
+  "nav.about": "About",
+  "no_external_plugins_loaded": "(no external plugins loaded)",
+  "refresh": "Refresh",
+  "sovereign_knowledge_infrastructure": "Sovereign Knowledge Infrastructure",
+  "system_alert": "System Alert",
+  "update_available": "A new sovereign update is being prepared...",
+  "update_ready": "Update ready. Cultivate now?",
+  "update_ready_message": "Refresh to apply sovereign updates."
 }

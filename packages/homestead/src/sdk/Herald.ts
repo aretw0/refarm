@@ -1,6 +1,16 @@
 /// <reference lib="dom" />
-import type { Tractor, TelemetryEvent } from "@refarm.dev/tractor";
-import { TRACTOR_VERSION } from "@refarm.dev/tractor";
+import { createHomesteadL8n, type L8nHost } from "./l8n-host.js";
+import type { StudioHost, StudioHostTelemetryEvent } from "./studio-host.js";
+
+type ViteImportMeta = ImportMeta & { env?: { VITE_REFARM_VERSION?: string } };
+
+export const HOMESTEAD_ENGINE_VERSION: string =
+  (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION ||
+  "0.1.0-solo-fertil";
+
+export interface HeraldPluginOptions {
+  l8n?: L8nHost;
+}
 
 /**
  * Herald Plugin (O Arauto)
@@ -9,13 +19,15 @@ import { TRACTOR_VERSION } from "@refarm.dev/tractor";
  */
 export class HeraldPlugin {
   private _logs: string[] = [];
+  private readonly l8n: L8nHost;
 
-  constructor(private tractor: Tractor) {
+  constructor(private tractor: StudioHost, options: HeraldPluginOptions = {}) {
+    this.l8n = options.l8n ?? createHomesteadL8n();
     this.setupHerald();
   }
 
   private setupHerald() {
-    this.tractor.observe((data: TelemetryEvent) => {
+    this.tractor.observe((data: StudioHostTelemetryEvent) => {
       if (data.event === "plugin:load") {
         const plugin = this.tractor.plugins.get(data.pluginId!);
         const version = plugin?.manifest.version || "0.0.0";
@@ -31,7 +43,7 @@ export class HeraldPlugin {
         // High-level intent: The system is ready to switch to the new version
         this.tractor.emitTelemetry({
           event: "system:update_ready",
-          payload: { message: "Refresh to apply sovereign updates." }
+          payload: { message: this.l8n.t("refarm:core/update_ready_message") }
         });
       });
 
@@ -68,15 +80,15 @@ export class HeraldPlugin {
       `  ██║  ██║███████╗██║     ██║  ██║██║  ██║██║ ╚═╝ ██║\n` +
       `  ╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝     ╚═╝\n` +
       `%c\n` +
-      `  Refarm Engine v${TRACTOR_VERSION} — Solo Fértil\n` +
-      `  Sovereign Knowledge Infrastructure\n\n`,
+      `  ${this.l8n.t("refarm:core/engine_version", { version: HOMESTEAD_ENGINE_VERSION })}\n` +
+      `  ${this.l8n.t("refarm:core/sovereign_knowledge_infrastructure")}\n\n`,
       primary,
       muted
     );
 
-    console.group("%cLoaded Capabilities", accent);
+    console.group(`%c${this.l8n.t("refarm:core/loaded_capabilities")}`, accent);
     if (this._logs.length === 0) {
-       console.log("%c  (no external plugins loaded)", muted);
+       console.log(`%c  ${this.l8n.t("refarm:core/no_external_plugins_loaded")}`, muted);
     } else {
        this._logs.forEach(l => console.log(l));
     }
