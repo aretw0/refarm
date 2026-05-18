@@ -25,14 +25,14 @@
     "@refarm.dev/task-contract-v1": "*",
     "@refarm.dev/tractor": "*",
     "@refarm.dev/ws-stream-transport": "*",
-    "ws": "^8.20.0"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "*",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.8.0",
     "@types/ws": "^8.18.1",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.4"
+    "vitest": "^4.1.6"
   },
   "license": "AGPL-3.0-only"
 }

@@ -160,20 +160,20 @@
 	],
 	"devDependencies": {
 		"@changesets/cli": "^2.31.0",
-		"@mermaid-js/mermaid-cli": "^11.14.0",
-		"@types/node": "^25.6.0",
-		"@vitest/coverage-v8": "^4.1.4",
-		"@vitest/ui": "^4.1.4",
+		"@mermaid-js/mermaid-cli": "^11.15.0",
+		"@types/node": "^25.8.0",
+		"@vitest/coverage-v8": "^4.1.6",
+		"@vitest/ui": "^4.1.6",
 		"chokidar": "^5.0.0",
-		"eslint": "^10.3.0",
+		"eslint": "^10.4.0",
 		"globals": "^17.6.0",
-		"jest": "^30.3.0",
-		"jsdom": "^29.0.2",
-		"npm-check-updates": "^21.0.2",
-		"turbo": "^2.9.6",
+		"jest": "^30.4.2",
+		"jsdom": "^29.1.1",
+		"npm-check-updates": "^22.2.0",
+		"turbo": "^2.9.14",
 		"typescript": "^6.0.3",
-		"typescript-eslint": "^8.59.2",
-		"vitest": "^4.1.4"
+		"typescript-eslint": "^8.59.3",
+		"vitest": "^4.1.6"
 	},
 	"overrides": {
 		"flatted": "3.4.2",
@@ -189,7 +189,7 @@
 		}
 	},
 	"//": "jest is kept for type-safety/compatibility with certain node_modules in vitest runs",
-	"packageManager": "npm@11.12.1",
+	"packageManager": "npm@11.14.1",
 	"engines": {
 		"node": ">=22"
 	}

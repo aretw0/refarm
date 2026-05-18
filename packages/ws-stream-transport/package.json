@@ -42,7 +42,7 @@
   "dependencies": {
     "@refarm.dev/file-stream-transport": "*",
     "@refarm.dev/stream-contract-v1": "*",
-    "ws": "^8.18.3"
+    "ws": "^8.20.1"
   },
   "devDependencies": {
     "@refarm.dev/eslint-config": "*",

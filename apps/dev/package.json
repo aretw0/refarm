@@ -26,7 +26,7 @@
     "@refarm.dev/sync-loro": "*",
     "@refarm.dev/tractor": "*",
     "@refarm.me/identity-nostr": "*",
-    "astro": "^6.1.8"
+    "astro": "^6.3.3"
   },
   "devDependencies": {
     "@refarm.dev/config": "*",
