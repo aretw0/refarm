@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const DEFAULT_WORKSPACE_ROOTS = ["packages", "apps"];
-const REFARM_EXEMPT_PACKAGE_IDS = ["packages/heartwood", "packages/tsconfig"];
+const REFARM_EXEMPT_PACKAGE_IDS = ["packages/deps", "packages/heartwood", "packages/tsconfig"];
 
 /**
  * ProjectAuditor: workspace/package auditor with caller-provided policy.

@@ -103,7 +103,12 @@ export const healthCommand = new Command("health")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
     const health = new HealthCore();
-    health.register(new FileSystemAuditor());
+    health.register(new FileSystemAuditor({
+      ignoredGitVisibilityPatterns: [
+        "**/*.d.ts",
+        "packages/pi-agent/src/bindings.rs",
+      ],
+    }));
     health.register(new RefarmProjectAuditor());
 
     const results = await health.audit() as HealthResults;

@@ -140,6 +140,7 @@ deps-report.md
 # Ignore export plans
 *_plan*.md
 *prompt*.md
+!docs/superpowers/**/*.md
 
 # Python bytecode
 __pycache__/

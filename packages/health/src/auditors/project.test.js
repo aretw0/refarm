@@ -154,10 +154,17 @@ describe("RefarmProjectAuditor", () => {
             { name: "@refarm.dev/tsconfig", main: "./dist/index.js" },
             ["tsconfig.json"],
         );
+        makeWorkspacePackage(
+            "packages",
+            "deps",
+            { name: "@refarm.dev/deps", main: "./dist/index.js" },
+            ["tsconfig.json"],
+        );
 
         expect(auditor.title).toBe("Refarm Monorepo Health");
         await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([]);
         await expect(auditor.checkResolutionStatus(rootDir)).resolves.toEqual([
+            { package: "packages/deps", mode: "LINKED (dist)" },
             { package: "packages/tsconfig", mode: "LINKED (dist)" },
         ]);
     });

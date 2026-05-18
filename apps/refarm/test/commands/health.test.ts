@@ -1,15 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockAudit, mockCheckResolutionStatus } = vi.hoisted(() => ({
+const { mockAudit, mockCheckResolutionStatus, mockFileSystemAuditor } = vi.hoisted(() => ({
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
+  mockFileSystemAuditor: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/health", () => ({
   HealthCore: vi.fn().mockImplementation(function () {
     return { register: vi.fn(), audit: mockAudit, checkResolutionStatus: mockCheckResolutionStatus };
   }),
-  FileSystemAuditor: vi.fn(),
+  FileSystemAuditor: mockFileSystemAuditor,
   RefarmProjectAuditor: vi.fn(),
 }));
 
@@ -44,6 +45,16 @@ describe("healthCommand", () => {
     await healthCommand.parseAsync([], { from: "user" });
     expect(mockAudit).toHaveBeenCalled();
     expect(mockCheckResolutionStatus).toHaveBeenCalled();
+  });
+
+  it("configures Refarm generated source artifacts as git-visibility exclusions", async () => {
+    await healthCommand.parseAsync([], { from: "user" });
+    expect(mockFileSystemAuditor).toHaveBeenCalledWith({
+      ignoredGitVisibilityPatterns: [
+        "**/*.d.ts",
+        "packages/pi-agent/src/bindings.rs",
+      ],
+    });
   });
 
   it("does not throw when all checks pass", async () => {
