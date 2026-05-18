@@ -1,8 +1,6 @@
 import {
 	applyStreamChunkEventToMap,
 	applyStreamSessionEventToMap,
-	L8nHost,
-	TRACTOR_LOG_PRIORITY,
 } from "@refarm.dev/tractor";
 import type {
 	StreamChunkEvent,
@@ -16,7 +14,18 @@ import type {
 } from "@refarm.dev/tractor";
 type ViteImportMeta = ImportMeta & { env?: { BASE_URL?: string } };
 
+type HomesteadLogLevel = "silent" | "error" | "warn" | "info" | "debug";
+
+const HOMESTEAD_LOG_PRIORITY: Record<HomesteadLogLevel, number> = {
+	silent: 0,
+	error: 1,
+	warn: 2,
+	info: 3,
+	debug: 4,
+};
+
 import { A11yGuard } from "./A11yGuard.js";
+import { L8nHost } from "./l8n-host.js";
 import {
 	resolveHomesteadSurfaceActivationPlan,
 	type HomesteadSurfaceMount,
@@ -85,8 +94,12 @@ export class StudioShell {
 	}
 
 	private shouldLog(level: "info" | "warn" | "error"): boolean {
+		const current =
+			this.tractor.logLevel in HOMESTEAD_LOG_PRIORITY
+				? (this.tractor.logLevel as HomesteadLogLevel)
+				: "info";
 		return (
-			TRACTOR_LOG_PRIORITY[this.tractor.logLevel] >= TRACTOR_LOG_PRIORITY[level]
+			HOMESTEAD_LOG_PRIORITY[current] >= HOMESTEAD_LOG_PRIORITY[level]
 		);
 	}
 
