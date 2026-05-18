@@ -1,5 +1,14 @@
 import type { PluginManifest } from "@refarm.dev/plugin-manifest";
 
+export type RuntimeNode = Record<string, unknown>;
+
+export interface RuntimeTelemetryEvent {
+	event: string;
+	pluginId?: string;
+	payload?: unknown;
+	[key: string]: unknown;
+}
+
 export type RuntimePluginManifest = PluginManifest;
 
 export interface RuntimePluginInstance {
@@ -22,7 +31,7 @@ export type RuntimePluginLoader = Pick<RuntimePluginHost, "load">;
 
 export interface RuntimeTaskTarget {
 	plugins: RuntimePluginReader;
-	storeNode(node: Record<string, unknown>): Promise<void>;
+	storeNode(node: RuntimeNode): Promise<void>;
 }
 
 export interface RuntimePluginLoaderTarget {
@@ -33,8 +42,28 @@ export interface RuntimePluginLoaderTarget {
 export interface RuntimeHost {
 	plugins: RuntimePluginReader & RuntimePluginLoader;
 	registry: RuntimePluginRegistry;
-	storeNode(node: Record<string, unknown>): Promise<void>;
-	queryNodes(type: string): Promise<Record<string, unknown>[]>;
-	onNode(type: string, handler: (node: Record<string, unknown>) => void | Promise<void>): void;
+	storeNode(node: RuntimeNode): Promise<void>;
+	queryNodes<T extends RuntimeNode = RuntimeNode>(type: string): Promise<T[]>;
+	onNode(type: string, handler: (node: RuntimeNode) => void | Promise<void>): void;
 	shutdown?: () => Promise<void>;
+}
+
+export interface RuntimeQueryTarget {
+	queryNodes<T extends RuntimeNode = RuntimeNode>(type: string): Promise<T[]>;
+}
+
+export interface RuntimeTelemetryTarget {
+	emitTelemetry(event: RuntimeTelemetryEvent): void;
+}
+
+export interface RuntimeObserverTarget {
+	observe(handler: (event: RuntimeTelemetryEvent) => void | Promise<void>): void;
+}
+
+export interface RuntimeTierTarget {
+	switchTier(tier: string): void | Promise<void>;
+}
+
+export interface RuntimePluginStateTarget {
+	setPluginState(pluginId: string, state: string): void | Promise<void>;
 }

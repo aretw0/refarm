@@ -27,8 +27,8 @@
 		"test": "vitest run"
 	},
 	"dependencies": {
+		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/silo": "workspace:*",
-		"@refarm.dev/tractor": "workspace:*",
 		"@refarm.dev/windmill": "workspace:*"
 	},
 	"license": "AGPL-3.0-only",

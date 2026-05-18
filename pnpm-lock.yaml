@@ -871,9 +871,9 @@ importers:
 
   packages/scarecrow:
     dependencies:
-      '@refarm.dev/tractor':
+      '@refarm.dev/runtime':
         specifier: workspace:*
-        version: link:../tractor-ts
+        version: link:../runtime
     devDependencies:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
@@ -921,12 +921,12 @@ importers:
 
   packages/sower:
     dependencies:
+      '@refarm.dev/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@refarm.dev/silo':
         specifier: workspace:*
         version: link:../silo
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../tractor-ts
       '@refarm.dev/windmill':
         specifier: workspace:*
         version: link:../windmill

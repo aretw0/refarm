@@ -1,5 +1,11 @@
-import { SovereignNode, Tractor } from "@refarm.dev/tractor";
+import type {
+  RuntimeNode,
+  RuntimeTelemetryTarget,
+  RuntimeTierTarget,
+} from "@refarm.dev/runtime";
 import { SowerCore } from "./core.js";
+
+export type SowerHost = RuntimeTelemetryTarget & RuntimeTierTarget;
 
 /**
  * The Sower (O Semeador) — Initial Seed & Onboarding Plugin.
@@ -7,11 +13,11 @@ import { SowerCore } from "./core.js";
 export class SowerPlugin {
   private core: SowerCore;
 
-  constructor(private tractor: Tractor) {
+  constructor(private host: SowerHost) {
     this.core = new SowerCore();
   }
 
-  async getOnboardingNode(): Promise<SovereignNode> {
+  async getOnboardingNode(): Promise<RuntimeNode> {
     const flow = this.core.getOnboardingFlow();
     
     return {
@@ -34,7 +40,7 @@ export class SowerPlugin {
     const result = await this.core.scaffold(intent);
     
     if (result && result.tier) {
-      await this.tractor.switchTier(result.tier);
+      await this.host.switchTier(result.tier);
     }
   }
 
@@ -45,7 +51,7 @@ export class SowerPlugin {
     if (event === "system:switch-tier" && data.tier === "guest") {
       console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
       
-      this.tractor.emitTelemetry({
+      this.host.emitTelemetry({
         event: "node:created",
         payload: {
           "@context": "https://schema.org/",

@@ -84,8 +84,8 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 | `packages/homestead` | SDK/runtime shell, stream observers, plugin handles, browser-facing types. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
 | `apps/me` | Type-only plugin instance/runtime surfaces via Homestead. | Low: browser/client compatibility surface. |
 | `apps/dev` | Type-only plugin instance surfaces plus stream demo seeding. | Low/Medium: browser/client compatibility, but demo seeding should remain thin. |
-| `packages/sower` | Plugin class depends on `Tractor` and `SovereignNode`. | Medium: define a narrow host interface instead of depending on full tractor-ts. |
-| `packages/scarecrow` | Plugin class and tests depend on `Tractor`/test utils. | Medium: define a narrow host interface and test fixture contract. |
+| `packages/sower` | Plugin class depends on `@refarm.dev/runtime` host capabilities (`emitTelemetry`, `switchTier`) and runtime node types. | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
+| `packages/scarecrow` | Plugin class and tests depend on `@refarm.dev/runtime` host capabilities (`observe`, `queryNodes`, `setPluginState`, `emitTelemetry`). | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
 | `packages/plugin-courier` | Type dependency plus integration tests boot `Tractor`. | Medium/High: tests should move toward Rust-backed or narrow host fixtures. |
 | `packages/vtconfig` and `packages/toolbox` | Alias/resolution support for `@refarm.dev/tractor` and test utils. | Low: tooling support remains while npm compatibility exists. |
 | `templates/courier/typescript` | Template dependency for generated plugins. | Medium: template should eventually depend on a narrow host contract. |

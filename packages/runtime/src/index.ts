@@ -10,6 +10,8 @@ export function createNullRuntimeSummary(): RuntimeSummary {
 
 export type {
   RuntimeHost,
+  RuntimeNode,
+  RuntimeObserverTarget,
   RuntimePluginHost,
   RuntimePluginInstance,
   RuntimePluginLoader,
@@ -17,6 +19,11 @@ export type {
   RuntimePluginManifest,
   RuntimePluginReader,
   RuntimePluginRegistry,
+  RuntimePluginStateTarget,
+  RuntimeQueryTarget,
   RuntimeTaskTarget,
+  RuntimeTelemetryEvent,
+  RuntimeTelemetryTarget,
+  RuntimeTierTarget,
 } from "./host.js";
 export { createRuntimeSummaryFromTractor } from "./tractor-adapter.js";

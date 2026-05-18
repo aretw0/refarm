@@ -5,12 +5,17 @@
  * hydration and cannot run in the browser. The onboarding flow data is pure static
  * JSON-LD — it works in any environment.
  *
- * SowerPlugin is not exported here because it depends on Tractor's PluginHost, which
- * has its own browser stub in @refarm.dev/tractor. Consumers building the browser UI
- * should use the static data helpers directly.
+ * SowerPlugin is exported with a minimal runtime host contract. Consumers building
+ * the browser UI can also use the static data helpers directly.
  */
 
-import { SovereignNode, Tractor } from "@refarm.dev/tractor";
+import type {
+  RuntimeNode,
+  RuntimeTelemetryTarget,
+  RuntimeTierTarget,
+} from "@refarm.dev/runtime";
+
+export type SowerHost = RuntimeTelemetryTarget & RuntimeTierTarget;
 
 const NODE_ERROR =
   "[sower] Scaffolding and token provisioning require the Node.js runtime " +
@@ -64,11 +69,11 @@ export class SowerCore {
 export class SowerPlugin {
   private core: SowerCore;
 
-  constructor(private tractor: Tractor) {
+  constructor(private host: SowerHost) {
     this.core = new SowerCore();
   }
 
-  async getOnboardingNode(): Promise<SovereignNode> {
+  async getOnboardingNode(): Promise<RuntimeNode> {
     const flow = this.core.getOnboardingFlow();
     
     return {
@@ -93,7 +98,7 @@ export class SowerPlugin {
     
     const scaffoldResult = result as unknown as { tier?: string };
     if (scaffoldResult.tier) {
-      await this.tractor.switchTier(scaffoldResult.tier);
+      await this.host.switchTier(scaffoldResult.tier);
     }
   }
 
@@ -104,7 +109,7 @@ export class SowerPlugin {
     if (event === "system:switch-tier" && data.tier === "guest") {
       console.log("[sower] Tier switched to guest. Injecting 'Guest Tutorial' node...");
       
-      this.tractor.emitTelemetry({
+      this.host.emitTelemetry({
         event: "node:created",
         payload: {
           "@context": "https://schema.org/",

@@ -6,12 +6,7 @@
 	"compilerOptions": {
 		"rootDir": "src",
 		"composite": true,
-		"outDir": "dist",
-		"paths": {
-			"@refarm.dev/tractor": [
-				"packages/tractor-ts/dist/src/index.d.ts"
-			]
-		}
+		"outDir": "dist"
 	},
 	"include": [
 		"src/**/*"
