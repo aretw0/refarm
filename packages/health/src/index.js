@@ -1,5 +1,5 @@
 /**
- * HealthCore: The sovereign health orchestrator.
+ * HealthCore: generic health orchestrator.
  * Acts as a registry for multiple health auditors (Project, User, Org).
  * Supports stratified auditing where layers can build on each other.
  */
@@ -85,6 +85,6 @@ export class HealthCore {
 }
 
 import { FileSystemAuditor } from "./auditors/generic.js";
-import { RefarmProjectAuditor } from "./auditors/project.js";
+import { ProjectAuditor, RefarmProjectAuditor } from "./auditors/project.js";
 
-export { FileSystemAuditor, RefarmProjectAuditor };
+export { FileSystemAuditor, ProjectAuditor, RefarmProjectAuditor };

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { RefarmProjectAuditor } from "./project.js";
+import { ProjectAuditor, RefarmProjectAuditor } from "./project.js";
 
 let rootDir;
 
@@ -21,7 +21,7 @@ function makeWorkspacePackage(workspaceRoot, name, packageJson, files = []) {
     return packageDir;
 }
 
-describe("RefarmProjectAuditor", () => {
+describe("ProjectAuditor", () => {
     beforeEach(() => {
         rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-"));
     });
@@ -31,7 +31,7 @@ describe("RefarmProjectAuditor", () => {
     });
 
     it("checks build configs across packages and apps", async () => {
-        const auditor = new RefarmProjectAuditor();
+        const auditor = new ProjectAuditor();
         makeWorkspacePackage(
             "packages",
             "has-build",
@@ -51,7 +51,7 @@ describe("RefarmProjectAuditor", () => {
     });
 
     it("accepts custom workspace roots", async () => {
-        const auditor = new RefarmProjectAuditor({ workspaceRoots: ["modules"] });
+        const auditor = new ProjectAuditor({ workspaceRoots: ["modules"] });
         makeWorkspacePackage(
             "modules",
             "missing-build",
@@ -71,13 +71,13 @@ describe("RefarmProjectAuditor", () => {
     });
 
     it("accepts custom auditor titles", () => {
-        const auditor = new RefarmProjectAuditor({ title: "Workspace Health" });
+        const auditor = new ProjectAuditor({ title: "Team Workspace Health" });
 
-        expect(auditor.title).toBe("Workspace Health");
+        expect(auditor.title).toBe("Team Workspace Health");
     });
 
-    it("keeps Refarm package exemptions as defaults", async () => {
-        const auditor = new RefarmProjectAuditor();
+    it("does not apply Refarm package exemptions by default", async () => {
+        const auditor = new ProjectAuditor();
         makeWorkspacePackage(
             "packages",
             "tsconfig",
@@ -85,14 +85,16 @@ describe("RefarmProjectAuditor", () => {
             ["tsconfig.json"],
         );
 
-        await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([]);
+        await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([
+            { package: "packages/tsconfig", type: "missing_build_config" },
+        ]);
         await expect(auditor.checkResolutionStatus(rootDir)).resolves.toEqual([
             { package: "packages/tsconfig", mode: "LINKED (dist)" },
         ]);
     });
 
     it("allows callers to override package exemptions", async () => {
-        const auditor = new RefarmProjectAuditor({ exemptPackageIds: [] });
+        const auditor = new ProjectAuditor();
         makeWorkspacePackage(
             "packages",
             "tsconfig",
@@ -118,7 +120,7 @@ describe("RefarmProjectAuditor", () => {
     });
 
     it("reports resolution status with workspace root prefixes", async () => {
-        const auditor = new RefarmProjectAuditor();
+        const auditor = new ProjectAuditor();
         makeWorkspacePackage("packages", "published", {
             name: "@refarm.dev/published",
             main: "./dist/index.js",
@@ -131,6 +133,32 @@ describe("RefarmProjectAuditor", () => {
         await expect(auditor.checkResolutionStatus(rootDir)).resolves.toEqual([
             { package: "packages/published", mode: "LINKED (dist)" },
             { package: "apps/local", mode: "LINKED (types)" },
+        ]);
+    });
+});
+
+describe("RefarmProjectAuditor", () => {
+    beforeEach(() => {
+        rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "refarm-health-"));
+    });
+
+    afterEach(() => {
+        fs.rmSync(rootDir, { recursive: true, force: true });
+    });
+
+    it("applies Refarm package exemptions as an explicit preset", async () => {
+        const auditor = new RefarmProjectAuditor();
+        makeWorkspacePackage(
+            "packages",
+            "tsconfig",
+            { name: "@refarm.dev/tsconfig", main: "./dist/index.js" },
+            ["tsconfig.json"],
+        );
+
+        expect(auditor.title).toBe("Refarm Monorepo Health");
+        await expect(auditor.checkBuildConfigs(rootDir)).resolves.toEqual([]);
+        await expect(auditor.checkResolutionStatus(rootDir)).resolves.toEqual([
+            { package: "packages/tsconfig", mode: "LINKED (dist)" },
         ]);
     });
 });

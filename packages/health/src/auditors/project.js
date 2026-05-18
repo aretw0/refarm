@@ -1,19 +1,22 @@
 import fs from "node:fs";
 import path from "node:path";
 
+const DEFAULT_WORKSPACE_ROOTS = ["packages", "apps"];
+const REFARM_EXEMPT_PACKAGE_IDS = ["packages/heartwood", "packages/tsconfig"];
+
 /**
- * RefarmProjectAuditor: Domain-specific auditor for Refarm monorepo rules.
- * Leverages generic auditors and Graph policies.
+ * ProjectAuditor: workspace/package auditor with caller-provided policy.
+ * It has no Refarm-only exemptions unless a preset or policy supplies them.
  */
-export class RefarmProjectAuditor {
+export class ProjectAuditor {
     #title;
     #workspaceRoots;
     #exemptPackageIds;
 
     constructor(options = {}) {
-        this.#title = options.title || "Refarm Monorepo Health";
-        this.#workspaceRoots = options.workspaceRoots || ["packages", "apps"];
-        this.#exemptPackageIds = new Set(options.exemptPackageIds || ["packages/heartwood", "packages/tsconfig"]);
+        this.#title = options.title || "Workspace Health";
+        this.#workspaceRoots = options.workspaceRoots || DEFAULT_WORKSPACE_ROOTS;
+        this.#exemptPackageIds = new Set(options.exemptPackageIds || []);
     }
 
     get id() { return "project"; }
@@ -167,5 +170,20 @@ export class RefarmProjectAuditor {
             status.push({ package: pkg.id, mode });
         }
         return status;
+    }
+}
+
+/**
+ * RefarmProjectAuditor: Refarm's configured project-health policy.
+ * Kept as a convenience preset for apps/refarm; the base auditor remains agnostic.
+ */
+export class RefarmProjectAuditor extends ProjectAuditor {
+    constructor(options = {}) {
+        super({
+            title: "Refarm Monorepo Health",
+            workspaceRoots: DEFAULT_WORKSPACE_ROOTS,
+            exemptPackageIds: REFARM_EXEMPT_PACKAGE_IDS,
+            ...options,
+        });
     }
 }

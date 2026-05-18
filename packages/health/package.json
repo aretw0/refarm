@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/health",
 	"version": "0.1.0",
-	"description": "The Health — Deterministic project diagnostics for Refarm.",
+	"description": "The Health — Deterministic workspace diagnostics.",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
