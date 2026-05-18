@@ -31,7 +31,8 @@
 ## v0.2.0 - `refarm health` Command
 **Scope**: Delivering a first-class developer diagnostic tool.
 
-- [ ] Implementation of **`refarm health` (CLI)**: Full diagnostic suite with colored reports and fix suggestions.
+- [x] Initial **`refarm health` (CLI)** bridge with colored reports.
+- [ ] Rich fix suggestions for the `refarm health` diagnostic output.
 - [ ] **Schema Validation**: Checking that `identity.json` and `registry.json` match their respective schemas.
 
 ---
