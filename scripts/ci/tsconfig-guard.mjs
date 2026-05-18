@@ -50,6 +50,70 @@ function listProjectTsconfigs() {
 	return files.sort();
 }
 
+function normalizeExtends(value) {
+	if (typeof value === "string") return [value];
+	if (Array.isArray(value)) return value.filter((item) => typeof item === "string");
+	return [];
+}
+
+function collectSharedTsconfigRefs(tsconfigFiles) {
+	const refs = new Set();
+
+	for (const tsconfigPath of tsconfigFiles) {
+		const config = readJson(tsconfigPath);
+		for (const entry of normalizeExtends(config.extends)) {
+			if (!entry.startsWith("@refarm.dev/tsconfig/")) continue;
+			refs.add(`./${entry.slice("@refarm.dev/tsconfig/".length)}`);
+		}
+	}
+
+	return [...refs].sort();
+}
+
+function guardSharedTsconfigPackage(tsconfigFiles, problems) {
+	const pkgDir = path.join(repoRoot, "packages", "tsconfig");
+	const pkgRel = path.relative(repoRoot, pkgDir);
+	const pkgJsonPath = path.join(pkgDir, "package.json");
+	if (!exists(pkgJsonPath)) return;
+
+	const pkg = readJson(pkgJsonPath);
+	const exportsMap =
+		pkg.exports && typeof pkg.exports === "object" && !Array.isArray(pkg.exports)
+			? pkg.exports
+			: {};
+	const files = Array.isArray(pkg.files) ? pkg.files.map(String) : [];
+
+	for (const ref of collectSharedTsconfigRefs(tsconfigFiles)) {
+		const relFile = ref.slice(2);
+		const exportTarget = exportsMap[ref];
+
+		if (!exists(path.join(pkgDir, relFile))) {
+			problems.push({
+				project: pkgRel,
+				kind: "sharedConfig",
+				detail: `${ref} is referenced by tsconfig extends but the file is missing`,
+			});
+			continue;
+		}
+
+		if (exportTarget !== `./${relFile}`) {
+			problems.push({
+				project: pkgRel,
+				kind: "sharedConfig",
+				detail: `${ref} is referenced by tsconfig extends but is not exported`,
+			});
+		}
+
+		if (!files.includes(relFile)) {
+			problems.push({
+				project: pkgRel,
+				kind: "sharedConfig",
+				detail: `${relFile} is referenced by tsconfig extends but is not included in package files`,
+			});
+		}
+	}
+}
+
 function stripAnsi(text) {
 	return String(text || "").replace(/\u001b\[[0-9;]*m/g, "");
 }
@@ -195,6 +259,7 @@ function targetLooksLikeSource(rawTarget, resolved) {
 function main() {
 	const problems = [];
 	const projects = listProjectTsconfigs();
+	guardSharedTsconfigPackage(projects, problems);
 
 	for (const tsconfigPath of projects) {
 		const projectDir = path.dirname(tsconfigPath);

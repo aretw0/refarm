@@ -27,6 +27,7 @@
 	"devDependencies": {
 		"@refarm.dev/deps": "workspace:*",
 		"@refarm.dev/eslint-config": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"
 	}
 }

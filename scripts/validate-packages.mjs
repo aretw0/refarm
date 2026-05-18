@@ -73,6 +73,12 @@ function usesVtconfig(pkgDir, pkg) {
   return "@refarm.dev/vtconfig" in devDeps;
 }
 
+function hasWorkspaceDependency(pkg, name) {
+  const deps = pkg.dependencies ?? {};
+  const devDeps = pkg.devDependencies ?? {};
+  return name in deps || name in devDeps;
+}
+
 function hasScript(pkg, ...names) {
   const scripts = pkg.scripts ?? {};
   return names.every((n) => n in scripts);
@@ -130,6 +136,10 @@ function validateBuildable(pkgDir, pkg) {
 
   if (!(pkg.scripts?.build ?? "").includes("tsc")) {
     violations.push('script "build" must invoke tsc');
+  }
+
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/tsconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/tsconfig');
   }
 
   const dot = pkg.exports?.["."];

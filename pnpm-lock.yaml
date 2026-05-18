@@ -395,6 +395,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -466,6 +469,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -555,6 +561,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -628,6 +637,9 @@ importers:
       '@refarm.dev/identity-contract-v1':
         specifier: workspace:*
         version: link:../identity-contract-v1
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -868,6 +880,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -899,6 +914,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -918,6 +936,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -962,6 +983,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -997,6 +1021,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -1033,6 +1060,9 @@ importers:
       '@refarm.dev/sync-contract-v1':
         specifier: workspace:*
         version: link:../sync-contract-v1
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -1090,6 +1120,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig
@@ -1210,6 +1243,9 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@refarm.dev/tsconfig':
+        specifier: workspace:*
+        version: link:../tsconfig
       '@refarm.dev/vtconfig':
         specifier: workspace:*
         version: link:../vtconfig

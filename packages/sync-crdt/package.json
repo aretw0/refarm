@@ -33,6 +33,7 @@
 	"devDependencies": {
 		"@refarm.dev/eslint-config": "workspace:*",
 		"@refarm.dev/sync-contract-v1": "workspace:*",
+		"@refarm.dev/tsconfig": "workspace:*",
 		"@refarm.dev/vtconfig": "workspace:*"
 	},
 	"keywords": [
