@@ -56,6 +56,14 @@ function classifyPackage(pkgDir) {
   if (/^\.\/src\/.+\.ts$/.test(main)) return { type: "source-only", pkg };
   if (/^\.\/src\/.+\.(mjs|js)$/.test(main)) return { type: "js-tool", pkg };
 
+  if (
+    main.startsWith("./dist/src/") &&
+    buildScript.includes("tsc") &&
+    existsSync(join(pkgDir, "tsconfig.build.json"))
+  ) {
+    return { type: "hybrid-bindings-package", pkg };
+  }
+
   const hasStylesExport = Object.keys(exports).some((k) => k.startsWith("./styles/"));
   if (hasStylesExport && main.startsWith("./dist/")) return { type: "ui-library", pkg };
 
@@ -246,6 +254,76 @@ function validateWasmJcoComponent(pkgDir, pkg) {
   return violations;
 }
 
+function validateHybridBindingsPackage(pkgDir, pkg) {
+  const violations = [];
+  const tsconfig = readJson(join(pkgDir, "tsconfig.json"));
+  const tsconfigBuild = readJson(join(pkgDir, "tsconfig.build.json"));
+
+  if (!tsconfig) {
+    violations.push("tsconfig.json missing");
+  } else if (tsconfig.compilerOptions?.rootDir !== "..") {
+    violations.push('tsconfig.json compilerOptions.rootDir must be ".."');
+  }
+
+  if (!tsconfigBuild) {
+    violations.push("tsconfig.build.json missing");
+  } else {
+    if (tsconfigBuild.compilerOptions?.rootDir !== ".") {
+      violations.push('tsconfig.build.json compilerOptions.rootDir must be "."');
+    }
+    const includes = Array.isArray(tsconfigBuild.include) ? tsconfigBuild.include : [];
+    if (!includes.includes("src/**/*")) {
+      violations.push('tsconfig.build.json include missing "src/**/*"');
+    }
+    if (!includes.includes("test/test-utils.ts")) {
+      violations.push('tsconfig.build.json include missing "test/test-utils.ts"');
+    }
+  }
+
+  if (!pkg.main?.startsWith("./dist/src/")) {
+    violations.push("main must point to dist/src/");
+  }
+  if (!pkg.types?.startsWith("./dist/src/")) {
+    violations.push("types must point to dist/src/");
+  }
+
+  const dot = pkg.exports?.["."];
+  if (!dot || typeof dot !== "object") {
+    violations.push('exports["."] must be an object with "import" and "types" fields');
+  } else {
+    if (!dot.import?.startsWith("./dist/src/")) violations.push('exports["."].import must point to dist/src/');
+    if (!dot.types?.startsWith("./dist/src/")) violations.push('exports["."].types must point to dist/src/');
+  }
+
+  const testUtils = pkg.exports?.["./test/test-utils"];
+  if (!testUtils || typeof testUtils !== "object") {
+    violations.push('exports["./test/test-utils"] must be declared');
+  } else {
+    if (!testUtils.default?.startsWith("./dist/test/")) {
+      violations.push('exports["./test/test-utils"].default must point to dist/test/');
+    }
+    if (!testUtils.types?.startsWith("./dist/test/")) {
+      violations.push('exports["./test/test-utils"].types must point to dist/test/');
+    }
+  }
+
+  for (const script of ["build", "lint", "type-check", "type-check:dist", "test", "test:unit"]) {
+    if (!hasScript(pkg, script)) violations.push(`script "${script}" missing`);
+  }
+  if (!(pkg.scripts?.build ?? "").includes("tsc")) {
+    violations.push('script "build" must invoke tsc');
+  }
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/tsconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/tsconfig');
+  }
+  if (!hasWorkspaceDependency(pkg, "@refarm.dev/vtconfig")) {
+    violations.push('dependencies/devDependencies missing @refarm.dev/vtconfig');
+  }
+  if (!noRawVitestDep(pkg)) violations.push('devDependencies has raw "vitest" — use @refarm.dev/vtconfig instead');
+
+  return violations;
+}
+
 function validateJsTool(pkgDir, pkg) {
   const violations = [];
 
@@ -323,6 +401,7 @@ for (const pkgDir of packageDirs) {
   else if (type === "source-only") pkgViolations = validateSourceOnly(pkgDir, pkg);
   else if (type === "wasm-component") pkgViolations = validateWasmComponent(pkgDir, pkg);
   else if (type === "wasm-jco-component") pkgViolations = validateWasmJcoComponent(pkgDir, pkg);
+  else if (type === "hybrid-bindings-package") pkgViolations = validateHybridBindingsPackage(pkgDir, pkg);
   else if (type === "js-tool") pkgViolations = validateJsTool(pkgDir, pkg);
   else if (type === "config-pkg") pkgViolations = validateConfigPkg(pkgDir, pkg);
   pkgViolations.push(...validateTestScriptRequiresTests(pkg));

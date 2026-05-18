@@ -1,9 +1,5 @@
 {
 	"name": "@refarm.dev/tractor",
-	"scaffold": {
-		"type": "exempt",
-		"reason": "rootDir set to '..' to include generated Rust bindings from sibling tractor crate; dist/src/ output path is intentional"
-	},
 	"version": "0.1.0",
 	"description": "Refarm Tractor — the heavy machinery that cultivates your personal 'Solo Fértil' orchestrating plugins",
 	"type": "module",
