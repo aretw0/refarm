@@ -7,7 +7,7 @@
 	"scripts": {
 		"build": "tsc --project tsconfig.build.json",
 		"lint": "eslint src",
-		"test": "vitest run --passWithNoTests"
+		"test": "vitest run"
 	},
 	"dependencies": {
 		"@refarm.dev/plugin-manifest": "workspace:*",
