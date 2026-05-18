@@ -81,7 +81,7 @@ As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
 | Consumer | Current use | Migration pressure |
 |---|---|---|
 | `apps/farmhand` | Still boots `Tractor` during transition, but task execution, plugin loading, reload, and sidecar handlers consume `@refarm.dev/runtime` host contracts. | High: next step is replacing the bootstrap with Rust tractor delegation. |
-| `packages/homestead` | Browser runtime boot and stream observers still use tractor-ts; plugin handles, shell i18n, and shell log gating are Homestead/runtime-owned. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
+| `packages/homestead` | Browser runtime boot still uses tractor-ts; plugin handles, shell i18n, shell log gating, and stream observation projections are Homestead/runtime-owned. | Medium: keep browser/compat boundary; avoid native runtime ownership. |
 | `apps/me` | Consumes Homestead runtime and `@refarm.dev/runtime` plugin-handle types; no direct tractor-ts dependency remains. | Low: browser runtime still arrives through Homestead until that boundary is redesigned. |
 | `apps/dev` | Consumes Homestead runtime and `@refarm.dev/runtime` plugin-handle/node-store types for diagnostics and stream demos; no direct tractor-ts dependency remains. | Low/Medium: browser runtime still arrives through Homestead, but app fixtures no longer type against tractor-ts. |
 | `packages/sower` | Plugin class depends on `@refarm.dev/runtime` host capabilities (`emitTelemetry`, `switchTier`) and runtime node types. | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |

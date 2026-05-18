@@ -7,6 +7,7 @@ export * from "./runtime.js";
 export * from "./surface-inspector.js";
 export * from "./surface-renderer.js";
 export * from "./surface-slots.js";
+export * from "./stream-state.js";
 export * from "./stream-observer.js";
 export * from "./A11yGuard.js";
 export * from "./Firefly.js";

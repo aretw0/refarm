@@ -3,7 +3,7 @@ import {
 	type StreamChunkStateMap,
 	type StreamObservationView,
 	type StreamSessionStateMap,
-} from "@refarm.dev/tractor";
+} from "./stream-state.js";
 
 export function sortedStreamObservationViews(
 	sessions: StreamSessionStateMap,

@@ -1,12 +1,12 @@
 import {
 	applyStreamChunkEventToMap,
 	applyStreamSessionEventToMap,
-} from "@refarm.dev/tractor";
+	type StreamChunkEvent,
+	type StreamChunkStateMap,
+	type StreamSessionEvent,
+	type StreamSessionStateMap,
+} from "./stream-state.js";
 import type {
-	StreamChunkEvent,
-	StreamChunkStateMap,
-	StreamSessionEvent,
-	StreamSessionStateMap,
 	Tractor,
 	PluginInstance,
 	SovereignNode,
