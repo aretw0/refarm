@@ -65,7 +65,7 @@
 		"refarm:tree:test": "pnpm -C apps/refarm run test -- test/commands/tree.list.test.ts test/commands/tree.show.test.ts test/commands/tree.preview.test.ts test/commands/tree.fork.test.ts test/commands/tree.switch.test.ts test/commands/execution-plan.test.ts --pool=threads",
 		"refarm:tree:smoke": "pnpm -C apps/refarm run test -- test/commands/tree.integration.test.ts --pool=forks",
 		"refarm:tree:type-check": "pnpm -C apps/refarm run type-check && pnpm -C apps/farmhand run type-check",
-		"refarm:tree:farmhand:test": "pnpm -C apps/farmhand run test -- src/transports/sessions.test.ts",
+		"refarm:tree:farmhand:test": "pnpm -C apps/farmhand run test:driver",
 		"refarm:tree:smoke:cli": "node scripts/ci/smoke-refarm-tree-cli.mjs",
 		"refarm:tree:verify": "pnpm run refarm:tree:test && pnpm run refarm:tree:smoke && pnpm run refarm:tree:type-check && pnpm run refarm:tree:farmhand:test && pnpm run refarm:tree:smoke:cli",
 		"refarm:host:smoke:quick": "node scripts/ci/smoke-refarm-host-spine.mjs --quick",

@@ -20,6 +20,7 @@
 		"type-check": "tsc --noEmit",
 		"test": "vitest run",
 		"test:unit": "vitest run",
+		"test:driver": "vitest run src/transports/sessions.test.ts src/transports/effort-chat.integration.test.ts",
 		"lint": "eslint src"
 	},
 	"dependencies": {
