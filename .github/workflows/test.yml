@@ -236,7 +236,7 @@ jobs:
             --patterns-file /tmp/refarm-e2e-signature-patterns.txt
 
   validate-scaffold:
-    name: Validate package scaffold
+    name: Validate package scaffold and action pins
     runs-on: ubuntu-latest
     timeout-minutes: 5
     needs: changes
@@ -246,6 +246,8 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Validate package scaffold
         run: node scripts/validate-packages.mjs
+      - name: Validate GitHub Action pins
+        run: node scripts/ci/check-github-action-pins.mjs
 
   quality:
     runs-on: ubuntu-latest
