@@ -100,6 +100,8 @@ function implementedFarmhandSidecarRoutes() {
 		["POST", "/efforts/:effortId/cancel"],
 		["GET", "/sessions"],
 		["POST", "/sessions"],
+		["GET", "/tasks"],
+		["GET", "/tasks/:taskId"],
 		["GET", "/telemetry"],
 		["GET", "/telemetry/window"],
 		["POST", "/plugins/install"],

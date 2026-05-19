@@ -45,6 +45,7 @@ import {
 import { HttpSidecar } from "./transports/http.js";
 import { createPluginsRouteHandler } from "./transports/plugins.js";
 import { createSessionsRouteHandler } from "./transports/sessions.js";
+import { createTasksRouteHandler } from "./transports/tasks.js";
 
 const FARMHAND_PORT = 42000;
 const FARMHAND_HTTP_PORT = Number(process.env.FARMHAND_HTTP_PORT ?? 42001);
@@ -371,10 +372,11 @@ async function main() {
 	}
 
 	const taskDbPath = path.join(farmhandBaseDir, "task-memory.db");
+	const taskMemoryAdapter = createTaskV1StorageAdapter({
+		provider: createNodeSqliteStorageProvider(taskDbPath),
+	});
 	const taskMemoryBridge = createTaskMemoryBridge({
-		adapter: createTaskV1StorageAdapter({
-			provider: createNodeSqliteStorageProvider(taskDbPath),
-		}),
+		adapter: taskMemoryAdapter,
 		actorUrn: `urn:refarm:farmhand:${FARMHAND_ID}`,
 	});
 	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
@@ -449,6 +451,7 @@ async function main() {
 
 	const httpSidecar = new HttpSidecar(FARMHAND_HTTP_PORT, fileTransport);
 	httpSidecar.addRouteHandler(createSessionsRouteHandler(runtime));
+	httpSidecar.addRouteHandler(createTasksRouteHandler(taskMemoryAdapter));
 	httpSidecar.addRouteHandler(createPluginsRouteHandler(runtime, farmhandBaseDir, pluginTracker, localExtRegistry));
 	await httpSidecar.start();
 	console.log("[farmhand] HTTP sidecar listening on http://127.0.0.1:42001");
