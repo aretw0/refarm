@@ -41,6 +41,32 @@ print_disk_free() {
 	df -h "$REPO_ROOT" 2>/dev/null | tail -1 | awk '{print "  Disk free: " $4 " of " $2 " on " $6}'
 }
 
+clean_target_tree() {
+	local label="$1"
+	local target="$2"
+	if [ ! -d "$target" ]; then
+		return
+	fi
+
+	local before
+	before="$(size_mb "$target")"
+
+	# Incremental caches are safe to delete and are rebuilt on the next cargo run.
+	find "$target" -path "*/incremental" -type d -prune -exec rm -rf '{}' + 2>/dev/null || true
+
+	# Stale object/dependency files from tests are often the largest low-value set.
+	find "$target" -path "*/deps/*.rcgu.o" -type f -delete 2>/dev/null || true
+	find "$target" -path "*/deps/*.d" -type f -delete 2>/dev/null || true
+
+	# Documentation and temporary package outputs are regenerated on demand.
+	rm -rf "$target/doc" "$target/package" 2>/dev/null || true
+
+	local after
+	after="$(size_mb "$target")"
+	local freed=$((before - after))
+	echo "  $label: ${before}M -> ${after}M (freed ${freed}M)"
+}
+
 # ── Check mode: report sizes only ──────────────────────────────────────────────
 if [ "$MODE" = "--check" ]; then
 	echo "Rust build artifact sizes:"
@@ -97,28 +123,12 @@ echo "Cleaning Rust incremental build caches and stale generated artifacts..."
 
 for pkg in "${RUST_PACKAGES[@]}"; do
 	TARGET="$REPO_ROOT/$pkg/target"
-	if [ -d "$TARGET" ]; then
-		BEFORE="$(size_mb "$TARGET")"
-
-		# Incremental caches are safe to delete and are rebuilt on the next cargo run.
-		rm -rf "$TARGET/debug/incremental" "$TARGET/release/incremental" 2>/dev/null || true
-
-		# Stale object/dependency files from tests are often the largest low-value set.
-		find "$TARGET/debug/deps" -maxdepth 1 \
-			\( -name "*.rcgu.o" -o -name "*.d" \) \
-			-delete 2>/dev/null || true
-		find "$TARGET/release/deps" -maxdepth 1 \
-			\( -name "*.rcgu.o" -o -name "*.d" \) \
-			-delete 2>/dev/null || true
-
-		# Documentation and temporary package outputs are regenerated on demand.
-		rm -rf "$TARGET/doc" "$TARGET/package" 2>/dev/null || true
-
-		AFTER="$(size_mb "$TARGET")"
-		FREED=$((BEFORE - AFTER))
-		echo "  $pkg/target: ${BEFORE}M → ${AFTER}M (freed ${FREED}M)"
-	fi
+	clean_target_tree "$pkg/target" "$TARGET"
 done
+
+if [ -n "$VOLUME_TARGET" ] && [ -d "$VOLUME_TARGET" ]; then
+	clean_target_tree "$VOLUME_TARGET (CARGO_TARGET_DIR volume)" "$VOLUME_TARGET"
+fi
 
 echo ""
 echo "Tip: npm run clean:light  # Rust incremental + .turbo"

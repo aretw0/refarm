@@ -29,7 +29,7 @@ most build outputs that make the next package-scoped check faster.
 | ------ | ---------------------- | --------------------------------------------- | -------------------------------------------------- |
 | Report | `pnpm run clean:rust:check`    | Before deciding what to build/clean           | Nothing                                            |
 | Light  | `pnpm run clean:light`  | End of session                                | Rust incremental/stale objects + `.turbo`          |
-| Medium | `pnpm run clean:medium` | After test/coverage runs or noisy experiments | Light + `coverage/` + `.artifacts/` + `artifacts/` |
+| Medium | `pnpm run clean:medium` | After test/coverage runs or noisy experiments | Light + `coverage/` + `.artifacts/` + `artifacts/` + `/tmp/refarm-ci-target` |
 | Heavy  | `pnpm run clean:heavy`  | Host is critically low on disk                | Entire Rust `target/` dirs + medium cleanup        |
 
 Avoid deleting `node_modules` unless absolutely necessary. Reinstalling packages

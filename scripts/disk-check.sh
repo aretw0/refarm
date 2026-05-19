@@ -111,6 +111,18 @@ print_class() {
 	printf "  %-14s %8s\n" "$name" "$(human_mb "$mb")"
 }
 
+print_path_if_present() {
+	local label="$1"
+	local path="$2"
+	if [ ! -e "$path" ]; then
+		return 0
+	fi
+
+	local mb
+	mb="$(du -sm "$path" 2>/dev/null | cut -f1 || echo 0)"
+	printf "  %-14s %8s  %s\n" "$label" "$(human_mb "$mb")" "$path"
+}
+
 echo "Disk report for $REPO_ROOT"
 echo ""
 echo "Filesystem:"
@@ -131,6 +143,8 @@ if [ -n "${CARGO_TARGET_DIR:-}" ] && [ -d "$CARGO_TARGET_DIR" ]; then
 	VOL_MB="$(du -sm "$CARGO_TARGET_DIR" 2>/dev/null | cut -f1 || echo 0)"
 	printf "\n  %-14s %8s  ← CARGO_TARGET_DIR (Docker volume, off-host)\n" "cargo-volume" "$(human_mb "$VOL_MB")"
 fi
+print_path_if_present "pnpm-store" "$REPO_ROOT/.pnpm-store"
+print_path_if_present "tmp-ci-target" "/tmp/refarm-ci-target"
 
 echo ""
 echo "Largest Rust target/ directories:"

@@ -32,6 +32,18 @@ remove_optional_dirs() {
 	done
 }
 
+remove_absolute_dirs() {
+	local path
+	for path in "$@"; do
+		if [ -d "$path" ]; then
+			local size
+			size="$(du -sm "$path" 2>/dev/null | cut -f1 || echo 0)"
+			echo "Removing $path (${size}M)"
+			rm -rf "$path"
+		fi
+	done
+}
+
 case "$MODE" in
 light)
 	bash "$REPO_ROOT/scripts/rust-clean.sh"
@@ -42,12 +54,14 @@ medium)
 	remove_named_dirs .turbo
 	remove_named_dirs coverage
 	remove_optional_dirs .artifacts artifacts
+	remove_absolute_dirs /tmp/refarm-ci-target
 	;;
 heavy)
 	bash "$REPO_ROOT/scripts/rust-clean.sh" --full
 	remove_named_dirs .turbo
 	remove_named_dirs coverage
 	remove_optional_dirs .artifacts artifacts
+	remove_absolute_dirs /tmp/refarm-ci-target
 	;;
 *)
 	echo "Unknown cleanup mode: $MODE" >&2
