@@ -4,6 +4,7 @@ import { agentCommand } from "./commands/agent.js";
 import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
 import { chatCommand } from "./commands/chat.js";
+import { checkCommand } from "./commands/check.js";
 import { sessionCommand, runSessionLaunchFlow } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -114,6 +115,7 @@ program.addCommand(
 );
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
+program.addCommand(checkCommand);
 program.addCommand(healthCommand);
 program.addCommand(webCommand);
 program.addCommand(tuiCommand);

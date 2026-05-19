@@ -54,6 +54,8 @@ state using the same contracts as the apps?
 - `refarm tree` (read-only session/git timeline rows and dry-run fork/branch previews)
 - `refarm doctor` (contract-based readiness gate with non-zero exit on failures,
   including host metadata in human/JSON report output)
+- `refarm check` (cheap composite readiness gate over project health and host
+  doctor diagnostics for local pre-push loops)
 - `refarm health`, `refarm doctor`, and `refarm telemetry` now expose stable
   `recommendations` arrays in JSON output for agents and CI wrappers. Each
   recommendation uses at least `{ diagnostic, summary, action }`; commands may

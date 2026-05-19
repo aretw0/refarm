@@ -10,29 +10,29 @@ import fs from "node:fs";
 import path from "node:path";
 import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
 
-interface HealthIssue {
+export interface HealthIssue {
   file?: string;
   package?: string;
   type: string;
   entry?: string;
 }
 
-interface HealthRecommendation extends DiagnosticRecommendation {
+export interface HealthRecommendation extends DiagnosticRecommendation {
   issueType: string;
 }
 
-interface HealthResults {
+export interface HealthResults {
   git: HealthIssue[];
   builds: HealthIssue[];
   alignment: HealthIssue[];
 }
 
-interface ResolutionStatus {
+export interface ResolutionStatus {
   package: string;
   mode: string;
 }
 
-interface HealthReport {
+export interface HealthReport {
   ok: boolean;
   issueCount: number;
   results: HealthResults;
@@ -218,25 +218,29 @@ function emitHealthSummary(report: HealthReport): void {
   }
 }
 
+export async function runHealthAudit(): Promise<HealthReport> {
+  const policy = resolveHealthPolicy();
+  const health = new HealthCore();
+  health.register(new FileSystemAuditor({
+    ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
+  }));
+  health.register(
+    policy.preset === "refarm"
+      ? new RefarmProjectAuditor(policy)
+      : new ProjectAuditor(policy),
+  );
+
+  const results = await health.audit() as HealthResults;
+  const resolution = await health.checkResolutionStatus() as ResolutionStatus[];
+  return buildHealthReport(results, resolution);
+}
+
 export const healthCommand = new Command("health")
   .description("Run deterministic diagnostics on the project")
   .option("--json", "Output machine-readable health report")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
-    const policy = resolveHealthPolicy();
-    const health = new HealthCore();
-    health.register(new FileSystemAuditor({
-      ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
-    }));
-    health.register(
-      policy.preset === "refarm"
-        ? new RefarmProjectAuditor(policy)
-        : new ProjectAuditor(policy),
-    );
-
-    const results = await health.audit() as HealthResults;
-    const resolution = await health.checkResolutionStatus() as ResolutionStatus[];
-    const report = buildHealthReport(results, resolution);
+    const report = await runHealthAudit();
 
     if (options.json) {
       emitHealthJson(report);

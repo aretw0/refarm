@@ -12,6 +12,7 @@ describe("refarm program", () => {
 		expect(names).toContain("web");
 		expect(names).toContain("tui");
 		expect(names).toContain("doctor");
+		expect(names).toContain("check");
 		expect(names).toContain("migrate");
 		expect(names).toContain("open-url");
 		expect(names).toContain("actions");
