@@ -64,7 +64,7 @@ export class SowerCore {
 }
 
 /**
- * The Sower (O Semeador) — Initial Seed & Onboarding Plugin (Browser safe).
+ * Sower — public onboarding and workspace scaffold plugin (browser safe).
  */
 export class SowerPlugin {
   private core: SowerCore;

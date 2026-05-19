@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 /**
- * SowerCore: The seeding engine of Refarm.
+ * SowerCore: public onboarding, workspace scaffold, and import helpers.
  * Handles templates, interactive flows, and initial project structure.
  * Designed to be runtime-neutral (CLI, Browser, or Server).
  */
@@ -197,7 +197,7 @@ export class SowerCore {
 	}
 
 	/**
-	 * Hydrates a configuration from a remote Sovereign Graph node.
+	 * Hydrates a configuration from a remote graph node.
 	 */
 	async hydrateFromRemote(nodeId: string, gatewayUrl: string): Promise<unknown> {
 		console.log(

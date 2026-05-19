@@ -8,7 +8,7 @@ import { SowerCore } from "./core.js";
 export type SowerHost = RuntimeTelemetryTarget & RuntimeTierTarget;
 
 /**
- * The Sower (O Semeador) — Initial Seed & Onboarding Plugin.
+ * Sower — public onboarding and workspace scaffold plugin.
  */
 export class SowerPlugin {
   private core: SowerCore;

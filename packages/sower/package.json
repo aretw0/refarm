@@ -1,7 +1,7 @@
 {
 	"name": "@refarm.dev/sower",
 	"version": "0.1.0",
-	"description": "The Sower (O Semeador) — Initial Seed & Onboarding Plugin",
+	"description": "Refarm onboarding, workspace scaffold, and import engine",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

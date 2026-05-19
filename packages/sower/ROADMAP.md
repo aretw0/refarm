@@ -1,4 +1,4 @@
-# Sower & Thresher (Seed & Harvest) - Roadmap
+# Sower & Thresher - Roadmap
 
 **Current Version**: v0.1.0-dev  
 **Parent**: [Main Roadmap](../../roadmaps/MAIN.md)  
@@ -6,19 +6,19 @@
 
 ---
 
-## v0.1.0 - ETL Foundation (DONE/In Progress)
+## v0.1.0 - Import/Export Foundation (DONE/In Progress)
 **Scope**: Establish the core ingestion (Sower) and extraction (Thresher) primitives.  
-**Gate**: Verified JSON/CSV seeding and basic SQLite-to-JSON harvesting.
+**Gate**: Verified JSON/CSV import and basic SQLite-to-JSON export.
 
 ### SDD (Spec Driven) ✅
 - [x] Spec: `Sower` core interface (Node.js/Browser).
 - [x] Spec: `Thresher` extractor logic.
-- [x] Spec: Incremental seeding contract.
+- [x] Spec: Incremental import contract.
 
 ### BDD (Behaviour Driven) ✅
-- [x] Integration: Seed a Sovereign Graph node from a JSON file via `Sower`.
-- [x] Integration: Harvest a specific subgraph as a JSON-LD bundle via `Thresher`.
-- [x] Integration: Correct deduplication of nodes on re-seeding.
+- [x] Integration: Import a graph node from a JSON file via `Sower`.
+- [x] Integration: Export a specific subgraph as a JSON-LD bundle via `Thresher`.
+- [x] Integration: Correct deduplication of nodes on repeated import.
 
 ### TDD (Test Driven) ✅
 - [x] Unit: `Sower` node mapping logic and validation.
@@ -43,10 +43,10 @@
 **Scope**: Running the ETL process as an autonomous plugin within the microkernel.
 
 - [ ] Implementation of **WASM-based Importers**: Developing importers for popular data sources that run directly in the `tractor` sandbox.
-- [ ] **Scheduled Harvesting**: Triggering `Thresher` jobs automatically based on `Windmill` workflows.
+- [ ] **Scheduled Export**: Triggering `Thresher` jobs automatically based on `Windmill` workflows.
 
 ---
 
 ## Notes
 - See [packages/sower/src/core.ts](./src/core.ts) for core logic.
-- The "Seed" and "Harvest" of the sovereign farm — maintaining the seasonal flow of data.
+- Sower owns public workspace scaffolding and import flows; Thresher owns export flows.
