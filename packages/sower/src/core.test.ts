@@ -32,7 +32,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         });
 
         expect(result).toBeDefined();
-        expect(result?.tier).toBe("citizen");
+        expect(result?.tier).toBe("persistent");
         expect(result?.config.type).toBe("app");
 
         // Verify files were copied (template has README.md in typescript subpath)
@@ -55,7 +55,7 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         });
 
         expect(result).toBeDefined();
-        expect(result?.tier).toBe("citizen");
+        expect(result?.tier).toBe("persistent");
         expect(result?.config.type).toBe("plugin");
         expect(result?.config.engine).toBe("heartwood");
 

@@ -41,10 +41,10 @@ export class SowerCore {
           intent: "switch-to-guest"
         },
         {
-          id: "citizen",
+          id: "persistent",
           label: "Persistent Workspace",
           description: "Persistent identity and local storage for ongoing work.",
-          intent: "switch-to-citizen"
+          intent: "switch-to-persistent"
         }
       ]
     };

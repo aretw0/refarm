@@ -9,7 +9,7 @@ const {
   mockWriteFileSync,
   mockInquirerPrompt,
 } = vi.hoisted(() => ({
-  mockScaffold: vi.fn().mockResolvedValue({ config: { type: "app" }, tier: "citizen" }),
+  mockScaffold: vi.fn().mockResolvedValue({ config: { type: "app" }, tier: "persistent" }),
   mockBootstrapIdentity: vi.fn().mockResolvedValue({
     publicKey: "pk_test",
     timestamp: "2026-01-01T00:00:00.000Z",
@@ -55,7 +55,7 @@ describe("initCommand — mocked initialization flow", () => {
     vi.clearAllMocks();
     // Re-apply return values cleared by clearAllMocks()
     mockExistsSync.mockReturnValue(false);
-    mockScaffold.mockResolvedValue({ config: { type: "app" }, tier: "citizen" });
+    mockScaffold.mockResolvedValue({ config: { type: "app" }, tier: "persistent" });
     mockBootstrapIdentity.mockResolvedValue({
       publicKey: "pk_test",
       timestamp: "2026-01-01T00:00:00.000Z",

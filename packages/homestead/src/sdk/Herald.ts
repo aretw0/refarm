@@ -6,14 +6,14 @@ type ViteImportMeta = ImportMeta & { env?: { VITE_REFARM_VERSION?: string } };
 
 export const HOMESTEAD_ENGINE_VERSION: string =
   (import.meta as ViteImportMeta).env?.VITE_REFARM_VERSION ||
-  "0.1.0-solo-fertil";
+  "0.1.0-dev";
 
 export interface HeraldPluginOptions {
   l8n?: L8nHost;
 }
 
 /**
- * Herald Plugin (O Arauto)
+ * Herald plugin.
  * 
  * Responsible for presenting the Refarm identity and loaded plugins.
  */

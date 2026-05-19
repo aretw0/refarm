@@ -18,7 +18,7 @@ export interface SowerScaffoldConfig {
 }
 
 export interface SowerScaffoldResult {
-	tier: "citizen";
+	tier: "persistent";
 	template: string;
 	config: SowerScaffoldConfig;
 	identity: { hostingPath: string };
@@ -41,11 +41,11 @@ export class SowerCore {
 					intent: "switch-to-guest",
 				},
 				{
-					id: "citizen",
+					id: "persistent",
 					label: "Persistent Workspace",
 					description:
 						"Persistent identity and local storage for ongoing work.",
-					intent: "switch-to-citizen",
+					intent: "switch-to-persistent",
 				},
 			],
 		};
@@ -145,7 +145,7 @@ export class SowerCore {
 		}
 
 		return {
-			tier: "citizen",
+			tier: "persistent",
 			template: templateId,
 			config,
 			identity: {

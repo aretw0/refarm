@@ -6,10 +6,10 @@ import {
 } from "../src/sdk/runtime";
 
 describe("studio runtime helpers", () => {
-	it("uses the persistent database for citizen mode", () => {
+	it("uses the persistent database for persistent mode", () => {
 		expect(
 			resolveStudioRuntimeDatabaseName({
-				mode: "citizen",
+				mode: "persistent",
 				persistentName: "refarm-main",
 				temporaryPrefix: "refarm-temp",
 				now: () => 123,
@@ -44,7 +44,7 @@ describe("studio runtime helpers", () => {
 
 	it("exposes shared Studio environment metadata", () => {
 		expect(STUDIO_DEFAULT_ENV_METADATA).toEqual({
-			version: "0.1.0-solo-fertil",
+			version: "0.1.0-dev",
 			commit: "dev",
 		});
 	});

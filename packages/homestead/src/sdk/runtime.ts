@@ -8,7 +8,7 @@ import {
 import { Tractor } from "@refarm.dev/tractor";
 
 export const STUDIO_DEFAULT_ENV_METADATA = {
-	version: "0.1.0-solo-fertil",
+	version: "0.1.0-dev",
 	commit: "dev",
 } as const;
 
@@ -47,7 +47,7 @@ export interface StudioRuntime {
 export function resolveStudioRuntimeDatabaseName(
 	options: StudioRuntimeDatabaseNameOptions,
 ): string {
-	if (options.mode === "citizen" && options.persistentName) {
+	if (options.mode === "persistent" && options.persistentName) {
 		return options.persistentName;
 	}
 	const now = options.now ?? Date.now;

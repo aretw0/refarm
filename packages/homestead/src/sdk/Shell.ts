@@ -362,8 +362,8 @@ export class StudioShell {
 				card.addEventListener("click", () => {
 					const intent = card.getAttribute("data-intent");
 					if (intent === "switch-to-guest") this.tractor.switchTier("guest");
-					if (intent === "switch-to-citizen")
-						this.tractor.switchTier("citizen");
+					if (intent === "switch-to-persistent")
+						this.tractor.switchTier("persistent");
 				});
 			});
 

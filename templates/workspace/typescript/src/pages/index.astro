@@ -37,8 +37,8 @@ import { Layout } from "@refarm.dev/homestead/ui";
     try {
       const runtime = await bootStudioRuntime({
         databaseName: "{{REFARM_SLUG}}-main",
-        namespace: "citizen",
-        identityId: "citizen",
+        namespace: "workspace",
+        identityId: "workspace",
         identityPublicKey: "me",
         envMetadata: { version: "0.1.0", commit: "{{REFARM_SLUG}}" }
       });
