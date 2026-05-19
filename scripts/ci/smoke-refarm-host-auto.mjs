@@ -20,6 +20,7 @@ const PROFILE_SCRIPT = {
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
+	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
@@ -248,6 +249,21 @@ export function isRefarmDriverTaskFile(file) {
 	);
 }
 
+export function isFarmhandSidecarFile(file) {
+	return (
+		file === "apps/farmhand/src/index.ts" ||
+		file === "apps/farmhand/src/transports/http.ts" ||
+		file === "apps/farmhand/src/transports/http.test.ts" ||
+		file === "apps/farmhand/src/transports/plugins.ts" ||
+		file === "apps/farmhand/src/transports/plugins.test.ts" ||
+		file === "apps/farmhand/src/transports/sessions.ts" ||
+		file === "apps/farmhand/src/transports/sessions.test.ts" ||
+		file === "apps/farmhand/src/transports/tasks.ts" ||
+		file === "apps/farmhand/src/transports/tasks.test.ts" ||
+		file === "specs/protocols/http/farmhand-sidecar.openapi.v1.json"
+	);
+}
+
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
@@ -320,6 +336,22 @@ export function decideProfile(inputFiles) {
 			profile: "driver-tasks",
 			reason:
 				"Driver task-memory delta; run farmhand, CLI consumer, type-check, and OpenAPI contract lane.",
+		};
+	}
+
+	if (
+		files.some((file) => isFarmhandSidecarFile(file)) &&
+		files.every(
+			(file) =>
+				isFarmhandSidecarFile(file) ||
+				isOpenApiProtocolFile(file) ||
+				isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "sidecar",
+			reason:
+				"Farmhand sidecar delta; run focused sidecar handler, type-check, and OpenAPI contract lane.",
 		};
 	}
 

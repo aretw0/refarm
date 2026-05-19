@@ -7,6 +7,7 @@ import {
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
+	isFarmhandSidecarFile,
 	isOpenApiProtocolFile,
 	isRefarmDriverTaskFile,
 	isRefarmActionReadinessFile,
@@ -108,6 +109,27 @@ test("detects driver task files", () => {
 	);
 });
 
+test("detects farmhand sidecar files", () => {
+	assert.equal(
+		isFarmhandSidecarFile("apps/farmhand/src/index.ts"),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile("apps/farmhand/src/transports/plugins.ts"),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile(
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		),
+		true,
+	);
+	assert.equal(
+		isFarmhandSidecarFile("apps/refarm/src/commands/tree.ts"),
+		false,
+	);
+});
+
 test("lists smoke profiles from the canonical profile map", () => {
 	assert.deepEqual(listSmokeProfiles(), [
 		"skip",
@@ -125,6 +147,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-dist",
 		"tree",
 		"openapi",
+		"sidecar",
 		"driver-tasks",
 		"quick",
 		"dev",
@@ -132,7 +155,7 @@ test("lists smoke profiles from the canonical profile map", () => {
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, driver-tasks, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, quick, dev, ci",
 	);
 });
 
@@ -196,6 +219,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
 			{ profile: "openapi", script: "openapi:check" },
+			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
@@ -245,6 +269,7 @@ test("maps profiles to npm scripts", () => {
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
 	assert.equal(resolveProfileScript("openapi"), "openapi:check");
+	assert.equal(resolveProfileScript("sidecar"), "refarm:sidecar:verify");
 	assert.equal(
 		resolveProfileScript("driver-tasks"),
 		"refarm:driver:tasks:verify",
@@ -297,6 +322,18 @@ test("routes driver task deltas to focused driver task lane", () => {
 			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
 		]).profile,
 		"driver-tasks",
+	);
+});
+
+test("routes farmhand sidecar deltas to focused sidecar lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/farmhand/src/transports/http.ts",
+			"apps/farmhand/src/transports/plugins.ts",
+			"apps/farmhand/src/index.ts",
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		]).profile,
+		"sidecar",
 	);
 });
 
