@@ -769,9 +769,6 @@ importers:
       '@refarm.dev/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
-      '@refarm.dev/tractor':
-        specifier: workspace:*
-        version: link:../tractor-ts
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
