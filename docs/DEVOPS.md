@@ -66,6 +66,40 @@ When opening the workspace in VS Code with the Remote Containers extension:
 3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
    - Re-validates Rust toolchain health (`stable` + component baseline checks)
    - Reinstalls git hooks when missing
+   - Warns when GitHub CLI authentication is missing for push-capable Git operations
+
+### GitHub Authentication In Devcontainers
+
+The devcontainer can prepare Git transport, but it cannot create GitHub
+credentials without an operator-approved secret. The bootstrap scripts configure
+SSH-to-HTTPS fallback for GitHub remotes and run `gh auth setup-git` when an
+existing `gh` login is available.
+
+After opening a fresh container, authenticate once:
+
+```bash
+gh auth login -h github.com -p https -w
+gh auth setup-git
+gh auth status
+```
+
+Then verify push access with the current remote:
+
+```bash
+git ls-remote --heads origin >/dev/null
+git push origin develop
+```
+
+If you already have a personal access token, use:
+
+```bash
+gh auth login --with-token
+gh auth setup-git
+```
+
+`post-start.sh` will report `GitHub auth missing. Run: gh auth login` when no
+`GH_TOKEN` and no stored `gh` login are available. This is expected on a fresh
+container or after rebuilding without a persisted GitHub CLI config volume.
 
 ### Devcontainer Image Baseline (Tracked)
 
