@@ -7,8 +7,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-
-const SIDECAR_URL = "http://127.0.0.1:42001";
+import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
 	"@id": string;
@@ -123,7 +122,7 @@ export function createSessionsCommand(): Command {
 }
 
 async function fetchSessions(): Promise<SessionNode[]> {
-	const response = await fetch(`${SIDECAR_URL}/sessions`);
+	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -193,7 +192,7 @@ async function createSession(opts: { name?: string }): Promise<void> {
 	let created: SessionNode;
 	try {
 		const body = opts.name ? { name: opts.name } : {};
-		const response = await fetch(`${SIDECAR_URL}/sessions`, {
+		const response = await fetch(sidecarUrl("/sessions"), {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify(body),
@@ -286,7 +285,7 @@ async function forkSession(
 	let fork: SessionNode;
 	try {
 		const response = await fetch(
-			`${SIDECAR_URL}/sessions/${encodeURIComponent(prefix)}/fork`,
+			sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/fork`),
 			{
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
@@ -348,7 +347,7 @@ async function showSession(prefix: string): Promise<void> {
 	let history: SessionHistory;
 	try {
 		const response = await fetch(
-			`${SIDECAR_URL}/sessions/${encodedId}/history`,
+			sidecarUrl(`/sessions/${encodedId}/history`),
 		);
 		const body = (await response.json()) as SessionHistory & {
 			error?: string;

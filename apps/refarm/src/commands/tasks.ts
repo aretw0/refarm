@@ -1,7 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
-
-const SIDECAR_URL = "http://127.0.0.1:42001";
+import { sidecarUrl } from "./sidecar-url.js";
 
 interface TaskNode {
 	"@id": string;
@@ -78,7 +77,7 @@ async function fetchTasks(
 	if (params.session_id) query.set("session_id", params.session_id);
 	if (params.limit) query.set("limit", String(params.limit));
 	const qs = query.toString() ? `?${query}` : "";
-	const response = await fetch(`${SIDECAR_URL}/tasks${qs}`);
+	const response = await fetch(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { tasks: TaskNode[] };
 	return body.tasks ?? [];
@@ -138,7 +137,7 @@ async function showTask(prefix: string): Promise<void> {
 	let body: { task: TaskNode; events: TaskEvent[] };
 	try {
 		const response = await fetch(
-			`${SIDECAR_URL}/tasks/${encodeURIComponent(prefix)}`,
+			sidecarUrl(`/tasks/${encodeURIComponent(prefix)}`),
 		);
 		const parsed = (await response.json()) as typeof body & {
 			error?: string;

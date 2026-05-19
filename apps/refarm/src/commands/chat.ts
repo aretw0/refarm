@@ -22,6 +22,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 export interface ChatDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -45,7 +46,6 @@ export interface ChatDeps {
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
 
-const SIDECAR_URL = "http://127.0.0.1:42001";
 const DEFAULT_HISTORY_TURNS = 20;
 const MAX_CHAT_HISTORY_LINES = 500;
 
@@ -88,7 +88,7 @@ export function saveChatHistory(
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(`${SIDECAR_URL}/efforts`, {
+	const response = await fetch(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -103,7 +103,7 @@ async function submitViaHttp(effort: Effort): Promise<string> {
 async function reloadPluginsViaHttp(
 	pluginIds?: string[],
 ): Promise<{ reloaded: string[]; skipped: string[] }> {
-	const response = await fetch(`${SIDECAR_URL}/plugins/reload`, {
+	const response = await fetch(sidecarUrl("/plugins/reload"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: pluginIds ? JSON.stringify({ pluginIds }) : undefined,
@@ -136,7 +136,7 @@ async function reloadPluginsViaHttp(
 		await new Promise<void>((r) => setTimeout(r, 500));
 
 		const statusRes = await fetch(
-			`${SIDECAR_URL}/plugins/reload/status/${reloadId}`,
+			sidecarUrl(`/plugins/reload/status/${reloadId}`),
 		);
 		if (!statusRes.ok) break;
 
@@ -310,7 +310,7 @@ function extractResultPayload(result: unknown): {
 
 async function resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch(`${SIDECAR_URL}/sessions`);
+	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { sessions?: Array<{ "@id": string }> };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);

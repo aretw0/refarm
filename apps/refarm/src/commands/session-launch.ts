@@ -13,8 +13,8 @@ import {
 	type OperatorChannel,
 	createStdioOperatorChannel,
 } from "@refarm.dev/prompt-contract-v1";
+import { sidecarUrl } from "./sidecar-url.js";
 
-const SIDECAR_URL = "http://127.0.0.1:42001";
 const FARMHAND_PROBE_TIMEOUT_MS = 1_500;
 const AUTOSTART_POLL_INTERVAL_MS = 300;
 const AUTOSTART_TIMEOUT_MS = 10_000;
@@ -207,7 +207,7 @@ async function probeFarmhand(): Promise<boolean> {
 			() => controller.abort(),
 			FARMHAND_PROBE_TIMEOUT_MS,
 		);
-		const response = await fetch(`${SIDECAR_URL}/efforts/summary`, {
+		const response = await fetch(sidecarUrl("/efforts/summary"), {
 			signal: controller.signal,
 		});
 		clearTimeout(timer);

@@ -21,6 +21,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 export interface AskDeps {
 	submitEffort(effort: Effort): Promise<string>;
@@ -41,14 +42,12 @@ export interface AskDeps {
 	persistActiveSessionId?(id: string): void;
 }
 
-const SIDECAR_URL = "http://127.0.0.1:42001";
-
 interface SessionNode {
 	"@id": string;
 }
 
 async function submitViaHttp(effort: Effort): Promise<string> {
-	const response = await fetch(`${SIDECAR_URL}/efforts`, {
+	const response = await fetch(sidecarUrl("/efforts"), {
 		method: "POST",
 		headers: { "content-type": "application/json" },
 		body: JSON.stringify(effort),
@@ -341,7 +340,7 @@ async function resolveSessionIdPrefixFromSidecar(
 ): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
 
-	const response = await fetch(`${SIDECAR_URL}/sessions`);
+	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}

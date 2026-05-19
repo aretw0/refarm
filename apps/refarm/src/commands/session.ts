@@ -21,6 +21,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { sidecarUrl } from "./sidecar-url.js";
 
 function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
@@ -55,7 +56,7 @@ async function resolveTargetSession(
 
 async function _resolveSessionIdPrefixFromSidecar(prefix: string): Promise<string> {
 	if (isFullSessionId(prefix)) return prefix;
-	const response = await fetch("http://127.0.0.1:42001/sessions");
+	const response = await fetch(sidecarUrl("/sessions"));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
 	const body = (await response.json()) as { sessions?: Array<{ "@id": string }> };
 	return resolveSessionIdPrefix(prefix, body.sessions ?? []);

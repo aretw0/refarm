@@ -15,8 +15,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
-
-const SIDECAR_URL = "http://127.0.0.1:42001";
+import { sidecarUrl } from "./sidecar-url.js";
 
 interface SessionNode {
 	"@id": string;
@@ -78,7 +77,7 @@ function createSessionTimelineNode(
 
 async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 	const suffix = typeof limit === "number" ? `?limit=${limit}` : "";
-	const response = await fetch(`${SIDECAR_URL}/sessions${suffix}`);
+	const response = await fetch(sidecarUrl(`/sessions${suffix}`));
 	if (!response.ok) {
 		throw new Error(`sidecar HTTP ${response.status}`);
 	}
@@ -88,7 +87,7 @@ async function fetchSessions(limit?: number): Promise<SessionNode[]> {
 
 async function fetchSessionHistory(prefix: string): Promise<SessionHistory> {
 	const response = await fetch(
-		`${SIDECAR_URL}/sessions/${encodeURIComponent(prefix)}/history`,
+		sidecarUrl(`/sessions/${encodeURIComponent(prefix)}/history`),
 	);
 	const body = (await response.json()) as SessionHistory & {
 		error?: string;

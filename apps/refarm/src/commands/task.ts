@@ -14,6 +14,7 @@ import {
 	createTaskSessionRecorder,
 	type TaskSessionRecorder,
 } from "./task-session.js";
+import { resolveSidecarUrl } from "./sidecar-url.js";
 
 interface TaskOperationsAdapter extends EffortTransportAdapter {
 	list(): Promise<EffortResult[]>;
@@ -258,7 +259,7 @@ class HttpTransportClient implements TaskOperationsAdapter {
 
 export function resolveAdapter(transport: string): TaskOperationsAdapter {
 	if (transport === "http") {
-		return new HttpTransportClient("http://127.0.0.1:42001");
+		return new HttpTransportClient(resolveSidecarUrl());
 	}
 
 	if (transport !== "file") {

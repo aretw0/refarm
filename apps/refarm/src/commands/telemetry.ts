@@ -1,7 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
-
-const SIDECAR_URL = "http://127.0.0.1:42001";
+import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
 
@@ -86,7 +85,7 @@ function isThresholdProfileName(raw: string): raw is ThresholdProfileName {
 }
 
 async function fetchTelemetryFromSidecar(): Promise<RuntimeTelemetrySnapshot> {
-	const response = await fetch(`${SIDECAR_URL}/telemetry`);
+	const response = await fetch(sidecarUrl("/telemetry"));
 	if (!response.ok) {
 		if (response.status === 404) {
 			throw new Error("telemetry endpoint not available");
@@ -100,7 +99,7 @@ async function fetchTelemetryWindowFromSidecar(
 	minutes: number,
 ): Promise<RuntimeTelemetryWindow | null> {
 	const response = await fetch(
-		`${SIDECAR_URL}/telemetry/window?minutes=${minutes}`,
+		sidecarUrl(`/telemetry/window?minutes=${minutes}`),
 	);
 	if (!response.ok) {
 		if (response.status === 404) {
