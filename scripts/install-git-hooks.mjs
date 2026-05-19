@@ -435,7 +435,7 @@ else
 
   if [ -n "$CHANGED_WORKSPACES" ]; then
     echo "   🔎 Turbo scoped tests for changed workspaces"
-    if timeout 300 env CI=1 pnpm exec turbo run test $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Turbo tests passed"
       mark_lane_validated "test"
     else
@@ -450,7 +450,7 @@ else
       UNIT_WARN=1
     fi
   else
-    if timeout 300 env CI=1 pnpm exec turbo run test --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+    if timeout 300 env CI=1 pnpm exec turbo run test --concurrency=4 --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
       echo "   ✅ Global Turbo tests passed"
       mark_lane_validated "test"
     else
