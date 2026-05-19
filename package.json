@@ -36,6 +36,7 @@
 		"type-check:dist": "turbo type-check:dist",
 		"tsconfig:guard": "node scripts/ci/tsconfig-guard.mjs",
 		"project:validate": "node scripts/ci/project-block-consistency.mjs",
+		"openapi:check": "node scripts/ci/check-openapi-specs.mjs",
 		"runtime-descriptor:bundle": "node scripts/ci/export-runtime-descriptor-bundle.mjs --out-dir .artifacts/runtime-descriptors --version local",
 		"runtime-descriptor:release-assets:dry": "node scripts/ci/publish-runtime-descriptor-release-assets.mjs --bundle-dir .artifacts/runtime-descriptors --sha local --tags @refarm.dev/plugin-manifest@0.1.0 --dry-run",
 		"runtime-descriptor:release-smoke": "node scripts/ci/smoke-runtime-descriptor-release-path.mjs --sha local",
