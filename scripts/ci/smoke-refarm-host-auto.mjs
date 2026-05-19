@@ -20,6 +20,7 @@ const PROFILE_SCRIPT = {
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
 	openapi: "openapi:check",
+	"driver-tasks": "refarm:driver:tasks:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -237,6 +238,16 @@ export function isOpenApiProtocolFile(file) {
 	);
 }
 
+export function isRefarmDriverTaskFile(file) {
+	return (
+		file === "apps/farmhand/src/transports/tasks.ts" ||
+		file === "apps/farmhand/src/transports/tasks.test.ts" ||
+		file === "apps/refarm/src/commands/tasks.ts" ||
+		file === "apps/refarm/test/commands/tasks.test.ts" ||
+		file === "specs/protocols/http/farmhand-sidecar.openapi.v1.json"
+	);
+}
+
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
@@ -293,6 +304,22 @@ export function decideProfile(inputFiles) {
 			profile: "openapi",
 			reason:
 				"Protocol contract delta; run focused OpenAPI validation.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmDriverTaskFile(file)) &&
+		files.every(
+			(file) =>
+				isRefarmDriverTaskFile(file) ||
+				isOpenApiProtocolFile(file) ||
+				isDocsOnlyFile(file),
+		)
+	) {
+		return {
+			profile: "driver-tasks",
+			reason:
+				"Driver task-memory delta; run farmhand, CLI consumer, type-check, and OpenAPI contract lane.",
 		};
 	}
 
