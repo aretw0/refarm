@@ -39,6 +39,11 @@ log "Preparing cache directories and permissions..."
 for dir in \
   /home/vscode/.local/share/pnpm \
   /home/vscode/.local/share/pnpm/store \
+  /home/vscode/.npm-global \
+  /home/vscode/.npm-global/bin \
+  /home/vscode/.pi \
+  /home/vscode/.claude \
+  /home/vscode/.codex \
   /home/vscode/.turbo \
   /home/vscode/.cache \
   /home/vscode/.cache/ms-playwright \
@@ -99,9 +104,6 @@ log "Installing Playwright browsers and AI agent tools in parallel..."
 retry 2 npx playwright install --with-deps &
 PW_PID=$!
 
-retry 2 npm install -g @anthropic-ai/claude-code &
-CLAUDE_PID=$!
-
 retry 2 npm install -g @mermaid-js/mermaid-cli &
 MMDC_PID=$!
 
@@ -118,7 +120,6 @@ MDT_PID=$!
 PI_PID=$!
 
 wait $PW_PID     || warn "Playwright browser installation failed. Retry: npx playwright install --with-deps"
-wait $CLAUDE_PID || warn "Claude Code install failed. Run: npm install -g @anthropic-ai/claude-code"
 wait $MMDC_PID   || warn "mermaid-cli install failed. Run: npm install -g @mermaid-js/mermaid-cli"
 wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --locked --version 0.7.0"
 wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"
@@ -149,7 +150,6 @@ shellcheck --version 2>/dev/null | head -1 || true
 shfmt --version 2>/dev/null || true
 hyperfine --version 2>/dev/null || true
 pi --version 2>/dev/null || true
-claude --version 2>/dev/null || true
 mmdc --version 2>/dev/null || true
 
 log "Post-create setup complete."

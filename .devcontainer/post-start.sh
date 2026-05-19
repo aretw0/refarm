@@ -66,9 +66,6 @@ check_rust_baseline() {
 check_agent_env() {
   local missing=()
 
-  if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-    missing+=("ANTHROPIC_API_KEY  → pi /login  ou  claude /login")
-  fi
   if [ -z "${GH_TOKEN:-}" ] && ! gh auth status >/dev/null 2>&1; then
     missing+=("GH_TOKEN           → gh auth login")
   fi
@@ -87,7 +84,7 @@ check_agent_env() {
 check_coding_agent_tools() {
   local missing=()
 
-  for tool in bwrap fd rg jq shellcheck shfmt; do
+  for tool in bwrap fd rg jq shellcheck shfmt pi; do
     if ! command -v "$tool" >/dev/null 2>&1; then
       missing+=("$tool")
     fi
