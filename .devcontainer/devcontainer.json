@@ -6,7 +6,7 @@
   },
   "runArgs": [
     "--memory=4g",
-    "--cpus=2",
+    "--cpus=4",
     "--cap-add=SYS_ADMIN",
     "--security-opt=seccomp=unconfined",
     "--security-opt=apparmor=unconfined"
@@ -30,20 +30,21 @@
     "CARGO_HOME": "/usr/local/cargo",
     "CARGO_TERM_COLOR": "always",
     "TURBO_CACHE_DIR": "/home/vscode/.turbo",
-    "CARGO_BUILD_JOBS": "2",
+    "CARGO_BUILD_JOBS": "4",
     "CARGO_TARGET_DIR": "/home/vscode/.cargo-target",
-    "LANG": "C.UTF-8",
-    "LC_ALL": "C.UTF-8",
-    "LANGUAGE": "en_US:en",
-    "TERM_PROGRAM": "vscode"
+    "LANG": "pt_BR.UTF-8",
+    "LC_ALL": "pt_BR.UTF-8",
+    "LANGUAGE": "pt_BR:pt:en",
+    "TERM": "xterm-256color",
+    "COLORTERM": "truecolor"
   },
   "remoteEnv": {
     "PNPM_HOME": "/home/vscode/.local/share/pnpm",
     "PATH": "/home/vscode/.local/share/pnpm:${containerEnv:PATH}",
-    "LANG": "C.UTF-8",
-    "LC_ALL": "C.UTF-8",
-    "LANGUAGE": "en_US:en",
-    "TERM_PROGRAM": "vscode"
+    "LANG": "pt_BR.UTF-8",
+    "LC_ALL": "pt_BR.UTF-8",
+    "LANGUAGE": "pt_BR:pt:en",
+    "COLORTERM": "truecolor"
   },
   "mounts": [
     "source=refarm-pnpm-store,target=/home/vscode/.local/share/pnpm/store,type=volume",
@@ -71,6 +72,12 @@
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
+        "terminal.integrated.env.linux": {
+          "LANG": "pt_BR.UTF-8",
+          "LC_ALL": "pt_BR.UTF-8",
+          "LANGUAGE": "pt_BR:pt:en",
+          "COLORTERM": "truecolor"
+        },
         "rust-analyzer.lru.capacity": 44,
         "rust-analyzer.check.command": "check",
         "rust-analyzer.checkOnSave": false,

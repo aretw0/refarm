@@ -56,6 +56,7 @@ skip_step() {
 BASE_SHA=""
 FULL=false
 SKIP_TURBO=false
+LOCAL_TURBO_CACHE_DIR="${TURBO_CACHE_DIR:-.turbo}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -175,10 +176,10 @@ if [ "$SKIP_TURBO" = "true" ]; then
 elif [ "$code_changes" = "true" ]; then
   if [ -n "$TURBO_FILTER" ]; then
     run_step "pnpm turbo (affected: $TURBO_FILTER)" \
-      pnpm turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir=.turbo
+      pnpm turbo run build lint type-check test:unit test:integration --filter="$TURBO_FILTER" --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   else
     run_step "pnpm turbo (full fallback)" \
-      pnpm turbo run build lint type-check test:unit test:integration --cache-dir=.turbo
+      pnpm turbo run build lint type-check test:unit test:integration --cache-dir="$LOCAL_TURBO_CACHE_DIR"
   fi
 else
   skip_step "pnpm turbo" "no code changes"
