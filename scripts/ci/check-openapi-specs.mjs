@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
-const SPECS_DIR = path.join(ROOT, "specs", "openapi");
+const SPECS_DIR = path.join(ROOT, "specs", "protocols");
 
 function collectJsonFiles(dir) {
 	if (!fs.existsSync(dir)) return [];
@@ -13,7 +13,9 @@ function collectJsonFiles(dir) {
 		.flatMap((entry) => {
 			const fullPath = path.join(dir, entry.name);
 			if (entry.isDirectory()) return collectJsonFiles(fullPath);
-			return entry.isFile() && entry.name.endsWith(".json") ? [fullPath] : [];
+			return entry.isFile() && entry.name.endsWith(".openapi.v1.json")
+				? [fullPath]
+				: [];
 		})
 		.sort();
 }
@@ -79,7 +81,7 @@ function validateSpec(filePath) {
 }
 
 const files = collectJsonFiles(SPECS_DIR);
-assert(files.length > 0, "No OpenAPI JSON specs found in specs/openapi");
+assert(files.length > 0, "No OpenAPI JSON specs found in specs/protocols");
 
 for (const file of files) validateSpec(file);
 console.log(`OpenAPI specs ok (${files.length})`);
