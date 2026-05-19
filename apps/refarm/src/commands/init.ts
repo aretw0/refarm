@@ -46,26 +46,26 @@ export const initCommand = new Command("init")
 
     if (result) {
       const refarmDir = path.join(projectDir, ".refarm");
-      // 1. Create Directories
+      // 1. Create directories
       if (!existsSync(refarmDir)) {
         mkdirSync(refarmDir, { recursive: true });
       }
       
-      console.log(chalk.blue("Generating silo master key..."));
+      console.log(chalk.blue("Generating workspace identity..."));
       const silo = new SiloCore();
       const identity = await silo.bootstrapIdentity();
 
 
-      // 3. Write Identity Metadata (Security Transparency - Public)
+      // 3. Write identity metadata
       const identityMetadata = {
         publicKey: identity.publicKey,
         bootstrappedAt: identity.timestamp,
         name
       };
       writeFileSync(path.join(refarmDir, "identity.json"), JSON.stringify(identityMetadata, null, 2));
-      console.log(chalk.gray(`  - .refarm/identity.json (Public Identity Created)`));
+      console.log(chalk.gray(`  - .refarm/identity.json (identity metadata)`));
 
-      // 4. Write Config
+      // 4. Write config
       const config = {
         ...result.config,
         brand: { name, slug: name.toLowerCase().replace(/\s+/g, "-") }

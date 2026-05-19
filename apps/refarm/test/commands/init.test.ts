@@ -63,7 +63,7 @@ describe("initCommand — mocked initialization flow", () => {
     mockInquirerPrompt.mockResolvedValue({ template: "workspace" });
   });
 
-  async function runInit(name = "test-farm") {
+  async function runInit(name = "test-workspace") {
     // Invoke the action directly on the subcommand — from:"user" means no argv[0]/argv[1] stripping.
     await initCommand.parseAsync([name], { from: "user" });
   }
@@ -71,7 +71,7 @@ describe("initCommand — mocked initialization flow", () => {
   it("creates project and .refarm directories with { recursive: true }", async () => {
     await runInit();
     expect(mockMkdirSync).toHaveBeenCalledWith(
-      expect.stringContaining("test-farm"),
+      expect.stringContaining("test-workspace"),
       { recursive: true }
     );
     expect(mockMkdirSync).toHaveBeenCalledWith(
@@ -98,15 +98,15 @@ describe("initCommand — mocked initialization flow", () => {
     );
     expect(call).toBeDefined();
     const content = JSON.parse(call![1] as string);
-    expect(content.brand.name).toBe("test-farm");
-    expect(content.brand.slug).toBe("test-farm");
+    expect(content.brand.name).toBe("test-workspace");
+    expect(content.brand.slug).toBe("test-workspace");
   });
 
   it("passes the selected template as the first argument to scaffold", async () => {
     await runInit();
     expect(mockScaffold).toHaveBeenCalledWith(
       "workspace",
-      expect.objectContaining({ name: "test-farm" })
+      expect.objectContaining({ name: "test-workspace" })
     );
   });
 
@@ -123,7 +123,7 @@ describe("initCommand — mocked initialization flow", () => {
 
   it("reinitializes when --force is passed even if already initialized", async () => {
     mockExistsSync.mockReturnValue(true);
-    await initCommand.parseAsync(["test-farm", "--force"], { from: "user" });
+    await initCommand.parseAsync(["test-workspace", "--force"], { from: "user" });
     expect(mockBootstrapIdentity).toHaveBeenCalled();
   });
 });
