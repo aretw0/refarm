@@ -5,6 +5,11 @@ import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
 const SPECS_DIR = path.join(ROOT, "specs", "protocols");
+const FARMHAND_SIDECAR_SPEC = path.join(
+	SPECS_DIR,
+	"http",
+	"farmhand-sidecar.openapi.v1.json",
+);
 
 function collectJsonFiles(dir) {
 	if (!fs.existsSync(dir)) return [];
@@ -80,8 +85,61 @@ function validateSpec(filePath) {
 	});
 }
 
+function normalizeOpenApiPath(route) {
+	return route.replace(/\{([^}]+)\}/g, ":$1");
+}
+
+function implementedFarmhandSidecarRoutes() {
+	return [
+		["GET", "/efforts"],
+		["POST", "/efforts"],
+		["GET", "/efforts/summary"],
+		["GET", "/efforts/:effortId"],
+		["GET", "/efforts/:effortId/logs"],
+		["POST", "/efforts/:effortId/retry"],
+		["POST", "/efforts/:effortId/cancel"],
+		["GET", "/sessions"],
+		["POST", "/sessions"],
+		["GET", "/telemetry"],
+		["GET", "/telemetry/window"],
+		["POST", "/plugins/install"],
+		["POST", "/plugins/reload"],
+		["GET", "/plugins/reload/status/:reloadId"],
+	].map(([method, route]) => `${method} ${route}`);
+}
+
+function declaredRoutes(spec) {
+	const methods = new Set(["get", "put", "post", "delete", "patch", "head", "options", "trace"]);
+	const routes = [];
+	for (const [route, pathItem] of Object.entries(spec.paths ?? {})) {
+		for (const method of Object.keys(pathItem)) {
+			if (!methods.has(method)) continue;
+			routes.push(`${method.toUpperCase()} ${normalizeOpenApiPath(route)}`);
+		}
+	}
+	return routes.sort();
+}
+
+function validateFarmhandSidecarRouteCoverage() {
+	if (!fs.existsSync(FARMHAND_SIDECAR_SPEC)) return;
+	const spec = JSON.parse(fs.readFileSync(FARMHAND_SIDECAR_SPEC, "utf-8"));
+	const declared = new Set(declaredRoutes(spec));
+	const implemented = implementedFarmhandSidecarRoutes();
+	const missing = implemented.filter((route) => !declared.has(route));
+	const extra = [...declared].filter((route) => !implemented.includes(route));
+	assert(
+		missing.length === 0,
+		`farmhand sidecar OpenAPI missing implemented route(s): ${missing.join(", ")}`,
+	);
+	assert(
+		extra.length === 0,
+		`farmhand sidecar OpenAPI declares route(s) not in implementation inventory: ${extra.join(", ")}`,
+	);
+}
+
 const files = collectJsonFiles(SPECS_DIR);
 assert(files.length > 0, "No OpenAPI JSON specs found in specs/protocols");
 
 for (const file of files) validateSpec(file);
+validateFarmhandSidecarRouteCoverage();
 console.log(`OpenAPI specs ok (${files.length})`);

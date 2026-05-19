@@ -25,3 +25,6 @@ Validate specs with:
 ```bash
 pnpm run openapi:check
 ```
+
+For the farmhand sidecar contract, the check also verifies that the declared
+HTTP routes match the current implementation inventory.

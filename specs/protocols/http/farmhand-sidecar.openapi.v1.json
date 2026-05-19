@@ -395,6 +395,80 @@
 				}
 			}
 		},
+		"/plugins/install": {
+			"post": {
+				"operationId": "installPlugin",
+				"summary": "Install and load a plugin artifact",
+				"requestBody": {
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"type": "object",
+								"required": ["pluginId", "wasmUrl", "integrity", "manifest"],
+								"properties": {
+									"pluginId": {
+										"type": "string"
+									},
+									"wasmUrl": {
+										"type": "string"
+									},
+									"integrity": {
+										"type": "string"
+									},
+									"manifest": {
+										"type": "object",
+										"additionalProperties": true
+									}
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "Installed plugin artifact",
+						"content": {
+							"application/json": {
+								"schema": {
+									"type": "object",
+									"required": [
+										"pluginId",
+										"wasmHash",
+										"byteLength",
+										"artifactKind"
+									],
+									"properties": {
+										"pluginId": {
+											"type": "string"
+										},
+										"wasmHash": {
+											"type": "string"
+										},
+										"byteLength": {
+											"type": "integer",
+											"minimum": 0
+										},
+										"artifactKind": {
+											"type": "string"
+										}
+									}
+								}
+							}
+						}
+					},
+					"400": {
+						"$ref": "#/components/responses/Error"
+					},
+					"405": {
+						"$ref": "#/components/responses/Error"
+					},
+					"500": {
+						"$ref": "#/components/responses/Error"
+					}
+				}
+			}
+		},
 		"/plugins/reload/status/{reloadId}": {
 			"get": {
 				"operationId": "getPluginReloadStatus",
