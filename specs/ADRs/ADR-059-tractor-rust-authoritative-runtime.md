@@ -86,7 +86,7 @@ As of 2026-05-19, `@refarm.dev/tractor` consumers fall into these groups:
 | `apps/dev` | Consumes Homestead runtime and `@refarm.dev/runtime` plugin-handle/node-store types for diagnostics and stream demos; no direct tractor-ts dependency remains. | Low/Medium: browser runtime still arrives through Homestead, but app fixtures no longer type against tractor-ts. |
 | `packages/sower` | Plugin class depends on `@refarm.dev/runtime` host capabilities (`emitTelemetry`, `switchTier`) and runtime node types. | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
 | `packages/scarecrow` | Plugin class and tests depend on `@refarm.dev/runtime` host capabilities (`observe`, `queryNodes`, `setPluginState`, `emitTelemetry`). | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
-| `packages/plugin-courier` | Production code depends on `@refarm.dev/runtime` query capability; integration tests still boot tractor-ts as a compatibility fixture. | Medium: tests should move toward Rust-backed or narrow host fixtures. |
+| `packages/plugin-courier` | Production code and integration tests depend on `@refarm.dev/runtime` query capability and a narrow host fixture; no direct tractor-ts dependency remains. | Low/Medium: future work is validating the host contract against Rust tractor. |
 | `packages/vtconfig` and `packages/toolbox` | Alias/resolution support for `@refarm.dev/tractor` and test utils. | Low: tooling support remains while npm compatibility exists. |
 | `templates/courier/typescript` | Template dependency for generated plugins. | Medium: template should eventually depend on a narrow host contract. |
 
@@ -135,8 +135,6 @@ Near-term shrink targets:
 
 - Replace `apps/farmhand`'s direct `Tractor.boot` path with Rust sidecar
   delegation once the Rust HTTP protocol covers the same driver flow.
-- Move plugin-courier integration fixtures away from booting tractor-ts when a
-  narrow host fixture or Rust-backed harness can provide the same signal.
 - Extract stream/task/session projection helpers that are not browser-runtime
   specific into explicit contract packages, so UI clients do not import
   `@refarm.dev/tractor` for plain data reduction.
