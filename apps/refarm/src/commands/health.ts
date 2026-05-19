@@ -1,6 +1,13 @@
-import { HealthCore, FileSystemAuditor, RefarmProjectAuditor } from "@refarm.dev/health";
+import {
+  HealthCore,
+  FileSystemAuditor,
+  ProjectAuditor,
+  RefarmProjectAuditor,
+} from "@refarm.dev/health";
 import chalk from "chalk";
 import { Command } from "commander";
+import fs from "node:fs";
+import path from "node:path";
 
 interface HealthIssue {
   file?: string;
@@ -32,6 +39,29 @@ interface HealthOptions {
   failOnIssues?: boolean;
 }
 
+interface HealthPolicy {
+  preset: "refarm" | "workspace";
+  workspaceRoots?: string[];
+  exemptPackageIds?: string[];
+  ignoredGitVisibilityPatterns: string[];
+  title?: string;
+}
+
+interface RefarmConfig {
+  health?: {
+    preset?: "refarm" | "workspace";
+    workspaceRoots?: unknown;
+    exemptPackageIds?: unknown;
+    ignoredGitVisibilityPatterns?: unknown;
+    title?: unknown;
+  };
+}
+
+const REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS = [
+  "**/*.d.ts",
+  "packages/pi-agent/src/bindings.rs",
+];
+
 export function buildHealthReport(
   results: HealthResults,
   resolution: ResolutionStatus[],
@@ -43,6 +73,58 @@ export function buildHealthReport(
     results,
     resolution,
   };
+}
+
+export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
+  const configPath = path.join(rootDir, "refarm.config.json");
+  const fallback: HealthPolicy = {
+    preset: "refarm",
+    ignoredGitVisibilityPatterns: REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS,
+  };
+
+  if (!fs.existsSync(configPath)) {
+    return fallback;
+  }
+
+  let config: RefarmConfig;
+  try {
+    config = JSON.parse(fs.readFileSync(configPath, "utf-8")) as RefarmConfig;
+  } catch {
+    return fallback;
+  }
+
+  if (!config.health) {
+    return fallback;
+  }
+
+  const health = config.health;
+  const preset = health.preset === "refarm" ? "refarm" : "workspace";
+  const ignoredGitVisibilityPatterns = asStringArray(health.ignoredGitVisibilityPatterns);
+  const policy: HealthPolicy = {
+    preset,
+    ignoredGitVisibilityPatterns: ignoredGitVisibilityPatterns.length > 0
+      ? ignoredGitVisibilityPatterns
+      : preset === "refarm"
+        ? REFARM_DEFAULT_IGNORED_GIT_VISIBILITY_PATTERNS
+        : [],
+  };
+
+  const workspaceRoots = asStringArray(health.workspaceRoots);
+  if (workspaceRoots.length > 0) policy.workspaceRoots = workspaceRoots;
+
+  const exemptPackageIds = asStringArray(health.exemptPackageIds);
+  if (exemptPackageIds.length > 0) policy.exemptPackageIds = exemptPackageIds;
+
+  if (typeof health.title === "string" && health.title.trim()) {
+    policy.title = health.title;
+  }
+
+  return policy;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.length > 0);
 }
 
 function emitHealthJson(report: HealthReport): void {
@@ -102,14 +184,16 @@ export const healthCommand = new Command("health")
   .option("--json", "Output machine-readable health report")
   .option("--fail-on-issues", "Exit non-zero when health issues are found")
   .action(async (options: HealthOptions) => {
+    const policy = resolveHealthPolicy();
     const health = new HealthCore();
     health.register(new FileSystemAuditor({
-      ignoredGitVisibilityPatterns: [
-        "**/*.d.ts",
-        "packages/pi-agent/src/bindings.rs",
-      ],
+      ignoredGitVisibilityPatterns: policy.ignoredGitVisibilityPatterns,
     }));
-    health.register(new RefarmProjectAuditor());
+    health.register(
+      policy.preset === "refarm"
+        ? new RefarmProjectAuditor(policy)
+        : new ProjectAuditor(policy),
+    );
 
     const results = await health.audit() as HealthResults;
     const resolution = await health.checkResolutionStatus() as ResolutionStatus[];

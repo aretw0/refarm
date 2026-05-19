@@ -20,8 +20,8 @@ export class HealthCore {
     }
 
     /**
-     * Loads a health policy from the Sovereign Graph to guide the auditors.
-     * Positioned for Phase 7+ where policies are encoded as Graph Nodes.
+     * Loads a health policy from an external graph context to guide auditors.
+     * Positioned for future use where policies are encoded as graph nodes.
      */
     async loadPolicy(policyNodeId) {
         if (!this.#graphContext) {

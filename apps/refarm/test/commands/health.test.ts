@@ -1,9 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-const { mockAudit, mockCheckResolutionStatus, mockFileSystemAuditor } = vi.hoisted(() => ({
+const {
+  mockAudit,
+  mockCheckResolutionStatus,
+  mockFileSystemAuditor,
+  mockProjectAuditor,
+  mockRefarmProjectAuditor,
+  mockExistsSync,
+  mockReadFileSync,
+} = vi.hoisted(() => ({
   mockAudit: vi.fn().mockResolvedValue({ git: [], builds: [], alignment: [] }),
   mockCheckResolutionStatus: vi.fn().mockResolvedValue([]),
   mockFileSystemAuditor: vi.fn(),
+  mockProjectAuditor: vi.fn(),
+  mockRefarmProjectAuditor: vi.fn(),
+  mockExistsSync: vi.fn().mockReturnValue(false),
+  mockReadFileSync: vi.fn(),
 }));
 
 vi.mock("@refarm.dev/health", () => ({
@@ -11,10 +23,29 @@ vi.mock("@refarm.dev/health", () => ({
     return { register: vi.fn(), audit: mockAudit, checkResolutionStatus: mockCheckResolutionStatus };
   }),
   FileSystemAuditor: mockFileSystemAuditor,
-  RefarmProjectAuditor: vi.fn(),
+  ProjectAuditor: mockProjectAuditor,
+  RefarmProjectAuditor: mockRefarmProjectAuditor,
 }));
 
-import { buildHealthReport, healthCommand } from "../../src/commands/health.js";
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
+  return {
+    ...actual,
+    existsSync: mockExistsSync,
+    readFileSync: mockReadFileSync,
+    default: {
+      ...actual,
+      existsSync: mockExistsSync,
+      readFileSync: mockReadFileSync,
+    },
+  };
+});
+
+import {
+  buildHealthReport,
+  healthCommand,
+  resolveHealthPolicy,
+} from "../../src/commands/health.js";
 
 describe("buildHealthReport", () => {
   it("counts git, build and alignment issues", () => {
@@ -37,6 +68,8 @@ describe("healthCommand", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.exitCode = undefined;
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue("{}");
     mockAudit.mockResolvedValue({ git: [], builds: [], alignment: [] });
     mockCheckResolutionStatus.mockResolvedValue([]);
   });
@@ -47,7 +80,7 @@ describe("healthCommand", () => {
     expect(mockCheckResolutionStatus).toHaveBeenCalled();
   });
 
-  it("configures Refarm generated source artifacts as git-visibility exclusions", async () => {
+  it("uses the Refarm preset when no project health policy exists", async () => {
     await healthCommand.parseAsync([], { from: "user" });
     expect(mockFileSystemAuditor).toHaveBeenCalledWith({
       ignoredGitVisibilityPatterns: [
@@ -55,6 +88,41 @@ describe("healthCommand", () => {
         "packages/pi-agent/src/bindings.rs",
       ],
     });
+    expect(mockRefarmProjectAuditor).toHaveBeenCalledWith({
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: [
+        "**/*.d.ts",
+        "packages/pi-agent/src/bindings.rs",
+      ],
+    });
+    expect(mockProjectAuditor).not.toHaveBeenCalled();
+  });
+
+  it("uses generic workspace policy from refarm.config.json when configured", async () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        workspaceRoots: ["modules"],
+        exemptPackageIds: ["modules/meta"],
+        ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
+        title: "Example Workspace Health",
+      },
+    }));
+
+    await healthCommand.parseAsync([], { from: "user" });
+
+    const expectedPolicy = {
+      preset: "workspace",
+      workspaceRoots: ["modules"],
+      exemptPackageIds: ["modules/meta"],
+      ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
+      title: "Example Workspace Health",
+    };
+    expect(mockFileSystemAuditor).toHaveBeenCalledWith({
+      ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
+    });
+    expect(mockProjectAuditor).toHaveBeenCalledWith(expectedPolicy);
+    expect(mockRefarmProjectAuditor).not.toHaveBeenCalled();
   });
 
   it("does not throw when all checks pass", async () => {
@@ -97,5 +165,61 @@ describe("healthCommand", () => {
 
     expect(process.exitCode).toBe(1);
     logSpy.mockRestore();
+  });
+});
+
+describe("resolveHealthPolicy", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue("{}");
+  });
+
+  it("falls back to the Refarm policy when no config exists", () => {
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: [
+        "**/*.d.ts",
+        "packages/pi-agent/src/bindings.rs",
+      ],
+    });
+  });
+
+  it("normalizes health arrays and ignores invalid values", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        preset: "workspace",
+        workspaceRoots: ["packages", 1, ""],
+        exemptPackageIds: ["packages/meta", null],
+        ignoredGitVisibilityPatterns: ["**/*.generated.ts", false],
+        title: "Configured Health",
+      },
+    }));
+
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "workspace",
+      workspaceRoots: ["packages"],
+      exemptPackageIds: ["packages/meta"],
+      ignoredGitVisibilityPatterns: ["**/*.generated.ts"],
+      title: "Configured Health",
+    });
+  });
+
+  it("keeps Refarm git visibility defaults when preset is configured without overrides", () => {
+    mockExistsSync.mockReturnValue(true);
+    mockReadFileSync.mockReturnValue(JSON.stringify({
+      health: {
+        preset: "refarm",
+      },
+    }));
+
+    expect(resolveHealthPolicy("/tmp/project")).toEqual({
+      preset: "refarm",
+      ignoredGitVisibilityPatterns: [
+        "**/*.d.ts",
+        "packages/pi-agent/src/bindings.rs",
+      ],
+    });
   });
 });
