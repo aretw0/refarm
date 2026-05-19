@@ -1,5 +1,6 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 type ThresholdProfileName = "conservative" | "balanced" | "throughput";
@@ -55,11 +56,7 @@ export interface RuntimeTelemetryWindow {
 	cancelled: number;
 }
 
-export interface RuntimeTelemetryRecommendation {
-	diagnostic: string;
-	summary: string;
-	action: string;
-}
+export type RuntimeTelemetryRecommendation = DiagnosticRecommendation;
 
 export interface TelemetryDeps {
 	fetchTelemetry(): Promise<RuntimeTelemetrySnapshot>;

@@ -8,6 +8,7 @@ import chalk from "chalk";
 import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
+import type { DiagnosticRecommendation } from "./diagnostic-recommendations.js";
 
 interface HealthIssue {
   file?: string;
@@ -16,11 +17,8 @@ interface HealthIssue {
   entry?: string;
 }
 
-interface HealthRecommendation {
+interface HealthRecommendation extends DiagnosticRecommendation {
   issueType: string;
-  target?: string;
-  summary: string;
-  action: string;
 }
 
 interface HealthResults {
@@ -88,18 +86,21 @@ export function buildHealthRecommendations(results: HealthResults): HealthRecomm
   return [
     ...results.git.map((issue) => ({
       issueType: issue.type,
+      diagnostic: issue.type,
       target: issue.file,
       summary: `${issue.file ?? "A source file"} is ignored by Git.`,
       action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
     })),
     ...results.builds.map((issue) => ({
       issueType: issue.type,
+      diagnostic: issue.type,
       target: issue.package,
       summary: `${issue.package ?? "A workspace package"} is missing a build config.`,
       action: "Add the package build configuration or mark the package exempt in the project health policy.",
     })),
     ...results.alignment.map((issue) => ({
       issueType: issue.type,
+      diagnostic: issue.type,
       target: issue.package,
       summary: `${issue.package ?? "A workspace package"} resolves to ${issue.entry ?? "source"} instead of its build output.`,
       action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",

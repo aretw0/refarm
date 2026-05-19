@@ -77,18 +77,21 @@ describe("buildHealthRecommendations", () => {
     ).toEqual([
       {
         issueType: "git_ignored",
+        diagnostic: "git_ignored",
         target: "src/generated.ts",
         summary: "src/generated.ts is ignored by Git.",
         action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
       },
       {
         issueType: "missing_build_config",
+        diagnostic: "missing_build_config",
         target: "packages/missing-build",
         summary: "packages/missing-build is missing a build config.",
         action: "Add the package build configuration or mark the package exempt in the project health policy.",
       },
       {
         issueType: "local_alignment",
+        diagnostic: "local_alignment",
         target: "packages/local",
         summary: "packages/local resolves to src/ instead of its build output.",
         action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",

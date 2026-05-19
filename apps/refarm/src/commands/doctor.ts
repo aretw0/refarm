@@ -11,6 +11,10 @@ import {
 	resolveRefarmRuntimeMetadata,
 	type RefarmRuntimeMetadata,
 } from "./runtime-metadata.js";
+import type {
+	DiagnosticRecommendation,
+	DiagnosticRecommendationSeverity,
+} from "./diagnostic-recommendations.js";
 import { withResolvedStatusPayload } from "./status-payload.js";
 import { resolveStatusPayload } from "./status.js";
 
@@ -27,10 +31,10 @@ export interface RefarmDoctorReport {
 }
 
 export interface RefarmDoctorRecommendation {
-	diagnostic: string;
-	severity: "failure" | "warning" | "info";
-	summary: string;
-	action: string;
+	diagnostic: DiagnosticRecommendation["diagnostic"];
+	severity: DiagnosticRecommendationSeverity;
+	summary: DiagnosticRecommendation["summary"];
+	action: DiagnosticRecommendation["action"];
 }
 
 export interface RefarmDoctorOptions {
