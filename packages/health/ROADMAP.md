@@ -32,8 +32,13 @@
 **Scope**: Delivering a first-class developer diagnostic tool.
 
 - [x] Initial **`refarm health` (CLI)** bridge with colored reports.
-- [ ] Rich fix suggestions for the `refarm health` diagnostic output.
+- [x] Rich fix suggestions for the `refarm health` diagnostic output.
 - [ ] **Schema Validation**: Checking that `identity.json` and `registry.json` match their respective schemas.
+- [ ] **Environment pressure diagnostics**: report stale development processes,
+  deleted-open binaries (`lsof +L1`), project port listeners, disk pressure, and
+  local package-store placement without killing anything by default. Keep the
+  primitive generic in `@refarm.dev/health`; let `apps/refarm` configure
+  project-specific process names, ports, and thresholds for `refarm check`.
 
 ---
 
