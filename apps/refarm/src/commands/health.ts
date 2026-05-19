@@ -16,6 +16,13 @@ interface HealthIssue {
   entry?: string;
 }
 
+interface HealthRecommendation {
+  issueType: string;
+  target?: string;
+  summary: string;
+  action: string;
+}
+
 interface HealthResults {
   git: HealthIssue[];
   builds: HealthIssue[];
@@ -32,6 +39,7 @@ interface HealthReport {
   issueCount: number;
   results: HealthResults;
   resolution: ResolutionStatus[];
+  recommendations: HealthRecommendation[];
 }
 
 interface HealthOptions {
@@ -72,7 +80,31 @@ export function buildHealthReport(
     issueCount,
     results,
     resolution,
+    recommendations: buildHealthRecommendations(results),
   };
+}
+
+export function buildHealthRecommendations(results: HealthResults): HealthRecommendation[] {
+  return [
+    ...results.git.map((issue) => ({
+      issueType: issue.type,
+      target: issue.file,
+      summary: `${issue.file ?? "A source file"} is ignored by Git.`,
+      action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+    })),
+    ...results.builds.map((issue) => ({
+      issueType: issue.type,
+      target: issue.package,
+      summary: `${issue.package ?? "A workspace package"} is missing a build config.`,
+      action: "Add the package build configuration or mark the package exempt in the project health policy.",
+    })),
+    ...results.alignment.map((issue) => ({
+      issueType: issue.type,
+      target: issue.package,
+      summary: `${issue.package ?? "A workspace package"} resolves to ${issue.entry ?? "source"} instead of its build output.`,
+      action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+    })),
+  ];
 }
 
 export function resolveHealthPolicy(rootDir = process.cwd()): HealthPolicy {
@@ -176,6 +208,12 @@ function emitHealthSummary(report: HealthReport): void {
     console.log(chalk.bold.green("\n✨ All checks passed."));
   } else {
     console.log(chalk.bold.yellow(`\n⚠️  ${report.issueCount} issue${report.issueCount === 1 ? "" : "s"} found. Review and reconcile.`));
+    console.log(chalk.bold("\nRecommendations"));
+    report.recommendations.forEach((recommendation) => {
+      const target = recommendation.target ? ` (${recommendation.target})` : "";
+      console.log(chalk.gray(`   - ${recommendation.summary}${target}`));
+      console.log(chalk.gray(`     ${recommendation.action}`));
+    });
   }
 }
 

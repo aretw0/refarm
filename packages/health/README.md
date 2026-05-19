@@ -9,6 +9,7 @@ are workspace-agnostic.
 - **Project Diagnostics**: Automated checks for workspace structure, build config, and package entrypoints.
 - **Build Verification**: Ensuring required source/build contracts are present and valid.
 - **Configurable Project Policy**: `ProjectAuditor` is generic by default; `RefarmProjectAuditor` is only a convenience preset with Refarm roots and exemptions.
+- **Actionable Output**: `refarm health --json` includes stable `recommendations` for agents and CI wrappers.
 
 ## CLI Policy
 

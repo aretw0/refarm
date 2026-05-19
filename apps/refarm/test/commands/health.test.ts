@@ -43,6 +43,7 @@ vi.mock("node:fs", async (importOriginal) => {
 
 import {
   buildHealthReport,
+  buildHealthRecommendations,
   healthCommand,
   resolveHealthPolicy,
 } from "../../src/commands/health.js";
@@ -61,6 +62,38 @@ describe("buildHealthReport", () => {
     expect(report.ok).toBe(false);
     expect(report.issueCount).toBe(3);
     expect(report.resolution).toEqual([{ package: "packages/local", mode: "LOCAL (src)" }]);
+    expect(report.recommendations).toHaveLength(3);
+  });
+});
+
+describe("buildHealthRecommendations", () => {
+  it("creates stable actions for each health issue type", () => {
+    expect(
+      buildHealthRecommendations({
+        git: [{ file: "src/generated.ts", type: "git_ignored" }],
+        builds: [{ package: "packages/missing-build", type: "missing_build_config" }],
+        alignment: [{ package: "packages/local", entry: "src/", type: "local_alignment" }],
+      }),
+    ).toEqual([
+      {
+        issueType: "git_ignored",
+        target: "src/generated.ts",
+        summary: "src/generated.ts is ignored by Git.",
+        action: "Track the source file, or add an explicit health policy exclusion if it is generated.",
+      },
+      {
+        issueType: "missing_build_config",
+        target: "packages/missing-build",
+        summary: "packages/missing-build is missing a build config.",
+        action: "Add the package build configuration or mark the package exempt in the project health policy.",
+      },
+      {
+        issueType: "local_alignment",
+        target: "packages/local",
+        summary: "packages/local resolves to src/ instead of its build output.",
+        action: "Point package entrypoints at build output, or run the project's configured resolution-alignment workflow.",
+      },
+    ]);
   });
 });
 
@@ -149,6 +182,7 @@ describe("healthCommand", () => {
     const output = String(logSpy.mock.calls[0]?.[0]);
     expect(output).toContain('"ok": true');
     expect(output).toContain('"issueCount": 0');
+    expect(output).toContain('"recommendations"');
     expect(output).toContain('"resolution"');
     logSpy.mockRestore();
   });
@@ -164,6 +198,9 @@ describe("healthCommand", () => {
     await healthCommand.parseAsync(["--fail-on-issues"], { from: "user" });
 
     expect(process.exitCode).toBe(1);
+    expect(logSpy.mock.calls.some(([message]) =>
+      String(message).includes("Recommendations"),
+    )).toBe(true);
     logSpy.mockRestore();
   });
 });
