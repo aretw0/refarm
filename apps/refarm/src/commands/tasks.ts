@@ -1,25 +1,7 @@
 import chalk from "chalk";
 import { Command } from "commander";
+import type { Task, TaskEvent } from "@refarm.dev/task-contract-v1";
 import { sidecarUrl } from "./sidecar-url.js";
-
-interface TaskNode {
-	"@id": string;
-	"@type": string;
-	title?: string;
-	status?: string;
-	context_id?: string | null;
-	created_at_ns?: number;
-	updated_at_ns?: number;
-}
-
-interface TaskEvent {
-	"@id": string;
-	task_id: string;
-	event: string;
-	actor?: string;
-	timestamp_ns?: number;
-	payload?: Record<string, unknown>;
-}
 
 interface TaskListJson {
 	schemaVersion: 1;
@@ -30,7 +12,7 @@ interface TaskListJson {
 		session_id?: string;
 		limit?: number;
 	};
-	tasks: TaskNode[];
+	tasks: Task[];
 }
 
 interface TaskShowJson {
@@ -38,7 +20,7 @@ interface TaskShowJson {
 	command: "tasks";
 	operation: "show";
 	prefix: string;
-	task: TaskNode;
+	task: Task;
 	events: TaskEvent[];
 }
 
@@ -92,7 +74,7 @@ function statusLabel(status: string | undefined): string {
 
 async function fetchTasks(
 	params: { status?: string; session_id?: string; limit?: number } = {},
-): Promise<TaskNode[]> {
+): Promise<Task[]> {
 	const query = new URLSearchParams();
 	if (params.status) query.set("status", params.status);
 	if (params.session_id) query.set("session_id", params.session_id);
@@ -100,7 +82,7 @@ async function fetchTasks(
 	const qs = query.toString() ? `?${query}` : "";
 	const response = await fetch(sidecarUrl(`/tasks${qs}`));
 	if (!response.ok) throw new Error(`sidecar HTTP ${response.status}`);
-	const body = (await response.json()) as { tasks: TaskNode[] };
+	const body = (await response.json()) as { tasks: Task[] };
 	return body.tasks ?? [];
 }
 
@@ -110,7 +92,7 @@ async function listTasks(opts: {
 	limit?: number;
 	json?: boolean;
 }): Promise<void> {
-	let tasks: TaskNode[];
+	let tasks: Task[];
 	try {
 		tasks = await fetchTasks({
 			status: opts.status,
@@ -172,7 +154,7 @@ async function listTasks(opts: {
 }
 
 async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<void> {
-	let body: { task: TaskNode; events: TaskEvent[] };
+	let body: { task: Task; events: TaskEvent[] };
 	try {
 		const response = await fetch(
 			sidecarUrl(`/tasks/${encodeURIComponent(prefix)}`),

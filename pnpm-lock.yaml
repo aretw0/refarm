@@ -317,6 +317,9 @@ importers:
       '@refarm.dev/stream-contract-v1':
         specifier: workspace:*
         version: link:../../packages/stream-contract-v1
+      '@refarm.dev/task-contract-v1':
+        specifier: workspace:*
+        version: link:../../packages/task-contract-v1
       '@refarm.dev/windmill':
         specifier: workspace:*
         version: link:../../packages/windmill

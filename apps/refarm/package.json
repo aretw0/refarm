@@ -33,6 +33,7 @@
     "@refarm.dev/silo": "workspace:*",
     "@refarm.dev/sower": "workspace:*",
     "@refarm.dev/stream-contract-v1": "workspace:*",
+    "@refarm.dev/task-contract-v1": "workspace:*",
     "@refarm.dev/windmill": "workspace:*",
     "@inquirer/core": "^11.1.10",
     "@inquirer/prompts": "^8.4.3",
