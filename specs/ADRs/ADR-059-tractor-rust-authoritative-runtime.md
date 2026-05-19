@@ -76,7 +76,7 @@ Rust already owns the target implementations for these areas in
 
 ### Current TypeScript Consumer Map
 
-As of 2026-05-18, `@refarm.dev/tractor` consumers fall into these groups:
+As of 2026-05-19, `@refarm.dev/tractor` consumers fall into these groups:
 
 | Consumer | Current use | Migration pressure |
 |---|---|---|
@@ -94,6 +94,54 @@ Unused direct dependencies on `@refarm.dev/tractor` were removed from
 `packages/barn` and `packages/plugin-tem`; neither imported the package.
 `apps/refarm status` no longer boots tractor-ts for a synthetic status payload;
 it now builds the local CLI status snapshot directly.
+
+### Tractor TypeScript Retention Review
+
+The TypeScript package remains necessary as an npm and browser compatibility
+boundary, but it should not continue acting as a second native runtime. The
+current source tree mixes four categories:
+
+| Category | Current modules | Long-term owner |
+|---|---|---|
+| Browser-only host surface | `index.browser.ts`, `install-plugin.ts`, `opfs-plugin-cache.ts`, browser runtime descriptor verification/revocation helpers | Keep in TypeScript while browser runtime support exists. |
+| UI/client projections | `agent-response-stream.ts`, `stream-chunk.ts`, `stream-session.ts`, `stream-view.ts`, selected telemetry diagnostics helpers | Prefer moving to protocol/contract packages when reused outside Tractor; keep dependency-light reducers available to browser clients. |
+| Compatibility host facade | `Tractor.boot`, `CommandHost`, graph normalizer, test utilities, compatibility exports | Keep temporarily for npm compatibility and TS integration tests; shrink toward narrow contracts from `@refarm.dev/runtime`. |
+| Native runtime behavior | `plugin-host.ts`, `plugin-runner.ts`, `main-thread-runner.ts`, `worker-runner.ts`, `wasi-imports.ts`, native trust enforcement, native telemetry authority, storage/sync lifecycle | Rust owns this. Do not grow new behavior here except compatibility shims covered by conformance tests. |
+
+The Rust crate already contains the intended homes for native execution:
+
+- plugin loading and Component Model execution: `packages/tractor/src/host/plugin_host/*`
+- host imports/WASI bridge: `packages/tractor/src/host/wasi_bridge/*`
+- trust policy: `packages/tractor/src/trust/mod.rs`
+- storage and CRDT sync: `packages/tractor/src/storage/*`, `packages/tractor/src/sync/*`
+- daemon/WebSocket routing: `packages/tractor/src/daemon/*`
+- sidecar protocol: `packages/tractor/src/sidecar/*`
+- streaming observations: `packages/tractor/src/streaming/*`
+- telemetry authority: `packages/tractor/src/telemetry/*`
+
+Practical reduction rule:
+
+1. If code needs Node-native WASM execution, filesystem/runtime process
+   management, trust enforcement, or host-import policy, it belongs in Rust.
+2. If code needs browser APIs such as OPFS, dynamic ESM loading, or browser
+   runtime descriptor installation, it can remain in TypeScript.
+3. If code is a pure reducer/projection over persisted protocol nodes, prefer a
+   small contract/protocol package over `tractor-ts`.
+4. If a TS package only needs `plugins.get/load`, `registry`, `storeNode`,
+   `onNode`, or telemetry hooks, it should depend on `@refarm.dev/runtime`
+   contracts rather than importing the full `Tractor` class.
+
+Near-term shrink targets:
+
+- Replace `apps/farmhand`'s direct `Tractor.boot` path with Rust sidecar
+  delegation once the Rust HTTP protocol covers the same driver flow.
+- Move plugin-courier integration fixtures away from booting tractor-ts when a
+  narrow host fixture or Rust-backed harness can provide the same signal.
+- Extract stream/task/session projection helpers that are not browser-runtime
+  specific into explicit contract packages, so UI clients do not import
+  `@refarm.dev/tractor` for plain data reduction.
+- Keep `@refarm.dev/tractor` npm name as a compatibility facade until consumers
+  no longer need the legacy class shape.
 
 ## Consequences
 
