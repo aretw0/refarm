@@ -10,6 +10,7 @@ vi.mock("../../src/commands/status.js", () => ({
 }));
 
 import {
+	buildRefarmDoctorRecommendations,
 	buildRefarmDoctorReport,
 	doctorCommand,
 } from "../../src/commands/doctor.js";
@@ -71,6 +72,20 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.failures).toEqual(["runtime:not-ready"]);
 		expect(report.warnings).toEqual(["trust:warnings-present"]);
 		expect(report.informational).toEqual(["renderer:non-interactive"]);
+		expect(report.recommendations).toEqual([
+			expect.objectContaining({
+				diagnostic: "runtime:not-ready",
+				severity: "failure",
+			}),
+			expect.objectContaining({
+				diagnostic: "trust:warnings-present",
+				severity: "warning",
+			}),
+			expect.objectContaining({
+				diagnostic: "renderer:non-interactive",
+				severity: "info",
+			}),
+		]);
 		expect(report.host.version).toBe("1.2.3");
 	});
 
@@ -82,6 +97,37 @@ describe("buildRefarmDoctorReport", () => {
 		expect(report.ok).toBe(false);
 		expect(report.failureCount).toBe(0);
 		expect(report.warningCount).toBe(1);
+	});
+});
+
+describe("buildRefarmDoctorRecommendations", () => {
+	it("creates stable recommendations for status diagnostics", () => {
+		expect(
+			buildRefarmDoctorRecommendations({
+				failures: ["runtime:not-ready"],
+				warnings: ["plugins:rejected-surfaces-present"],
+				informational: ["renderer:no-rich-html"],
+			}),
+		).toEqual([
+			{
+				diagnostic: "runtime:not-ready",
+				severity: "failure",
+				summary: "The runtime reported that it is not ready.",
+				action: "Start or repair the configured runtime, then rerun `refarm doctor --json`.",
+			},
+			{
+				diagnostic: "plugins:rejected-surfaces-present",
+				severity: "warning",
+				summary: "One or more plugin surfaces were rejected.",
+				action: "Inspect plugin manifests and host surface policy before exposing plugin UI.",
+			},
+			{
+				diagnostic: "renderer:no-rich-html",
+				severity: "info",
+				summary: "The selected renderer does not support rich HTML.",
+				action: "Use a renderer with rich HTML support when plugin surfaces require it.",
+			},
+		]);
 	});
 });
 
@@ -145,6 +191,7 @@ describe("doctorCommand", () => {
 		expect(String(output)).toContain('"ok": true');
 		expect(String(output)).toContain('"host"');
 		expect(String(output)).toContain('"status"');
+		expect(String(output)).toContain('"recommendations"');
 		logSpy.mockRestore();
 	});
 });
