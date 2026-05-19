@@ -75,6 +75,51 @@ describe("refarm tasks", () => {
 		);
 	});
 
+	it("prints task lists as machine-readable JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({
+					tasks: [
+						{
+							"@id": "urn:refarm:task:v1:abc123def456",
+							"@type": "Task",
+							title: "@refarm/pi-agent.respond",
+							status: "done",
+						},
+					],
+				}),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.parseAsync(
+			["--json", "--status", "done", "--session", "session-1", "--limit", "2"],
+			{ from: "user" },
+		);
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toEqual({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "list",
+			filters: {
+				status: "done",
+				session_id: "session-1",
+				limit: 2,
+			},
+			tasks: [
+				{
+					"@id": "urn:refarm:task:v1:abc123def456",
+					"@type": "Task",
+					title: "@refarm/pi-agent.respond",
+					status: "done",
+				},
+			],
+		});
+	});
+
 	it("shows task details and events", async () => {
 		const fetchMock = vi.fn().mockResolvedValue(
 			jsonResponse({
@@ -120,6 +165,56 @@ describe("refarm tasks", () => {
 		expect(output).toContain("urn:refarm:session:v1:s1");
 		expect(output).toContain("status_changed");
 		expect(output).toContain("mock-model");
+	});
+
+	it("prints task details as machine-readable JSON", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn().mockResolvedValue(
+				jsonResponse({
+					task: {
+						"@id": "urn:refarm:task:v1:abc123def456",
+						"@type": "Task",
+						title: "@refarm/pi-agent.respond",
+						status: "active",
+					},
+					events: [
+						{
+							"@id": "urn:refarm:task-event:v1:e1",
+							task_id: "urn:refarm:task:v1:abc123def456",
+							event: "status_changed",
+						},
+					],
+				}),
+			),
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		const command = createTasksCommand();
+		await command.commands
+			.find((child) => child.name() === "show")!
+			.parseAsync(["abc123", "--json"], { from: "user" });
+
+		const output = JSON.parse(String(logSpy.mock.calls[0]?.[0]));
+		expect(output).toEqual({
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			prefix: "abc123",
+			task: {
+				"@id": "urn:refarm:task:v1:abc123def456",
+				"@type": "Task",
+				title: "@refarm/pi-agent.respond",
+				status: "active",
+			},
+			events: [
+				{
+					"@id": "urn:refarm:task-event:v1:e1",
+					task_id: "urn:refarm:task:v1:abc123def456",
+					event: "status_changed",
+				},
+			],
+		});
 	});
 
 	it("fails closed for ambiguous task prefixes", async () => {

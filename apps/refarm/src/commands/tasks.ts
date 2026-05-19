@@ -21,6 +21,27 @@ interface TaskEvent {
 	payload?: Record<string, unknown>;
 }
 
+interface TaskListJson {
+	schemaVersion: 1;
+	command: "tasks";
+	operation: "list";
+	filters: {
+		status?: string;
+		session_id?: string;
+		limit?: number;
+	};
+	tasks: TaskNode[];
+}
+
+interface TaskShowJson {
+	schemaVersion: 1;
+	command: "tasks";
+	operation: "show";
+	prefix: string;
+	task: TaskNode;
+	events: TaskEvent[];
+}
+
 function formatTaskId(id: string): string {
 	const parts = id.split(":");
 	return parts.at(-1)?.slice(-12) ?? id;
@@ -87,6 +108,7 @@ async function listTasks(opts: {
 	status?: string;
 	session?: string;
 	limit?: number;
+	json?: boolean;
 }): Promise<void> {
 	let tasks: TaskNode[];
 	try {
@@ -104,6 +126,22 @@ async function listTasks(opts: {
 			console.error(chalk.red(`✗  ${msg}`));
 		}
 		process.exit(1);
+	}
+
+	if (opts.json) {
+		const body: TaskListJson = {
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "list",
+			filters: {
+				status: opts.status,
+				session_id: opts.session,
+				limit: opts.limit,
+			},
+			tasks,
+		};
+		console.log(JSON.stringify(body, null, 2));
+		return;
 	}
 
 	if (tasks.length === 0) {
@@ -133,7 +171,7 @@ async function listTasks(opts: {
 	);
 }
 
-async function showTask(prefix: string): Promise<void> {
+async function showTask(prefix: string, opts: { json?: boolean } = {}): Promise<void> {
 	let body: { task: TaskNode; events: TaskEvent[] };
 	try {
 		const response = await fetch(
@@ -170,6 +208,20 @@ async function showTask(prefix: string): Promise<void> {
 	}
 
 	const { task, events } = body;
+
+	if (opts.json) {
+		const output: TaskShowJson = {
+			schemaVersion: 1,
+			command: "tasks",
+			operation: "show",
+			prefix,
+			task,
+			events,
+		};
+		console.log(JSON.stringify(output, null, 2));
+		return;
+	}
+
 	const short = formatTaskId(task["@id"]);
 
 	console.log(chalk.bold(`\n  Task ${chalk.cyan(short)}`));
@@ -208,19 +260,22 @@ export function createTasksCommand(): Command {
 		.option("-s, --status <status>", "Filter by status (done/active/failed/blocked)")
 		.option("--session <id>", "Filter by session ID")
 		.option("-n, --limit <n>", "Max tasks to show", "20")
+		.option("--json", "Output machine-readable JSON")
 		.addCommand(
 			new Command("show")
 				.description("Show details and events for a task")
 				.argument("<id>", "Task ID or unique prefix")
-				.action(async (prefix: string) => {
-					await showTask(prefix);
+				.option("--json", "Output machine-readable JSON")
+				.action(async (prefix: string, opts: { json?: boolean }) => {
+					await showTask(prefix, { json: opts.json });
 				}),
 		)
-		.action(async (opts: { status?: string; session?: string; limit?: string }) => {
+		.action(async (opts: { status?: string; session?: string; limit?: string; json?: boolean }) => {
 			await listTasks({
 				status: opts.status,
 				session: opts.session,
 				limit: opts.limit ? parseInt(opts.limit, 10) : undefined,
+				json: opts.json,
 			});
 		});
 }
