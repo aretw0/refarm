@@ -55,6 +55,12 @@ export interface RuntimeTelemetryWindow {
 	cancelled: number;
 }
 
+export interface RuntimeTelemetryRecommendation {
+	diagnostic: string;
+	summary: string;
+	action: string;
+}
+
 export interface TelemetryDeps {
 	fetchTelemetry(): Promise<RuntimeTelemetrySnapshot>;
 	fetchTelemetryWindow(minutes: number): Promise<RuntimeTelemetryWindow | null>;
@@ -122,6 +128,51 @@ function formatSummary(snapshot: RuntimeTelemetrySnapshot): string[] {
 		`  failed        : ${snapshot.failed}`,
 		`  cancelled     : ${snapshot.cancelled}`,
 	];
+}
+
+export function buildTelemetryRecommendations(
+	diagnostics: string[],
+): RuntimeTelemetryRecommendation[] {
+	return diagnostics.map((diagnostic) => {
+		switch (diagnostic) {
+			case "saturation:queue":
+				return {
+					diagnostic,
+					summary: "The task queue is above the configured warning threshold.",
+					action: "Reduce new submissions, scale workers, or inspect long-running efforts before dispatching more work.",
+				};
+			case "saturation:inflight":
+				return {
+					diagnostic,
+					summary: "In-flight effort count is above the configured warning threshold.",
+					action: "Wait for active efforts to settle or increase worker capacity before starting more work.",
+				};
+			case "reliability:failures-present":
+				return {
+					diagnostic,
+					summary: "Failed efforts are present in the current telemetry snapshot.",
+					action: "Inspect failed effort logs and retry only after the failure cause is understood.",
+				};
+			case "reliability:failures-recent":
+				return {
+					diagnostic,
+					summary: "Recent telemetry window includes failed efforts.",
+					action: "Inspect recent failures before continuing automated execution.",
+				};
+			case "reliability:failure-rate":
+				return {
+					diagnostic,
+					summary: "Recent failure rate is above the configured warning threshold.",
+					action: "Pause non-essential automation and investigate the dominant failing tasks.",
+				};
+			default:
+				return {
+					diagnostic,
+					summary: `Telemetry diagnostic ${diagnostic} is present.`,
+					action: "Inspect telemetry payload and runtime logs for the diagnostic source.",
+				};
+		}
+	});
 }
 
 function printConnectionFailure(message: string): never {
@@ -245,6 +296,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 						? diagnostics.filter((code) => strictTargets.includes(code))
 						: [...diagnostics];
 				const strictPassed = !opts.strict || strictMatches.length === 0;
+				const recommendations = buildTelemetryRecommendations(diagnostics);
 
 				const payload = {
 					snapshot,
@@ -255,6 +307,7 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 						...thresholds,
 					},
 					diagnostics,
+					recommendations,
 					strict: {
 						enabled: !!opts.strict,
 						targets: strictTargets,
@@ -310,6 +363,11 @@ export function createTelemetryCommand(deps?: TelemetryDeps): Command {
 				console.log(chalk.yellow("\n  ⚠ pressure signals detected:"));
 				for (const item of diagnostics) {
 					console.log(chalk.yellow(`    - ${item}`));
+				}
+				console.log(chalk.bold("\nRecommendations"));
+				for (const item of recommendations) {
+					console.log(chalk.gray(`  - ${item.diagnostic}: ${item.summary}`));
+					console.log(chalk.gray(`    ${item.action}`));
 				}
 
 				if (!strictPassed) {
