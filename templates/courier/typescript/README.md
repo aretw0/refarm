@@ -1,13 +1,13 @@
-# {{REFARM_NAME}} — A Sovereign Farm
+# {{REFARM_NAME}} — Refarm Workspace
 
-A sovereign Astro application scaffolded by [Refarm](https://refarm.dev).
+An Astro application scaffolded by [Refarm](https://refarm.dev).
 
 ## Structure
 
 ```
 src/
   pages/
-    index.astro     # Main page — boots Tractor, mounts StudioShell
+    index.astro     # Main page — boots Homestead runtime, mounts StudioShell
 astro.config.mjs    # Astro config via @refarm.dev/config
 tsconfig.json       # TypeScript config via @refarm.dev/tsconfig
 package.json        # Dependencies and scripts
