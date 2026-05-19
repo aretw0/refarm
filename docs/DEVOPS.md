@@ -35,6 +35,24 @@ pnpm run git-commit-auto -- --strict-important
 Strict mode rejects generic messages (e.g. `chore: update implementation`) and
 requires specific commit wording for important/low-confidence groups.
 
+### Validation Cache Policy
+
+Local validation should not repeat expensive work when the inputs have already
+been checked. Prefer Turbo-scoped commands over per-package loops so repeated
+lanes become cache hits:
+
+```bash
+pnpm exec turbo run lint --filter=./apps/refarm
+pnpm exec turbo run type-check --filter=./apps/refarm
+pnpm exec turbo run test --filter=./apps/refarm
+```
+
+The pre-push hook follows this rule for changed workspaces and records completed
+lanes per push SHA in `.git/.refarm-prepush-validated-lanes`. If a push is
+interrupted after a lane passes, the next attempt skips that lane for the same
+SHA instead of recomputing it. Full successful pre-push runs are still recorded
+in `.git/.refarm-prepush-validated-shas`.
+
 ## Dev Container Setup
 
 ### Overview

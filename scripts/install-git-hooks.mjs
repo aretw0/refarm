@@ -200,7 +200,9 @@ CHANGED_WORKSPACES=$(awk -F/ '
 done | sort -u | tr '\\n' ' ' | xargs)
 
 CACHE_FILE=".git/.refarm-prepush-validated-shas"
+LANE_CACHE_FILE=".git/.refarm-prepush-validated-lanes"
 touch "$CACHE_FILE"
+touch "$LANE_CACHE_FILE"
 UNTESTED_SHAS=""
 for sha in $PUSH_SHAS; do
   [ -z "$sha" ] && continue
@@ -219,6 +221,34 @@ if [ -n "$PUSH_SHAS" ] && [ -z "$(echo "$UNTESTED_SHAS" | xargs)" ]; then
   echo "🚀 Push allowed"
   exit 0
 fi
+
+TURBO_FILTER_ARGS=""
+for ws in $CHANGED_WORKSPACES; do
+  [ -z "$ws" ] && continue
+  TURBO_FILTER_ARGS="$TURBO_FILTER_ARGS --filter=./$ws"
+done
+
+lane_validated() {
+  lane="$1"
+  [ -z "$(echo "$PUSH_SHAS" | xargs)" ] && return 1
+  for sha in $PUSH_SHAS; do
+    [ -z "$sha" ] && continue
+    if ! grep -q "^$sha $lane$" "$LANE_CACHE_FILE" 2>/dev/null; then
+      return 1
+    fi
+  done
+  return 0
+}
+
+mark_lane_validated() {
+  lane="$1"
+  [ -z "$(echo "$PUSH_SHAS" | xargs)" ] && return 0
+  for sha in $PUSH_SHAS; do
+    [ -z "$sha" ] && continue
+    echo "$sha $lane" >> "$LANE_CACHE_FILE"
+  done
+  sort -u "$LANE_CACHE_FILE" -o "$LANE_CACHE_FILE" 2>/dev/null || true
+}
 
 echo "🧭 Change profile: lint=$NEEDS_LINT type-check=$NEEDS_TYPECHECK unit-tests=$NEEDS_UNIT_TESTS qgate=$NEEDS_QUALITY_GATE audit=$NEEDS_SECURITY_AUDIT"
 if [ -n "$CHANGED_WORKSPACES" ]; then
@@ -247,52 +277,46 @@ WARNINGS=0
 echo "📝 Checking lint..."
 if [ $NEEDS_LINT -eq 0 ]; then
   echo "   ⏭️  Lint skipped (no workspace lint-relevant file changes in push range)"
+elif lane_validated "lint"; then
+  echo "   ⚡ Lint skipped (already validated for this push SHA)"
 else
   LINT_FAILED=0
 
   if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_LINT -eq 0 ]; then
-    echo "   🔎 Scoped lint for changed workspaces"
-    for ws in $CHANGED_WORKSPACES; do
-      [ -f "$ws/package.json" ] || continue
-
-      LINT_SCRIPT=$(pick_lint_script "$ws" || true)
-      if [ -z "$LINT_SCRIPT" ]; then
-        continue
-      fi
-
-      LINT_TIMEOUT=$(workspace_lint_timeout "$ws")
-
-      if timeout "$LINT_TIMEOUT" env CI=1 pnpm -C "$ws" run --silent "$LINT_SCRIPT" >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-        echo "   ✅ Lint passed ($ws:$LINT_SCRIPT)"
-      else
-        LINT_STATUS=$?
-        if [ "$LINT_STATUS" -eq 124 ]; then
-          echo "   ⏱️  Lint timed out after \${LINT_TIMEOUT}s ($ws:$LINT_SCRIPT)"
-          WARNINGS=1
-        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-          echo "   ❌ Lint failed ($ws:$LINT_SCRIPT)"
-          tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
-          LINT_FAILED=1
-        else
-          echo "   ⚠️  Lint failed ($ws:$LINT_SCRIPT)"
-          WARNINGS=1
-        fi
-      fi
-    done
-  else
-    if timeout 180 env CI=1 pnpm run --silent lint >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
-      echo "   ✅ Lint passed"
+    echo "   🔎 Turbo scoped lint for changed workspaces"
+    if timeout 240 env CI=1 pnpm exec turbo run lint $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      echo "   ✅ Turbo lint passed"
+      mark_lane_validated "lint"
     else
       LINT_STATUS=$?
       if [ "$LINT_STATUS" -eq 124 ]; then
-        echo "   ⏱️  Lint timed out after 90s (non-blocking local warning; CI enforces full lint)"
+        echo "   ⏱️  Turbo lint timed out after 240s (non-blocking local warning; CI enforces full lint)"
         WARNINGS=1
       elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-        echo "   ❌ Lint failed (blocking in strict mode)"
+        echo "   ❌ Turbo lint failed (blocking in strict mode)"
+        tail -n 60 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
+        tail -n 60 /tmp/prepush-lint.out 2>/dev/null | filter_vite_warning || true
+        LINT_FAILED=1
+      else
+        echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
+        WARNINGS=1
+      fi
+    fi
+  else
+    if timeout 240 env CI=1 pnpm exec turbo run lint --output-logs=new-only --ui=stream >/tmp/prepush-lint.out 2>/tmp/prepush-lint.err; then
+      echo "   ✅ Global Turbo lint passed"
+      mark_lane_validated "lint"
+    else
+      LINT_STATUS=$?
+      if [ "$LINT_STATUS" -eq 124 ]; then
+        echo "   ⏱️  Turbo lint timed out after 240s (non-blocking local warning; CI enforces full lint)"
+        WARNINGS=1
+      elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+        echo "   ❌ Turbo lint failed (blocking in strict mode)"
         tail -n 40 /tmp/prepush-lint.err 2>/dev/null | filter_vite_warning || true
         LINT_FAILED=1
       else
-        echo "   ⚠️  Lint failed (warning in permissive mode)"
+        echo "   ⚠️  Turbo lint failed (warning in permissive mode)"
         WARNINGS=1
       fi
     fi
@@ -308,6 +332,8 @@ echo ""
 echo "🔤 Checking types..."
 if [ $NEEDS_TYPECHECK -eq 0 ]; then
   echo "   ⏭️  Type-check preflight skipped (no TS/JS workspace changes in push range)"
+elif lane_validated "type-check"; then
+  echo "   ⚡ Type-check skipped (already validated for this push SHA)"
 else
   if timeout 120 env CI=1 pnpm run --silent tsconfig:guard >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
     echo "   ✅ TSConfig guard passed"
@@ -342,38 +368,34 @@ else
     TYPECHECK_FAILED=0
 
     if [ -n "$CHANGED_WORKSPACES" ] && [ $FORCE_GLOBAL_TYPECHECK -eq 0 ]; then
-      echo "   🔎 Scoped type-check for changed workspaces"
-      for ws in $CHANGED_WORKSPACES; do
-        [ -f "$ws/package.json" ] || continue
-        if ! has_npm_script "type-check" "$ws"; then
-          continue
-        fi
-
-        if timeout 90 env CI=1 pnpm -C "$ws" run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-          echo "   ✅ Type-check passed ($ws)"
-        else
-          TC_STATUS=$?
-          if [ "$TC_STATUS" -eq 124 ]; then
-            if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-              echo "   ❌ Type-check timed out ($ws)"
-              TYPECHECK_FAILED=1
-            else
-              echo "   ⚠️  Type-check timed out ($ws)"
-              WARNINGS=1
-            fi
-          elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
-            echo "   ❌ Type-check failed ($ws)"
-            tail -n 40 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+      echo "   🔎 Turbo scoped type-check for changed workspaces"
+      if timeout 300 env CI=1 pnpm exec turbo run type-check $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        echo "   ✅ Turbo type-check passed"
+        mark_lane_validated "type-check"
+      else
+        TC_STATUS=$?
+        if [ "$TC_STATUS" -eq 124 ]; then
+          if [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+            echo "   ❌ Turbo type-check timed out"
             TYPECHECK_FAILED=1
           else
-            echo "   ⚠️  Type-check failed ($ws)"
+            echo "   ⚠️  Turbo type-check timed out"
             WARNINGS=1
           fi
+        elif [ $IS_PROTECTED_BRANCH -eq 1 ]; then
+          echo "   ❌ Turbo type-check failed"
+          tail -n 60 /tmp/prepush-typecheck.err 2>/dev/null | filter_vite_warning || true
+          tail -n 60 /tmp/prepush-typecheck.out 2>/dev/null | filter_vite_warning || true
+          TYPECHECK_FAILED=1
+        else
+          echo "   ⚠️  Turbo type-check failed"
+          WARNINGS=1
         fi
-      done
+      fi
     else
-      if timeout 240 env CI=1 pnpm run --silent type-check >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
-        echo "   ✅ Global type-check passed"
+      if timeout 300 env CI=1 pnpm exec turbo run type-check --output-logs=new-only --ui=stream >/tmp/prepush-typecheck.out 2>/tmp/prepush-typecheck.err; then
+        echo "   ✅ Global Turbo type-check passed"
+        mark_lane_validated "type-check"
       else
         TC_STATUS=$?
         if [ "$TC_STATUS" -eq 124 ]; then
@@ -406,42 +428,37 @@ echo ""
 echo "🧪 Running unit tests (advisory local check)..."
 if [ $NEEDS_UNIT_TESTS -eq 0 ]; then
   echo "   ⏭️  Unit tests skipped (no TS/JS workspace changes in push range)"
+elif lane_validated "test"; then
+  echo "   ⚡ Unit tests skipped (already validated for this push SHA)"
 else
   UNIT_WARN=0
 
   if [ -n "$CHANGED_WORKSPACES" ]; then
-    echo "   🔎 Scoped tests for changed workspaces"
-    for ws in $CHANGED_WORKSPACES; do
-      [ -f "$ws/package.json" ] || continue
-
-      TEST_SCRIPT=$(pick_test_script "$ws" || true)
-      if [ -z "$TEST_SCRIPT" ]; then
-        continue
-      fi
-
-      TEST_TIMEOUT=$(workspace_test_timeout "$ws")
-
-      if timeout "$TEST_TIMEOUT" env CI=1 pnpm -C "$ws" run --silent "$TEST_SCRIPT" >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-        echo "   ✅ Tests passed ($ws:$TEST_SCRIPT)"
-      else
-        UNIT_STATUS=$?
-        if [ "$UNIT_STATUS" -eq 124 ]; then
-          echo "   ⚠️  Tests timed out after \${TEST_TIMEOUT}s ($ws:$TEST_SCRIPT)"
-        else
-          echo "   ⚠️  Tests failed ($ws:$TEST_SCRIPT)"
-        fi
-        UNIT_WARN=1
-      fi
-    done
-  else
-    if timeout 120 env CI=1 pnpm run --silent test:unit >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
-      echo "   ✅ Unit tests passed"
+    echo "   🔎 Turbo scoped tests for changed workspaces"
+    if timeout 300 env CI=1 pnpm exec turbo run test $TURBO_FILTER_ARGS --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      echo "   ✅ Turbo tests passed"
+      mark_lane_validated "test"
     else
       UNIT_STATUS=$?
       if [ "$UNIT_STATUS" -eq 124 ]; then
-        echo "   ⚠️  Unit tests timed out (non-blocking local warning)"
+        echo "   ⚠️  Turbo tests timed out after 300s (non-blocking local warning)"
       else
-        echo "   ⚠️  Unit tests failed (non-blocking local warning)"
+        echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
+        tail -n 60 /tmp/prepush-unit.err 2>/dev/null | filter_vite_warning || true
+        tail -n 60 /tmp/prepush-unit.out 2>/dev/null | filter_vite_warning || true
+      fi
+      UNIT_WARN=1
+    fi
+  else
+    if timeout 300 env CI=1 pnpm exec turbo run test --output-logs=new-only --ui=stream >/tmp/prepush-unit.out 2>/tmp/prepush-unit.err; then
+      echo "   ✅ Global Turbo tests passed"
+      mark_lane_validated "test"
+    else
+      UNIT_STATUS=$?
+      if [ "$UNIT_STATUS" -eq 124 ]; then
+        echo "   ⚠️  Turbo tests timed out (non-blocking local warning)"
+      else
+        echo "   ⚠️  Turbo tests failed (non-blocking local warning)"
       fi
       UNIT_WARN=1
     fi
