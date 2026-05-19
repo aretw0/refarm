@@ -57,6 +57,7 @@
 		"@refarm.dev/ds": "workspace:*",
 		"@refarm.dev/identity-contract-v1": "workspace:*",
 		"@refarm.dev/plugin-manifest": "workspace:*",
+		"@refarm.dev/runtime": "workspace:*",
 		"@refarm.dev/storage-sqlite": "workspace:*",
 		"@refarm.dev/sync-loro": "workspace:*",
 		"@refarm.dev/tractor": "workspace:*",

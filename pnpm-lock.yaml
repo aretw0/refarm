@@ -588,6 +588,9 @@ importers:
       '@refarm.dev/plugin-manifest':
         specifier: workspace:*
         version: link:../plugin-manifest
+      '@refarm.dev/runtime':
+        specifier: workspace:*
+        version: link:../runtime
       '@refarm.dev/storage-sqlite':
         specifier: workspace:*
         version: link:../storage-sqlite
