@@ -84,5 +84,5 @@ RUN mkdir -p /workspaces/refarm \
   && chown -R 1000:1000 /usr/local/cargo /usr/local/rustup /workspaces/refarm
 
 # ── farm: enter as dev user from Docker Desktop root terminals ───────────────
-COPY .devcontainer/farm /usr/local/bin/farm
+COPY farm /usr/local/bin/farm
 RUN chmod +x /usr/local/bin/farm
