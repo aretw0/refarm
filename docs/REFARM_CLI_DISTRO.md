@@ -120,7 +120,7 @@ npm run refarm:tree:verify
   guards, `refarm status --json --input`,
   `refarm headless --input`,
   `refarm web --launch --dry-run --open`, `refarm tui --json`,
-  `refarm doctor --json`, `refarm doctor` (summary), and
+  `refarm doctor --json`, `refarm doctor` (summary), `refarm check --json`, and
   `refarm tui --launch --dry-run`) and verifies invalid launcher values,
   fail-closed doctor warnings (`doctor --fail-on-warnings`), and invalid
   output/launch/action guard combinations (`--open`/`--dry-run` without

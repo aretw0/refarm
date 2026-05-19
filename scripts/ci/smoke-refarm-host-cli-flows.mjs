@@ -898,6 +898,24 @@ async function main() {
 			"Doctor: FAIL",
 		);
 
+		console.log(`${LOGGER_PREFIX} smoke: refarm check --json`);
+		const checkJsonRun = await runRefarmCommand(["check", "--json"]);
+		const checkJson = parseCommandJsonOutput("check --json", checkJsonRun);
+		if (checkJson?.ok !== true) {
+			throw new Error(
+				`Expected check JSON ok=true, got: ${JSON.stringify(checkJson?.ok)}`,
+			);
+		}
+		if (
+			checkJson?.checks?.health?.ok !== true ||
+			checkJson?.checks?.doctor?.ok !== true ||
+			!Array.isArray(checkJson?.recommendations)
+		) {
+			throw new Error(
+				`Expected check JSON to include passing health/doctor checks and recommendations, got: ${JSON.stringify(checkJson)}`,
+			);
+		}
+
 		console.log(
 			`${LOGGER_PREFIX} smoke: refarm telemetry is fail-closed when farmhand is down`,
 		);
