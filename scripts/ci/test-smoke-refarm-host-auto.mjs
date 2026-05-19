@@ -7,6 +7,7 @@ import {
 	decideProfile,
 	formatSmokeProfileList,
 	formatUnknownSmokeProfileMessage,
+	isOpenApiProtocolFile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
 	isSmokeProfile,
@@ -64,6 +65,27 @@ test("detects tree timeline files", () => {
 	);
 });
 
+test("detects OpenAPI protocol files", () => {
+	assert.equal(
+		isOpenApiProtocolFile(
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+		),
+		true,
+	);
+	assert.equal(
+		isOpenApiProtocolFile(
+			"scripts/ci/check-openapi-specs.mjs",
+		),
+		true,
+	);
+	assert.equal(
+		isOpenApiProtocolFile(
+			"specs/ADRs/ADR-060-tractor-http-sidecar-protocol.md",
+		),
+		false,
+	);
+});
+
 test("lists smoke profiles from the canonical profile map", () => {
 	assert.deepEqual(listSmokeProfiles(), [
 		"skip",
@@ -80,13 +102,14 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"tree-farmhand",
 		"tree-dist",
 		"tree",
+		"openapi",
 		"quick",
 		"dev",
 		"ci",
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, quick, dev, ci",
 	);
 });
 
@@ -149,6 +172,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "tree-farmhand", script: "refarm:tree:farmhand:test" },
 			{ profile: "tree-dist", script: "refarm:tree:smoke:cli" },
 			{ profile: "tree", script: "refarm:tree:verify" },
+			{ profile: "openapi", script: "openapi:check" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
 			{ profile: "ci", script: "refarm:host:smoke:ci" },
@@ -196,6 +220,7 @@ test("maps profiles to npm scripts", () => {
 	);
 	assert.equal(resolveProfileScript("tree-dist"), "refarm:tree:smoke:cli");
 	assert.equal(resolveProfileScript("tree"), "refarm:tree:verify");
+	assert.equal(resolveProfileScript("openapi"), "openapi:check");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
 	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
@@ -222,6 +247,16 @@ test("routes tree-only deltas to focused tree lane", () => {
 			"docs/REFARM_TREE_PRIMITIVE.md",
 		]).profile,
 		"tree",
+	);
+});
+
+test("routes OpenAPI protocol deltas to focused OpenAPI lane", () => {
+	assert.equal(
+		decideProfile([
+			"specs/protocols/http/farmhand-sidecar.openapi.v1.json",
+			"specs/protocols/README.md",
+		]).profile,
+		"openapi",
 	);
 });
 

@@ -19,6 +19,7 @@ const PROFILE_SCRIPT = {
 	"tree-farmhand": "refarm:tree:farmhand:test",
 	"tree-dist": "refarm:tree:smoke:cli",
 	tree: "refarm:tree:verify",
+	openapi: "openapi:check",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -228,6 +229,14 @@ function isHostSmokeCliFlowFile(file) {
 	return file === "scripts/ci/smoke-refarm-host-cli-flows.mjs";
 }
 
+export function isOpenApiProtocolFile(file) {
+	return (
+		file === "scripts/ci/check-openapi-specs.mjs" ||
+		file === "specs/protocols/README.md" ||
+		file.startsWith("specs/protocols/http/")
+	);
+}
+
 export function isRefarmTreeFile(file) {
 	return (
 		file === "scripts/ci/smoke-refarm-tree-cli.mjs" ||
@@ -273,6 +282,17 @@ export function decideProfile(inputFiles) {
 			profile: "skip",
 			reason:
 				"No smoke-relevant file changes detected; skipping host smoke until there is a delta.",
+		};
+	}
+
+	if (
+		files.some((file) => isOpenApiProtocolFile(file)) &&
+		files.every((file) => isOpenApiProtocolFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "openapi",
+			reason:
+				"Protocol contract delta; run focused OpenAPI validation.",
 		};
 	}
 
