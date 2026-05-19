@@ -88,7 +88,7 @@ As of 2026-05-19, `@refarm.dev/tractor` consumers fall into these groups:
 | `packages/scarecrow` | Plugin class and tests depend on `@refarm.dev/runtime` host capabilities (`observe`, `queryNodes`, `setPluginState`, `emitTelemetry`). | Low/Medium: no direct tractor-ts dependency remains; future work is validating the host contract against Rust tractor. |
 | `packages/plugin-courier` | Production code and integration tests depend on `@refarm.dev/runtime` query capability and a narrow host fixture; no direct tractor-ts dependency remains. | Low/Medium: future work is validating the host contract against Rust tractor. |
 | `packages/vtconfig` and `packages/toolbox` | Alias/resolution support for `@refarm.dev/tractor` and test utils. | Low: tooling support remains while npm compatibility exists. |
-| `templates/courier/typescript` | Template dependency for generated plugins. | Medium: template should eventually depend on a narrow host contract. |
+| `templates/courier/typescript` | Template boots through Homestead runtime and does not declare `@refarm.dev/tractor` directly. | Low/Medium: browser runtime still arrives through Homestead until that boundary is redesigned. |
 
 Unused direct dependencies on `@refarm.dev/tractor` were removed from
 `packages/barn` and `packages/plugin-tem`; neither imported the package.
