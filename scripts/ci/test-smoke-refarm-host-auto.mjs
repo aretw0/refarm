@@ -9,6 +9,7 @@ import {
 	formatUnknownSmokeProfileMessage,
 	isFarmhandSidecarFile,
 	isOpenApiProtocolFile,
+	isRefarmCheckGateFile,
 	isRefarmDriverTaskFile,
 	isRefarmActionReadinessFile,
 	isRefarmTreeFile,
@@ -149,13 +150,14 @@ test("lists smoke profiles from the canonical profile map", () => {
 		"openapi",
 		"sidecar",
 		"driver-tasks",
+		"check",
 		"quick",
 		"dev",
 		"ci",
 	]);
 	assert.equal(
 		formatSmokeProfileList(),
-		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, quick, dev, ci",
+		"skip, actions-headless, actions-renderers, actions-test, actions-type, actions-dist, action-seams, actions, tree-test, tree-smoke, tree-type, tree-farmhand, tree-dist, tree, openapi, sidecar, driver-tasks, check, quick, dev, ci",
 	);
 });
 
@@ -221,6 +223,7 @@ test("creates a profile-to-script list envelope", () => {
 			{ profile: "openapi", script: "openapi:check" },
 			{ profile: "sidecar", script: "refarm:sidecar:verify" },
 			{ profile: "driver-tasks", script: "refarm:driver:tasks:verify" },
+			{ profile: "check", script: "refarm:check:verify" },
 			{ profile: "quick", script: "refarm:host:smoke:quick" },
 			{ profile: "dev", script: "refarm:host:smoke:dev" },
 			{ profile: "ci", script: "refarm:host:smoke:ci" },
@@ -274,9 +277,25 @@ test("maps profiles to npm scripts", () => {
 		resolveProfileScript("driver-tasks"),
 		"refarm:driver:tasks:verify",
 	);
+	assert.equal(resolveProfileScript("check"), "refarm:check:verify");
 	assert.equal(resolveProfileScript("quick"), "refarm:host:smoke:quick");
 	assert.equal(resolveProfileScript("dev"), "refarm:host:smoke:dev");
 	assert.equal(resolveProfileScript("ci"), "refarm:host:smoke:ci");
+});
+
+test("detects composite check gate files", () => {
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/check.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/health.ts"),
+		true,
+	);
+	assert.equal(
+		isRefarmCheckGateFile("apps/refarm/src/commands/status.ts"),
+		false,
+	);
 });
 
 test("routes action-readiness-only deltas to focused actions lane", () => {
@@ -287,6 +306,24 @@ test("routes action-readiness-only deltas to focused actions lane", () => {
 			"docs/REFARM_ACTION_READINESS_COOKBOOK.md",
 		]).profile,
 		"actions",
+	);
+});
+
+test("routes composite check gate deltas to focused check lane", () => {
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/check.ts",
+			"apps/refarm/test/commands/check.test.ts",
+			"docs/REFARM_CLI_DISTRO.md",
+		]).profile,
+		"check",
+	);
+	assert.equal(
+		decideProfile([
+			"apps/refarm/src/commands/health.ts",
+			"apps/refarm/test/commands/health.test.ts",
+		]).profile,
+		"check",
 	);
 });
 

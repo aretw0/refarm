@@ -22,6 +22,7 @@ const PROFILE_SCRIPT = {
 	openapi: "openapi:check",
 	sidecar: "refarm:sidecar:verify",
 	"driver-tasks": "refarm:driver:tasks:verify",
+	check: "refarm:check:verify",
 	quick: "refarm:host:smoke:quick",
 	dev: "refarm:host:smoke:dev",
 	ci: "refarm:host:smoke:ci",
@@ -302,6 +303,17 @@ export function isRefarmActionReadinessFile(file) {
 	);
 }
 
+export function isRefarmCheckGateFile(file) {
+	return (
+		file === "apps/refarm/src/commands/check.ts" ||
+		file === "apps/refarm/src/commands/health.ts" ||
+		file === "apps/refarm/src/commands/diagnostic-recommendations.ts" ||
+		file === "apps/refarm/test/commands/check.test.ts" ||
+		file === "apps/refarm/test/commands/health.test.ts" ||
+		file === "docs/REFARM_CLI_DISTRO.md"
+	);
+}
+
 export function decideProfile(inputFiles) {
 	const files = normalizeChangedFiles(inputFiles);
 	if (files.length === 0) {
@@ -359,6 +371,17 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "skip",
 			reason: "Docs-only delta; host smoke execution is not required.",
+		};
+	}
+
+	if (
+		files.some((file) => isRefarmCheckGateFile(file)) &&
+		files.every((file) => isRefarmCheckGateFile(file) || isDocsOnlyFile(file))
+	) {
+		return {
+			profile: "check",
+			reason:
+				"Composite check/health gate delta; run focused command tests, type-check, and built check gate.",
 		};
 	}
 

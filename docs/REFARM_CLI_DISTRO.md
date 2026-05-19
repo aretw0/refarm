@@ -157,15 +157,16 @@ npm run refarm:tree:verify
 - `refarm:host:smoke:auto:profiles` prints the canonical explicit profile list
   for manual narrow-lane previews/execution.
 - `refarm:host:smoke:auto:plan` inspects changed files and prints the
-  recommended lane (`skip | actions | tree | quick | dev | ci`) without executing it. By default
+  recommended lane (`skip | actions | tree | check | quick | dev | ci`) without executing it. By default
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
-  `npm run refarm:actions:verify` and non-doc tree deltas route to
+  `npm run refarm:actions:verify`, composite check/health gate deltas route to
+  `npm run refarm:check:verify`, and non-doc tree deltas route to
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,
-  `actions-test`, `actions-type`, `actions-dist`, `tree-test`, `tree-smoke`,
+  `actions-test`, `actions-type`, `actions-dist`, `check`, `tree-test`, `tree-smoke`,
   `tree-type`, `tree-farmhand`, and `tree-dist` for one-command narrow loop
   previews/execution. Shared local helpers such as `execution-plan.ts` stay on
   the `dev` lane because they feed more than one host contract.
