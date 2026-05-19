@@ -34,6 +34,11 @@ log "Ensuring git core.symlinks=true for Linux devcontainer..."
 git config core.symlinks true
 git ls-files -s | awk '/^120000/ {print $4}' | xargs -r git checkout -- 2>/dev/null || true
 
+log "Configuring git encoding for PT-BR filenames..."
+git config core.quotepath false
+git config i18n.commitEncoding UTF-8
+git config i18n.logOutputEncoding UTF-8
+
 # 1) Cache and tool directories
 log "Preparing cache directories and permissions..."
 for dir in \
