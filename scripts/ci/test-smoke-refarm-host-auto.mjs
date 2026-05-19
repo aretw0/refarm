@@ -293,6 +293,11 @@ test("detects composite check gate files", () => {
 		true,
 	);
 	assert.equal(
+		isRefarmCheckGateFile("packages/health/src/auditors/project.js"),
+		true,
+	);
+	assert.equal(isRefarmCheckGateFile("refarm.config.json"), true);
+	assert.equal(
 		isRefarmCheckGateFile("apps/refarm/src/commands/status.ts"),
 		false,
 	);
@@ -322,6 +327,14 @@ test("routes composite check gate deltas to focused check lane", () => {
 		decideProfile([
 			"apps/refarm/src/commands/health.ts",
 			"apps/refarm/test/commands/health.test.ts",
+		]).profile,
+		"check",
+	);
+	assert.equal(
+		decideProfile([
+			"packages/health/src/auditors/generic.js",
+			"packages/health/src/auditors/generic.test.js",
+			"refarm.config.json",
 		]).profile,
 		"check",
 	);

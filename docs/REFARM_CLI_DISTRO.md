@@ -161,8 +161,9 @@ npm run refarm:tree:verify
   it considers `@{upstream}..HEAD` when the branch is ahead, plus local
   working-tree/staged/untracked deltas, while ignoring `.pi/todos/**`
   operational notes. Non-doc action-readiness deltas route to
-  `npm run refarm:actions:verify`, composite check/health gate deltas route to
-  `npm run refarm:check:verify`, and non-doc tree deltas route to
+  `npm run refarm:actions:verify`, composite check/health gate deltas
+  (`apps/refarm` command code, `packages/health` source, or project health
+  policy) route to `npm run refarm:check:verify`, and non-doc tree deltas route to
   `npm run refarm:tree:verify` instead of the broader host smoke lanes; pure
   docs-only deltas still skip smoke. Manual `--profile` overrides also accept
   granular lane names such as `actions-headless`, `actions-renderers`,

@@ -305,6 +305,11 @@ export function isRefarmActionReadinessFile(file) {
 
 export function isRefarmCheckGateFile(file) {
 	return (
+		file === "refarm.config.json" ||
+		file === "packages/health/package.json" ||
+		file === "packages/health/tsconfig.json" ||
+		file === "packages/health/tsconfig.build.json" ||
+		file.startsWith("packages/health/src/") ||
 		file === "apps/refarm/src/commands/check.ts" ||
 		file === "apps/refarm/src/commands/health.ts" ||
 		file === "apps/refarm/src/commands/diagnostic-recommendations.ts" ||
@@ -381,7 +386,7 @@ export function decideProfile(inputFiles) {
 		return {
 			profile: "check",
 			reason:
-				"Composite check/health gate delta; run focused command tests, type-check, and built check gate.",
+				"Composite check/health gate delta; run health tests, focused command tests, type-check, and built check gate.",
 		};
 	}
 
