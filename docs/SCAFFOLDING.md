@@ -38,7 +38,7 @@ All scaffolding logic MUST be accompanied by transition tests in `packages/sower
 - **Verification points**:
   - **Hydration**: Verify that all critical files (e.g., `README.md`, `package.json`, `Cargo.toml`) are present in the target island.
   - **Configuration**: Verify that `refarm.config.json` is generated with the correct parameters.
-  - **Identity**: Verify that the `.refarm/identity.json` (Silo brain) is correctly initialized.
+  - **Identity**: Verify that the `.refarm/identity.json` metadata is correctly initialized.
 - **Cleanup**: Tests must clean up their sandboxes after completion.
 
 ## 3. Public Template Iteration
