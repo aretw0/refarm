@@ -17,7 +17,7 @@ const {
   mockExistsSync: vi.fn().mockReturnValue(false),
   mockMkdirSync: vi.fn(),
   mockWriteFileSync: vi.fn(),
-  mockInquirerPrompt: vi.fn().mockResolvedValue({ template: "courier" }),
+  mockInquirerPrompt: vi.fn().mockResolvedValue({ template: "workspace" }),
 }));
 
 vi.mock("inquirer", () => ({
@@ -60,7 +60,7 @@ describe("initCommand — mocked initialization flow", () => {
       publicKey: "pk_test",
       timestamp: "2026-01-01T00:00:00.000Z",
     });
-    mockInquirerPrompt.mockResolvedValue({ template: "courier" });
+    mockInquirerPrompt.mockResolvedValue({ template: "workspace" });
   });
 
   async function runInit(name = "test-farm") {
@@ -105,7 +105,7 @@ describe("initCommand — mocked initialization flow", () => {
   it("passes the selected template as the first argument to scaffold", async () => {
     await runInit();
     expect(mockScaffold).toHaveBeenCalledWith(
-      "courier",
+      "workspace",
       expect.objectContaining({ name: "test-farm" })
     );
   });

@@ -58,7 +58,7 @@ export class SowerPlugin {
           "@type": "Message",
           "@id": "urn:refarm:sower:welcome-guest",
           "name": "Welcome Guest",
-          "text": "Your temporary soil is now active. Explore the tools below.",
+          "text": "Your temporary workspace is active. Explore the tools below.",
           "refarm:renderType": "tutorial-step"
         }
       });

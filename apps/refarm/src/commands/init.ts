@@ -8,8 +8,8 @@ import * as path from "node:path";
 
 
 export const initCommand = new Command("init")
-  .description("Initialize a new farm")
-  .argument("[name]", "Project name", "my-farm")
+  .description("Initialize a new Refarm workspace")
+  .argument("[name]", "Project name", "my-workspace")
   .option("--force", "Reinitialize even if already initialized (destructive)")
   .action(async (name, opts: { force?: boolean }) => {
     const projectDir = name === "." ? process.cwd() : path.join(process.cwd(), name);
@@ -22,7 +22,7 @@ export const initCommand = new Command("init")
       process.exit(0);
     }
 
-    console.log(chalk.green(`🌱 Seeding your farm: ${name}...`));
+    console.log(chalk.green(`Initializing Refarm workspace: ${name}...`));
 
     const answers = await inquirer.prompt([
       {
@@ -30,7 +30,7 @@ export const initCommand = new Command("init")
         name: "template",
         message: "Choose a template to start with:",
         choices: [
-          { name: "Courier (Default App)", value: "courier" },
+          { name: "Workspace App", value: "workspace" },
           { name: "Rust Plugin (Heartwood)", value: "rust-plugin" }
         ]
       }
@@ -74,7 +74,6 @@ export const initCommand = new Command("init")
       console.log(chalk.gray(`  - refarm.config.json`));
     }
 
-    console.log(chalk.blue("\n✨ Project structure seeded."));
-    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to provide your nutrients.`);
+    console.log(chalk.blue("\nProject structure initialized."));
+    console.log(`\nNext step: cd into ${chalk.cyan(name)} and run ${chalk.cyan("refarm sow")} to configure services.`);
   });
-

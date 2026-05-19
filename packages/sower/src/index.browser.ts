@@ -31,8 +31,8 @@ const NODE_ERROR =
 export class SowerCore {
   getOnboardingFlow() {
     return {
-      name: "Cultivate your Soil",
-      description: "Choose your level of engagement with the sovereign web.",
+      name: "Set up your workspace",
+      description: "Choose how this Refarm workspace should persist data.",
       options: [
         {
           id: "guest",
@@ -42,8 +42,8 @@ export class SowerCore {
         },
         {
           id: "citizen",
-          label: "Sovereign Citizen",
-          description: "Full ownership. Sovereign identity (Keys) and persistent storage.",
+          label: "Persistent Workspace",
+          description: "Persistent identity and local storage for ongoing work.",
           intent: "switch-to-citizen"
         }
       ]
@@ -116,7 +116,7 @@ export class SowerPlugin {
           "@type": "Message",
           "@id": "urn:refarm:sower:welcome-guest",
           "name": "Welcome Guest",
-          "text": "Your temporary soil is now active. Explore the tools below.",
+          "text": "Your temporary workspace is active. Explore the tools below.",
           "refarm:renderType": "tutorial-step"
         }
       });

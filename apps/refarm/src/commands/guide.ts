@@ -21,7 +21,7 @@ export const guideCommand = new Command("guide")
 
     let guideContent = `# Setup Audit — refarm\n\nDynamically generated based on your current state.\n\n## Status Summary\n\n`;
     
-    guideContent += `| Nutrient | Status | Required Action |\n|----------|--------|-----------------|\n`;
+    guideContent += `| Item | Status | Required Action |\n|------|--------|-----------------|\n`;
     for (const check of checks) {
       guideContent += `| ${check.name} | ${check.status} | ${check.action} |\n`;
     }
@@ -29,9 +29,9 @@ export const guideCommand = new Command("guide")
     guideContent += `\n\n## Next Steps\n\n`;
     const missing = checks.filter(c => c.status === "❌");
     if (missing.length > 0) {
-      guideContent += `Follow the actions in the table above to complete your seeding.\n`;
+      guideContent += `Follow the actions in the table above to complete setup.\n`;
     } else {
-      guideContent += `Your soil is ready! Run \`refarm harvest\` to verify your infrastructure.\n`;
+      guideContent += `Your workspace is ready. Run the health checks to verify your infrastructure.\n`;
     }
 
     writeFileSync("refarm-audit.md", guideContent);

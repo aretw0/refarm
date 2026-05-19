@@ -21,14 +21,14 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         vi.unstubAllEnvs();
     });
 
-    it("should hydrate the 'courier' template correctly", async () => {
+    it("should hydrate the 'workspace' template correctly", async () => {
         const sower = new SowerCore();
-        const projectName = "test-courier-farm";
+        const projectName = "test-workspace";
         const targetDir = path.join(tempDir, projectName);
 
-        const result = await sower.scaffold("courier", { 
-            name: projectName, 
-            targetDir 
+        const result = await sower.scaffold("workspace", {
+            name: projectName,
+            targetDir
         });
 
         expect(result).toBeDefined();
@@ -49,9 +49,9 @@ describe("SowerCore Scaffolding (Isolated)", () => {
         const projectName = "test-rust-plugin";
         const targetDir = path.join(tempDir, projectName);
 
-        const result = await sower.scaffold("rust-plugin", { 
-            name: projectName, 
-            targetDir 
+        const result = await sower.scaffold("rust-plugin", {
+            name: projectName,
+            targetDir
         });
 
         expect(result).toBeDefined();
@@ -65,15 +65,15 @@ describe("SowerCore Scaffolding (Isolated)", () => {
 
     it("should generate correct brand configuration", async () => {
         const sower = new SowerCore();
-        const projectName = "My Awesome Farm";
-        const targetDir = path.join(tempDir, "my-awesome-farm");
+        const projectName = "My Workspace";
+        const targetDir = path.join(tempDir, "my-workspace");
 
-        const result = await sower.scaffold("courier", { 
-            name: projectName, 
-            targetDir 
+        const result = await sower.scaffold("workspace", {
+            name: projectName,
+            targetDir
         });
 
         expect(result?.config.brand.name).toBe(projectName);
-        expect(result?.config.brand.slug).toBe("my-awesome-farm");
+        expect(result?.config.brand.slug).toBe("my-workspace");
     });
 });
