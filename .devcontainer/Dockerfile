@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 FROM mcr.microsoft.com/devcontainers/typescript-node:1-22-bookworm
 
+WORKDIR /workspaces/refarm
+
 # ── System dependencies ────────────────────────────────────────────────────────
 # Coding-agent tools + Mermaid CLI (mmdc) / headless Chromium + Playwright runtime libraries
 RUN apt-get update \
@@ -78,7 +80,8 @@ RUN curl -L --proto '=https' --tlsv1.2 -sSf \
   && rm /usr/local/cargo/bin/cargo-binstall
 
 # ── Ownership: UID 1000 = vscode (assigned by common-utils feature at runtime) ──
-RUN chown -R 1000:1000 /usr/local/cargo /usr/local/rustup
+RUN mkdir -p /workspaces/refarm \
+  && chown -R 1000:1000 /usr/local/cargo /usr/local/rustup /workspaces/refarm
 
 # ── farm: enter as dev user from Docker Desktop root terminals ───────────────
 COPY .devcontainer/farm /usr/local/bin/farm

@@ -1,8 +1,23 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGET_USER="${1:-vscode}"
-PROJECT_DIR="${2:-/workspaces/refarm}"
+TARGET_USER="vscode"
+PROJECT_DIR="/workspaces/refarm"
+
+if [ "$#" -gt 0 ]; then
+  TARGET_USER="$1"
+  shift
+fi
+
+if [ "$#" -gt 0 ]; then
+  PROJECT_DIR="$1"
+  shift
+fi
+
+if ! id "$TARGET_USER" >/dev/null 2>&1 && id node >/dev/null 2>&1; then
+  TARGET_USER="node"
+fi
+
 INIT_FILE="/home/${TARGET_USER}/.farm-init.sh"
 
 cat > "$INIT_FILE" <<INIT
@@ -24,4 +39,10 @@ cd "${PROJECT_DIR}"
 INIT
 
 chmod 644 "$INIT_FILE"
+
+if [ "$#" -gt 0 ]; then
+  command_text=$(printf "%q " "$@")
+  exec su -s /bin/bash "$TARGET_USER" -- -lc ". '$INIT_FILE'; ${command_text}"
+fi
+
 exec su -s /bin/bash "$TARGET_USER" -- --init-file "$INIT_FILE"
