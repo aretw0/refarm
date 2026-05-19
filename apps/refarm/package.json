@@ -1,7 +1,7 @@
 {
   "name": "@refarm.dev/refarm",
   "version": "0.1.0",
-  "description": "Refarm CLI — The Sovereign Farm distro binary.",
+  "description": "Refarm CLI for local workspace automation.",
   "type": "module",
   "private": true,
   "bin": {

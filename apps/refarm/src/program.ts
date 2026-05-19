@@ -121,7 +121,7 @@ program.addCommand(headlessCommand);
 program.addCommand(
 	createLazyCommand<{ target?: string; dryRun?: boolean }>({
 		name: "migrate",
-		description: "Activate the Escape Hatch: Mirror your project to a sovereign target",
+		description: "Mirror your project to another Git remote",
 		options: [
 			{ flags: "--target <url>", description: "Target Git URL for mirroring" },
 			{ flags: "--dry-run", description: "Simulate the migration without pushing" },
