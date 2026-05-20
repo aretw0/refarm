@@ -5,6 +5,7 @@ import { resolveRefarmVersion } from "./commands/runtime-metadata.js";
 import { askCommand } from "./commands/ask.js";
 import { chatCommand } from "./commands/chat.js";
 import { checkCommand } from "./commands/check.js";
+import { configCommand } from "./commands/config.js";
 import { sessionCommand, runSessionLaunchFlow } from "./commands/session.js";
 import { sessionsCommand } from "./commands/sessions.js";
 import { deployCommand } from "./commands/deploy.js";
@@ -137,6 +138,7 @@ Notes:
 program.addCommand(provisionCommand);
 program.addCommand(guideCommand);
 program.addCommand(checkCommand);
+program.addCommand(configCommand);
 program.addCommand(healthCommand);
 program.addCommand(modelCommand);
 program.addCommand(webCommand);
