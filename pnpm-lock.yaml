@@ -781,6 +781,9 @@ importers:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
         version: link:../tsconfig
+      '@refarm.dev/vtconfig':
+        specifier: workspace:*
+        version: link:../vtconfig
 
   packages/plugin-tem:
     dependencies:

@@ -2,8 +2,8 @@
 /**
  * check-vitest-config-deps.mjs
  *
- * Finds phantom dependencies in vitest.config.ts files across the monorepo.
- * A phantom dep is a workspace package imported in vitest.config.ts that is
+ * Finds phantom dependencies in vitest.config.{js,ts} files across the monorepo.
+ * A phantom dep is a workspace package imported in vitest config that is
  * not declared in the package's devDependencies or dependencies.
  *
  * These work locally due to pnpm hoisting but fail in CI because vitest
@@ -46,9 +46,12 @@ function checkDir(dir) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
     const pkgDir = join(dir, entry.name);
-    const configPath = join(pkgDir, "vitest.config.ts");
+    const configPath =
+      ["vitest.config.ts", "vitest.config.js"]
+        .map((file) => join(pkgDir, file))
+        .find((file) => existsSync(file));
     const pkgJsonPath = join(pkgDir, "package.json");
-    if (!existsSync(configPath) || !existsSync(pkgJsonPath)) continue;
+    if (!configPath || !existsSync(pkgJsonPath)) continue;
 
     const source = readFileSync(configPath, "utf8");
     const pkg = readJson(pkgJsonPath);
@@ -72,11 +75,11 @@ function checkDir(dir) {
 const allErrors = [...checkDir(PACKAGES_DIR), ...checkDir(APPS_DIR)];
 
 if (allErrors.length === 0) {
-  console.log(`${colors.green}✓ vitest.config.ts phantom deps: none found${colors.reset}`);
+  console.log(`${colors.green}✓ vitest config phantom deps: none found${colors.reset}`);
   process.exit(0);
 }
 
-console.error(`${colors.red}✗ vitest.config.ts phantom dependencies detected${colors.reset}`);
+console.error(`${colors.red}✗ vitest config phantom dependencies detected${colors.reset}`);
 console.error(`${colors.dim}  These work locally (pnpm hoisting) but fail in CI (.vite-temp context).${colors.reset}\n`);
 for (const { workspace, missing } of allErrors) {
   console.error(`  ${colors.yellow}${workspace}${colors.reset}  missing devDependency: ${colors.red}${missing}${colors.reset}`);
