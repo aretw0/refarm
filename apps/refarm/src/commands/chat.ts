@@ -15,6 +15,12 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import chalk from "chalk";
 import { Command } from "commander";
 import { parseChatLine, CHAT_HELP_TEXT } from "./chat-repl.js";
+import {
+	defaultModelDeps,
+	printCurrentModel,
+	setModelRoute,
+	type ModelCommandDeps,
+} from "./model.js";
 import { createPiAgentRespondEffort } from "./pi-agent-effort.js";
 import { isFullSessionId, resolveSessionIdPrefix } from "./session-ids.js";
 import {
@@ -42,6 +48,7 @@ export interface ChatDeps {
 	clearActiveSessionId?(): boolean;
 	persistActiveSessionId?(id: string): void;
 	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
+	model?: ModelCommandDeps;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
@@ -547,6 +554,26 @@ export async function runSessionRepl(
 							}
 							if (reloaded.length === 0 && skipped.length === 0) {
 								console.log(chalk.dim("No plugins to reload."));
+							}
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
+					break;
+
+				case "model":
+					rl.pause();
+					void (async () => {
+						try {
+							const modelDeps = deps.model ?? defaultModelDeps();
+							if (command.action === "current") {
+								printCurrentModel(await modelDeps.loadTokens());
+							} else {
+								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);

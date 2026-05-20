@@ -10,7 +10,7 @@ import {
 	parseModelRef,
 } from "../model-routing.js";
 
-interface ModelTokens {
+export interface ModelTokens {
 	modelProvider?: string;
 	modelId?: string;
 	modelRoutes?: Partial<Record<ModelScope, string>>;
@@ -27,7 +27,7 @@ export interface ModelCommandDeps {
 	}): Promise<unknown>;
 }
 
-function defaultDeps(): ModelCommandDeps {
+export function defaultModelDeps(): ModelCommandDeps {
 	const silo = new SiloCore();
 	return {
 		loadTokens: () => silo.loadTokens() as Promise<ModelTokens>,
@@ -35,7 +35,7 @@ function defaultDeps(): ModelCommandDeps {
 	};
 }
 
-function printCurrent(tokens: ModelTokens): void {
+export function printCurrentModel(tokens: ModelTokens): void {
 	const provider = process.env.MODEL_PROVIDER ?? tokens.modelProvider;
 	const modelId = process.env.MODEL_ID ?? tokens.modelId ?? tokens.model;
 	const resolvedModel = modelId ?? defaultModelForProvider(provider);
@@ -78,7 +78,7 @@ function scopedTokenUpdate(
 	};
 }
 
-async function setModel(
+export async function setModelRoute(
 	ref: string,
 	scope: ModelScope,
 	deps: ModelCommandDeps,
@@ -100,7 +100,7 @@ async function setModel(
 	console.log(chalk.green(`✓  ${label} set: ${parsed.provider}/${parsed.modelId}`));
 }
 
-export function createModelCommand(deps: ModelCommandDeps = defaultDeps()): Command {
+export function createModelCommand(deps: ModelCommandDeps = defaultModelDeps()): Command {
 	const command = new Command("model")
 		.description("Inspect and change the active model route")
 		.addHelpText(
@@ -115,8 +115,8 @@ Examples:
   $ refarm model set ollama/llama3.2
 
 Notes:
-  Model routes are saved in ~/.refarm/identity.json and applied when Farmhand
-  starts. Restart Farmhand after changing the model for a running session.
+  Model routes are saved in ~/.refarm/identity.json. Farmhand reloads them
+  before each task, so the next ask/chat turn or worker task uses the new route.
   For OpenAI workers, the default scoped route is openai/gpt-5.3-codex-spark.
 `,
 		);
@@ -125,7 +125,7 @@ Notes:
 		.command("current", { isDefault: true })
 		.description("Show the currently configured provider/model")
 		.action(async () => {
-			printCurrent(await deps.loadTokens());
+			printCurrentModel(await deps.loadTokens());
 		});
 
 	command
@@ -139,7 +139,7 @@ Notes:
 				console.error(chalk.dim("   Use: default, worker, or monitor"));
 				process.exit(1);
 			}
-			await setModel(ref, opts.scope, deps);
+			await setModelRoute(ref, opts.scope, deps);
 		});
 
 	return command;

@@ -29,6 +29,35 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses /model as current model", () => {
+		expect(parseChatLine("/model")).toEqual({ kind: "model", action: "current" });
+		expect(parseChatLine("/model current")).toEqual({ kind: "model", action: "current" });
+	});
+
+	it("parses /model provider/model as a default route change", () => {
+		expect(parseChatLine("/model openai/gpt-5.5")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "default",
+			ref: "openai/gpt-5.5",
+		});
+	});
+
+	it("parses scoped /model route changes", () => {
+		expect(parseChatLine("/model worker openai/gpt-5.3-codex-spark")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "worker",
+			ref: "openai/gpt-5.3-codex-spark",
+		});
+		expect(parseChatLine("/model set --scope monitor openai/gpt-5.5")).toEqual({
+			kind: "model",
+			action: "set",
+			scope: "monitor",
+			ref: "openai/gpt-5.5",
+		});
+	});
+
 	it("parses /new", () => {
 		expect(parseChatLine("/new")).toEqual({ kind: "new" });
 	});
