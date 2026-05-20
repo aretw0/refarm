@@ -1153,6 +1153,10 @@ importers:
         version: link:../vtconfig
 
   packages/toolbox:
+    dependencies:
+      chalk:
+        specifier: ^5.6.2
+        version: 5.6.2
     devDependencies:
       '@refarm.dev/tsconfig':
         specifier: workspace:*
