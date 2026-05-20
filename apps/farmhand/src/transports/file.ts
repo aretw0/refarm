@@ -14,6 +14,7 @@ import type {
 export type TaskExecutorFn = (
 	task: Task,
 	effortId: string,
+	effort: Effort,
 ) => Promise<{ status: "ok" | "error"; result?: unknown; error?: string }>;
 
 export interface FileTransportOptions {
@@ -494,7 +495,7 @@ export class FileTransportAdapter implements EffortTransportAdapter {
 					});
 
 					try {
-						const output = await this.executor(task, effort.id);
+						const output = await this.executor(task, effort.id, effort);
 						if (output.status === "ok") {
 							successResult = {
 								taskId: task.id,

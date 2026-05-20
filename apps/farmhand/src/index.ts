@@ -32,6 +32,7 @@ import { autoInstallPlugins } from "./auto-install-plugins.js";
 import { bundleInstallPlugins, type BundledEntry } from "./bundled-plugins.js";
 import { loadInstalledPlugins } from "./installed-plugins.js";
 import { LocalExtensionRegistry } from "./local-extensions.js";
+import { routeForScope, withModelRouteEnv, type ModelRouteTokens } from "./model-routes.js";
 import { toStreamChunk } from "./stream-chunk-mapper.js";
 import { StreamRegistry } from "./stream-registry.js";
 import { executeTask } from "./task-executor.js";
@@ -188,6 +189,8 @@ const OAUTH_CLIENT_IDS: Record<string, string> = {
 	"openai-codex": "app_EMoamEEZ73f0CkXaXp7hrann",
 };
 
+let siloModelTokens: ModelRouteTokens = {};
+
 async function refreshOAuthToken(oauthProvider: string, creds: OAuthCreds): Promise<OAuthCreds | null> {
 	const tokenUrl = OAUTH_TOKEN_URLS[oauthProvider];
 	const clientId = OAUTH_CLIENT_IDS[oauthProvider];
@@ -215,6 +218,7 @@ async function injectSiloModelEnv(): Promise<void> {
 	try {
 		const silo = new SiloCore();
 		const tokens = (await silo.loadTokens()) as Record<string, unknown>;
+		siloModelTokens = tokens;
 		const provider = tokens.modelProvider as string | undefined;
 		const oauthProvider = tokens.oauthProvider as string | undefined;
 
@@ -386,7 +390,7 @@ async function main() {
 	});
 	console.log(`[farmhand] Task memory persisted to ${taskDbPath}`);
 
-	const taskExecutorFn: TaskExecutorFn = async (task, effortId) => {
+	const taskExecutorFn: TaskExecutorFn = async (task, effortId, effort) => {
 		let status: "ok" | "error" = "ok";
 		let result: unknown;
 		let error: string | undefined;
@@ -420,13 +424,20 @@ async function main() {
 			},
 		};
 
-		await executeTask(captureTractor, {
-			taskId: task.id,
-			effortId,
-			pluginId: task.pluginId,
-			fn: task.fn,
-			args: task.args,
-		});
+		const scope =
+			effort.source === "refarm-ask" || effort.source === "refarm-chat"
+				? "default"
+				: "worker";
+		const route = routeForScope(siloModelTokens, scope);
+		await withModelRouteEnv(route, () =>
+			executeTask(captureTractor, {
+				taskId: task.id,
+				effortId,
+				pluginId: task.pluginId,
+				fn: task.fn,
+				args: task.args,
+			}),
+		);
 
 		try {
 			await taskMemoryBridge.recordOutcome(task, effortId, { status, error });
