@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import readline from "node:readline";
+import { spawnSync } from "node:child_process";
 import {
 	buildSystemPrompt,
 	ContextRegistry,
@@ -49,6 +50,7 @@ export interface ChatDeps {
 	persistActiveSessionId?(id: string): void;
 	reloadPlugins(pluginIds?: string[]): Promise<{ reloaded: string[]; skipped: string[] }>;
 	model?: ModelCommandDeps;
+	configureCredentials?(args?: string[]): Promise<void>;
 	/** Override the spinner label. Receives the tick frame index and elapsed ms. */
 	spinnerMessage?(frame: number, elapsedMs: number): string;
 }
@@ -336,7 +338,23 @@ export function defaultChatDeps(): ChatDeps {
 		readActiveSessionId,
 		clearActiveSessionId,
 		persistActiveSessionId: writeActiveSessionIdAndVerify,
+		configureCredentials: runSowCommand,
 	};
+}
+
+async function runSowCommand(args: string[] = []): Promise<void> {
+	const node = process.argv[0];
+	const entrypoint = process.argv[1];
+	if (!node || !entrypoint) {
+		throw new Error("Cannot locate the refarm CLI entrypoint for credential setup.");
+	}
+	const result = spawnSync(node, [entrypoint, "sow", ...args], { stdio: "inherit" });
+	if (result.error) throw result.error;
+	if (result.status !== 0) {
+		throw new Error(
+			`Credential setup exited with ${result.status ?? result.signal ?? "unknown status"}`,
+		);
+	}
 }
 
 const SPINNER_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"] as const;
@@ -575,6 +593,22 @@ export async function runSessionRepl(
 							} else {
 								await setModelRoute(command.ref, command.scope, modelDeps);
 							}
+						} catch (error) {
+							const message = error instanceof Error ? error.message : String(error);
+							console.error(chalk.red(`✗  ${message}`));
+						}
+						console.log();
+						rl.resume();
+						rl.prompt();
+					})();
+					break;
+
+				case "login":
+					rl.pause();
+					void (async () => {
+						try {
+							await (deps.configureCredentials ?? runSowCommand)(command.args);
+							console.log(chalk.dim("Farmhand reloads saved credentials before each task."));
 						} catch (error) {
 							const message = error instanceof Error ? error.message : String(error);
 							console.error(chalk.red(`✗  ${message}`));

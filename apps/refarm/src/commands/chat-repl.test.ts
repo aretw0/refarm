@@ -58,6 +58,14 @@ describe("parseChatLine", () => {
 		});
 	});
 
+	it("parses runtime credential setup commands", () => {
+		expect(parseChatLine("/login")).toEqual({ kind: "login", args: [] });
+		expect(parseChatLine("/sow --model openai/gpt-5.5")).toEqual({
+			kind: "login",
+			args: ["--model", "openai/gpt-5.5"],
+		});
+	});
+
 	it("parses /new", () => {
 		expect(parseChatLine("/new")).toEqual({ kind: "new" });
 	});

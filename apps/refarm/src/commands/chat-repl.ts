@@ -10,6 +10,7 @@ export type ChatCommand =
 	| { kind: "reload"; pluginIds: string[] }
 	| { kind: "model"; action: "current" }
 	| { kind: "model"; action: "set"; scope: ModelScope; ref: string }
+	| { kind: "login"; args: string[] }
 	| { kind: "new" }
 	| { kind: "session"; prefix: string }
 	| { kind: "exit" }
@@ -46,6 +47,10 @@ export function parseChatLine(line: string): ChatCommand {
 
 	if (commandName === "model") {
 		return parseModelCommand(rest, trimmed);
+	}
+
+	if (commandName === "login" || commandName === "sow") {
+		return { kind: "login", args: rest.filter(Boolean) };
 	}
 
 	return SLASH_COMMANDS[commandName] ?? { kind: "message", text: trimmed };
@@ -105,6 +110,7 @@ export const CHAT_HELP_TEXT = `Available commands:
   /model            Show the active model route
   /model <ref>      Set the default model route, e.g. openai/gpt-5.5
   /model worker <ref> Set the worker model route
+  /login [args...]  Configure credentials without leaving the session
   /new              Start a fresh session
   /session <prefix> Switch to session matching prefix
   /exit  or  /quit  Exit refarm chat
