@@ -8,6 +8,7 @@
 		"dev": "turbo dev",
 		"cli:dev": "turbo dev --filter=@refarm.dev/refarm",
 		"cli:build": "turbo build --filter=@refarm.dev/refarm",
+		"cli:install": "node scripts/install-refarm-cli.mjs",
 		"lint": "turbo lint",
 		"test": "turbo run test",
 		"test:watch": "vitest --watch",

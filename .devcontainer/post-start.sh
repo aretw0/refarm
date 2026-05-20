@@ -10,6 +10,15 @@ ensure_hooks() {
   fi
 }
 
+ensure_refarm_cli() {
+  if command -v refarm >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "[refarm-devcontainer] Installing missing refarm CLI shim..."
+  pnpm run cli:install >/dev/null 2>&1 || echo "[refarm-devcontainer][warn] Could not install refarm CLI shim. Run: pnpm run cli:install"
+}
+
 ensure_git_transport() {
   if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     return
@@ -104,6 +113,7 @@ check_coding_agent_tools() {
 }
 
 ensure_hooks
+ensure_refarm_cli
 ensure_git_transport
 check_rust_baseline
 check_coding_agent_tools

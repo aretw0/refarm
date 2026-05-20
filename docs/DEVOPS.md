@@ -7,6 +7,7 @@
 ## Table of Contents
 
 - [Dev Container Setup](#dev-container-setup)
+- [Refarm CLI Availability](#refarm-cli-availability)
 - [Security & Vulnerability Management](#security--vulnerability-management)
 - [Environment Validation](#environment-validation)
 - [CI Caching Strategy](#ci-caching-strategy)
@@ -130,9 +131,27 @@ intentionally resets the Silo.
 Use this after a fresh setup or intentional reset:
 
 ```bash
-node apps/refarm/dist/index.js sow --cloudflare
-node apps/refarm/dist/index.js provision cloudflare turbo-cache
+refarm sow --cloudflare
+refarm provision cloudflare turbo-cache
 ```
+
+## Refarm CLI Availability
+
+`pnpm run cli:dev` keeps the `@refarm.dev/refarm` TypeScript build running in
+watch mode, but it is not responsible for installing a shell command. The
+devcontainer installs a persistent `refarm` shim during post-create and repairs
+it on post-start when missing:
+
+```bash
+pnpm run cli:install
+refarm sow
+```
+
+The shim lives in the devcontainer user bin directory and calls the current
+`apps/refarm/dist/index.js`, so a running `pnpm run cli:dev` updates the command
+behavior without reinstalling the shim. `pnpm run cli:install` builds the CLI
+only when `dist/index.js` is missing; use `pnpm run cli:install -- --build` to
+force a rebuild before reinstalling it.
 
 ### Devcontainer Image Baseline (Tracked)
 

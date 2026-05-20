@@ -131,6 +131,9 @@ wait $MDT_PID    || warn "mdt_cli install failed. Run: cargo install mdt_cli --l
 wait $PI_PID     || warn "Pi install failed. Run: pnpm add -g @earendil-works/pi-coding-agent"
 
 # 5) Finalize
+log "Installing refarm CLI shim..."
+pnpm run cli:install || warn "Could not install refarm CLI shim. Retry: pnpm run cli:install"
+
 log "Installing git hooks..."
 pnpm run hooks:install || warn "Could not install git hooks automatically"
 
