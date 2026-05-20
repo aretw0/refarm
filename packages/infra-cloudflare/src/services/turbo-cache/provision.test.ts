@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { CloudflareProvider, ExecResult } from "../../provider.js";
 import {
@@ -136,6 +136,10 @@ describe("CloudflareTurboCacheProvisioner", () => {
 		const workerCwd = calls[0]!.cwd;
 		expect(existsSync(workerCwd), `WORKER_DIR not found on disk: ${workerCwd}`).toBe(true);
 		expect(existsSync(`${workerCwd}/wrangler.toml`), "wrangler.toml missing from WORKER_DIR").toBe(true);
+
+		const wranglerToml = readFileSync(`${workerCwd}/wrangler.toml`, "utf-8");
+		expect(wranglerToml).toContain("\n[triggers]\n");
+		expect(wranglerToml).not.toContain("[[triggers.crons]]");
 	});
 
 	it("returns a dry-run envelope without calling Cloudflare", async () => {

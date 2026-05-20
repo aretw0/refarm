@@ -33,5 +33,5 @@ CLEANUP_DRY_RUN = "false"
 # Disable by removing this block; then trigger cleanup manually via:
 #   POST /v8/artifacts/cleanup          (real deletion)
 #   POST /v8/artifacts/cleanup?dry_run=true  (preview)
-[[triggers.crons]]
+[triggers]
 crons = ["0 3 * * *"]
