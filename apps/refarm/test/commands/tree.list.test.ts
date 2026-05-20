@@ -345,7 +345,10 @@ describe("refarm tree list", () => {
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("farmhand sidecar is not running"),
+			expect.stringContaining("Farmhand is not running"),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Start now:  refarm"),
 		);
 		expect(errorSpy).toHaveBeenCalledWith(
 			expect.stringContaining("refarm doctor"),

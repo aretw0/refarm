@@ -29,6 +29,7 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import { isSidecarUnavailable, printSidecarUnavailable } from "./sidecar-error.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface ChatDeps {
@@ -389,12 +390,11 @@ function usageLine(metadata: Record<string, unknown>): string {
 
 function printChatError(message: string): void {
 	const isFarmhandDown =
-		message.includes("ECONNREFUSED") ||
-		message.includes("fetch failed") ||
+		isSidecarUnavailable(message) ||
 		message.includes("Farmhand HTTP");
 	if (isFarmhandDown) {
-		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		console.error();
+		printSidecarUnavailable();
 	} else {
 		console.error(chalk.red(`\n✗  ${message}`));
 	}

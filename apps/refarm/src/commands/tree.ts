@@ -26,6 +26,7 @@ import {
 	showSessionTree,
 	switchSessionTree,
 } from "./tree-session.js";
+import { exitForSidecarError } from "./sidecar-error.js";
 
 type RefarmTimelineListScope =
 	| RefarmTimelineScope
@@ -127,14 +128,7 @@ function parseLimit(limit: string | undefined): number {
 }
 
 function exitForAllListError(err: unknown): never {
-	const msg = err instanceof Error ? err.message : String(err);
-	if (msg.includes("ECONNREFUSED") || msg.includes("fetch failed")) {
-		console.error(chalk.red("✗  farmhand sidecar is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
-	} else {
-		console.error(chalk.red(`✗  ${msg}`));
-	}
-	process.exit(1);
+	exitForSidecarError(err);
 }
 
 function compareAllTimelineNodes(
