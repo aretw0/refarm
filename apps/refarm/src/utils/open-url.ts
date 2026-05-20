@@ -1,27 +1,77 @@
 import { execFile } from "node:child_process";
-import { isWsl } from "@refarm.dev/root";
+import {
+	openHostBrowserUrl,
+	type BrowserOpenSpec,
+} from "@refarm.dev/cli/browser-open";
+import { loadConfig } from "@refarm.dev/config";
+import { hasTty, isCI } from "@refarm.dev/root";
 
-function resolveOpenCommand(url: string): [string, string[]] | null {
-	if (process.platform === "darwin") return ["open", [url]];
-	if (process.platform === "win32") return ["cmd", ["/c", "start", "", url]];
+type OpenExternalLinksMode = "auto" | "never";
 
-	// WSL: wslview (wslu package) is the safe browser opener — avoids Windows Terminal interop crashes
-	if (isWsl()) return ["wslview", [url]];
-
-	// Plain Linux / devcontainer — xdg-open best-effort
-	return ["xdg-open", [url]];
+interface RefarmOpenLinkConfig {
+	operator?: {
+		openExternalLinks?: OpenExternalLinksMode | boolean;
+	};
 }
 
 export function tryOpenUrl(url: string): void {
-	const resolved = resolveOpenCommand(url);
-	if (!resolved) return;
-	const [bin, args] = resolved;
+	if (!shouldOpenExternalLinks()) return;
+
+	void openHostBrowserUrl(url, { run: runBestEffortOpenCandidate }).catch(() => {
+		// best-effort — callers print the URL and manual fallback instructions.
+	});
+}
+
+export function shouldOpenExternalLinks(): boolean {
+	const mode = resolveOpenExternalLinksMode();
+	if (mode === "never") return false;
+	if (isCI()) return false;
+	if (!hasTty()) return false;
+	return true;
+}
+
+function resolveOpenExternalLinksMode(): OpenExternalLinksMode {
+	const envMode = normalizeOpenExternalLinksMode(process.env["REFARM_OPEN_EXTERNAL_LINKS"]);
+	if (envMode) return envMode;
+
 	try {
-		// execFile pipes stdout/stderr to buffers — child output never reaches the terminal
-		const child = execFile(bin, args, { timeout: 5000 }, () => {});
-		// unref() lets Node exit even if the child is still alive (e.g. browser opening)
-		child.unref();
+		const config = loadConfig() as RefarmOpenLinkConfig;
+		const configured = config.operator?.openExternalLinks;
+		if (configured === false) return "never";
+		if (configured === true) return "auto";
+		return normalizeOpenExternalLinksMode(configured) ?? "auto";
 	} catch {
-		// best-effort — caller already printed the URL
+		return "auto";
 	}
+}
+
+function normalizeOpenExternalLinksMode(value: unknown): OpenExternalLinksMode | null {
+	if (typeof value !== "string") return null;
+	const normalized = value.trim().toLowerCase();
+	if (normalized === "0" || normalized === "false" || normalized === "off" || normalized === "never") {
+		return "never";
+	}
+	if (normalized === "1" || normalized === "true" || normalized === "on" || normalized === "auto") {
+		return "auto";
+	}
+	return null;
+}
+
+function runBestEffortOpenCandidate(spec: BrowserOpenSpec): Promise<void> {
+	return new Promise((resolve, reject) => {
+		try {
+			const child = execFile(
+				spec.command,
+				spec.args,
+				{ timeout: 5000 },
+				(error) => {
+					if (error) reject(error);
+					else resolve();
+				},
+			);
+			child.unref();
+		} catch (error) {
+			reject(error);
+		}
+	});
 }

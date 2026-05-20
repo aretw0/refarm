@@ -12,6 +12,28 @@ const CALLBACK_PATH = "/callback";
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;
 const SCOPES = "org:create_api_key user:profile user:inference user:sessions:claude_code";
 
+async function waitForCallback(
+	server: { waitForCode(): Promise<{ code: string; state: string } | null>; cancelWait(): void },
+	timeoutMs?: number,
+): Promise<{ code: string; state: string } | null> {
+	if (!timeoutMs || timeoutMs <= 0) return server.waitForCode();
+
+	let timer: ReturnType<typeof setTimeout> | undefined;
+	try {
+		return await Promise.race([
+			server.waitForCode(),
+			new Promise<null>((resolve) => {
+				timer = setTimeout(() => {
+					server.cancelWait();
+					resolve(null);
+				}, timeoutMs);
+			}),
+		]);
+	} finally {
+		if (timer) clearTimeout(timer);
+	}
+}
+
 function parseCodeFromInput(input: string): { code?: string; state?: string } {
 	const v = input.trim();
 	if (!v) return {};
@@ -87,7 +109,7 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 				server.cancelWait();
 			}).catch((err: unknown) => { server.cancelWait(); throw err; });
 
-			const result = await server.waitForCode();
+			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
 			if (result?.code) {
 				code = result.code;
 			} else if (manualInput) {
@@ -103,7 +125,7 @@ export async function loginAnthropic(callbacks: OAuthLoginCallbacks): Promise<OA
 				}
 			}
 		} else {
-			const result = await server.waitForCode();
+			const result = await waitForCallback(server, callbacks.callbackTimeoutMs);
 			if (result?.code) code = result.code;
 		}
 

@@ -22,6 +22,8 @@ const OAUTH_PROVIDERS: OAuthProviderInterface[] = [
 	anthropicOAuthProvider,
 ];
 
+const DEVCONTAINER_CALLBACK_TIMEOUT_MS = 120_000;
+
 // ── API key tier (paste + link) ───────────────────────────────────────────────
 const API_KEY_PROVIDERS = [
 	{ id: "openai",     label: "OpenAI API key",       envKey: "OPENAI_API_KEY",     url: "https://platform.openai.com/api-keys" },
@@ -49,7 +51,14 @@ async function runOAuthFlow(
 	provider: OAuthProviderInterface,
 ): Promise<ModelCredential> {
 	const containerEnv = isContainer();
-	const needsManualCode = containerEnv && provider.usesCallbackServer;
+	const hasPortForwarding =
+		Boolean(process.env["VSCODE_REMOTE_CONTAINERS_SESSION"]) ||
+		Boolean(process.env["REMOTE_CONTAINERS"]) ||
+		Boolean(process.env["CODESPACES"]);
+	const forceManual = process.env["REFARM_OAUTH_CALLBACK_MODE"] === "manual";
+	const callbackCanReachBrowser =
+		Boolean(provider.usesCallbackServer) && !forceManual && (!containerEnv || hasPortForwarding);
+	const needsManualCode = Boolean(provider.usesCallbackServer) && !callbackCanReachBrowser;
 
 	const creds = await provider.login({
 		onAuth: ({ url, instructions }) => {
@@ -58,13 +67,19 @@ async function runOAuthFlow(
 			if (needsManualCode) {
 				console.log(chalk.yellow("  ⚠  Running in a container — the browser redirect cannot reach this environment."));
 				console.log(chalk.dim("     After logging in, copy the full redirect URL or authorization code and paste it below.\n"));
+			} else if (containerEnv && provider.usesCallbackServer) {
+				console.log(chalk.dim("     Devcontainer detected — VS Code should forward the callback port automatically."));
+				console.log(chalk.dim("     If the browser does not return here, you will be prompted to paste the redirect URL.\n"));
 			}
 			ctx.tryOpenUrl(url);
 		},
 		onPrompt: async ({ message }) => promptCode(message),
 		onProgress: (msg) => console.log(chalk.dim(`  ${msg}`)),
-		// In a container the callback server cannot receive browser redirects —
-		// skip it entirely and prompt for the code directly.
+		...(callbackCanReachBrowser && containerEnv ? {
+			callbackTimeoutMs: DEVCONTAINER_CALLBACK_TIMEOUT_MS,
+		} : {}),
+		// In plain containers without a known port-forwarding bridge, the host
+		// browser cannot reach the callback server, so prompt for the code.
 		...(needsManualCode ? {
 			skipCallbackServer: true,
 			onManualCodeInput: () => promptCode("Paste the redirect URL or authorization code:"),

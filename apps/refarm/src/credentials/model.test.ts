@@ -180,13 +180,18 @@ describe("modelCredentialProvider — API key path", () => {
 
 describe("modelCredentialProvider — OAuth container environment", () => {
 	const ctx = { tryOpenUrl: vi.fn() };
+	const originalEnv = process.env;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		process.env = { ...originalEnv };
 		mockSelect.mockResolvedValue({ kind: "oauth", id: "anthropic" });
 	});
 
-	afterEach(() => vi.clearAllMocks());
+	afterEach(() => {
+		process.env = originalEnv;
+		vi.clearAllMocks();
+	});
 
 	it("provides onManualCodeInput when provider uses callback server in a container", async () => {
 		mockIsContainer.mockReturnValue(true);
@@ -195,6 +200,18 @@ describe("modelCredentialProvider — OAuth container environment", () => {
 			mockInquirerPrompt.mockResolvedValueOnce({ code: "auth-code-123" });
 			const code = await callbacks.onManualCodeInput!();
 			expect(code).toBe("auth-code-123");
+			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
+		});
+		await modelCredentialProvider.collectModel(ctx);
+	});
+
+	it("uses the callback server with a timeout in a VS Code devcontainer", async () => {
+		mockIsContainer.mockReturnValue(true);
+		process.env["VSCODE_REMOTE_CONTAINERS_SESSION"] = "test-session";
+		mockOAuthLogin.mockImplementation(async (callbacks) => {
+			expect(callbacks.skipCallbackServer).toBeUndefined();
+			expect(callbacks.onManualCodeInput).toBeUndefined();
+			expect(callbacks.callbackTimeoutMs).toBeGreaterThan(0);
 			return { access: "tok", refresh: "ref", expires: Date.now() + 3600_000 };
 		});
 		await modelCredentialProvider.collectModel(ctx);

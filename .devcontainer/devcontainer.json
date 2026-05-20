@@ -62,6 +62,17 @@
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "bash .devcontainer/post-start.sh",
+  "forwardPorts": [1455, 53692],
+  "portsAttributes": {
+    "1455": {
+      "label": "Refarm OpenAI OAuth callback",
+      "onAutoForward": "silent"
+    },
+    "53692": {
+      "label": "Refarm Anthropic OAuth callback",
+      "onAutoForward": "silent"
+    }
+  },
   "customizations": {
     "vscode": {
       "extensions": [

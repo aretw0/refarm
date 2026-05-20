@@ -79,7 +79,7 @@ When opening the workspace in VS Code with the Remote Containers extension:
    - Ensures Rust components (`rust-src`, `clippy`, `rustfmt`) for local/CI parity
    - Installs cargo tools: `cargo-component`, `wasm-tools`
    - Runs `pnpm install --frozen-lockfile` to install workspace dependencies
-   - Installs Playwright browsers (`npx playwright install --with-deps`)
+   - Installs Playwright browsers (`pnpm -C validations/sqlite-benchmark/browser exec playwright install --with-deps`)
    - Runs `pnpm run hooks:install`
    - Runs `pnpm run factory:preflight` for deterministic readiness checks
 3. **Post-Start Hook** — Executes `.devcontainer/post-start.sh`:
@@ -134,6 +134,31 @@ Use this after a fresh setup or intentional reset:
 refarm sow --cloudflare
 refarm provision cloudflare turbo-cache --github-secrets
 ```
+
+OAuth model logins from `refarm sow` use local callback ports in the
+devcontainer:
+
+- OpenAI Codex: `localhost:1455/auth/callback`
+- Anthropic Claude: `localhost:53692/callback`
+
+These ports are declared in `.devcontainer/devcontainer.json` so VS Code
+forwards them to the host browser. If forwarding is unavailable, the CLI falls
+back to prompting for the redirect URL or authorization code. Set
+`REFARM_OAUTH_CALLBACK_MODE=manual` to force paste-only behavior.
+
+Interactive credential flows open official provider links by default when a TTY
+is attached. Headless and CI runs do not open browser windows. To disable this
+for operator sessions, set either:
+
+```json
+{
+  "operator": {
+    "openExternalLinks": "never"
+  }
+}
+```
+
+or export `REFARM_OPEN_EXTERNAL_LINKS=never`.
 
 Use `--github-secrets` for normal operator runs. It writes
 `TURBO_CACHE_API_URL` and `TURBO_CACHE_TOKEN` through `gh secret set` without
@@ -221,6 +246,17 @@ pnpm run test:unit
   rm -rf node_modules
   pnpm install --frozen-lockfile
   ```
+
+**Issue: Wizer optional binary warning during devcontainer post-create**
+
+- **Symptom:** `pnpm install` logs a warning similar to `Failed to create bin ... @bytecodealliance/wizer-win32-x64 ... ENOENT`.
+- **Cause:** Docker Desktop bind mounts can expose stale `node_modules/.pnpm` entries from a previous host install. `@bytecodealliance/wizer` publishes one optional binary package per platform, and stale non-Linux packages may leave broken bin links in the Linux devcontainer.
+- **Fix:** `post-create.sh` removes stale non-linux-x64 Wizer optional package artifacts before `pnpm install --frozen-lockfile`. If the warning persists after reopening the devcontainer, use the broader package installation workaround above.
+
+**Issue: `sh: 1: playwright: not found` during devcontainer post-create**
+
+- **Cause:** the root workspace does not expose a `playwright` bin. Playwright is declared by the E2E validation packages.
+- **Fix:** `post-create.sh` runs Playwright through `validations/sqlite-benchmark/browser`, which owns `@playwright/test`.
 
 **Issue: `cargo clippy` / `cargo fmt` missing locally (but required by CI)**
 

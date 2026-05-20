@@ -80,21 +80,27 @@ export function resolveBrowserOpenCandidates(
 		}
 	}
 
-	if (env.VSCODE_IPC_HOOK_CLI || env.TERM_PROGRAM === "vscode") {
-		add("code", ["--open-url", url], `code --open-url ${url}`);
-	}
+	add(
+		"sh",
+		[
+			"-lc",
+			"for helper in /vscode/vscode-server/bin/linux-x64/*/bin/helpers/browser.sh \"$HOME\"/.vscode-server/bin/*/bin/helpers/browser.sh; do [ -x \"$helper\" ] && exec \"$helper\" \"$1\"; done; exit 127",
+			"refarm-vscode-open-external",
+			url,
+		],
+		`VS Code server openExternal ${url}`,
+	);
 
 	if (env.WSL_DISTRO_NAME || env.WSL_INTEROP) {
 		add("wslview", [url], `wslview ${url}`);
 	}
 
 	add("xdg-open", [url], `xdg-open ${url}`);
+	add("sensible-browser", [url], `sensible-browser ${url}`);
 	add("x-www-browser", [url], `x-www-browser ${url}`);
 	add("www-browser", [url], `www-browser ${url}`);
 
-	if (!candidates.some((candidate) => candidate.command === "code")) {
-		add("code", ["--open-url", url], `code --open-url ${url}`);
-	}
+	add("code", ["--open-url", url], `code --open-url ${url}`);
 
 	return candidates;
 }

@@ -29,7 +29,7 @@ describe("resolveBrowserOpenSpec", () => {
 });
 
 describe("resolveBrowserOpenCandidates", () => {
-	it("prioritizes VS Code and WSL helpers in devcontainer-like environments", () => {
+	it("prioritizes VS Code server openExternal and WSL helpers in devcontainer-like environments", () => {
 		const candidates = resolveBrowserOpenCandidates(
 			"https://github.com/login/device",
 			{
@@ -42,12 +42,15 @@ describe("resolveBrowserOpenCandidates", () => {
 		);
 
 		expect(candidates.map((candidate) => candidate.command)).toEqual([
-			"code",
+			"sh",
 			"wslview",
 			"xdg-open",
+			"sensible-browser",
 			"x-www-browser",
 			"www-browser",
+			"code",
 		]);
+		expect(candidates[0]?.display).toContain("VS Code server openExternal");
 	});
 
 	it("allows an explicit REFARM_BROWSER_OPEN_COMMAND override", () => {
