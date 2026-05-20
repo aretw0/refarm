@@ -8,19 +8,41 @@ When GitHub Actions cache uses an open prefix restore key (e.g., `${{ runner.os 
 
 ## Fix: Disjoint Cache Namespaces
 
-PR builds write to `${{ runner.os }}-turbo-pr-<number>-<hash>`.
+PR builds write to `${{ runner.os }}-turbo-pr-<number>-<hash>` with no
+`restore-keys`.
 Push builds write to `${{ runner.os }}-turbo-push-<hash>` with `restore-keys: ${{ runner.os }}-turbo-push-`.
 
 These are disjoint: `turbo-pr-*` never matches `turbo-push-*` and vice versa.
 
 The setup action (`.github/actions/setup/action.yml`) enforces this via the `is-pr` and `pr-number` inputs. Callers must pass `is-pr: true` and `pr-number: ${{ github.event.pull_request.number }}` for PR-triggered jobs.
 
+## Privileged Workflows
+
+Any workflow that can publish, deploy with OIDC, or write release assets must run
+with setup cache disabled:
+
+```yaml
+with:
+  cache-mode: "off"
+```
+
+This is intentionally slower. A workflow with `id-token: write`, package publish
+credentials, Pages deployment, or release write permission must not restore
+dependency, Turbo, Playwright, or Rust build caches produced by lower-trust
+validation contexts.
+
+## Pull Requests
+
+PR jobs run without `actions/setup-node`'s pnpm cache. PR Turbo cache is isolated
+by PR number and exact content hash, and it does not use prefix restoration.
+Turbo remote cache is disabled for PR contexts even when cache secrets exist.
+
 ## What is NOT a vector
 
-- **pnpm node_modules cache**: `actions/setup-node` with `cache: "pnpm"` uses the lockfile hash as an exact key. PRs that don't change `pnpm-lock.yaml` get the same key as main (safe — same content). PRs that change it get a different hash = different entry, no cross-contamination.
-- **Rust cargo cache**: uses Swatinem/rust-cache with content-based keys. No open cross-PR prefix fallback.
-- **Playwright browser cache**: lockfile-hashed key. Same analysis as pnpm.
-- **Turbo remote cache** (when `TURBO_CACHE_API_URL` is set): the local cache step is skipped entirely. Remote cache security depends on the Turbo cache server's access controls (scoped by team/token).
+- **pnpm cache in PR/publish**: disabled. Trusted push validation may use it.
+- **Rust cargo cache in publish/deploy**: disabled by `cache-mode: "off"`.
+- **Playwright browser cache in publish/deploy**: disabled by `cache-mode: "off"`.
+- **Turbo remote cache in PR/publish/deploy**: disabled by setup policy.
 
 ## Supply chain hardening (complementary)
 
@@ -28,9 +50,10 @@ The workspace uses `pnpm` with `shamefully-hoist=false` and an `onlyBuiltDepende
 
 ## Maintenance
 
-If you add a new `actions/cache` step to the setup action or any workflow, consider whether PRs should be able to poison that cache for main. If yes, scope it with `turbo-pr-` / `turbo-push-` namespacing or set `save-always: false` on PR contexts.
+If you add a new `actions/cache` step to the setup action or any workflow, consider whether PRs should be able to poison that cache for main. If yes, scope it with disjoint PR/push namespacing and avoid `restore-keys` in PR contexts. For privileged workflows, prefer `cache-mode: "off"` over partial mitigations.
 
 When calling the setup action from a PR-triggered workflow, always pass:
+
 ```yaml
 is-pr: ${{ github.event_name == 'pull_request' }}
 pr-number: ${{ github.event.pull_request.number }}

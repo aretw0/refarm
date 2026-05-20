@@ -31,6 +31,8 @@ jobs:
 
       - name: Setup
         uses: ./.github/actions/setup
+        with:
+          cache-mode: "off"
 
       - name: Switch to Local Resolution (src)
         run: node scripts/reso.mjs src

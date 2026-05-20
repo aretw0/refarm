@@ -89,6 +89,8 @@ jobs:
       - name: Setup
         id: setup
         uses: ./.github/actions/setup
+        with:
+          cache-mode: "off"
 
       - name: Check outdated dependencies
         id: check
@@ -154,10 +156,10 @@ jobs:
           set -euo pipefail
           REPORT_FILE="${{ inputs.report-file }}"
           FINAL_REPORT="final-report.md"
-          
+
           cp "$REPORT_FILE" "$FINAL_REPORT"
           echo -e "\n---\n" >> "$FINAL_REPORT"
-          
+
           if [ "${{ steps.validation_gate.outcome }}" != "success" ]; then
             echo -e "> [!CAUTION]\n> Validação padrão falhou. Verifique os logs do CI antes de integrar estas atualizações.\n" >> "$FINAL_REPORT"
           else
@@ -167,7 +169,7 @@ jobs:
           if [ -f "packages/tractor/benchmarks/report.md" ]; then
             cat packages/tractor/benchmarks/report.md >> "$FINAL_REPORT"
           fi
-          
+
           echo "report_path=$FINAL_REPORT" >> "$GITHUB_OUTPUT"
 
       - name: Manage issue

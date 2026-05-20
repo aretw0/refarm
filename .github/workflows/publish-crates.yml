@@ -22,6 +22,7 @@ jobs:
         id: setup
         uses: ./.github/actions/setup
         with:
+          cache-mode: "off"
           rust-target: "" # Default host target is enough for publish
 
       - name: Extract crate info from tag
@@ -31,10 +32,10 @@ jobs:
           # Example: refarm-tractor@0.1.0 -> name=refarm-tractor, version=0.1.0
           NAME=$(echo "$TAG" | cut -d'@' -f1)
           VERSION=$(echo "$TAG" | cut -d'@' -f2)
-          
+
           echo "name=$NAME" >> $GITHUB_OUTPUT
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
+
           # Map crate name to directory
           if [ "$NAME" == "refarm-tractor" ]; then
             echo "path=packages/tractor" >> $GITHUB_OUTPUT
@@ -50,7 +51,7 @@ jobs:
           # Simple grep to find version in Cargo.toml
           CRATE_VERSION=$(grep -m 1 '^version =' "${{ steps.pkg.outputs.path }}/Cargo.toml" | cut -d'"' -f2)
           TAG_VERSION="${{ steps.pkg.outputs.version }}"
-          
+
           if [ "$CRATE_VERSION" != "$TAG_VERSION" ]; then
             echo "❌ Version mismatch!"
             echo "   Tag version: $TAG_VERSION"
