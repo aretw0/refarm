@@ -29,6 +29,22 @@ describe("modelCommand", () => {
 		logSpy.mockRestore();
 	});
 
+	it("prints built-in OpenAI defaults when no route is configured", async () => {
+		const deps = makeDeps();
+		const command = createModelCommand(deps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command.parseAsync(["current"], { from: "user" });
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("current: <not configured>");
+		expect(output).toContain("openai default: openai/gpt-5.5");
+		expect(output).toContain("openai worker:  openai/gpt-5.3-codex-spark");
+		expect(output).toContain("login:          refarm sow");
+
+		logSpy.mockRestore();
+	});
+
 	it("sets the default model route", async () => {
 		const deps = makeDeps();
 		const command = createModelCommand(deps);

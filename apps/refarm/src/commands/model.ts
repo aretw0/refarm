@@ -55,7 +55,10 @@ export function printCurrentModel(tokens: ModelTokens): void {
 		console.log(chalk.dim("  source:   ~/.refarm/identity.json"));
 	} else {
 		console.log(chalk.dim("  source:   built-in defaults"));
-		console.log(chalk.dim("  set one:  refarm model set openai/gpt-5.5"));
+		console.log(chalk.dim("  openai default: openai/gpt-5.5"));
+		console.log(chalk.dim("  openai worker:  openai/gpt-5.3-codex-spark"));
+		console.log(chalk.dim("  set one:        refarm model set openai/gpt-5.5"));
+		console.log(chalk.dim("  login:          refarm sow"));
 	}
 }
 
