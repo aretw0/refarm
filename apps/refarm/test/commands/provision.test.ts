@@ -181,6 +181,33 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("shows executable Cloudflare next steps when no service is selected", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync(["cloudflare"], {
+			from: "user",
+		});
+
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(mockTurboCacheProvisioner).not.toHaveBeenCalled();
+		expect(mockProvision).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Next steps"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm provision cloudflare turbo-cache --dry-run"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm provision cloudflare turbo-cache --github-secrets"),
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("provisions Cloudflare turbo-cache with stored Cloudflare token", async () => {
 		const provider = { accountId: "account-1" };
 		mockLoadTokens.mockResolvedValue({ cloudflareToken: "cf-token" });

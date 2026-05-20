@@ -28,14 +28,22 @@ function renderProvisionCatalog(): void {
 		`  - cloudflare turbo-cache ${chalk.gray(turboCacheManifest.description)}`,
 	);
 	console.log("");
-	console.log(
-		chalk.gray("Try: refarm provision cloudflare turbo-cache --dry-run"),
-	);
+	renderProvisionNextSteps();
 }
 
 function renderCloudflareCatalog(): void {
 	console.log(chalk.bold("Cloudflare services:"));
 	console.log(`  - turbo-cache ${chalk.gray("Worker + R2 materialization")}`);
+}
+
+function renderProvisionNextSteps(): void {
+	console.log(chalk.bold("Next steps:"));
+	console.log(
+		`  ${chalk.cyan("refarm provision cloudflare turbo-cache --dry-run")}`,
+	);
+	console.log(
+		`  ${chalk.cyan("refarm provision cloudflare turbo-cache --github-secrets")}`,
+	);
 }
 
 function renderCloudflarePlan(input: TurboCacheCommandOptions): void {
@@ -77,7 +85,17 @@ function setGitHubActionsSecret(name: string, value: string): void {
 }
 
 const cloudflareCommand = new Command("cloudflare")
-	.description("Provision Cloudflare services for Refarm")
+	.description("Show Cloudflare provisionable services")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm provision cloudflare --dry-run",
+			"  $ refarm provision cloudflare turbo-cache --dry-run",
+			"  $ refarm provision cloudflare turbo-cache --github-secrets",
+		].join("\n"),
+	)
 	.option(
 		"--dry-run",
 		"Show provider-level provisioning plan without creating resources",
@@ -85,6 +103,8 @@ const cloudflareCommand = new Command("cloudflare")
 	.action((opts: CloudflareCommandOptions) => {
 		console.log(chalk.cyan("\nCloudflare provisioner\n"));
 		renderCloudflareCatalog();
+		console.log("");
+		renderProvisionNextSteps();
 
 		if (opts.dryRun) {
 			console.log("");
@@ -95,6 +115,16 @@ const cloudflareCommand = new Command("cloudflare")
 	.addCommand(
 		new Command("turbo-cache")
 			.description(turboCacheManifest.description)
+			.addHelpText(
+				"after",
+				[
+					"",
+					"Examples:",
+					"  $ refarm provision cloudflare turbo-cache --dry-run",
+					"  $ refarm provision cloudflare turbo-cache --github-secrets",
+					"  $ refarm provision cloudflare turbo-cache --bucket refarm-turbo-cache --team refarm",
+				].join("\n"),
+			)
 			.option(
 				"--dry-run",
 				"Show what would be provisioned without creating resources",
