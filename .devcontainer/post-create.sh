@@ -24,6 +24,35 @@ retry() {
   done
 }
 
+repair_owned_dir() {
+  local dir="$1"
+  mkdir -p "$dir" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo mkdir -p "$dir"
+    else
+      return 0
+    fi
+  }
+  if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+  fi
+}
+
+ensure_pnpm() {
+  local pnpm_home="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+  repair_owned_dir "$pnpm_home"
+
+  corepack prepare --activate || warn "corepack prepare failed"
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    cat > "$pnpm_home/pnpm" <<'SH'
+#!/usr/bin/env bash
+exec corepack pnpm "$@"
+SH
+    chmod +x "$pnpm_home/pnpm"
+  fi
+}
+
 log "Starting post-create setup..."
 
 # 0) Git symlink support — must run before any checkout/npm ci
@@ -42,8 +71,12 @@ git config i18n.logOutputEncoding UTF-8
 # 1) Cache and tool directories
 log "Preparing cache directories and permissions..."
 for dir in \
+  /home/vscode/.local \
+  /home/vscode/.local/state \
+  /home/vscode/.local/share \
   /home/vscode/.local/share/pnpm \
   /home/vscode/.local/share/pnpm/store \
+  /home/vscode/.config \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
   /home/vscode/.refarm \
@@ -56,8 +89,7 @@ for dir in \
   /home/vscode/.cache/puppeteer \
   /home/vscode/.cargo-target
   do
-  mkdir -p "$dir"
-  sudo chown -R vscode:vscode "$dir"
+  repair_owned_dir "$dir"
 done
 
 # Cargo/Rustup volumes may mount with non-vscode ownership; ensure toolchain is writable
@@ -87,14 +119,13 @@ if gh auth status -h github.com >/dev/null 2>&1; then
 fi
 
 # 2) Node dependencies
-corepack enable || warn "corepack enable failed — pnpm may not be available"
-corepack prepare --activate || warn "corepack prepare failed"
+ensure_pnpm
 if [ -f pnpm-lock.yaml ]; then
   log "Running pnpm install --frozen-lockfile..."
-  pnpm install --frozen-lockfile
+  pnpm install --frozen-lockfile --config.confirm-modules-purge=false
 else
   log "No pnpm-lock.yaml found, running pnpm install..."
-  pnpm install
+  pnpm install --config.confirm-modules-purge=false
 fi
 
 # 3) Rust baseline parity for local/CI checks

@@ -3,6 +3,41 @@ set -euo pipefail
 
 echo "[refarm-devcontainer] Post-start sanity check..."
 
+repair_owned_dir() {
+  local dir="$1"
+  mkdir -p "$dir" 2>/dev/null || {
+    if command -v sudo >/dev/null 2>&1; then
+      sudo mkdir -p "$dir"
+    else
+      return 0
+    fi
+  }
+  if [ ! -w "$dir" ] && command -v sudo >/dev/null 2>&1; then
+    sudo chown -R "$(id -u):$(id -g)" "$dir" || true
+  fi
+}
+
+ensure_pnpm() {
+  local pnpm_home="${PNPM_HOME:-/home/vscode/.local/share/pnpm}"
+  repair_owned_dir /home/vscode/.local
+  repair_owned_dir /home/vscode/.local/state
+  repair_owned_dir /home/vscode/.local/share
+  repair_owned_dir "$pnpm_home"
+  repair_owned_dir "$pnpm_home/store"
+  repair_owned_dir /home/vscode/.config
+  repair_owned_dir /home/vscode/.cache
+
+  corepack prepare --activate || true
+
+  if ! command -v pnpm >/dev/null 2>&1; then
+    cat > "$pnpm_home/pnpm" <<'SH'
+#!/usr/bin/env bash
+exec corepack pnpm "$@"
+SH
+    chmod +x "$pnpm_home/pnpm"
+  fi
+}
+
 ensure_hooks() {
   if [ -d .git ] && [ ! -x .git/hooks/pre-push ]; then
     echo "[refarm-devcontainer] Installing git hooks..."
@@ -112,6 +147,7 @@ check_coding_agent_tools() {
   fi
 }
 
+ensure_pnpm
 ensure_hooks
 ensure_refarm_cli
 ensure_git_transport
