@@ -7,6 +7,7 @@ import {
 	isSessionReady,
 	isFirstRun,
 	refarmSearchDirs,
+	checkSessionReadiness,
 	autoStartFarmhand,
 	readAutostartMode,
 	type LaunchDeps,
@@ -86,6 +87,23 @@ describe("isFirstRun", () => {
 			rmSync(tmpBase, { recursive: true, force: true });
 		}
 	});
+
+	it("returns false when a Silo identity exists", () => {
+		const tmpBase = join(tmpdir(), `refarm-test-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+
+		try {
+			expect(isFirstRun()).toBe(false);
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
+	});
 });
 
 describe("refarmSearchDirs", () => {
@@ -93,6 +111,42 @@ describe("refarmSearchDirs", () => {
 		const dirs = refarmSearchDirs();
 		expect(dirs.some((d) => d.includes(".refarm"))).toBe(true);
 		expect(dirs.length).toBeGreaterThanOrEqual(2);
+	});
+});
+
+describe("checkSessionReadiness", () => {
+	const originalHome = process.env.HOME;
+	let cwdSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
+	});
+
+	afterEach(() => {
+		process.env.HOME = originalHome;
+		cwdSpy.mockRestore();
+		vi.unstubAllGlobals();
+	});
+
+	it("recognizes a Silo identity as a configured provider", async () => {
+		const tmpBase = join(tmpdir(), `refarm-readiness-${Date.now()}`);
+		const refarmDir = join(tmpBase, ".refarm");
+		mkdirSync(refarmDir, { recursive: true });
+		writeFileSync(
+			join(refarmDir, "identity.json"),
+			JSON.stringify({ tokens: { modelProvider: "openai" } }),
+		);
+		cwdSpy.mockReturnValue(tmpBase);
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+
+		try {
+			await expect(checkSessionReadiness()).resolves.toEqual({
+				providerConfigured: true,
+				farmhandRunning: false,
+			});
+		} finally {
+			rmSync(tmpBase, { recursive: true, force: true });
+		}
 	});
 });
 

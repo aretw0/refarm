@@ -44,6 +44,7 @@ export function isFirstRun(): boolean {
 	for (const base of refarmSearchDirs()) {
 		if (fs.existsSync(path.join(base, ".env"))) return false;
 		if (fs.existsSync(path.join(base, "config.json"))) return false;
+		if (fs.existsSync(path.join(base, "identity.json"))) return false;
 	}
 	return true;
 }
@@ -67,6 +68,7 @@ function detectProvider(): boolean {
 
 	for (const base of refarmSearchDirs()) {
 		if (fs.existsSync(path.join(base, ".env"))) return true;
+		if (hasIdentityProvider(path.join(base, "identity.json"))) return true;
 
 		const configFile = path.join(base, "config.json");
 		if (fs.existsSync(configFile)) {
@@ -83,6 +85,22 @@ function detectProvider(): boolean {
 	}
 
 	return false;
+}
+
+function hasIdentityProvider(filePath: string): boolean {
+	if (!fs.existsSync(filePath)) return false;
+	try {
+		const identity = JSON.parse(fs.readFileSync(filePath, "utf-8")) as {
+			modelProvider?: unknown;
+			tokens?: { modelProvider?: unknown };
+		};
+		return (
+			typeof identity.modelProvider === "string" ||
+			typeof identity.tokens?.modelProvider === "string"
+		);
+	} catch {
+		return false;
+	}
 }
 
 /** Read autostart preference from the nearest .refarm/config.json. */
@@ -124,11 +142,16 @@ export function defaultLaunchDeps(): LaunchDeps {
 		operator: createStdioOperatorChannel(),
 
 		spawnFarmhand(repoRoot) {
-			const child = spawn(
-				"bash",
-				[path.join(repoRoot, "scripts", "farmhand-start.sh"), "--background"],
-				{ detached: true, stdio: "ignore" },
-			);
+			const scriptPath = path.join(repoRoot, "scripts", "farmhand-start.sh");
+			const child = fs.existsSync(scriptPath)
+				? spawn("bash", [scriptPath, "--background"], {
+						detached: true,
+						stdio: "ignore",
+					})
+				: spawn("farmhand", ["--background"], {
+						detached: true,
+						stdio: "ignore",
+					});
 			child.unref();
 		},
 
@@ -169,7 +192,13 @@ export async function autoStartFarmhand(
 
 	if (mode === "never") {
 		process.stderr.write(chalk.red("✗  Farmhand is not running.\n"));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		console.error(chalk.dim("   Start now:        refarm"));
+		console.error(
+			chalk.dim(
+				"   Local dev start:  bash scripts/farmhand-start.sh --background",
+			),
+		);
+		console.error(chalk.dim("   Diagnose:         refarm doctor"));
 		return false;
 	}
 
@@ -178,13 +207,22 @@ export async function autoStartFarmhand(
 	if (mode === "ask") {
 		const confirmed = await deps.operator.ask({ type: "confirm", question: "   Start it now?", default: true });
 		if (!confirmed) {
-			console.error(chalk.dim("\n   Run `refarm doctor` for diagnostics."));
+			console.error(chalk.dim("\n   Start later:  refarm"));
+			console.error(chalk.dim("   Diagnose:     refarm doctor"));
 			return false;
 		}
 	}
 
 	process.stdout.write(chalk.dim("   → Starting farmhand..."));
-	deps.spawnFarmhand(repoRoot);
+	try {
+		deps.spawnFarmhand(repoRoot);
+	} catch (error) {
+		process.stdout.write("  " + chalk.red("✗ Failed") + "\n");
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(chalk.dim(`   ${message}`));
+		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		return false;
+	}
 
 	const start = Date.now();
 	const ready = await deps.probeFarmhandUntilReady();
@@ -197,6 +235,11 @@ export async function autoStartFarmhand(
 
 	process.stdout.write("  " + chalk.red("✗ Timed out") + "\n");
 	console.error(chalk.dim("   Run `refarm doctor` for diagnostics."));
+	console.error(
+		chalk.dim(
+			"   Local dev fallback:  bash scripts/farmhand-start.sh --background",
+		),
+	);
 	return false;
 }
 

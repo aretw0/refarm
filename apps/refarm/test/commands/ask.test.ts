@@ -3,6 +3,7 @@ import type { StreamChunk } from "@refarm.dev/stream-contract-v1";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AskDeps } from "../../src/commands/ask.js";
 import { createAskCommand } from "../../src/commands/ask.js";
+import type { LaunchDeps } from "../../src/commands/session-launch.js";
 
 function makeChunk(
 	content: string,
@@ -43,13 +44,21 @@ function makeDeps(overrides: Partial<AskDeps> = {}): AskDeps {
 }
 
 describe("refarm ask", () => {
+	const originalProvider = process.env.MODEL_PROVIDER;
+
 	beforeEach(() => {
 		vi.clearAllMocks();
 		process.exitCode = undefined;
 	});
 
 	afterEach(() => {
+		if (originalProvider === undefined) {
+			delete process.env.MODEL_PROVIDER;
+		} else {
+			process.env.MODEL_PROVIDER = originalProvider;
+		}
 		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
 	});
 
 	it("submits effort with pi-agent respond payload", async () => {
@@ -164,6 +173,31 @@ describe("refarm ask", () => {
 		});
 
 		expect(deps.submitEffort).toHaveBeenCalledOnce();
+		logSpy.mockRestore();
+		outSpy.mockRestore();
+	});
+
+	it("starts Farmhand before submitting when launch deps are provided and the sidecar is down", async () => {
+		process.env.MODEL_PROVIDER = "openai";
+		vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("down")));
+		const deps = makeDeps();
+		const launchDeps: LaunchDeps = {
+			autostartMode: "always",
+			operator: { ask: vi.fn() },
+			spawnFarmhand: vi.fn(),
+			probeFarmhandUntilReady: vi.fn().mockResolvedValue(true),
+		};
+		const command = createAskCommand(deps, launchDeps);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const outSpy = vi
+			.spyOn(process.stdout, "write")
+			.mockImplementation(() => true);
+
+		await command.parseAsync(["hello"], { from: "user" });
+
+		expect(launchDeps.spawnFarmhand).toHaveBeenCalledOnce();
+		expect(deps.submitEffort).toHaveBeenCalledOnce();
+
 		logSpy.mockRestore();
 		outSpy.mockRestore();
 	});

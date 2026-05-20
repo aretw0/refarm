@@ -21,6 +21,13 @@ import {
 	readActiveSessionId,
 	writeActiveSessionIdAndVerify,
 } from "./session-lock.js";
+import {
+	autoStartFarmhand,
+	checkSessionReadiness,
+	defaultLaunchDeps,
+	findRepoRoot,
+	type LaunchDeps,
+} from "./session-launch.js";
 import { sidecarUrl } from "./sidecar-url.js";
 
 export interface AskDeps {
@@ -298,43 +305,6 @@ function newSessionId(): string {
 	return `urn:refarm:session:v1:${crypto.randomUUID().replace(/-/g, "")}`;
 }
 
-function detectConfiguredProvider(): string | null {
-	if (process.env.MODEL_PROVIDER) return process.env.MODEL_PROVIDER;
-
-	const envFile = path.join(os.homedir(), ".refarm", ".env");
-	if (fs.existsSync(envFile)) {
-		const content = fs.readFileSync(envFile, "utf-8");
-		const match = content.match(/^\s*MODEL_PROVIDER\s*=\s*(\S+)/m);
-		if (match) return match[1]!;
-	}
-
-	const siloFile = path.join(os.homedir(), ".refarm", "identity.json");
-	if (fs.existsSync(siloFile)) {
-		try {
-			const silo = JSON.parse(fs.readFileSync(siloFile, "utf-8")) as {
-				tokens?: { modelProvider?: string };
-			};
-			if (silo.tokens?.modelProvider) return silo.tokens.modelProvider;
-		} catch {
-			// ignore malformed silo
-		}
-	}
-
-	const configFile = path.join(os.homedir(), ".refarm", "config.json");
-	if (fs.existsSync(configFile)) {
-		try {
-			const config = JSON.parse(fs.readFileSync(configFile, "utf-8")) as {
-				provider?: string;
-			};
-			if (config.provider) return config.provider;
-		} catch {
-			// ignore malformed config
-		}
-	}
-
-	return null;
-}
-
 async function resolveSessionIdPrefixFromSidecar(
 	prefix: string,
 ): Promise<string> {
@@ -393,7 +363,13 @@ function printAskError(message: string): void {
 
 	if (isFarmhandDown) {
 		console.error(chalk.red("\n✗  Farmhand is not running."));
-		console.error(chalk.dim("   Diagnose:  refarm doctor"));
+		console.error(chalk.dim("   Start now:  refarm"));
+		console.error(chalk.dim("   Diagnose:   refarm doctor"));
+		console.error(
+			chalk.dim(
+				"   Autostart:  REFARM_FARMHAND_AUTOSTART=always refarm ask \"hello\"",
+			),
+		);
 	} else if (isProviderError) {
 		const providerMatch = message.match(/for provider "([^"]+)"/);
 		const provider = providerMatch?.[1] ?? "the configured provider";
@@ -410,7 +386,32 @@ function printAskError(message: string): void {
 	}
 }
 
-export function createAskCommand(deps?: AskDeps): Command {
+async function ensureAskRuntimeReady(launch: LaunchDeps): Promise<boolean> {
+	let readiness = await checkSessionReadiness();
+
+	const canPrompt = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+	if (!readiness.providerConfigured && canPrompt && launch.recoverProvider) {
+		const recovered = await launch.recoverProvider();
+		if (recovered) readiness = { ...readiness, providerConfigured: true };
+	}
+
+	if (!readiness.providerConfigured) {
+		console.error(chalk.red("\n✗  No model provider configured."));
+		console.error(chalk.dim("   Set up a provider:  refarm sow"));
+		console.error(
+			chalk.dim("   Or use Ollama:      ollama serve  (then refarm sow)"),
+		);
+		return false;
+	}
+
+	if (!readiness.farmhandRunning) {
+		return autoStartFarmhand(findRepoRoot(), launch);
+	}
+
+	return true;
+}
+
+export function createAskCommand(deps?: AskDeps, launchDeps?: LaunchDeps): Command {
 	const resolved = deps ?? defaultDeps();
 	const readActiveSession = resolved.readActiveSessionId ?? readActiveSessionId;
 	const clearActiveSession =
@@ -424,20 +425,37 @@ export function createAskCommand(deps?: AskDeps): Command {
 		.option("--files <files>", "Comma-separated file paths to include")
 		.option("--new", "Start a fresh session, discarding conversation history")
 		.option("--session <id>", "Use a specific session ID or unique prefix")
+		.addHelpText(
+			"after",
+			`
+
+Examples:
+  $ refarm ask "hello"
+  $ refarm ask "explain this package" --files README.md,package.json
+  $ refarm ask "start fresh" --new
+
+Runtime:
+  refarm ask uses Farmhand. If credentials are configured and Farmhand is stopped,
+  refarm can start it before submitting the question.
+
+  Configure credentials:  refarm sow
+  Diagnose runtime:       refarm doctor
+  Always autostart:       REFARM_FARMHAND_AUTOSTART=always refarm ask "hello"
+  Disable autostart:      REFARM_FARMHAND_AUTOSTART=never refarm ask "hello"
+`,
+		)
 		.action(
 			async (
 				query: string,
 				opts: { files?: string; new?: boolean; session?: string },
 			) => {
-				if (!deps && detectConfiguredProvider() === null) {
-					console.error(chalk.red("\n✗  No model provider configured."));
-					console.error(chalk.dim("   Set up a provider:  refarm sow"));
-					console.error(
-						chalk.dim(
-							"   Or use Ollama:      ollama serve  (then refarm sow)",
-						),
+				if (!deps || launchDeps) {
+					const ready = await ensureAskRuntimeReady(
+						launchDeps ?? defaultLaunchDeps(),
 					);
-					process.exit(1);
+					if (!ready) {
+						process.exit(1);
+					}
 				}
 
 				if (opts.new && opts.session) {
