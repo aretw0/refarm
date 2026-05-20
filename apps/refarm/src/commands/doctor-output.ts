@@ -41,7 +41,13 @@ export function printRefarmDoctorReport(
 	log(
 		`Renderer: ${report.status.renderer.id} (${report.status.renderer.kind})`,
 	);
-	log(`Runtime: ${report.status.runtime.ready ? "ready" : "not ready"}`);
+	const runtimeEngine = report.status.runtime.engine;
+	const runtimeEngineSuffix = runtimeEngine
+		? ` (engine=${runtimeEngine.activeEngine ?? "unknown"}, configured=${runtimeEngine.configuredEngine ?? "unknown"})`
+		: "";
+	log(
+		`Runtime: ${report.status.runtime.ready ? "ready" : "not ready"}${runtimeEngineSuffix}`,
+	);
 
 	if (report.failures.length > 0) {
 		log("Failures:");

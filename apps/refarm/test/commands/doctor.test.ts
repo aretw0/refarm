@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { RefarmStatusJson } from "@refarm.dev/cli/status";
 
 const { mockResolveStatusPayload, mockShutdown } = vi.hoisted(() => ({
 	mockResolveStatusPayload: vi.fn(),
@@ -15,7 +16,7 @@ import {
 	doctorCommand,
 } from "../../src/commands/doctor.js";
 
-function makeStatus(diagnostics: string[]) {
+function makeStatus(diagnostics: string[]): RefarmStatusJson {
 	return {
 		schemaVersion: 1 as const,
 		host: {
@@ -33,6 +34,10 @@ function makeStatus(diagnostics: string[]) {
 			ready: !diagnostics.includes("runtime:not-ready"),
 			namespace: "refarm-main",
 			databaseName: "refarm-main",
+			engine: {
+				configuredEngine: "auto",
+				activeEngine: "rust",
+			},
 		},
 		plugins: {
 			installed: 0,
@@ -149,6 +154,9 @@ describe("doctorCommand", () => {
 		expect(process.exitCode).toBeUndefined();
 		expect(logSpy).toHaveBeenCalledWith("Doctor: PASS");
 		expect(logSpy).toHaveBeenCalledWith(expect.stringContaining("Host:"));
+		expect(logSpy).toHaveBeenCalledWith(
+			"Runtime: ready (engine=rust, configured=auto)",
+		);
 		expect(mockShutdown).toHaveBeenCalled();
 		logSpy.mockRestore();
 	});
