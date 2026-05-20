@@ -2,8 +2,8 @@
 /**
  * check-vitest-config-deps.mjs
  *
- * Finds phantom dependencies in vitest.config.{js,ts} files across the monorepo.
- * A phantom dep is a workspace package imported in vitest config that is
+ * Finds phantom dependencies in tool config files across the monorepo.
+ * A phantom dep is a workspace package imported in a config file that is
  * not declared in the package's devDependencies or dependencies.
  *
  * These work locally due to pnpm hoisting but fail in CI because vitest
@@ -72,14 +72,43 @@ function checkDir(dir) {
   return errors;
 }
 
-const allErrors = [...checkDir(PACKAGES_DIR), ...checkDir(APPS_DIR)];
+function checkRootConfig(configFile) {
+  const errors = [];
+  const configPath = join(ROOT, configFile);
+  const pkgJsonPath = join(ROOT, "package.json");
+  if (!existsSync(configPath) || !existsSync(pkgJsonPath)) return errors;
+
+  const source = readFileSync(configPath, "utf8");
+  const pkg = readJson(pkgJsonPath);
+  if (!pkg) return errors;
+
+  const allDeclared = new Set([
+    ...Object.keys(pkg.dependencies ?? {}),
+    ...Object.keys(pkg.devDependencies ?? {}),
+    ...Object.keys(pkg.peerDependencies ?? {}),
+  ]);
+
+  for (const imp of extractWorkspaceImports(source)) {
+    if (!allDeclared.has(imp)) {
+      errors.push({ workspace: ".", missing: imp });
+    }
+  }
+
+  return errors;
+}
+
+const allErrors = [
+  ...checkDir(PACKAGES_DIR),
+  ...checkDir(APPS_DIR),
+  ...checkRootConfig("eslint.config.mjs"),
+];
 
 if (allErrors.length === 0) {
-  console.log(`${colors.green}✓ vitest config phantom deps: none found${colors.reset}`);
+  console.log(`${colors.green}✓ tool config phantom deps: none found${colors.reset}`);
   process.exit(0);
 }
 
-console.error(`${colors.red}✗ vitest config phantom dependencies detected${colors.reset}`);
+console.error(`${colors.red}✗ tool config phantom dependencies detected${colors.reset}`);
 console.error(`${colors.dim}  These work locally (pnpm hoisting) but fail in CI (.vite-temp context).${colors.reset}\n`);
 for (const { workspace, missing } of allErrors) {
   console.error(`  ${colors.yellow}${workspace}${colors.reset}  missing devDependency: ${colors.red}${missing}${colors.reset}`);

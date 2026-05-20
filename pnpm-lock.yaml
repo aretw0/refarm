@@ -44,6 +44,9 @@ importers:
       '@refarm.dev/config':
         specifier: workspace:*
         version: link:packages/config
+      '@refarm.dev/eslint-config':
+        specifier: workspace:*
+        version: link:packages/eslint-config
       '@refarm.dev/fence':
         specifier: workspace:*
         version: link:packages/fence
