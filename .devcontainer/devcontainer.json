@@ -55,6 +55,7 @@
     "source=refarm-turbo-cache,target=/home/vscode/.turbo,type=volume",
     "source=refarm-playwright-cache,target=/home/vscode/.cache/ms-playwright,type=volume",
     "source=refarm-cargo-target,target=/home/vscode/.cargo-target,type=volume",
+    "source=refarm-home,target=/home/vscode/.refarm,type=volume",
     "source=refarm-pi-home,target=/home/vscode/.pi,type=volume",
     "source=refarm-claude-home,target=/home/vscode/.claude,type=volume",
     "source=refarm-codex-home,target=/home/vscode/.codex,type=volume"

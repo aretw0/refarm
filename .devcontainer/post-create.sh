@@ -46,6 +46,7 @@ for dir in \
   /home/vscode/.local/share/pnpm/store \
   /home/vscode/.npm-global \
   /home/vscode/.npm-global/bin \
+  /home/vscode/.refarm \
   /home/vscode/.pi \
   /home/vscode/.claude \
   /home/vscode/.codex \

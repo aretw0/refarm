@@ -119,6 +119,21 @@ gh auth setup-git
 `GH_TOKEN` and no stored `gh` login are available. This is expected on a fresh
 container or after rebuilding without a persisted GitHub CLI config volume.
 
+### Refarm Silo Persistence
+
+`refarm sow` writes operator credentials to `~/.refarm/identity.json` through
+`@refarm.dev/silo`. The devcontainer mounts `/home/vscode/.refarm` as the
+Docker volume `refarm-home`, so these credentials survive normal container
+rebuilds. Removing Docker volumes or rebuilding with a different volume name
+intentionally resets the Silo.
+
+Use this after a fresh setup or intentional reset:
+
+```bash
+node apps/refarm/dist/index.js sow --cloudflare
+node apps/refarm/dist/index.js provision cloudflare turbo-cache
+```
+
 ### Devcontainer Image Baseline (Tracked)
 
 Refarm now uses a repo-local build file: `.devcontainer/Dockerfile`.
