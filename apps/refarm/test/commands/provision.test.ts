@@ -153,6 +153,28 @@ describe("provision command", () => {
 		errorSpy.mockRestore();
 	});
 
+	it("prints provision guidance when no subcommand is selected", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await provisionCommand.parseAsync([], { from: "user" });
+
+		expect(mockSiloCore).not.toHaveBeenCalled();
+		expect(mockCreateCloudflareProvider).not.toHaveBeenCalled();
+		expect(mockTurboCacheProvisioner).not.toHaveBeenCalled();
+		expect(mockProvision).not.toHaveBeenCalled();
+		expect(errorSpy).not.toHaveBeenCalled();
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("Provisionable services"),
+		);
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("refarm provision cloudflare turbo-cache --dry-run"),
+		);
+
+		logSpy.mockRestore();
+		errorSpy.mockRestore();
+	});
+
 	it("renders a provider-level Cloudflare dry-run without loading tokens", async () => {
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -206,6 +228,19 @@ describe("provision command", () => {
 
 		logSpy.mockRestore();
 		errorSpy.mockRestore();
+	});
+
+	it("documents service subcommands in provision help", () => {
+		let help = "";
+		provisionCommand.configureOutput({
+			writeOut: (value) => {
+				help += value;
+			},
+		});
+		provisionCommand.outputHelp();
+
+		expect(help).toContain("refarm provision cloudflare turbo-cache --dry-run");
+		expect(help).toContain("Running a provider without a service prints guidance only");
 	});
 
 	it("provisions Cloudflare turbo-cache with stored Cloudflare token", async () => {

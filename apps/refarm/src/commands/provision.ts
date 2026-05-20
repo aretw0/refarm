@@ -94,7 +94,7 @@ function setGitHubActionsSecret(name: string, value: string): void {
 }
 
 const cloudflareCommand = new Command("cloudflare")
-	.description("Show Cloudflare provisionable services")
+	.description("List Cloudflare services; provision with a service subcommand")
 	.addHelpText(
 		"after",
 		[
@@ -104,6 +104,10 @@ const cloudflareCommand = new Command("cloudflare")
 			"  $ refarm provision cloudflare --dry-run",
 			"  $ refarm provision cloudflare turbo-cache --dry-run",
 			"  $ refarm provision cloudflare turbo-cache --github-secrets",
+			"",
+			"Notes:",
+			"  Provider-only mode lists services and next steps.",
+			"  Run turbo-cache to create or update Worker/R2 resources.",
 		].join("\n"),
 	)
 	.option(
@@ -254,9 +258,26 @@ const cloudflareCommand = new Command("cloudflare")
 
 export const provisionCommand = new Command("provision")
 	.description("Provision cloud infrastructure")
+	.addHelpText(
+		"after",
+		[
+			"",
+			"Examples:",
+			"  $ refarm provision list",
+			"  $ refarm sow --cloudflare",
+			"  $ refarm provision cloudflare",
+			"  $ refarm provision cloudflare turbo-cache --dry-run",
+			"  $ refarm provision cloudflare turbo-cache --github-secrets",
+			"",
+			"Notes:",
+			"  Running a provider without a service prints guidance only.",
+			"  Cloudflare turbo-cache provisioning uses the token saved by refarm sow --cloudflare.",
+		].join("\n"),
+	)
 	.addCommand(
 		new Command("list")
 			.description("List provisionable providers and services")
 			.action(renderProvisionCatalog),
 	)
-	.addCommand(cloudflareCommand);
+	.addCommand(cloudflareCommand)
+	.action(renderProvisionCatalog);
