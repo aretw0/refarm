@@ -367,7 +367,7 @@ function printAskError(message: string): void {
 		console.error(chalk.dim("   Diagnose:   refarm doctor"));
 		console.error(
 			chalk.dim(
-				"   Always:     refarm config set farmhand.autostart always",
+				"   Always:     refarm config set runtime.autostart always",
 			),
 		);
 		console.error(chalk.dim("   Engine:     refarm config set tractor.engine auto"));
@@ -441,10 +441,10 @@ Runtime:
 
   Configure credentials:  refarm sow
   Diagnose runtime:       refarm doctor
-  Always autostart:       refarm config set farmhand.autostart always
-  Disable autostart:      refarm config set farmhand.autostart never
+  Always autostart:       refarm config set runtime.autostart always
+  Disable autostart:      refarm config set runtime.autostart never
   Select runtime engine:  refarm config set tractor.engine auto
-  One-shot override:      REFARM_FARMHAND_AUTOSTART=always refarm ask "hello"
+  One-shot override:      REFARM_RUNTIME_AUTOSTART=always refarm ask "hello"
 `,
 		)
 		.action(

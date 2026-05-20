@@ -12,12 +12,15 @@ describe("config command", () => {
 	let cwd: string;
 	let home: string;
 	let originalAutostart: string | undefined;
+	let originalRuntimeAutostart: string | undefined;
 
 	beforeEach(() => {
 		cwd = makeTempDir();
 		home = makeTempDir();
 		originalAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
+		originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
+		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		vi.clearAllMocks();
 	});
 
@@ -26,6 +29,11 @@ describe("config command", () => {
 			delete process.env.REFARM_FARMHAND_AUTOSTART;
 		} else {
 			process.env.REFARM_FARMHAND_AUTOSTART = originalAutostart;
+		}
+		if (originalRuntimeAutostart === undefined) {
+			delete process.env.REFARM_RUNTIME_AUTOSTART;
+		} else {
+			process.env.REFARM_RUNTIME_AUTOSTART = originalRuntimeAutostart;
 		}
 		vi.restoreAllMocks();
 	});
@@ -66,6 +74,22 @@ describe("config command", () => {
 		expect(fs.existsSync(path.join(home, ".refarm", "config.json"))).toBe(false);
 	});
 
+	it("sets runtime autostart mode", async () => {
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["set", "runtime.autostart", "always"], {
+			from: "user",
+		});
+
+		const saved = JSON.parse(
+			fs.readFileSync(path.join(home, ".refarm", "config.json"), "utf-8"),
+		) as { autostart?: string };
+		expect(saved.autostart).toBe("always");
+		expect(logSpy).toHaveBeenCalledWith(
+			expect.stringContaining("runtime.autostart=always"),
+		);
+	});
+
 	it("prints effective home autostart mode", async () => {
 		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
 		fs.writeFileSync(
@@ -81,6 +105,23 @@ describe("config command", () => {
 
 		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
 		expect(output).toContain("farmhand.autostart=never");
+	});
+
+	it("prints effective runtime autostart mode", async () => {
+		fs.mkdirSync(path.join(home, ".refarm"), { recursive: true });
+		fs.writeFileSync(
+			path.join(home, ".refarm", "config.json"),
+			JSON.stringify({ autostart: "never" }),
+			"utf-8",
+		);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+		await command().parseAsync(["get", "runtime.autostart"], {
+			from: "user",
+		});
+
+		const output = logSpy.mock.calls.map((call) => String(call[0])).join("\n");
+		expect(output).toContain("runtime.autostart=never");
 	});
 
 	it("prints a guide when run without a subcommand", async () => {
@@ -146,13 +187,13 @@ describe("config command", () => {
 			}) as never);
 
 		await expect(
-			command().parseAsync(["set", "farmhand.autostart", "sometimes"], {
+			command().parseAsync(["set", "runtime.autostart", "sometimes"], {
 				from: "user",
 			}),
 		).rejects.toThrow("exit:1");
 
 		expect(errorSpy).toHaveBeenCalledWith(
-			expect.stringContaining("Invalid farmhand.autostart"),
+			expect.stringContaining("Invalid runtime.autostart"),
 		);
 		expect(exitSpy).toHaveBeenCalledWith(1);
 	});

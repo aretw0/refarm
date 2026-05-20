@@ -111,10 +111,13 @@ function hasIdentityProvider(filePath: string): boolean {
 	}
 }
 
-/** Read autostart preference from the nearest .refarm/config.json. */
+/** Read runtime autostart preference from env or the nearest .refarm/config.json. */
 export function readAutostartMode(): AutostartMode {
-	const envMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
-	if (envMode) return envMode;
+	const runtimeEnvMode = parseAutostartMode(process.env.REFARM_RUNTIME_AUTOSTART);
+	if (runtimeEnvMode) return runtimeEnvMode;
+
+	const farmhandEnvMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
+	if (farmhandEnvMode) return farmhandEnvMode;
 
 	for (const base of refarmSearchDirs()) {
 		const configFile = path.join(base, "config.json");
@@ -263,8 +266,8 @@ export function defaultLaunchDeps(): LaunchDeps {
 }
 
 /**
- * Offer to auto-start farmhand when the provider is configured but farmhand
- * is not running (ADR-065, Phase 1). Returns true if farmhand is now ready.
+ * Offer to auto-start the configured Refarm runtime when the provider is
+ * configured but the sidecar is not running.
  */
 export async function autoStartFarmhand(
 	repoRoot: string,

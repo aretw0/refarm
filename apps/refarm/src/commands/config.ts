@@ -7,6 +7,7 @@ import type { AutostartMode } from "./session-launch.js";
 
 type ConfigKey =
 	| "farmhand.autostart"
+	| "runtime.autostart"
 	| "operator.openExternalLinks"
 	| "tractor.engine";
 type OpenExternalLinksMode = "auto" | "never";
@@ -29,6 +30,7 @@ interface ConfigDeps {
 
 const CONFIG_KEYS: readonly ConfigKey[] = [
 	"farmhand.autostart",
+	"runtime.autostart",
 	"operator.openExternalLinks",
 	"tractor.engine",
 ];
@@ -95,8 +97,11 @@ function resolveAutostartMode(
 	deps: ConfigDeps,
 	opts: { local?: boolean },
 ): { value: AutostartMode; source: string } {
-	const envMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
-	if (envMode) return { value: envMode, source: "env:REFARM_FARMHAND_AUTOSTART" };
+	const runtimeEnvMode = parseAutostartMode(process.env.REFARM_RUNTIME_AUTOSTART);
+	if (runtimeEnvMode) return { value: runtimeEnvMode, source: "env:REFARM_RUNTIME_AUTOSTART" };
+
+	const farmhandEnvMode = parseAutostartMode(process.env.REFARM_FARMHAND_AUTOSTART);
+	if (farmhandEnvMode) return { value: farmhandEnvMode, source: "env:REFARM_FARMHAND_AUTOSTART" };
 
 	const paths = opts.local
 		? [configPath(deps, { local: true })]
@@ -130,9 +135,9 @@ function assertConfigKey(value: string): asserts value is ConfigKey {
 	process.exit(1);
 }
 
-function assertAutostartMode(value: string): asserts value is AutostartMode {
+function assertAutostartMode(key: Extract<ConfigKey, "farmhand.autostart" | "runtime.autostart">, value: string): asserts value is AutostartMode {
 	if ((AUTOSTART_MODES as readonly string[]).includes(value)) return;
-	console.error(chalk.red(`✗  Invalid farmhand.autostart: ${value}`));
+	console.error(chalk.red(`✗  Invalid ${key}: ${value}`));
 	console.error(chalk.dim(`   Use: ${AUTOSTART_MODES.join(", ")}`));
 	process.exit(1);
 }
@@ -152,7 +157,7 @@ function assertTractorEngineMode(value: string): asserts value is TractorEngineM
 }
 
 function printConfigValue(key: ConfigKey, opts: { local?: boolean }, deps: ConfigDeps): void {
-	if (key === "farmhand.autostart") {
+	if (key === "farmhand.autostart" || key === "runtime.autostart") {
 		const effective = resolveAutostartMode(deps, opts);
 		console.log(`${key}=${effective.value}`);
 		console.log(chalk.dim(`source=${effective.source}`));
@@ -178,8 +183,8 @@ function setConfigValue(
 	opts: { local?: boolean },
 	deps: ConfigDeps,
 ): void {
-	if (key === "farmhand.autostart") {
-		assertAutostartMode(value);
+	if (key === "farmhand.autostart" || key === "runtime.autostart") {
+		assertAutostartMode(key, value);
 		const filePath = configPath(deps, opts);
 		const config = readConfig(filePath);
 		config.autostart = value;
@@ -224,13 +229,14 @@ export function createConfigCommand(deps: ConfigDeps = defaultDeps()): Command {
 
 Examples:
   $ refarm config
-  $ refarm config get farmhand.autostart
-  $ refarm config set farmhand.autostart always
+  $ refarm config get runtime.autostart
+  $ refarm config set runtime.autostart always
   $ refarm config set operator.openExternalLinks never
   $ refarm config set tractor.engine auto
-  $ refarm config set farmhand.autostart never --local
+  $ refarm config set runtime.autostart never --local
 
 Keys:
+  runtime.autostart  ask | always | never
   farmhand.autostart  ask | always | never
   operator.openExternalLinks  auto | never
   tractor.engine  auto | rust | ts
@@ -244,8 +250,8 @@ Notes:
 			console.log(chalk.bold("Refarm config"));
 			console.log(chalk.dim("  Use get/set today; interactive config is reserved for this command."));
 			console.log("");
-			console.log(chalk.dim("  refarm config get farmhand.autostart"));
-			console.log(chalk.dim("  refarm config set farmhand.autostart always"));
+			console.log(chalk.dim("  refarm config get runtime.autostart"));
+			console.log(chalk.dim("  refarm config set runtime.autostart always"));
 			console.log(chalk.dim("  refarm config set operator.openExternalLinks never"));
 			console.log(chalk.dim("  refarm config set tractor.engine auto"));
 		})

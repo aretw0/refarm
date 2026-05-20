@@ -68,6 +68,7 @@ describe("isFirstRun", () => {
 
 	afterEach(() => {
 		delete process.env.REFARM_FARMHAND_AUTOSTART;
+		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		process.env.HOME = originalHome;
 		cwdSpy.mockRestore();
 	});
@@ -235,14 +236,28 @@ describe("autoStartFarmhand — mode: never", () => {
 
 describe("readAutostartMode", () => {
 	const originalHome = process.env.HOME;
+	const originalFarmhandAutostart = process.env.REFARM_FARMHAND_AUTOSTART;
+	const originalRuntimeAutostart = process.env.REFARM_RUNTIME_AUTOSTART;
 	let cwdSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
+		delete process.env.REFARM_FARMHAND_AUTOSTART;
+		delete process.env.REFARM_RUNTIME_AUTOSTART;
 		cwdSpy = vi.spyOn(process, "cwd").mockReturnValue("/tmp/refarm-test-cwd-nonexistent");
 	});
 
 	afterEach(() => {
 		process.env.HOME = originalHome;
+		if (originalFarmhandAutostart === undefined) {
+			delete process.env.REFARM_FARMHAND_AUTOSTART;
+		} else {
+			process.env.REFARM_FARMHAND_AUTOSTART = originalFarmhandAutostart;
+		}
+		if (originalRuntimeAutostart === undefined) {
+			delete process.env.REFARM_RUNTIME_AUTOSTART;
+		} else {
+			process.env.REFARM_RUNTIME_AUTOSTART = originalRuntimeAutostart;
+		}
 		cwdSpy.mockRestore();
 	});
 
@@ -251,11 +266,26 @@ describe("readAutostartMode", () => {
 		expect(readAutostartMode()).toBe("ask");
 	});
 
-	it("returns the env override when REFARM_FARMHAND_AUTOSTART is set", () => {
+	it("returns the env override when REFARM_RUNTIME_AUTOSTART is set", () => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		process.env.REFARM_RUNTIME_AUTOSTART = "never";
+
+		expect(readAutostartMode()).toBe("never");
+	});
+
+	it("keeps REFARM_FARMHAND_AUTOSTART as a compatibility fallback", () => {
 		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
 		process.env.REFARM_FARMHAND_AUTOSTART = "never";
 
 		expect(readAutostartMode()).toBe("never");
+	});
+
+	it("prefers REFARM_RUNTIME_AUTOSTART over the legacy farmhand env override", () => {
+		process.env.HOME = "/tmp/refarm-test-home-nonexistent";
+		process.env.REFARM_RUNTIME_AUTOSTART = "always";
+		process.env.REFARM_FARMHAND_AUTOSTART = "never";
+
+		expect(readAutostartMode()).toBe("always");
 	});
 
 	it("lets the env override force ask even when config says always", () => {
@@ -264,7 +294,7 @@ describe("readAutostartMode", () => {
 		mkdirSync(refarmDir, { recursive: true });
 		writeFileSync(join(refarmDir, "config.json"), JSON.stringify({ autostart: "always" }));
 		cwdSpy.mockReturnValue(tmpBase);
-		process.env.REFARM_FARMHAND_AUTOSTART = "ask";
+		process.env.REFARM_RUNTIME_AUTOSTART = "ask";
 
 		try {
 			expect(readAutostartMode()).toBe("ask");
